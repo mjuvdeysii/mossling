@@ -115,7 +115,7 @@ class ScreensTest {
         shot("22_feature_graphic") {
             Row(Modifier.fillMaxSize().background(app.mossling.ui.theme.Palette.Chalk).padding(horizontal = 64.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    androidx.compose.material3.Text("Mossling", fontFamily = app.mossling.ui.theme.Numerals, style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep)
+                    androidx.compose.material3.Text("Mossling", fontFamily = app.mossling.ui.theme.Numerals, style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep, softWrap = false, maxLines = 1)
                     androidx.compose.material3.Text("苔生 · 头一千天，跟着孩子，慢慢来", style = MaterialTheme.typography.headlineSmall, color = app.mossling.ui.theme.Palette.Ink)
                     Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         repeat(17) { Box(Modifier.size(12.dp).background(if (it == 16) app.mossling.ui.theme.Palette.Bead else app.mossling.ui.theme.Palette.Moss, androidx.compose.foundation.shape.CircleShape)) }
@@ -123,8 +123,8 @@ class ScreensTest {
                     }
                 }
                 Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
-                    Creature(Kind.Moss, Modifier.size(230.dp), look = Offset(0.9f, -0.1f))
-                    Creature(Kind.Otto, Modifier.size(270.dp), look = Offset(-0.9f, 0f))
+                    Creature(Kind.Moss, Modifier.size(190.dp), look = Offset(0.9f, -0.1f))
+                    Creature(Kind.Otto, Modifier.size(230.dp), look = Offset(-0.9f, 0f))
                 }
             }
         }
