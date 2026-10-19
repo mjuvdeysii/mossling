@@ -11,7 +11,7 @@
 
 ## 构建
 
-本地：`./gradlew :app:assembleDebug`（需要 JDK 17、Android SDK 35）。
+本地：`gradle :app:assembleDebug`（Gradle 8.9、JDK 17、Android SDK 35）。
 
 CI（`.github/workflows/`）：
 - `build.yml`：单元测试、Paparazzi 截图（推送到 `screens` 分支）、签名的 release APK。推送 main 发布预发布版 `preview`；推送 `v*` 标签发布正式版本。
