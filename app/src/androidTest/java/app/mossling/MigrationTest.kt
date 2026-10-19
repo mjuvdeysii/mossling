@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 /** A version-1 database as the first releases wrote it must open in the current version with every record intact. */
 @RunWith(AndroidJUnit4::class)
 class MigrationTest {
-    @Test fun v1ToCurrentKeepsEverything() = runBlocking {
+    @Test fun v1ToCurrentKeepsEverything(): Unit = runBlocking {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "migration-test.db"
         ctx.deleteDatabase(name)
@@ -35,6 +35,6 @@ class MigrationTest {
         assertEquals("sleep", dao.timer("sleep")?.type)
         dao.putMeasure(Measure(at = 3000, weightG = 7200))
         assertEquals(7200, dao.allMeasures().single().weightG)
-        room.close(); ctx.deleteDatabase(name)
+        room.close(); ctx.deleteDatabase(name); Unit
     }
 }
