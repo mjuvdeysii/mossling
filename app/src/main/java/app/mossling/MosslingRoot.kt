@@ -14,6 +14,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
+import androidx.compose.material3.NavigationRailItemDefaults
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
@@ -135,15 +142,23 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         }
     }
 
-    LaunchedEffect(Unit) { open.collect { if (it == "journal") { go(JournalRoute); open.value = null } } }
+    LaunchedEffect(Unit) {
+        open.collect { o ->
+            when {
+                o == "journal" -> { go(JournalRoute); open.value = null }
+                o != null && o.startsWith("log:") -> { open.value = null; go(JournalRoute); log(o.removePrefix("log:")) }
+            }
+        }
+    }
 
+    val wide = LocalConfiguration.current.screenWidthDp >= 600
     val here = back?.destination?.route
     val isTop = here == null || Tabs.any { it.key == here }
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (isTop) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
+            if (isTop && !wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
                 Tabs.forEach { t ->
                     val on = here == t.key || (here == null && t.route == TodayRoute)
                     NavigationBarItem(
@@ -157,7 +172,19 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
             }
         },
     ) { pad ->
-        NavHost(nav, startDestination = TodayRoute, modifier = Modifier.padding(bottom = pad.calculateBottomPadding()),
+      Row(Modifier.fillMaxSize()) {
+        // tablets, foldables and landscape: the same four places as a rail on the side
+        if (wide && isTop) NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxHeight()) {
+            Spacer(Modifier.weight(1f))
+            Tabs.forEach { t ->
+                val on = here == t.key || (here == null && t.route == TodayRoute)
+                NavigationRailItem(selected = on, onClick = { if (t.route == GrowRoute && !on) browse = -1; go(t.route) },
+                    icon = { Glyph(t.glyph, filled = on) }, label = { Text(t.label) },
+                    colors = NavigationRailItemDefaults.colors(indicatorColor = MaterialTheme.colorScheme.primaryContainer))
+            }
+            Spacer(Modifier.weight(1f))
+        }
+        NavHost(nav, startDestination = TodayRoute, modifier = Modifier.weight(1f).padding(bottom = pad.calculateBottomPadding()),
             enterTransition = { fadeIn(tween(220)) + scaleIn(tween(260), initialScale = 0.98f) },
             exitTransition = { fadeOut(tween(160)) },
             popEnterTransition = { fadeIn(tween(220)) },
@@ -212,6 +239,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
             composable<TopicRoute> { entry -> c.topics.firstOrNull { it.id == entry.toRoute<TopicRoute>().id }?.let { TopicScreen(it) { nav.popBackStack() } } }
             composable<AboutRoute> { AboutScreen(c) { nav.popBackStack() } }
         }
+      }
     }
 
     AskSheet(ask.first, onDismiss = { ask = Ask.None to "" },

@@ -37,13 +37,13 @@ class Timers(private val context: Context, private val dao: RecordDao) {
     suspend fun start(type: String, side: String? = null, at: Long = System.currentTimeMillis()) = lock.withLock {
         if (dao.timer(type) != null) return@withLock
         val t = RunningTimer(type, at, side)
-        dao.putTimer(t); notify(t)
+        dao.putTimer(t); notify(t); app.mossling.widget.TodayWidget.refresh(context)
     }
 
     suspend fun togglePause(type: String, now: Long = System.currentTimeMillis()) = lock.withLock {
         val t = dao.timer(type) ?: return@withLock
         val n = if (t.pausedAt == null) t.copy(pausedAt = now) else t.copy(pausedAt = null, pausedTotal = t.pausedTotal + (now - t.pausedAt))
-        dao.putTimer(n); notify(n)
+        dao.putTimer(n); notify(n); app.mossling.widget.TodayWidget.refresh(context)
     }
 
     suspend fun switchSide(type: String) = lock.withLock {
@@ -59,7 +59,7 @@ class Timers(private val context: Context, private val dao: RecordDao) {
         val paused = t.pausedTotal + (t.pausedAt?.let { now - it } ?: 0L)
         val end = (t.pausedAt ?: now)
         val e = LogEntry(type = type, start = t.start, end = end, side = t.side, detail = if (paused > 0) "paused:$paused" else null)
-        e.copy(id = dao.putLog(e))
+        e.copy(id = dao.putLog(e)).also { app.mossling.widget.TodayWidget.refresh(context) }
     }
 
     suspend fun discard(type: String) = lock.withLock { dao.dropTimer(type); cancel(type) }

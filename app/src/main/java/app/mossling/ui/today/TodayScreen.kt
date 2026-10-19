@@ -147,14 +147,15 @@ private fun Hero(ui: AppUi, companion: Kind, a: TodayActions) {
                     Text("告诉我宝宝哪天出生，这里每天会讲今天该看什么。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 6.dp))
                     Button(onClick = a.setBirth, modifier = Modifier.padding(top = 16.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) { Text("填写出生日期") }
                 } else {
+                    // the age on a sandpaper board, the unit and the days beside it
                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
                         SandpaperNumber("${age.months}", MaterialTheme.typography.displayLarge)
-                    }
-                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 6.dp)) {
-                        Text("个月", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.alignByBaseline())
-                        if (age.days > 0) {
-                            Text("  ${age.days}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.alignByBaseline())
-                            Text(" 天", style = MaterialTheme.typography.titleLarge, modifier = Modifier.alignByBaseline())
+                        Column(Modifier.padding(start = 12.dp)) {
+                            Text("个月", style = MaterialTheme.typography.headlineSmall)
+                            if (age.days > 0) Row(verticalAlignment = Alignment.Bottom) {
+                                Text("${age.days}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.alignByBaseline())
+                                Text(" 天", style = MaterialTheme.typography.titleLarge, modifier = Modifier.alignByBaseline())
+                            }
                         }
                     }
                     Text(if (age.months < 36) "再过 ${age.toNext} 天满 ${age.months + 1} 个月 · 一起走过第 ${age.lived} 天" else "一起走过第 ${age.lived} 天",

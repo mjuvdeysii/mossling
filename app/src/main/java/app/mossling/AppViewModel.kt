@@ -71,7 +71,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (on ?: !now) dao.putTick(Tick(key, month, kind, label, System.currentTimeMillis())) else dao.dropTick(key)
     }
 
-    fun setBirth(d: LocalDate?) = viewModelScope.launch { g.settings.setBirth(d) }
+    fun setBirth(d: LocalDate?) = viewModelScope.launch { g.settings.setBirth(d); widget() }
     fun finishOnboarding() = viewModelScope.launch { g.settings.finishOnboarding() }
     fun setCompanion(k: Kind) = viewModelScope.launch { g.settings.setCompanion(k) }
     fun setTheme(t: ThemeMode) = viewModelScope.launch { g.settings.setTheme(t) }
@@ -85,8 +85,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun switchSide(type: String) = viewModelScope.launch { g.timers.switchSide(type) }
     fun discardTimer(type: String) = viewModelScope.launch { g.timers.discard(type) }
 
-    fun addLog(e: LogEntry, then: (LogEntry) -> Unit = {}) = viewModelScope.launch { val id = dao.putLog(e); then(e.copy(id = id)) }
-    fun updateLog(e: LogEntry) = viewModelScope.launch { dao.updateLog(e) }
-    fun deleteLog(e: LogEntry) = viewModelScope.launch { dao.dropLog(e.id) }
-    fun restoreLog(e: LogEntry) = viewModelScope.launch { dao.putLog(e.copy(id = 0)) }
+    private suspend fun widget() = app.mossling.widget.TodayWidget.refresh(getApplication<Application>())
+    fun addLog(e: LogEntry, then: (LogEntry) -> Unit = {}) = viewModelScope.launch { val id = dao.putLog(e); then(e.copy(id = id)); widget() }
+    fun updateLog(e: LogEntry) = viewModelScope.launch { dao.updateLog(e); widget() }
+    fun deleteLog(e: LogEntry) = viewModelScope.launch { dao.dropLog(e.id); widget() }
+    fun restoreLog(e: LogEntry) = viewModelScope.launch { dao.putLog(e.copy(id = 0)); widget() }
 }
