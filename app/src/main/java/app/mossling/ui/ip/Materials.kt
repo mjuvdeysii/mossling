@@ -72,6 +72,8 @@ fun MaterialStill(family: Family, modifier: Modifier = Modifier, ground: Color =
     }
 }
 
+private fun DrawScope.box(c: Color, r: Rect) = drawRect(c, r.topLeft, r.size)
+
 private fun DrawScope.shadow(cx: Float, w: Float, y: Float = 80f) = drawOval(Shade, Offset(cx - w / 2, y - 2.5f), Size(w, 5f))
 
 /** A low willow basket of three real objects — the first naming work. */
@@ -113,14 +115,14 @@ private fun DrawScope.pegAndRings() {
 /** The box with a hole: the ball goes in on top and rolls out on the tray — it was there all along. */
 private fun DrawScope.permanenceBox() {
     shadow(80f, 92f)
-    drawRect(WoodDeep, Rect(44f, 40f, 88f, 80f))
-    drawRect(Palette.Wood, Rect(44f, 36f, 88f, 42f))
+    box(WoodDeep, Rect(44f, 40f, 88f, 80f))
+    box(Palette.Wood, Rect(44f, 36f, 88f, 42f))
     drawOval(Ink.copy(alpha = 0.75f), Offset(58f, 37f), Size(16f, 4f))
     // tray out of the front
     val tray = Path().apply { moveTo(88f, 70f); lineTo(126f, 72f); lineTo(126f, 80f); lineTo(88f, 80f); close() }
     drawPath(tray, Palette.Wood)
     drawLine(WoodDeep, Offset(124f, 66f), Offset(124f, 80f), 3f, StrokeCap.Round)
-    drawRect(Ink.copy(alpha = 0.7f), Rect(84f, 68f, 88f, 79f))
+    box(Ink.copy(alpha = 0.7f), Rect(84f, 68f, 88f, 79f))
     drawCircle(Palette.Bead, 6f, Offset(114f, 66.5f))
     drawArc(Color.White.copy(alpha = 0.35f), 200f, 70f, false, Offset(110f, 62.5f), Size(8f, 8f), style = Stroke(1.4f, cap = StrokeCap.Round))
     // a second ball, waiting at the hole
@@ -149,7 +151,7 @@ private fun DrawScope.bellAndTablets() {
     drawLine(Color.White.copy(alpha = 0.3f), Offset(53f, 52f), Offset(52f, 68f), 1.6f, StrokeCap.Round)
     listOf(Red, Palette.Rod, Palette.Bead).forEachIndexed { i, c ->
         val y = 52f + i * 9.5f; val x = 82f + i * 4f
-        drawRect(Palette.Wood, Rect(x, y, x + 4f, y + 7f)); drawRect(c, Rect(x + 4f, y, x + 44f, y + 7f)); drawRect(Palette.Wood, Rect(x + 44f, y, x + 48f, y + 7f))
+        box(Palette.Wood, Rect(x, y, x + 4f, y + 7f)); box(c, Rect(x + 4f, y, x + 44f, y + 7f)); box(Palette.Wood, Rect(x + 44f, y, x + 48f, y + 7f))
     }
 }
 
@@ -158,7 +160,7 @@ private fun DrawScope.pouring() {
     shadow(66f, 40f); shadow(104f, 28f); shadow(130f, 22f, 81f)
     val jug = Path().apply { moveTo(54f, 78f); lineTo(52f, 44f); lineTo(48f, 38f); lineTo(80f, 38f); lineTo(78f, 44f); lineTo(76f, 78f); close() }
     drawPath(jug, Glass.copy(alpha = 0.8f))
-    drawRect(Water, Rect(53.4f, 56f, 76.6f, 78f))
+    box(Water, Rect(53.4f, 56f, 76.6f, 78f))
     drawArc(Glass, -90f, 180f, false, Offset(72f, 46f), Size(14f, 22f), style = Stroke(3f))
     drawLine(Color.White.copy(alpha = 0.5f), Offset(57f, 46f), Offset(58f, 72f), 1.6f, StrokeCap.Round)
     drawRoundRect(Palette.Chalk, Offset(94f, 60f), Size(20f, 19f), CornerRadius(3f))
