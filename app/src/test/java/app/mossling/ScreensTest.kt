@@ -105,4 +105,16 @@ class ScreensTest {
     @Test fun youOttoDark() = shot("14_you_otto_dark", dark = true, companion = Kind.Otto) { YouScreen(ui(Kind.Otto), YouActions()) }
     @Test fun topic() = shot("15_topic") { TopicScreen(content.topics.first()) {} }
     @Test fun about() = shot("16_about") { AboutScreen(content) {} }
+    @Test fun materials() = shot("17_materials") {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { row.forEach { app.mossling.ui.ip.MaterialStill(it, Modifier.weight(1f).background(MaterialTheme.colorScheme.surfaceContainer)) } }
+            }
+        }
+    }
+    @Test fun materialsDark() = shot("18_materials_dark", dark = true) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            app.mossling.ui.ip.Family.entries.forEach { app.mossling.ui.ip.MaterialStill(it, Modifier.size(200.dp, 125.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh) }
+        }
+    }
 }

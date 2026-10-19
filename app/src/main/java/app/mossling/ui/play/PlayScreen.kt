@@ -38,6 +38,8 @@ import app.mossling.ui.components.Plate
 import app.mossling.ui.components.shared
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.ip.Creature
+import app.mossling.ui.ip.Family
+import app.mossling.ui.ip.MaterialStill
 import app.mossling.ui.ip.Mood
 import app.mossling.ui.theme.LocalCompanion
 import app.mossling.ui.theme.Numerals
@@ -66,6 +68,12 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                         Text(listOf(p.age, p.domains.joinToString("、")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                     }
                     Creature(companion, Modifier.size(88.dp), mood = if (did) Mood.Happy else Mood.Open, look = Offset(-0.7f, 0.6f))
+                }
+            }
+            item("still") {
+                // the material, set out on its mat: what this play looks like before anyone touches it
+                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp)) {
+                    MaterialStill(Family.of(p.domains), Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh)
                 }
             }
             item("before") {
