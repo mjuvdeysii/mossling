@@ -109,6 +109,26 @@ class ScreensTest {
     @Test fun todayLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("19_today_font200") { TodayScreen(ui(), TodayActions(), now = { at(20, 0) }) } }
     @Test fun playLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("20_play_font200") { PlayScreen(content.play("A11")!!, 6, false, {}, {}) } }
     @Test fun journalLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("21_journal_font200") { JournalScreen(ui(), today, logs, JournalActions()) } }
+    // Google Play feature graphic, 1024 × 500 at 1x
+    @Test fun featureGraphic() {
+        paparazzi.unsafeUpdateConfig(DeviceConfig(screenWidth = 1024, screenHeight = 500, xdpi = 160, ydpi = 160, density = com.android.resources.Density.MEDIUM, softButtons = false))
+        shot("22_feature_graphic") {
+            Row(Modifier.fillMaxSize().background(app.mossling.ui.theme.Palette.Chalk).padding(horizontal = 64.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    androidx.compose.material3.Text("Mossling", fontFamily = app.mossling.ui.theme.Numerals, style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep)
+                    androidx.compose.material3.Text("苔生 · 头一千天，跟着孩子，慢慢来", style = MaterialTheme.typography.headlineSmall, color = app.mossling.ui.theme.Palette.Ink)
+                    Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        repeat(17) { Box(Modifier.size(12.dp).background(if (it == 16) app.mossling.ui.theme.Palette.Bead else app.mossling.ui.theme.Palette.Moss, androidx.compose.foundation.shape.CircleShape)) }
+                        repeat(8) { Box(Modifier.size(12.dp).background(app.mossling.ui.theme.Palette.Stone, androidx.compose.foundation.shape.CircleShape)) }
+                    }
+                }
+                Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
+                    Creature(Kind.Moss, Modifier.size(230.dp), look = Offset(0.9f, -0.1f))
+                    Creature(Kind.Otto, Modifier.size(270.dp), look = Offset(-0.9f, 0f))
+                }
+            }
+        }
+    }
     @Test fun materials() = shot("17_materials") {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->

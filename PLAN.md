@@ -74,5 +74,5 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Import from the WebView app: its exported record file (You → 从旧版带过来) brings birth date, month ticks (mapped by item text, `tools/legacy_map.py` → `assets/legacy_map.json`) and the journal; nothing existing is overwritten, duplicates skipped, kinds without a native type kept as notes
 - [x] Baseline profile (app code, `src/main/baseline-prof.txt`, ProfileInstaller) + cold-start timing on the emulator after speed-profile compile (`native-qa.yml`); a generated profile via Macrobenchmark can replace the hand-written rules later
 - [x] Emulator UI tests (critical paths) in CI: first run → log a bottle → journal → mark a play done (`CriticalPathsTest`, after every green native build)
-- [ ] Store listing assets (screenshots, feature graphic), privacy statement
+- [x] Store listing assets: `store/listing.md` (name, short and full description, data-safety answers, screenshot list), feature graphic snapshot, `PRIVACY.md` (no network permission, no data collected)
 - [ ] Switch-over plan: same applicationId as the WebView app, signed with the same key, data migrated
