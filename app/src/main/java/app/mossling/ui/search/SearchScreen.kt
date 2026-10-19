@@ -42,6 +42,7 @@ import app.mossling.ui.theme.Numerals
 private data class Hit(val kind: String, val title: String, val snippet: String, val open: () -> Unit)
 
 /** One search over the handbook: plays, each month's areas, things to watch and care items, and the reference topics. */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun SearchScreen(c: Content, onBack: () -> Unit, openPlay: (String) -> Unit, openMonth: (Int) -> Unit, openTopic: (String) -> Unit) {
     var q by rememberSaveable { mutableStateOf("") }
@@ -71,6 +72,15 @@ fun SearchScreen(c: Content, onBack: () -> Unit, openPlay: (String) -> Unit, ope
                 IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) { Glyph(G.Back) }
                 OutlinedTextField(q, { q = it.take(30) }, Modifier.weight(1f).padding(end = 12.dp).focusRequester(focus), singleLine = true, shape = RoundedCornerShape(20.dp),
                     placeholder = { Text("搜索玩法、月龄内容、专题") }, leadingIcon = { Glyph(G.Search, size = 20.dp) })
+            }
+        }
+        if (q.isBlank()) item {
+            // a few starting points, so the empty screen is not a dead end
+            Text("可以从这些开始", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp))
+            androidx.compose.foundation.layout.FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+                listOf("辅食", "睡眠", "趴", "共读", "牙", "安全座椅", "发热", "疫苗", "儿保", "屏幕").forEach { w ->
+                    androidx.compose.material3.SuggestionChip(onClick = { q = w }, label = { Text(w) })
+                }
             }
         }
         if (q.isNotBlank()) item {
