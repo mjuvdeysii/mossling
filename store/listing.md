@@ -46,15 +46,12 @@ Mossling 苔生陪伴 0–36 个月的头一千天。打开时只看今天：孩
 - 数据是否加密传输：不适用（不传输）
 - 用户能否请求删除数据：可在系统设置中清除应用数据
 
-## 截图（Paparazzi 输出，`native-screens` 分支）
-1. 今天（Moss）— `todayMoss_02_today_moss`
-2. 今天 · 计时进行中（Otto）— `todayOttoTimer_03_today_otto_timer`
-3. 成长 · 本月 — `grow_06_grow`
-4. 玩法详情 — `play_09_play`
-5. 手帐 — `journal_11_journal`
-6. 深色 · 今天 — `todayDark_05_today_dark`
-7. 我的 — `you_13_you`
-8. 两位伙伴 — `characters_00_characters`
+## 截图（Paparazzi 输出，`native-screens` 分支，9:16）
+1. 今天 — `store1_store_1_today`
+2. 成长 · 满 6 个月 — `store2_store_2_grow`
+3. 玩法详情 — `store3_store_3_play`
+4. 手帐（Otto）— `store4_store_4_journal_otto`
+5. 深色 · 亲喂计时中（Otto）— `store5_store_5_today_dark`
 
 ## 置顶大图（1024 × 500）
 `feature_22_feature_graphic`

@@ -111,7 +111,7 @@ class ScreensTest {
     @Test fun journalLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("21_journal_font200") { JournalScreen(ui(), today, logs, JournalActions()) } }
     // Google Play feature graphic, 1024 × 500 at 1x
     @Test fun featureGraphic() {
-        paparazzi.unsafeUpdateConfig(DeviceConfig(screenWidth = 1024, screenHeight = 500, xdpi = 160, ydpi = 160, density = com.android.resources.Density.MEDIUM, softButtons = false))
+        paparazzi.unsafeUpdateConfig(DeviceConfig(screenWidth = 1024, screenHeight = 500, xdpi = 160, ydpi = 160, density = com.android.resources.Density.MEDIUM, orientation = com.android.resources.ScreenOrientation.LANDSCAPE, softButtons = false))
         shot("22_feature_graphic") {
             Row(Modifier.fillMaxSize().background(app.mossling.ui.theme.Palette.Chalk).padding(horizontal = 64.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
@@ -129,6 +129,13 @@ class ScreensTest {
             }
         }
     }
+    // store screenshots: 9:16, inside Google Play's 2:1 limit
+    private fun store() = paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(screenHeight = 1920, softButtons = false))
+    @Test fun store1() { store(); shot("store_1_today") { TodayScreen(ui(), TodayActions(), now = { at(10, 0) }) } }
+    @Test fun store2() { store(); shot("store_2_grow") { GrowScreen(ui(), 6, GrowActions()) } }
+    @Test fun store3() { store(); shot("store_3_play") { PlayScreen(content.play("A11")!!, 6, false, {}, {}) } }
+    @Test fun store4() { store(); shot("store_4_journal_otto", companion = Kind.Otto) { JournalScreen(ui(Kind.Otto), today, logs, JournalActions()) } }
+    @Test fun store5() { store(); shot("store_5_today_dark", dark = true, companion = Kind.Otto) { TodayScreen(ui(Kind.Otto, timers = listOf(RunningTimer(LogType.Nurse, at(19, 48), "l"))), TodayActions(), now = { at(20, 0) }) } }
     @Test fun materials() = shot("17_materials") {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->
