@@ -63,10 +63,10 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Onboarding: birth date in one screen, skippable
 - [x] Paparazzi screenshots for all screens in CI; artifact + preview release `mossling-preview`
 ### Phase 2 — craft
-- [ ] Motion pass: shared element Today→Play, bead chain physics, character idle (blink, glance), reduced motion
-- [ ] Character expressions tied to context (sleep at night, focus on timers, glance toward the chain)
+- [x] Motion pass: shared element Today→Play (code tile), character idle (breath, blink, glance, hop on Happy, poke), reduced motion respected
+- [x] Character expressions tied to context (asleep at night and during a sleep timer, eyes down during a feed, smile on a done play)
 - [ ] Illustrations: the web cut-paper scenes rasterised to WebP per play step; consistent frame and grain
-- [ ] Glance widgets: age + last feed + quick log; timer live in widget
+- [x] Glance widgets: age + last feed + quick log; timer live in widget
 - [ ] Notifications: health items (opt-in, quiet), timer ongoing; no other reminders
 - [ ] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts
 - [ ] Accessibility: TalkBack labels, 48dp targets, contrast in both themes

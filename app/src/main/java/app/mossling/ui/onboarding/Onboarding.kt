@@ -50,8 +50,8 @@ fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
         Spacer(Modifier.weight(1f))
         Box(Modifier.fillMaxWidth().height(200.dp), contentAlignment = Alignment.BottomCenter) {
             Row(horizontalArrangement = Arrangement.spacedBy((-18).dp), verticalAlignment = Alignment.Bottom) {
-                Creature(Kind.Moss, Modifier.size(170.dp).graphicsLayer { translationY = (1 - rise.value) * 80f; alpha = rise.value }, look = Offset(0.9f, -0.1f))
-                Creature(Kind.Otto, Modifier.size(150.dp).graphicsLayer { translationY = (1 - rise.value) * 120f; alpha = rise.value }, look = Offset(-0.9f, 0f))
+                Creature(Kind.Moss, Modifier.size(170.dp).graphicsLayer { translationY = (1 - rise.value) * 80f; alpha = rise.value }, look = Offset(0.9f, -0.1f), poke = true)
+                Creature(Kind.Otto, Modifier.size(150.dp).graphicsLayer { translationY = (1 - rise.value) * 120f; alpha = rise.value }, look = Offset(-0.9f, 0f), poke = true)
             }
         }
         Spacer(Modifier.height(28.dp))

@@ -4,6 +4,19 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.VectorConverter
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import app.mossling.ui.components.reducedMotion
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.runtime.Composable
@@ -24,7 +37,6 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.vector.PathParser
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import app.mossling.ui.theme.Palette
@@ -67,10 +79,17 @@ fun Creature(
     lean: Float = 0f,
     alive: Boolean = true,
     label: String? = null,
+    poke: Boolean = false,
 ) {
+    val still = !alive || reducedMotion()
     val eyes by animateOffsetAsState(look, tween(420, easing = FastOutSlowInEasing), label = "look")
     val blink = remember { Animatable(0f) }
-    val still = LocalInspectionMode.current || !alive
+    val glance = remember { Animatable(Offset.Zero, Offset.VectorConverter) }
+    val hop = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    var shown by remember { mutableStateOf(mood) }
+
+    // blinking: irregular, sometimes twice — never on a sleeping or smiling face
     LaunchedEffect(still, mood) {
         if (still || mood != Mood.Open && mood != Mood.Wow) return@LaunchedEffect
         while (true) {
@@ -79,14 +98,48 @@ fun Creature(
             if (Random.nextInt(5) == 0) { delay(160); blink.animateTo(1f, tween(60)); blink.animateTo(0f, tween(120)) }
         }
     }
+    // a glance away now and then, held, and back to what it was looking at
+    LaunchedEffect(still, mood) {
+        if (still || mood == Mood.Sleep) return@LaunchedEffect
+        while (true) {
+            delay(7000L + Random.nextLong(7000))
+            val to = Offset(Random.nextFloat() * 1.2f - 0.6f, Random.nextFloat() * 0.8f - 0.5f) - look * 0.6f
+            glance.animateTo(to, tween(380, easing = FastOutSlowInEasing))
+            delay(700L + Random.nextLong(900))
+            glance.animateTo(Offset.Zero, tween(520, easing = FastOutSlowInEasing))
+        }
+    }
+    // becoming happy is one small hop, not a celebration
+    LaunchedEffect(mood) {
+        if (mood == Mood.Happy && shown != Mood.Happy && !still) {
+            hop.animateTo(1f, tween(160, easing = FastOutSlowInEasing)); hop.animateTo(0f, spring(dampingRatio = 0.45f, stiffness = 500f))
+        }
+        shown = mood
+    }
+    // breathing: a slow rise of a percent or so; slower and deeper asleep. Read only in the draw phase.
+    val breath = if (still) null else rememberInfiniteTransition(label = "breath").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(if (mood == Mood.Sleep) 4200 else 3200, easing = FastOutSlowInEasing), RepeatMode.Reverse), label = "b",
+    )
     val sem = if (label != null) Modifier.semantics { contentDescription = label } else Modifier
-    Canvas(modifier.aspectRatio(1f).then(sem)) {
+    val tap = if (poke && !still) Modifier.clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) {
+        scope.launch { blink.animateTo(1f, tween(60)); blink.animateTo(0f, tween(110)) }
+        scope.launch { hop.snapTo(0f); hop.animateTo(0.7f, tween(120)); hop.animateTo(0f, spring(dampingRatio = 0.4f, stiffness = 600f)) }
+    } else Modifier
+    Canvas(modifier.aspectRatio(1f).then(sem).then(tap)) {
         val s = min(size.width, size.height) / 100f
-        withTransform({ translate((size.width - 100 * s) / 2, (size.height - 100 * s) / 2); scale(s, s, Offset.Zero) }) {
+        val b = breath?.value ?: 0f
+        val amp = if (mood == Mood.Sleep) 0.022f else 0.012f
+        withTransform({
+            translate((size.width - 100 * s) / 2, (size.height - 100 * s) / 2 - hop.value * 7f * s)
+            scale(s, s, Offset.Zero)
+            // squash and stretch from the feet, so the shadow stays put
+            scale(1f - b * amp * 0.5f, 1f + b * amp, Offset(50f, 88f))
+        }) {
             rotate(lean, Offset(50f, 88f)) {
                 val rest = lid ?: if (kind == Kind.Otto) 0.34f else 0f
                 val l = max(rest, blink.value)
-                if (kind == Kind.Moss) drawMoss(mood, eyes, l) else drawOtto(mood, eyes, l)
+                val e = eyes + glance.value
+                if (kind == Kind.Moss) drawMoss(mood, e, l) else drawOtto(mood, e, l)
             }
         }
     }
