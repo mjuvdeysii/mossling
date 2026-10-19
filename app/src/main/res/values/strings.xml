@@ -4,4 +4,8 @@
     <string name="channel_timer">计时</string>
     <string name="widget_today">今天</string>
     <string name="widget_desc">月龄、上次喂奶和一键记录</string>
+    <string name="sc_bottle">记瓶喂</string>
+    <string name="sc_nurse">开始亲喂</string>
+    <string name="sc_sleep">开始睡觉</string>
+    <string name="sc_diaper">换尿布</string>
 </resources>

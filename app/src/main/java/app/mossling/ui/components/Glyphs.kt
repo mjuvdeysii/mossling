@@ -1,5 +1,6 @@
 package app.mossling.ui.components
 
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.LocalContentColor
@@ -19,7 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** The app's own small pictograms, drawn on a 24 × 24 grid with a 1.8 stroke: no stock icon set. */
-enum class G { Today, Grow, Journal, You, Nurse, Bottle, Sleep, Diaper, Solid, Bath, Note, Play, Bead, Check, Plus, Close, Back, Clock, Sun, Moon }
+enum class G { Today, Grow, Journal, You, Nurse, Bottle, Sleep, Diaper, Solid, Bath, Note, Play, Bead, Check, Plus, Close, Back, Clock, Sun, Moon, Thermo, Pill, Ruler, Search, Share, Chart, Download }
 
 @Composable
 fun Glyph(g: G, modifier: Modifier = Modifier, size: Dp = 24.dp, color: Color = LocalContentColor.current, filled: Boolean = false) {
@@ -76,6 +77,13 @@ private fun DrawScope.drawGlyph(g: G, c: Color, filled: Boolean) {
         G.Close -> { drawLine(c, Offset(6f, 6f), Offset(18f, 18f), 2f, StrokeCap.Round); drawLine(c, Offset(18f, 6f), Offset(6f, 18f), 2f, StrokeCap.Round) }
         G.Back -> drawPath(path { moveTo(15f, 5f); lineTo(8f, 12f); lineTo(15f, 19f) }, c, style = Stroke(2f, cap = StrokeCap.Round, join = StrokeJoin.Round))
         G.Clock -> { drawCircle(c, 8.5f, Offset(12f, 12f), style = st); drawPath(path { moveTo(12f, 7.5f); lineTo(12f, 12f); lineTo(15f, 14f) }, c, style = st) }
+        G.Thermo -> { drawRoundRect(c, Offset(10f, 3f), Size(4f, 12.5f), CornerRadius(2f), style = st); drawCircle(c, 3.6f, Offset(12f, 17.6f), style = if (filled) androidx.compose.ui.graphics.drawscope.Fill else st); drawLine(c, Offset(12f, 9f), Offset(12f, 16f), 1.8f, StrokeCap.Round) }
+        G.Pill -> { withTransform({ rotate(-40f, Offset(12f, 12f)) }) { drawRoundRect(c, Offset(4.5f, 8.5f), Size(15f, 7f), CornerRadius(3.5f), style = st); drawLine(c, Offset(12f, 8.5f), Offset(12f, 15.5f), 1.8f) } }
+        G.Ruler -> { drawRoundRect(c, Offset(3f, 8f), Size(18f, 8f), CornerRadius(1.5f), style = st); for (i in 0..4) drawLine(c, Offset(6f + i * 3f, 8f), Offset(6f + i * 3f, if (i % 2 == 0) 12.5f else 11f), 1.5f, StrokeCap.Round) }
+        G.Search -> { drawCircle(c, 6f, Offset(10.5f, 10.5f), style = st); drawLine(c, Offset(15f, 15f), Offset(20f, 20f), 2f, StrokeCap.Round) }
+        G.Share -> { drawPath(path { moveTo(12f, 4f); lineTo(12f, 15f) }, c, style = st); drawPath(path { moveTo(8f, 8f); lineTo(12f, 4f); lineTo(16f, 8f) }, c, style = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)); drawPath(path { moveTo(6f, 12f); lineTo(6f, 19f); lineTo(18f, 19f); lineTo(18f, 12f) }, c, style = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)) }
+        G.Chart -> { listOf(6f to 13f, 11f to 8f, 16f to 11f).forEach { (x, y) -> drawRoundRect(c, Offset(x - 1.6f, y), Size(3.2f, 19f - y), CornerRadius(1.2f)) }; drawLine(c, Offset(3.5f, 20f), Offset(20.5f, 20f), 1.6f, StrokeCap.Round) }
+        G.Download -> { drawPath(path { moveTo(12f, 4f); lineTo(12f, 15f) }, c, style = st); drawPath(path { moveTo(8f, 11f); lineTo(12f, 15f); lineTo(16f, 11f) }, c, style = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)); drawLine(c, Offset(5f, 19.5f), Offset(19f, 19.5f), 1.8f, StrokeCap.Round) }
         G.Sun -> { drawCircle(c, 4.5f, Offset(12f, 12f)); for (i in 0 until 8) { val a = Math.toRadians(i * 45.0); drawLine(c, Offset(12 + Math.cos(a).toFloat() * 7.5f, 12 + Math.sin(a).toFloat() * 7.5f), Offset(12 + Math.cos(a).toFloat() * 9.6f, 12 + Math.sin(a).toFloat() * 9.6f), 1.8f, StrokeCap.Round) } }
     }
 }

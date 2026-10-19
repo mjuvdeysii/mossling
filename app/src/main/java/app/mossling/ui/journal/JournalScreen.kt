@@ -52,6 +52,10 @@ data class JournalActions(
     val pickDay: (LocalDate) -> Unit = {},
     val log: (String) -> Unit = {},
     val open: (LogEntry) -> Unit = {},
+    val stats: () -> Unit = {},
+    val growth: () -> Unit = {},
+    /** add an entry after the fact, on the selected day */
+    val backfill: () -> Unit = {},
 )
 
 /** The day, as it happened. Quick buttons at the top, then the day's entries with a small summary. */
@@ -69,6 +73,13 @@ fun JournalScreen(ui: AppUi, day: LocalDate, logs: List<LogEntry>, a: JournalAct
             }
         }
         item("week") { Week(ui.today, day, a.pickDay) }
+        item("tools") {
+            Row(Modifier.padding(horizontal = 16.dp).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(Triple(G.Plus, "补记", a.backfill), Triple(G.Chart, "统计", a.stats), Triple(G.Ruler, "生长", a.growth)).forEach { (g, t, f) ->
+                    androidx.compose.material3.AssistChip(onClick = f, label = { Text(t) }, leadingIcon = { Glyph(g, size = 18.dp) }, modifier = Modifier.heightIn(min = 48.dp))
+                }
+            }
+        }
         item("grid") {
             Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LogKinds.chunked(4).forEach { row ->

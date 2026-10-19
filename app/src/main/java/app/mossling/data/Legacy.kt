@@ -30,6 +30,8 @@ class LegacyImport(private val context: Context, private val dao: RecordDao, pri
     suspend fun run(text: String, content: Content): Result {
         val root = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: throw NotAHandbookFile()
         if (root["app"]?.jsonPrimitive?.content != "growth-handbook") throw NotAHandbookFile()
+        // a file written by this app: read its complete copy and ignore the compatibility one
+        (root["mossling"] as? JsonObject)?.let { return own(it) }
         val data = root["data"]?.jsonObject ?: throw NotAHandbookFile()
         fun str(k: String) = (data[k] as? JsonPrimitive)?.content
 
@@ -52,6 +54,37 @@ class LegacyImport(private val context: Context, private val dao: RecordDao, pri
             val o = el as? JsonObject ?: return@forEach
             val e = legacyEntry(o) ?: return@forEach
             if (dao.sameMinute(e.type, e.start - 60_000, e.start + 60_000) > 0) skipped++ else { dao.putLog(e); logs++ }
+        }
+        return Result(ticks, logs, skipped, birth)
+    }
+
+    private suspend fun own(o: JsonObject): Result {
+        fun JsonObject.s(k: String) = (this[k] as? JsonPrimitive)?.content
+        fun JsonObject.l(k: String) = (this[k] as? JsonPrimitive)?.longOrNull
+        fun JsonObject.i(k: String) = (this[k] as? JsonPrimitive)?.intOrNull
+        var birth = false
+        (o["settings"] as? JsonObject)?.let { st ->
+            val cur = settings.settings.first()
+            st.s("birth")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.let { if (cur.birth == null) { settings.setBirth(it); birth = true } }
+            st.s("sex")?.let { if (cur.sex == null) settings.setSex(it) }
+            st.s("nickname")?.let { if (cur.nickname.isBlank()) settings.setNickname(it) }
+        }
+        var ticks = 0; var logs = 0; var skipped = 0
+        (o["ticks"] as? kotlinx.serialization.json.JsonArray)?.forEach { el ->
+            val t = el as? JsonObject ?: return@forEach
+            val tick = Tick(t.s("key") ?: return@forEach, t.i("month") ?: return@forEach, t.s("kind") ?: return@forEach, t.s("label") ?: "", t.l("at") ?: 0)
+            if (dao.putTickIfAbsent(tick) != -1L) ticks++
+        }
+        (o["logs"] as? kotlinx.serialization.json.JsonArray)?.forEach { el ->
+            val e = el as? JsonObject ?: return@forEach
+            val x = LogEntry(type = e.s("type") ?: return@forEach, start = e.l("start") ?: return@forEach, end = e.l("end"), amount = e.i("amount"), side = e.s("side"), detail = e.s("detail"))
+            if (dao.sameMinute(x.type, x.start - 60_000, x.start + 60_000) > 0) skipped++ else { dao.putLog(x); logs++ }
+        }
+        val have = dao.allMeasures().map { it.at }.toSet()
+        (o["measures"] as? kotlinx.serialization.json.JsonArray)?.forEach { el ->
+            val m = el as? JsonObject ?: return@forEach
+            val at = m.l("at") ?: return@forEach
+            if (at in have) skipped++ else { dao.putMeasure(Measure(at = at, weightG = m.i("weightG"), lengthMm = m.i("lengthMm"), headMm = m.i("headMm"))); logs++ }
         }
         return Result(ticks, logs, skipped, birth)
     }

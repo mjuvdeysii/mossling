@@ -88,6 +88,10 @@ import kotlinx.serialization.Serializable
 @Serializable data class PlayRoute(val code: String, val month: Int)
 @Serializable data class TopicRoute(val id: String)
 @Serializable object AboutRoute
+@Serializable object GrowthRoute
+@Serializable object StatsRoute
+@Serializable object SearchRoute
+@Serializable object LicensesRoute
 
 // key: the route string Navigation derives from the serial name (stable under R8, unlike class names)
 private data class Tab(val route: Any, val label: String, val glyph: G, val key: String)
@@ -126,6 +130,10 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     var ask by remember { mutableStateOf(Ask.None to "") }
     var editing by remember { mutableStateOf<LogEntry?>(null) }
     var asked by rememberSaveable { mutableStateOf(false) }
+    var measuring by remember { mutableStateOf<app.mossling.data.Measure?>(null) }
+    var backfilling by remember { mutableStateOf(false) }
+    var clearing by remember { mutableStateOf(false) }
+    val month30 by vm.month.collectAsStateWithLifecycle()
     val c = ui.content ?: return
     val month = if (browse >= 0) browse else ui.babyMonth ?: 0
 
@@ -137,11 +145,19 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     val pickOld = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) vm.importLegacy(uri) { msg -> scope.launch { snack.showSnackbar(msg, duration = SnackbarDuration.Long) } }
     }
+    fun say(msg: String) { scope.launch { snack.currentSnackbarData?.dismiss(); snack.showSnackbar(msg, duration = SnackbarDuration.Short) } }
+    val saveJson = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        if (uri != null) vm.export(uri, csv = false, done = ::say)
+    }
+    val saveCsv = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")) { uri ->
+        if (uri != null) vm.export(uri, csv = true, done = ::say)
+    }
     fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         if (ui.timers.any { it.type == type }) { vm.stopTimer(type) { it?.let(::added) }; return }
         when (askFor(type)) {
+            Ask.Measure -> measuring = app.mossling.data.Measure(at = System.currentTimeMillis())
             Ask.None -> when (type) {
                 LogType.Sleep -> { if (!asked) { asked = true; askNotifications() }; vm.startTimer(type) }
                 LogType.Note -> vm.addLog(LogEntry(type = type, start = System.currentTimeMillis(), detail = "")) { editing = it }
@@ -226,13 +242,19 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                 ))
             } }
             composable<JournalRoute> {
-                JournalScreen(ui, day, logs, JournalActions(pickDay = { vm.journalDay.value = it }, log = ::log, open = { editing = it }))
+                JournalScreen(ui, day, logs, JournalActions(pickDay = { vm.journalDay.value = it }, log = ::log, open = { editing = it },
+                    stats = { nav.navigate(StatsRoute) }, growth = { nav.navigate(GrowthRoute) }, backfill = { backfilling = true }))
             }
             composable<YouRoute> {
                 YouScreen(ui, YouActions(
                     companion = vm::setCompanion, theme = vm::setTheme, birth = askBirth,
                     topic = { nav.navigate(TopicRoute(it)) }, about = { nav.navigate(AboutRoute) },
                     openMonth = { browse = it; go(GrowRoute) },
+                    exportJson = { saveJson.launch(vm.exportName(false)) },
+                    exportCsv = { saveCsv.launch(vm.exportName(true)) },
+                    clearAll = { clearing = true },
+                    nickname = vm::setNickname, sex = vm::setSex,
+                    search = { nav.navigate(SearchRoute) },
                     importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))
             }
@@ -249,19 +271,50 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                 }, onBack = { nav.popBackStack() })
             } }
             composable<TopicRoute> { entry -> c.topics.firstOrNull { it.id == entry.toRoute<TopicRoute>().id }?.let { TopicScreen(it) { nav.popBackStack() } } }
-            composable<AboutRoute> { AboutScreen(c) { nav.popBackStack() } }
+            composable<AboutRoute> { AboutScreen(c, licenses = { nav.navigate(LicensesRoute) }) { nav.popBackStack() } }
+            composable<LicensesRoute> { app.mossling.ui.you.LicensesScreen { nav.popBackStack() } }
+            composable<StatsRoute> { app.mossling.ui.journal.StatsScreen(month30, ui.today) { nav.popBackStack() } }
+            composable<GrowthRoute> {
+                app.mossling.ui.growth.GrowthScreen(ui, vm.growth, app.mossling.ui.growth.GrowthActions(
+                    back = { nav.popBackStack() }, add = { measuring = app.mossling.data.Measure(at = System.currentTimeMillis()) },
+                    edit = { measuring = it }, sex = vm::setSex))
+            }
+            composable<SearchRoute> {
+                app.mossling.ui.search.SearchScreen(c, onBack = { nav.popBackStack() },
+                    openPlay = { code -> nav.navigate(PlayRoute(code, c.months.firstOrNull { code in it.activities }?.month ?: month)) },
+                    openMonth = { m -> browse = m; go(GrowRoute) }, openTopic = { nav.navigate(TopicRoute(it)) })
+            }
         }
         }
         }
       }
     }
 
-    AskSheet(ask.first, onDismiss = { ask = Ask.None to "" },
+    AskSheet(ask.first, type = ask.second, onDismiss = { ask = Ask.None to "" },
+        onTemp = { c10 -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), amount = c10)) { added(it) } },
+        onText = { text -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), detail = text.ifBlank { null })) { added(it) } },
         onSide = { side -> val t = ask.second; ask = Ask.None to ""; if (!asked) { asked = true; askNotifications() }; vm.startTimer(t, side) },
         onAmount = { ml -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), amount = ml)) { added(it) } },
         onDiaper = { d -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), detail = d)) { added(it) } },
     )
+    measuring?.let { m ->
+        app.mossling.ui.growth.MeasureSheet(m, onSave = { vm.putMeasure(it); say("记下了 · 生长") }, onDelete = { d -> vm.dropMeasure(d); undoable("删掉了一次测量") { vm.putMeasure(d) } }, onDismiss = { measuring = null })
+    }
+    if (backfilling) app.mossling.ui.journal.KindSheet(onPick = { t ->
+        backfilling = false
+        val z = java.time.ZoneId.systemDefault()
+        val now = java.time.LocalTime.now()
+        val at = day.atTime(now).atZone(z).toInstant().toEpochMilli().coerceAtMost(System.currentTimeMillis())
+        val dur = when (t) { LogType.Sleep -> 60 * 60_000L; LogType.Nurse -> 15 * 60_000L; else -> null }
+        editing = LogEntry(type = t, start = dur?.let { at - it } ?: at, end = dur?.let { at }, amount = when (t) { LogType.Bottle -> 120; LogType.Temp -> 368; else -> null },
+            side = if (t == LogType.Nurse) "l" else null, detail = if (t == LogType.Diaper) "wet" else null)
+    }, onDismiss = { backfilling = false })
+    if (clearing) androidx.compose.material3.AlertDialog(onDismissRequest = { clearing = false },
+        title = { Text("清除这台手机上的全部记录？") },
+        text = { Text("出生日期、每月勾选、手帐、生长测量和设置都会删除，无法恢复。需要保留的话，先在「我的」里导出记录文件。") },
+        confirmButton = { androidx.compose.material3.TextButton(onClick = { clearing = false; vm.clearAll { } }) { Text("全部清除", color = MaterialTheme.colorScheme.error) } },
+        dismissButton = { androidx.compose.material3.TextButton(onClick = { clearing = false }) { Text("取消") } })
     editing?.let { e ->
-        EntrySheet(e, onChange = { if (it != e) vm.updateLog(it) }, onDelete = { d -> vm.deleteLog(d); undoable("删掉了一条") { vm.restoreLog(d) } }, onDismiss = { editing = null })
+        EntrySheet(e, onChange = { if (it.id == 0L) vm.addLog(it) { n -> added(n) } else if (it != e) vm.updateLog(it) }, onDelete = { d -> vm.deleteLog(d); undoable("删掉了一条") { vm.restoreLog(d) } }, onDismiss = { editing = null })
     }
 }

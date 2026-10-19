@@ -45,7 +45,7 @@ data class RunningTimer(
 )
 
 object TickKind { const val Observed = "c"; const val Did = "a"; const val Vaccine = "v"; const val Checkup = "k" }
-object LogType { const val Nurse = "nurse"; const val Bottle = "bottle"; const val Sleep = "sleep"; const val Diaper = "diaper"; const val Solid = "solid"; const val Bath = "bath"; const val Note = "note" }
+object LogType { const val Nurse = "nurse"; const val Bottle = "bottle"; const val Sleep = "sleep"; const val Diaper = "diaper"; const val Solid = "solid"; const val Bath = "bath"; const val Temp = "temp"; const val Medicine = "med"; const val Note = "note" }
 
 fun tickKey(month: Int, kind: String, id: String) = "$month:$kind:$id"
 
@@ -64,16 +64,42 @@ interface RecordDao {
     @Update suspend fun updateLog(e: LogEntry)
     @Query("DELETE FROM logs WHERE id = :id") suspend fun dropLog(id: Long)
 
+    @Query("SELECT * FROM logs ORDER BY start") suspend fun allLogs(): List<LogEntry>
+    @Query("SELECT * FROM ticks") suspend fun allTicks(): List<Tick>
+    @Query("SELECT * FROM logs WHERE start >= :from ORDER BY start") fun logsSince(from: Long): Flow<List<LogEntry>>
+    @Query("SELECT * FROM logs WHERE type IN (:types) ORDER BY start DESC LIMIT 1") fun lastOfFlow(types: List<String>): Flow<LogEntry?>
+
+    @Query("SELECT * FROM measures ORDER BY at") fun measures(): Flow<List<Measure>>
+    @Query("SELECT * FROM measures ORDER BY at") suspend fun allMeasures(): List<Measure>
+    @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putMeasure(m: Measure): Long
+    @Query("DELETE FROM measures WHERE id = :id") suspend fun dropMeasure(id: Long)
+
     @Query("SELECT * FROM timers") fun timers(): Flow<List<RunningTimer>>
     @Query("SELECT * FROM timers WHERE type = :type") suspend fun timer(type: String): RunningTimer?
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putTimer(t: RunningTimer)
     @Query("DELETE FROM timers WHERE type = :type") suspend fun dropTimer(type: String): Int
 }
 
-@Database(entities = [Tick::class, LogEntry::class, RunningTimer::class], version = 1, exportSchema = true)
+/** A measurement on one day: any of weight (grams), length/height (millimetres), head circumference (millimetres). */
+@Entity(tableName = "measures")
+data class Measure(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val at: Long,
+    val weightG: Int? = null,
+    val lengthMm: Int? = null,
+    val headMm: Int? = null,
+)
+
+val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS `measures` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `at` INTEGER NOT NULL, `weightG` INTEGER, `lengthMm` INTEGER, `headMm` INTEGER)")
+    }
+}
+
+@Database(entities = [Tick::class, LogEntry::class, RunningTimer::class, Measure::class], version = 2, exportSchema = true)
 abstract class RecordsDb : RoomDatabase() {
     abstract fun dao(): RecordDao
     companion object {
-        fun open(context: Context) = Room.databaseBuilder(context, RecordsDb::class.java, "records.db").build()
+        fun open(context: Context) = Room.databaseBuilder(context, RecordsDb::class.java, "records.db").addMigrations(MIGRATION_1_2).build()
     }
 }

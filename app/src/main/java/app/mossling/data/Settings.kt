@@ -23,6 +23,9 @@ data class Settings(
     val skipDay: Long = -1,
     val pick: String = "",
     val lastMonth: Int = -1,
+    /** "boy" / "girl" / null — only used to pick the WHO growth curves */
+    val sex: String? = null,
+    val nickname: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -34,6 +37,8 @@ class SettingsRepository(private val context: Context) {
         val skipDay = longPreferencesKey("skip_day")
         val pick = stringPreferencesKey("pick")
         val lastMonth = longPreferencesKey("last_month")
+        val sex = stringPreferencesKey("sex")
+        val nickname = stringPreferencesKey("nickname")
     }
 
     val settings: Flow<Settings> = context.store.data.map { p: Preferences ->
@@ -45,6 +50,8 @@ class SettingsRepository(private val context: Context) {
             skipDay = p[K.skipDay] ?: -1,
             pick = p[K.pick] ?: "",
             lastMonth = (p[K.lastMonth] ?: -1L).toInt(),
+            sex = p[K.sex],
+            nickname = p[K.nickname] ?: "",
         )
     }
 
@@ -55,5 +62,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun skipToday(day: Long?) = context.store.edit { if (day == null) it.remove(K.skipDay) else it[K.skipDay] = day }
     /** "month:index" of today's suggestion, so "another one" survives a restart */
     suspend fun setPick(v: String) = context.store.edit { it[K.pick] = v }
+    suspend fun setSex(s: String?) = context.store.edit { if (s == null) it.remove(K.sex) else it[K.sex] = s }
+    suspend fun setNickname(n: String) = context.store.edit { val t = n.trim().take(12); if (t.isEmpty()) it.remove(K.nickname) else it[K.nickname] = t }
+    /** Everything back to a fresh install (the records are cleared separately). */
+    suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setLastMonth(m: Int) = context.store.edit { it[K.lastMonth] = m.toLong() }
 }

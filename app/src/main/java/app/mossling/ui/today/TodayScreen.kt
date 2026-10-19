@@ -108,7 +108,8 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
     val companion = LocalCompanion.current
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item(key = "hero") {
-            Hero(ui, companion, a)
+            val t by androidx.compose.runtime.produceState(now()) { while (true) { kotlinx.coroutines.delay(60_000); value = now() } }
+            Hero(ui, companion, a, since(ui, t))
         }
         if (age != null && play != null) item(key = "play") {
             Box(Modifier.padding(horizontal = 16.dp)) {
@@ -138,12 +139,12 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
 }
 
 @Composable
-private fun Hero(ui: AppUi, companion: Kind, a: TodayActions) {
+private fun Hero(ui: AppUi, companion: Kind, a: TodayActions, since: String? = null) {
     val age = ui.age
     val hour = LocalTime.now().hour
     val night = hour >= 22 || hour < 6
     Column(Modifier.fillMaxWidth().statusBarsPadding().padding(start = 20.dp, end = 12.dp, top = 12.dp)) {
-        Text("${md(ui.today)} · ${weekday(ui.today)}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(listOfNotNull(ui.settings.nickname.ifBlank { null }, "${md(ui.today)} · ${weekday(ui.today)}").joinToString(" · "), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 if (age == null) {
@@ -165,6 +166,7 @@ private fun Hero(ui: AppUi, companion: Kind, a: TodayActions) {
                     Text(if (age.months < 36) "再过 ${age.toNext} 天满 ${age.months + 1} 个月 · 一起走过第 ${age.lived} 天" else "一起走过第 ${age.lived} 天",
                         style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     DayBeads(age.days, age.days + age.toNext, Modifier.padding(top = 12.dp))
+                    since?.let { Text(it, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 10.dp)) }
                 }
             }
             // it reads the room: asleep while the baby sleeps or late at night, eyes down on a feed, otherwise on the board
@@ -297,4 +299,14 @@ private fun ThisMonth(month: Month, onOpen: () -> Unit) {
         }
         TextButton(onClick = onOpen, modifier = Modifier.height(48.dp)) { Text("打开这个月") }
     }
+}
+
+/** "上次喂奶 2 小时 10 分前 · 醒了 1 小时 5 分" — only what is known, nothing when nothing was logged today or yesterday. */
+private fun since(ui: AppUi, now: Long): String? {
+    fun ago(ms: Long) = app.mossling.ui.components.minutes(ms.coerceAtLeast(0))
+    val day = 36 * 3_600_000L
+    val feed = ui.lastFeed?.takeIf { ui.timers.none { t -> t.type == it.type } }?.let { e -> (e.end ?: e.start).let { if (now - it < day) "上次喂奶 ${ago(now - it)}前" else null } }
+    val awake = if (ui.timers.any { it.type == app.mossling.data.LogType.Sleep }) null
+        else ui.lastSleep?.end?.let { if (now - it < day) "醒了 ${ago(now - it)}" else null }
+    return listOfNotNull(feed, awake).joinToString(" · ").ifBlank { null }
 }

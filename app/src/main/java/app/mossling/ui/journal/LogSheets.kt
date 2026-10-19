@@ -1,5 +1,21 @@
 package app.mossling.ui.journal
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.material3.rememberDatePickerState
+import androidx.compose.material3.TimePicker
+import androidx.compose.material3.SelectableDates
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -49,20 +65,29 @@ val LogKinds = listOf(
     LogKind(LogType.Diaper, "尿布", G.Diaper, Palette.MossDeep),
     LogKind(LogType.Solid, "辅食", G.Solid, Color(0xFF8C6A45)),
     LogKind(LogType.Bath, "洗澡", G.Bath, Color(0xFF3F7F86)),
+    LogKind(LogType.Temp, "体温", G.Thermo, Color(0xFFB8452E)),
+    LogKind(LogType.Medicine, "用药", G.Pill, Color(0xFF6B5B95)),
+    LogKind(GROWTH, "生长", G.Ruler, Color(0xFF8A6508)),
     LogKind(LogType.Note, "备注", G.Note, Color(0xFF5A5C55)),
 )
+/** Not a journal entry: opens the measurement sheet (weight, length, head). */
+const val GROWTH = "growth"
 fun logKind(type: String) = LogKinds.firstOrNull { it.type == type } ?: LogKinds.last()
 
 /** What a tap on a log button asks for, if anything. */
-enum class Ask { None, Side, Amount, Diaper }
+enum class Ask { None, Side, Amount, Diaper, Temp, Text, Measure }
 
-fun askFor(type: String) = when (type) { LogType.Nurse -> Ask.Side; LogType.Bottle -> Ask.Amount; LogType.Diaper -> Ask.Diaper; else -> Ask.None }
+fun askFor(type: String) = when (type) {
+    LogType.Nurse -> Ask.Side; LogType.Bottle -> Ask.Amount; LogType.Diaper -> Ask.Diaper; LogType.Temp -> Ask.Temp
+    LogType.Solid, LogType.Medicine, LogType.Note -> Ask.Text; GROWTH -> Ask.Measure; else -> Ask.None
+}
 
 /** The small sheet that follows a log button. Each choice is one tap and closes the sheet. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount: (Int) -> Unit, onDiaper: (String) -> Unit) {
-    if (ask == Ask.None) return
+fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount: (Int) -> Unit, onDiaper: (String) -> Unit,
+             type: String = "", onTemp: (Int) -> Unit = {}, onText: (String) -> Unit = {}) {
+    if (ask == Ask.None || ask == Ask.Measure) return
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             when (ask) {
@@ -110,7 +135,35 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount
                         }
                     }
                 }
-                Ask.None -> Unit
+                Ask.Temp -> {
+                    var c by remember { mutableIntStateOf(368) }
+                    Text("体温", style = MaterialTheme.typography.headlineSmall)
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                        FilledTonalButton(onClick = { c = (c - 1).coerceAtLeast(340) }, modifier = Modifier.size(56.dp), contentPadding = PaddingValues(0.dp)) { Text("−", style = MaterialTheme.typography.headlineSmall) }
+                        Text("%.1f".format(c / 10.0), fontFamily = Numerals, style = MaterialTheme.typography.displayMedium, color = if (c >= 380) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                        FilledTonalButton(onClick = { c = (c + 1).coerceAtMost(425) }, modifier = Modifier.size(56.dp), contentPadding = PaddingValues(0.dp)) { Text("+", style = MaterialTheme.typography.headlineSmall) }
+                    }
+                    Text("°C", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { onTemp(c) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                }
+                Ask.Text -> {
+                    var t by remember { mutableStateOf("") }
+                    val (title, hint, chips) = when (type) {
+                        LogType.Solid -> Triple("吃了什么", "食物和大概的量", listOf("米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"))
+                        LogType.Medicine -> Triple("用了什么药", "药名与剂量，按医嘱或说明书", listOf("维生素 D", "维生素 AD"))
+                        else -> Triple("备注", "发生了什么", emptyList())
+                    }
+                    Text(title, style = MaterialTheme.typography.headlineSmall)
+                    OutlinedTextField(t, { t = it.take(120) }, Modifier.fillMaxWidth().padding(top = 12.dp), placeholder = { Text(hint) }, shape = RoundedCornerShape(16.dp), minLines = if (type == LogType.Note) 3 else 1)
+                    if (chips.isNotEmpty()) FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        chips.forEach { ch -> FilterChip(selected = t.contains(ch), onClick = { t = if (t.isBlank()) ch else "$t、$ch" }, label = { Text(ch) }) }
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    Button(onClick = { onText(t.trim()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                }
+                Ask.None, Ask.Measure -> Unit
             }
             TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("取消") }
         }
@@ -122,6 +175,7 @@ fun describe(e: LogEntry): String = when (e.type) {
     LogType.Sleep -> e.end?.let { app.mossling.ui.components.minutes(it - e.start) } ?: "进行中"
     LogType.Bottle -> "${e.amount ?: 0} 毫升"
     LogType.Diaper -> when (e.detail) { "wet" -> "湿"; "dirty" -> "便"; "both" -> "湿和便"; else -> "" }
+    LogType.Temp -> e.amount?.let { "%.1f °C".format(it / 10.0) } ?: ""
     else -> e.detail ?: ""
 }
 
@@ -136,39 +190,110 @@ fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modif
     }
 }
 
-/** Change or remove one entry: move its time in small steps, change the amount, or delete it (with undo). */
+/**
+ * One entry, to change or to add after the fact: any day and time (tap the date or the time), the amount, side or
+ * kind, the text; delete with undo. An entry with id 0 is new ("补记") and is only written when confirmed.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -> Unit, onDismiss: () -> Unit) {
-    var cur by remember(e.id) { mutableStateOf(e) }
-    ModalBottomSheet(onDismissRequest = { onChange(cur); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+    var cur by remember(e.id, e.start) { mutableStateOf(e) }
+    val fresh = e.id == 0L
+    var pickDate by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
+    var pickTime by remember { mutableStateOf<Boolean?>(null) }
+    ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Text(logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
-            Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(16.dp))
-            Text("开始", style = MaterialTheme.typography.labelLarge)
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(app.mossling.ui.components.hm(cur.start), fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(end = 8.dp))
-                listOf(-15, -5, 5, 15).forEach { d ->
-                    FilterChip(selected = false, onClick = { val ms = d * 60_000L; cur = cur.copy(start = cur.start + ms, end = cur.end?.let { it + ms }) }, label = { Text(if (d > 0) "+$d" else "$d") })
+            Text((if (fresh) "补记 · " else "") + logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
+            if (!fresh) Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(12.dp))
+            WhenRow(if (cur.end != null) "开始" else "时间", cur.start, { pickDate = true }, { pickTime = true }) { d -> val ms = d * 60_000L; cur = cur.copy(start = cur.start + ms, end = cur.end?.let { it + ms }) }
+            if (cur.end != null) WhenRow("结束", cur.end!!, { pickDate = false }, { pickTime = false }) { d -> val n = cur.end!! + d * 60_000L; if (n > cur.start) cur = cur.copy(end = n) }
+            when (cur.type) {
+                LogType.Bottle -> {
+                    var ml by remember(e.id) { mutableFloatStateOf((cur.amount ?: 120).toFloat()) }
+                    Text("${ml.roundToInt()} 毫升", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
+                    Slider(ml, { ml = (it / 10).roundToInt() * 10f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 10f..300f)
                 }
-            }
-            if (cur.end != null) {
-                Text("结束", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 12.dp))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(app.mossling.ui.components.hm(cur.end!!), fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(end = 8.dp))
-                    listOf(-5, 5).forEach { d -> FilterChip(selected = false, onClick = { val n = cur.end!! + d * 60_000L; if (n > cur.start) cur = cur.copy(end = n) }, label = { Text(if (d > 0) "+$d" else "$d") }) }
+                LogType.Nurse -> Choice(listOf("l" to "左边", "r" to "右边"), cur.side) { cur = cur.copy(side = it) }
+                LogType.Diaper -> Choice(listOf("wet" to "湿", "dirty" to "便", "both" to "都有"), cur.detail) { cur = cur.copy(detail = it) }
+                LogType.Temp -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
+                    val c = cur.amount ?: 368
+                    FilledTonalButton(onClick = { cur = cur.copy(amount = (c - 1).coerceAtLeast(340)) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("−") }
+                    Text("%.1f °C".format(c / 10.0), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
+                    FilledTonalButton(onClick = { cur = cur.copy(amount = (c + 1).coerceAtMost(425)) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("+") }
                 }
-            }
-            if (cur.type == LogType.Bottle) {
-                var ml by remember(e.id) { mutableFloatStateOf((cur.amount ?: 120).toFloat()) }
-                Text("${ml.roundToInt()} 毫升", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-                Slider(ml, { ml = (it / 10).roundToInt() * 10f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 10f..300f)
+                LogType.Solid, LogType.Medicine, LogType.Note ->
+                    OutlinedTextField(cur.detail ?: "", { cur = cur.copy(detail = it.take(120)) }, Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(16.dp),
+                        placeholder = { Text(when (cur.type) { LogType.Solid -> "食物和大概的量"; LogType.Medicine -> "药名与剂量"; else -> "发生了什么" }) }, minLines = if (cur.type == LogType.Note) 3 else 1)
+                else -> Unit
             }
             Row(Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                TextButton(onClick = { onDelete(cur); onDismiss() }) { Text("删除这条", color = MaterialTheme.colorScheme.error) }
+                if (!fresh) TextButton(onClick = { onDelete(cur); onDismiss() }) { Text("删除这条", color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = { onChange(cur); onDismiss() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.height(48.dp)) { Text("好") }
+                if (fresh) TextButton(onClick = onDismiss) { Text("取消") }
+                Button(onClick = { onChange(cur); onDismiss() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text(if (fresh) "记下来" else "好") }
+            }
+        }
+    }
+    val z = java.time.ZoneId.systemDefault()
+    pickDate?.let { forStart ->
+        val base = if (forStart) cur.start else cur.end!!
+        val st = rememberDatePickerState(initialSelectedDateMillis = java.time.Instant.ofEpochMilli(base).atZone(z).toLocalDate().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates { override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= System.currentTimeMillis() })
+        DatePickerDialog(onDismissRequest = { pickDate = null }, confirmButton = { TextButton(onClick = {
+            st.selectedDateMillis?.let { d ->
+                val day = java.time.Instant.ofEpochMilli(d).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                val t = java.time.Instant.ofEpochMilli(base).atZone(z)
+                val n = day.atTime(t.toLocalTime()).atZone(z).toInstant().toEpochMilli(); val delta = n - base
+                cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + delta }) else cur.copy(end = n.coerceAtLeast(cur.start + 60_000))
+            }; pickDate = null }) { Text("好") } }, dismissButton = { TextButton(onClick = { pickDate = null }) { Text("取消") } }) { DatePicker(st) }
+    }
+    pickTime?.let { forStart ->
+        val base = if (forStart) cur.start else cur.end!!
+        val t0 = java.time.Instant.ofEpochMilli(base).atZone(z)
+        val st = rememberTimePickerState(t0.hour, t0.minute, is24Hour = true)
+        AlertDialog(onDismissRequest = { pickTime = null }, confirmButton = { TextButton(onClick = {
+            val n = t0.withHour(st.hour).withMinute(st.minute).toInstant().toEpochMilli(); val delta = n - base
+            cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + delta }) else cur.copy(end = if (n > cur.start) n else n + 86_400_000)
+            pickTime = null }) { Text("好") } }, dismissButton = { TextButton(onClick = { pickTime = null }) { Text("取消") } }, text = { TimePicker(st) })
+    }
+}
+
+@Composable
+private fun WhenRow(label: String, at: Long, onDate: () -> Unit, onTime: () -> Unit, step: (Int) -> Unit) {
+    Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val z = java.time.ZoneId.systemDefault(); val d = java.time.Instant.ofEpochMilli(at).atZone(z).toLocalDate(); val today = java.time.LocalDate.now()
+        TextButton(onClick = onDate, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            Text(when (d) { today -> "今天"; today.minusDays(1) -> "昨天"; else -> "${d.monthValue}月${d.dayOfMonth}日" }, style = MaterialTheme.typography.titleMedium)
+        }
+        TextButton(onClick = onTime, contentPadding = PaddingValues(horizontal = 4.dp)) {
+            Text(app.mossling.ui.components.hm(at), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium)
+        }
+        Spacer(Modifier.weight(1f))
+        listOf(-5, 5).forEach { s -> FilterChip(selected = false, onClick = { step(s) }, label = { Text(if (s > 0) "+$s" else "$s") }) }
+    }
+}
+
+@Composable
+private fun Choice(options: List<Pair<String, String>>, selected: String?, onPick: (String) -> Unit) {
+    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        options.forEachIndexed { i, (k, t) -> SegmentedButton(selected = selected == k, onClick = { onPick(k) }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(t) } }
+    }
+}
+
+/** Which kind of entry to add after the fact. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun KindSheet(onPick: (String) -> Unit, onDismiss: () -> Unit) {
+    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("补记哪一项", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
+            LogKinds.filter { it.type != GROWTH }.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { k -> LogButton(k, false, onClick = { onPick(k.type) }, modifier = Modifier.weight(1f)) }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                }
             }
         }
     }

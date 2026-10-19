@@ -1,5 +1,11 @@
 package app.mossling.ui.you
 
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -51,6 +57,12 @@ data class YouActions(
     val about: () -> Unit = {},
     val openMonth: (Int) -> Unit = {},
     val importOld: () -> Unit = {},
+    val exportJson: () -> Unit = {},
+    val exportCsv: () -> Unit = {},
+    val clearAll: () -> Unit = {},
+    val nickname: (String) -> Unit = {},
+    val sex: (String?) -> Unit = {},
+    val search: () -> Unit = {},
 )
 
 @Composable
@@ -97,6 +109,17 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                         Text(ui.settings.birth?.toString() ?: "填写", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
                     }
                 }
+                var nick by remember(ui.settings.nickname) { mutableStateOf(ui.settings.nickname) }
+                OutlinedTextField(nick, { nick = it.take(12) }, Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused && nick != ui.settings.nickname) a.nickname(nick) },
+                    label = { Text("宝宝的小名（可不填）") }, singleLine = true, shape = RoundedCornerShape(16.dp),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { a.nickname(nick) }),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done))
+                Text("性别（只用于选择 WHO 生长曲线）", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    listOf("boy" to "男孩", "girl" to "女孩", null to "不填").forEachIndexed { i, (k, l) ->
+                        SegmentedButton(selected = ui.settings.sex == k, onClick = { a.sex(k) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
+                    }
+                }
                 Text("外观", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf(ThemeMode.System to "跟随系统", ThemeMode.Light to "浅色", ThemeMode.Dark to "深色").forEachIndexed { i, (t, l) ->
@@ -105,15 +128,21 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                 }
             }
         }
-        item("old") {
-            SectionTitle("从旧版带过来", kicker = "养小怪兽 · 成长手册")
-            Column(Modifier.padding(horizontal = 16.dp)) {
-                Row1("导入记录文件", "在旧版「记录」里导出的 .json 文件：出生日期、每月勾选和手帐都会带过来，已有的不会被覆盖") { a.importOld() }
+        item("data") {
+            SectionTitle("记录文件", kicker = "只在这台手机上，自己保管")
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row1("导出记录文件", "全部勾选、手帐、生长测量和设置，存成一个 .json 文件；换手机或给家人时用") { a.exportJson() }
+                Row1("导出表格", "手帐和测量，一条一行的 .csv，可以用表格软件打开或给医生看") { a.exportCsv() }
+                Row1("导入记录文件", "本应用或旧版「养小怪兽 · 成长手册」导出的 .json：已有的不会被覆盖，重复的会跳过") { a.importOld() }
+                Surface(onClick = a.clearAll, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                    Text("清除全部数据", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp))
+                }
             }
         }
         item("shelf") {
             SectionTitle("参考", kicker = "整理好的专题")
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row1("搜索", "玩法、每个月的内容和专题") { a.search() }
                 c.topics.forEach { t -> Row1(t.title, t.sourceTitle) { a.topic(t.id) } }
                 Row1("关于与来源", "依据的机构、方法和每一条的核对日期") { a.about() }
             }

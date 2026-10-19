@@ -1,5 +1,6 @@
 package app.mossling.ui.you
 
+import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -32,7 +33,7 @@ import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.rich
 
 @Composable
-private fun Bar(title: String, onBack: () -> Unit) {
+fun Bar(title: String, onBack: () -> Unit) {
     Row(Modifier.statusBarsPadding().padding(horizontal = 4.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
         IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) { Glyph(G.Back) }
         Text(title, style = MaterialTheme.typography.titleLarge)
@@ -77,8 +78,10 @@ fun TopicScreen(t: Topic, onBack: () -> Unit) {
 
 /** Everything about where the handbook comes from — in this one place and nowhere else in the app. */
 @Composable
-fun AboutScreen(c: Content, onBack: () -> Unit) {
+fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
     val uri = LocalUriHandler.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "" }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item { Bar("", onBack) }
         item { Text("关于与来源", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
@@ -103,12 +106,65 @@ fun AboutScreen(c: Content, onBack: () -> Unit) {
                 }
             }
         }
+        item {
+            Surface(onClick = { runCatching { uri.openUri("https://www.who.int/tools/child-growth-standards") } }, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
+                    Text("WHO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                    Text("WHO Child Growth Standards（2006）：体重、身长 / 身高、头围的年龄别标准", style = MaterialTheme.typography.titleMedium)
+                    Text("「生长」页的曲线与百分位", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         item { SectionTitle("核对过的说法", kicker = "${c.about.ledger.size} 条") }
         items(c.about.ledger, key = { it.id }) { l ->
             Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
                 Text(l.claim, style = MaterialTheme.typography.bodyMedium)
                 Text("${l.level} · ${l.source} · ${l.checked}" + if (l.limit.isNotBlank()) " · ${l.limit}" else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+        }
+        item { SectionTitle("这个应用", kicker = null) }
+        item {
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Mossling 苔生 $version", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp))
+                Text("不联网，不收集任何数据；所有记录只在这台手机上。本应用提供养育参考信息，不能代替医生的诊断和建议。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+                LinkRow("开源许可", "字体与开源库", licenses)
+                LinkRow("反馈问题", "在 GitHub 上提交") { runCatching { uri.openUri("https://github.com/mjuvdeysii/monsterraising/issues") } }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LinkRow(title: String, sub: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/** The fonts and libraries this app is built with, and their licences. */
+@Composable
+fun LicensesScreen(onBack: () -> Unit) {
+    val items = listOf(
+        "Young Serif" to "SIL Open Font License 1.1 · The Young Serif Project Authors",
+        "Noto Serif SC" to "SIL Open Font License 1.1 · Adobe 与 Google（Noto Serif CJK）",
+        "Instrument Sans" to "SIL Open Font License 1.1 · The Instrument Sans Project Authors",
+        "AndroidX（Compose、Navigation、Room、DataStore、Glance、Core、Activity、Lifecycle、ProfileInstaller）" to "Apache License 2.0 · The Android Open Source Project",
+        "Kotlin 标准库、kotlinx.coroutines、kotlinx.serialization" to "Apache License 2.0 · JetBrains",
+        "WHO Child Growth Standards 数据表" to "World Health Organization（经 pygrowup 0.8.2 整理，BSD 许可）",
+    )
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+        item { Bar("开源许可", onBack) }
+        items(items.size) { i ->
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
+                Text(items[i].first, style = MaterialTheme.typography.titleMedium)
+                Text(items[i].second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        item {
+            Text("SIL Open Font License 与 Apache License 2.0 全文随应用源代码一同发布（native/licenses）。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
         }
     }
 }

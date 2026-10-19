@@ -56,6 +56,8 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                 Row(Modifier.statusBarsPadding().padding(horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBack, modifier = Modifier.semantics { contentDescription = "返回" }) { Glyph(G.Back) }
                     Spacer(Modifier.weight(1f))
+                    val ctx = androidx.compose.ui.platform.LocalContext.current
+                    IconButton(onClick = { share(ctx, p) }, modifier = Modifier.semantics { contentDescription = "分享这个玩法" }) { Glyph(G.Share, size = 22.dp) }
                     Text("满 $month 个月", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(end = 16.dp))
                 }
             }
@@ -124,4 +126,19 @@ private fun Line(tag: String, text: String, tint: androidx.compose.ui.graphics.C
         Text(tag, style = MaterialTheme.typography.labelLarge, color = tint, softWrap = false, modifier = Modifier.widthIn(min = 48.dp).padding(end = 8.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
+}
+
+/** The play as plain text, for a message to family: what to prepare, the safety line, the steps. */
+private fun share(ctx: android.content.Context, p: Play) {
+    val text = buildString {
+        append(p.code).append(" ").append(p.name).append('\n')
+        if (p.age.isNotBlank()) append(p.age).append('\n')
+        if (p.prepare.isNotBlank()) append("准备：").append(p.prepare).append('\n')
+        if (p.safety.isNotBlank()) append("安全：").append(p.safety).append('\n')
+        p.steps.forEachIndexed { i, s -> append(i + 1).append(". ").append(s).append('\n') }
+        if (p.observe.isNotBlank()) append("看什么：").append(p.observe).append('\n')
+        append("— 来自 Mossling 苔生")
+    }
+    val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text)
+    runCatching { ctx.startActivity(android.content.Intent.createChooser(send, "分享 ${p.name}")) }
 }

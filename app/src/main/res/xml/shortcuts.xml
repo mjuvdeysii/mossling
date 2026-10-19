@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut android:shortcutId="bottle" android:enabled="true" android:icon="@drawable/sc_bottle" android:shortcutShortLabel="@string/sc_bottle">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.mossling" android:targetClass="app.mossling.MainActivity"><extra android:name="open" android:value="log:bottle" /></intent>
+    </shortcut>
+    <shortcut android:shortcutId="nurse" android:enabled="true" android:icon="@drawable/sc_nurse" android:shortcutShortLabel="@string/sc_nurse">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.mossling" android:targetClass="app.mossling.MainActivity"><extra android:name="open" android:value="log:nurse" /></intent>
+    </shortcut>
+    <shortcut android:shortcutId="sleep" android:enabled="true" android:icon="@drawable/sc_sleep" android:shortcutShortLabel="@string/sc_sleep">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.mossling" android:targetClass="app.mossling.MainActivity"><extra android:name="open" android:value="log:sleep" /></intent>
+    </shortcut>
+    <shortcut android:shortcutId="diaper" android:enabled="true" android:icon="@drawable/sc_diaper" android:shortcutShortLabel="@string/sc_diaper">
+        <intent android:action="android.intent.action.VIEW" android:targetPackage="app.mossling" android:targetClass="app.mossling.MainActivity"><extra android:name="open" android:value="log:diaper" /></intent>
+    </shortcut>
+</shortcuts>
