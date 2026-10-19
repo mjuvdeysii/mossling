@@ -1,0 +1,59 @@
+package app.mossling.data
+
+import android.content.Context
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
+import app.mossling.ui.ip.Kind
+import app.mossling.ui.theme.ThemeMode
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import java.time.LocalDate
+
+private val Context.store by preferencesDataStore("settings")
+
+data class Settings(
+    val birth: LocalDate? = null,
+    val companion: Kind = Kind.Moss,
+    val theme: ThemeMode = ThemeMode.System,
+    val onboarded: Boolean = false,
+    val skipDay: Long = -1,
+    val pick: String = "",
+    val lastMonth: Int = -1,
+)
+
+class SettingsRepository(private val context: Context) {
+    private object K {
+        val birth = longPreferencesKey("birth_epoch_day")
+        val companion = stringPreferencesKey("companion")
+        val theme = stringPreferencesKey("theme")
+        val onboarded = booleanPreferencesKey("onboarded")
+        val skipDay = longPreferencesKey("skip_day")
+        val pick = stringPreferencesKey("pick")
+        val lastMonth = longPreferencesKey("last_month")
+    }
+
+    val settings: Flow<Settings> = context.store.data.map { p: Preferences ->
+        Settings(
+            birth = p[K.birth]?.let { LocalDate.ofEpochDay(it) },
+            companion = runCatching { Kind.valueOf(p[K.companion] ?: "Moss") }.getOrDefault(Kind.Moss),
+            theme = runCatching { ThemeMode.valueOf(p[K.theme] ?: "System") }.getOrDefault(ThemeMode.System),
+            onboarded = p[K.onboarded] ?: false,
+            skipDay = p[K.skipDay] ?: -1,
+            pick = p[K.pick] ?: "",
+            lastMonth = (p[K.lastMonth] ?: -1L).toInt(),
+        )
+    }
+
+    suspend fun setBirth(d: LocalDate?) = context.store.edit { if (d == null) it.remove(K.birth) else it[K.birth] = d.toEpochDay(); it[K.onboarded] = true }
+    suspend fun setCompanion(k: Kind) = context.store.edit { it[K.companion] = k.name }
+    suspend fun setTheme(t: ThemeMode) = context.store.edit { it[K.theme] = t.name }
+    suspend fun finishOnboarding() = context.store.edit { it[K.onboarded] = true }
+    suspend fun skipToday(day: Long?) = context.store.edit { if (day == null) it.remove(K.skipDay) else it[K.skipDay] = day }
+    /** "month:index" of today's suggestion, so "another one" survives a restart */
+    suspend fun setPick(v: String) = context.store.edit { it[K.pick] = v }
+    suspend fun setLastMonth(m: Int) = context.store.edit { it[K.lastMonth] = m.toLong() }
+}

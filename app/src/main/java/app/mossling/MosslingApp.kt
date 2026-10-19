@@ -1,0 +1,33 @@
+package app.mossling
+
+import android.app.Application
+import android.content.Context
+import app.mossling.data.ContentRepository
+import app.mossling.data.RecordsDb
+import app.mossling.data.SettingsRepository
+import app.mossling.journal.Timers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+
+class MosslingApp : Application() {
+    lateinit var graph: Graph
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        graph = Graph(this)
+        // read the handbook and bring back running timers off the main thread, before the first screen needs them
+        graph.scope.launch { graph.content.get(); graph.timers.restore(graph.db.dao().timers().first()) }
+    }
+}
+
+class Graph(context: Context) {
+    val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    val content = ContentRepository(context)
+    val settings = SettingsRepository(context)
+    val db: RecordsDb by lazy { RecordsDb.open(context) }
+    val timers: Timers by lazy { Timers(context, db.dao()) }
+}
