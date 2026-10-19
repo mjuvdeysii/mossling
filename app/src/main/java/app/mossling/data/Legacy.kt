@@ -50,7 +50,7 @@ class LegacyImport(private val context: Context, private val dao: RecordDao, pri
         var logs = 0; var skipped = 0
         str("hb:jr:ev")?.let { runCatching { json.parseToJsonElement(it).jsonArray }.getOrNull() }?.forEach { el ->
             val o = el as? JsonObject ?: return@forEach
-            val e = entry(o) ?: return@forEach
+            val e = legacyEntry(o) ?: return@forEach
             if (dao.sameMinute(e.type, e.start - 60_000, e.start + 60_000) > 0) skipped++ else { dao.putLog(e); logs++ }
         }
         return Result(ticks, logs, skipped, birth)
@@ -67,34 +67,36 @@ class LegacyImport(private val context: Context, private val dao: RecordDao, pri
         }
     }
 
-    private fun entry(o: JsonObject): LogEntry? {
-        val k = o["k"]?.jsonPrimitive?.content ?: return null
-        val t = o["t"]?.jsonPrimitive?.longOrNull ?: return null
-        val end = o["e"]?.jsonPrimitive?.longOrNull
-        val v = o["v"] as? JsonObject ?: JsonObject(emptyMap())
-        fun s(n: String) = (v[n] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
-        fun i(n: String) = (v[n] as? JsonPrimitive)?.intOrNull ?: (v[n] as? JsonPrimitive)?.doubleOrNull?.toInt()
-        return when (k) {
-            "nurse" -> {
-                val l = i("l") ?: 0; val r = i("r") ?: 0
-                LogEntry(type = LogType.Nurse, start = t, end = end, side = when { l == 0 && r == 0 -> null; l >= r -> "l"; else -> "r" },
-                    detail = if (l > 0 && r > 0) "left:$l,right:$r" else null)
-            }
-            "sleep" -> LogEntry(type = LogType.Sleep, start = t, end = end)
-            "bottle" -> LogEntry(type = LogType.Bottle, start = t, amount = i("ml"))
-            "diaper" -> LogEntry(type = LogType.Diaper, start = t, detail = when { i("w") == 1 && i("d") == 1 -> "both"; i("d") == 1 -> "dirty"; else -> "wet" })
-            "food" -> LogEntry(type = LogType.Solid, start = t, detail = listOfNotNull(s("name"), s("amt"), if (i("first") == 1) "第一次" else null).joinToString(" · ").ifBlank { null })
-            "bath" -> LogEntry(type = LogType.Bath, start = t)
-            "note" -> LogEntry(type = LogType.Note, start = t, detail = s("txt"))
-            // kinds this app does not keep as their own type are kept as notes, so nothing is lost
-            else -> {
-                val name = mapOf("vitd" to "维生素 D", "play" to "一起玩", "temp" to "体温", "grow" to "生长", "care" to "接种儿保", "react" to "辅食观察")[k] ?: k
-                val bits = listOfNotNull(
-                    s("title"), s("name"), s("txt"), s("food"),
-                    s("c")?.let { "$it °C" }, s("kg")?.let { "$it 千克" }, s("cm")?.let { "$it 厘米" }, s("l")?.takeIf { k == "grow" }?.let { "身长 $it 厘米" },
-                )
-                LogEntry(type = LogType.Note, start = t, end = end, detail = (listOf(name) + bits).joinToString(" · "))
-            }
+}
+
+/** One journal entry of the earlier app → one entry here (null when it has no kind or time). */
+internal fun legacyEntry(o: JsonObject): LogEntry? {
+    val k = o["k"]?.jsonPrimitive?.content ?: return null
+    val t = o["t"]?.jsonPrimitive?.longOrNull ?: return null
+    val end = o["e"]?.jsonPrimitive?.longOrNull
+    val v = o["v"] as? JsonObject ?: JsonObject(emptyMap())
+    fun s(n: String) = (v[n] as? JsonPrimitive)?.content?.takeIf { it.isNotBlank() }
+    fun i(n: String) = (v[n] as? JsonPrimitive)?.intOrNull ?: (v[n] as? JsonPrimitive)?.doubleOrNull?.toInt()
+    return when (k) {
+        "nurse" -> {
+            val l = i("l") ?: 0; val r = i("r") ?: 0
+            LogEntry(type = LogType.Nurse, start = t, end = end, side = when { l == 0 && r == 0 -> null; l >= r -> "l"; else -> "r" },
+                detail = if (l > 0 && r > 0) "left:$l,right:$r" else null)
+        }
+        "sleep" -> LogEntry(type = LogType.Sleep, start = t, end = end)
+        "bottle" -> LogEntry(type = LogType.Bottle, start = t, amount = i("ml"))
+        "diaper" -> LogEntry(type = LogType.Diaper, start = t, detail = when { i("w") == 1 && i("d") == 1 -> "both"; i("d") == 1 -> "dirty"; else -> "wet" })
+        "food" -> LogEntry(type = LogType.Solid, start = t, detail = listOfNotNull(s("name"), s("amt"), if (i("first") == 1) "第一次" else null).joinToString(" · ").ifBlank { null })
+        "bath" -> LogEntry(type = LogType.Bath, start = t)
+        "note" -> LogEntry(type = LogType.Note, start = t, detail = s("txt"))
+        // kinds this app does not keep as their own type are kept as notes, so nothing is lost
+        else -> {
+            val name = mapOf("vitd" to "维生素 D", "play" to "一起玩", "temp" to "体温", "grow" to "生长", "care" to "接种儿保", "react" to "辅食观察")[k] ?: k
+            val bits = listOfNotNull(
+                s("title"), s("name"), s("txt"), s("food"),
+                s("c")?.let { "$it °C" }, s("kg")?.let { "$it 千克" }, s("cm")?.let { "$it 厘米" }, s("l")?.takeIf { k == "grow" }?.let { "身长 $it 厘米" },
+            )
+            LogEntry(type = LogType.Note, start = t, end = end, detail = (listOf(name) + bits).joinToString(" · "))
         }
     }
 }
