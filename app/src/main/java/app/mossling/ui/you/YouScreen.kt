@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
 import app.mossling.data.TickKind
 import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.components.NumberRod
+import app.mossling.ui.components.PinkTower
 import app.mossling.ui.components.md
 import app.mossling.ui.ip.Creature
 import app.mossling.ui.ip.Kind
@@ -67,7 +69,10 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
             val obs = mo.observe.sumOf { it.items.size }
             val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().size
             val care = mo.vaccines.size + mo.checkups.size
-            SectionTitle("这个月记下的", kicker = "满 $m 个月 · 三类分开记")
+            SectionTitle("这个月记下的", kicker = "满 $m 个月 · 三类分开记", trailing = {
+                val done = ui.count(m, TickKind.Observed) + ui.count(m, TickKind.Did) + ui.count(m, TickKind.Vaccine) + ui.count(m, TickKind.Checkup)
+                PinkTower(done, obs + plays + care)
+            })
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Count("看到过", ui.count(m, TickKind.Observed), obs, Palette.Moss, Modifier.weight(1f)) { a.openMonth(m) }
                 Count("做过", ui.count(m, TickKind.Did), plays, Palette.Rod, Modifier.weight(1f)) { a.openMonth(m) }
@@ -118,12 +123,7 @@ private fun Count(label: String, n: Int, total: Int, tint: Color, modifier: Modi
                 Text(" / $total", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 6.dp))
             }
             Text(label, style = MaterialTheme.typography.labelLarge)
-            val track = MaterialTheme.colorScheme.outlineVariant
-            Canvas(Modifier.fillMaxWidth().height(10.dp).padding(top = 6.dp)) {
-                val k = total.coerceIn(1, 14); val gap = size.width / k; val r = (gap * 0.3f).coerceAtMost(3.dp.toPx())
-                val done = if (total == 0) 0 else (n * k + total - 1) / total
-                for (i in 0 until k) { val o = Offset(gap * i + gap / 2, size.height / 2); if (i < done) drawCircle(tint, r, o) else drawCircle(track, r, o, style = Stroke(1.dp.toPx())) }
-            }
+            NumberRod(n, total, Modifier.padding(top = 8.dp), height = 10.dp)
         }
     }
 }

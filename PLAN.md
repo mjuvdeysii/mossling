@@ -16,6 +16,21 @@ fast and fluid first, then interaction, then information design. Nothing in it s
 - **Data semantics** (must hold everywhere): observed (观察) / did an activity (做过) / health record (接种儿保, only ever
   ticked one by one) are separate; an activity done never implies a skill reached.
 
+## Montessori visual vocabulary (used for meaning, never as decoration)
+- **Sandpaper numerals on green boards**: the child's age and the month numeral.
+- **Work tray** with wooden rim and handle: today's play.
+- **Golden bead chain**: the 0–36 month scrubber; the child's month is the golden bead.
+- **Number rods** (alternating red/blue segments): how much of one kind is recorded.
+- **Pink tower**: the month's overall record.
+- **Colour tablets** with wooden ends: the six areas of development.
+- **Low open shelf**: the month's plays stand on it.
+- Next: knobbed cylinders (sleep lengths), sound boxes (feeds), practical-life trays for the journal kinds.
+
+## Polish bar (Google Play "Best of" calibre)
+Motion that explains change; haptics on every commit; empty states that offer the next step; large-screen and
+foldable layouts (list–detail on Grow); dark theme designed, not inverted; TalkBack order and labels; 48 dp targets;
+no jank on a mid-range phone; widgets; notifications only when asked for.
+
 ## Information architecture
 - **Today**: age in big numerals with the character; one play for today (swipe for another, skip for today);
   continue (running timer or last reading); quick log; next health item, quietly.
@@ -37,16 +52,16 @@ fast and fluid first, then interaction, then information design. Nothing in it s
 ### Phase 1 — foundation
 - [x] Content bundle exported to `app/src/main/assets/content.json` (37 months, 46 plays, sources in one list)
 - [x] Character design v1 (Moss, Otto; moods open/happy/wow/sleep; look direction; lid)
-- [ ] Gradle project, theme (colour roles light/dark, type scale, shapes), app icon (adaptive + monochrome)
-- [ ] Content repository + age calculation + settings (DataStore) + records (Room)
-- [ ] Navigation shell: four destinations with character tab icons, edge-to-edge, predictive back
-- [ ] Today screen
-- [ ] Grow screen with the bead chain scrubber
-- [ ] Month detail sections; Play detail (step pager, safety first, "did this" with undo)
-- [ ] Journal: quick log, timeline, timers (foreground service + notification), edit/retro-fill
-- [ ] You: record by kind, settings, About & sources (single place)
-- [ ] Onboarding: birth date in one screen, skippable
-- [ ] Paparazzi screenshots for all screens in CI; artifact + preview release `mossling-preview`
+- [x] Gradle project, theme (colour roles light/dark, type scale, shapes), app icon (adaptive + monochrome)
+- [x] Content repository + age calculation + settings (DataStore) + records (Room)
+- [x] Navigation shell: four destinations with character tab icons, edge-to-edge, predictive back
+- [x] Today screen
+- [x] Grow screen with the bead chain scrubber
+- [x] Month detail sections; Play detail (step pager, safety first, "did this" with undo)
+- [x] Journal: quick log, timeline, timers (foreground service + notification), edit/retro-fill
+- [x] You: record by kind, settings, About & sources (single place)
+- [x] Onboarding: birth date in one screen, skippable
+- [x] Paparazzi screenshots for all screens in CI; artifact + preview release `mossling-preview`
 ### Phase 2 — craft
 - [ ] Motion pass: shared element Today→Play, bead chain physics, character idle (blink, glance), reduced motion
 - [ ] Character expressions tied to context (sleep at night, focus on timers, glance toward the chain)

@@ -72,7 +72,7 @@ class ScreensTest {
     private fun shot(name: String, dark: Boolean = false, companion: Kind = Kind.Moss, body: @Composable () -> Unit) =
         paparazzi.snapshot(name) {
             MosslingTheme(if (dark) ThemeMode.Dark else ThemeMode.Light, companion) {
-                Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) { body() }
+                androidx.compose.material3.Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) { body() }
             }
         }
 

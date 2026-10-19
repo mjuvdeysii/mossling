@@ -15,6 +15,7 @@ import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -87,8 +88,9 @@ private val Tabs = listOf(
 fun MosslingRoot(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifications: () -> Unit = {}) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     MosslingTheme(ui.settings.theme, ui.settings.companion) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            if (!ui.ready) return@Box
+        // a Surface, not a bare background: it also sets the content colour, so text is right in the dark theme
+        Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) {
+            if (!ui.ready) return@Surface
             var birthDialog by remember { mutableStateOf(false) }
             if (!ui.settings.onboarded) Onboarding(onBirth = { birthDialog = true }, onSkip = vm::finishOnboarding)
             else Shell(vm, open, askNotifications) { birthDialog = true }

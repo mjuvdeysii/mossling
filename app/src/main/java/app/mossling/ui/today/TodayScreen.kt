@@ -55,6 +55,9 @@ import app.mossling.journal.Timers
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
+import app.mossling.ui.components.SandpaperNumber
+import app.mossling.ui.components.WorkTray
+import androidx.compose.foundation.clickable
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.clock
 import app.mossling.ui.components.md
@@ -144,9 +147,11 @@ private fun Hero(ui: AppUi, companion: Kind, a: TodayActions) {
                     Text("告诉我宝宝哪天出生，这里每天会讲今天该看什么。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 6.dp))
                     Button(onClick = a.setBirth, modifier = Modifier.padding(top = 16.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) { Text("填写出生日期") }
                 } else {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text("${age.months}", style = MaterialTheme.typography.displayLarge, modifier = Modifier.alignByBaseline())
-                        Text(" 个月", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.alignByBaseline())
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 10.dp)) {
+                        SandpaperNumber("${age.months}", MaterialTheme.typography.displayLarge)
+                    }
+                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 6.dp)) {
+                        Text("个月", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.alignByBaseline())
                         if (age.days > 0) {
                             Text("  ${age.days}", style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.alignByBaseline())
                             Text(" 天", style = MaterialTheme.typography.titleLarge, modifier = Modifier.alignByBaseline())
@@ -178,7 +183,7 @@ private fun DayBeads(done: Int, total: Int, modifier: Modifier = Modifier) {
 
 @Composable
 private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -> Unit, onAnother: () -> Unit, onSkip: () -> Unit) {
-    Plate(Modifier.fillMaxWidth().padding(top = 20.dp), onClick = onOpen) {
+    WorkTray(Modifier.fillMaxWidth().padding(top = 20.dp).clip(RoundedCornerShape(30.dp)).clickable(onClick = onOpen)) {
         Row(verticalAlignment = Alignment.Top) {
             Column(Modifier.weight(1f)) {
                 Text("今天一起玩", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)

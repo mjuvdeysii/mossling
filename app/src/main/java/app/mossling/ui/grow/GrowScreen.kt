@@ -48,6 +48,9 @@ import app.mossling.data.Play
 import app.mossling.data.TickKind
 import app.mossling.ui.components.BeadChain
 import app.mossling.ui.components.Plate
+import app.mossling.ui.components.SandpaperNumber
+import app.mossling.ui.components.Shelf
+import app.mossling.ui.components.ColorTablet
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.areaColor
 import app.mossling.ui.ip.Creature
@@ -75,9 +78,9 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                     (slideInHorizontally(tween(220)) { dir * it / 3 } + fadeIn(tween(220))) togetherWith (slideOutHorizontally(tween(180)) { -dir * it / 3 } + fadeOut(tween(160)))
                 }, label = "month", modifier = Modifier.weight(1f)) { m ->
                     Column {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("$m", style = MaterialTheme.typography.displayMedium, modifier = Modifier.alignByBaseline())
-                            Text(" 个月", style = MaterialTheme.typography.titleLarge, modifier = Modifier.alignByBaseline())
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            SandpaperNumber("$m", MaterialTheme.typography.displayMedium)
+                            Text("  个月", style = MaterialTheme.typography.titleLarge)
                         }
                         Text(c.month(m).title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     }
@@ -118,8 +121,10 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
         val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().mapNotNull(play)
         if (plays.isNotEmpty()) item("plays") {
             SectionTitle("这个月玩什么", kicker = "${plays.size} 个游戏")
-            LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(plays, key = { it.code }) { p -> PlayCard(p, ui.ticked(m, TickKind.Did, p.code), companion) { a.openPlay(p.code, m) } }
+            Shelf(Modifier.fillMaxWidth()) {
+                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    items(plays, key = { it.code }) { p -> PlayCard(p, ui.ticked(m, TickKind.Did, p.code), companion) { a.openPlay(p.code, m) } }
+                }
             }
         }
         item("areas") {
@@ -128,7 +133,7 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
                 mo.domains.forEach { d ->
                     Plate(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Box(Modifier.size(10.dp).clip(CircleShape).background(areaColor(d.key)))
+                            ColorTablet(areaColor(d.key))
                             Spacer(Modifier.width(10.dp))
                             Text(d.name, style = MaterialTheme.typography.titleSmall, color = areaColor(d.key))
                             if (d.key == mo.focus) { Spacer(Modifier.width(8.dp)); Text("本月重点", style = MaterialTheme.typography.labelSmall, color = Palette.Bead) }
