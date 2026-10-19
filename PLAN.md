@@ -68,8 +68,8 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Illustrations: Montessori material still lifes drawn in code, six families (basket, peg and rings, permanence box, mirror, bell and tablets, pouring); the old cut-paper scenes are not carried over
 - [x] Glance widgets: age + last feed + quick log; timer live in widget
 - [x] Notifications: the running timer only. No health or activity reminders — the app does not chase the parent; what is due is visible on Today when they open it
-- [ ] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts
-- [ ] Accessibility: TalkBack labels, 48dp targets, contrast in both themes
+- [x] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts (200% snapshots for Today, Play, Journal: actions wrap, tags and times never clip)
+- [x] Accessibility: icon buttons labelled, 48dp minimum targets, contrast checked in both themes (gold text uses deep bead in light, ≥ 4.5:1)
 ### Phase 3 — maturity
 - [ ] Import from the WebView app (one-time migration of ticks, journal, birth date)
 - [ ] Baseline profile + macrobenchmark (startup, scroll, chain scrub)
