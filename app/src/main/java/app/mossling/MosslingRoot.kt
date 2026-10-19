@@ -1,5 +1,7 @@
 package app.mossling
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -101,7 +103,7 @@ private val Tabs = listOf(
 )
 
 @Composable
-fun MosslingRoot(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifications: () -> Unit = {}) {
+fun MosslingRoot(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifications: () -> Unit = {}, locked: MutableStateFlow<Boolean> = MutableStateFlow(false), unlock: () -> Unit = {}) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     MosslingTheme(ui.settings.theme, ui.settings.companion) {
         // a Surface, not a bare background: it also sets the content colour, so text is right in the dark theme
@@ -111,6 +113,8 @@ fun MosslingRoot(vm: AppViewModel, open: MutableStateFlow<String?>, askNotificat
             if (!ui.settings.onboarded) Onboarding(onBirth = { birthDialog = true }, onSkip = vm::finishOnboarding)
             else Shell(vm, open, askNotifications) { birthDialog = true }
             if (birthDialog) BirthDialog(ui.settings.birth, onPick = { vm.setBirth(it) }, onDismiss = { birthDialog = false })
+            val isLocked by locked.collectAsStateWithLifecycle()
+            if (isLocked) LockScreen(ui.settings.companion, unlock)
         }
     }
 }
@@ -255,6 +259,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     clearAll = { clearing = true },
                     nickname = vm::setNickname, sex = vm::setSex,
                     search = { nav.navigate(SearchRoute) },
+                    lock = vm::setLock,
                     importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))
             }
@@ -316,5 +321,17 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         dismissButton = { androidx.compose.material3.TextButton(onClick = { clearing = false }) { Text("取消") } })
     editing?.let { e ->
         EntrySheet(e, onChange = { if (it.id == 0L) vm.addLog(it) { n -> added(n) } else if (it != e) vm.updateLog(it) }, onDelete = { d -> vm.deleteLog(d); undoable("删掉了一条") { vm.restoreLog(d) } }, onDismiss = { editing = null })
+    }
+}
+
+/** Covers everything until the person has confirmed it is them. The companion is asleep; nothing of the records shows. */
+@Composable
+private fun LockScreen(companion: app.mossling.ui.ip.Kind, unlock: () -> Unit) {
+    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        androidx.compose.foundation.layout.Column(Modifier.fillMaxSize(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
+            app.mossling.ui.ip.Creature(companion, Modifier.size(140.dp), mood = app.mossling.ui.ip.Mood.Sleep)
+            Text("苔生已锁定", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+            androidx.compose.material3.Button(onClick = unlock, shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), modifier = Modifier.padding(top = 24.dp).heightIn(min = 52.dp)) { Text("解锁") }
+        }
     }
 }

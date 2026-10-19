@@ -87,5 +87,5 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Launcher shortcuts (bottle, nurse, sleep, nappy); clear all data; licences, version, feedback
 - [x] Database migration (v1 → v2) tested on the emulator
 - [ ] More than one child (waits for the owner's decision)
-- [ ] App lock (fingerprint / face)
+- [x] App lock (fingerprint, face or screen lock; opt-in; after 30 s away)
 - [ ] Photos on entries

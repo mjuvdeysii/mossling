@@ -63,6 +63,7 @@ data class YouActions(
     val nickname: (String) -> Unit = {},
     val sex: (String?) -> Unit = {},
     val search: () -> Unit = {},
+    val lock: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -119,6 +120,15 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                     listOf("boy" to "男孩", "girl" to "女孩", null to "不填").forEachIndexed { i, (k, l) ->
                         SegmentedButton(selected = ui.settings.sex == k, onClick = { a.sex(k) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
                     }
+                }
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val canLock = remember { runCatching { androidx.biometric.BiometricManager.from(ctx).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS }.getOrDefault(false) }
+                if (canLock || ui.settings.lock) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("应用锁", style = MaterialTheme.typography.titleMedium)
+                        Text("打开时用指纹、面容或锁屏密码确认", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    androidx.compose.material3.Switch(ui.settings.lock, onCheckedChange = a.lock)
                 }
                 Text("外观", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {

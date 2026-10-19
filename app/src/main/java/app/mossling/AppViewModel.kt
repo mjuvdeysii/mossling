@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -90,6 +91,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setTheme(t: ThemeMode) = viewModelScope.launch { g.settings.setTheme(t) }
     fun skipToday(skip: Boolean) = viewModelScope.launch { g.settings.skipToday(if (skip) LocalDate.now().toEpochDay() else null) }
     fun setPick(v: String) = viewModelScope.launch { g.settings.setPick(v) }
+    /** read once at start-up from the stored settings, so the lock is never skipped while settings load */
+    fun lockOn(): Boolean = kotlinx.coroutines.runBlocking { g.settings.settings.first().lock }
+    fun setLock(on: Boolean) = viewModelScope.launch { g.settings.setLock(on) }
     fun setSex(s: String?) = viewModelScope.launch { g.settings.setSex(s) }
     fun setNickname(n: String) = viewModelScope.launch { g.settings.setNickname(n); widget() }
     fun putMeasure(m: app.mossling.data.Measure) = viewModelScope.launch { dao.putMeasure(m) }
