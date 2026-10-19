@@ -88,7 +88,7 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     p.steps.forEachIndexed { i, s ->
                         Row(verticalAlignment = Alignment.Top) {
-                            Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Palette.Bead, modifier = Modifier.width(48.dp))
+                            Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.width(48.dp))
                             Text(s, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
                         }
                     }

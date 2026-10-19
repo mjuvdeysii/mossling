@@ -137,7 +137,7 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
                             ColorTablet(areaColor(d.key))
                             Spacer(Modifier.width(10.dp))
                             Text(d.name, style = MaterialTheme.typography.titleSmall, color = areaColor(d.key))
-                            if (d.key == mo.focus) { Spacer(Modifier.width(8.dp)); Text("本月重点", style = MaterialTheme.typography.labelSmall, color = Palette.Bead) }
+                            if (d.key == mo.focus) { Spacer(Modifier.width(8.dp)); Text("本月重点", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
                         }
                         Text(d.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
                     }

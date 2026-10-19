@@ -105,6 +105,10 @@ class ScreensTest {
     @Test fun youOttoDark() = shot("14_you_otto_dark", dark = true, companion = Kind.Otto) { YouScreen(ui(Kind.Otto), YouActions()) }
     @Test fun topic() = shot("15_topic") { TopicScreen(content.topics.first()) {} }
     @Test fun about() = shot("16_about") { AboutScreen(content) {} }
+    // the largest system font size: nothing may clip, overlap or run off the edge
+    @Test fun todayLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("19_today_font200") { TodayScreen(ui(), TodayActions(), now = { at(20, 0) }) } }
+    @Test fun playLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("20_play_font200") { PlayScreen(content.play("A11")!!, 6, false, {}, {}) } }
+    @Test fun journalLargeFont() { paparazzi.unsafeUpdateConfig(DeviceConfig.PIXEL_6.copy(softButtons = false, fontScale = 2.0f)); shot("21_journal_font200") { JournalScreen(ui(), today, logs, JournalActions()) } }
     @Test fun materials() = shot("17_materials") {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->
