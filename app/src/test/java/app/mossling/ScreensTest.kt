@@ -136,6 +136,21 @@ class ScreensTest {
     @Test fun store3() { store(); shot("store_3_play") { PlayScreen(content.play("A11")!!, 6, false, {}, {}) } }
     @Test fun store4() { store(); shot("store_4_journal_otto", companion = Kind.Otto) { JournalScreen(ui(Kind.Otto), today, logs, JournalActions()) } }
     @Test fun store5() { store(); shot("store_5_today_dark", dark = true, companion = Kind.Otto) { TodayScreen(ui(Kind.Otto, timers = listOf(RunningTimer(LogType.Nurse, at(19, 48), "l"))), TodayActions(), now = { at(20, 0) }) } }
+    private val growth by lazy { app.mossling.domain.Growth.parse(File("src/main/assets/who_growth.json").readText()) }
+    private fun measured() = ui().let { u -> u.copy(settings = u.settings.copy(sex = "girl", nickname = "小满"), measures = listOf(
+        app.mossling.data.Measure(1, at(9, 0) - 200L * 86_400_000, 3300, 500, 340), app.mossling.data.Measure(2, at(9, 0) - 140L * 86_400_000, 5400, 580, 385),
+        app.mossling.data.Measure(3, at(9, 0) - 80L * 86_400_000, 6600, 625, 410), app.mossling.data.Measure(4, at(9, 0) - 10L * 86_400_000, 7400, 655, 425))) }
+    @Test fun growthChart() = shot("23_growth") { app.mossling.ui.growth.GrowthScreen(measured(), growth, app.mossling.ui.growth.GrowthActions()) }
+    @Test fun growthDark() = shot("24_growth_dark", dark = true) { app.mossling.ui.growth.GrowthScreen(measured(), growth, app.mossling.ui.growth.GrowthActions()) }
+    @Test fun stats() = shot("25_stats") {
+        val week = (0 until 7).flatMap { d -> val b = at(8, 0) - d * 86_400_000L
+            listOf(LogEntry(0, LogType.Bottle, b, amount = 120 + d * 10), LogEntry(0, LogType.Bottle, b + 4 * 3_600_000, amount = 150), LogEntry(0, LogType.Nurse, b + 7 * 3_600_000, b + 7 * 3_600_000 + 18 * 60_000, side = "l"),
+                LogEntry(0, LogType.Sleep, b - 9 * 3_600_000, b - (d % 3) * 1_800_000L), LogEntry(0, LogType.Diaper, b + 3_600_000, detail = "wet"), LogEntry(0, LogType.Diaper, b + 5 * 3_600_000, detail = "both")) }
+        app.mossling.ui.journal.StatsScreen(week, today) {}
+    }
+    @Test fun search() = shot("26_search") { app.mossling.ui.search.SearchScreen(content, {}, {}, {}, {}) }
+    @Test fun todayNick() = shot("27_today_nickname_since") { TodayScreen(measured().copy(lastFeed = LogEntry(9, LogType.Bottle, at(17, 50), amount = 120), lastSleep = LogEntry(8, LogType.Sleep, at(16, 0), at(18, 55))), TodayActions(), now = { at(20, 0) }) }
+    @Test fun licenses() = shot("28_licenses") { app.mossling.ui.you.LicensesScreen {} }
     @Test fun materials() = shot("17_materials") {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->
