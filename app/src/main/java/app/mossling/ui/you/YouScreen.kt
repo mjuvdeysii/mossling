@@ -50,6 +50,7 @@ data class YouActions(
     val topic: (String) -> Unit = {},
     val about: () -> Unit = {},
     val openMonth: (Int) -> Unit = {},
+    val importOld: () -> Unit = {},
 )
 
 @Composable
@@ -102,6 +103,12 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                         SegmentedButton(selected = ui.settings.theme == t, onClick = { a.theme(t) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
                     }
                 }
+            }
+        }
+        item("old") {
+            SectionTitle("从旧版带过来", kicker = "养小怪兽 · 成长手册")
+            Column(Modifier.padding(horizontal = 16.dp)) {
+                Row1("导入记录文件", "在旧版「记录」里导出的 .json 文件：出生日期、每月勾选和手帐都会带过来，已有的不会被覆盖") { a.importOld() }
             }
         }
         item("shelf") {

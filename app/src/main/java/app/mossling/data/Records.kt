@@ -54,6 +54,8 @@ interface RecordDao {
     @Query("SELECT * FROM ticks") fun ticks(): Flow<List<Tick>>
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun putTick(t: Tick)
     @Query("DELETE FROM ticks WHERE `key` = :key") suspend fun dropTick(key: String)
+    @Insert(onConflict = OnConflictStrategy.IGNORE) suspend fun putTickIfAbsent(t: Tick): Long
+    @Query("SELECT COUNT(*) FROM logs WHERE type = :type AND start > :from AND start < :to") suspend fun sameMinute(type: String, from: Long, to: Long): Int
 
     @Query("SELECT * FROM logs WHERE start >= :from AND start < :to ORDER BY start DESC") fun logs(from: Long, to: Long): Flow<List<LogEntry>>
     @Query("SELECT * FROM logs ORDER BY start DESC LIMIT 1") fun latest(): Flow<LogEntry?>

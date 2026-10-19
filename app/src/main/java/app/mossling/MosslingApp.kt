@@ -30,4 +30,5 @@ class Graph(context: Context) {
     val settings = SettingsRepository(context)
     val db: RecordsDb by lazy { RecordsDb.open(context) }
     val timers: Timers by lazy { Timers(context, db.dao()) }
+    val legacy: app.mossling.data.LegacyImport by lazy { app.mossling.data.LegacyImport(context, db.dao(), settings) }
 }

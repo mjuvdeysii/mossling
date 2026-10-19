@@ -134,6 +134,9 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         snack.currentSnackbarData?.dismiss()
         if (snack.showSnackbar(msg, actionLabel = "撤销", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) undo()
     }
+    val pickOld = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importLegacy(uri) { msg -> scope.launch { snack.showSnackbar(msg, duration = SnackbarDuration.Long) } }
+    }
     fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -230,6 +233,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     companion = vm::setCompanion, theme = vm::setTheme, birth = askBirth,
                     topic = { nav.navigate(TopicRoute(it)) }, about = { nav.navigate(AboutRoute) },
                     openMonth = { browse = it; go(GrowRoute) },
+                    importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))
             }
             composable<PlayRoute>(

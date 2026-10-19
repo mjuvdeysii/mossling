@@ -71,7 +71,7 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts (200% snapshots for Today, Play, Journal: actions wrap, tags and times never clip)
 - [x] Accessibility: icon buttons labelled, 48dp minimum targets, contrast checked in both themes (gold text uses deep bead in light, ≥ 4.5:1)
 ### Phase 3 — maturity
-- [ ] Import from the WebView app (one-time migration of ticks, journal, birth date)
+- [x] Import from the WebView app: its exported record file (You → 从旧版带过来) brings birth date, month ticks (mapped by item text, `tools/legacy_map.py` → `assets/legacy_map.json`) and the journal; nothing existing is overwritten, duplicates skipped, kinds without a native type kept as notes
 - [ ] Baseline profile + macrobenchmark (startup, scroll, chain scrub)
 - [ ] Emulator UI tests (critical paths) in CI
 - [ ] Store listing assets (screenshots, feature graphic), privacy statement
