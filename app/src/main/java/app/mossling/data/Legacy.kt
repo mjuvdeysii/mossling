@@ -122,6 +122,8 @@ internal fun legacyEntry(o: JsonObject): LogEntry? {
         "food" -> LogEntry(type = LogType.Solid, start = t, detail = listOfNotNull(s("name"), s("amt"), if (i("first") == 1) "第一次" else null).joinToString(" · ").ifBlank { null })
         "bath" -> LogEntry(type = LogType.Bath, start = t)
         "note" -> LogEntry(type = LogType.Note, start = t, detail = s("txt"))
+        "temp" -> s("c")?.toDoubleOrNull()?.let { LogEntry(type = LogType.Temp, start = t, amount = Math.round(it * 10).toInt()) }
+            ?: LogEntry(type = LogType.Note, start = t, detail = "体温")
         // kinds this app does not keep as their own type are kept as notes, so nothing is lost
         else -> {
             val name = mapOf("vitd" to "维生素 D", "play" to "一起玩", "temp" to "体温", "grow" to "生长", "care" to "接种儿保", "react" to "辅食观察")[k] ?: k
