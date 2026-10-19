@@ -48,6 +48,7 @@ import app.mossling.data.Play
 import app.mossling.data.TickKind
 import app.mossling.ui.components.BeadChain
 import app.mossling.ui.components.Plate
+import app.mossling.ui.components.shared
 import app.mossling.ui.components.SandpaperNumber
 import app.mossling.ui.components.Shelf
 import app.mossling.ui.components.ColorTablet
@@ -185,7 +186,7 @@ private fun PlayCard(p: Play, did: Boolean, companion: Kind, onClick: () -> Unit
     Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.width(220.dp)) {
         Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(12.dp), color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod) {
+                Surface(shape = RoundedCornerShape(12.dp), color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, modifier = Modifier.shared("code-${p.code}")) {
                     Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, color = Palette.Paper, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
                 }
                 Spacer(Modifier.weight(1f))

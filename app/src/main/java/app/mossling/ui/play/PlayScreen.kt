@@ -35,6 +35,7 @@ import app.mossling.data.Play
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
+import app.mossling.ui.components.shared
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.ip.Creature
 import app.mossling.ui.ip.Mood
@@ -58,7 +59,9 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
             item("head") {
                 Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp), verticalAlignment = Alignment.Bottom) {
                     Column(Modifier.weight(1f)) {
-                        Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+                        Surface(shape = RoundedCornerShape(18.dp), color = if (companion == app.mossling.ui.ip.Kind.Moss) Palette.Moss else Palette.Rod, modifier = Modifier.shared("code-${p.code}")) {
+                            Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Palette.Paper, modifier = Modifier.padding(horizontal = 14.dp, vertical = 2.dp))
+                        }
                         Text(p.name, style = MaterialTheme.typography.headlineLarge)
                         Text(listOf(p.age, p.domains.joinToString("、")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                     }

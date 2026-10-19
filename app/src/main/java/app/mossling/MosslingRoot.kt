@@ -23,6 +23,11 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import androidx.compose.animation.ExperimentalSharedTransitionApi
+import androidx.compose.animation.SharedTransitionLayout
+import androidx.compose.runtime.CompositionLocalProvider
+import app.mossling.ui.components.LocalDestination
+import app.mossling.ui.components.LocalShared
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -106,6 +111,7 @@ fun MosslingRoot(vm: AppViewModel, open: MutableStateFlow<String?>, askNotificat
     }
 }
 
+@OptIn(ExperimentalSharedTransitionApi::class)
 @Composable
 private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifications: () -> Unit, askBirth: () -> Unit) {
     val ui by vm.ui.collectAsStateWithLifecycle()
@@ -184,13 +190,15 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
             }
             Spacer(Modifier.weight(1f))
         }
-        NavHost(nav, startDestination = TodayRoute, modifier = Modifier.weight(1f).padding(bottom = pad.calculateBottomPadding()),
+        SharedTransitionLayout(Modifier.weight(1f)) {
+        CompositionLocalProvider(LocalShared provides this) {
+        NavHost(nav, startDestination = TodayRoute, modifier = Modifier.fillMaxSize().padding(bottom = pad.calculateBottomPadding()),
             enterTransition = { fadeIn(tween(220)) + scaleIn(tween(260), initialScale = 0.98f) },
             exitTransition = { fadeOut(tween(160)) },
             popEnterTransition = { fadeIn(tween(220)) },
             popExitTransition = { fadeOut(tween(160)) + slideOutHorizontally(tween(220)) { it / 8 } },
         ) {
-            composable<TodayRoute> {
+            composable<TodayRoute> { CompositionLocalProvider(LocalDestination provides this) {
                 TodayScreen(ui, TodayActions(
                     openPlay = { code, m -> nav.navigate(PlayRoute(code, m)) },
                     openMonth = { browse = it; go(GrowRoute) },
@@ -206,14 +214,14 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     stop = { t -> vm.stopTimer(t) { it?.let(::added) } },
                     openJournal = { go(JournalRoute) },
                 ))
-            }
-            composable<GrowRoute> {
+            } }
+            composable<GrowRoute> { CompositionLocalProvider(LocalDestination provides this) {
                 GrowScreen(ui, month, GrowActions(
                     select = { browse = it },
                     openPlay = { code, m -> nav.navigate(PlayRoute(code, m)) },
                     tick = { m, kind, id, label -> vm.toggleTick(m, kind, id, label) },
                 ))
-            }
+            } }
             composable<JournalRoute> {
                 JournalScreen(ui, day, logs, JournalActions(pickDay = { vm.journalDay.value = it }, log = ::log, open = { editing = it }))
             }
@@ -227,17 +235,19 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
             composable<PlayRoute>(
                 enterTransition = { slideInHorizontally(tween(280)) { it / 5 } + fadeIn(tween(240)) },
                 popExitTransition = { slideOutHorizontally(tween(240)) { it / 4 } + fadeOut(tween(200)) },
-            ) { entry ->
+            ) { entry -> CompositionLocalProvider(LocalDestination provides this) {
                 val r = entry.toRoute<PlayRoute>()
-                val p = c.play(r.code) ?: return@composable
+                val p = c.play(r.code) ?: return@CompositionLocalProvider
                 val did = ui.ticked(r.month, TickKind.Did, p.code)
                 PlayScreen(p, r.month, did, onDid = { on ->
                     vm.toggleTick(r.month, TickKind.Did, p.code, p.name, on)
                     if (on) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); undoable("记为这个月做过（只是记录，不是评估）") { vm.toggleTick(r.month, TickKind.Did, p.code, p.name, false) } }
                 }, onBack = { nav.popBackStack() })
-            }
+            } }
             composable<TopicRoute> { entry -> c.topics.firstOrNull { it.id == entry.toRoute<TopicRoute>().id }?.let { TopicScreen(it) { nav.popBackStack() } } }
             composable<AboutRoute> { AboutScreen(c) { nav.popBackStack() } }
+        }
+        }
         }
       }
     }

@@ -55,6 +55,7 @@ import app.mossling.journal.Timers
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
+import app.mossling.ui.components.shared
 import app.mossling.ui.components.SandpaperNumber
 import app.mossling.ui.components.WorkTray
 import androidx.compose.foundation.clickable
@@ -212,7 +213,7 @@ private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -
 @Composable
 private fun Specimen(code: String, companion: Kind) {
     Box(Modifier.size(width = 84.dp, height = 96.dp)) {
-        Surface(color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, shape = RoundedCornerShape(18.dp), modifier = Modifier.align(Alignment.BottomCenter).size(84.dp, 70.dp)) {
+        Surface(color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, shape = RoundedCornerShape(18.dp), modifier = Modifier.align(Alignment.BottomCenter).size(84.dp, 70.dp).shared("code-$code")) {
             Box(contentAlignment = Alignment.Center) { Text(code, fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Palette.Paper) }
         }
         Creature(companion, Modifier.size(44.dp).align(Alignment.TopEnd).offset(x = 4.dp, y = 2.dp), look = Offset(-0.6f, 0.8f))
