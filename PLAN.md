@@ -65,9 +65,9 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 ### Phase 2 — craft
 - [x] Motion pass: shared element Today→Play (code tile), character idle (breath, blink, glance, hop on Happy, poke), reduced motion respected
 - [x] Character expressions tied to context (asleep at night and during a sleep timer, eyes down during a feed, smile on a done play)
-- [ ] Illustrations: the web cut-paper scenes rasterised to WebP per play step; consistent frame and grain
+- [x] Illustrations: Montessori material still lifes drawn in code, six families (basket, peg and rings, permanence box, mirror, bell and tablets, pouring); the old cut-paper scenes are not carried over
 - [x] Glance widgets: age + last feed + quick log; timer live in widget
-- [ ] Notifications: health items (opt-in, quiet), timer ongoing; no other reminders
+- [x] Notifications: the running timer only. No health or activity reminders — the app does not chase the parent; what is due is visible on Today when they open it
 - [ ] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts
 - [ ] Accessibility: TalkBack labels, 48dp targets, contrast in both themes
 ### Phase 3 — maturity
