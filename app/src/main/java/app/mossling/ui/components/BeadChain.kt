@@ -80,7 +80,7 @@ fun BeadChain(selected: Int, babyMonth: Int?, onSelect: (Int) -> Unit, modifier:
                 val on = m == centred
                 val r by animateFloatAsState(if (on) 1f else 0f, spring(dampingRatio = 0.55f, stiffness = 500f), label = "bead")
                 Column(
-                    Modifier.width(Step).semantics { contentDescription = "满 $m 个月"; selected = on }
+                    Modifier.width(Step).semantics { contentDescription = "满 $m 个月"; this.selected = on }
                         .clickable(remember { MutableInteractionSource() }, null, role = Role.Tab) { scope.launch { state.animateScrollToItem(m) } },
                     horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
