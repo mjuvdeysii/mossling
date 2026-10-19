@@ -33,7 +33,7 @@ jobs:
           base=$(cat VERSION); release=0
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name="${GITHUB_REF#refs/tags/v}"; release=1
           elif [[ "$GITHUB_REF" == refs/heads/main ]] && ! gh release view "v$base" >/dev/null 2>&1; then name="$base"; release=1
-          else name="${base}-preview.${{ github.run_number }}"; fi
+          else name="${base}.${{ github.run_number }}"; fi
           echo "VERSION_NAME=$name" >> "$GITHUB_ENV"; echo "RELEASE=$release" >> "$GITHUB_ENV"; echo "VERSION_CODE=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
       - name: Unit tests and screenshots
         run: |
