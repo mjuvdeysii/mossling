@@ -75,4 +75,4 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Baseline profile (app code, `src/main/baseline-prof.txt`, ProfileInstaller) + cold-start timing on the emulator after speed-profile compile (`native-qa.yml`); a generated profile via Macrobenchmark can replace the hand-written rules later
 - [x] Emulator UI tests (critical paths) in CI: first run → log a bottle → journal → mark a play done (`CriticalPathsTest`, after every green native build)
 - [x] Store listing assets: `store/listing.md` (name, short and full description, data-safety answers, screenshot list), feature graphic snapshot, `PRIVACY.md` (no network permission, no data collected)
-- [ ] Switch-over plan: same applicationId as the WebView app, signed with the same key, data migrated
+- [ ] Switch-over: plan written (`SWITCHOVER.md`); execution waits for the owner's decision — it replaces the WebView app on installed phones and cannot be undone
