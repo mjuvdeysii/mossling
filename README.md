@@ -14,7 +14,7 @@
 本地：`gradle :app:assembleDebug`（Gradle 8.9、JDK 17、Android SDK 35）。
 
 CI（`.github/workflows/`）：
-- `build.yml`：单元测试、Paparazzi 截图（推送到 `screens` 分支）、签名的 release APK。推送 main 发布预发布版 `preview`；推送 `v*` 标签发布正式版本。
+- `build.yml`：单元测试、Paparazzi 截图（推送到 `screens` 分支）、签名的 release APK。`VERSION` 里写的是下一个版本号：main 上若还没有对应的 `v<版本>` 发布，这次构建就作为该正式版本发布（附 `RELEASE_NOTES.md`）；之后的推送发布预发布版 `preview`。
 - `emulator.yml`：构建成功后在安卓模拟器上运行关键路径 UI 测试、数据库迁移测试和冷启动计时。
 
 签名密钥不在仓库中，来自 GitHub Secrets `HB_KEYSTORE_B64` 与 `HB_KEYSTORE_PASSWORD`。

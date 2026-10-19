@@ -25,10 +25,16 @@ jobs:
         with:
           gradle-version: "8.9"
       - name: Version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          base=$(cat VERSION)
-          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name="${GITHUB_REF#refs/tags/v}"; else name="${base}-preview.${{ github.run_number }}"; fi
-          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"; echo "VERSION_CODE=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
+          # VERSION holds the next version. On main, if no release v<VERSION> exists yet, this build becomes that release;
+          # otherwise it is a preview. Bump VERSION (and RELEASE_NOTES.md) to release the next one.
+          base=$(cat VERSION); release=0
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name="${GITHUB_REF#refs/tags/v}"; release=1
+          elif [[ "$GITHUB_REF" == refs/heads/main ]] && ! gh release view "v$base" >/dev/null 2>&1; then name="$base"; release=1
+          else name="${base}-preview.${{ github.run_number }}"; fi
+          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"; echo "RELEASE=$release" >> "$GITHUB_ENV"; echo "VERSION_CODE=$((1000 + ${{ github.run_number }}))" >> "$GITHUB_ENV"
       - name: Unit tests and screenshots
         run: |
           set -o pipefail
@@ -62,14 +68,14 @@ jobs:
           path: mossling-*.apk
           retention-days: 30
       - name: Release
-        if: success() && startsWith(github.ref, 'refs/tags/v')
+        if: success() && env.RELEASE == '1'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="RELEASE_NOTES.md"; [ -f "$notes" ] || notes=/dev/null
-          gh release create "${GITHUB_REF#refs/tags/}" "mossling-${VERSION_NAME}.apk" --title "Mossling 苔生 ${VERSION_NAME}" --notes-file "$notes"
+          gh release create "v${VERSION_NAME}" "mossling-${VERSION_NAME}.apk" --target "${GITHUB_SHA}" --title "Mossling 苔生 ${VERSION_NAME}" --notes-file "$notes"
       - name: Preview release
-        if: success() && github.ref == 'refs/heads/main'
+        if: success() && github.ref == 'refs/heads/main' && env.RELEASE != '1'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
