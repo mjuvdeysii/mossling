@@ -41,9 +41,12 @@ jobs:
       - name: Run on the emulator
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
-          target: google_apis
+          api-level: 31
+          target: aosp_atd
           arch: x86_64
           profile: pixel_6
+          cores: 2
+          ram-size: 3072M
+          emulator-boot-timeout: 1200
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           script: bash tools/emulator_qa.sh
