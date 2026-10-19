@@ -1,5 +1,6 @@
 package app.mossling.ui.journal
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -128,7 +129,7 @@ private fun Entry(e: LogEntry, onClick: () -> Unit) {
     val k = logKind(e.type)
     Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(hm(e.start), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(64.dp))
+            Text(hm(e.start), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, softWrap = false, modifier = Modifier.widthIn(min = 64.dp).padding(end = 8.dp))
             Box(Modifier.size(36.dp).clip(CircleShape).background(k.tint.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) { Glyph(k.glyph, size = 20.dp, color = k.tint) }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {

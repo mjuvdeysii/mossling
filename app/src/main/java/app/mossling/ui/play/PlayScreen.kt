@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -88,7 +89,7 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     p.steps.forEachIndexed { i, s ->
                         Row(verticalAlignment = Alignment.Top) {
-                            Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, modifier = Modifier.width(48.dp))
+                            Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 48.dp).padding(end = 8.dp))
                             Text(s, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
                         }
                     }
@@ -120,7 +121,7 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
 @Composable
 private fun Line(tag: String, text: String, tint: androidx.compose.ui.graphics.Color) {
     Row(Modifier.padding(top = 10.dp)) {
-        Text(tag, style = MaterialTheme.typography.labelLarge, color = tint, modifier = Modifier.width(48.dp))
+        Text(tag, style = MaterialTheme.typography.labelLarge, color = tint, softWrap = false, modifier = Modifier.widthIn(min = 48.dp).padding(end = 8.dp))
         Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }

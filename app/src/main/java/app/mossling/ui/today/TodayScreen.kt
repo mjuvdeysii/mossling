@@ -1,5 +1,8 @@
 package app.mossling.ui.today
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -190,6 +193,7 @@ private fun DayBeads(done: Int, total: Int, modifier: Modifier = Modifier) {
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -> Unit, onAnother: () -> Unit, onSkip: () -> Unit) {
     WorkTray(Modifier.fillMaxWidth().padding(top = 20.dp).clip(RoundedCornerShape(30.dp)).clickable(onClick = onOpen)) {
@@ -203,15 +207,16 @@ private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -
         }
         p.steps.firstOrNull()?.let { Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 14.dp), maxLines = 3, overflow = TextOverflow.Ellipsis) }
         if (p.safety.isNotBlank()) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.Top) {
-            Text("安全", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.width(40.dp).padding(top = 2.dp))
+            Text("安全", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.widthIn(min = 40.dp).padding(top = 2.dp, end = 8.dp), softWrap = false)
             Text(p.safety, style = MaterialTheme.typography.bodySmall)
         }
-        Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = onOpen, modifier = Modifier.height(52.dp), shape = RoundedCornerShape(18.dp), contentPadding = PaddingValues(horizontal = 26.dp)) { Text("开始") }
+        // wraps rather than clips when the system font is large
+        FlowRow(Modifier.fillMaxWidth().padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Button(onClick = onOpen, modifier = Modifier.heightIn(min = 52.dp), shape = RoundedCornerShape(18.dp), contentPadding = PaddingValues(horizontal = 26.dp)) { Text("开始") }
             Spacer(Modifier.width(8.dp))
-            if (total > 1) TextButton(onClick = onAnother, modifier = Modifier.height(48.dp)) { Text("换一个") }
+            if (total > 1) TextButton(onClick = onAnother, modifier = Modifier.heightIn(min = 48.dp)) { Text("换一个") }
             Spacer(Modifier.weight(1f))
-            TextButton(onClick = onSkip, modifier = Modifier.height(48.dp)) { Text("今天不做", color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            TextButton(onClick = onSkip, modifier = Modifier.heightIn(min = 48.dp)) { Text("今天不做", color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
     }
 }
