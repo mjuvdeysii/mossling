@@ -1,5 +1,6 @@
 package app.mossling.ui.grow
 
+import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -108,7 +109,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
 @Composable
 private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: Kind, play: (String) -> Play?) {
     val list = rememberLazyListState()
-    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = Modifier.fillMaxSize()) {
+    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = Modifier.fillMaxSize().testTag("grow")) {
         item("hi") {
             Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 mo.highlights.forEach { h ->

@@ -1,0 +1,4 @@
+# Mossling's own code, compiled ahead of time on install (the Compose, Navigation and Room libraries ship their own
+# profiles). Hot paths: start-up, the four tabs, the bead chain, the companion drawing, the journal and its sheets.
+HSPLapp/mossling/**->**(**)**
+Lapp/mossling/**;

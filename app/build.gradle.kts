@@ -11,6 +11,7 @@ android {
     namespace = "app.mossling"
     compileSdk = 35
     defaultConfig {
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         applicationId = "app.mossling"
         minSdk = 26
         targetSdk = 35
@@ -72,5 +73,11 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.glance.appwidget)
     implementation(libs.glance.material3)
+    implementation(libs.androidx.profileinstaller)
     testImplementation(libs.junit)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.compose.ui.test)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.ext)
+    debugImplementation(libs.compose.ui.test.manifest)
 }

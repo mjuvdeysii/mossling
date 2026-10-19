@@ -72,7 +72,7 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Accessibility: icon buttons labelled, 48dp minimum targets, contrast checked in both themes (gold text uses deep bead in light, ≥ 4.5:1)
 ### Phase 3 — maturity
 - [x] Import from the WebView app: its exported record file (You → 从旧版带过来) brings birth date, month ticks (mapped by item text, `tools/legacy_map.py` → `assets/legacy_map.json`) and the journal; nothing existing is overwritten, duplicates skipped, kinds without a native type kept as notes
-- [ ] Baseline profile + macrobenchmark (startup, scroll, chain scrub)
-- [ ] Emulator UI tests (critical paths) in CI
+- [x] Baseline profile (app code, `src/main/baseline-prof.txt`, ProfileInstaller) + cold-start timing on the emulator after speed-profile compile (`native-qa.yml`); a generated profile via Macrobenchmark can replace the hand-written rules later
+- [x] Emulator UI tests (critical paths) in CI: first run → log a bottle → journal → mark a play done (`CriticalPathsTest`, after every green native build)
 - [ ] Store listing assets (screenshots, feature graphic), privacy statement
 - [ ] Switch-over plan: same applicationId as the WebView app, signed with the same key, data migrated
