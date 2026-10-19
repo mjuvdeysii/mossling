@@ -303,9 +303,9 @@ private fun ThisMonth(month: Month, onOpen: () -> Unit) {
 
 /** "上次喂奶 2 小时 10 分前 · 醒了 1 小时 5 分" — only what is known, nothing when nothing was logged today or yesterday. */
 private fun since(ui: AppUi, now: Long): String? {
-    fun ago(ms: Long) = app.mossling.ui.components.minutes(ms.coerceAtLeast(0))
+    fun ago(ms: Long): String { val m = (ms.coerceAtLeast(0) / 60_000).toInt(); return if (m >= 60) "${m / 60}小时${m % 60}分" else "${m}分钟" }
     val day = 36 * 3_600_000L
-    val feed = ui.lastFeed?.takeIf { ui.timers.none { t -> t.type == it.type } }?.let { e -> (e.end ?: e.start).let { if (now - it < day) "上次喂奶 ${ago(now - it)}前" else null } }
+    val feed = ui.lastFeed?.takeIf { ui.timers.none { t -> t.type == it.type } }?.let { e -> (e.end ?: e.start).let { if (now - it < day) "喂奶 ${ago(now - it)}前" else null } }
     val awake = if (ui.timers.any { it.type == app.mossling.data.LogType.Sleep }) null
         else ui.lastSleep?.end?.let { if (now - it < day) "醒了 ${ago(now - it)}" else null }
     return listOfNotNull(feed, awake).joinToString(" · ").ifBlank { null }

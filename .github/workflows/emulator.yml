@@ -1,0 +1,49 @@
+name: Emulator
+# Runs the native app on an Android emulator: the critical-path UI test, then cold-start timing of the release
+# build after its baseline profile is applied. Results are reported as annotations on the run.
+on:
+  workflow_run:
+    workflows: ["Build"]
+    types: [completed]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  emulator:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+      - name: Build test and release APKs
+        run: |
+          set -o pipefail
+          gradle :app:assembleDebug :app:assembleDebugAndroidTest :app:assembleRelease --no-daemon 2>&1 | tee qa-build.log
+      - name: Report build errors
+        if: failure()
+        run: |
+          msg=$(grep -E "^e: |error:|FAILED|What went wrong" qa-build.log | head -40 | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')
+          echo "::error title=Native QA build::${msg}"
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Run on the emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: bash tools/emulator_qa.sh

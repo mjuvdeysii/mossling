@@ -75,4 +75,17 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Baseline profile (app code, `src/main/baseline-prof.txt`, ProfileInstaller) + cold-start timing on the emulator after speed-profile compile (`native-qa.yml`); a generated profile via Macrobenchmark can replace the hand-written rules later
 - [x] Emulator UI tests (critical paths) in CI: first run → log a bottle → journal → mark a play done (`CriticalPathsTest`, after every green native build)
 - [x] Store listing assets: `store/listing.md` (name, short and full description, data-safety answers, screenshot list), feature graphic snapshot, `PRIVACY.md` (no network permission, no data collected)
-- [ ] Switch-over: plan written (`SWITCHOVER.md`); execution waits for the owner's decision — it replaces the WebView app on installed phones and cannot be undone
+- [x] Own repository (mjuvdeysii/mossling), released on its own: application ID `app.mossling`, installed alongside the HTML app, which is kept as it is
+### Phase 4 — what mature apps have
+- [x] Export: the record file (.json, complete, and readable by the earlier app) and a table (.csv); import of both formats; system backup rules
+- [x] Add after the fact and change any entry: date and time pickers, side, kind, amount, text
+- [x] Temperature and medicine entries; solids and notes with text
+- [x] Growth: weight, length/height, head circumference against the WHO Child Growth Standards (percentile band and lines, each measurement's percentile)
+- [x] Today: time since the last feed and since waking; the child's nickname
+- [x] Statistics: 7 and 30 days — feeds, bottle volume, nursing minutes, sleep, nappies
+- [x] Search across plays, months and topics; share a play as text
+- [x] Launcher shortcuts (bottle, nurse, sleep, nappy); clear all data; licences, version, feedback
+- [x] Database migration (v1 → v2) tested on the emulator
+- [ ] More than one child (waits for the owner's decision)
+- [ ] App lock (fingerprint / face)
+- [ ] Photos on entries
