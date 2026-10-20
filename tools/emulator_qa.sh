@@ -26,4 +26,5 @@ for i in 1 2 3 4 5; do
 done
 med=$(echo $t | tr ' ' '\n' | sort -n | sed -n 3p)
 echo "::notice title=Native cold start::median ${med} ms (runs:${t}) on the CI emulator — software GPU, slower than a phone"
+python3 tools/probe.py || fail=1
 exit ${fail:-0}
