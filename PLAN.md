@@ -86,6 +86,10 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] Search across plays, months and topics; share a play as text
 - [x] Launcher shortcuts (bottle, nurse, sleep, nappy); clear all data; licences, version, feedback
 - [x] Database migration (v1 → v2) tested on the emulator
-- [ ] More than one child (waits for the owner's decision)
 - [x] App lock (fingerprint, face or screen lock; opt-in; after 30 s away)
 - [ ] Photos on entries
+### Phase 5 — the core: map, shelf, pictures
+- [x] Growth map: 37 stations on one road, cover, date, vaccine / check-up / all-recorded marks, companion at the child's station, paper butterfly (tap: back to now)
+- [x] The week's shelf: Montessori planning (observe, prepare, present, repeat, rotate), 3–4 plays a week, Today takes from it, repetitions counted, rotation prompt
+- [x] Illustrations: every step of every play (145 pictures) and 34 month covers from the handbook
+- [x] About: version and build, update check on tap, change log, privacy, sources, licences, feedback
