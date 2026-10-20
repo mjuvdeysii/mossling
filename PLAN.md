@@ -93,3 +93,9 @@ no jank on a mid-range phone; widgets; notifications only when asked for.
 - [x] The week's shelf: Montessori planning (observe, prepare, present, repeat, rotate), 3–4 plays a week, Today takes from it, repetitions counted, rotation prompt
 - [x] Illustrations: every step of every play (145 pictures) and 34 month covers from the handbook
 - [x] About: version and build, update check on tap, change log, privacy, sources, licences, feedback
+
+### Phase 6 — one visual language
+- [x] Illustrations redrawn from code (tools/illustrate.py): peg people, Montessori materials, M3 Expressive shapes and tonal fields; step signs (talk, wait, look, move, done); covers show the child's posture by age
+- [x] In-app update: download with progress, cancel, package check, system installer
+- [x] Expressive shapes (graphics-shapes): section and area badges, morphing selection
+- [ ] Shape morph on more state changes (play done, shelf rotate); illustrated empty states
