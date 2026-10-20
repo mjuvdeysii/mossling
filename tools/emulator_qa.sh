@@ -2,6 +2,8 @@
 # Runs inside the emulator job: UI test on the debug build, then cold-start timing of the release build.
 set -u
 D=app/build/outputs/apk
+# let a freshly booted emulator settle; close any "not responding" dialog that would swallow taps
+sleep 30; adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; adb shell input keyevent 82 >/dev/null 2>&1
 adb install -r -t $D/debug/app-debug.apk >/dev/null
 adb install -r -t $D/androidTest/debug/app-debug-androidTest.apk >/dev/null
 adb shell pm grant app.mossling android.permission.POST_NOTIFICATIONS 2>/dev/null || true
@@ -26,5 +28,11 @@ for i in 1 2 3 4 5; do
 done
 med=$(echo $t | tr ' ' '\n' | sort -n | sed -n 3p)
 echo "::notice title=Native cold start::median ${med} ms (runs:${t}) on the CI emulator — software GPU, slower than a phone"
-python3 tools/probe.py || fail=1
+python3 tools/probe.py full || fail=1
+# an update over the last published release, with records already in it
+prev=$(ls prev/*.apk 2>/dev/null | head -1)
+if [ -n "$prev" ]; then
+  adb uninstall app.mossling >/dev/null; adb install -r "$prev" >/dev/null && python3 tools/probe.py old
+  adb install -r $D/release/app-release.apk >/dev/null && python3 tools/probe.py upgraded || fail=1
+fi
 exit ${fail:-0}

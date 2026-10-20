@@ -34,9 +34,11 @@ def check(step):
         return False
     return True
 
+found, missed = [0], []
 def tap(text, exact=True, wait=1.2):
     p = find(text, exact)
-    if p is None: print(f"  (not found: {text})"); return False
+    if p is None: print(f"  (not found: {text})"); missed.append(text); return False
+    found[0] += 1
     sh("input", "tap", str(p[0]), str(p[1])); time.sleep(wait); return True
 
 def back(): sh("input", "keyevent", "4"); time.sleep(1)
@@ -67,6 +69,13 @@ steps = [
     ("you tab", lambda: tap("我的")),
     ("about", lambda: (scroll_up() or scroll_up() or True) and tap("关于苔生") and (back() or True)),
 ]
+mode = sys.argv[1] if len(sys.argv) > 1 else "full"
+if mode == "old":
+    # the previous release: just leave some records behind
+    steps = [s for s in steps if s[0] in ("first run", "bottle", "diaper")]
+elif mode == "upgraded":
+    steps = [("journal still there", lambda: tap("手帐")), ("open entry", lambda: tap("120 毫升", exact=False) and tap("好")),
+             ("bottle after update", lambda: tap("瓶喂") and tap("记下来"))] + [s for s in steps if s[0] in ("grow tab", "map", "shelf", "you tab", "about")]
 subprocess.run(["adb", "logcat", "-b", "crash", "-c"])
 sh("pm", "grant", PKG, "android.permission.POST_NOTIFICATIONS")
 sh("am", "start", "-n", f"{PKG}/.MainActivity"); time.sleep(5)
@@ -77,6 +86,6 @@ for name, f in steps:
 if crashes:
     for step, trace in crashes:
         msg = trace.replace("%", "%25").replace("\r", "").replace("\n", "%0A")
-        print(f"::error title=Release crash at {step}::{msg}")
+        print(f"::error title=Release crash ({mode}) at {step}::{msg}")
     sys.exit(1)
-print("::notice title=Release walk::all logging paths and main screens without a crash")
+print(f"::notice title=Release walk ({mode})::no crash · {found[0]} taps found" + (f" · not found: {', '.join(missed)}" if missed else ""))

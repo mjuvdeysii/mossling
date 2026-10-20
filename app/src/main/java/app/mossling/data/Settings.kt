@@ -1,5 +1,6 @@
 package app.mossling.data
 
+import kotlinx.coroutines.flow.first
 import android.content.Context
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -77,6 +78,10 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSex(s: String?) = context.store.edit { if (s == null) it.remove(K.sex) else it[K.sex] = s }
     suspend fun setNickname(n: String) = context.store.edit { val t = n.trim().take(12); if (t.isEmpty()) it.remove(K.nickname) else it[K.nickname] = t }
     suspend fun setLock(on: Boolean) = context.store.edit { it[K.lock] = on }
+    /** For families updating from a version without the switch: keep the journal on if they have used it. */
+    suspend fun settleJournal(used: suspend () -> Boolean) {
+        if (context.store.data.first()[K.journal] == null) { val on = used(); context.store.edit { if (it[K.journal] == null) it[K.journal] = on } }
+    }
     suspend fun setJournal(on: Boolean) = context.store.edit { it[K.journal] = on }
     suspend fun setShelf(v: String) = context.store.edit { it[K.shelf] = v }
     /** Everything back to a fresh install (the records are cleared separately). */

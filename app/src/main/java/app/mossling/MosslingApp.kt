@@ -18,9 +18,13 @@ class MosslingApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        CrashLog.install(this)
         graph = Graph(this)
         // read the handbook and bring back running timers off the main thread, before the first screen needs them
-        graph.scope.launch { graph.content.get(); graph.timers.restore(graph.db.dao().timers().first()) }
+        graph.scope.launch {
+            graph.content.get(); graph.timers.restore(graph.db.dao().timers().first())
+            graph.settings.settleJournal { graph.db.dao().allLogs().isNotEmpty() || graph.db.dao().timers().first().isNotEmpty() }
+        }
     }
 }
 

@@ -160,6 +160,11 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     val saveCsv = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("text/csv")) { uri ->
         if (uri != null) vm.export(uri, csv = true, done = ::say)
     }
+    // once after an unexpected stop: say so, and where the report is (it stays on the phone)
+    LaunchedEffect(Unit) {
+        val ctx0 = vm.getApplication<android.app.Application>()
+        if (app.mossling.CrashLog.read(ctx0) != null && snack.showSnackbar("上次异常退出了，可以在「关于苔生」里分享原因", actionLabel = "查看", duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) nav.navigate(AppAboutRoute)
+    }
     fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)

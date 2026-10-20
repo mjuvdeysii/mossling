@@ -118,6 +118,25 @@ fun AppAboutScreen(a: AppAboutActions) {
             }
         }
         item {
+            var crash by remember { mutableStateOf(app.mossling.CrashLog.read(ctx)) }
+            crash?.let { text ->
+                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
+                    Column(Modifier.padding(16.dp)) {
+                        Text("上次异常退出", style = MaterialTheme.typography.titleMedium)
+                        Text("原因记在这台手机上，没有发送到任何地方。分享给开发者可以更快修好。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = {
+                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "苔生异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
+                                runCatching { ctx.startActivity(Intent.createChooser(send, "分享异常记录")) }
+                            }, shape = RoundedCornerShape(16.dp)) { Text("分享记录") }
+                            androidx.compose.material3.TextButton(onClick = { app.mossling.CrashLog.clear(ctx); crash = null }) { Text("删除") }
+                        }
+                    }
+                }
+            }
+        }
+        item {
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Item(G.Note, "更新日志", "每个版本改了什么") { a.doc("CHANGELOG.md") }
                 Item(G.Check, "隐私说明", "不收集任何数据；联网只用于检查更新") { a.doc("PRIVACY.md") }
