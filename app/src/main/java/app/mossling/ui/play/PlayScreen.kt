@@ -78,12 +78,6 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                     Creature(companion, Modifier.size(88.dp), mood = if (did) Mood.Happy else Mood.Open, look = Offset(-0.7f, 0.6f))
                 }
             }
-            item("still") {
-                // the material, set out on its mat: what this play looks like before anyone touches it
-                Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 8.dp)) {
-                    MaterialStill(Family.of(p.domains), Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh)
-                }
-            }
             item("before") {
                 Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                     Text("开始之前", style = MaterialTheme.typography.titleMedium)

@@ -77,8 +77,12 @@ fun Art(name: String, label: String, modifier: Modifier = Modifier) {
     val ratio = remember(name) { ArtIndex.ratio(ctx, name) }
     androidx.compose.foundation.layout.BoxWithConstraints(modifier.aspectRatio(ratio).background(MaterialTheme.colorScheme.surfaceContainerHigh).semantics { contentDescription = label }) {
         val px = constraints.maxWidth
-        val img by produceState<ImageBitmap?>(null, name, px) { value = ArtIndex.bitmap(ctx, name, px) }
-        val alpha by androidx.compose.animation.core.animateFloatAsState(if (img != null) 1f else 0f, androidx.compose.animation.core.tween(180), label = "art")
+        // screenshot tests render one frame: decode right away there; on a phone, off the main thread
+        val inspect = LocalInspectionMode.current
+        val img by produceState(if (inspect) remember(name) { runCatching { ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it) }?.asImageBitmap() }.getOrNull() } else null, name, px) {
+            if (!inspect) value = ArtIndex.bitmap(ctx, name, px)
+        }
+        val alpha by androidx.compose.animation.core.animateFloatAsState(if (img != null || inspect) 1f else 0f, androidx.compose.animation.core.tween(180), label = "art")
         img?.let { Image(it, null, Modifier.matchParentSize().graphicsLayer { this.alpha = alpha }, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.Medium) }
     }
 }
