@@ -36,5 +36,6 @@ class Graph(context: Context) {
     val timers: Timers by lazy { Timers(context, db.dao()) }
     val exporter: app.mossling.data.Exporter by lazy { app.mossling.data.Exporter(context, db.dao(), settings) }
     val growth: app.mossling.domain.Growth by lazy { app.mossling.domain.Growth.parse(context.assets.open("who_growth.json").bufferedReader().readText()) }
+    val updater: app.mossling.domain.Updater by lazy { app.mossling.domain.Updater(context, scope) }
     val legacy: app.mossling.data.LegacyImport by lazy { app.mossling.data.LegacyImport(context, db.dao(), settings) }
 }

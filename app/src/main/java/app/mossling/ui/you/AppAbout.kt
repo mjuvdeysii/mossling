@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -48,26 +49,18 @@ data class AppAboutActions(
     val doc: (String) -> Unit = {},
 )
 
-private sealed interface Check {
-    data object Idle : Check
-    data object Busy : Check
-    data object Latest : Check
-    data class Found(val r: Update.Release) : Check
-    data class Failed(val why: String) : Check
-}
-
 /**
  * The app itself: name, version and build, check for updates, what changed, privacy, licences, feedback, and the
  * handbook's sources. The update check is one request when tapped; nothing is checked in the background.
  */
 @Composable
-fun AppAboutScreen(a: AppAboutActions) {
+fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = null) {
     val ctx = LocalContext.current
     val info = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull() }
     val version = info?.versionName ?: ""
     val build = info?.let { if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode else @Suppress("DEPRECATION") it.versionCode.toLong() } ?: 0
-    var check by remember { mutableStateOf<Check>(Check.Idle) }
-    val scope = rememberCoroutineScope()
+    val idle = remember { kotlinx.coroutines.flow.MutableStateFlow<app.mossling.domain.Updater.State>(app.mossling.domain.Updater.State.Idle) }
+    val st by (updater?.state ?: idle).collectAsState()
     fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
         item { Bar("", a.back) }
@@ -82,41 +75,7 @@ fun AppAboutScreen(a: AppAboutActions) {
                 Text("版本 $version（$build）", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
-        item {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-                Column(Modifier.padding(16.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("检查更新", style = MaterialTheme.typography.titleMedium)
-                            Text(when (val c = check) {
-                                Check.Idle -> "点一下，读取最新发布的版本号"
-                                Check.Busy -> "正在检查…"
-                                Check.Latest -> "已经是最新版本"
-                                is Check.Found -> "有新版本 ${c.r.version}" + if (c.r.date.isNotBlank()) " · ${c.r.date}" else ""
-                                is Check.Failed -> c.why
-                            }, style = MaterialTheme.typography.bodySmall, color = if (check is Check.Found) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                        if (check == Check.Busy) CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                        else if (check !is Check.Found) Button(onClick = {
-                            check = Check.Busy
-                            scope.launch {
-                                check = runCatching { Update.latest() }.fold(
-                                    { r -> if (Update.newer(r.version, version)) Check.Found(r) else Check.Latest },
-                                    { e -> Check.Failed(if (e is java.net.UnknownHostException || e is java.net.SocketTimeoutException) "没有连上网络，稍后再试" else "暂时读取不到发布信息，稍后再试") })
-                            }
-                        }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("检查") }
-                    }
-                    (check as? Check.Found)?.r?.let { r ->
-                        if (r.notes.isNotBlank()) Text(r.notes.take(800), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 10.dp))
-                        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { open(r.apk ?: r.page) }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text("下载新版本") }
-                            androidx.compose.material3.TextButton(onClick = { open(r.page) }) { Text("在发布页查看") }
-                        }
-                        Text("下载完成后点开安装包，由系统完成安装；记录不会丢失。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-                    }
-                }
-            }
-        }
+        item { UpdateCard(st, updater) { open(it) } }
         item {
             var crash by remember { mutableStateOf(app.mossling.CrashLog.read(ctx)) }
             crash?.let { text ->
@@ -189,6 +148,62 @@ fun DocScreen(name: String, onBack: () -> Unit) {
                     }
                 }
                 else -> Text(plain(l), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 2.dp))
+            }
+        }
+    }
+}
+
+/** Check → download (with progress, cancellable) → install, without leaving the app. */
+@Composable
+private fun UpdateCard(st: app.mossling.domain.Updater.State, u: app.mossling.domain.Updater?, open: (String) -> Unit) {
+    val ctx = LocalContext.current
+    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("检查更新", style = MaterialTheme.typography.titleMedium)
+                    Text(when (st) {
+                        is app.mossling.domain.Updater.State.Idle -> "点一下，读取最新发布的版本"
+                        is app.mossling.domain.Updater.State.Checking -> "正在检查…"
+                        is app.mossling.domain.Updater.State.Latest -> "已经是最新版本"
+                        is app.mossling.domain.Updater.State.Available -> "有新版本 ${st.r.version}" + if (st.r.date.isNotBlank()) " · ${st.r.date}" else ""
+                        is app.mossling.domain.Updater.State.Downloading -> "正在下载 ${st.r.version}" + if (st.total > 0) " · ${st.done * 100 / st.total}%" else ""
+                        is app.mossling.domain.Updater.State.Ready -> "${st.r.version} 已下载，可以安装"
+                        is app.mossling.domain.Updater.State.Failed -> st.why
+                    }, style = MaterialTheme.typography.bodySmall,
+                        color = if (st is app.mossling.domain.Updater.State.Available || st is app.mossling.domain.Updater.State.Ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                when (st) {
+                    is app.mossling.domain.Updater.State.Checking -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    is app.mossling.domain.Updater.State.Idle, is app.mossling.domain.Updater.State.Latest -> Button(onClick = { u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("检查") }
+                    is app.mossling.domain.Updater.State.Failed -> Button(onClick = { st.r?.let { u?.download(it) } ?: u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("重试") }
+                    else -> Unit
+                }
+            }
+            val rel = when (st) { is app.mossling.domain.Updater.State.Available -> st.r; is app.mossling.domain.Updater.State.Downloading -> st.r; is app.mossling.domain.Updater.State.Ready -> st.r; else -> null }
+            rel?.let { r ->
+                if (r.notes.isNotBlank()) Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text(r.notes.replace("**", "").take(900), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(14.dp))
+                }
+                when (st) {
+                    is app.mossling.domain.Updater.State.Available -> Button(onClick = { u?.download(r) }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text("下载并安装") }
+                    is app.mossling.domain.Updater.State.Downloading -> {
+                        val f = if (st.total > 0) st.done.toFloat() / st.total else 0f
+                        androidx.compose.material3.LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 8.dp))
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("%.1f / %.1f MB".format(st.done / 1048576f, st.total.coerceAtLeast(0) / 1048576f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                            androidx.compose.material3.TextButton(onClick = { u?.cancel() }) { Text("取消") }
+                        }
+                    }
+                    is app.mossling.domain.Updater.State.Ready -> {
+                        val canInstall = u?.canInstall() ?: false
+                        Button(onClick = { runCatching { ctx.startActivity(if (canInstall) u!!.installIntent(st.file) else u!!.allowInstallIntent()) } },
+                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许苔生安装更新") }
+                        Text(if (canInstall) "由系统安装器完成安装，记录不会丢失。" else "Android 需要你允许一次「安装未知应用」，之后回到这里点安装。",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                    }
+                    else -> Unit
+                }
             }
         }
     }

@@ -68,6 +68,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** the last 30 days of entries, for the statistics */
     val month: StateFlow<List<LogEntry>> = dao.logsSince(System.currentTimeMillis() - 31L * 86_400_000).stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
     val growth get() = g.growth
+    val updater get() = g.updater
 
     init { viewModelScope.launch { content.value = g.content.get() } }
 

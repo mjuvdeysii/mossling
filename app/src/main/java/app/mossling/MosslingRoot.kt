@@ -301,7 +301,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
             }
             composable<AppAboutRoute> {
                 app.mossling.ui.you.AppAboutScreen(app.mossling.ui.you.AppAboutActions(back = { nav.popBackStack() }, sources = { nav.navigate(AboutRoute) },
-                    licenses = { nav.navigate(LicensesRoute) }, doc = { nav.navigate(DocRoute(it)) }))
+                    licenses = { nav.navigate(LicensesRoute) }, doc = { nav.navigate(DocRoute(it)) }), updater = vm.updater)
             }
             composable<DocRoute> { e -> app.mossling.ui.you.DocScreen(e.toRoute<DocRoute>().name) { nav.popBackStack() } }
             composable<AboutRoute> { AboutScreen(c, licenses = { nav.navigate(LicensesRoute) }) { nav.popBackStack() } }
