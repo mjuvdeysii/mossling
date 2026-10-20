@@ -65,6 +65,8 @@ data class GrowActions(
     val select: (Int) -> Unit = {},
     val openPlay: (String, Int) -> Unit = { _, _ -> },
     val tick: (Int, String, String, String) -> Unit = { _, _, _, _ -> },
+    val openMap: () -> Unit = {},
+    val openPlan: () -> Unit = {},
 )
 
 @Composable
@@ -92,11 +94,13 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                     Creature(companion, Modifier.size(72.dp), look = look)
                 }
             }
-            if (baby != null) {
-                Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp)) {
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (baby != null) {
                     val text = when { month == baby -> "宝宝现在在这里"; month < baby -> "以前的月份"; else -> "以后的月份" }
-                    AssistChip(onClick = { a.select(baby) }, label = { Text(if (month == baby) text else "$text · 回到满 $baby 个月") })
+                    AssistChip(onClick = { a.select(baby) }, label = { Text(if (month == baby) text else "回到满 $baby 个月") })
                 }
+                AssistChip(onClick = a.openMap, label = { Text("成长地图") })
+                AssistChip(onClick = a.openPlan, label = { Text("本周的架子") })
             }
             BeadChain(month, baby, a.select)
         }
@@ -110,6 +114,12 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
 private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: Kind, play: (String) -> Play?) {
     val list = rememberLazyListState()
     LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = Modifier.fillMaxSize().testTag("grow")) {
+        item("cover") {
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            androidx.compose.runtime.remember(m) { app.mossling.ui.components.ArtIndex.cover(ctx, m) }?.let { f ->
+                app.mossling.ui.components.Art(f, "满 $m 个月：${mo.title}", Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 4.dp).clip(RoundedCornerShape(28.dp)))
+            }
+        }
         item("hi") {
             Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 mo.highlights.forEach { h ->

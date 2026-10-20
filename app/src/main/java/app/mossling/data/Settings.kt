@@ -28,6 +28,8 @@ data class Settings(
     val nickname: String = "",
     /** ask for the fingerprint, face or screen lock when the app is opened */
     val lock: Boolean = false,
+    /** this week's shelf (see domain.Shelf) */
+    val shelf: String = "",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -42,6 +44,7 @@ class SettingsRepository(private val context: Context) {
         val sex = stringPreferencesKey("sex")
         val nickname = stringPreferencesKey("nickname")
         val lock = booleanPreferencesKey("lock")
+        val shelf = stringPreferencesKey("shelf")
     }
 
     val settings: Flow<Settings> = context.store.data.map { p: Preferences ->
@@ -56,6 +59,7 @@ class SettingsRepository(private val context: Context) {
             sex = p[K.sex],
             nickname = p[K.nickname] ?: "",
             lock = p[K.lock] ?: false,
+            shelf = p[K.shelf] ?: "",
         )
     }
 
@@ -68,8 +72,9 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPick(v: String) = context.store.edit { it[K.pick] = v }
     suspend fun setSex(s: String?) = context.store.edit { if (s == null) it.remove(K.sex) else it[K.sex] = s }
     suspend fun setNickname(n: String) = context.store.edit { val t = n.trim().take(12); if (t.isEmpty()) it.remove(K.nickname) else it[K.nickname] = t }
-    /** Everything back to a fresh install (the records are cleared separately). */
     suspend fun setLock(on: Boolean) = context.store.edit { it[K.lock] = on }
+    suspend fun setShelf(v: String) = context.store.edit { it[K.shelf] = v }
+    /** Everything back to a fresh install (the records are cleared separately). */
     suspend fun clear() = context.store.edit { it.clear() }
     suspend fun setLastMonth(m: Int) = context.store.edit { it[K.lastMonth] = m.toLong() }
 }

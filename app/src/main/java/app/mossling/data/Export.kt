@@ -60,7 +60,7 @@ class Exporter(private val context: Context, private val dao: RecordDao, private
         fun hm(ms: Long) = Instant.ofEpochMilli(ms).atZone(z).format(t)
         fun q(v: String) = if (v.any { it == ',' || it == '"' || it == '\n' }) "\"" + v.replace("\"", "\"\"") + "\"" else v
         val names = mapOf(LogType.Nurse to "亲喂", LogType.Bottle to "瓶喂", LogType.Sleep to "睡觉", LogType.Diaper to "尿布", LogType.Solid to "辅食",
-            LogType.Bath to "洗澡", LogType.Temp to "体温", LogType.Medicine to "用药", LogType.Note to "备注")
+            LogType.Bath to "洗澡", LogType.Temp to "体温", LogType.Medicine to "用药", LogType.Note to "备注", LogType.Play to "一起玩")
         val sb = StringBuilder("﻿日期,开始,结束,时长（分钟）,类型,数量,单位,侧,详情\n")
         dao.allLogs().forEach { e ->
             val (amt, unit) = when (e.type) { LogType.Bottle -> "${e.amount ?: ""}" to "毫升"; LogType.Temp -> (e.amount?.let { "%.1f".format(it / 10.0) } ?: "") to "°C"; else -> "" to "" }

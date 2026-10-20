@@ -87,6 +87,8 @@ data class TodayActions(
     val pause: (String) -> Unit = {},
     val stop: (String) -> Unit = {},
     val openJournal: () -> Unit = {},
+    val openMap: () -> Unit = {},
+    val openPlan: () -> Unit = {},
 )
 
 /** Today's suggestion: the month's plays, featured one first; [pick] moves through them. */
@@ -101,7 +103,8 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
     val age = ui.age
     val m = ui.babyMonth ?: 0
     val month = c.month(m)
-    val plays = todaysPlays(month) { c.play(it) }
+    // today's play comes from this week's shelf; without one, from the month's own plays
+    val plays = app.mossling.domain.Shelf.current(c, m, ui.settings.shelf, ui.today).first.ifEmpty { todaysPlays(month) { c.play(it) } }
     val pickIndex = ui.settings.pick.split(":").let { p -> if (p.size == 2 && p[0].toIntOrNull() == m) p[1].toIntOrNull() ?: 0 else 0 }
     val play = plays.getOrNull(pickIndex % plays.size.coerceAtLeast(1))
     val skipped = ui.settings.skipDay == ui.today.toEpochDay()
@@ -121,6 +124,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
                 }
             }
         }
+        if (age != null) item(key = "ways") { Ways(ui, m, a) }
         val running = ui.timers
         if (running.isNotEmpty()) item(key = "timers") {
             Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -206,6 +210,10 @@ private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -
                 Text(listOf(p.age, p.domains.joinToString("、")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Specimen(p.code, companion)
+        }
+        val ctx = androidx.compose.ui.platform.LocalContext.current
+        androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code).firstOrNull() }?.let { f ->
+            app.mossling.ui.components.Art(f, "第一步的图示", Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(18.dp)))
         }
         p.steps.firstOrNull()?.let { Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 14.dp), maxLines = 3, overflow = TextOverflow.Ellipsis) }
         if (p.safety.isNotBlank()) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.Top) {
@@ -309,4 +317,33 @@ private fun since(ui: AppUi, now: Long): String? {
     val awake = if (ui.timers.any { it.type == app.mossling.data.LogType.Sleep }) null
         else ui.lastSleep?.end?.let { if (now - it < day) "醒了 ${ago(now - it)}" else null }
     return listOfNotNull(feed, awake).joinToString(" · ").ifBlank { null }
+}
+
+/** Two ways in: the whole road (the growth map) and this week's shelf (the plan). */
+@Composable
+private fun Ways(ui: AppUi, m: Int, a: TodayActions) {
+    val c = ui.content ?: return
+    val (shelf, stale) = app.mossling.domain.Shelf.current(c, m, ui.settings.shelf, ui.today)
+    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(onClick = a.openMap, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
+            Column(Modifier.padding(14.dp)) {
+                Text("成长地图", style = MaterialTheme.typography.titleMedium)
+                Text("已走过 $m / 36 个月", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                // the road so far, as a bead chain of 37
+                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(14.dp).padding(top = 6.dp)) {
+                    val n = 37; val gap = size.width / n; val r = (gap * 0.36f).coerceAtMost(size.height / 2)
+                    for (i in 0 until n) drawCircle(if (i < m) app.mossling.ui.theme.Palette.Bead else if (i == m) app.mossling.ui.theme.Palette.Moss else app.mossling.ui.theme.Palette.Stone, if (i == m) r * 1.4f else r, androidx.compose.ui.geometry.Offset(gap * (i + 0.5f), size.height / 2))
+                }
+            }
+        }
+        Surface(onClick = a.openPlan, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
+            Column(Modifier.padding(14.dp)) {
+                Text("本周的架子", style = MaterialTheme.typography.titleMedium)
+                Text(if (stale) "新的一周，可以轮换了" else "${shelf.size} 件教具 · 蒙氏轮换", style = MaterialTheme.typography.labelMedium, color = if (stale) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    shelf.take(4).forEach { p -> app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.width(34.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh) }
+                }
+            }
+        }
+    }
 }

@@ -72,7 +72,9 @@ val LogKinds = listOf(
 )
 /** Not a journal entry: opens the measurement sheet (weight, length, head). */
 const val GROWTH = "growth"
-fun logKind(type: String) = LogKinds.firstOrNull { it.type == type } ?: LogKinds.last()
+/** Written by marking a play as done, never from a log button. */
+private val PlayKind = LogKind(LogType.Play, "一起玩", G.Play, Palette.Moss)
+fun logKind(type: String) = if (type == LogType.Play) PlayKind else LogKinds.firstOrNull { it.type == type } ?: LogKinds.last()
 
 /** What a tap on a log button asks for, if anything. */
 enum class Ask { None, Side, Amount, Diaper, Temp, Text, Measure }

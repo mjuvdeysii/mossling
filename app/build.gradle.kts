@@ -51,6 +51,14 @@ android {
 
 ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
+// the privacy statement and the change log are shown in the app from the same files as in the repository
+val docs = tasks.register<Copy>("copyDocs") {
+    from(rootProject.file("PRIVACY.md"), rootProject.file("CHANGELOG.md"))
+    into(layout.buildDirectory.dir("generated/docs"))
+}
+android.sourceSets.getByName("main").assets.srcDir(layout.buildDirectory.dir("generated/docs"))
+tasks.named("preBuild") { dependsOn(docs) }
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)

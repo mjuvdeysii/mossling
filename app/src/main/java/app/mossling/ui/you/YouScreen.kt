@@ -64,6 +64,7 @@ data class YouActions(
     val sex: (String?) -> Unit = {},
     val search: () -> Unit = {},
     val lock: (Boolean) -> Unit = {},
+    val appAbout: () -> Unit = {},
 )
 
 @Composable
@@ -155,6 +156,7 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                 Row1("搜索", "玩法、每个月的内容和专题") { a.search() }
                 c.topics.forEach { t -> Row1(t.title, t.sourceTitle) { a.topic(t.id) } }
                 Row1("关于与来源", "依据的机构、方法和每一条的核对日期") { a.about() }
+                Row1("关于苔生", "版本、检查更新、更新日志、隐私说明、开源许可、反馈") { a.appAbout() }
             }
         }
     }

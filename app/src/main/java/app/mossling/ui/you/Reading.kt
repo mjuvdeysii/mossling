@@ -122,15 +122,7 @@ fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
                 Text("${l.level} · ${l.source} · ${l.checked}" + if (l.limit.isNotBlank()) " · ${l.limit}" else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        item { SectionTitle("这个应用", kicker = null) }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Mossling 苔生 $version", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp))
-                Text("不联网，不收集任何数据；所有记录只在这台手机上。本应用提供养育参考信息，不能代替医生的诊断和建议。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
-                LinkRow("开源许可", "字体与开源库", licenses)
-                LinkRow("反馈问题", "在 GitHub 上提交") { runCatching { uri.openUri("https://github.com/mjuvdeysii/monsterraising/issues") } }
-            }
-        }
+
     }
 }
 

@@ -1,5 +1,6 @@
 package app.mossling.ui.play
 
+import androidx.compose.ui.draw.clip
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,8 +89,14 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
             }
             item("steps") {
                 SectionTitle("怎么做", kicker = "${p.steps.size} 步")
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val frames = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code) }
                 Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     p.steps.forEachIndexed { i, s ->
+                        // each step with its picture, so it can be done from the picture alone
+                        frames.getOrNull(i)?.let { f ->
+                            app.mossling.ui.components.Art(f, "第 ${i + 1} 步的图示：$s", Modifier.fillMaxWidth().padding(start = 48.dp).clip(RoundedCornerShape(20.dp)))
+                        }
                         Row(verticalAlignment = Alignment.Top) {
                             Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 48.dp).padding(end = 8.dp))
                             Text(s, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))

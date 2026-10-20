@@ -45,7 +45,9 @@ data class RunningTimer(
 )
 
 object TickKind { const val Observed = "c"; const val Did = "a"; const val Vaccine = "v"; const val Checkup = "k" }
-object LogType { const val Nurse = "nurse"; const val Bottle = "bottle"; const val Sleep = "sleep"; const val Diaper = "diaper"; const val Solid = "solid"; const val Bath = "bath"; const val Temp = "temp"; const val Medicine = "med"; const val Note = "note" }
+object LogType { const val Nurse = "nurse"; const val Bottle = "bottle"; const val Sleep = "sleep"; const val Diaper = "diaper"; const val Solid = "solid"; const val Bath = "bath"; const val Temp = "temp"; const val Medicine = "med"; const val Note = "note"
+    /** a play done together; detail is "CODE name" */
+    const val Play = "play" }
 
 fun tickKey(month: Int, kind: String, id: String) = "$month:$kind:$id"
 

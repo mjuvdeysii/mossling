@@ -94,6 +94,10 @@ import kotlinx.serialization.Serializable
 @Serializable object StatsRoute
 @Serializable object SearchRoute
 @Serializable object LicensesRoute
+@Serializable object MapRoute
+@Serializable object PlanRoute
+@Serializable object AppAboutRoute
+@Serializable data class DocRoute(val name: String)
 
 // key: the route string Navigation derives from the serial name (stable under R8, unlike class names)
 private data class Tab(val route: Any, val label: String, val glyph: G, val key: String)
@@ -227,7 +231,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     openMonth = { browse = it; go(GrowRoute) },
                     setBirth = askBirth,
                     another = {
-                        val m = ui.babyMonth ?: 0; val n = todaysPlays(c.month(m)) { c.play(it) }.size.coerceAtLeast(1)
+                        val m = ui.babyMonth ?: 0; val n = app.mossling.domain.Shelf.current(c, m, ui.settings.shelf, ui.today).first.ifEmpty { todaysPlays(c.month(m)) { c.play(it) } }.size.coerceAtLeast(1)
                         val i = ui.settings.pick.split(":").let { p -> if (p.size == 2 && p[0].toIntOrNull() == m) p[1].toIntOrNull() ?: 0 else 0 }
                         vm.setPick("$m:${(i + 1) % n}")
                     },
@@ -236,6 +240,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     pause = vm::pauseTimer,
                     stop = { t -> vm.stopTimer(t) { it?.let(::added) } },
                     openJournal = { go(JournalRoute) },
+                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) },
                 ))
             } }
             composable<GrowRoute> { CompositionLocalProvider(LocalDestination provides this) {
@@ -243,6 +248,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     select = { browse = it },
                     openPlay = { code, m -> nav.navigate(PlayRoute(code, m)) },
                     tick = { m, kind, id, label -> vm.toggleTick(m, kind, id, label) },
+                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) },
                 ))
             } }
             composable<JournalRoute> {
@@ -260,6 +266,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     nickname = vm::setNickname, sex = vm::setSex,
                     search = { nav.navigate(SearchRoute) },
                     lock = vm::setLock,
+                    appAbout = { nav.navigate(AppAboutRoute) },
                     importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))
             }
@@ -272,10 +279,24 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                 val did = ui.ticked(r.month, TickKind.Did, p.code)
                 PlayScreen(p, r.month, did, onDid = { on ->
                     vm.toggleTick(r.month, TickKind.Did, p.code, p.name, on)
+                    // each time it is done also goes in the journal, so the week's shelf can count repetitions
+                    if (on) vm.addLog(LogEntry(type = LogType.Play, start = System.currentTimeMillis(), detail = "${p.code} ${p.name}"))
                     if (on) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); undoable("记为这个月做过（只是记录，不是评估）") { vm.toggleTick(r.month, TickKind.Did, p.code, p.name, false) } }
                 }, onBack = { nav.popBackStack() })
             } }
             composable<TopicRoute> { entry -> c.topics.firstOrNull { it.id == entry.toRoute<TopicRoute>().id }?.let { TopicScreen(it) { nav.popBackStack() } } }
+            composable<MapRoute> { app.mossling.ui.grow.MapScreen(ui, open = { m -> browse = m; nav.popBackStack(); go(GrowRoute) }) { nav.popBackStack() } }
+            composable<PlanRoute> {
+                val monday = app.mossling.domain.Shelf.weekOf(ui.today)
+                val z = java.time.ZoneId.systemDefault(); val from = monday.atStartOfDay(z).toInstant().toEpochMilli()
+                app.mossling.ui.plan.PlanScreen(ui, month30.filter { it.start >= from }, app.mossling.ui.plan.PlanActions(
+                    back = { nav.popBackStack() }, set = { vm.setShelf(it) }, openPlay = { code -> nav.navigate(PlayRoute(code, ui.babyMonth ?: month)) }))
+            }
+            composable<AppAboutRoute> {
+                app.mossling.ui.you.AppAboutScreen(app.mossling.ui.you.AppAboutActions(back = { nav.popBackStack() }, sources = { nav.navigate(AboutRoute) },
+                    licenses = { nav.navigate(LicensesRoute) }, doc = { nav.navigate(DocRoute(it)) }))
+            }
+            composable<DocRoute> { e -> app.mossling.ui.you.DocScreen(e.toRoute<DocRoute>().name) { nav.popBackStack() } }
             composable<AboutRoute> { AboutScreen(c, licenses = { nav.navigate(LicensesRoute) }) { nav.popBackStack() } }
             composable<LicensesRoute> { app.mossling.ui.you.LicensesScreen { nav.popBackStack() } }
             composable<StatsRoute> { app.mossling.ui.journal.StatsScreen(month30, ui.today) { nav.popBackStack() } }

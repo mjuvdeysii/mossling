@@ -151,6 +151,9 @@ class ScreensTest {
     @Test fun search() = shot("26_search") { app.mossling.ui.search.SearchScreen(content, {}, {}, {}, {}) }
     @Test fun todayNick() = shot("27_today_nickname_since") { TodayScreen(measured().copy(lastFeed = LogEntry(9, LogType.Bottle, at(17, 50), amount = 120), lastSleep = LogEntry(8, LogType.Sleep, at(16, 0), at(18, 55))), TodayActions(), now = { at(20, 0) }) }
     @Test fun licenses() = shot("28_licenses") { app.mossling.ui.you.LicensesScreen {} }
+    @Test fun growthMap() = shot("29_growth_map") { app.mossling.ui.grow.MapScreen(measured(), open = {}) {} }
+    @Test fun plan() = shot("30_week_shelf") { app.mossling.ui.plan.PlanScreen(measured(), listOf(LogEntry(0, LogType.Play, at(9, 0), detail = "A11 双手物品传递机会"), LogEntry(0, LogType.Play, at(15, 0), detail = "A11 双手物品传递机会")), app.mossling.ui.plan.PlanActions()) }
+    @Test fun appAbout() = shot("31_about_app") { app.mossling.ui.you.AppAboutScreen(app.mossling.ui.you.AppAboutActions()) }
     @Test fun materials() = shot("17_materials") {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             app.mossling.ui.ip.Family.entries.chunked(2).forEach { row ->
