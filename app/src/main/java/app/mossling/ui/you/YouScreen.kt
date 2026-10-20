@@ -190,7 +190,12 @@ private fun Pick(kind: Kind, name: String, line: String, on: Boolean, modifier: 
     Surface(onClick = onClick, shape = RoundedCornerShape(28.dp), color = if (on) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerLow,
         border = if (on) BorderStroke(2.dp, if (kind == Kind.Moss) Palette.Moss else Palette.Rod) else null, modifier = modifier) {
         Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-            Creature(kind, Modifier.size(96.dp), mood = if (on) Mood.Happy else Mood.Open, look = if (kind == Kind.Moss) Offset(0.8f, 0f) else Offset(-0.8f, 0f))
+            androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) {
+                // the chosen companion stands on a shape that springs from a soft square into a cookie
+                app.mossling.ui.components.MorphBlob(on, app.mossling.ui.components.Shapes.Square, app.mossling.ui.components.Shapes.Cookie,
+                    (if (kind == Kind.Moss) Palette.Moss else Palette.Rod).copy(alpha = if (on) 0.16f else 0.06f), Modifier.size(112.dp))
+                Creature(kind, Modifier.size(96.dp), mood = if (on) Mood.Happy else Mood.Open, look = if (kind == Kind.Moss) Offset(0.8f, 0f) else Offset(-0.8f, 0f))
+            }
             Text(name, fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall)
             Text(line, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

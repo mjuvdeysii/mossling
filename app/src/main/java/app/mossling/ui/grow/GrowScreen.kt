@@ -148,8 +148,9 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
                 mo.domains.forEach { d ->
                     Plate(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            ColorTablet(areaColor(d.key))
-                            Spacer(Modifier.width(10.dp))
+                            app.mossling.ui.components.ShapeBadge(app.mossling.ui.components.areaGlyph(d.key), areaColor(d.key).copy(alpha = 0.14f), areaColor(d.key),
+                                shape = app.mossling.ui.components.Shapes.all[d.key.first().code % app.mossling.ui.components.Shapes.all.size], size = 40.dp)
+                            Spacer(Modifier.width(12.dp))
                             Text(d.name, style = MaterialTheme.typography.titleSmall, color = areaColor(d.key))
                             if (d.key == mo.focus) { Spacer(Modifier.width(8.dp)); Text("本月重点", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
                         }

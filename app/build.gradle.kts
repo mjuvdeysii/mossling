@@ -83,6 +83,7 @@ dependencies {
     implementation(libs.glance.material3)
     implementation(libs.androidx.profileinstaller)
     implementation(libs.androidx.biometric)
+    implementation(libs.androidx.graphics.shapes)
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.compose.bom))
     androidTestImplementation(libs.compose.ui.test)
