@@ -56,7 +56,7 @@ class ScreensTest {
     private fun at(h: Int, m: Int) = today.atTime(h, m).atZone(z).toInstant().toEpochMilli()
 
     private fun ui(companion: Kind = Kind.Moss, birth: LocalDate? = LocalDate.of(2026, 4, 2), timers: List<RunningTimer> = emptyList()) = AppUi(
-        content, Settings(birth = birth, companion = companion, onboarded = true), today,
+        content, Settings(birth = birth, companion = companion, onboarded = true, journal = true), today,
         ticks = listOf(Tick(tickKey(6, TickKind.Did, "A11"), 6, TickKind.Did, "双手物品传递机会", 0), Tick(tickKey(6, TickKind.Observed, "0-0"), 6, TickKind.Observed, "认识熟悉的人", 0)).associateBy { it.key },
         timers = timers, ready = true,
     )

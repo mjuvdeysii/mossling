@@ -1,5 +1,9 @@
 package app.mossling.ui.play
 
+import kotlinx.coroutines.launch
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -88,29 +92,15 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                 }
             }
             item("steps") {
-                SectionTitle("怎么做", kicker = "${p.steps.size} 步")
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                val frames = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code) }
-                Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                    p.steps.forEachIndexed { i, s ->
-                        // each step with its picture, so it can be done from the picture alone
-                        frames.getOrNull(i)?.let { f ->
-                            app.mossling.ui.components.Art(f, "第 ${i + 1} 步的图示：$s", Modifier.fillMaxWidth().padding(start = 48.dp).clip(RoundedCornerShape(20.dp)))
-                        }
-                        Row(verticalAlignment = Alignment.Top) {
-                            Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 48.dp).padding(end = 8.dp))
-                            Text(s, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
-                        }
-                    }
+                SectionTitle("怎么做", kicker = "${p.steps.size} 步 · 左右滑动")
+                Steps(p)
+            }
+            if (p.observe.isNotBlank() || p.pause.isNotBlank()) item("watch") {
+                SectionTitle("做的时候", kicker = "记事实，不打分")
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (p.observe.isNotBlank()) Note("看什么", p.observe, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer)
+                    if (p.pause.isNotBlank()) Note("什么时候停下", p.pause, MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer)
                 }
-            }
-            if (p.observe.isNotBlank()) item("watch") {
-                SectionTitle("看什么", kicker = "记事实，不打分")
-                Text(p.observe, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 20.dp))
-            }
-            if (p.pause.isNotBlank()) item("pause") {
-                SectionTitle("什么时候停下", kicker = null)
-                Text(p.pause, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(horizontal = 20.dp))
             }
         }
         // the one action, always within reach
@@ -148,4 +138,54 @@ private fun share(ctx: android.content.Context, p: Play) {
     }
     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text)
     runCatching { ctx.startActivity(android.content.Intent.createChooser(send, "分享 ${p.name}")) }
+}
+
+/**
+ * The steps as a row of cards, one step per card: the picture and its words in the same container, so a picture
+ * can never be read as belonging to the text above it. The next card peeks in from the edge; golden beads below
+ * count the steps, the current one larger.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun Steps(p: Play) {
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val frames = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code) }
+    val pager = androidx.compose.foundation.pager.rememberPagerState { p.steps.size }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    androidx.compose.foundation.pager.HorizontalPager(pager, contentPadding = PaddingValues(start = 16.dp, end = if (p.steps.size > 1) 48.dp else 16.dp),
+        pageSpacing = 12.dp, verticalAlignment = Alignment.Top, key = { it }) { i ->
+        val off = ((pager.currentPage - i) + pager.currentPageOffsetFraction).let { kotlin.math.abs(it) }.coerceIn(0f, 1f)
+        Surface(shape = RoundedCornerShape(32.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
+            modifier = Modifier.fillMaxWidth().graphicsLayer { val k = 1f - 0.06f * off; scaleX = k; scaleY = k; alpha = 1f - 0.35f * off }) {
+            Column {
+                frames.getOrNull(i)?.let { f ->
+                    app.mossling.ui.components.Art(f, "第 ${i + 1} 步的图示", Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(26.dp)))
+                }
+                Row(Modifier.padding(start = 16.dp, end = 18.dp, top = 6.dp, bottom = 18.dp), verticalAlignment = Alignment.Top) {
+                    Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 44.dp).padding(end = 8.dp))
+                    Text(p.steps[i], style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
+                }
+            }
+        }
+    }
+    if (p.steps.size > 1) Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+        repeat(p.steps.size) { i ->
+            val on = pager.currentPage == i
+            val d by androidx.compose.animation.core.animateDpAsState(if (on) 16.dp else 10.dp, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 500f), label = "bead")
+            Box(Modifier.size(32.dp).clickable(onClickLabel = "第 ${i + 1} 步") { scope.launch { pager.animateScrollToPage(i) } }, contentAlignment = Alignment.Center) {
+                Box(Modifier.size(d).background(if (on || i < pager.currentPage) Palette.Bead else MaterialTheme.colorScheme.outlineVariant, androidx.compose.foundation.shape.CircleShape))
+            }
+        }
+        Text("第 ${pager.currentPage + 1} / ${p.steps.size} 步", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
+private fun Note(title: String, text: String, bg: androidx.compose.ui.graphics.Color, fg: androidx.compose.ui.graphics.Color) {
+    Surface(shape = RoundedCornerShape(24.dp), color = bg, contentColor = fg, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(text, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
 }

@@ -1,5 +1,6 @@
 package app.mossling.ui.grow
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
@@ -67,6 +68,7 @@ data class GrowActions(
     val tick: (Int, String, String, String) -> Unit = { _, _, _, _ -> },
     val openMap: () -> Unit = {},
     val openPlan: () -> Unit = {},
+    val openGrowth: () -> Unit = {},
 )
 
 @Composable
@@ -94,13 +96,14 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                     Creature(companion, Modifier.size(72.dp), look = look)
                 }
             }
-            Row(Modifier.padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (baby != null) {
                     val text = when { month == baby -> "宝宝现在在这里"; month < baby -> "以前的月份"; else -> "以后的月份" }
                     AssistChip(onClick = { a.select(baby) }, label = { Text(if (month == baby) text else "回到满 $baby 个月") })
                 }
                 AssistChip(onClick = a.openMap, label = { Text("成长地图") })
                 AssistChip(onClick = a.openPlan, label = { Text("本周的架子") })
+                AssistChip(onClick = a.openGrowth, label = { Text("生长曲线") })
             }
             BeadChain(month, baby, a.select)
         }

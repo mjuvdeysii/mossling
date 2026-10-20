@@ -30,6 +30,8 @@ data class Settings(
     val lock: Boolean = false,
     /** this week's shelf (see domain.Shelf) */
     val shelf: String = "",
+    /** the journal (feeds, sleep, nappies…) is optional: off unless the family turns it on */
+    val journal: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -45,6 +47,7 @@ class SettingsRepository(private val context: Context) {
         val nickname = stringPreferencesKey("nickname")
         val lock = booleanPreferencesKey("lock")
         val shelf = stringPreferencesKey("shelf")
+        val journal = booleanPreferencesKey("journal")
     }
 
     val settings: Flow<Settings> = context.store.data.map { p: Preferences ->
@@ -60,6 +63,7 @@ class SettingsRepository(private val context: Context) {
             nickname = p[K.nickname] ?: "",
             lock = p[K.lock] ?: false,
             shelf = p[K.shelf] ?: "",
+            journal = p[K.journal] ?: false,
         )
     }
 
@@ -73,6 +77,7 @@ class SettingsRepository(private val context: Context) {
     suspend fun setSex(s: String?) = context.store.edit { if (s == null) it.remove(K.sex) else it[K.sex] = s }
     suspend fun setNickname(n: String) = context.store.edit { val t = n.trim().take(12); if (t.isEmpty()) it.remove(K.nickname) else it[K.nickname] = t }
     suspend fun setLock(on: Boolean) = context.store.edit { it[K.lock] = on }
+    suspend fun setJournal(on: Boolean) = context.store.edit { it[K.journal] = on }
     suspend fun setShelf(v: String) = context.store.edit { it[K.shelf] = v }
     /** Everything back to a fresh install (the records are cleared separately). */
     suspend fun clear() = context.store.edit { it.clear() }

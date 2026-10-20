@@ -179,20 +179,21 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         open.collect { o ->
             when {
                 o == "journal" -> { go(JournalRoute); open.value = null }
-                o != null && o.startsWith("log:") -> { open.value = null; go(JournalRoute); log(o.removePrefix("log:")) }
+                o != null && o.startsWith("log:") -> { open.value = null; if (!ui.settings.journal) vm.setJournal(true); go(JournalRoute); log(o.removePrefix("log:")) }
             }
         }
     }
 
     val wide = LocalConfiguration.current.screenWidthDp >= 600
     val here = back?.destination?.route
-    val isTop = here == null || Tabs.any { it.key == here }
+    val tabs = if (ui.settings.journal) Tabs else Tabs.filter { it.route != JournalRoute }
+    val isTop = here == null || tabs.any { it.key == here }
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (isTop && !wide) NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
-                Tabs.forEach { t ->
+                tabs.forEach { t ->
                     val on = here == t.key || (here == null && t.route == TodayRoute)
                     NavigationBarItem(
                         selected = on,
@@ -209,7 +210,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         // tablets, foldables and landscape: the same four places as a rail on the side
         if (wide && isTop) NavigationRail(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxHeight()) {
             Spacer(Modifier.weight(1f))
-            Tabs.forEach { t ->
+            tabs.forEach { t ->
                 val on = here == t.key || (here == null && t.route == TodayRoute)
                 NavigationRailItem(selected = on, onClick = { if (t.route == GrowRoute && !on) browse = -1; go(t.route) },
                     icon = { Glyph(t.glyph, filled = on) }, label = { Text(t.label) },
@@ -248,7 +249,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     select = { browse = it },
                     openPlay = { code, m -> nav.navigate(PlayRoute(code, m)) },
                     tick = { m, kind, id, label -> vm.toggleTick(m, kind, id, label) },
-                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) },
+                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) }, openGrowth = { nav.navigate(GrowthRoute) },
                 ))
             } }
             composable<JournalRoute> {
@@ -266,6 +267,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     nickname = vm::setNickname, sex = vm::setSex,
                     search = { nav.navigate(SearchRoute) },
                     lock = vm::setLock,
+                    journal = vm::setJournal,
                     appAbout = { nav.navigate(AppAboutRoute) },
                     importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))

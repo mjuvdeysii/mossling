@@ -13,6 +13,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
@@ -34,7 +35,7 @@ import kotlinx.serialization.json.jsonPrimitive
 object ArtIndex {
     @Volatile private var loaded: Triple<Map<String, List<String>>, Map<Int, String>, Map<String, Float>>? = null
     private val cache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
+        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 2
     }
 
     private fun load(ctx: Context) = loaded ?: runCatching {
@@ -49,19 +50,35 @@ object ArtIndex {
     fun cover(ctx: Context, month: Int): String? = load(ctx).second[month]
     fun ratio(ctx: Context, name: String): Float = load(ctx).third[name] ?: 1.33f
 
-    suspend fun bitmap(ctx: Context, name: String): ImageBitmap? = cache.get(name) ?: withContext(Dispatchers.IO) {
-        runCatching { ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it) }?.asImageBitmap() }.getOrNull()?.also { cache.put(name, it) }
+    /**
+     * Decoded no wider than [maxWidth] pixels (a map thumbnail never holds a full-size picture), without alpha
+     * (the pictures are opaque), off the main thread; one cache entry per name and width bucket.
+     */
+    suspend fun bitmap(ctx: Context, name: String, maxWidth: Int = 4096): ImageBitmap? {
+        val bucket = maxWidth.coerceAtLeast(64).let { Integer.highestOneBit(it - 1) shl 1 }
+        val key = "$name@$bucket"
+        cache.get(key)?.let { return it }
+        return withContext(Dispatchers.IO) {
+            runCatching {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, bounds) }
+                var sample = 1; while (bounds.outWidth / (sample * 2) >= bucket) sample *= 2
+                val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = android.graphics.Bitmap.Config.RGB_565 }
+                ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, opts) }?.also { it.prepareToDraw() }?.asImageBitmap()
+            }.getOrNull()?.also { cache.put(key, it) }
+        }
     }
 }
 
-/** One illustration at its own proportions; a quiet placeholder of the same size while it decodes. */
+/** One illustration at its own proportions; a quiet placeholder of the same size while it decodes, then a short fade. */
 @Composable
 fun Art(name: String, label: String, modifier: Modifier = Modifier) {
     val ctx = LocalContext.current
     val ratio = remember(name) { ArtIndex.ratio(ctx, name) }
-    val img by produceState<ImageBitmap?>(null, name) { value = ArtIndex.bitmap(ctx, name) }
-    val m = modifier.aspectRatio(ratio).semantics { contentDescription = label }
-    val b = img
-    if (b != null) Image(b, null, m, contentScale = ContentScale.Crop)
-    else Box(m.background(MaterialTheme.colorScheme.surfaceContainerHigh))
+    androidx.compose.foundation.layout.BoxWithConstraints(modifier.aspectRatio(ratio).background(MaterialTheme.colorScheme.surfaceContainerHigh).semantics { contentDescription = label }) {
+        val px = constraints.maxWidth
+        val img by produceState<ImageBitmap?>(null, name, px) { value = ArtIndex.bitmap(ctx, name, px) }
+        val alpha by androidx.compose.animation.core.animateFloatAsState(if (img != null) 1f else 0f, androidx.compose.animation.core.tween(180), label = "art")
+        img?.let { Image(it, null, Modifier.matchParentSize().graphicsLayer { this.alpha = alpha }, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.Medium) }
+    }
 }

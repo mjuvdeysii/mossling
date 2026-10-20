@@ -112,7 +112,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item(key = "hero") {
             val t by androidx.compose.runtime.produceState(now()) { while (true) { kotlinx.coroutines.delay(60_000); value = now() } }
-            Hero(ui, companion, a, since(ui, t))
+            Hero(ui, companion, a, if (ui.settings.journal) since(ui, t) else null)
         }
         if (age != null && play != null) item(key = "play") {
             Box(Modifier.padding(horizontal = 16.dp)) {
@@ -131,7 +131,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
                 running.forEach { t -> TimerPlate(t, now, a) }
             }
         }
-        if (c.months.isNotEmpty()) item(key = "log") {
+        if (c.months.isNotEmpty() && ui.settings.journal) item(key = "log") {
             SectionTitle("记一下", kicker = "一下就好")
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LogKinds.take(4).forEach { k -> LogButton(k, running.any { it.type == k.type }, onClick = { a.log(k.type) }, modifier = Modifier.weight(1f)) }

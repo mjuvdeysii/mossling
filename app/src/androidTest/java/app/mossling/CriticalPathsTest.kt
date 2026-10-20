@@ -7,6 +7,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onFirst
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import org.junit.Rule
@@ -24,7 +25,9 @@ class CriticalPathsTest {
     @Test fun dailyPaths() {
         // first run: look around without a birth date
         waitFor("先看看"); tap("先看看")
-        waitFor("记一下")
+        // the journal is optional: turn it on in 我的
+        tap("我的"); rule.onNode(hasText("手帐") and androidx.compose.ui.test.isToggleable()).performScrollTo().performClick()
+        tap("今天"); waitFor("记一下")
 
         // a bottle feed: one tap, the amount, done
         tap("瓶喂"); waitFor("喝了多少")

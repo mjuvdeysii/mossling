@@ -44,6 +44,7 @@ def scroll_up(): sh("input", "swipe", "540", "1700", "540", "700", "300"); time.
 
 steps = [
     ("first run", lambda: tap("先看看")),
+    ("journal on", lambda: tap("我的") and (scroll_up() or True) and tap("手帐") and tap("今天")),
     ("bottle", lambda: tap("瓶喂") and tap("记下来")),
     ("nurse start", lambda: tap("亲喂") and tap("左边")),
     ("nurse stop", lambda: tap("进行中")),

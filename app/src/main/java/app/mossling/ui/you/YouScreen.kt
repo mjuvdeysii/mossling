@@ -1,5 +1,6 @@
 package app.mossling.ui.you
 
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -65,6 +66,7 @@ data class YouActions(
     val search: () -> Unit = {},
     val lock: (Boolean) -> Unit = {},
     val appAbout: () -> Unit = {},
+    val journal: (Boolean) -> Unit = {},
 )
 
 @Composable
@@ -124,6 +126,13 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                 }
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val canLock = remember { runCatching { androidx.biometric.BiometricManager.from(ctx).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS }.getOrDefault(false) }
+                Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).toggleable(ui.settings.journal, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = a.journal).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("手帐", style = MaterialTheme.typography.titleMedium)
+                        Text("记录喂养、睡眠、尿布、体温等；打开后出现「手帐」页和「记一下」", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    androidx.compose.material3.Switch(ui.settings.journal, onCheckedChange = null)
+                }
                 if (canLock || ui.settings.lock) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("应用锁", style = MaterialTheme.typography.titleMedium)
