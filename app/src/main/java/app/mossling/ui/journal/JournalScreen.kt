@@ -141,18 +141,19 @@ private fun Summary(logs: List<LogEntry>) {
     val sleep = logs.filter { it.type == LogType.Sleep && it.end != null }.sumOf { it.end!! - it.start }
     val diapers = logs.count { it.type == LogType.Diaper }
     Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Fact("$feeds", "次喂奶" + if (ml > 0) " · $ml 毫升" else "", Modifier.weight(1f))
+        Fact("$feeds", "次喂奶", Modifier.weight(1f), sub = if (ml > 0) "瓶喂 $ml 毫升" else null)
         Fact(if (sleep > 0) "%.1f".format(sleep / 3_600_000.0) else "0", "小时睡眠", Modifier.weight(1f))
         Fact("$diapers", "片尿布", Modifier.weight(1f))
     }
 }
 
 @Composable
-private fun Fact(n: String, label: String, modifier: Modifier) {
+private fun Fact(n: String, label: String, modifier: Modifier, sub: String? = null) {
     Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = modifier) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Text(n, fontFamily = Numerals, style = MaterialTheme.typography.displaySmall)
             Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (sub != null) Text(sub, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
         }
     }
 }
