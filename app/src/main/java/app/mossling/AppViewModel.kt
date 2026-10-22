@@ -95,8 +95,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** read once at start-up from the stored settings, so the lock is never skipped while settings load */
     fun lockOn(): Boolean = kotlinx.coroutines.runBlocking { g.settings.settings.first().lock }
     fun setLock(on: Boolean) = viewModelScope.launch { g.settings.setLock(on) }
-    fun setJournal(on: Boolean) = viewModelScope.launch { g.settings.setJournal(on) }
-    fun setShelf(codes: List<String>) = viewModelScope.launch { g.settings.setShelf(app.mossling.domain.Shelf.format(LocalDate.now(), codes)) }
+    fun setJournal(on: Boolean) = viewModelScope.launch { g.settings.setJournal(on); widget() }
+    fun setShelf(codes: List<String>) = viewModelScope.launch { g.settings.setShelf(app.mossling.domain.Shelf.format(LocalDate.now(), codes)); widget() }
     fun setSex(s: String?) = viewModelScope.launch { g.settings.setSex(s) }
     fun setNickname(n: String) = viewModelScope.launch { g.settings.setNickname(n); widget() }
     fun putMeasure(m: app.mossling.data.Measure) = viewModelScope.launch { dao.putMeasure(m) }

@@ -105,6 +105,8 @@ class Timers(private val context: Context, private val dao: RecordDao) {
         const val CHANNEL = "timer"
         const val ACTION_PAUSE = "app.mossling.timer.PAUSE"
         const val ACTION_STOP = "app.mossling.timer.STOP"
+        const val ACTION_START = "app.mossling.timer.START"
+        const val ACTION_SIDE = "app.mossling.timer.SIDE"
         fun elapsed(t: RunningTimer, now: Long): Long = ((t.pausedAt ?: now) - t.start - t.pausedTotal).coerceAtLeast(0)
     }
 }
@@ -116,7 +118,10 @@ class TimerActionReceiver : BroadcastReceiver() {
         val done = goAsync()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             try {
-                when (intent.action) { Timers.ACTION_PAUSE -> timers.togglePause(type); Timers.ACTION_STOP -> timers.stop(type) }
+                when (intent.action) {
+                    Timers.ACTION_PAUSE -> timers.togglePause(type); Timers.ACTION_STOP -> timers.stop(type)
+                    Timers.ACTION_START -> timers.start(type, intent.getStringExtra("side")); Timers.ACTION_SIDE -> timers.switchSide(type)
+                }
             } finally { done.finish() }
         }
     }
