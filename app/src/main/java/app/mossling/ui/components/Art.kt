@@ -33,13 +33,16 @@ import kotlinx.serialization.json.jsonPrimitive
  * (assets/art, index.json). Decoded off the main thread and kept in a small cache.
  */
 object ArtIndex {
+    /** Screenshot tests read the pictures from the source tree; the app reads them from its assets. */
+    @Volatile var source: ((String) -> java.io.InputStream)? = null
+    internal fun open(ctx: Context, path: String) = source?.invoke(path) ?: ctx.assets.open(path)
     @Volatile private var loaded: Triple<Map<String, List<String>>, Map<Int, String>, Map<String, Float>>? = null
     private val cache = object : LruCache<String, ImageBitmap>(48 * 1024 * 1024) {
         override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
     }
 
     private fun load(ctx: Context) = loaded ?: runCatching {
-        val o = Json.parseToJsonElement(ctx.assets.open("art/index.json").bufferedReader().readText()).jsonObject
+        val o = Json.parseToJsonElement(open(ctx, "art/index.json").bufferedReader().readText()).jsonObject
         val plays = o["plays"]!!.jsonObject.mapValues { (_, v) -> v.jsonArray.map { it.jsonPrimitive.content } }
         val covers = o["covers"]!!.jsonObject.entries.associate { it.key.toInt() to it.value.jsonPrimitive.content }
         val ratio = o["size"]!!.jsonObject.mapValues { (_, v) -> v.jsonArray.let { it[0].jsonPrimitive.content.toFloat() / it[1].jsonPrimitive.content.toFloat() } }
@@ -61,10 +64,10 @@ object ArtIndex {
         return withContext(Dispatchers.IO) {
             runCatching {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, bounds) }
+                open(ctx, "art/$name").use { BitmapFactory.decodeStream(it, null, bounds) }
                 var sample = 1; while (bounds.outWidth / (sample * 2) >= bucket) sample *= 2
                 val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888 }
-                ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, opts) }?.also { it.prepareToDraw() }?.asImageBitmap()
+                open(ctx, "art/$name").use { BitmapFactory.decodeStream(it, null, opts) }?.also { it.prepareToDraw() }?.asImageBitmap()
             }.getOrNull()?.also { cache.put(key, it) }
         }
     }
@@ -79,7 +82,7 @@ fun Art(name: String, label: String, modifier: Modifier = Modifier) {
         val px = constraints.maxWidth
         // screenshot tests render one frame: decode right away there; on a phone, off the main thread
         val inspect = LocalInspectionMode.current
-        val img by produceState(if (inspect) remember(name) { runCatching { ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it) }?.asImageBitmap() }.getOrNull() } else null, name, px) {
+        val img by produceState(if (inspect) remember(name) { runCatching { ArtIndex.open(ctx, "art/$name").use { BitmapFactory.decodeStream(it) }?.asImageBitmap() }.getOrNull() } else null, name, px) {
             if (!inspect) value = ArtIndex.bitmap(ctx, name, px)
         }
         val alpha by androidx.compose.animation.core.animateFloatAsState(if (img != null || inspect) 1f else 0f, androidx.compose.animation.core.tween(180), label = "art")
