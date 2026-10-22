@@ -127,6 +127,7 @@ struct GrowthView: View {
                 }
             }
             .chartXScale(domain: 0...span)
+            .chartYScale(domain: yDomain(outer.map(\.lo) + pts.map(\.2), outer.map(\.hi) + pts.map(\.2)))
             .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text("\(Int(d))月") } } } }
             .chartYAxis { AxisMarks(position: .leading) }
             .chartOverlay { proxy in
@@ -150,14 +151,19 @@ struct GrowthView: View {
         .card(Palette.cardLow, radius: 26)
     }
 
+    private func yDomain(_ lo: [Double], _ hi: [Double]) -> ClosedRange<Double> {
+        let a = lo.min() ?? 0, b = hi.max() ?? 1, pad = (b - a) * 0.04
+        return (a - pad)...(b + pad)
+    }
+
     private func legend(_ v: AnyView, _ t: String) -> some View { HStack(spacing: 5) { v; Text(t).font(.caption2).foregroundStyle(Palette.secondaryText) } }
 
     private func row(_ m: Measure, _ prev: Measure?) -> some View {
         let d = Day(Date(timeIntervalSince1970: m.at / 1000))
         return HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("\(d.y).\(d.m).\(d.d)").font(Typeface.numerals(17))
-                if let b = app.birth { let a = Age.on(birth: b, today: d); Text(a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.caption).foregroundStyle(Palette.secondaryText) }
+                Text(verbatim: "\(d.y).\(d.m).\(d.d)").font(Typeface.numerals(17))
+                if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.caption).foregroundStyle(Palette.secondaryText) }
             }
             .frame(width: 104, alignment: .leading)
             VStack(alignment: .leading, spacing: 4) {

@@ -72,6 +72,7 @@ struct JournalView: View {
         .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }) }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }) }
         .onChange(of: app.today) { _, t in day = t }
+        .onAppear { day = app.today }
     }
 
     private func tap(_ t: String) {

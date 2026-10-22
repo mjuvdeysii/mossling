@@ -55,3 +55,49 @@ jobs:
           git config user.name "github-actions"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -q --orphan s-tmp && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
           cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && git push -qf origin s-tmp:screens-ios
+  testflight:
+    # Signs with the developer account's App Store Connect API key and uploads the build to TestFlight.
+    # Runs only when the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 and APPLE_TEAM_ID are set.
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      TEAM: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        if: env.ASC_KEY_ID != ''
+      - name: Archive and upload
+        if: env.ASC_KEY_ID != ''
+        working-directory: ios
+        run: |
+          set -o pipefail
+          X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1); sudo xcode-select -s "$X"
+          brew install xcodegen >/dev/null && xcodegen generate
+          mkdir -p ~/private_keys && printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          BUILD=$((100 + ${{ github.run_number }}))
+          xcodebuild archive -project Mossling.xcodeproj -scheme Mossling -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath build/Mossling.xcarchive DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION=$BUILD "${AUTH[@]}" 2>&1 | tee archive.log | grep -E "error:|\*\* " || true
+          grep -q "ARCHIVE SUCCEEDED" archive.log
+          cat > ExportOptions.plist <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>$TEAM</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>manageAppVersionAndBuildNumber</key><false/>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath build/Mossling.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export "${AUTH[@]}" 2>&1 | tee export.log | grep -E "error:|Upload|\*\* " || true
+          grep -q "EXPORT SUCCEEDED" export.log
+          echo "::notice title=TestFlight::build $BUILD uploaded; it appears in TestFlight after Apple finishes processing (usually 10–30 minutes)"
+      - name: Report errors
+        if: failure()
+        working-directory: ios
+        run: cat archive.log export.log 2>/dev/null | grep -E "error:|Error|failed" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done

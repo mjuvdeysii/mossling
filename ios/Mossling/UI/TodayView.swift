@@ -73,7 +73,7 @@ private struct Hero: View {
                         }
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(age.days > 0 ? "\(age.months) 个月 \(age.days) 天" : "满 \(age.months) 个月")
-                        Text(age.months < 36 ? "再过 \(age.toNext) 天满 \(age.months + 1) 个月 · 一起走过第 \(age.lived) 天" : "一起走过第 \(age.lived) 天")
+                        Text(verbatim: age.months < 36 ? "再过 \(age.toNext) 天满 \(age.months + 1) 个月 · 一起走过第 \(age.lived) 天" : "一起走过第 \(age.lived) 天")
                             .font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                         DayBeads(done: age.days, total: age.days + age.toNext).frame(height: 10)
                     }
