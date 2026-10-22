@@ -48,7 +48,7 @@ steps = [
     ("first run", lambda: tap("先看看")),
     ("journal on", lambda: tap("我的") and (scroll_up() or True) and tap("手帐") and tap("今天")),
     ("bottle", lambda: tap("瓶喂") and tap("记下来")),
-    ("nurse start", lambda: tap("亲喂") and tap("左边")),
+    ("nurse start", lambda: tap("亲喂") and tap("左边") and (tap("Allow", wait=1.5) or tap("允许", wait=1.5) or True)),
     ("nurse stop", lambda: tap("进行中")),
     ("sleep start", lambda: tap("睡觉")),
     ("sleep stop", lambda: tap("进行中")),
@@ -77,7 +77,8 @@ elif mode == "upgraded":
     steps = [("journal still there", lambda: tap("手帐")), ("open entry", lambda: tap("120 毫升", exact=False) and tap("好")),
              ("bottle after update", lambda: tap("瓶喂") and tap("记下来"))] + [s for s in steps if s[0] in ("grow tab", "map", "shelf", "you tab", "about")]
 subprocess.run(["adb", "logcat", "-b", "crash", "-c"])
-sh("pm", "grant", PKG, "android.permission.POST_NOTIFICATIONS")
+# the notification permission is NOT granted beforehand: the first timer asks for it, as on a new phone
+sh("pm", "revoke", PKG, "android.permission.POST_NOTIFICATIONS")
 sh("am", "start", "-n", f"{PKG}/.MainActivity"); time.sleep(5)
 for name, f in steps:
     try: f()

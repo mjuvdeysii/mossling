@@ -58,6 +58,7 @@ class MainActivity : FragmentActivity() {
 
     /** asked only when a timer is started for the first time: that is when a notification is useful */
     private fun askNotifications() {
-        if (Build.VERSION.SDK_INT >= 33) askNotify.launch(Manifest.permission.POST_NOTIFICATIONS)
+        // never let the question itself stop a feed or a sleep from being recorded
+        if (Build.VERSION.SDK_INT >= 33) runCatching { askNotify.launch(Manifest.permission.POST_NOTIFICATIONS) }
     }
 }

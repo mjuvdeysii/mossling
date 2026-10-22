@@ -6,7 +6,6 @@ D=app/build/outputs/apk
 sleep 30; adb shell am broadcast -a android.intent.action.CLOSE_SYSTEM_DIALOGS >/dev/null 2>&1; adb shell input keyevent 82 >/dev/null 2>&1
 adb install -r -t $D/debug/app-debug.apk >/dev/null
 adb install -r -t $D/androidTest/debug/app-debug-androidTest.apk >/dev/null
-adb shell pm grant app.mossling android.permission.POST_NOTIFICATIONS 2>/dev/null || true
 out=$(adb shell am instrument -w -r app.mossling.test/androidx.test.runner.AndroidJUnitRunner 2>&1)
 if echo "$out" | grep -q "OK ("; then
   echo "::notice title=Native UI test::critical paths passed"

@@ -15,6 +15,8 @@ paparazzi = "1.3.5"
 glance = "1.1.1"
 profileinstaller = "1.4.1"
 biometric = "1.1.0"
+# biometric 1.1.0 brings fragment 1.2.5, whose FragmentActivity rejects the request codes of the current activity-result API
+fragment = "1.8.5"
 shapes = "1.0.1"
 testRunner = "1.6.2"
 testExt = "1.2.1"
@@ -43,6 +45,7 @@ glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = 
 glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }
 junit = { module = "junit:junit", version = "4.13.2" }
 androidx-graphics-shapes = { module = "androidx.graphics:graphics-shapes", version.ref = "shapes" }
+androidx-fragment = { module = "androidx.fragment:fragment-ktx", version.ref = "fragment" }
 androidx-biometric = { module = "androidx.biometric:biometric", version.ref = "biometric" }
 androidx-profileinstaller = { module = "androidx.profileinstaller:profileinstaller", version.ref = "profileinstaller" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "testRunner" }
