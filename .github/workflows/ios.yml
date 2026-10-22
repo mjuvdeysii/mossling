@@ -93,10 +93,13 @@ jobs:
           fi
           brew install xcodegen >/dev/null && xcodegen generate
           mkdir -p ~/private_keys && printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          # The archive is built unsigned and signed only at export, with the account's cloud-managed distribution
+          # certificate, so no new development certificate is created on each run (the account allows only a few).
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
           BUILD=$((100 + ${{ github.run_number }}))
           xcodebuild archive -project Mossling.xcodeproj -scheme Mossling -configuration Release -destination 'generic/platform=iOS' \
-            -archivePath build/Mossling.xcarchive DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION=$BUILD "${AUTH[@]}" 2>&1 | tee archive.log | grep -E "error:|\*\* " || true
+            -archivePath build/Mossling.xcarchive DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION=$BUILD \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee archive.log | grep -E "error:|\*\* " || true
           grep -q "ARCHIVE SUCCEEDED" archive.log
           cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
