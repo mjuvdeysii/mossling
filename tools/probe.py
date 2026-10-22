@@ -58,7 +58,7 @@ steps = [
     ("bath", lambda: tap("洗澡")),
     ("temperature", lambda: tap("体温") and tap("记下来")),
     ("medicine", lambda: tap("用药") and tap("维生素 D") and tap("记下来")),
-    ("note", lambda: tap("备注") and (sh("input", "text", "test") or True) and tap("记下来")),
+    ("note", lambda: tap("备注") and tap("发生了什么") and (sh("input", "text", "test") or True) and tap("记下来")),
     ("growth sheet", lambda: tap("生长") and (back() or True)),
     ("backfill", lambda: tap("补记") and tap("瓶喂") and tap("记下来")),
     ("open entry", lambda: tap("120 毫升", exact=False) and tap("好")),
