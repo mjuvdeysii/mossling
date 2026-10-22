@@ -105,7 +105,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                         Triple(G.Shield, "隐私说明") { a.doc("PRIVACY.md") },
                         Triple(G.Journal, "内容来源") { a.sources() },
                         Triple(G.Bead, "开源许可") { a.licenses() },
-                        Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues") },
+                        Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues"); Unit },
                     )
                     rows.forEachIndexed { i, (g, t, f) ->
                         if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
@@ -191,6 +191,62 @@ fun DocScreen(name: String, onBack: () -> Unit) {
                         Text(app.mossling.ui.components.rich(l.trimStart().drop(2)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     }
                     else -> Text(app.mossling.ui.components.rich(l), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 3.dp))
+                }
+            }
+        }
+    }
+}
+
+/** Check → download (with progress, cancellable) → install, without leaving the app. */
+@Composable
+private fun UpdateCard(st: app.mossling.domain.Updater.State, u: app.mossling.domain.Updater?, open: (String) -> Unit) {
+    val ctx = LocalContext.current
+    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+        Column(Modifier.padding(18.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("检查更新", style = MaterialTheme.typography.titleMedium)
+                    Text(when (st) {
+                        is app.mossling.domain.Updater.State.Idle -> "点一下，读取最新发布的版本"
+                        is app.mossling.domain.Updater.State.Checking -> "正在检查…"
+                        is app.mossling.domain.Updater.State.Latest -> "已经是最新版本"
+                        is app.mossling.domain.Updater.State.Available -> "有新版本 ${st.r.version}" + if (st.r.date.isNotBlank()) " · ${st.r.date}" else ""
+                        is app.mossling.domain.Updater.State.Downloading -> "正在下载 ${st.r.version}" + if (st.total > 0) " · ${st.done * 100 / st.total}%" else ""
+                        is app.mossling.domain.Updater.State.Ready -> "${st.r.version} 已下载，可以安装"
+                        is app.mossling.domain.Updater.State.Failed -> st.why
+                    }, style = MaterialTheme.typography.bodySmall,
+                        color = if (st is app.mossling.domain.Updater.State.Available || st is app.mossling.domain.Updater.State.Ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                when (st) {
+                    is app.mossling.domain.Updater.State.Checking -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    is app.mossling.domain.Updater.State.Idle, is app.mossling.domain.Updater.State.Latest -> Button(onClick = { u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("检查") }
+                    is app.mossling.domain.Updater.State.Failed -> Button(onClick = { st.r?.let { u?.download(it) } ?: u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("重试") }
+                    else -> Unit
+                }
+            }
+            val rel = when (st) { is app.mossling.domain.Updater.State.Available -> st.r; is app.mossling.domain.Updater.State.Downloading -> st.r; is app.mossling.domain.Updater.State.Ready -> st.r; else -> null }
+            rel?.let { r ->
+                if (r.notes.isNotBlank()) Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
+                    Text(r.notes.replace("**", "").take(900), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(14.dp))
+                }
+                when (st) {
+                    is app.mossling.domain.Updater.State.Available -> Button(onClick = { u?.download(r) }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text("下载并安装") }
+                    is app.mossling.domain.Updater.State.Downloading -> {
+                        val f = if (st.total > 0) st.done.toFloat() / st.total else 0f
+                        androidx.compose.material3.LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 8.dp))
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("%.1f / %.1f MB".format(st.done / 1048576f, st.total.coerceAtLeast(0) / 1048576f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+                            androidx.compose.material3.TextButton(onClick = { u?.cancel() }) { Text("取消") }
+                        }
+                    }
+                    is app.mossling.domain.Updater.State.Ready -> {
+                        val canInstall = u?.canInstall() ?: false
+                        Button(onClick = { runCatching { ctx.startActivity(if (canInstall) u!!.installIntent(st.file) else u!!.allowInstallIntent()) } },
+                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许苔生安装更新") }
+                        Text(if (canInstall) "由系统安装器完成安装，记录不会丢失。" else "Android 需要你允许一次「安装未知应用」，之后回到这里点安装。",
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                    }
+                    else -> Unit
                 }
             }
         }
