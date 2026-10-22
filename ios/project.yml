@@ -18,6 +18,10 @@ targets:
     platform: iOS
     sources:
       - path: Mossling
+        excludes: ["Resources/AppIcon.icon/**"]
+      - path: Mossling/Resources/AppIcon.icon
+        type: file
+        buildPhase: resources
       - path: Shared
       - path: ../app/src/main/assets/content.json
         buildPhase: resources

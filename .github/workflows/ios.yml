@@ -41,6 +41,14 @@ jobs:
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$DEV" \
             CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
+      - name: App icon check
+        if: always()
+        continue-on-error: true
+        run: |
+          APP=$(find ~/Library/Developer/Xcode/DerivedData -path "*Debug-iphonesimulator/Mossling.app" -maxdepth 6 | head -1)
+          plutil -p "$APP/Info.plist" | grep -A8 CFBundleIcons | tr '\n' ' ' | sed 's/^/::notice title=Icons::/'; echo
+          ls "$APP" | grep -i -E "icon|Assets.car" | tr '\n' ' ' | sed 's/^/::notice title=Bundle::/'; echo
+          grep -iE "AppIcon|actool.*warning|\.icon" ios/build.log | head -8 | while IFS= read -r l; do echo "::notice title=actool::$l"; done
       - name: Report errors
         if: failure()
         working-directory: ios
