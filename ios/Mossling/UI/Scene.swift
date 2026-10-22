@@ -33,10 +33,10 @@ struct Sky: View {
             let c = CGPoint(x: size.width * 0.78, y: size.height * (p == .day ? 0.28 : 0.4))
             let isNight = p == .night || (scheme == .dark && p != .day)
             let disc: Color = isNight ? Color(hex: 0xF4F1E4) : p == .day ? Color(hex: 0xFFF6D6) : Color(hex: 0xFFD9A8)
-            for (r, a) in [(70.0, 0.10), (46.0, 0.16)] {
+            for (r, a) in [(40.0, 0.10), (28.0, 0.16)] {
                 ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)), with: .color(disc.opacity(a)))
             }
-            ctx.fill(Path(ellipseIn: CGRect(x: c.x - 22, y: c.y - 22, width: 44, height: 44)), with: .color(disc.opacity(isNight ? 0.95 : 0.9)))
+            ctx.fill(Path(ellipseIn: CGRect(x: c.x - 17, y: c.y - 17, width: 34, height: 34)), with: .color(disc.opacity(isNight ? 0.95 : 0.9)))
             if isNight {
                 // a few stars
                 for (x, y, r) in [(0.12, 0.2, 1.2), (0.3, 0.12, 0.9), (0.46, 0.3, 1.1), (0.6, 0.16, 0.8), (0.2, 0.42, 0.8), (0.9, 0.12, 1.0)] {

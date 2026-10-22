@@ -81,9 +81,9 @@ private struct Hero: View {
             }
             .padding(.horizontal, 20)
             .padding(.top, 70)
-            Duo(primary: app.companion, size: 104, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.7, y: 0.1))
+            Duo(primary: app.companion, size: 128, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.7, y: 0.1))
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, 12).padding(.bottom, 18)
+                .padding(.trailing, 4).padding(.bottom, 14)
         }
         .frame(height: 360)
     }
