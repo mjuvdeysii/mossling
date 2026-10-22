@@ -99,14 +99,14 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
         item {
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 ListGroup("条款与声明", listOf(
-                    Triple(G.Note, "使用条款") { a.doc("TERMS.md") },
+                    Triple(G.Check, "使用条款") { a.doc("TERMS.md") },
                     Triple(G.Shield, "隐私政策") { a.doc("PRIVACY.md") },
                     Triple(G.Idea, "免责声明") { a.doc("DISCLAIMER.md") },
                 ))
                 ListGroup("资料", listOf(
                     Triple(G.Journal, "内容来源") { a.sources() },
                     Triple(G.Bead, "开源许可") { a.licenses() },
-                    Triple(G.Note, "更新日志") { a.doc("CHANGELOG.md") },
+                    Triple(G.Clock, "更新日志") { a.doc("CHANGELOG.md") },
                     Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues"); Unit },
                 ))
             }

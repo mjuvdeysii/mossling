@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -54,7 +55,7 @@ fun whenLabel(at: Long): String {
 }
 
 /**
- * Pick an exact day and minute. The day is one tap (今天 / 昨天 / 前天, or any earlier date); the time is typed
+ * Pick an exact day and minute, in a sheet. The day is one tap (今天 / 昨天 / 前天, or any earlier date); the time is typed
  * (exact to the minute) or set on the dial. Never later than now, never earlier than [notBefore].
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -71,10 +72,10 @@ fun TimeDialog(title: String, initial: Long, onPick: (Long) -> Unit, onDismiss: 
     val picked = result()
     val future = picked > System.currentTimeMillis() + 60_000
     val tooEarly = notBefore != null && picked <= notBefore
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh,
-            modifier = Modifier.fillMaxWidth(0.94f).widthIn(max = 420.dp)) {
-            Column(Modifier.verticalScroll(rememberScrollState()).padding(24.dp)) {
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = onDismiss, sheetState = androidx.compose.material3.rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        run {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
                 Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(whenLabel(picked), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 4.dp))
                 FlowRow(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
