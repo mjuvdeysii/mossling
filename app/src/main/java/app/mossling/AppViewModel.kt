@@ -131,21 +131,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun shiftTimer(type: String, deltaMs: Long) = viewModelScope.launch { g.timers.shift(type, deltaMs) }
     fun discardTimer(type: String) = viewModelScope.launch { g.timers.discard(type) }
 
-    /** Reads a record file from the earlier handbook app; [done] gets a sentence for the snackbar. */
-    fun importLegacy(uri: android.net.Uri, done: (String) -> Unit) = viewModelScope.launch {
+    /** Reads a record file written by this app; [done] gets a sentence for the snackbar. */
+    fun importFile(uri: android.net.Uri, done: (String) -> Unit) = viewModelScope.launch {
         val msg = runCatching {
             val text = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                 getApplication<Application>().contentResolver.openInputStream(uri)?.use { it.bufferedReader().readText() }
             } ?: return@runCatching "没有读取到文件"
             val c = g.content.get()
-            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { g.legacy.run(text, c) }
+            val r = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { g.importer.run(text) }
             widget()
             listOfNotNull(
                 "导入了 ${r.logs} 条手帐、${r.ticks} 项勾选",
                 if (r.birth) "出生日期" else null,
                 if (r.skipped > 0) "${r.skipped} 条已有，跳过" else null,
             ).joinToString("、")
-        }.getOrElse { if (it is app.mossling.data.LegacyImport.NotAHandbookFile) "这不是成长手册导出的记录文件" else "没有导入成功，文件可能已损坏" }
+        }.getOrElse { if (it is app.mossling.data.Importer.NotOurFile) "这不是苔生导出的记录文件" else "没有导入成功，文件可能已损坏" }
         done(msg)
     }
 

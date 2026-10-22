@@ -133,7 +133,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
             }
         }
         if (c.months.isNotEmpty() && ui.settings.journal) item(key = "log") {
-            SectionTitle("记一下", kicker = "一下就好")
+            SectionTitle("记一下", kicker = null)
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LogKinds.take(4).forEach { k -> LogButton(k, running.any { it.type == k.type }, onClick = { a.log(k.type) }, modifier = Modifier.weight(1f)) }
             }
@@ -153,7 +153,7 @@ private fun Hero(ui: AppUi, companion: Kind, a: TodayActions, since: String? = n
             Column(Modifier.weight(1f)) {
                 if (age == null) {
                     Text("你好。", style = MaterialTheme.typography.displaySmall, modifier = Modifier.padding(top = 18.dp))
-                    Text("告诉我宝宝哪天出生，这里每天会讲今天该看什么。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 6.dp))
+                    Text("填写出生日期，开始第一站。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 6.dp))
                     Button(onClick = a.setBirth, modifier = Modifier.padding(top = 16.dp).height(52.dp), shape = RoundedCornerShape(18.dp)) { Text("填写出生日期") }
                 } else {
                     // the age on a sandpaper board, the unit and the days beside it
@@ -316,9 +316,9 @@ private fun Ways(ui: AppUi, m: Int, a: TodayActions) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("本周的架子", style = MaterialTheme.typography.titleMedium)
-                    Text(if (stale) "新的一周，可以轮换了" else "${shelf.size} 件教具，孩子想做几遍就做几遍", style = MaterialTheme.typography.bodySmall, color = if (stale) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(if (stale) "新的一周，可以轮换了" else "${shelf.size} 件教具", style = MaterialTheme.typography.bodySmall, color = if (stale) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Text("安排 →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text("→", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
             app.mossling.ui.components.Shelf(Modifier.fillMaxWidth().padding(top = 10.dp)) {
                 Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {

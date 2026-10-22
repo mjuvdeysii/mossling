@@ -105,7 +105,7 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
                         if (baby != null) AssistChip(onClick = { scope.launch { list.animateScrollToItem((indexOf(baby) - 1).coerceAtLeast(0)) } }, label = { Text("跳到满 $baby 个月") }, modifier = Modifier.padding(end = 12.dp))
                     }
                     Text("0–36 个月成长地图", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 16.dp))
-                    Text("一个月一站，点任意一站，打开那个月。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+                    Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
                     Row(Modifier.padding(horizontal = 16.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
                         Legend(Palette.Rod, "接种", round = true); Legend(Palette.RedRod, "儿保", round = false); Legend(Palette.Bead, "这个月都记下了", round = true)
                     }

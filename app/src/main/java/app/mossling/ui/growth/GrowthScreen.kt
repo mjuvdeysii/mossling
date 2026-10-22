@@ -81,7 +81,7 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
         if (ui.settings.sex == null) item {
             Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Column(Modifier.padding(16.dp)) {
-                    Text("世界卫生组织的生长标准分男孩和女孩两套曲线。", style = MaterialTheme.typography.bodyMedium)
+                    Text("选择性别以对照生长曲线", style = MaterialTheme.typography.bodyMedium)
                     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { a.sex("boy") }, shape = RoundedCornerShape(16.dp)) { Text("男孩") }
                         Button(onClick = { a.sex("girl") }, shape = RoundedCornerShape(16.dp)) { Text("女孩") }

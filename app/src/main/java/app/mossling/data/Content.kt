@@ -9,7 +9,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
-/** The handbook, as data: assets/content.json (exported by native/tools/export_content.py). */
+/** The content, as data: assets/content.json. */
 @Serializable
 data class Content(
     val version: Int = 1,

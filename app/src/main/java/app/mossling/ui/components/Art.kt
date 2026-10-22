@@ -29,7 +29,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 
 /**
- * The handbook's illustrations: a picture for each step of each play, and a cover for most months
+ * The app's illustrations: a picture for each step of each play, and a cover for most months
  * (assets/art, index.json). Decoded off the main thread and kept in a small cache.
  */
 object ArtIndex {

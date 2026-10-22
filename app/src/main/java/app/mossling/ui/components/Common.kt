@@ -65,7 +65,7 @@ fun Tagged(tag: String, text: String, tagColor: Color = MaterialTheme.colorSchem
     }
 }
 
-/** The handbook writes emphasis as **this**; render it bold. */
+/** The content writes emphasis as **this**; render it bold. */
 fun rich(s: String): AnnotatedString = buildAnnotatedString {
     var i = 0
     while (i < s.length) {

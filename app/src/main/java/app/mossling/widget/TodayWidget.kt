@@ -106,7 +106,7 @@ class TodayWidget : GlanceAppWidget() {
             when {
                 d.journal && d.timer != null -> Running(context, d.timer, size.width >= Wide.width)
                 d.journal -> Quick(d, size.width >= Wide.width, size.height >= Tall.height, ink, sub, tile)
-                else -> Text(d.play?.let { "今天一起玩：$it" } ?: "打开苔生，看看今天做什么", style = TextStyle(fontSize = 14.sp, color = sub),
+                else -> Text(d.play?.let { "今天一起玩：$it" } ?: "苔生", style = TextStyle(fontSize = 14.sp, color = sub),
                     modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>()))
             }
         }

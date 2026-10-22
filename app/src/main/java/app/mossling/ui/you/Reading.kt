@@ -40,7 +40,7 @@ fun Bar(title: String, onBack: () -> Unit) {
     }
 }
 
-/** Renders the handbook's text blocks: paragraphs, quotes, lists, and tables as one card per row. */
+/** Renders the app's text blocks: paragraphs, quotes, lists, and tables as one card per row. */
 @Composable
 fun Blocks(blocks: List<Block>) {
     Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -76,7 +76,7 @@ fun TopicScreen(t: Topic, onBack: () -> Unit) {
     }
 }
 
-/** Everything about where the handbook comes from — in this one place and nowhere else in the app. */
+/** Everything about where the content comes from — in this one place and nowhere else in the app. */
 @Composable
 fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
     val uri = LocalUriHandler.current
@@ -86,7 +86,7 @@ fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
         item { Bar("", onBack) }
         item { Text("关于与来源", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
         item { Blocks(c.about.top) }
-        item { SectionTitle("怎么读这本手册", kicker = null) }
+        item { SectionTitle("怎么读这些内容", kicker = null) }
         item { Blocks(c.about.method) }
         item { SectionTitle("可信程度", kicker = null) }
         item { Blocks(c.about.confidence) }
@@ -111,7 +111,7 @@ fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
                 Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
                     Text("WHO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
                     Text("WHO Child Growth Standards（2006）：体重、身长 / 身高、头围的年龄别标准", style = MaterialTheme.typography.titleMedium)
-                    Text("「生长」页的曲线与百分位", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("生长曲线与百分位", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -156,7 +156,7 @@ fun LicensesScreen(onBack: () -> Unit) {
             }
         }
         item {
-            Text("SIL Open Font License 与 Apache License 2.0 全文随应用源代码一同发布（native/licenses）。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
+            Text("许可全文随源代码发布。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
         }
     }
 }

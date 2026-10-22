@@ -51,7 +51,7 @@ data class AppAboutActions(
 
 /**
  * The app itself: name, version and build, check for updates, what changed, privacy, licences, feedback, and the
- * handbook's sources. The update check is one request when tapped; nothing is checked in the background.
+ * content sources. The update check is one request when tapped; nothing is checked in the background.
  */
 @Composable
 fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = null) {
@@ -83,7 +83,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
                     Column(Modifier.padding(16.dp)) {
                         Text("上次异常退出", style = MaterialTheme.typography.titleMedium)
-                        Text("原因记在这台手机上，没有发送到任何地方。分享给开发者可以更快修好。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
+                        Text("记录只保存在本机。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
                                 val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "苔生异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
@@ -97,11 +97,11 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
         }
         item {
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Item(G.Note, "更新日志", "每个版本改了什么") { a.doc("CHANGELOG.md") }
-                Item(G.Check, "隐私说明", "不收集任何数据；联网只用于检查更新") { a.doc("PRIVACY.md") }
-                Item(G.Journal, "内容来源", "法规、指南和机构原始文件，集中在这里") { a.sources() }
-                Item(G.Bead, "开源许可", "字体与开源库") { a.licenses() }
-                Item(G.Share, "反馈问题", "在 GitHub 上提交") { open("https://github.com/${Update.Repo}/issues") }
+                Item(G.Note, "更新日志", "") { a.doc("CHANGELOG.md") }
+                Item(G.Check, "隐私说明", "") { a.doc("PRIVACY.md") }
+                Item(G.Journal, "内容来源", "") { a.sources() }
+                Item(G.Bead, "开源许可", "") { a.licenses() }
+                Item(G.Share, "反馈问题", "") { open("https://github.com/${Update.Repo}/issues") }
             }
         }
         item {
@@ -119,7 +119,7 @@ private fun Item(g: G, title: String, sub: String, onClick: () -> Unit) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
-                Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (sub.isNotBlank()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }

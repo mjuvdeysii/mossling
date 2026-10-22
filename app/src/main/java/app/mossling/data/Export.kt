@@ -18,9 +18,8 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 /**
- * Writes everything recorded into one file the family keeps. The file carries two copies of the same records:
- * "mossling" — complete, read back by this app without loss — and "data" in the earlier handbook's format
- * (hb:birth, hb:rec, hb:jr:ev), so that app can still read it.
+ * Writes everything recorded into one file the family keeps (all ticks, entries, measurements and settings), and a
+ * table of entries and measurements for a spreadsheet or the doctor.
  */
 class Exporter(private val context: Context, private val dao: RecordDao, private val settings: SettingsRepository) {
     private val pretty = Json { prettyPrint = false }
@@ -28,14 +27,8 @@ class Exporter(private val context: Context, private val dao: RecordDao, private
     suspend fun json(): String {
         val s = settings.settings.first()
         val ticks = dao.allTicks(); val logs = dao.allLogs(); val measures = dao.allMeasures()
-        val back = legacyBack()
         val root = buildJsonObject {
-            put("app", "growth-handbook"); put("v", 1); put("at", Instant.now().toString())
-            put("data", buildJsonObject {
-                s.birth?.let { put("hb:birth", it.toString()) }
-                put("hb:rec", JsonObject(ticks.mapNotNull { t -> back[t.key]?.let { it to JsonPrimitive(1) } }.toMap()).toString())
-                put("hb:jr:ev", buildJsonArray { logs.forEach { add(legacyEvent(it)) } }.toString())
-            })
+            put("app", "mossling"); put("v", 1); put("at", Instant.now().toString())
             put("mossling", buildJsonObject {
                 put("v", 1)
                 put("settings", buildJsonObject {
@@ -76,28 +69,4 @@ class Exporter(private val context: Context, private val dao: RecordDao, private
     }
 
     fun fileStamp(): String = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
-
-    private fun legacyBack(): Map<String, String> = runCatching {
-        Json.parseToJsonElement(context.assets.open("legacy_map.json").bufferedReader().readText()).jsonObject.entries.associate { it.value.jsonPrimitive.content to it.key }
-    }.getOrDefault(emptyMap())
-
-    private fun legacyEvent(e: LogEntry): JsonElement = buildJsonObject {
-        put("id", "m${e.id}"); put("t", e.start); e.end?.let { put("e", it) }
-        val (k, v) = when (e.type) {
-            LogType.Nurse -> "nurse" to buildJsonObject {
-                val total = ((e.end ?: e.start) - e.start) / 1000
-                val both = e.detail?.let { Regex("left:(\\d+),right:(\\d+)").find(it) }
-                if (both != null) { put("l", both.groupValues[1].toLong()); put("r", both.groupValues[2].toLong()) }
-                else { put("l", if (e.side == "r") 0 else total); put("r", if (e.side == "r") total else 0) }
-            }
-            LogType.Sleep -> "sleep" to JsonObject(emptyMap())
-            LogType.Bottle -> "bottle" to buildJsonObject { put("ml", e.amount ?: 0) }
-            LogType.Diaper -> "diaper" to buildJsonObject { put("w", if (e.detail != "dirty") 1 else 0); put("d", if (e.detail == "dirty" || e.detail == "both") 1 else 0) }
-            LogType.Solid -> "food" to buildJsonObject { put("name", e.detail ?: "") }
-            LogType.Bath -> "bath" to JsonObject(emptyMap())
-            LogType.Temp -> "temp" to buildJsonObject { put("c", e.amount?.let { "%.1f".format(it / 10.0) } ?: "") }
-            else -> "note" to buildJsonObject { put("txt", listOfNotNull(if (e.type == LogType.Medicine) "用药" else null, e.detail).joinToString(" · ")) }
-        }
-        put("k", k); put("v", v)
-    }
 }

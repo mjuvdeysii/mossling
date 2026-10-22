@@ -116,7 +116,6 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
                         }
                     }
                     Spacer(Modifier.height(8.dp))
-                    Text("点了才开始计时；通知栏里可以暂停和结束。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Ask.Amount -> {
                     var ml by remember { mutableFloatStateOf((lastAmount ?: 120).toFloat()) }

@@ -197,7 +197,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
             }
         }
         if (mo.vaccines.isNotEmpty() || mo.checkups.isNotEmpty()) item("care") {
-            SectionTitle("接种与儿保", kicker = "打过、做过的才勾")
+            SectionTitle("接种与儿保", kicker = null)
             Column(Modifier.padding(horizontal = 12.dp)) {
                 mo.vaccines.forEachIndexed { i, t -> CheckRow(t, ui.ticked(m, TickKind.Vaccine, "$i"), tag = "接种") { a.tick(m, TickKind.Vaccine, "$i", t) } }
                 mo.checkups.forEachIndexed { i, t -> CheckRow(t, ui.ticked(m, TickKind.Checkup, "$i"), tag = "儿保") { a.tick(m, TickKind.Checkup, "$i", t) } }
@@ -243,7 +243,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                         app.mossling.ui.components.ShapeBadge(G.Ruler, MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f), MaterialTheme.colorScheme.onSecondaryContainer, shape = app.mossling.ui.components.Shapes.Clover, size = 40.dp)
                         Column(Modifier.weight(1f).padding(start = 12.dp)) {
                             Text("生长曲线", style = MaterialTheme.typography.titleSmall)
-                            Text("体重、身长、头围对照世界卫生组织标准", style = MaterialTheme.typography.bodySmall)
+                            Text("体重 · 身长 · 头围", style = MaterialTheme.typography.bodySmall)
                         }
                     }
                 }

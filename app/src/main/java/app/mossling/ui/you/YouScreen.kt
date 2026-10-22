@@ -57,7 +57,7 @@ data class YouActions(
     val topic: (String) -> Unit = {},
     val about: () -> Unit = {},
     val openMonth: (Int) -> Unit = {},
-    val importOld: () -> Unit = {},
+    val importFile: () -> Unit = {},
     val exportJson: () -> Unit = {},
     val exportCsv: () -> Unit = {},
     val clearAll: () -> Unit = {},
@@ -86,7 +86,7 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
             val obs = mo.observe.sumOf { it.items.size }
             val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().size
             val care = mo.vaccines.size + mo.checkups.size
-            SectionTitle("这个月记下的", kicker = "满 $m 个月 · 三类分开记", trailing = {
+            SectionTitle("这个月记下的", kicker = "满 $m 个月", trailing = {
                 val done = ui.count(m, TickKind.Observed) + ui.count(m, TickKind.Did) + ui.count(m, TickKind.Vaccine) + ui.count(m, TickKind.Checkup)
                 PinkTower(done, obs + plays + care)
             })
@@ -98,7 +98,7 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
             Text("「做过」只表示做过这个游戏，不代表某项能力已经达到。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         }
         item("companion") {
-            SectionTitle("谁陪着你", kicker = "换一个，内容和记录都不变")
+            SectionTitle("谁陪着你", kicker = null)
             Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Pick(Kind.Moss, "Moss", "两只眼睛，安静地看", ui.settings.companion == Kind.Moss, Modifier.weight(1f)) { a.companion(Kind.Moss) }
                 Pick(Kind.Otto, "Otto", "一只眼睛，专心一件事", ui.settings.companion == Kind.Otto, Modifier.weight(1f)) { a.companion(Kind.Otto) }
@@ -118,7 +118,7 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                     label = { Text("宝宝的小名（可不填）") }, singleLine = true, shape = RoundedCornerShape(16.dp),
                     keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { a.nickname(nick) }),
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done))
-                Text("性别（只用于选择 WHO 生长曲线）", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
+                Text("性别", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     listOf("boy" to "男孩", "girl" to "女孩", null to "不填").forEachIndexed { i, (k, l) ->
                         SegmentedButton(selected = ui.settings.sex == k, onClick = { a.sex(k) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
@@ -129,14 +129,14 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
                 Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).toggleable(ui.settings.journal, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = a.journal).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("手帐", style = MaterialTheme.typography.titleMedium)
-                        Text("记录喂养、睡眠、尿布、体温等；打开后出现「手帐」页和「记一下」", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("喂养、睡眠、尿布、体温", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     androidx.compose.material3.Switch(ui.settings.journal, onCheckedChange = null)
                 }
                 if (canLock || ui.settings.lock) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text("应用锁", style = MaterialTheme.typography.titleMedium)
-                        Text("打开时用指纹、面容或锁屏密码确认", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("指纹、面容或锁屏密码", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     androidx.compose.material3.Switch(ui.settings.lock, onCheckedChange = a.lock)
                 }
@@ -149,23 +149,23 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
             }
         }
         item("data") {
-            SectionTitle("记录文件", kicker = "只在这台手机上，自己保管")
+            SectionTitle("记录文件", kicker = null)
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row1("导出记录文件", "全部勾选、手帐、生长测量和设置，存成一个 .json 文件；换手机或给家人时用") { a.exportJson() }
-                Row1("导出表格", "手帐和测量，一条一行的 .csv，可以用表格软件打开或给医生看") { a.exportCsv() }
-                Row1("导入记录文件", "本应用或旧版「养小怪兽 · 成长手册」导出的 .json：已有的不会被覆盖，重复的会跳过") { a.importOld() }
+                Row1("导出记录文件", ".json") { a.exportJson() }
+                Row1("导出表格", ".csv") { a.exportCsv() }
+                Row1("导入记录文件", ".json") { a.importFile() }
                 Surface(onClick = a.clearAll, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
                     Text("清除全部数据", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp))
                 }
             }
         }
         item("shelf") {
-            SectionTitle("参考", kicker = "整理好的专题")
+            SectionTitle("参考", kicker = null)
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row1("搜索", "玩法、每个月的内容和专题") { a.search() }
+                Row1("搜索", "") { a.search() }
                 c.topics.forEach { t -> Row1(t.title, t.sourceTitle) { a.topic(t.id) } }
-                Row1("关于与来源", "依据的机构、方法和每一条的核对日期") { a.about() }
-                Row1("关于苔生", "版本、检查更新、更新日志、隐私说明、开源许可、反馈") { a.appAbout() }
+                Row1("内容来源", "") { a.about() }
+                Row1("关于苔生", "") { a.appAbout() }
             }
         }
     }

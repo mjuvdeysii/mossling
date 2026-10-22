@@ -78,7 +78,7 @@ fun PlanScreen(ui: AppUi, week: List<LogEntry>, a: PlanActions) {
             Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.tertiaryContainer, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
                 Column(Modifier.padding(16.dp)) {
                     Text("新的一周", style = MaterialTheme.typography.titleMedium)
-                    Text("架子上还是上周的玩法。孩子还在反复做的可以留着，不再感兴趣的换下来。", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                    Text("孩子还在反复做的留着，不再感兴趣的换下来。", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
                     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Button(onClick = { a.set(Shelf.suggest(c, m, codes)) }, shape = RoundedCornerShape(16.dp)) { Text("按建议轮换") }
                         TextButton(onClick = { a.set(codes) }) { Text("这周继续用") }
@@ -110,7 +110,7 @@ fun PlanScreen(ui: AppUi, week: List<LogEntry>, a: PlanActions) {
             }
         }
         if (candidates.isNotEmpty()) item {
-            SectionTitle("也适合这个月", kicker = "${candidates.size} 个，点「放上架」")
+            SectionTitle("也适合这个月", kicker = "${candidates.size} 个")
         }
         items(candidates, key = { "c" + it.code }) { p ->
             Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {

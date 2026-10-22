@@ -67,8 +67,8 @@ fun TimerCard(t: RunningTimer, a: TimerActions, modifier: Modifier = Modifier, n
                 if (t.type == LogType.Nurse) OutlinedButton(onClick = { a.switchSide(t.type) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (t.side == "r") "换到左边" else "换到右边", color = Color.White) }
             }
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("其实更早开始：", style = MaterialTheme.typography.labelMedium)
-                listOf(5, 15).forEach { m -> TextButton(onClick = { a.shift(t.type, -m * 60_000L) }) { Text("早 $m 分钟", color = Color.White) } }
+                Text("提前", style = MaterialTheme.typography.labelMedium)
+                listOf(5, 15).forEach { m -> TextButton(onClick = { a.shift(t.type, -m * 60_000L) }) { Text("$m 分钟", color = Color.White) } }
                 androidx.compose.foundation.layout.Spacer(Modifier.weight(1f))
                 TextButton(onClick = { a.discard(t.type) }) { Text("不记了", color = Color.White.copy(alpha = 0.85f)) }
             }

@@ -61,12 +61,8 @@ fun StatsScreen(logs: List<LogEntry>, today: LocalDate, onBack: () -> Unit) {
         item { StatCard("喂养", "次 / 天", feeds, logKind(LogType.Nurse).tint, range) }
         item { StatCard("瓶喂奶量", "毫升 / 天", ml, logKind(LogType.Bottle).tint, range) }
         item { StatCard("亲喂时长", "分钟 / 天", nurse, logKind(LogType.Nurse).tint.copy(alpha = 0.7f), range) }
-        item { StatCard("睡眠", "小时 / 天（只算计时结束的）", sleep, logKind(LogType.Sleep).tint, range, decimals = 1) }
+        item { StatCard("睡眠", "小时 / 天", sleep, logKind(LogType.Sleep).tint, range, decimals = 1) }
         item { StatCard("尿布", "片 / 天", diapers, logKind(LogType.Diaper).tint, range) }
-        item {
-            Text("只统计记下来的条目；没有记的那天显示为空，不代表没有发生。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
-        }
     }
 }
 

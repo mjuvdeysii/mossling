@@ -21,4 +21,4 @@ CI（`.github/workflows/`）：
 
 ## 内容
 
-`app/src/main/assets/content.json` 由 `tools/export_content.py` 从手册原稿生成；`who_growth.json` 由 `tools/export_who.py` 生成；`legacy_map.json` 由 `tools/legacy_map.py` 生成。开发计划见 [PLAN.md](PLAN.md)，商店信息见 [store/listing.md](store/listing.md)。
+`app/src/main/assets/content.json` 直接维护；`who_growth.json` 由 `tools/export_who.py` 生成；插画由 `tools/illustrate.py` 生成。开发计划见 [PLAN.md](PLAN.md)，商店信息见 [store/listing.md](store/listing.md)。

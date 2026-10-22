@@ -150,8 +150,8 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         snack.currentSnackbarData?.dismiss()
         if (snack.showSnackbar(msg, actionLabel = "撤销", duration = SnackbarDuration.Short) == SnackbarResult.ActionPerformed) undo()
     }
-    val pickOld = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.importLegacy(uri) { msg -> scope.launch { snack.showSnackbar(msg, duration = SnackbarDuration.Long) } }
+    val pickFile = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) vm.importFile(uri) { msg -> scope.launch { snack.showSnackbar(msg, duration = SnackbarDuration.Long) } }
     }
     fun say(msg: String) { scope.launch { snack.currentSnackbarData?.dismiss(); snack.showSnackbar(msg, duration = SnackbarDuration.Short) } }
     val saveJson = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -163,7 +163,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     // once after an unexpected stop: say so, and where the report is (it stays on the phone)
     LaunchedEffect(Unit) {
         val ctx0 = vm.getApplication<android.app.Application>()
-        if (app.mossling.CrashLog.read(ctx0) != null && snack.showSnackbar("上次异常退出了，可以在「关于苔生」里分享原因", actionLabel = "查看", duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) nav.navigate(AppAboutRoute)
+        if (app.mossling.CrashLog.read(ctx0) != null && snack.showSnackbar("上次异常退出", actionLabel = "查看", duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) nav.navigate(AppAboutRoute)
     }
     fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     val timerActions = app.mossling.ui.journal.TimerActions(
@@ -280,7 +280,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     lock = vm::setLock,
                     journal = vm::setJournal,
                     appAbout = { nav.navigate(AppAboutRoute) },
-                    importOld = { pickOld.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
+                    importFile = { pickFile.launch(arrayOf("application/json", "text/plain", "application/octet-stream")) },
                 ))
             }
             composable<PlayRoute>(
@@ -294,7 +294,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     vm.toggleTick(r.month, TickKind.Did, p.code, p.name, on)
                     // each time it is done also goes in the journal, so the week's shelf can count repetitions
                     if (on) vm.addLog(LogEntry(type = LogType.Play, start = System.currentTimeMillis(), detail = "${p.code} ${p.name}"))
-                    if (on) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); undoable("记为这个月做过（只是记录，不是评估）") { vm.toggleTick(r.month, TickKind.Did, p.code, p.name, false) } }
+                    if (on) { haptic.performHapticFeedback(HapticFeedbackType.LongPress); undoable("记为做过") { vm.toggleTick(r.month, TickKind.Did, p.code, p.name, false) } }
                 }, onBack = { nav.popBackStack() })
             } }
             composable<TopicRoute> { entry -> c.topics.firstOrNull { it.id == entry.toRoute<TopicRoute>().id }?.let { TopicScreen(it) { nav.popBackStack() } } }
@@ -351,7 +351,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     }, onDismiss = { backfilling = false })
     if (clearing) androidx.compose.material3.AlertDialog(onDismissRequest = { clearing = false },
         title = { Text("清除这台手机上的全部记录？") },
-        text = { Text("出生日期、每月勾选、手帐、生长测量和设置都会删除，无法恢复。需要保留的话，先在「我的」里导出记录文件。") },
+        text = { Text("出生日期、勾选、手帐、生长测量和设置都会删除，无法恢复。") },
         confirmButton = { androidx.compose.material3.TextButton(onClick = { clearing = false; vm.clearAll { } }) { Text("全部清除", color = MaterialTheme.colorScheme.error) } },
         dismissButton = { androidx.compose.material3.TextButton(onClick = { clearing = false }) { Text("取消") } })
     editing?.let { e ->

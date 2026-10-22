@@ -1,101 +1,32 @@
-# Mossling · 苔生 — native Android app
+# Mossling · 苔生
 
-The web handbook (`app/`, WebView) is now source material only. `native/` is a new Android app, built from scratch:
-Kotlin, Jetpack Compose, Material 3. The goal is a mature, award-calibre app (Google Play "Editors' Choice" bar):
-fast and fluid first, then interaction, then information design. Nothing in it should feel like a web page.
+0–3 岁早教活动规划 · 跟着孩子，一个月一站。原生安卓应用（Kotlin · Jetpack Compose · Material 3 Expressive）。
 
-## Product
-- **Name**: Mossling · 苔生. Moss grows slowly and steadily: the app follows the child (Montessori), it does not push.
-- **Characters**: **Moss** (two eyes; a soft mossy boulder with a sprout; it watches) and **Otto** (one big eye under a
-  heavy lid; tall, a little lopsided; it concentrates; carries a golden bead). Deadpan European picture-book
-  characters: flat matte shapes, no outlines, expression in the eyes, never mainstream-cute, no anime, no Chinese motifs.
-  Geometry lives in `app/src/main/java/app/mossling/ui/ip/Creatures.kt` (100×100 box).
-- **Palette** (Montessori materials): moss green, rod blue, golden bead, natural wood, chalk paper, ink.
-- **Voice**: calm, short, factual. No nagging, no repeated disclaimers. All sources, method notes and legal text live
-  in one place (You › About & sources) and nowhere else.
-- **Data semantics** (must hold everywhere): observed (观察) / did an activity (做过) / health record (接种儿保, only ever
-  ticked one by one) are separate; an activity done never implies a skill reached.
+## 产品
+- **定位**：按月龄规划 0–36 个月的早教活动：这个月留意什么、适合一起做什么、这一周把哪几件教具放上架子。手帐（喂养、睡眠、尿布等）是可选功能，默认关闭。
+- **伙伴**：Moss（两只眼睛，长着芽的苔石，安静地看）与 Otto（一只大眼睛，高个子，专心一件事，带一颗金珠）。平面哑光造型，无描边，靠眼睛表达；不走主流萌系，无二次元、无中国元素。
+- **配色**：取自蒙氏教具：苔绿、数棒蓝、金色串珠、原木、粉笔纸色、墨色。
+- **表达**：图为主、字为辅；说明性文字只留给早教内容本身。同一内容只出现一次；法规、指南与来源集中在「内容来源」。不提醒、不催促。
+- **数据含义**：看到过 / 做过玩法 / 接种儿保三类分开记；「做过」不代表能力达到。
+- **界面**：内容不出现需要横向滑动才能看全的情况，放不下就换行；不截断成省略号。
 
-## Montessori visual vocabulary (used for meaning, never as decoration)
-- **Sandpaper numerals on green boards**: the child's age and the month numeral.
-- **Work tray** with wooden rim and handle: today's play.
-- **Golden bead chain**: the 0–36 month scrubber; the child's month is the golden bead.
-- **Number rods** (alternating red/blue segments): how much of one kind is recorded.
-- **Pink tower**: the month's overall record.
-- **Colour tablets** with wooden ends: the six areas of development.
-- **Low open shelf**: the month's plays stand on it.
-- Next: knobbed cylinders (sleep lengths), sound boxes (feeds), practical-life trays for the journal kinds.
+## 页面
+- **今天**：孩子满几个月几天、今天的一件玩法（来自本周的架子）、本周的架子、计时卡片与记录（手帐打开时）、下一次接种儿保。
+- **成长**：月份封面插画与标题；固定在顶部的 0–36 个月串珠；成长地图入口（长大的动画图标）；每月要点、玩法、六个方面、可以留意、接种儿保、这个月还要知道、一天的节奏、生长曲线。
+- **成长地图**：37 站连成一条路，封面、日期、接种 / 儿保 / 已全部记录标记；伙伴在孩子所在的一站；纸蝴蝶飞过，点它回到当前月份。
+- **本周的架子**：观察 · 准备 · 示范 · 重复 · 轮换；每周 3–4 件，统计本周做过几次，新一周提示轮换。
+- **玩法**：开始之前（准备、安全）→ 每一步一张卡片（文字在上、同一步的图示在下）→ 做的时候（看什么、什么时候停下）→ 记为做过。
+- **手帐**（可选）：计时卡片、记录按钮（显示上次多久以前）、一键选择记录时间、全天时间条、当天记录线、统计、生长曲线。
+- **我的**：本月记录、伙伴、设置（出生日期、小名、性别、手帐、应用锁、外观）、记录文件（导出 / 导入 / 清除）、搜索、专题、内容来源、关于苔生。
+- **桌面小组件**：计时实时显示并可结束 / 暂停 / 换边；常用记录与上次时间；手帐关闭时显示月龄与今天的玩法。
 
-## Polish bar (Google Play "Best of" calibre)
-Motion that explains change; haptics on every commit; empty states that offer the next step; large-screen and
-foldable layouts (list–detail on Grow); dark theme designed, not inverted; TalkBack order and labels; 48 dp targets;
-no jank on a mid-range phone; widgets; notifications only when asked for.
+## 工程
+- 单 Activity，Navigation Compose（类型安全路由），StateFlow，Room（记录，含迁移），DataStore（设置）。
+- 内容：`app/src/main/assets/content.json`（直接维护）；`who_growth.json` 由 `tools/export_who.py` 生成；插画由 `tools/illustrate.py` 生成到 `assets/art/`。
+- 每次推送：单元测试、Paparazzi 截图（`screens` 分支）、签名的发布版 APK；模拟器上运行关键路径 UI 测试、数据库迁移测试、发布版全路径点击检查与冷启动计时。
+- `VERSION` 写下一个版本号，推送到 main 即发布对应的 `v<版本>`。
 
-## Information architecture
-- **Today**: age in big numerals with the character; one play for today (swipe for another, skip for today);
-  continue (running timer or last reading); quick log; next health item, quietly.
-- **Grow**: the 0–36 month **golden bead chain** scrubber (haptic tick per month) above the month: highlights,
-  six areas, plays, things to notice, health items. Plays open full screen, step by step.
-- **Journal**: day timeline, quick log, timers as a foreground service with an ongoing notification; week strip.
-- **You**: this month's record by kind, keepsakes, settings (birth date, character, theme), About & sources.
-
-## Engineering rules
-- Single-activity Compose app, Navigation Compose (type-safe routes), MVVM with StateFlow, Room for records, DataStore
-  for settings, content from `assets/content.json` (exported from the web sources by `tools/export_content.py`).
-- Smoothness budget: no work on the main thread at startup beyond the first frame; lists are lazy; characters are drawn
-  with cached Paths; animations use `graphicsLayer`; baseline profile before 1.0.
-- Every change must build on CI (`.github/workflows/native.yml`) and produce Paparazzi screenshots of every screen
-  (light/dark, Moss/Otto). Look at the screenshots before calling anything done.
-- Separate applicationId (`app.mossling`) until the switch-over; the WebView app stays untouched meanwhile.
-
-## Plan (tick items as they are done; the scheduled runs take the first unticked item)
-### Phase 1 — foundation
-- [x] Content bundle exported to `app/src/main/assets/content.json` (37 months, 46 plays, sources in one list)
-- [x] Character design v1 (Moss, Otto; moods open/happy/wow/sleep; look direction; lid)
-- [x] Gradle project, theme (colour roles light/dark, type scale, shapes), app icon (adaptive + monochrome)
-- [x] Content repository + age calculation + settings (DataStore) + records (Room)
-- [x] Navigation shell: four destinations with character tab icons, edge-to-edge, predictive back
-- [x] Today screen
-- [x] Grow screen with the bead chain scrubber
-- [x] Month detail sections; Play detail (step pager, safety first, "did this" with undo)
-- [x] Journal: quick log, timeline, timers (foreground service + notification), edit/retro-fill
-- [x] You: record by kind, settings, About & sources (single place)
-- [x] Onboarding: birth date in one screen, skippable
-- [x] Paparazzi screenshots for all screens in CI; artifact + preview release `mossling-preview`
-### Phase 2 — craft
-- [x] Motion pass: shared element Today→Play (code tile), character idle (breath, blink, glance, hop on Happy, poke), reduced motion respected
-- [x] Character expressions tied to context (asleep at night and during a sleep timer, eyes down during a feed, smile on a done play)
-- [x] Illustrations: Montessori material still lifes drawn in code, six families (basket, peg and rings, permanence box, mirror, bell and tablets, pouring); the old cut-paper scenes are not carried over
-- [x] Glance widgets: age + last feed + quick log; timer live in widget
-- [x] Notifications: the running timer only. No health or activity reminders — the app does not chase the parent; what is due is visible on Today when they open it
-- [x] Typography pass: CJK sizes, line heights, numerals in Young Serif; large-font layouts (200% snapshots for Today, Play, Journal: actions wrap, tags and times never clip)
-- [x] Accessibility: icon buttons labelled, 48dp minimum targets, contrast checked in both themes (gold text uses deep bead in light, ≥ 4.5:1)
-### Phase 3 — maturity
-- [x] Import from the WebView app: its exported record file (You → 从旧版带过来) brings birth date, month ticks (mapped by item text, `tools/legacy_map.py` → `assets/legacy_map.json`) and the journal; nothing existing is overwritten, duplicates skipped, kinds without a native type kept as notes
-- [x] Baseline profile (app code, `src/main/baseline-prof.txt`, ProfileInstaller) + cold-start timing on the emulator after speed-profile compile (`native-qa.yml`); a generated profile via Macrobenchmark can replace the hand-written rules later
-- [x] Emulator UI tests (critical paths) in CI: first run → log a bottle → journal → mark a play done (`CriticalPathsTest`, after every green native build)
-- [x] Store listing assets: `store/listing.md` (name, short and full description, data-safety answers, screenshot list), feature graphic snapshot, `PRIVACY.md` (no network permission, no data collected)
-- [x] Own repository (mjuvdeysii/mossling), released on its own: application ID `app.mossling`, installed alongside the HTML app, which is kept as it is
-### Phase 4 — what mature apps have
-- [x] Export: the record file (.json, complete, and readable by the earlier app) and a table (.csv); import of both formats; system backup rules
-- [x] Add after the fact and change any entry: date and time pickers, side, kind, amount, text
-- [x] Temperature and medicine entries; solids and notes with text
-- [x] Growth: weight, length/height, head circumference against the WHO Child Growth Standards (percentile band and lines, each measurement's percentile)
-- [x] Today: time since the last feed and since waking; the child's nickname
-- [x] Statistics: 7 and 30 days — feeds, bottle volume, nursing minutes, sleep, nappies
-- [x] Search across plays, months and topics; share a play as text
-- [x] Launcher shortcuts (bottle, nurse, sleep, nappy); clear all data; licences, version, feedback
-- [x] Database migration (v1 → v2) tested on the emulator
-- [x] App lock (fingerprint, face or screen lock; opt-in; after 30 s away)
-- [ ] Photos on entries
-### Phase 5 — the core: map, shelf, pictures
-- [x] Growth map: 37 stations on one road, cover, date, vaccine / check-up / all-recorded marks, companion at the child's station, paper butterfly (tap: back to now)
-- [x] The week's shelf: Montessori planning (observe, prepare, present, repeat, rotate), 3–4 plays a week, Today takes from it, repetitions counted, rotation prompt
-- [x] Illustrations: every step of every play (145 pictures) and 34 month covers from the handbook
-- [x] About: version and build, update check on tap, change log, privacy, sources, licences, feedback
-
-### Phase 6 — one visual language
-- [x] Illustrations redrawn from code (tools/illustrate.py): peg people, Montessori materials, M3 Expressive shapes and tonal fields; step signs (talk, wait, look, move, done); covers show the child's posture by age
-- [x] In-app update: download with progress, cancel, package check, system installer
-- [x] Expressive shapes (graphics-shapes): section and area badges, morphing selection
-- [ ] Shape morph on more state changes (play done, shelf rotate); illustrated empty states
+## 待办
+- [ ] 记录附照片
+- [ ] 横屏与平板的双栏布局（成长页列表 + 详情）
+- [ ] 商店截图改为高分辨率输出
