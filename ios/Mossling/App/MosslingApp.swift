@@ -2,7 +2,7 @@ import SwiftUI
 import LocalAuthentication
 
 enum Route: Hashable {
-    case play(String, Int), month(Int), observe(Int), plan, topic(String), search, about, sources, licenses, doc(String)
+    case play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String)
 }
 
 @main
@@ -32,6 +32,11 @@ struct RootView: View {
     @State private var searchPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
     @State private var locked = true
+    @Namespace private var zoomToday
+    @Namespace private var zoomJourney
+    @Namespace private var zoomJournal
+    @Namespace private var zoomYou
+    @Namespace private var zoomSearch
 
     var body: some View {
         ZStack {
@@ -66,21 +71,21 @@ struct RootView: View {
     private var tabView: some View {
         TabView(selection: $tab) {
             Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
-                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
+                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
             }
             Tab("旅程", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath.fill", value: 1) {
-                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }
+                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }.environment(\.zoomNS, zoomJourney)
             }
             if app.journal {
                 Tab("手帐", systemImage: "book.closed.fill", value: 2) {
-                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
+                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
                 }
             }
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
-                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
+                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
             }
             Tab(value: 4, role: .search) {
-                NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }
+                NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }.environment(\.zoomNS, zoomSearch)
             }
         }
         .tabBarMinimizeBehavior(.onScrollDown)
@@ -124,8 +129,12 @@ private struct RouteView: View {
     @Binding var path: NavigationPath
     var body: some View {
         switch route {
-        case let .play(code, m): if let p = app.content.play(code) { PlayView(play: p, month: m) }
-        case let .month(m): MonthView(month: m)
+        case let .play(code, m): if let p = app.content.play(code) { PlayView(play: p, month: m).zoomDestination(route) }
+        case let .month(m): MonthView(month: m).zoomDestination(route)
+        case let .areas(m): AreasView(month: m)
+        case let .care(m): CareView(month: m)
+        case let .notes(m): NotesView(month: m)
+        case let .rhythm(m): RhythmView(month: m)
         case let .observe(m): ObserveView(month: m)
         case .plan: PlanView(path: $path)
         case let .topic(id): if let t = app.content.topics.first(where: { $0.id == id }) { TopicView(topic: t) }

@@ -1,55 +1,35 @@
-"""The iOS app icon as an Icon Composer document (AppIcon.icon): the two painted wooden companions under a small
-rainbow — Moss in front looking up, Otto beside and behind looking down at Moss. Each part is its own layer so the
-system renders it as Liquid Glass (specular highlights, translucency, shadows) in the light, dark, tinted and clear
-appearances."""
-import json, os, math
+"""The iOS app icon as an Icon Composer document (AppIcon.icon): Moss in front, Otto behind dangling the golden bead
+over Moss, on a warm paper field. Each part is its own layer so the system can render it as Liquid Glass (specular
+highlights, translucency, shadows) and in the light, dark, tinted and clear appearances."""
+import json, os
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.join(HERE, '..', 'ios', 'Mossling', 'Resources', 'AppIcon.icon')
-VIEW = 'viewBox="0 0 100 100" width="1024" height="1024"'
-MOSS_BODY = "M50 30 C70 30 84 48 84 66 C84 80 72 88 50 88 C28 88 16 80 16 66 C16 48 30 30 50 30Z"
-OTTO_BODY = "M30 36 C30 24 39 16 50 16 C61 16 70 24 70 36 L70 80 C70 85 66 88 61 88 L39 88 C34 88 30 85 30 80Z"
-MOSS = 'transform="translate(9 31) scale(0.6)"'
-OTTO = 'transform="translate(39 27) scale(0.6)"'
-INK = '#2B2420'
+MINT = json.load(open(os.path.join(HERE, 'mint.json')))
+VIEW = 'viewBox="11.5 15.5 84 84" width="1024" height="1024"'
+MOSS_BODY = "M22 82 C15 77 13 66 16 56 C19 45 28 36 41 34 C53 32 63 33 72 38 C82 44 88 55 87 67 C86 77 80 84 70 86 C56 88 33 89 22 82Z"
+OTTO_BODY = "M30 84 C25 74 24 58 26 44 C28 28 38 16 52 16 C65 17 74 28 75 44 C76 60 74 75 70 84 C60 88 40 88 30 84Z"
+OTTO_DIP = "M25.2 64 C35 68 64 68 75.4 63 C75 71 73 78 70 84 C60 88 40 88 30 84 C27.6 78 26 71 25.2 64Z"
+OTTO = 'transform="translate(40.5 22) scale(0.61)"'
+MOSS = 'transform="translate(8.5 33) scale(0.62)"'
+INK = '#1C1D19'
 
 def svg(name, body):
     open(os.path.join(OUT, 'Assets', name), 'w').write(f'<svg xmlns="http://www.w3.org/2000/svg" {VIEW}>{body}</svg>')
 
-def leaf(x, y, ang, l, w, fill):
-    p = f"M0 0 C{l*.25:.2f} {-w*1.15:.2f} {l*.72:.2f} {-w*.9:.2f} {l:.2f} 0 C{l*.72:.2f} {w*.9:.2f} {l*.25:.2f} {w*1.15:.2f} 0 0Z"
-    return f'<path d="{p}" fill="{fill}" transform="translate({x} {y}) rotate({ang})"/>'
-
-def painted(path, light, base, deep, foot, gid):
-    return (f'<defs><linearGradient id="{gid}" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="{light}"/><stop offset=".55" stop-color="{base}"/>'
-            f'<stop offset="1" stop-color="{deep}"/></linearGradient><clipPath id="{gid}c"><path d="{path}"/></clipPath></defs>'
-            f'<path d="{path}" fill="url(#{gid})"/><g clip-path="url(#{gid}c)"><rect x="0" y="{foot}" width="100" height="20" fill="#E8C795"/></g>')
+def legs(xs): return ''.join(f'<rect x="{x}" y="80" width="6.5" height="10" rx="3.2" fill="{INK}"/>' for x in xs)
 
 os.makedirs(os.path.join(OUT, 'Assets'), exist_ok=True)
-for f in os.listdir(os.path.join(OUT, 'Assets')):
-    os.remove(os.path.join(OUT, 'Assets', f))
-
-# the rainbow behind them
-cols = ['#EF5B4C', '#F58A1F', '#F2B526', '#4DAF4E', '#3E9BE0', '#8E6FDB']
-arcs = ''
-for i, c in enumerate(cols):
-    r = 38 - i * 4.2
-    arcs += f'<path d="M{50 - r} 74 A{r} {r} 0 0 1 {50 + r} 74" stroke="{c}" stroke-width="4.4" fill="none"/>'
-svg('rainbow.svg', arcs)
-# Moss: body, sprout, face looking up at Otto
-svg('moss.svg', f'<g {MOSS}>{painted(MOSS_BODY, "#A3D47F", "#6FAE52", "#3F7A34", 80, "m")}</g>')
-svg('mint.svg', f'<g {MOSS}><path d="M50 31 C49.5 27 49.8 23.5 50.6 20.5" stroke="#3F9A6E" stroke-width="2.2" fill="none" stroke-linecap="round"/>'
-    + leaf(50.6, 21, -150, 14, 5, '#4FC08D') + leaf(50.6, 21, -30, 15.5, 5.4, '#7DD6AC') + '</g>')
-svg('moss-face.svg', f'<g {MOSS}><ellipse cx="41.5" cy="55" rx="4.2" ry="5.4" fill="{INK}"/><ellipse cx="61.5" cy="55" rx="4.2" ry="5.4" fill="{INK}"/>'
-    f'<circle cx="40.2" cy="52.6" r="1.5" fill="#fff"/><circle cx="60.2" cy="52.6" r="1.5" fill="#fff"/>'
-    f'<ellipse cx="30" cy="66" rx="6" ry="3.6" fill="#FF8E8E" fill-opacity=".55"/><ellipse cx="70" cy="66" rx="6" ry="3.6" fill="#FF8E8E" fill-opacity=".55"/>'
-    f'<path d="M47 66 Q50 69.5 53 66" stroke="{INK}" stroke-width="1.5" fill="none" stroke-linecap="round"/></g>')
-# Otto: body, golden beads, the big eye looking down at Moss
-beads = ''.join(f'<circle cx="{34.5 + 31 * t / 4:.2f}" cy="{63 + 5 * math.sin(t / 4 * math.pi):.2f}" r="3.6" fill="#F0B83A"/>' for t in range(5))
-svg('otto.svg', f'<g {OTTO}>{painted(OTTO_BODY, "#86AEEF", "#4479D2", "#2A54A3", 81, "o")}</g>')
-svg('beads.svg', f'<g {OTTO}><circle cx="50" cy="10.5" r="5.4" fill="#F0B83A"/>{beads}</g>')
-svg('otto-face.svg', f'<g {OTTO}><circle cx="50" cy="39" r="11" fill="#FBF7F0"/><circle cx="44.5" cy="43" r="5.6" fill="{INK}"/><circle cx="43" cy="41" r="1.8" fill="#fff"/>'
-    f'<ellipse cx="36" cy="53" rx="4.6" ry="2.8" fill="#FF8E8E" fill-opacity=".55"/><ellipse cx="64" cy="53" rx="4.6" ry="2.8" fill="#FF8E8E" fill-opacity=".55"/>'
-    f'<path d="M47.5 55 Q50 57.6 52.5 55" stroke="{INK}" stroke-width="1.3" fill="none" stroke-linecap="round"/></g>')
+# Otto: the body, the eye on its own layer (kept crisp), the rod with the golden bead
+svg('otto.svg', f'<g {OTTO}>{legs((38, 56))}<path d="{OTTO_BODY}" fill="#2D4A8C"/><path d="{OTTO_DIP}" fill="#1F3566" fill-opacity=".55"/></g>')
+svg('otto-eye.svg', f'<g {OTTO}><ellipse cx="51" cy="44" rx="12.5" ry="11.5" fill="#FBF9F3"/><circle cx="45" cy="48.5" r="7.1" fill="{INK}"/>'
+    f'<path d="M38.5 32.5 H63.5 V40.3 H38.5Z" fill="#2D4A8C" clip-path="url(#e)"/><clipPath id="e"><ellipse cx="51" cy="44" rx="12.5" ry="11.5"/></clipPath></g>')
+svg('bead.svg', f'<g {OTTO}><path d="M50 16.5 C47 9 40 5 31 6" stroke="#1F3566" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="29.5" cy="6.4" r="5" fill="#D4A21C"/></g>')
+# Moss: the body, the mint leaves, the eyes looking up at the bead
+svg('moss.svg', f'<g {MOSS}>{legs((33, 59))}<path d="{MOSS_BODY}" fill="#55704A"/></g>')
+leaves = ''.join(f'<path d="{m[0]}" fill="{c}"/>' for m, c in zip([MINT[1], MINT[0], MINT[3], MINT[2]], ['#7FCBA0', '#4FAE7F', '#A9E0C0', '#A9E0C0']))
+svg('mint.svg', f'<g {MOSS}><path d="M49 36 C48 30 49.2 23 50 17.6" stroke="#3D5434" stroke-width="2.2" fill="none" stroke-linecap="round"/>{leaves}</g>')
+svg('moss-eyes.svg', f'<g {MOSS}><ellipse cx="43" cy="55" rx="6.4" ry="7.4" fill="#FBF9F3"/><ellipse cx="58" cy="55" rx="6.4" ry="7.4" fill="#FBF9F3"/>'
+    f'<circle cx="45.9" cy="51.4" r="4" fill="{INK}"/><circle cx="60.9" cy="51.4" r="4" fill="{INK}"/></g>')
 
 def layer(image, name, glass=True):
     return {"image-name": image, "name": name, "glass": glass, "hidden": False, "position": {"scale": 1, "translation-in-points": [0, 0]}}
@@ -60,14 +40,13 @@ def group(layers, translucency):
 
 icon = {
     "fill-specializations": [
-        {"value": {"linear-gradient": ["display-p3:1.00000,0.97000,0.91000,1.00000", "display-p3:1.00000,0.88500,0.79000,1.00000"]}},
+        {"value": {"linear-gradient": ["display-p3:1.00000,0.97200,0.92500,1.00000", "display-p3:0.99000,0.90000,0.80000,1.00000"]}},
         {"appearance": "dark", "value": "system-dark"},
     ],
-    # front first: Moss, then Otto, then the rainbow
+    # front first: Moss, then Otto behind it
     "groups": [
-        group([layer('moss-face.svg', 'moss-face', glass=False), layer('mint.svg', 'mint'), layer('moss.svg', 'moss')], 0.2),
-        group([layer('otto-face.svg', 'otto-face', glass=False), layer('beads.svg', 'beads'), layer('otto.svg', 'otto')], 0.2),
-        group([layer('rainbow.svg', 'rainbow')], 0.3),
+        group([layer('moss-eyes.svg', 'moss-eyes', glass=False), layer('mint.svg', 'mint'), layer('moss.svg', 'moss')], 0.25),
+        group([layer('otto-eye.svg', 'otto-eye', glass=False), layer('bead.svg', 'bead'), layer('otto.svg', 'otto')], 0.25),
     ],
     "supported-platforms": {"squares": ["iOS"]},
 }

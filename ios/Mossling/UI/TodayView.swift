@@ -129,6 +129,8 @@ private struct PlayHero: View {
         }
         .background(Palette.card)
         .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .zoomSource(Route.play(play.code, month))
+        .contextMenu { PlayActions(play: play, month: month) }
     }
 }
 
@@ -165,7 +167,7 @@ private struct NextCare: View {
             let mo = c.month(next)
             let items = mo.vaccines.enumerated().filter { !app.ticked(next, TickKind.vaccine, "\($0.offset)") }.map(\.element)
                 + mo.checkups.enumerated().filter { !app.ticked(next, TickKind.checkup, "\($0.offset)") }.map(\.element)
-            NavigationLink(value: Route.month(next)) {
+            NavigationLink(value: Route.care(next)) {
                 Card(title: "接种与儿保", symbol: "syringe.fill", color: Crayon.sky, detail: next == month ? "满 \(next) 个月" : birth.plus(months: next).md, opens: true) {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(items.first ?? "").font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)

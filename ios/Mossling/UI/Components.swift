@@ -222,3 +222,49 @@ func clock(_ s: TimeInterval) -> String {
     return h > 0 ? String(format: "%d:%02d:%02d", h, n / 60 % 60, n % 60) : String(format: "%02d:%02d", n / 60, n % 60)
 }
 func minutesText(_ s: TimeInterval) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
+
+// MARK: navigation
+
+extension EnvironmentValues {
+    /// The namespace of the navigation stack a view is in, for zoom transitions from a card to its page.
+    @Entry var zoomNS: Namespace.ID? = nil
+}
+
+/// Marks a card as the place its page zooms out of (and back into, when one swipes back or drags the page down).
+private struct ZoomSource<ID: Hashable>: ViewModifier {
+    let id: ID
+    @Environment(\.zoomNS) private var ns
+    @ViewBuilder func body(content: Content) -> some View {
+        if let ns { content.matchedTransitionSource(id: id, in: ns) } else { content }
+    }
+}
+/// A page that zooms out of its card.
+private struct ZoomDestination<ID: Hashable>: ViewModifier {
+    let id: ID
+    @Environment(\.zoomNS) private var ns
+    @ViewBuilder func body(content: Content) -> some View {
+        if let ns { content.navigationTransition(.zoom(sourceID: id, in: ns)) } else { content }
+    }
+}
+extension View {
+    func zoomSource(_ id: some Hashable) -> some View { modifier(ZoomSource(id: id)) }
+    func zoomDestination(_ id: some Hashable) -> some View { modifier(ZoomDestination(id: id)) }
+}
+
+/// A small ring for progress: how much of something has been recorded.
+struct Ring: View {
+    let done: Int, total: Int
+    var color: Color = Palette.accent
+    var size: CGFloat = 26
+    var body: some View {
+        let f = total == 0 ? 0 : Double(done) / Double(total)
+        ZStack {
+            Circle().stroke(color.opacity(0.2), lineWidth: size * 0.16)
+            Circle().trim(from: 0, to: f).stroke(color, style: StrokeStyle(lineWidth: size * 0.16, lineCap: .round)).rotationEffect(.degrees(-90))
+            if f >= 1 { Image(systemName: "checkmark").font(.system(size: size * 0.4, weight: .bold)).foregroundStyle(color) }
+        }
+        .frame(width: size, height: size)
+        .animation(.snappy, value: done)
+        .accessibilityElement().accessibilityLabel("已记下 \(done) / \(total)")
+    }
+}

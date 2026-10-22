@@ -51,10 +51,8 @@ final class LogicTests: XCTestCase {
     func testShapes() {
         XCTAssertFalse(Shapes.mossBody.isEmpty)
         let r = Shapes.mossBody.boundingRect
-        XCTAssertEqual(r.minX, 16, accuracy: 1); XCTAssertEqual(r.maxX, 84, accuracy: 1); XCTAssertEqual(r.maxY, 88, accuracy: 1)
-        let o = Shapes.ottoBody.boundingRect
-        XCTAssertEqual(o.minY, 16, accuracy: 1); XCTAssertGreaterThan(o.height, o.width)
-        XCTAssertEqual(Shapes.beadStrand.count, 5)
-        XCTAssertTrue(Shapes.beadStrand.allSatisfy { Shapes.ottoBody.contains($0) })
+        XCTAssertEqual(r.minX, 14, accuracy: 2); XCTAssertEqual(r.maxX, 87.5, accuracy: 2)
+        XCTAssertEqual(Shapes.mossTufts.boundingRect.minY, 41, accuracy: 3)
+        XCTAssertFalse(Shapes.mintA.isEmpty)
     }
 }

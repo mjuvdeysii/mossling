@@ -22,7 +22,7 @@ struct JourneyView: View {
                             .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
                         }
                         NavigationLink(value: Route.month(m)) { Station(month: m, first: m == 0) }
-                            .buttonStyle(.plain).id(m)
+                            .buttonStyle(.plain).zoomSource(Route.month(m)).id(m)
                     }
                     Trail().frame(height: 90)
                     StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 4)
@@ -230,69 +230,47 @@ private struct MonthBody: View {
             let plays = c.plays(of: m)
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(title: "一起玩", detail: "\(plays.count) 个活动")
+                    SectionTitle(title: "一起玩", detail: "\(app.count(m, TickKind.did)) / \(plays.count) 做过")
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(plays) { p in
-                            NavigationLink(value: Route.play(p.code, m)) { PlayTile(play: p, did: app.ticked(m, TickKind.did, p.code)) }.buttonStyle(.plain)
-                        }
+                        ForEach(plays) { p in PlayTileLink(play: p, month: m) }
                     }
                 }
             }
 
-            Box(title: "六个方面") {
-                ForEach(Array(mo.domains.enumerated()), id: \.offset) { i, d in
-                    BoxRow(symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), title: d.name, text: d.text, last: i == mo.domains.count - 1) {
-                        if d.key == mo.focus { Text("本月重点").font(.caption.weight(.semibold)).foregroundStyle(Palette.area(d.key)) }
-                    }
-                }
-            }
-
-            if !mo.observe.isEmpty {
-                let total = mo.observe.reduce(0) { $0 + $1.items.count }
-                Box {
+            // everything else of the month, one row each; each opens its own page
+            Box(title: "这个月") {
+                NavigationLink(value: Route.areas(m)) {
+                    BoxRow(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", text: mo.domains.first { $0.key == mo.focus }.map { "本月重点：\($0.name)" }, opens: true)
+                }.buttonStyle(.plain)
+                if !mo.observe.isEmpty {
+                    let total = mo.observe.reduce(0) { $0 + $1.items.count }
                     NavigationLink(value: Route.observe(m)) {
-                        BoxRow(symbol: "eye.fill", color: Crayon.lilac, title: "可以留意", text: "看到了就记下，不是考核", last: true, opens: true) {
-                            Text("\(app.count(m, TickKind.observed)) / \(total)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                        }
-                    }
-                    .buttonStyle(.plain)
+                        BoxRow(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", text: "\(total) 项", opens: true) { Ring(done: app.count(m, TickKind.observed), total: total, color: Crayon.sky) }
+                    }.buttonStyle(.plain)
                 }
+                if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
+                    let total = mo.vaccines.count + mo.checkups.count
+                    let done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
+                    NavigationLink(value: Route.care(m)) {
+                        BoxRow(symbol: "syringe.fill", color: Crayon.cherry, title: "接种与儿保", text: "\(mo.vaccines.count) 项接种 · \(mo.checkups.count) 项儿保", opens: true) { Ring(done: done, total: total, color: Crayon.cherry) }
+                    }.buttonStyle(.plain)
+                }
+                if !mo.notes.isEmpty {
+                    NavigationLink(value: Route.notes(m)) {
+                        BoxRow(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", text: mo.notes.map(\.topic).joined(separator: "、"), opens: true)
+                    }.buttonStyle(.plain)
+                }
+                if !mo.who.isEmpty {
+                    NavigationLink(value: Route.rhythm(m)) {
+                        BoxRow(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", text: "睡眠、活动与屏幕", opens: true)
+                    }.buttonStyle(.plain)
+                }
+                NavigationLink(value: JournalRoute.growth) {
+                    BoxRow(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", last: true, opens: true)
+                }.buttonStyle(.plain)
             }
 
-            if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-                let n = mo.vaccines.count + mo.checkups.count
-                Box(title: "接种与儿保", footer: "以当地接种门诊与儿童保健机构的安排为准。") {
-                    ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
-                        CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), tag: "接种", last: i == n - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
-                    }
-                    ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
-                        CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), tag: "儿保", last: mo.vaccines.count + i == n - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
-                    }
-                }
-            }
-
-            if !mo.notes.isEmpty {
-                Box(title: "还要知道") {
-                    ForEach(Array(mo.notes.enumerated()), id: \.offset) { i, n in
-                        BoxRow(symbol: "lightbulb.fill", color: Crayon.sunflower, title: n.topic, text: n.text, last: i == mo.notes.count - 1)
-                    }
-                }
-            }
-
-            if !mo.who.isEmpty {
-                let parts = mo.who.replacingOccurrences(of: "WHO", with: "").split(whereSeparator: { $0 == "；" || $0 == ";" })
-                    .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "。")) }.filter { !$0.isEmpty }
-                Box(title: "一天的节奏", footer: "依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》。") {
-                    ForEach(Array(parts.enumerated()), id: \.offset) { i, t in
-                        let (sym, col): (String, Color) = t.contains("睡") ? ("moon.fill", Crayon.lilac) : t.contains("屏幕") ? ("iphone", Crayon.pebble)
-                            : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Crayon.tangerine) : ("clock.fill", Crayon.aqua)
-                        BoxRow(symbol: sym, color: col, title: t, last: i == parts.count - 1)
-                    }
-                }
-            }
-
-            Box(title: "更多") {
-                NavigationLink(value: JournalRoute.growth) { BoxRow(symbol: "chart.line.uptrend.xyaxis", color: Crayon.tangerine, title: "生长曲线", opens: true) }.buttonStyle(.plain)
+            Box(title: "专题") {
                 ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
                     NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.plain)
                 }
@@ -300,6 +278,138 @@ private struct MonthBody: View {
 
             if m == 36 { StoryGoesOn(primary: app.companion) }
         }
+    }
+}
+
+/// A play tile that opens its page with a zoom, and offers the common actions on a long press.
+struct PlayTileLink: View {
+    @Environment(AppModel.self) private var app
+    let play: Play, month: Int
+    var body: some View {
+        let route = Route.play(play.code, month)
+        let did = app.ticked(month, TickKind.did, play.code)
+        NavigationLink(value: route) { PlayTile(play: play, did: did) }
+            .buttonStyle(.plain)
+            .zoomSource(route)
+            .contextMenu { PlayActions(play: play, month: month) }
+    }
+}
+
+/// The actions on a play, for its context menu: done, on the shelf, share.
+struct PlayActions: View {
+    @Environment(AppModel.self) private var app
+    let play: Play, month: Int
+    var body: some View {
+        let did = app.ticked(month, TickKind.did, play.code)
+        let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
+        Button(did ? "取消「做过」" : "记为做过", systemImage: did ? "arrow.uturn.backward" : "checkmark.circle") { app.toggle(month, TickKind.did, play.code, play.name) }
+        if shelf.contains(play.code) {
+            Button("从架子上拿下", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
+        } else if shelf.count < Shelf.max {
+            Button("放上本周的架子", systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
+        }
+        ShareLink(item: "\(play.name)（\(play.code)）\n" + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label("分享", systemImage: "square.and.arrow.up") }
+    }
+}
+
+/// The six areas of the month.
+struct AreasView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month)
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(Array(mo.domains.enumerated()), id: \.offset) { _, d in
+                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), detail: d.key == mo.focus ? "本月重点" : nil) {
+                        Text(rich(d.text)).font(.body).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 32)
+        }
+        .background(Palette.background)
+        .navigationTitle("六个方面")
+        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+    }
+}
+
+/// The month's vaccinations and check-ups, to tick off.
+struct CareView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month), m = month
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                if !mo.vaccines.isEmpty {
+                    Box(title: "接种") {
+                        ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
+                            CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), last: i == mo.vaccines.count - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
+                        }
+                    }
+                }
+                if !mo.checkups.isEmpty {
+                    Box(title: "儿童保健") {
+                        ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
+                            CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
+                        }
+                    }
+                }
+                Text("具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 32)
+        }
+        .background(Palette.background)
+        .navigationTitle("接种与儿保")
+        .navigationSubtitle(app.birth.map { "满 \(m) 个月 · \($0.plus(months: m).md)" } ?? "满 \(m) 个月")
+    }
+}
+
+/// Notes for the month.
+struct NotesView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month)
+        ScrollView {
+            VStack(spacing: 12) {
+                ForEach(Array(mo.notes.enumerated()), id: \.offset) { _, n in
+                    Card(title: n.topic, symbol: "lightbulb.fill", color: Crayon.sunflower) {
+                        Text(rich(n.text)).font(.body).fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+            .padding(.horizontal, 16).padding(.bottom, 32)
+        }
+        .background(Palette.background)
+        .navigationTitle("还要知道")
+        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+    }
+}
+
+/// The day's rhythm: sleep, activity and screens, as the WHO guideline puts it for this age.
+struct RhythmView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month)
+        let parts = mo.who.replacingOccurrences(of: "WHO", with: "").split(whereSeparator: { $0 == "；" || $0 == ";" })
+            .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "。")) }.filter { !$0.isEmpty }
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                ForEach(Array(parts.enumerated()), id: \.offset) { _, t in
+                    let (sym, col, name): (String, Color, String) = t.contains("睡") ? ("moon.zzz.fill", Crayon.lilac, "睡眠") : t.contains("屏幕") ? ("iphone", Crayon.pebble, "屏幕")
+                        : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Crayon.tangerine, "活动") : ("clock.fill", Crayon.aqua, "节奏")
+                    Card(title: name, symbol: sym, color: col) { Text(t).font(.body).fixedSize(horizontal: false, vertical: true) }
+                }
+                Text("依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 32)
+        }
+        .background(Palette.background)
+        .navigationTitle("一天的节奏")
+        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
 }
 
