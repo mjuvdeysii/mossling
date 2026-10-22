@@ -124,11 +124,19 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
             }
         }
         item("hi") {
-            Column(Modifier.padding(horizontal = 20.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                mo.highlights.forEach { h ->
-                    Row {
-                        Text(h.kind.take(4), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(72.dp).padding(top = 3.dp))
-                        Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+            // the month at a glance: each point as its own card, label above the words, nothing cut short
+            Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                mo.highlights.forEachIndexed { i, h ->
+                    val (bg, fg) = when (i % 3) {
+                        0 -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+                        1 -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+                        else -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+                    }
+                    Surface(shape = RoundedCornerShape(22.dp), color = bg, contentColor = fg, modifier = Modifier.fillMaxWidth()) {
+                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                            Text(h.kind, style = MaterialTheme.typography.labelLarge)
+                            Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
+                        }
                     }
                 }
             }

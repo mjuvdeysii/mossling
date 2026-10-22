@@ -295,17 +295,21 @@ private fun NextCare(ui: AppUi, m: Int, a: TodayActions) {
     }
 }
 
+/** One way into the month: its cover and title. The month's points themselves live on the month page only. */
 @Composable
 private fun ThisMonth(month: Month, onOpen: () -> Unit) {
-    SectionTitle(month.title, kicker = "满 ${month.month} 个月")
-    Column(Modifier.padding(horizontal = 20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        month.highlights.forEach { h ->
-            Row {
-                Text(h.kind.take(4), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(72.dp).padding(top = 3.dp))
-                Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    Surface(onClick = onOpen, shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp)) {
+        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.runtime.remember(month.month) { app.mossling.ui.components.ArtIndex.cover(ctx, month.month) }?.let { f ->
+                app.mossling.ui.components.Art(f, "", Modifier.width(112.dp).clip(RoundedCornerShape(20.dp)))
+            }
+            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
+                Text("满 ${month.month} 个月", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(month.title, style = MaterialTheme.typography.titleMedium, maxLines = 3)
+                Text("打开这个月 →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             }
         }
-        TextButton(onClick = onOpen, modifier = Modifier.height(48.dp)) { Text("打开这个月") }
     }
 }
 
