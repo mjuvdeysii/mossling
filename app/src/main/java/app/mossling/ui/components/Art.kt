@@ -34,8 +34,8 @@ import kotlinx.serialization.json.jsonPrimitive
  */
 object ArtIndex {
     @Volatile private var loaded: Triple<Map<String, List<String>>, Map<Int, String>, Map<String, Float>>? = null
-    private val cache = object : LruCache<String, ImageBitmap>(24 * 1024 * 1024) {
-        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 2
+    private val cache = object : LruCache<String, ImageBitmap>(48 * 1024 * 1024) {
+        override fun sizeOf(key: String, value: ImageBitmap) = value.width * value.height * 4
     }
 
     private fun load(ctx: Context) = loaded ?: runCatching {
@@ -52,7 +52,7 @@ object ArtIndex {
 
     /**
      * Decoded no wider than [maxWidth] pixels (a map thumbnail never holds a full-size picture), without alpha
-     * (the pictures are opaque), off the main thread; one cache entry per name and width bucket.
+     * (full colour depth, no banding), off the main thread; one cache entry per name and width bucket.
      */
     suspend fun bitmap(ctx: Context, name: String, maxWidth: Int = 4096): ImageBitmap? {
         val bucket = maxWidth.coerceAtLeast(64).let { Integer.highestOneBit(it - 1) shl 1 }
@@ -63,7 +63,7 @@ object ArtIndex {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
                 ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, bounds) }
                 var sample = 1; while (bounds.outWidth / (sample * 2) >= bucket) sample *= 2
-                val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = android.graphics.Bitmap.Config.RGB_565 }
+                val opts = BitmapFactory.Options().apply { inSampleSize = sample; inPreferredConfig = android.graphics.Bitmap.Config.ARGB_8888 }
                 ctx.assets.open("art/$name").use { BitmapFactory.decodeStream(it, null, opts) }?.also { it.prepareToDraw() }?.asImageBitmap()
             }.getOrNull()?.also { cache.put(key, it) }
         }
@@ -83,6 +83,6 @@ fun Art(name: String, label: String, modifier: Modifier = Modifier) {
             if (!inspect) value = ArtIndex.bitmap(ctx, name, px)
         }
         val alpha by androidx.compose.animation.core.animateFloatAsState(if (img != null || inspect) 1f else 0f, androidx.compose.animation.core.tween(180), label = "art")
-        img?.let { Image(it, null, Modifier.matchParentSize().graphicsLayer { this.alpha = alpha }, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.Medium) }
+        img?.let { Image(it, null, Modifier.matchParentSize().graphicsLayer { this.alpha = alpha }, contentScale = ContentScale.Crop, filterQuality = androidx.compose.ui.graphics.FilterQuality.High) }
     }
 }

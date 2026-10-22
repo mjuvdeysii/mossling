@@ -234,11 +234,13 @@ private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -
 /** The play's code set like a specimen label, the companion peeking over it. */
 @Composable
 private fun Specimen(code: String, companion: Kind) {
-    Box(Modifier.size(width = 84.dp, height = 96.dp)) {
-        Surface(color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, shape = RoundedCornerShape(18.dp), modifier = Modifier.align(Alignment.BottomCenter).size(84.dp, 70.dp).shared("code-$code")) {
-            Box(contentAlignment = Alignment.Center) { Text(code, fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Palette.Paper) }
+    // the tile grows with its code: "A06" or "N01" always shows whole
+    Box(Modifier.padding(top = 18.dp)) {
+        Surface(color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, shape = RoundedCornerShape(18.dp), modifier = Modifier.shared("code-$code")) {
+            Text(code, fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, color = Palette.Paper, softWrap = false, maxLines = 1,
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
         }
-        Creature(companion, Modifier.size(44.dp).align(Alignment.TopEnd).offset(x = 4.dp, y = 2.dp), look = Offset(-0.6f, 0.8f))
+        Creature(companion, Modifier.size(36.dp).align(Alignment.TopEnd).offset(x = 6.dp, y = (-18).dp), look = Offset(-0.6f, 0.8f))
     }
 }
 

@@ -379,7 +379,8 @@ def cover(m, mo):
 def render(svg, path, width):
     png = cairosvg.svg2png(bytestring=svg.encode(), output_width=width)
     im = Image.open(io.BytesIO(png)).convert("RGB")
-    im.save(path, "WEBP", quality=86, method=6)
+    # flat shapes: lossless keeps every edge as sharp as the interface around it
+    im.save(path, "WEBP", lossless=True, quality=100, method=6)
     return im.size
 
 def main():
@@ -391,11 +392,11 @@ def main():
         names = []
         for i, t in enumerate(p["steps"]):
             n = f"play_{p['code'].lower()}_{i + 1}.webp"
-            index["size"][n] = list(render(draw_step(p, i, t), os.path.join(OUT, n), 720)); names.append(n)
+            index["size"][n] = list(render(draw_step(p, i, t), os.path.join(OUT, n), 1440)); names.append(n)
         index["plays"][p["code"]] = names
     for mo in C["months"]:
         n = "cover_%02d.webp" % mo["month"]
-        index["size"][n] = list(render(cover(mo["month"], mo), os.path.join(OUT, n), 840))
+        index["size"][n] = list(render(cover(mo["month"], mo), os.path.join(OUT, n), 1440))
         index["covers"][str(mo["month"])] = n
     json.dump(index, open(os.path.join(OUT, "index.json"), "w"), separators=(",", ":"))
     total = sum(os.path.getsize(os.path.join(OUT, f)) for f in os.listdir(OUT))

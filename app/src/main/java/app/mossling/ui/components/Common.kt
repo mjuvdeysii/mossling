@@ -28,11 +28,11 @@ import androidx.compose.ui.unit.dp
 /** A page section: a quiet small label above, the title in the book serif. */
 @Composable
 fun SectionTitle(title: String, modifier: Modifier = Modifier, kicker: String? = null, glyph: G? = sectionGlyph(title), trailing: @Composable (() -> Unit)? = null) {
-    Row(modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 28.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(top = 20.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         // every section is marked by a pictogram in its own expressive shape, so the page can be scanned by picture
         if (glyph != null) {
             val (bg, fg) = sectionTone(title)
-            ShapeBadge(glyph, bg, fg, Modifier.padding(end = 12.dp), shape = Shapes.of(title), size = 44.dp)
+            ShapeBadge(glyph, bg, fg, Modifier.padding(end = 10.dp), shape = Shapes.of(title), size = 36.dp)
         }
         Column(Modifier.weight(1f)) {
             if (kicker != null) Text(kicker, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)

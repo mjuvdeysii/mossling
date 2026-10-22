@@ -75,6 +75,8 @@ data class GrowActions(
     val openMap: () -> Unit = {},
     val openPlan: () -> Unit = {},
     val openGrowth: () -> Unit = {},
+    val topic: (String) -> Unit = {},
+    val search: () -> Unit = {},
 )
 
 /**
@@ -115,6 +117,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
         stickyHeader("chain") {
             Surface(color = MaterialTheme.colorScheme.background) {
                 Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = a.search, modifier = Modifier.semantics { contentDescription = "搜索" }) { Glyph(G.Search, size = 22.dp) }
                     BeadChain(month, baby, a.select, Modifier.weight(1f))
                     // the way into the growth map: a child growing up, 0 to 3, in a loop
                     Surface(onClick = a.openMap, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.secondaryContainer,
@@ -245,6 +248,25 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                             Text("生长曲线", style = MaterialTheme.typography.titleSmall)
                             Text("体重 · 身长 · 头围", style = MaterialTheme.typography.bodySmall)
                         }
+                    }
+                }
+            }
+        }
+        if (c.topics.isNotEmpty()) item("topics") {
+            SectionTitle("专题", kicker = null)
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                c.topics.chunked(2).forEach { row ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        row.forEach { t ->
+                            Surface(onClick = { a.topic(t.id) }, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
+                                Column(Modifier.padding(14.dp)) {
+                                    app.mossling.ui.components.ShapeBadge(G.Idea, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f), MaterialTheme.colorScheme.tertiary, shape = app.mossling.ui.components.Shapes.of(t.title), size = 34.dp)
+                                    Text(t.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
+                                    if (t.sourceTitle.isNotBlank()) Text(t.sourceTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                                }
+                            }
+                        }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }

@@ -260,7 +260,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     select = { browse = it },
                     openPlay = { code, m -> nav.navigate(PlayRoute(code, m)) },
                     tick = { m, kind, id, label -> vm.toggleTick(m, kind, id, label) },
-                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) }, openGrowth = { nav.navigate(GrowthRoute) },
+                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) }, openGrowth = { nav.navigate(GrowthRoute) }, topic = { nav.navigate(TopicRoute(it)) }, search = { nav.navigate(SearchRoute) },
                 ))
             } }
             composable<JournalRoute> {

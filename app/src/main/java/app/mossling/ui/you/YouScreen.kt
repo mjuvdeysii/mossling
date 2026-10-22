@@ -1,5 +1,9 @@
 package app.mossling.ui.you
 
+import app.mossling.ui.components.Glyph
+import app.mossling.ui.components.G
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
@@ -69,104 +73,138 @@ data class YouActions(
     val journal: (Boolean) -> Unit = {},
 )
 
+/**
+ * 我的: who the child is and how the app behaves — nothing that belongs to a day or a month. Grouped the way Android
+ * settings are: the child, the companion, features, display, records, about. Each row says what it is; values sit on
+ * the right; destructive actions are red and last.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
-    val c = ui.content ?: return
-    val m = ui.babyMonth
-    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+    var profile by remember { mutableStateOf(false) }
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val canLock = remember { runCatching { androidx.biometric.BiometricManager.from(ctx).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS }.getOrDefault(false) }
+    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "" }
+    LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item("head") {
-            Column(Modifier.statusBarsPadding().padding(horizontal = 20.dp, vertical = 12.dp)) {
-                Text("我的", style = MaterialTheme.typography.headlineLarge)
-                Text(ui.settings.birth?.let { "${it.year} 年 ${md(it)} 出生" + (ui.age?.let { g -> " · 第 ${g.lived} 天" } ?: "") } ?: "还没有填写出生日期",
-                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
+            Text("我的", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.statusBarsPadding().padding(start = 20.dp, top = 12.dp, bottom = 8.dp))
         }
-        if (m != null) item("record") {
-            val mo = c.month(m)
-            val obs = mo.observe.sumOf { it.items.size }
-            val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().size
-            val care = mo.vaccines.size + mo.checkups.size
-            SectionTitle("这个月记下的", kicker = "满 $m 个月", trailing = {
-                val done = ui.count(m, TickKind.Observed) + ui.count(m, TickKind.Did) + ui.count(m, TickKind.Vaccine) + ui.count(m, TickKind.Checkup)
-                PinkTower(done, obs + plays + care)
-            })
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Count("看到过", ui.count(m, TickKind.Observed), obs, Palette.Moss, Modifier.weight(1f)) { a.openMonth(m) }
-                Count("做过", ui.count(m, TickKind.Did), plays, Palette.Rod, Modifier.weight(1f)) { a.openMonth(m) }
-                Count("接种儿保", ui.count(m, TickKind.Vaccine) + ui.count(m, TickKind.Checkup), care, Palette.Bead, Modifier.weight(1f)) { a.openMonth(m) }
+        // the child
+        item("child") {
+            Surface(onClick = { profile = true }, shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Creature(ui.settings.companion, Modifier.size(56.dp), mood = Mood.Happy)
+                    Column(Modifier.weight(1f).padding(start = 14.dp)) {
+                        Text(ui.settings.nickname.ifBlank { "宝宝" }, style = MaterialTheme.typography.titleLarge)
+                        Text(ui.settings.birth?.let { "${it.year} 年 ${md(it)} 出生" + (ui.age?.let { g -> " · 第 ${g.lived} 天" } ?: "") } ?: "填写出生日期",
+                            style = MaterialTheme.typography.bodySmall)
+                    }
+                    Glyph(G.Note, size = 20.dp)
+                }
             }
-            Text("「做过」只表示做过这个游戏，不代表某项能力已经达到。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp))
         }
         item("companion") {
-            SectionTitle("谁陪着你", kicker = null)
-            Row(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Pick(Kind.Moss, "Moss", "两只眼睛，安静地看", ui.settings.companion == Kind.Moss, Modifier.weight(1f)) { a.companion(Kind.Moss) }
-                Pick(Kind.Otto, "Otto", "一只眼睛，专心一件事", ui.settings.companion == Kind.Otto, Modifier.weight(1f)) { a.companion(Kind.Otto) }
+            Group("伙伴") {
+                Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Pick(Kind.Moss, "Moss", "两只眼睛，安静地看", ui.settings.companion == Kind.Moss, Modifier.weight(1f)) { a.companion(Kind.Moss) }
+                    Pick(Kind.Otto, "Otto", "一只眼睛，专心一件事", ui.settings.companion == Kind.Otto, Modifier.weight(1f)) { a.companion(Kind.Otto) }
+                }
             }
         }
-        item("settings") {
-            SectionTitle("设置", kicker = null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("出生日期", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).padding(start = 4.dp))
-                    Surface(onClick = a.birth, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.heightIn(min = 48.dp)) {
-                        Text(ui.settings.birth?.toString() ?: "填写", style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp))
-                    }
-                }
-                var nick by remember(ui.settings.nickname) { mutableStateOf(ui.settings.nickname) }
-                OutlinedTextField(nick, { nick = it.take(12) }, Modifier.fillMaxWidth().onFocusChanged { if (!it.isFocused && nick != ui.settings.nickname) a.nickname(nick) },
-                    label = { Text("宝宝的小名（可不填）") }, singleLine = true, shape = RoundedCornerShape(16.dp),
-                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onDone = { a.nickname(nick) }),
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Done))
-                Text("性别", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf("boy" to "男孩", "girl" to "女孩", null to "不填").forEachIndexed { i, (k, l) ->
-                        SegmentedButton(selected = ui.settings.sex == k, onClick = { a.sex(k) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
-                    }
-                }
-                val ctx = androidx.compose.ui.platform.LocalContext.current
-                val canLock = remember { runCatching { androidx.biometric.BiometricManager.from(ctx).canAuthenticate(androidx.biometric.BiometricManager.Authenticators.BIOMETRIC_WEAK) == androidx.biometric.BiometricManager.BIOMETRIC_SUCCESS }.getOrDefault(false) }
-                Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).toggleable(ui.settings.journal, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = a.journal).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("手帐", style = MaterialTheme.typography.titleMedium)
-                        Text("喂养、睡眠、尿布、体温", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    androidx.compose.material3.Switch(ui.settings.journal, onCheckedChange = null)
-                }
-                if (canLock || ui.settings.lock) Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(start = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("应用锁", style = MaterialTheme.typography.titleMedium)
-                        Text("指纹、面容或锁屏密码", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    androidx.compose.material3.Switch(ui.settings.lock, onCheckedChange = a.lock)
-                }
-                Text("外观", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(start = 4.dp, top = 8.dp))
-                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                    listOf(ThemeMode.System to "跟随系统", ThemeMode.Light to "浅色", ThemeMode.Dark to "深色").forEachIndexed { i, (t, l) ->
-                        SegmentedButton(selected = ui.settings.theme == t, onClick = { a.theme(t) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
+        item("features") {
+            Group("功能") {
+                SwitchRow(G.Journal, "手帐", "喂养、睡眠、尿布、体温", ui.settings.journal, a.journal)
+                if (canLock || ui.settings.lock) { Divide(); SwitchRow(G.Shield, "应用锁", "指纹、面容或锁屏密码", ui.settings.lock, a.lock) }
+            }
+        }
+        item("display") {
+            Group("显示") {
+                Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                    Text("外观", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 8.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf(ThemeMode.System to "跟随系统", ThemeMode.Light to "浅色", ThemeMode.Dark to "深色").forEachIndexed { i, (t, l) ->
+                            SegmentedButton(selected = ui.settings.theme == t, onClick = { a.theme(t) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
+                        }
                     }
                 }
             }
         }
         item("data") {
-            SectionTitle("记录文件", kicker = null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row1("导出记录文件", ".json") { a.exportJson() }
-                Row1("导出表格", ".csv") { a.exportCsv() }
-                Row1("导入记录文件", ".json") { a.importFile() }
-                Surface(onClick = a.clearAll, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                    Text("清除全部数据", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp))
-                }
+            Group("记录") {
+                LinkRow(G.Download, "导出记录文件", "JSON") { a.exportJson() }
+                Divide(); LinkRow(G.Chart, "导出表格", "CSV") { a.exportCsv() }
+                Divide(); LinkRow(G.Plus, "导入记录文件", "JSON") { a.importFile() }
+                Divide(); LinkRow(G.Close, "清除全部数据", null, danger = true) { a.clearAll() }
             }
         }
-        item("shelf") {
-            SectionTitle("参考", kicker = null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row1("搜索", "") { a.search() }
-                c.topics.forEach { t -> Row1(t.title, t.sourceTitle) { a.topic(t.id) } }
-                Row1("内容来源", "") { a.about() }
-                Row1("关于苔生", "") { a.appAbout() }
+        item("about") {
+            Group("关于") {
+                LinkRow(G.Journal, "内容来源", null) { a.about() }
+                Divide(); LinkRow(G.Idea, "关于苔生", version.ifBlank { null }) { a.appAbout() }
             }
+        }
+    }
+    if (profile) ProfileSheet(ui, a) { profile = false }
+}
+
+/** A titled group of rows on one surface, the way system settings are laid out. */
+@Composable
+private fun Group(title: String, content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 28.dp, top = 20.dp, bottom = 6.dp))
+    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        Column(content = content)
+    }
+}
+
+@Composable
+private fun Divide() = androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+
+@Composable
+private fun SwitchRow(g: G, title: String, sub: String, on: Boolean, onChange: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).toggleable(on, role = androidx.compose.ui.semantics.Role.Switch, onValueChange = onChange).padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically) {
+        Glyph(g, size = 22.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Column(Modifier.weight(1f).padding(start = 18.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        androidx.compose.material3.Switch(on, onCheckedChange = null)
+    }
+}
+
+@Composable
+private fun LinkRow(g: G, title: String, value: String?, danger: Boolean = false, onClick: () -> Unit) {
+    val tint = if (danger) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).clickable(onClick = onClick).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Glyph(g, size = 22.dp, color = if (danger) tint else MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(title, style = MaterialTheme.typography.titleMedium, color = tint, modifier = Modifier.weight(1f).padding(start = 18.dp))
+        if (value != null) Text(value, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** The child: nickname, birth date and sex in one place. */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ProfileSheet(ui: AppUi, a: YouActions, onDismiss: () -> Unit) {
+    var nick by remember { mutableStateOf(ui.settings.nickname) }
+    androidx.compose.material3.ModalBottomSheet(onDismissRequest = { if (nick != ui.settings.nickname) a.nickname(nick); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text("宝宝", style = MaterialTheme.typography.headlineSmall)
+            OutlinedTextField(nick, { nick = it.take(12) }, Modifier.fillMaxWidth(), label = { Text("小名") }, singleLine = true, shape = RoundedCornerShape(16.dp))
+            Surface(onClick = a.birth, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                    Text("出生日期", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(ui.settings.birth?.toString() ?: "填写", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                }
+            }
+            Text("性别", style = MaterialTheme.typography.titleMedium)
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                listOf("boy" to "男孩", "girl" to "女孩", null to "不填").forEachIndexed { i, (k, l) ->
+                    SegmentedButton(selected = ui.settings.sex == k, onClick = { a.sex(k) }, shape = SegmentedButtonDefaults.itemShape(i, 3)) { Text(l) }
+                }
+            }
+            androidx.compose.material3.Button(onClick = { if (nick != ui.settings.nickname) a.nickname(nick); onDismiss() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().heightIn(min = 52.dp)) { Text("完成") }
         }
     }
 }

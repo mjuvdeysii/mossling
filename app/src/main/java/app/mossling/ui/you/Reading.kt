@@ -1,5 +1,6 @@
 package app.mossling.ui.you
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -84,7 +85,7 @@ fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
     val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "" }
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item { Bar("", onBack) }
-        item { Text("关于与来源", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
+        item { Text("内容来源", style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) }
         item { Blocks(c.about.top) }
         item { SectionTitle("怎么读这些内容", kicker = null) }
         item { Blocks(c.about.method) }
@@ -96,30 +97,20 @@ fun AboutScreen(c: Content, licenses: () -> Unit = {}, onBack: () -> Unit) {
                 Text(c.about.vaccineNote, style = MaterialTheme.typography.bodyMedium); Text(c.about.checkupNote, style = MaterialTheme.typography.bodyMedium)
             }
         }
-        item { SectionTitle("来源", kicker = "${c.sources.size} 份机构原始文件") }
-        items(c.sources, key = { it.code }) { s ->
-            Surface(onClick = { if (s.url.isNotBlank()) runCatching { uri.openUri(s.url) } }, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                    Text(s.org, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text(s.title, style = MaterialTheme.typography.titleMedium)
-                    Text(listOf(s.date, s.checked).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
-        item {
-            Surface(onClick = { runCatching { uri.openUri("https://www.who.int/tools/child-growth-standards") } }, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                    Text("WHO", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-                    Text("WHO Child Growth Standards（2006）：体重、身长 / 身高、头围的年龄别标准", style = MaterialTheme.typography.titleMedium)
-                    Text("生长曲线与百分位", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-        }
+        item { SectionTitle("参考文献", kicker = "${c.sources.size + 1} 项") }
+        // a numbered reference list: number, institution, title, date and check; the code is how the content cites it
+        itemsIndexed(c.sources, key = { _, s -> s.code }) { i, s -> Reference(i + 1, s.code, s.org, s.title, listOf(s.date, s.checked).filter { it.isNotBlank() }.joinToString("；")) {
+            if (s.url.isNotBlank()) runCatching { uri.openUri(s.url) } } }
+        item { Reference(c.sources.size + 1, "WHO-CGS", "World Health Organization", "WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准", "2006") {
+            runCatching { uri.openUri("https://www.who.int/tools/child-growth-standards") } } }
         item { SectionTitle("核对过的说法", kicker = "${c.about.ledger.size} 条") }
-        items(c.about.ledger, key = { it.id }) { l ->
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Text(l.claim, style = MaterialTheme.typography.bodyMedium)
-                Text("${l.level} · ${l.source} · ${l.checked}" + if (l.limit.isNotBlank()) " · ${l.limit}" else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        itemsIndexed(c.about.ledger, key = { _, l -> l.id }) { i, l ->
+            Row(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                Text("${i + 1}.", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.width(32.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(l.claim, style = MaterialTheme.typography.bodyMedium)
+                    Text("证据等级 ${l.level} · ${l.source} · 核对 ${l.checked}" + if (l.limit.isNotBlank()) " · ${l.limit}" else "", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
 
@@ -136,27 +127,75 @@ private fun LinkRow(title: String, sub: String, onClick: () -> Unit) {
     }
 }
 
-/** The fonts and libraries this app is built with, and their licences. */
+/** The fonts, libraries and data this app is built with: name, version, licence and rights holder, in that order. */
+private data class Lib(val name: String, val version: String, val licence: String, val holder: String)
+
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
-    val items = listOf(
-        "Young Serif" to "SIL Open Font License 1.1 · The Young Serif Project Authors",
-        "Noto Serif SC" to "SIL Open Font License 1.1 · Adobe 与 Google（Noto Serif CJK）",
-        "Instrument Sans" to "SIL Open Font License 1.1 · The Instrument Sans Project Authors",
-        "AndroidX（Compose、Navigation、Room、DataStore、Glance、Core、Activity、Lifecycle、ProfileInstaller）" to "Apache License 2.0 · The Android Open Source Project",
-        "Kotlin 标准库、kotlinx.coroutines、kotlinx.serialization" to "Apache License 2.0 · JetBrains",
-        "WHO Child Growth Standards 数据表" to "World Health Organization（经 pygrowup 0.8.2 整理，BSD 许可）",
+    val groups = listOf(
+        "字体" to listOf(
+            Lib("Young Serif", "—", "SIL Open Font License 1.1", "© 2023 The Young Serif Project Authors"),
+            Lib("Noto Serif SC（子集）", "—", "SIL Open Font License 1.1", "© 2017 Adobe Systems Incorporated；Noto 为 Google LLC 的商标"),
+            Lib("Instrument Sans", "—", "SIL Open Font License 1.1", "© 2022 The Instrument Sans Project Authors"),
+        ),
+        "开源库" to listOf(
+            Lib("Jetpack Compose（BOM）", "2025.01.00", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Navigation Compose", "2.8.5", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Room", "2.6.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("DataStore", "1.1.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Glance", "1.1.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Lifecycle", "2.8.7", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Activity / Fragment", "1.9.3 / 1.8.5", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Core / SplashScreen", "1.15.0 / 1.0.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Biometric", "1.1.0", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("ProfileInstaller", "1.4.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Graphics Shapes", "1.0.1", "Apache License 2.0", "© The Android Open Source Project"),
+            Lib("Kotlin 标准库", "2.1.0", "Apache License 2.0", "© JetBrains s.r.o."),
+            Lib("kotlinx.serialization", "1.7.3", "Apache License 2.0", "© JetBrains s.r.o."),
+            Lib("kotlinx.coroutines", "—", "Apache License 2.0", "© JetBrains s.r.o."),
+        ),
+        "数据" to listOf(
+            Lib("WHO Child Growth Standards", "2006", "按世界卫生组织公开发布条款使用", "© World Health Organization"),
+        ),
     )
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
+    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 32.dp)) {
         item { Bar("开源许可", onBack) }
-        items(items.size) { i ->
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
-                Text(items[i].first, style = MaterialTheme.typography.titleMedium)
-                Text(items[i].second, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        groups.forEach { (title, libs) ->
+            item(title) {
+                Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 28.dp, top = 16.dp, bottom = 6.dp))
+                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Column {
+                        libs.forEachIndexed { i, l ->
+                            if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                            Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(l.name, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                                    if (l.version != "—") Text(l.version, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                                Text(l.licence, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 2.dp))
+                                Text(l.holder, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                        }
+                    }
+                }
             }
         }
         item {
-            Text("许可全文随源代码发布。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(20.dp))
+            Text("许可证全文见源代码仓库 licenses 目录。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 28.dp, vertical = 16.dp))
+        }
+    }
+}
+
+@Composable
+private fun Reference(n: Int, code: String, org: String, title: String, date: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp)) {
+            Text("[$n]", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(40.dp))
+            Column(Modifier.weight(1f)) {
+                Text(org, style = MaterialTheme.typography.titleSmall)
+                Text(title, style = MaterialTheme.typography.bodyMedium)
+                Text(listOf(code, date).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
