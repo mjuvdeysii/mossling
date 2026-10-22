@@ -165,13 +165,13 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         val ctx0 = vm.getApplication<android.app.Application>()
         if (app.mossling.CrashLog.read(ctx0) != null && snack.showSnackbar("上次异常退出了，可以在「关于苔生」里分享原因", actionLabel = "查看", duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) nav.navigate(AppAboutRoute)
     }
+    fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     val timerActions = app.mossling.ui.journal.TimerActions(
         pause = vm::pauseTimer, stop = { t -> vm.stopTimer(t) { it?.let(::added) } }, switchSide = vm::switchSide, shift = vm::shiftTimer,
         discard = { type -> ui.timers.firstOrNull { it.type == type }?.let { r -> vm.discardTimer(type); undoable("这次不记了") { vm.startTimer(r.type, r.side, r.start) } } },
     )
     // when each kind was last recorded (a running timer counts as now)
     val lastOf = remember(month30, ui.timers) { month30.groupBy { it.type }.mapValues { (_, v) -> v.maxOf { it.end ?: it.start } } }
-    fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
         if (ui.timers.any { it.type == type }) { vm.stopTimer(type) { it?.let(::added) }; return }
