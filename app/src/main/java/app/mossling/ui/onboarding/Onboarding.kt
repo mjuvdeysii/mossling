@@ -46,8 +46,8 @@ import java.time.ZoneOffset
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
-    val rise = remember { Animatable(0f) }
     val still = LocalInspectionMode.current
+    val rise = remember { Animatable(if (still) 1f else 0f) }
     LaunchedEffect(Unit) { if (still) rise.snapTo(1f) else rise.animateTo(1f, tween(900)) }
     Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(24.dp)) {
         Spacer(Modifier.weight(1f))

@@ -1,6 +1,8 @@
 package app.mossling.ui.journal
 
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SegmentedButton
@@ -96,7 +98,8 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
     var choosing by remember { mutableStateOf(false) }
     fun at() = exact ?: (System.currentTimeMillis() - ago * 60_000L)
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+        // scrolls and keeps clear of the keyboard, so 「记下来」 is always reachable
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text(if (ask == Ask.Side) "什么时候开始的" else "什么时候", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(Modifier.padding(top = 6.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(0 to "现在", 5 to "5 分钟前", 15 to "15 分钟前", 30 to "半小时前", 60 to "1 小时前").forEach { (v, t) ->
@@ -226,7 +229,7 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
     val fresh = e.id == 0L
     var pick by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
     ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text((if (fresh) "补记 · " else "") + logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
             if (!fresh) Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))

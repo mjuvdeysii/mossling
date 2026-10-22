@@ -2,6 +2,8 @@ package app.mossling.ui.growth
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -330,7 +332,7 @@ fun MeasureSheet(m: Measure, onSave: (Measure) -> Unit, onDelete: (Measure) -> U
     var h by remember(m.id) { mutableStateOf(m.headMm?.let { "%.1f".format(it / 10.0) } ?: "") }
     var day by remember(m.id) { mutableStateOf(Instant.ofEpochMilli(m.at).atZone(ZoneId.systemDefault()).toLocalDate()) }
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text(if (m.id == 0L) "记一次测量" else "这次测量", style = MaterialTheme.typography.headlineSmall)
             var calendar by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {

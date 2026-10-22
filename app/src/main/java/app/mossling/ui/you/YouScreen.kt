@@ -2,6 +2,8 @@ package app.mossling.ui.you
 
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.G
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
@@ -189,7 +191,7 @@ private fun LinkRow(g: G, title: String, value: String?, danger: Boolean = false
 private fun ProfileSheet(ui: AppUi, a: YouActions, onDismiss: () -> Unit) {
     var nick by remember { mutableStateOf(ui.settings.nickname) }
     androidx.compose.material3.ModalBottomSheet(onDismissRequest = { if (nick != ui.settings.nickname) a.nickname(nick); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("宝宝", style = MaterialTheme.typography.headlineSmall)
             OutlinedTextField(nick, { nick = it.take(12) }, Modifier.fillMaxWidth(), label = { Text("小名") }, singleLine = true, shape = RoundedCornerShape(16.dp))
             Surface(onClick = a.birth, shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
