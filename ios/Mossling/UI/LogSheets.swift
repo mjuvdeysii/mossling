@@ -48,9 +48,9 @@ struct AskSheet: View {
             HStack(spacing: 16) {
                 ForEach([("l", "L", "左边"), ("r", "R", "右边")], id: \.0) { k, big, t in
                     Button { j.start(LogType.nurse, side: k, at: at); dismiss() } label: {
-                        VStack { Text(big).font(Typeface.numerals(40)).foregroundStyle(Palette.red); Text(t).font(.headline) }
+                        VStack { Text(big).font(Typeface.numerals(40)).foregroundStyle(LogType.color(LogType.nurse)); Text(t).font(.headline) }
                             .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
-                            .background(Palette.red.opacity(0.12), in: Circle())
+                            .background(LogType.color(LogType.nurse).opacity(0.12), in: Circle())
                     }
                     .buttonStyle(.plain)
                 }

@@ -76,6 +76,13 @@ jobs:
         run: |
           set -o pipefail
           X=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1); sudo xcode-select -s "$X"
+          # The app group (shared journal for the widget) is used only once it is set up on the developer account:
+          # repository variable APP_GROUP=1. Until then the app and widget are signed without it.
+          if [ "${{ vars.APP_GROUP }}" != "1" ]; then
+            for f in Mossling/Resources/Mossling.entitlements Widget/Widget.entitlements; do
+              printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$f"
+            done
+          fi
           brew install xcodegen >/dev/null && xcodegen generate
           mkdir -p ~/private_keys && printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
