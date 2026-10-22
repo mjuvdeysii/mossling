@@ -4,3 +4,6 @@ local.properties
 *.iml
 .idea/
 app/src/test/snapshots/
+ios/Mossling.xcodeproj/
+ios/shots/
+ios/build.log
