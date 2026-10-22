@@ -15,6 +15,7 @@ struct Creature: View {
     var label: String? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.colorScheme) private var scheme
     @State private var blinkAt = Date.distantPast
     @State private var doubleBlink = false
     @State private var hopAt = Date.distantPast
@@ -101,6 +102,11 @@ struct Creature: View {
     }
 
     // MARK: drawing
+    //
+    // The two are content, not controls, so they are not made of the system's Liquid Glass material (which HIG keeps
+    // for the navigation layer). Instead they are drawn as small polished glass objects in the same spirit: light passes
+    // through the body and gathers low inside it, the colour deepens toward the thick edges, a crisp specular highlight
+    // follows the upper-left curve, a thin rim catches the light, and the shadow on the ground carries the body's tint.
 
     private func draw(_ ctx: inout GraphicsContext, _ size: CGSize, _ now: Date) {
         let s = min(size.width, size.height) / 100
@@ -112,99 +118,184 @@ struct Creature: View {
         let leaf = still ? 0 : 14 * Self.bounce(now.timeIntervalSince(leafAt) * 0.6)
         let leanNow = leanFrom + (lean - leanFrom) * Self.ease(now.timeIntervalSince(leanAt) / 0.5)
 
-        ctx.translateBy(x: (size.width - 100 * s) / 2, y: (size.height - 100 * s) / 2 - hop * 7 * s)
+        ctx.translateBy(x: (size.width - 100 * s) / 2, y: (size.height - 100 * s) / 2)
         ctx.scaleBy(x: s, y: s)
+        // the shadow stays on the ground and tightens while the body is in the air
+        groundShadow(&ctx, (kind == .moss ? 33 : 25) * (1 - hop * 0.12), kind == .moss ? Tone.moss.base : Tone.otto.base)
+        ctx.translateBy(x: 0, y: -hop * 7)
         // squash and stretch from the feet
         ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 - b * amp * 0.5, y: 1 + b * amp); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -88)
 
-        let rest = lid ?? (kind == .otto ? 0.34 : 0)
+        let rest = lid ?? (kind == .otto ? 0.2 : 0)
         let l = max(rest, still ? 0 : blinkValue(now))
         let e0 = lookValue(still ? .distantFuture : now), g = still ? .zero : glanceValue(now)
         let e = CGPoint(x: e0.x + g.x, y: e0.y + g.y)
         if kind == .moss { drawMoss(&ctx, e, l, sway: (b - 0.5) * 6 + leaf) } else { drawOtto(&ctx, e, l, swing: (b - 0.5) * 5 + leaf) }
 
-        // the mint leaves drifting up
+        // 小薄荷: a few mint leaves drifting up
         let f = now.timeIntervalSince(fleckAt) / 1.6
         if f > 0 && f < 1 {
             let a = f < 0.2 ? f / 0.2 : 1 - (f - 0.2) / 0.8
             for (x, dx, d) in [(36.0, -8.0, 0.0), (58, 6, 0.12), (47, -2, 0.24)] {
                 let gg = max(0, min(1, (f - d) / (1 - d)))
                 var c = ctx
+                c.opacity = a
                 c.translateBy(x: x + dx * gg, y: 14 - gg * 26)
-                c.translateBy(x: 3, y: 2); c.rotate(by: .degrees(gg * 120 + dx * 4)); c.translateBy(x: -3, y: -2)
-                c.fill(Shapes.mintFleck, with: .color(Palette.mint.opacity(a)))
+                c.rotate(by: .degrees(gg * 120 + dx * 4 - 20))
+                leafGlass(&c, .zero, 0, 7, 2.4, Tone.mint)
             }
         }
     }
 
-    private func shadow(_ ctx: inout GraphicsContext, _ rx: CGFloat) {
-        ctx.fill(Path(ellipseIn: CGRect(x: 50 - rx, y: 87.5, width: rx * 2, height: 6)), with: .color(Palette.ink.opacity(0.09)))
+    /// The three tones of a coloured glass: where light comes through, the body colour, and the thick edge.
+    struct Tone {
+        let light: Color, base: Color, deep: Color
+        static let moss = Tone(light: Color(hex: 0xB4D98E), base: Color(hex: 0x5E8E4C), deep: Color(hex: 0x2A4727))
+        static let otto = Tone(light: Color(hex: 0x8DB2F5), base: Color(hex: 0x3361BC), deep: Color(hex: 0x162C63))
+        static let mint = Tone(light: Color(hex: 0xC4F2D6), base: Color(hex: 0x4DB883), deep: Color(hex: 0x23704C))
+        static let gold = Tone(light: Color(hex: 0xFFEBB0), base: Color(hex: 0xE2AF2E), deep: Color(hex: 0x8A6206))
     }
-    private func leg(_ ctx: inout GraphicsContext, _ x: CGFloat) {
-        ctx.fill(Path(roundedRect: CGRect(x: x, y: 80, width: 6.5, height: 10), cornerRadius: 3.2), with: .color(Palette.ink))
+
+    /// A soft spot of light or shade: an ellipse whose colour fades out toward its edge.
+    private func glow(_ ctx: inout GraphicsContext, _ r: CGRect, _ color: Color, hold: Double = 0.15) {
+        guard r.width > 0, r.height > 0 else { return }
+        var c = ctx
+        c.translateBy(x: r.midX, y: r.midY); c.scaleBy(x: 1, y: r.height / r.width)
+        let rad = r.width / 2
+        c.fill(Path(ellipseIn: CGRect(x: -rad, y: -rad, width: rad * 2, height: rad * 2)),
+               with: .radialGradient(Gradient(stops: [.init(color: color, location: 0), .init(color: color, location: hold), .init(color: color.opacity(0), location: 1)]),
+                                     center: .zero, startRadius: 0, endRadius: rad))
     }
-    private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, _ deep: Color) {
-        // a glassy body: the colour lit from above, a soft highlight along the top edge, a rim of light, depth below
+
+    /// The tinted shadow of light passing through the body, and a firmer contact shadow under it.
+    private func groundShadow(_ ctx: inout GraphicsContext, _ rx: CGFloat, _ tint: Color) {
+        let dark = scheme == .dark
+        glow(&ctx, CGRect(x: 50 - rx * 1.12, y: 83.5, width: rx * 2.24, height: 11), tint.opacity(dark ? 0.42 : 0.3), hold: 0.25)
+        glow(&ctx, CGRect(x: 50 - rx * 0.86, y: 86.2, width: rx * 1.72, height: 5), Color.black.opacity(dark ? 0.5 : 0.2), hold: 0.3)
+    }
+
+    /// A glass body.
+    private func glass(_ ctx: inout GraphicsContext, _ p: Path, _ tone: Tone) {
         let r = p.boundingRect
-        ctx.fill(p.offsetBy(dx: 0, dy: 1.6), with: .color(deep.opacity(0.55)))
-        ctx.fill(p, with: .linearGradient(Gradient(colors: [fill.mix(with: .white, by: 0.18), fill, fill.mix(with: deep, by: 0.45)]),
-                                          startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.minX + r.width * 0.25, y: r.maxY)))
+        ctx.fill(p, with: .radialGradient(Gradient(stops: [.init(color: tone.light, location: 0), .init(color: tone.base, location: 0.52), .init(color: tone.deep, location: 1)]),
+                                          center: CGPoint(x: r.minX + r.width * 0.56, y: r.minY + r.height * 0.64), startRadius: 0, endRadius: max(r.width, r.height) * 0.68))
         var c = ctx
         c.clip(to: p)
-        c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.12, y: r.minY + r.height * 0.04, width: r.width * 0.62, height: r.height * 0.32)),
-               with: .linearGradient(Gradient(colors: [.white.opacity(0.42), .white.opacity(0)]), startPoint: CGPoint(x: r.midX, y: r.minY), endPoint: CGPoint(x: r.midX, y: r.minY + r.height * 0.36)))
-        c.stroke(p, with: .linearGradient(Gradient(colors: [.white.opacity(0.55), .white.opacity(0.05), .white.opacity(0.25)]),
-                                          startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.maxX, y: r.maxY)), lineWidth: 1.6)
+        // the thick edge absorbs more light
+        c.stroke(p, with: .color(tone.deep.opacity(0.32)), lineWidth: 6)
+        c.stroke(p, with: .color(tone.deep.opacity(0.28)), lineWidth: 2.2)
+        // light focused through the body onto its lower inside
+        glow(&c, CGRect(x: r.minX + r.width * 0.2, y: r.maxY - r.height * 0.3, width: r.width * 0.62, height: r.height * 0.24), tone.light.mix(with: .white, by: 0.45).opacity(0.62))
+        // a broad sheen on the upper half
+        glow(&c, CGRect(x: r.minX + r.width * 0.06, y: r.minY - r.height * 0.02, width: r.width * 0.66, height: r.height * 0.4), .white.opacity(0.3), hold: 0.05)
+        // the crisp highlight along the upper-left curve, and a small one after it
+        var hc = c
+        hc.translateBy(x: r.midX, y: r.midY + r.height * 0.04); hc.scaleBy(x: 1, y: r.height / r.width)
+        let rad = r.width * 0.39
+        var arc = Path(); arc.addArc(center: .zero, radius: rad, startAngle: .degrees(196), endAngle: .degrees(236), clockwise: false)
+        hc.stroke(arc, with: .color(.white.opacity(0.88)), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+        let dot = CGPoint(x: rad * cos(250 * .pi / 180), y: rad * sin(250 * .pi / 180))
+        hc.fill(Path(ellipseIn: CGRect(x: dot.x - 1.2, y: dot.y - 1.2, width: 2.4, height: 2.4)), with: .color(.white.opacity(0.8)))
+        // a rim of light: bright at the top left, faint at the side, picked up again at the lower right
+        c.stroke(p, with: .linearGradient(Gradient(stops: [.init(color: .white.opacity(0.75), location: 0), .init(color: .white.opacity(0.05), location: 0.5), .init(color: .white.opacity(0.4), location: 1)]),
+                                          startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.maxX, y: r.maxY)), lineWidth: 1.3)
     }
-    private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ skin: Color) {
+
+    /// A glass mint leaf.
+    private func leafGlass(_ ctx: inout GraphicsContext, _ at: CGPoint, _ angle: Double, _ l: CGFloat, _ w: CGFloat, _ tone: Tone) {
+        var c = ctx
+        c.translateBy(x: at.x, y: at.y); c.rotate(by: .degrees(angle))
+        let p = Shapes.leaf(l, w)
+        c.fill(p, with: .linearGradient(Gradient(colors: [tone.light, tone.base, tone.deep]), startPoint: CGPoint(x: l * 0.3, y: -w), endPoint: CGPoint(x: l * 0.6, y: w)))
+        var m = Path(); m.move(to: CGPoint(x: l * 0.06, y: 0)); m.addQuadCurve(to: CGPoint(x: l * 0.86, y: -w * 0.08), control: CGPoint(x: l * 0.5, y: w * 0.12))
+        c.stroke(m, with: .color(.white.opacity(0.5)), style: StrokeStyle(lineWidth: max(0.4, w * 0.11), lineCap: .round))
+        var k = c
+        k.clip(to: p)
+        glow(&k, CGRect(x: l * 0.18, y: -w * 1.0, width: l * 0.55, height: w * 0.9), .white.opacity(0.45), hold: 0.1)
+        k.stroke(p, with: .color(.white.opacity(0.4)), lineWidth: 0.8)
+    }
+
+    /// A golden bead: a polished sphere.
+    private func goldBead(_ ctx: inout GraphicsContext, _ c: CGPoint, _ r: CGFloat) {
+        let g = Tone.gold
+        ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r * 0.7, width: r * 2, height: r * 2)), with: .color(g.deep.opacity(0.3)))
+        ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+                 with: .radialGradient(Gradient(stops: [.init(color: g.light, location: 0), .init(color: g.base, location: 0.5), .init(color: g.deep, location: 1)]),
+                                       center: CGPoint(x: c.x - r * 0.35, y: c.y - r * 0.4), startRadius: 0, endRadius: r * 1.45))
+        ctx.fill(Path(ellipseIn: CGRect(x: c.x - r * 0.62, y: c.y - r * 0.68, width: r * 0.5, height: r * 0.4)), with: .color(.white.opacity(0.9)))
+    }
+
+    /// A glass eye: a white dome set into the body.
+    private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ tone: Tone) {
         if mood == .sleep {
             var p = Path(); p.move(to: CGPoint(x: cx - rx, y: cy)); p.addQuadCurve(to: CGPoint(x: cx + rx, y: cy), control: CGPoint(x: cx, y: cy + ry * 0.9))
-            ctx.stroke(p, with: .color(Palette.ink), style: StrokeStyle(lineWidth: max(1.6, ry * 0.32), lineCap: .round)); return
+            ctx.stroke(p, with: .color(Palette.ink), style: StrokeStyle(lineWidth: max(1.6, ry * 0.3), lineCap: .round)); return
         }
         let r = CGRect(x: cx - rx, y: cy - ry, width: rx * 2, height: ry * 2)
+        // where the eye sits into the body
+        ctx.fill(Path(ellipseIn: r.insetBy(dx: -1.2, dy: -1.2).offsetBy(dx: 0, dy: -0.3)), with: .color(tone.deep.opacity(0.4)))
         var c = ctx
         c.clip(to: Path(ellipseIn: r))
-        c.fill(Path(r), with: .color(Palette.paper))
-        let pr = min(rx, ry) * (mood == .wow ? 0.5 : 0.62)
-        let px = cx + max(-1, min(1, look.x)) * (rx - pr - 0.3), py = cy + max(-1, min(1, look.y)) * (ry - pr - 0.3)
-        c.fill(Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)), with: .color(Palette.ink))
-        // a glint on the eye
-        c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.55, y: py - pr * 0.65, width: pr * 0.5, height: pr * 0.5)), with: .color(.white.opacity(0.85)))
+        c.fill(Path(r), with: .radialGradient(Gradient(colors: [.white, Palette.paper, Color(hex: 0xD5D7CF)]),
+                                              center: CGPoint(x: cx - rx * 0.2, y: cy - ry * 0.25), startRadius: 0, endRadius: max(rx, ry) * 1.25))
+        let pr = min(rx, ry) * (mood == .wow ? 0.48 : 0.6)
+        let px = cx + max(-1, min(1, look.x)) * (rx - pr - 0.4), py = cy + max(-1, min(1, look.y)) * (ry - pr - 0.4)
+        c.fill(Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)),
+               with: .radialGradient(Gradient(colors: [Color(hex: 0x3B3F38), Palette.ink]), center: CGPoint(x: px - pr * 0.3, y: py - pr * 0.3), startRadius: 0, endRadius: pr))
+        c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.62, y: py - pr * 0.7, width: pr * 0.56, height: pr * 0.56)), with: .color(.white.opacity(0.92)))
+        c.fill(Path(ellipseIn: CGRect(x: px + pr * 0.25, y: py + pr * 0.25, width: pr * 0.26, height: pr * 0.26)), with: .color(.white.opacity(0.6)))
+        // the dome's own reflection
+        glow(&c, CGRect(x: cx - rx * 0.75, y: cy - ry * 1.05, width: rx * 1.3, height: ry * 0.75), .white.opacity(0.55), hold: 0.1)
+        let skin = tone.base.mix(with: tone.light, by: 0.25)
         if mood == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.12, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
-        if lid > 0 { c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: (ry * 2 + 1.2) * lid)), with: .color(skin)) }
+        if lid > 0 {
+            let h = (ry * 2 + 1.2) * lid
+            c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: h)), with: .color(skin))
+            if lid > 0.04 && lid < 0.96 {
+                var e = Path(); e.move(to: CGPoint(x: cx - rx, y: cy - ry - 0.6 + h)); e.addLine(to: CGPoint(x: cx + rx, y: cy - ry - 0.6 + h))
+                c.stroke(e, with: .color(tone.deep.opacity(0.55)), lineWidth: 0.9)
+            }
+        }
+        ctx.stroke(Path(ellipseIn: r), with: .color(tone.deep.opacity(0.35)), lineWidth: 0.6)
+    }
+
+    private func mouth(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat) {
+        ctx.fill(Path(ellipseIn: CGRect(x: cx - 2.1, y: cy - 2.7, width: 4.2, height: 5.4)), with: .color(Palette.ink))
     }
 
     private func drawMoss(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, sway: Double) {
-        shadow(&ctx, 31)
-        ctx.stroke(Shapes.mossStem, with: .color(Palette.mossDeep), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
+        ctx.stroke(Shapes.mossStem, with: .color(Tone.mint.deep), style: StrokeStyle(lineWidth: 2.1, lineCap: .round))
         var leaves = ctx
-        leaves.translateBy(x: 49.6, y: 25); leaves.rotate(by: .degrees(sway)); leaves.translateBy(x: -49.6, y: -25)
-        leaves.fill(Shapes.mintB, with: .color(Palette.mintLight))
-        leaves.fill(Shapes.mintA, with: .color(Palette.mint))
-        leaves.fill(Shapes.mintD, with: .color(Palette.mintPale))
-        leaves.fill(Shapes.mintC, with: .color(Palette.mintPale))
-        leaves.stroke(Shapes.mintVeins, with: .color(Palette.mintVein.opacity(0.45)), style: StrokeStyle(lineWidth: 0.6, lineCap: .round))
-        leg(&ctx, 33); leg(&ctx, 59)
-        body(&ctx, Shapes.mossBody, Palette.moss, Palette.mossDeep)
-        ctx.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.7)))
-        eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss)
-        eye(&ctx, 58, 55, 6.4, 7.4, look, lid, Palette.moss)
-        if mood == .wow { ctx.fill(Path(ellipseIn: CGRect(x: 48.3, y: 65.2, width: 4.4, height: 5.6)), with: .color(Palette.ink)) }
+        leaves.translateBy(x: 50.4, y: 25.5); leaves.rotate(by: .degrees(sway)); leaves.translateBy(x: -50.4, y: -25.5)
+        let tip = CGPoint(x: 50.4, y: 25)
+        leafGlass(&leaves, tip, -96, 11, 3.8, Tone.mint)
+        leafGlass(&leaves, tip, -154, 16, 5.6, Tone.mint)
+        leafGlass(&leaves, tip, -24, 18, 6.2, Tone.mint)
+        glass(&ctx, Shapes.mossBody, Tone.moss)
+        // a few bubbles caught in the glass
+        for (x, y, r) in [(29.0, 62.0, 1.5), (74, 57, 1.0), (68, 79, 1.3), (33, 77, 0.8)] {
+            let b = CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)
+            ctx.fill(Path(ellipseIn: b), with: .color(.white.opacity(0.16)))
+            ctx.stroke(Path(ellipseIn: b), with: .color(.white.opacity(0.4)), lineWidth: 0.4)
+        }
+        eye(&ctx, 41.5, 59, 6.4, 7.4, look, lid, Tone.moss)
+        eye(&ctx, 58.5, 59, 6.4, 7.4, look, lid, Tone.moss)
+        if mood == .wow { mouth(&ctx, 50, 73) }
     }
 
     private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, swing: Double) {
-        shadow(&ctx, 23)
         var rod = ctx
-        rod.translateBy(x: 53, y: 17); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -53, y: -17)
-        rod.stroke(Shapes.ottoStem, with: .color(Palette.rodDeep), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-        rod.fill(Path(ellipseIn: CGRect(x: 58.8, y: 2.6, width: 6.4, height: 6.4)), with: .color(Palette.bead))
-        leg(&ctx, 38); leg(&ctx, 56)
-        body(&ctx, Shapes.ottoBody, Palette.rod, Palette.rodDeep)
-        ctx.fill(Shapes.ottoDip, with: .color(Palette.rodDeep.opacity(0.55)))
-        eye(&ctx, 51, 44, 12.5, 11.5, look, mood == .wow ? 0 : lid, Palette.rod)
-        ctx.fill(Path(ellipseIn: CGRect(x: 67.8, y: 63.8, width: 12.4, height: 12.4)), with: .color(Palette.bead))
-        ctx.fill(Path(ellipseIn: CGRect(x: 70.4, y: 66.2, width: 3.6, height: 3.6)), with: .color(Palette.beadLight))
-        if mood == .wow { ctx.fill(Path(ellipseIn: CGRect(x: 48.8, y: 61.2, width: 4.4, height: 5.6)), with: .color(Palette.ink)) }
+        rod.translateBy(x: 51.5, y: 14); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -51.5, y: -14)
+        rod.stroke(Shapes.ottoStem, with: .color(Tone.otto.deep), style: StrokeStyle(lineWidth: 2.1, lineCap: .round))
+        goldBead(&rod, CGPoint(x: 61.5, y: 4.4), 3.4)
+        glass(&ctx, Shapes.ottoBody, Tone.otto)
+        eye(&ctx, 51, 41, 13, 12, look, mood == .wow ? 0 : lid, Tone.otto)
+        if mood == .wow { mouth(&ctx, 51, 58.5) }
+        // the string of golden beads
+        let pts = Shapes.beadStrand
+        var thread = Path(); thread.addLines(pts)
+        ctx.stroke(thread, with: .color(Tone.gold.deep.opacity(0.7)), lineWidth: 0.8)
+        for p in pts { goldBead(&ctx, p, 3.3) }
     }
 }
 

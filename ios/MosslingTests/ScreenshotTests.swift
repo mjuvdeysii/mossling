@@ -65,14 +65,17 @@ final class ScreenshotTests: XCTestCase {
     func test09About() { let m = model(); shot("09_about", tabs(m, AboutView())) }
     func test10Topic() { let m = model(); shot("10_topic", height: 1600, tabs(m, TopicView(topic: m.content.topics[0]))) }
     func test11Plan() { let m = model(); shot("11_plan", tabs(m, PlanView(path: .constant(NavigationPath())))) }
-    func test12Characters() {
-        shot("12_characters", height: 700, VStack(spacing: 20) {
-            HStack { Creature(kind: .moss).frame(width: 150); Creature(kind: .otto).frame(width: 150) }
+    private var characters: some View {
+        VStack(spacing: 20) {
+            HStack { Creature(kind: .moss).frame(width: 170); Creature(kind: .otto, mood: .happy).frame(width: 170) }
+            HStack { Creature(kind: .moss, mood: .wow, look: CGPoint(x: 0.8, y: -0.4)).frame(width: 110); Creature(kind: .otto, look: CGPoint(x: -0.9, y: 0.4), lid: 0.5).frame(width: 110); Creature(kind: .moss, mood: .sleep).frame(width: 110) }
             Duo(primary: .moss, size: 120)
             Duo(primary: .otto, size: 120, mood: .sleep)
             StoryGoesOn(primary: .moss).padding(.horizontal)
-        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.background))
+        }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.background)
     }
+    func test12Characters() { shot("12_characters", height: 1100, characters) }
+    func test12CharactersDark() { shot("12_characters_dark", dark: true, height: 1100, characters) }
     func test13Doc() { let m = model(); shot("13_terms", height: 1400, tabs(m, DocView(name: "TERMS"))) }
     func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath())))) }
     func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }

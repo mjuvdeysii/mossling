@@ -48,12 +48,13 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(g.percentile(.weight, girl: true, months: 6, value: g.at(.weight, girl: true, months: 6, percentile: 97)), 97, accuracy: 0.5)
     }
 
-    func testSvgPaths() {
+    func testShapes() {
         XCTAssertFalse(Shapes.mossBody.isEmpty)
         let r = Shapes.mossBody.boundingRect
-        XCTAssertEqual(r.minX, 14, accuracy: 2); XCTAssertEqual(r.maxX, 87.5, accuracy: 2)
-        let tufts = Shapes.mossTufts.boundingRect
-        XCTAssertEqual(tufts.minY, 41, accuracy: 3)
-        XCTAssertFalse(Shapes.mintA.isEmpty)
+        XCTAssertEqual(r.minX, 16, accuracy: 2); XCTAssertEqual(r.maxX, 85.5, accuracy: 2); XCTAssertEqual(r.maxY, 89, accuracy: 1)
+        let o = Shapes.ottoBody.boundingRect
+        XCTAssertEqual(o.minY, 13, accuracy: 1); XCTAssertGreaterThan(o.height, o.width)
+        XCTAssertEqual(Shapes.beadStrand.count, 6)
+        XCTAssertTrue(Shapes.beadStrand.allSatisfy { Shapes.ottoBody.contains($0) })
     }
 }
