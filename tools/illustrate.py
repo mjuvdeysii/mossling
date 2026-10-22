@@ -6,14 +6,18 @@ characters, real objects on a work mat, natural wood, the pink tower's pink, the
 Faces are left out on purpose: posture, gaze lines and hands say what happens.
 
 Output: app/src/main/assets/art/play_<code>_<n>.webp (one per step), cover_<mm>.webp (one per month), index.json.
-Usage: python3 tools/illustrate.py [--sheet out.png]
+Usage: python3 tools/illustrate.py [--ios] [--sheet out.png]
+
+--ios draws the iOS set (ios/Art/art): no Material shapes — circles, capsules and rounded rectangles — and every
+solid colour lit softly from above, so objects read like the dimensional, glassy pictograms of Apple's own platform.
 """
 import io, json, math, os, re, sys
 import cairosvg
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-OUT = os.path.join(ROOT, "app/src/main/assets/art")
+IOS = "--ios" in sys.argv
+OUT = os.path.join(ROOT, "ios/Art/art" if IOS else "app/src/main/assets/art")
 C = json.load(open(os.path.join(ROOT, "app/src/main/assets/content.json")))
 W, H = 720, 540
 
@@ -35,6 +39,9 @@ def family(domains):
     if any(k in d for k in ["语言", "表达", "共读"]): return "Words"
     return "Together"
 
+if IOS:  # a cooler, cleaner paper for the iOS set
+    P.update(chalk="#F4F6F2", paper="#FFFFFF", linen="#E9EDE6")
+
 # ---------- expressive shapes ----------
 def polar(cx, cy, r, n, amp, k=180, phase=0.0):
     pts = []
@@ -45,6 +52,8 @@ def polar(cx, cy, r, n, amp, k=180, phase=0.0):
     return "M" + " L".join(f"{x:.1f},{y:.1f}" for x, y in pts) + "Z"
 
 def shape(kind, cx, cy, r):
+    if IOS and kind in ("cookie", "clover", "flower", "burst"):
+        return f"M{cx - r},{cy} A{r},{r} 0 1 0 {cx + r},{cy} A{r},{r} 0 1 0 {cx - r},{cy}Z"
     if kind == "cookie": return polar(cx, cy, r, 9, 0.055)
     if kind == "clover": return polar(cx, cy, r, 4, 0.14, phase=math.pi / 4)
     if kind == "flower": return polar(cx, cy, r, 6, 0.10)
@@ -59,7 +68,23 @@ def shape(kind, cx, cy, r):
 class S:
     def __init__(self): self.parts = []
     def add(self, s): self.parts.append(s); return self
-    def svg(self, w=W, h=H): return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + "".join(self.parts) + "</svg>"
+    def svg(self, w=W, h=H):
+        body = "".join(self.parts)
+        if IOS: body = glassy(body)
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + body + "</svg>"
+
+def _mix(hexc, t, to):
+    c = [int(hexc[i:i + 2], 16) for i in (0, 2, 4)]
+    return "".join(f"{round(a + (to - a) * t):02X}" for a in c)
+
+def glassy(body):
+    """Every solid fill lit from above: a lighter top, the colour in the middle, a touch deeper at the bottom."""
+    cols = sorted(set(re.findall(r'fill="#([0-9A-Fa-f]{6})"', body)))
+    defs = "".join(
+        f'<linearGradient id="g{c}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#{_mix(c, .22, 255)}"/>'
+        f'<stop offset=".55" stop-color="#{c}"/><stop offset="1" stop-color="#{_mix(c, .12, 0)}"/></linearGradient>' for c in cols)
+    body = re.sub(r'fill="#([0-9A-Fa-f]{6})"', lambda m: f'fill="url(#g{m.group(1)})"', body)
+    return f"<defs>{defs}</defs>" + body
 
 def peg(s, x, base, h, body, head="#E8C9A0", lean=0.0, r=None, sit=False):
     """A wooden peg person standing on y=base: rounded body, round head, no face. Returns head centre and shoulder."""

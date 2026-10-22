@@ -27,7 +27,7 @@ targets:
         buildPhase: resources
       - path: ../app/src/main/assets/who_growth.json
         buildPhase: resources
-      - path: ../app/src/main/assets/art
+      - path: Art/art
         type: folder
         buildPhase: resources
       - path: Docs

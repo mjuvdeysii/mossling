@@ -275,8 +275,8 @@ struct TimerCard: View {
     }
     @ViewBuilder private var buttons: some View {
         Button { j.stop(timer.type) } label: { Text("结束并记下").padding(.horizontal, 4) }.buttonStyle(.glassProminent).tint(.white).foregroundStyle(LogType.color(timer.type))
-        Button(timer.pausedAt == nil ? "暂停" : "继续") { j.togglePause(timer.type) }.buttonStyle(.glass)
-        if timer.type == LogType.nurse { Button(timer.side == "r" ? "换到左边" : "换到右边") { j.switchSide(timer.type) }.buttonStyle(.glass) }
+        Button(timer.pausedAt == nil ? "暂停" : "继续") { j.togglePause(timer.type) }.buttonStyle(.glass(.clear)).foregroundStyle(.white)
+        if timer.type == LogType.nurse { Button(timer.side == "r" ? "换到左边" : "换到右边") { j.switchSide(timer.type) }.buttonStyle(.glass(.clear)).foregroundStyle(.white) }
     }
 }
 
