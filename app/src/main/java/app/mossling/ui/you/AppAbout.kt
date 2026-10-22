@@ -68,12 +68,11 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
         item { Bar("", a.back) }
         item {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Creature(Kind.Moss, Modifier.size(64.dp), mood = Mood.Happy)
-                    Creature(Kind.Otto, Modifier.size(72.dp))
-                }
-                Text("Mossling 苔生", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 6.dp))
-                Text("0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium)
+                app.mossling.ui.ip.Duo(app.mossling.ui.theme.LocalCompanion.current, size = 88.dp)
+                Text("小苔花", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                Text("Mossling · 0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium)
+                Text("苔花如米小，也学牡丹开。", style = MaterialTheme.typography.bodySmall, fontStyle = androidx.compose.ui.text.font.FontStyle.Normal, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
+                Text("清 · 袁枚《苔》", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("版本 $version · 构建 $build", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
@@ -88,7 +87,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                         Text("记录只保存在本机。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
-                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "苔生异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
+                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "小苔花异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
                                 runCatching { ctx.startActivity(Intent.createChooser(send, "分享异常记录")) }
                             }, shape = RoundedCornerShape(16.dp)) { Text("分享记录") }
                             androidx.compose.material3.TextButton(onClick = { app.mossling.CrashLog.clear(ctx); crash = null }) { Text("删除") }
@@ -98,20 +97,18 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
             }
         }
         item {
-            Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Column {
-                    val rows = listOf(
-                        Triple(G.Note, "更新日志") { a.doc("CHANGELOG.md") },
-                        Triple(G.Shield, "隐私说明") { a.doc("PRIVACY.md") },
-                        Triple(G.Journal, "内容来源") { a.sources() },
-                        Triple(G.Bead, "开源许可") { a.licenses() },
-                        Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues"); Unit },
-                    )
-                    rows.forEachIndexed { i, (g, t, f) ->
-                        if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                        Item(g, t, "", f)
-                    }
-                }
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                ListGroup("条款与声明", listOf(
+                    Triple(G.Note, "使用条款") { a.doc("TERMS.md") },
+                    Triple(G.Shield, "隐私政策") { a.doc("PRIVACY.md") },
+                    Triple(G.Idea, "免责声明") { a.doc("DISCLAIMER.md") },
+                ))
+                ListGroup("资料", listOf(
+                    Triple(G.Journal, "内容来源") { a.sources() },
+                    Triple(G.Bead, "开源许可") { a.licenses() },
+                    Triple(G.Note, "更新日志") { a.doc("CHANGELOG.md") },
+                    Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues"); Unit },
+                ))
             }
         }
         item {
@@ -119,6 +116,21 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                 Text("免责声明", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListGroup(title: String, rows: List<Triple<G, String, () -> Unit>>) {
+    Column {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+            Column {
+                rows.forEachIndexed { i, (g, t, f) ->
+                    if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
+                    Item(g, t, "", f)
+                }
             }
         }
     }
@@ -190,6 +202,12 @@ fun DocScreen(name: String, onBack: () -> Unit) {
                         Text("•", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(16.dp))
                         Text(app.mossling.ui.components.rich(l.trimStart().drop(2)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     }
+                    Regex("^\\d+\\. ").containsMatchIn(l) -> Row(Modifier.padding(top = 3.dp, bottom = 3.dp)) {
+                        val n = l.substringBefore(". ")
+                        Text("$n.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontFamily = Numerals, modifier = Modifier.width(22.dp))
+                        Text(app.mossling.ui.components.rich(l.substringAfter(". ")), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    }
+                    l.startsWith("适用于") || l.startsWith("生效日期") -> Text(l, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     else -> Text(app.mossling.ui.components.rich(l), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 3.dp))
                 }
             }
@@ -242,7 +260,7 @@ private fun UpdateCard(st: app.mossling.domain.Updater.State, u: app.mossling.do
                     is app.mossling.domain.Updater.State.Ready -> {
                         val canInstall = u?.canInstall() ?: false
                         Button(onClick = { runCatching { ctx.startActivity(if (canInstall) u!!.installIntent(st.file) else u!!.allowInstallIntent()) } },
-                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许苔生安装更新") }
+                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许小苔花安装更新") }
                         Text(if (canInstall) "由系统安装器完成安装，记录不会丢失。" else "Android 需要你允许一次「安装未知应用」，之后回到这里点安装。",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
                     }

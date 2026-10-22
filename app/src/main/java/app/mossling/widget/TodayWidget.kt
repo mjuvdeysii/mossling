@@ -76,7 +76,7 @@ class TodayWidget : GlanceAppWidget() {
         val s = g.settings.settings.first()
         val dao = g.db.dao()
         val age = s.birth?.let { ageOn(it, LocalDate.now()) }
-        val title = listOfNotNull(s.nickname.ifBlank { null }, age?.let { if (it.days > 0) "${it.months} 个月 ${it.days} 天" else "满 ${it.months} 个月" }).joinToString(" · ").ifBlank { "苔生" }
+        val title = listOfNotNull(s.nickname.ifBlank { null }, age?.let { if (it.days > 0) "${it.months} 个月 ${it.days} 天" else "满 ${it.months} 个月" }).joinToString(" · ").ifBlank { "小苔花" }
         val timer = dao.timers().first().firstOrNull()
         val last = buildMap<String, Long> {
             listOf(LogType.Nurse, LogType.Bottle, LogType.Sleep, LogType.Diaper).forEach { t -> dao.lastOf(listOf(t))?.let { put(t, it.end ?: it.start) } }
@@ -106,7 +106,7 @@ class TodayWidget : GlanceAppWidget() {
             when {
                 d.journal && d.timer != null -> Running(context, d.timer, size.width >= Wide.width)
                 d.journal -> Quick(d, size.width >= Wide.width, size.height >= Tall.height, ink, sub, tile)
-                else -> Text(d.play?.let { "今天一起玩：$it" } ?: "苔生", style = TextStyle(fontSize = 14.sp, color = sub),
+                else -> Text(d.play?.let { "今天一起玩：$it" } ?: "小苔花", style = TextStyle(fontSize = 14.sp, color = sub),
                     modifier = GlanceModifier.clickable(actionStartActivity<MainActivity>()))
             }
         }

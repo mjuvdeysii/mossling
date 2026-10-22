@@ -92,15 +92,21 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
     if (ask == Ask.None || ask == Ask.Measure) return
     // most entries are made a little after the fact: say when, in one tap, before saying what
     var ago by remember(ask, type) { mutableIntStateOf(0) }
-    fun at() = System.currentTimeMillis() - ago * 60_000L
+    var exact by remember(ask, type) { mutableStateOf<Long?>(null) }
+    var choosing by remember { mutableStateOf(false) }
+    fun at() = exact ?: (System.currentTimeMillis() - ago * 60_000L)
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text(if (ask == Ask.Side) "什么时候开始的" else "什么时候", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
             FlowRow(Modifier.padding(top = 6.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(0 to "现在", 5 to "5 分钟前", 15 to "15 分钟前", 30 to "半小时前", 60 to "1 小时前").forEach { (v, t) ->
-                    FilterChip(selected = ago == v, onClick = { ago = v }, label = { Text(t) })
+                    FilterChip(selected = exact == null && ago == v, onClick = { ago = v; exact = null }, label = { Text(t) })
                 }
+                FilterChip(selected = exact != null, onClick = { choosing = true },
+                    label = { Text(exact?.let { whenLabel(it) } ?: "选择时间…", fontFamily = if (exact != null) Numerals else null) },
+                    leadingIcon = { Glyph(G.Clock, size = 18.dp) })
             }
+            if (choosing) TimeDialog(if (ask == Ask.Side) "开始时间" else "时间", exact ?: at(), { exact = it }, { choosing = false })
             when (ask) {
                 Ask.Side -> {
                     Text("从哪边开始", style = MaterialTheme.typography.headlineSmall)
@@ -197,7 +203,8 @@ fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modif
             Spacer(Modifier.size(6.dp))
             Text(if (running) "进行中" else k.name, style = MaterialTheme.typography.labelLarge, color = if (running) Color.White else MaterialTheme.colorScheme.onSurface)
             // how long ago this was last done — the question a parent asks before every feed
-            if (!running && since != null) Text(since, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (!running && since != null) Text(since, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 6.dp))
         }
     }
 }
@@ -205,7 +212,7 @@ fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modif
 /** "刚刚", "25 分钟前", "3 小时前" — short enough to sit under a button. */
 fun ago(then: Long, now: Long = System.currentTimeMillis()): String {
     val m = ((now - then) / 60_000).toInt()
-    return when { m < 2 -> "刚刚"; m < 60 -> "$m 分钟前"; m < 48 * 60 -> "${m / 60} 小时前"; else -> "${m / 1440} 天前" }
+    return when { m < 2 -> "刚刚"; m < 60 -> "$m 分钟前"; m < 10 * 60 && m % 60 != 0 -> "${m / 60} 小时 ${m % 60} 分前"; m < 48 * 60 -> "${m / 60} 小时前"; else -> "${m / 1440} 天前" }
 }
 
 /**
@@ -217,15 +224,18 @@ fun ago(then: Long, now: Long = System.currentTimeMillis()): String {
 fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -> Unit, onDismiss: () -> Unit) {
     var cur by remember(e.id, e.start) { mutableStateOf(e) }
     val fresh = e.id == 0L
-    var pickDate by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
-    var pickTime by remember { mutableStateOf<Boolean?>(null) }
+    var pick by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
     ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text((if (fresh) "补记 · " else "") + logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
             if (!fresh) Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
-            WhenRow(if (cur.end != null) "开始" else "时间", cur.start, { pickDate = true }, { pickTime = true }) { d -> val ms = d * 60_000L; cur = cur.copy(start = cur.start + ms, end = cur.end?.let { it + ms }) }
-            if (cur.end != null) WhenRow("结束", cur.end!!, { pickDate = false }, { pickTime = false }) { d -> val n = cur.end!! + d * 60_000L; if (n > cur.start) cur = cur.copy(end = n) }
+            WhenRow(if (cur.end != null) "开始" else "时间", cur.start, { pick = true }) { d -> val ms = d * 60_000L; val n = cur.start + ms
+                if (n <= System.currentTimeMillis()) cur = cur.copy(start = n, end = cur.end?.let { it + ms }) }
+            cur.end?.let { end ->
+                WhenRow("结束", end, { pick = false }) { d -> val n = end + d * 60_000L; if (n > cur.start && n <= System.currentTimeMillis() + 60_000) cur = cur.copy(end = n) }
+                Text("共 " + span(end - cur.start), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
+            }
             when (cur.type) {
                 LogType.Bottle -> {
                     var ml by remember(e.id) { mutableFloatStateOf((cur.amount ?: 120).toFloat()) }
@@ -253,43 +263,27 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
             }
         }
     }
-    val z = java.time.ZoneId.systemDefault()
-    pickDate?.let { forStart ->
-        val base = if (forStart) cur.start else cur.end!!
-        val st = rememberDatePickerState(initialSelectedDateMillis = java.time.Instant.ofEpochMilli(base).atZone(z).toLocalDate().atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
-            selectableDates = object : SelectableDates { override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= System.currentTimeMillis() })
-        DatePickerDialog(onDismissRequest = { pickDate = null }, confirmButton = { TextButton(onClick = {
-            st.selectedDateMillis?.let { d ->
-                val day = java.time.Instant.ofEpochMilli(d).atZone(java.time.ZoneOffset.UTC).toLocalDate()
-                val t = java.time.Instant.ofEpochMilli(base).atZone(z)
-                val n = day.atTime(t.toLocalTime()).atZone(z).toInstant().toEpochMilli(); val delta = n - base
-                cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + delta }) else cur.copy(end = n.coerceAtLeast(cur.start + 60_000))
-            }; pickDate = null }) { Text("好") } }, dismissButton = { TextButton(onClick = { pickDate = null }) { Text("取消") } }) { DatePicker(st) }
-    }
-    pickTime?.let { forStart ->
-        val base = if (forStart) cur.start else cur.end!!
-        val t0 = java.time.Instant.ofEpochMilli(base).atZone(z)
-        val st = rememberTimePickerState(t0.hour, t0.minute, is24Hour = true)
-        AlertDialog(onDismissRequest = { pickTime = null }, confirmButton = { TextButton(onClick = {
-            val n = t0.withHour(st.hour).withMinute(st.minute).toInstant().toEpochMilli(); val delta = n - base
-            cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + delta }) else cur.copy(end = if (n > cur.start) n else n + 86_400_000)
-            pickTime = null }) { Text("好") } }, dismissButton = { TextButton(onClick = { pickTime = null }) { Text("取消") } }, text = { TimePicker(st) })
+    pick?.let { forStart ->
+        TimeDialog(if (forStart) (if (cur.end != null) "开始时间" else "时间") else "结束时间", if (forStart) cur.start else cur.end!!, { n ->
+            cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + (n - cur.start) }) else cur.copy(end = n)
+        }, { pick = null }, notBefore = if (forStart) null else cur.start)
     }
 }
 
+/** "1 小时 05 分", "25 分钟". */
+fun span(ms: Long): String { val m = (ms / 60_000).coerceAtLeast(0); return if (m >= 60) "${m / 60} 小时 ${"%02d".format(m % 60)} 分" else "$m 分钟" }
+
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun WhenRow(label: String, at: Long, onDate: () -> Unit, onTime: () -> Unit, step: (Int) -> Unit) {
-    Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(top = 8.dp))
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        val z = java.time.ZoneId.systemDefault(); val d = java.time.Instant.ofEpochMilli(at).atZone(z).toLocalDate(); val today = java.time.LocalDate.now()
-        TextButton(onClick = onDate, contentPadding = PaddingValues(horizontal = 4.dp)) {
-            Text(when (d) { today -> "今天"; today.minusDays(1) -> "昨天"; else -> "${d.monthValue}月${d.dayOfMonth}日" }, style = MaterialTheme.typography.titleMedium)
+private fun WhenRow(label: String, at: Long, onPick: () -> Unit, step: (Int) -> Unit) {
+    Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
+    // the whole day and time on one tonal button; the nudges wrap to the next line when space is short
+    androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+        FilledTonalButton(onClick = onPick, shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), modifier = Modifier.heightIn(min = 52.dp)) {
+            Text(whenLabel(at), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, softWrap = false)
         }
-        TextButton(onClick = onTime, contentPadding = PaddingValues(horizontal = 4.dp)) {
-            Text(app.mossling.ui.components.hm(at), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium)
-        }
-        Spacer(Modifier.weight(1f))
-        listOf(-5, 5).forEach { s -> FilterChip(selected = false, onClick = { step(s) }, label = { Text(if (s > 0) "+$s" else "$s") }) }
+        listOf(-5, -1, 1, 5).forEach { s -> FilterChip(selected = false, onClick = { step(s) }, label = { Text(if (s > 0) "+$s 分" else "$s 分") }) }
     }
 }
 

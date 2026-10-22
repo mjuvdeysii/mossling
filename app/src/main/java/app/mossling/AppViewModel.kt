@@ -112,7 +112,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }.isSuccess
         done(if (ok) (if (csv) "表格已导出" else "记录文件已导出") else "没有导出成功，请换一个保存位置再试")
     }
-    fun exportName(csv: Boolean) = "苔生记录-" + g.exporter.fileStamp() + if (csv) ".csv" else ".json"
+    fun exportName(csv: Boolean) = "小苔花记录-" + g.exporter.fileStamp() + if (csv) ".csv" else ".json"
 
     /** Removes every record and setting on this phone. */
     fun clearAll(done: () -> Unit) = viewModelScope.launch {
@@ -145,7 +145,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 if (r.birth) "出生日期" else null,
                 if (r.skipped > 0) "${r.skipped} 条已有，跳过" else null,
             ).joinToString("、")
-        }.getOrElse { if (it is app.mossling.data.Importer.NotOurFile) "这不是苔生导出的记录文件" else "没有导入成功，文件可能已损坏" }
+        }.getOrElse { if (it is app.mossling.data.Importer.NotOurFile) "这不是小苔花导出的记录文件" else "没有导入成功，文件可能已损坏" }
         done(msg)
     }
 

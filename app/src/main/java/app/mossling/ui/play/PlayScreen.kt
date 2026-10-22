@@ -75,7 +75,7 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                         Text(p.name, style = MaterialTheme.typography.headlineLarge)
                         Text(listOf(p.age, p.domains.joinToString("、")).filter { it.isNotBlank() }.joinToString(" · "), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                     }
-                    Creature(companion, Modifier.size(88.dp), mood = if (did) Mood.Happy else Mood.Open, look = Offset(-0.7f, 0.6f))
+                    app.mossling.ui.ip.Duo(companion, size = 76.dp, mood = if (did) Mood.Happy else Mood.Open, look = Offset(-0.7f, 0.6f))
                 }
             }
             item("before") {
@@ -128,7 +128,7 @@ private fun share(ctx: android.content.Context, p: Play) {
         if (p.safety.isNotBlank()) append("安全：").append(p.safety).append('\n')
         p.steps.forEachIndexed { i, s -> append(i + 1).append(". ").append(s).append('\n') }
         if (p.observe.isNotBlank()) append("看什么：").append(p.observe).append('\n')
-        append("— 来自 Mossling 苔生")
+        append("— 来自 小苔花 Mossling")
     }
     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text)
     runCatching { ctx.startActivity(android.content.Intent.createChooser(send, "分享 ${p.name}")) }

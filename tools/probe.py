@@ -67,7 +67,7 @@ steps = [
     ("map", lambda: tap("成长地图") and (back() or True)),
     ("shelf", lambda: tap("本周的架子") and (back() or True)),
     ("you tab", lambda: tap("我的")),
-    ("about", lambda: (scroll_up() or scroll_up() or True) and tap("关于苔生") and (back() or True)),
+    ("about", lambda: (scroll_up() or scroll_up() or True) and tap("关于小苔花") and (back() or True)),
 ]
 mode = sys.argv[1] if len(sys.argv) > 1 else "full"
 if mode == "old":

@@ -117,7 +117,7 @@ class ScreensTest {
             Row(Modifier.fillMaxSize().background(app.mossling.ui.theme.Palette.Chalk).padding(horizontal = 64.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     androidx.compose.material3.Text("Mossling", fontFamily = app.mossling.ui.theme.Numerals, style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep, softWrap = false, maxLines = 1)
-                    androidx.compose.material3.Text("苔生 · 跟着孩子，一个月一站", style = MaterialTheme.typography.headlineSmall, color = app.mossling.ui.theme.Palette.Ink)
+                    androidx.compose.material3.Text("小苔花 · 跟着孩子，一个月一站", style = MaterialTheme.typography.headlineSmall, color = app.mossling.ui.theme.Palette.Ink)
                     Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         repeat(17) { Box(Modifier.size(12.dp).background(if (it == 16) app.mossling.ui.theme.Palette.Bead else app.mossling.ui.theme.Palette.Moss, androidx.compose.foundation.shape.CircleShape)) }
                         repeat(8) { Box(Modifier.size(12.dp).background(app.mossling.ui.theme.Palette.Stone, androidx.compose.foundation.shape.CircleShape)) }
@@ -167,4 +167,24 @@ class ScreensTest {
             app.mossling.ui.ip.Family.entries.forEach { app.mossling.ui.ip.MaterialStill(it, Modifier.size(200.dp, 125.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh) }
         }
     }
+    @Test fun icon() = shot("32_icon") {
+        Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                Box(Modifier.size(160.dp).background(androidx.compose.ui.graphics.Color(0xFFF4F2EC), androidx.compose.foundation.shape.CircleShape)) {
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_background), null, Modifier.fillMaxSize())
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_foreground), null, Modifier.fillMaxSize())
+                }
+                Box(Modifier.size(160.dp).background(androidx.compose.ui.graphics.Color(0xFF34553A), androidx.compose.foundation.shape.CircleShape)) {
+                    androidx.compose.foundation.Image(androidx.compose.ui.res.painterResource(R.drawable.ic_launcher_monochrome), null, Modifier.fillMaxSize())
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                app.mossling.ui.ip.Duo(Kind.Moss, size = 120.dp)
+                app.mossling.ui.ip.Duo(Kind.Otto, size = 120.dp)
+            }
+            app.mossling.ui.ip.Duo(Kind.Moss, size = 120.dp, mood = Mood.Sleep)
+        }
+    }
+    @Test fun timeDialog() = shot("33_time_dialog") { app.mossling.ui.journal.TimeDialog("开始时间", at(16, 10), {}, {}) }
+    @Test fun entrySheet() = shot("34_entry_nurse") { app.mossling.ui.journal.EntrySheet(logs[2], {}, {}, {}) }
 }

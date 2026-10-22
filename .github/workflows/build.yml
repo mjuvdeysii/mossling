@@ -1,6 +1,6 @@
 name: Build
 # Unit tests, Paparazzi screenshots of every screen, and a signed release APK.
-# Every push to main publishes the prerelease "preview"; a tag v* publishes that version as a release.
+# A push to main whose VERSION has no release yet publishes that version; other pushes only build and test.
 on:
   push:
     branches: [main]
@@ -29,7 +29,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           # VERSION holds the next version. On main, if no release v<VERSION> exists yet, this build becomes that release;
-          # otherwise it is a preview. Bump VERSION (and RELEASE_NOTES.md) to release the next one.
+          # otherwise it is only built and tested. Bump VERSION (and RELEASE_NOTES.md) to release the next one.
           base=$(cat VERSION); release=0
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then name="${GITHUB_REF#refs/tags/v}"; release=1
           elif [[ "$GITHUB_REF" == refs/heads/main ]] && ! gh release view "v$base" >/dev/null 2>&1; then name="$base"; release=1
@@ -73,16 +73,20 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           notes="RELEASE_NOTES.md"; [ -f "$notes" ] || notes=/dev/null
-          gh release create "v${VERSION_NAME}" "mossling-${VERSION_NAME}.apk" --target "${GITHUB_SHA}" --title "Mossling 苔生 ${VERSION_NAME}" --notes-file "$notes"
-      - name: Preview release
-        if: success() && github.ref == 'refs/heads/main' && env.RELEASE != '1'
+          gh release create "v${VERSION_NAME}" "mossling-${VERSION_NAME}.apk" --target "${GITHUB_SHA}" --title "小苔花 Mossling ${VERSION_NAME}" --notes-file "$notes" --latest
+      - name: Keep only the current release
+        # 1.0 starts the record: every other release and tag (earlier versions, previews) is removed.
+        if: success() && env.RELEASE == '1'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release delete preview --yes --cleanup-tag 2>/dev/null || true
-          gh release create preview "mossling-${VERSION_NAME}.apk" --prerelease --target "${GITHUB_SHA}" \
-            --title "Mossling 苔生 预览 ${VERSION_NAME}" --notes "main 分支最新一次构建。正式版本见带 v 的发布。"
+          gh release list --limit 200 --json tagName -q '.[].tagName' | while read -r t; do
+            [ "$t" = "v${VERSION_NAME}" ] || gh release delete "$t" --yes --cleanup-tag || true
+          done
+          gh api "repos/${GITHUB_REPOSITORY}/tags" --paginate -q '.[].name' | while read -r t; do
+            [ "$t" = "v${VERSION_NAME}" ] || gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/tags/$t" || true
+          done
       - name: Publish screenshots to the screens branch (for review)
         if: always()
         continue-on-error: true

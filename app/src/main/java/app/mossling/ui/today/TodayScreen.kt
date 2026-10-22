@@ -176,11 +176,10 @@ private fun Hero(ui: AppUi, companion: Kind, a: TodayActions, since: String? = n
             // it reads the room: asleep while the baby sleeps or late at night, eyes down on a feed, otherwise on the board
             val sleeping = ui.timers.any { it.type == app.mossling.data.LogType.Sleep && it.pausedAt == null }
             val feeding = ui.timers.any { it.type == app.mossling.data.LogType.Nurse && it.pausedAt == null }
-            Creature(companion, Modifier.size(124.dp),
+            app.mossling.ui.ip.Duo(companion, size = 100.dp,
                 mood = if (night || sleeping) Mood.Sleep else Mood.Open,
                 look = if (feeding) Offset(-0.3f, 0.95f) else Offset(-0.85f, 0.25f),
-                lid = if (feeding) 0.42f else null,
-                label = if (companion == Kind.Moss) "Moss" else "Otto", poke = true)
+                lid = if (feeding) 0.42f else null, together = !feeding)
         }
     }
 }

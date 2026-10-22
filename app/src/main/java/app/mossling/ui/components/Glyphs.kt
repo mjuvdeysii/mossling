@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /** The app's own small pictograms, drawn on a 24 × 24 grid with a 1.8 stroke: no stock icon set. */
-enum class G { Today, Grow, Journal, You, Nurse, Bottle, Sleep, Diaper, Solid, Bath, Note, Play, Bead, Check, Plus, Close, Back, Clock, Sun, Moon, Thermo, Pill, Ruler, Search, Share, Chart, Download, Shield, Idea, Eye, Hand, Gear, Speech, Walk, Heart, Home }
+enum class G { Today, Grow, Journal, You, Nurse, Bottle, Sleep, Diaper, Solid, Bath, Note, Play, Bead, Check, Plus, Close, Back, Clock, Sun, Moon, Thermo, Pill, Ruler, Search, Share, Chart, Download, Shield, Idea, Eye, Hand, Gear, Speech, Walk, Heart, Home, Scale, Head }
 
 @Composable
 fun Glyph(g: G, modifier: Modifier = Modifier, size: Dp = 24.dp, color: Color = LocalContentColor.current, filled: Boolean = false) {
@@ -79,6 +79,17 @@ private fun DrawScope.drawGlyph(g: G, c: Color, filled: Boolean) {
         G.Clock -> { drawCircle(c, 8.5f, Offset(12f, 12f), style = st); drawPath(path { moveTo(12f, 7.5f); lineTo(12f, 12f); lineTo(15f, 14f) }, c, style = st) }
         G.Thermo -> { drawRoundRect(c, Offset(10f, 3f), Size(4f, 12.5f), CornerRadius(2f), style = st); drawCircle(c, 3.6f, Offset(12f, 17.6f), style = if (filled) androidx.compose.ui.graphics.drawscope.Fill else st); drawLine(c, Offset(12f, 9f), Offset(12f, 16f), 1.8f, StrokeCap.Round) }
         G.Pill -> { withTransform({ rotate(-40f, Offset(12f, 12f)) }) { drawRoundRect(c, Offset(4.5f, 8.5f), Size(15f, 7f), CornerRadius(3.5f), style = st); drawLine(c, Offset(12f, 8.5f), Offset(12f, 15.5f), 1.8f) } }
+        G.Scale -> { // a baby scale: the cradle tray on a base with its dial
+            drawPath(path { moveTo(3.5f, 8f); cubicTo(5f, 12f, 8f, 13.5f, 12f, 13.5f); cubicTo(16f, 13.5f, 19f, 12f, 20.5f, 8f); close() }, c, style = if (filled) androidx.compose.ui.graphics.drawscope.Fill else st)
+            drawLine(c, Offset(12f, 13.5f), Offset(12f, 15.5f), 1.8f, StrokeCap.Round)
+            drawRoundRect(c, Offset(5f, 15.5f), Size(14f, 5f), CornerRadius(2f), style = st)
+            drawCircle(c, 1.1f, Offset(12f, 18f))
+        }
+        G.Head -> { // a round head with the measuring tape across the brow
+            drawCircle(c, 8f, Offset(12f, 12.5f), style = if (filled) androidx.compose.ui.graphics.drawscope.Fill else st)
+            drawPath(path { moveTo(3.6f, 11f); cubicTo(8f, 13.4f, 16f, 13.4f, 20.4f, 11f) }, if (filled) Color.White.copy(alpha = 0.9f) else c, style = Stroke(2.4f, cap = StrokeCap.Round))
+            listOf(8f, 12f, 16f).forEach { x -> drawLine(if (filled) Color.White.copy(alpha = 0.9f) else c, Offset(x, 12.6f), Offset(x, 14.6f), 1.2f, StrokeCap.Round) }
+        }
         G.Ruler -> { drawRoundRect(c, Offset(3f, 8f), Size(18f, 8f), CornerRadius(1.5f), style = st); for (i in 0..4) drawLine(c, Offset(6f + i * 3f, 8f), Offset(6f + i * 3f, if (i % 2 == 0) 12.5f else 11f), 1.5f, StrokeCap.Round) }
         G.Search -> { drawCircle(c, 6f, Offset(10.5f, 10.5f), style = st); drawLine(c, Offset(15f, 15f), Offset(20f, 20f), 2f, StrokeCap.Round) }
         G.Share -> { drawPath(path { moveTo(12f, 4f); lineTo(12f, 15f) }, c, style = st); drawPath(path { moveTo(8f, 8f); lineTo(12f, 4f); lineTo(16f, 8f) }, c, style = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)); drawPath(path { moveTo(6f, 12f); lineTo(6f, 19f); lineTo(18f, 19f); lineTo(18f, 12f) }, c, style = Stroke(1.8f, cap = StrokeCap.Round, join = StrokeJoin.Round)) }

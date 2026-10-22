@@ -19,6 +19,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -55,11 +56,17 @@ fun TimerCard(t: RunningTimer, a: TimerActions, modifier: Modifier = Modifier, n
     val paused = t.pausedAt != null
     Surface(shape = RoundedCornerShape(32.dp), color = if (paused) k.tint.copy(alpha = 0.72f) else k.tint, contentColor = Color.White, modifier = modifier.fillMaxWidth()) {
         Column(Modifier.padding(20.dp)) {
+            var picking by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Glyph(k.glyph, size = 22.dp, color = Color.White, filled = true)
-                Text("  " + k.name + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" }, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                Text((if (paused) "暂停中 · " else "") + hm(t.start) + " 开始", style = MaterialTheme.typography.labelLarge)
+                Text("  " + k.name + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" } + if (paused) " · 暂停中" else "",
+                    style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
+            // the start, exact to the minute; tap to set it precisely
+            Surface(onClick = { picking = true }, shape = RoundedCornerShape(12.dp), color = Color.White.copy(alpha = 0.16f), contentColor = Color.White, modifier = Modifier.padding(top = 8.dp)) {
+                Text(whenLabel(t.start) + " 开始", fontFamily = Numerals, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp))
+            }
+            if (picking) TimeDialog("开始时间", t.start, { n -> a.shift(t.type, n - t.start) }, { picking = false })
             Text(clock(Timers.elapsed(t, tick)), fontFamily = Numerals, style = MaterialTheme.typography.displayMedium, modifier = Modifier.padding(vertical = 6.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { a.stop(t.type) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = k.tint), modifier = Modifier.heightIn(min = 48.dp)) { Text("结束并记下") }

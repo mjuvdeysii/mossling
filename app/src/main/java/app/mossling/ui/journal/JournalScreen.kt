@@ -177,9 +177,9 @@ private fun Entry(e: LogEntry, first: Boolean = false, last: Boolean = false, on
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(k.name, style = MaterialTheme.typography.titleMedium)
-                val d = describe(e); if (d.isNotBlank()) Text(d, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val d = listOfNotNull(e.end?.let { "${hm(e.start)}–${hm(it)}" }, describe(e).ifBlank { null }).joinToString(" · ")
+                if (d.isNotBlank()) Text(d, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (e.end != null) Text(hm(e.end), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
