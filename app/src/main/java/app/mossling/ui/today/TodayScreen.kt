@@ -138,7 +138,6 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
             }
         }
         if (age != null) item(key = "next") { NextCare(ui, m, a) }
-        if (age != null) item(key = "month") { ThisMonth(month, onOpen = { a.openMonth(m) }) }
     }
 }
 
@@ -295,23 +294,6 @@ private fun NextCare(ui: AppUi, m: Int, a: TodayActions) {
     }
 }
 
-/** One way into the month: its cover and title. The month's points themselves live on the month page only. */
-@Composable
-private fun ThisMonth(month: Month, onOpen: () -> Unit) {
-    val ctx = androidx.compose.ui.platform.LocalContext.current
-    Surface(onClick = onOpen, shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp)) {
-        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.runtime.remember(month.month) { app.mossling.ui.components.ArtIndex.cover(ctx, month.month) }?.let { f ->
-                app.mossling.ui.components.Art(f, "", Modifier.width(112.dp).clip(RoundedCornerShape(20.dp)))
-            }
-            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                Text("满 ${month.month} 个月", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text(month.title, style = MaterialTheme.typography.titleMedium)
-                Text("打开这个月 →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-            }
-        }
-    }
-}
 
 /** "上次喂奶 2 小时 10 分前 · 醒了 1 小时 5 分" — only what is known, nothing when nothing was logged today or yesterday. */
 private fun since(ui: AppUi, now: Long): String? {
@@ -323,29 +305,29 @@ private fun since(ui: AppUi, now: Long): String? {
     return listOfNotNull(feed, awake).joinToString(" · ").ifBlank { null }
 }
 
-/** Two ways in: the whole road (the growth map) and this week's shelf (the plan). */
+/** This week's shelf, as the shelf itself: the materials on a wooden board. The plan is made here, not in Grow. */
 @Composable
 private fun Ways(ui: AppUi, m: Int, a: TodayActions) {
     val c = ui.content ?: return
     val (shelf, stale) = app.mossling.domain.Shelf.current(c, m, ui.settings.shelf, ui.today)
-    Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Surface(onClick = a.openMap, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
-            Column(Modifier.padding(14.dp)) {
-                Text("成长地图", style = MaterialTheme.typography.titleMedium)
-                Text("已走过 $m / 36 个月", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                // the road so far, as a bead chain of 37
-                androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(14.dp).padding(top = 6.dp)) {
-                    val n = 37; val gap = size.width / n; val r = (gap * 0.36f).coerceAtMost(size.height / 2)
-                    for (i in 0 until n) drawCircle(if (i < m) app.mossling.ui.theme.Palette.Bead else if (i == m) app.mossling.ui.theme.Palette.Moss else app.mossling.ui.theme.Palette.Stone, if (i == m) r * 1.4f else r, androidx.compose.ui.geometry.Offset(gap * (i + 0.5f), size.height / 2))
+    Surface(onClick = a.openPlan, shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp)) {
+        Column(Modifier.padding(14.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("本周的架子", style = MaterialTheme.typography.titleMedium)
+                    Text(if (stale) "新的一周，可以轮换了" else "${shelf.size} 件教具，孩子想做几遍就做几遍", style = MaterialTheme.typography.bodySmall, color = if (stale) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+                Text("安排 →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
             }
-        }
-        Surface(onClick = a.openPlan, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
-            Column(Modifier.padding(14.dp)) {
-                Text("本周的架子", style = MaterialTheme.typography.titleMedium)
-                Text(if (stale) "新的一周，可以轮换了" else "${shelf.size} 件教具 · 蒙氏轮换", style = MaterialTheme.typography.labelMedium, color = if (stale) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurfaceVariant)
-                Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    shelf.take(4).forEach { p -> app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.width(34.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh) }
+            app.mossling.ui.components.Shelf(Modifier.fillMaxWidth().padding(top = 10.dp)) {
+                Row(Modifier.padding(horizontal = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    shelf.take(4).forEach { p ->
+                        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                            app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.fillMaxWidth(), ground = MaterialTheme.colorScheme.surfaceContainerHigh)
+                            Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                    repeat(4 - shelf.size.coerceAtMost(4)) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }

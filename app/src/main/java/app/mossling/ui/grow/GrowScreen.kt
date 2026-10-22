@@ -1,5 +1,11 @@
 package app.mossling.ui.grow
 
+import app.mossling.ui.components.Glyph
+import app.mossling.ui.components.G
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.IconButton
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.platform.testTag
 import androidx.compose.animation.AnimatedContent
@@ -71,72 +77,69 @@ data class GrowActions(
     val openGrowth: () -> Unit = {},
 )
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+/**
+ * Browsing the months. Its own job only: the month's picture and title, the chain to move between months, then
+ * what the month holds. The child's age, the companion and the week's shelf belong to Today and are not repeated here.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modifier) {
     val c = ui.content ?: return
     val baby = ui.babyMonth
     val companion = LocalCompanion.current
-    Column(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp)) {
-            Row(Modifier.padding(horizontal = 20.dp), verticalAlignment = Alignment.CenterVertically) {
-                AnimatedContent(month, transitionSpec = {
-                    val dir = if (targetState > initialState) 1 else -1
-                    (slideInHorizontally(tween(220)) { dir * it / 3 } + fadeIn(tween(220))) togetherWith (slideOutHorizontally(tween(180)) { -dir * it / 3 } + fadeOut(tween(160)))
-                }, label = "month", modifier = Modifier.weight(1f)) { m ->
-                    Column {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            SandpaperNumber("$m", MaterialTheme.typography.displayMedium)
-                            Text("  个月", style = MaterialTheme.typography.titleLarge)
-                        }
-                        Text(c.month(m).title, style = MaterialTheme.typography.titleMedium)
-                    }
-                }
-                val look = when { baby == null -> Offset.Zero; month < baby -> Offset(-0.9f, 0.1f); month > baby -> Offset(0.9f, 0.1f); else -> Offset(0f, 0.6f) }
-                Box(contentAlignment = Alignment.Center) {
-                    Creature(companion, Modifier.size(72.dp), look = look)
-                }
-            }
-            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (baby != null) {
-                    val text = when { month == baby -> "宝宝现在在这里"; month < baby -> "以前的月份"; else -> "以后的月份" }
-                    AssistChip(onClick = { a.select(baby) }, label = { Text(if (month == baby) text else "回到满 $baby 个月") })
-                }
-                AssistChip(onClick = a.openMap, label = { Text("成长地图") })
-                AssistChip(onClick = a.openPlan, label = { Text("本周的架子") })
-                AssistChip(onClick = a.openGrowth, label = { Text("生长曲线") })
-            }
-            BeadChain(month, baby, a.select)
-        }
-        key(month) {
-            MonthBody(ui, c.month(month), month, a, companion) { c.play(it) }
-        }
-    }
-}
-
-@Composable
-private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: Kind, play: (String) -> Play?) {
+    val mo = c.month(month)
+    val m = month
+    val play: (String) -> Play? = { c.play(it) }
     val list = rememberLazyListState()
-    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = Modifier.fillMaxSize().testTag("grow")) {
+    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = modifier.fillMaxSize().testTag("grow")) {
         item("cover") {
             val ctx = androidx.compose.ui.platform.LocalContext.current
-            androidx.compose.runtime.remember(m) { app.mossling.ui.components.ArtIndex.cover(ctx, m) }?.let { f ->
-                app.mossling.ui.components.Art(f, "满 $m 个月：${mo.title}", Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 4.dp).clip(RoundedCornerShape(28.dp)))
+            AnimatedContent(month, transitionSpec = {
+                val dir = if (targetState > initialState) 1 else -1
+                (slideInHorizontally(tween(240)) { dir * it / 4 } + fadeIn(tween(240))) togetherWith (slideOutHorizontally(tween(200)) { -dir * it / 4 } + fadeOut(tween(160)))
+            }, label = "month", modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp)) { mm ->
+                Column(Modifier.padding(horizontal = 16.dp)) {
+                    androidx.compose.runtime.remember(mm) { app.mossling.ui.components.ArtIndex.cover(ctx, mm) }?.let { f ->
+                        app.mossling.ui.components.Art(f, "满 $mm 个月：${c.month(mm).title}", Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)))
+                    }
+                    Row(Modifier.padding(top = 12.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
+                        Text("$mm", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
+                        Text(" 个月", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 6.dp))
+                        if (baby != null && mm != baby) Text(if (mm < baby) " · 以前的月份" else " · 以后的月份", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+                    }
+                    Text(c.month(mm).title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+                }
             }
+        }
+        // the chain stays at the top while the month is read
+        stickyHeader("chain") {
+            Surface(color = MaterialTheme.colorScheme.background) {
+                Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    BeadChain(month, baby, a.select, Modifier.weight(1f))
+                    IconButton(onClick = a.openMap, modifier = Modifier.semantics { contentDescription = "成长地图" }) { Glyph(G.Walk, size = 22.dp) }
+                }
+            }
+        }
+        if (baby != null && month != baby) item("back") {
+            TextButton(onClick = { a.select(baby) }, modifier = Modifier.padding(start = 12.dp)) { Text("回到满 $baby 个月") }
         }
         item("hi") {
             // the month at a glance: each point as its own card, label above the words, nothing cut short
             Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                mo.highlights.forEachIndexed { i, h ->
-                    val (bg, fg) = when (i % 3) {
+                // a point that only names a play is already on the shelf below, so it is not said twice
+                mo.highlights.filter { h -> c.play(h.anchor ?: "") == null }.forEachIndexed { i, h ->
+                    val (bg, fg) = when (i % 2) {
                         0 -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-                        1 -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
                         else -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
                     }
-                    Surface(shape = RoundedCornerShape(22.dp), color = bg, contentColor = fg, modifier = Modifier.fillMaxWidth()) {
-                        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
-                            Text(h.kind, style = MaterialTheme.typography.labelLarge)
-                            Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
+                    Surface(shape = RoundedCornerShape(24.dp), color = bg, contentColor = fg, modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
+                            app.mossling.ui.components.ShapeBadge(if (i % 2 == 0) G.Eye else G.Shield, fg.copy(alpha = 0.12f), fg,
+                                shape = if (i % 2 == 0) app.mossling.ui.components.Shapes.Cookie else app.mossling.ui.components.Shapes.Gem, size = 40.dp)
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(h.kind, style = MaterialTheme.typography.labelLarge)
+                                Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
+                            }
                         }
                     }
                 }
@@ -198,15 +201,46 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 mo.notes.forEach { n ->
                     Plate(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Text(n.topic, style = MaterialTheme.typography.titleSmall)
-                        Text(n.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
+                        Row(verticalAlignment = Alignment.Top) {
+                            app.mossling.ui.components.ShapeBadge(G.Idea, app.mossling.ui.theme.Palette.Bead.copy(alpha = 0.16f), MaterialTheme.colorScheme.tertiary, shape = app.mossling.ui.components.Shapes.of(n.topic), size = 40.dp)
+                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                                Text(n.topic, style = MaterialTheme.typography.titleSmall)
+                                Text(n.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
+                            }
+                        }
                     }
                 }
             }
         }
         if (mo.who.isNotBlank()) item("who") {
             SectionTitle("一天的节奏", kicker = "睡眠、活动与屏幕")
-            Text(mo.who, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(horizontal = 20.dp))
+            // one tile per part of the day, each with its own picture
+            val parts = mo.who.removePrefix("WHO").split('；', ';').map { it.trim().trimEnd('。') }.filter { it.isNotBlank() }
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                parts.forEach { t ->
+                    val (g, col) = when {
+                        "睡" in t -> G.Moon to app.mossling.ui.theme.Palette.Rod
+                        "屏幕" in t -> G.Eye to app.mossling.ui.theme.Palette.RedRod
+                        "活动" in t || "趴" in t || "坐" in t || "久" in t -> G.Walk to app.mossling.ui.theme.Palette.Moss
+                        else -> G.Clock to app.mossling.ui.theme.Palette.Bead
+                    }
+                    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            app.mossling.ui.components.ShapeBadge(g, col.copy(alpha = 0.14f), col, shape = app.mossling.ui.components.Shapes.Flower, size = 40.dp)
+                            Text(t, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
+                        }
+                    }
+                }
+                Surface(onClick = a.openGrowth, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
+                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        app.mossling.ui.components.ShapeBadge(G.Ruler, MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f), MaterialTheme.colorScheme.onSecondaryContainer, shape = app.mossling.ui.components.Shapes.Clover, size = 40.dp)
+                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                            Text("生长曲线", style = MaterialTheme.typography.titleSmall)
+                            Text("体重、身长、头围对照世界卫生组织标准", style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
+                }
+            }
         }
     }
 }
