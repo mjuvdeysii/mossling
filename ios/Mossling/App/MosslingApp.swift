@@ -40,7 +40,7 @@ struct RootView: View {
             } else {
                 // the system tab bar (Liquid Glass): it shrinks while reading; search is its own tab; a running feed or
                 // sleep rides above it on every tab
-                tabs.timerAccessory(journal.timers.first)
+                tabs
             }
             if app.lock && locked { LockView { unlock() } }
         }
@@ -52,7 +52,18 @@ struct RootView: View {
         .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
 
-    private var tabs: some View {
+    /// A running feed or sleep rides above the tab bar on every tab (the accessory shows only while one runs).
+    @ViewBuilder private var tabs: some View {
+        if #available(iOS 26.2, *) {
+            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
+                if let t = journal.timers.first { TimerAccessory(timer: t) }
+            }
+        } else {
+            tabView
+        }
+    }
+
+    private var tabView: some View {
         TabView(selection: $tab) {
             Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
@@ -179,19 +190,3 @@ struct OnboardingView: View {
 }
 
 private struct DocName: Identifiable { let id: String }
-
-/// The running timer above the tab bar. The accessory is attached only while a timer runs, so no empty bar shows.
-private struct TimerAccessoryModifier: ViewModifier {
-    let timer: RunningTimer?
-    @ViewBuilder func body(content: Content) -> some View {
-        if let timer {
-            content.tabViewBottomAccessory { TimerAccessory(timer: timer) }
-        } else {
-            content
-        }
-    }
-}
-
-extension View {
-    func timerAccessory(_ t: RunningTimer?) -> some View { modifier(TimerAccessoryModifier(timer: t)) }
-}
