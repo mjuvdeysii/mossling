@@ -55,7 +55,7 @@ enum Shapes {
     /// The string of golden beads Otto wears, as points along a gentle curve.
     static let beadStrand: [CGPoint] = (0..<6).map { i in
         let t = Double(i) / 5
-        return CGPoint(x: 30.5 + 41 * t, y: 62 + 9 * t + 6 * t * (1 - t))
+        return CGPoint(x: 32 + 37 * t, y: 62 + 9 * t + 6 * t * (1 - t))
     }
     /// A mint leaf of length `l` pointing along +x from the origin.
     static func leaf(_ l: CGFloat, _ w: CGFloat) -> Path {

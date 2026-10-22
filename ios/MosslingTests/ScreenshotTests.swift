@@ -54,7 +54,7 @@ final class ScreenshotTests: XCTestCase {
         NavigationStack { tab }.environment(m).environment(journal).tint(Palette.primary)
     }
 
-    func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m)) }
+    func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.primary)) }
     func test02Today() { let m = model(); shot("02_today", tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }

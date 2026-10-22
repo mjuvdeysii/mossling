@@ -174,11 +174,17 @@ struct Creature: View {
         glow(&ctx, CGRect(x: 50 - rx * 0.86, y: 86.2, width: rx * 1.72, height: 5), Color.black.opacity(dark ? 0.5 : 0.2), hold: 0.3)
     }
 
+    /// The body's colour: lit through from the upper left, gathering low inside, deepening toward the thick edges.
+    private static func shade(_ p: Path, _ tone: Tone) -> GraphicsContext.Shading {
+        let r = p.boundingRect
+        return .radialGradient(Gradient(stops: [.init(color: tone.light, location: 0), .init(color: tone.base, location: 0.52), .init(color: tone.deep, location: 1)]),
+                               center: CGPoint(x: r.minX + r.width * 0.56, y: r.minY + r.height * 0.64), startRadius: 0, endRadius: max(r.width, r.height) * 0.68)
+    }
+
     /// A glass body.
     private func glass(_ ctx: inout GraphicsContext, _ p: Path, _ tone: Tone) {
         let r = p.boundingRect
-        ctx.fill(p, with: .radialGradient(Gradient(stops: [.init(color: tone.light, location: 0), .init(color: tone.base, location: 0.52), .init(color: tone.deep, location: 1)]),
-                                          center: CGPoint(x: r.minX + r.width * 0.56, y: r.minY + r.height * 0.64), startRadius: 0, endRadius: max(r.width, r.height) * 0.68))
+        ctx.fill(p, with: Self.shade(p, tone))
         var c = ctx
         c.clip(to: p)
         // the thick edge absorbs more light
@@ -226,9 +232,10 @@ struct Creature: View {
     }
 
     /// A glass eye: a white dome set into the body.
-    private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ tone: Tone) {
+    private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ tone: Tone, _ bodyPath: Path) {
         if mood == .sleep {
-            var p = Path(); p.move(to: CGPoint(x: cx - rx, y: cy)); p.addQuadCurve(to: CGPoint(x: cx + rx, y: cy), control: CGPoint(x: cx, y: cy + ry * 0.9))
+            let w = min(rx, 8)
+            var p = Path(); p.move(to: CGPoint(x: cx - w, y: cy)); p.addQuadCurve(to: CGPoint(x: cx + w, y: cy), control: CGPoint(x: cx, y: cy + w * 0.8))
             ctx.stroke(p, with: .color(Palette.ink), style: StrokeStyle(lineWidth: max(1.6, ry * 0.3), lineCap: .round)); return
         }
         let r = CGRect(x: cx - rx, y: cy - ry, width: rx * 2, height: ry * 2)
@@ -246,17 +253,20 @@ struct Creature: View {
         c.fill(Path(ellipseIn: CGRect(x: px + pr * 0.25, y: py + pr * 0.25, width: pr * 0.26, height: pr * 0.26)), with: .color(.white.opacity(0.6)))
         // the dome's own reflection
         glow(&c, CGRect(x: cx - rx * 0.75, y: cy - ry * 1.05, width: rx * 1.3, height: ry * 0.75), .white.opacity(0.55), hold: 0.1)
-        let skin = tone.base.mix(with: tone.light, by: 0.25)
-        if mood == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.12, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
+        let skin = Self.shade(bodyPath, tone)
+        if mood == .happy {
+            let cheek = Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.12, width: rx * 2.6, height: ry * 2))
+            c.fill(cheek, with: skin)
+            c.stroke(cheek, with: .color(tone.deep.opacity(0.5)), lineWidth: 0.9)
+        }
         if lid > 0 {
             let h = (ry * 2 + 1.2) * lid
-            c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: h)), with: .color(skin))
+            c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: h)), with: skin)
             if lid > 0.04 && lid < 0.96 {
                 var e = Path(); e.move(to: CGPoint(x: cx - rx, y: cy - ry - 0.6 + h)); e.addLine(to: CGPoint(x: cx + rx, y: cy - ry - 0.6 + h))
                 c.stroke(e, with: .color(tone.deep.opacity(0.55)), lineWidth: 0.9)
             }
         }
-        ctx.stroke(Path(ellipseIn: r), with: .color(tone.deep.opacity(0.35)), lineWidth: 0.6)
     }
 
     private func mouth(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat) {
@@ -278,8 +288,8 @@ struct Creature: View {
             ctx.fill(Path(ellipseIn: b), with: .color(.white.opacity(0.16)))
             ctx.stroke(Path(ellipseIn: b), with: .color(.white.opacity(0.4)), lineWidth: 0.4)
         }
-        eye(&ctx, 41.5, 59, 6.4, 7.4, look, lid, Tone.moss)
-        eye(&ctx, 58.5, 59, 6.4, 7.4, look, lid, Tone.moss)
+        eye(&ctx, 41.5, 59, 6.4, 7.4, look, lid, Tone.moss, Shapes.mossBody)
+        eye(&ctx, 58.5, 59, 6.4, 7.4, look, lid, Tone.moss, Shapes.mossBody)
         if mood == .wow { mouth(&ctx, 50, 73) }
     }
 
@@ -289,7 +299,7 @@ struct Creature: View {
         rod.stroke(Shapes.ottoStem, with: .color(Tone.otto.deep), style: StrokeStyle(lineWidth: 2.1, lineCap: .round))
         goldBead(&rod, CGPoint(x: 61.5, y: 4.4), 3.4)
         glass(&ctx, Shapes.ottoBody, Tone.otto)
-        eye(&ctx, 51, 41, 13, 12, look, mood == .wow ? 0 : lid, Tone.otto)
+        eye(&ctx, 51, 41, 13, 12, look, mood == .wow ? 0 : lid, Tone.otto, Shapes.ottoBody)
         if mood == .wow { mouth(&ctx, 51, 58.5) }
         // the string of golden beads
         let pts = Shapes.beadStrand
