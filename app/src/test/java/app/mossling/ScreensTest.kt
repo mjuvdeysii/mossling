@@ -116,7 +116,7 @@ class ScreensTest {
         shot("22_feature_graphic") {
             Row(Modifier.fillMaxSize().background(app.mossling.ui.theme.Palette.Chalk).padding(horizontal = 64.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    androidx.compose.material3.Text("小苔花", style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep, softWrap = false, maxLines = 1)
+                    androidx.compose.material3.Text("芽芽月历", style = MaterialTheme.typography.displayLarge, color = app.mossling.ui.theme.Palette.MossDeep, softWrap = false, maxLines = 1)
                     androidx.compose.material3.Text("Mossling · 跟着孩子，一个月一站", style = MaterialTheme.typography.headlineSmall, color = app.mossling.ui.theme.Palette.Ink)
                     Row(Modifier.padding(top = 28.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         repeat(17) { Box(Modifier.size(12.dp).background(if (it == 16) app.mossling.ui.theme.Palette.Bead else app.mossling.ui.theme.Palette.Moss, androidx.compose.foundation.shape.CircleShape)) }

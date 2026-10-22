@@ -7,7 +7,7 @@ import java.io.StringWriter
 
 /**
  * If the app ever stops unexpectedly, the reason is written to a small file on this phone — nothing is sent anywhere.
- * On the next start, 「关于小苔花」 offers to share it, so the problem can be reported and fixed.
+ * On the next start, 「关于芽芽月历」 offers to share it, so the problem can be reported and fixed.
  */
 object CrashLog {
     private fun file(ctx: Context) = File(ctx.filesDir, "last-crash.txt")

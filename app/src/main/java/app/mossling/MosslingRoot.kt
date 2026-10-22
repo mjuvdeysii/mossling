@@ -365,7 +365,7 @@ private fun LockScreen(companion: app.mossling.ui.ip.Kind, unlock: () -> Unit) {
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
         androidx.compose.foundation.layout.Column(Modifier.fillMaxSize(), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally, verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center) {
             app.mossling.ui.ip.Duo(companion, size = 120.dp, mood = app.mossling.ui.ip.Mood.Sleep, poke = false)
-            Text("小苔花已锁定", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
+            Text("芽芽月历已锁定", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(top = 16.dp))
             androidx.compose.material3.Button(onClick = unlock, shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp), modifier = Modifier.padding(top = 24.dp).heightIn(min = 52.dp)) { Text("解锁") }
         }
     }
