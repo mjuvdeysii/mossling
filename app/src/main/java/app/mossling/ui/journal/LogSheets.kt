@@ -97,7 +97,10 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
     var exact by remember(ask, type) { mutableStateOf<Long?>(null) }
     var choosing by remember { mutableStateOf(false) }
     fun at() = exact ?: (System.currentTimeMillis() - ago * 60_000L)
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+    val kb0 = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val fm0 = androidx.compose.ui.platform.LocalFocusManager.current
+    val close = { fm0.clearFocus(); kb0?.hide(); onDismiss() }
+    ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         // scrolls and keeps clear of the keyboard, so 「记下来」 is always reachable
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text(if (ask == Ask.Side) "什么时候开始的" else "什么时候", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -180,11 +183,13 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
                         chips.forEach { ch -> FilterChip(selected = t.contains(ch), onClick = { t = if (t.isBlank()) ch else "$t、$ch" }, label = { Text(ch) }) }
                     }
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onText(t.trim(), at()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                    val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+                    val fm = androidx.compose.ui.platform.LocalFocusManager.current
+                    Button(onClick = { fm.clearFocus(); kb?.hide(); onText(t.trim(), at()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
                 }
                 Ask.None, Ask.Measure -> Unit
             }
-            TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.End)) { Text("取消") }
+            TextButton(onClick = close, modifier = Modifier.align(Alignment.End)) { Text("取消") }
         }
     }
 }
@@ -228,7 +233,10 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
     var cur by remember(e.id, e.start) { mutableStateOf(e) }
     val fresh = e.id == 0L
     var pick by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
-    ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); onDismiss() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+    val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val fm = androidx.compose.ui.platform.LocalFocusManager.current
+    val close = { fm.clearFocus(); kb?.hide(); onDismiss() }
+    ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); close() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text((if (fresh) "补记 · " else "") + logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
             if (!fresh) Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -262,7 +270,7 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
                 if (!fresh) TextButton(onClick = { onDelete(cur); onDismiss() }) { Text("删除这条", color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.weight(1f))
                 if (fresh) TextButton(onClick = onDismiss) { Text("取消") }
-                Button(onClick = { onChange(cur); onDismiss() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text(if (fresh) "记下来" else "好") }
+                Button(onClick = { onChange(cur); close() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text(if (fresh) "记下来" else "好") }
             }
         }
     }

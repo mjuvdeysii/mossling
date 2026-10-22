@@ -331,7 +331,10 @@ fun MeasureSheet(m: Measure, onSave: (Measure) -> Unit, onDelete: (Measure) -> U
     var l by remember(m.id) { mutableStateOf(m.lengthMm?.let { "%.1f".format(it / 10.0) } ?: "") }
     var h by remember(m.id) { mutableStateOf(m.headMm?.let { "%.1f".format(it / 10.0) } ?: "") }
     var day by remember(m.id) { mutableStateOf(Instant.ofEpochMilli(m.at).atZone(ZoneId.systemDefault()).toLocalDate()) }
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+    val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val fm = androidx.compose.ui.platform.LocalFocusManager.current
+    val close = { fm.clearFocus(); kb?.hide(); onDismiss() }
+    ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
             Text(if (m.id == 0L) "记一次测量" else "这次测量", style = MaterialTheme.typography.headlineSmall)
             var calendar by remember { mutableStateOf(false) }
@@ -364,7 +367,7 @@ fun MeasureSheet(m: Measure, onSave: (Measure) -> Unit, onDelete: (Measure) -> U
                 if (m.id != 0L) TextButton(onClick = { onDelete(m); onDismiss() }) { Text("删除", color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.weight(1f))
                 Button(onClick = {
-                    onSave(m.copy(at = day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), weightG = wg, lengthMm = lm, headMm = hm)); onDismiss()
+                    onSave(m.copy(at = day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), weightG = wg, lengthMm = lm, headMm = hm)); close()
                 }, enabled = wg != null || lm != null || hm != null, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text("好") }
             }
         }
