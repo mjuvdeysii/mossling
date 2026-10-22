@@ -62,6 +62,12 @@ class Timers(private val context: Context, private val dao: RecordDao) {
         e.copy(id = dao.putLog(e)).also { app.mossling.widget.TodayWidget.refresh(context) }
     }
 
+    /** "It started earlier than I pressed": move the start back (or forward), never into the future. */
+    suspend fun shift(type: String, deltaMs: Long, now: Long = System.currentTimeMillis()) = lock.withLock {
+        val t = dao.timer(type) ?: return@withLock
+        val n = t.copy(start = (t.start + deltaMs).coerceAtMost(now)); dao.putTimer(n); notify(n); app.mossling.widget.TodayWidget.refresh(context)
+    }
+
     suspend fun discard(type: String) = lock.withLock { dao.dropTimer(type); cancel(type) }
 
     private fun channel() {

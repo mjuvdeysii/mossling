@@ -89,6 +89,7 @@ data class TodayActions(
     val openJournal: () -> Unit = {},
     val openMap: () -> Unit = {},
     val openPlan: () -> Unit = {},
+    val timer: app.mossling.ui.journal.TimerActions = app.mossling.ui.journal.TimerActions(),
 )
 
 /** Today's suggestion: the month's plays, featured one first; [pick] moves through them. */
@@ -128,7 +129,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
         val running = ui.timers
         if (running.isNotEmpty()) item(key = "timers") {
             Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                running.forEach { t -> TimerPlate(t, now, a) }
+                running.forEach { t -> app.mossling.ui.journal.TimerCard(t, a.timer, now = now) }
             }
         }
         if (c.months.isNotEmpty() && ui.settings.journal) item(key = "log") {

@@ -165,6 +165,12 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         val ctx0 = vm.getApplication<android.app.Application>()
         if (app.mossling.CrashLog.read(ctx0) != null && snack.showSnackbar("上次异常退出了，可以在「关于苔生」里分享原因", actionLabel = "查看", duration = SnackbarDuration.Long) == SnackbarResult.ActionPerformed) nav.navigate(AppAboutRoute)
     }
+    val timerActions = app.mossling.ui.journal.TimerActions(
+        pause = vm::pauseTimer, stop = { t -> vm.stopTimer(t) { it?.let(::added) } }, switchSide = vm::switchSide, shift = vm::shiftTimer,
+        discard = { type -> ui.timers.firstOrNull { it.type == type }?.let { r -> vm.discardTimer(type); undoable("这次不记了") { vm.startTimer(r.type, r.side, r.start) } } },
+    )
+    // when each kind was last recorded (a running timer counts as now)
+    val lastOf = remember(month30, ui.timers) { month30.groupBy { it.type }.mapValues { (_, v) -> v.maxOf { it.end ?: it.start } } }
     fun added(e: LogEntry) { undoable("记下了 · ${logKind(e.type).name}") { vm.deleteLog(e) } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -246,7 +252,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                     pause = vm::pauseTimer,
                     stop = { t -> vm.stopTimer(t) { it?.let(::added) } },
                     openJournal = { go(JournalRoute) },
-                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) },
+                    openMap = { nav.navigate(MapRoute) }, openPlan = { nav.navigate(PlanRoute) }, timer = timerActions,
                 ))
             } }
             composable<GrowRoute> { CompositionLocalProvider(LocalDestination provides this) {
@@ -258,7 +264,7 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
                 ))
             } }
             composable<JournalRoute> {
-                JournalScreen(ui, day, logs, JournalActions(pickDay = { vm.journalDay.value = it }, log = ::log, open = { editing = it },
+                JournalScreen(ui, day, logs, last = lastOf, a = JournalActions(pickDay = { vm.journalDay.value = it }, log = ::log, open = { editing = it }, timer = timerActions,
                     stats = { nav.navigate(StatsRoute) }, growth = { nav.navigate(GrowthRoute) }, backfill = { backfilling = true }))
             }
             composable<YouRoute> {
@@ -324,11 +330,12 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     }
 
     AskSheet(ask.first, type = ask.second, onDismiss = { ask = Ask.None to "" },
-        onTemp = { c10 -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), amount = c10)) { added(it) } },
-        onText = { text -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), detail = text.ifBlank { null })) { added(it) } },
-        onSide = { side -> val t = ask.second; ask = Ask.None to ""; if (!asked) { asked = true; askNotifications() }; vm.startTimer(t, side) },
-        onAmount = { ml -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), amount = ml)) { added(it) } },
-        onDiaper = { d -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = System.currentTimeMillis(), detail = d)) { added(it) } },
+        lastAmount = month30.lastOrNull { it.type == LogType.Bottle }?.amount,
+        onTemp = { c10, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, amount = c10)) { added(it) } },
+        onText = { text, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, detail = text.ifBlank { null })) { added(it) } },
+        onSide = { side, at -> val t = ask.second; ask = Ask.None to ""; if (!asked) { asked = true; askNotifications() }; vm.startTimer(t, side, at) },
+        onAmount = { ml, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, amount = ml)) { added(it) } },
+        onDiaper = { d, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, detail = d)) { added(it) } },
     )
     measuring?.let { m ->
         app.mossling.ui.growth.MeasureSheet(m, onSave = { vm.putMeasure(it); say("记下了 · 生长") }, onDelete = { d -> vm.dropMeasure(d); undoable("删掉了一次测量") { vm.putMeasure(d) } }, onDismiss = { measuring = null })

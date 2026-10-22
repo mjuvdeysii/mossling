@@ -124,10 +124,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
     fun setLastMonth(m: Int) = viewModelScope.launch { g.settings.setLastMonth(m) }
 
-    fun startTimer(type: String, side: String? = null) = viewModelScope.launch { g.timers.start(type, side) }
+    fun startTimer(type: String, side: String? = null, at: Long = System.currentTimeMillis()) = viewModelScope.launch { g.timers.start(type, side, at) }
     fun stopTimer(type: String, then: (LogEntry?) -> Unit = {}) = viewModelScope.launch { then(g.timers.stop(type)) }
     fun pauseTimer(type: String) = viewModelScope.launch { g.timers.togglePause(type) }
     fun switchSide(type: String) = viewModelScope.launch { g.timers.switchSide(type) }
+    fun shiftTimer(type: String, deltaMs: Long) = viewModelScope.launch { g.timers.shift(type, deltaMs) }
     fun discardTimer(type: String) = viewModelScope.launch { g.timers.discard(type) }
 
     /** Reads a record file from the earlier handbook app; [done] gets a sentence for the snackbar. */

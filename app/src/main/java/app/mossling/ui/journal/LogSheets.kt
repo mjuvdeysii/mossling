@@ -87,18 +87,27 @@ fun askFor(type: String) = when (type) {
 /** The small sheet that follows a log button. Each choice is one tap and closes the sheet. */
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount: (Int) -> Unit, onDiaper: (String) -> Unit,
-             type: String = "", onTemp: (Int) -> Unit = {}, onText: (String) -> Unit = {}) {
+fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, onAmount: (Int, Long) -> Unit, onDiaper: (String, Long) -> Unit,
+             type: String = "", onTemp: (Int, Long) -> Unit = { _, _ -> }, onText: (String, Long) -> Unit = { _, _ -> }, lastAmount: Int? = null) {
     if (ask == Ask.None || ask == Ask.Measure) return
+    // most entries are made a little after the fact: say when, in one tap, before saying what
+    var ago by remember(ask, type) { mutableIntStateOf(0) }
+    fun at() = System.currentTimeMillis() - ago * 60_000L
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
+            Text(if (ask == Ask.Side) "什么时候开始的" else "什么时候", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            FlowRow(Modifier.padding(top = 6.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(0 to "现在", 5 to "5 分钟前", 15 to "15 分钟前", 30 to "半小时前", 60 to "1 小时前").forEach { (v, t) ->
+                    FilterChip(selected = ago == v, onClick = { ago = v }, label = { Text(t) })
+                }
+            }
             when (ask) {
                 Ask.Side -> {
                     Text("从哪边开始", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(20.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
                         listOf("l" to "左边", "r" to "右边").forEach { (k, t) ->
-                            Surface(onClick = { onSide(k) }, shape = CircleShape, color = Color(0xFFB8382B).copy(alpha = 0.12f), modifier = Modifier.weight(1f).aspectRatio(1f)) {
+                            Surface(onClick = { onSide(k, at()) }, shape = CircleShape, color = Color(0xFFB8382B).copy(alpha = 0.12f), modifier = Modifier.weight(1f).aspectRatio(1f)) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     Text(if (k == "l") "L" else "R", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Color(0xFFB8382B))
                                     Text(t, style = MaterialTheme.typography.titleMedium)
@@ -110,7 +119,7 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount
                     Text("点了才开始计时；通知栏里可以暂停和结束。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Ask.Amount -> {
-                    var ml by remember { mutableFloatStateOf(120f) }
+                    var ml by remember { mutableFloatStateOf((lastAmount ?: 120).toFloat()) }
                     Text("喝了多少", style = MaterialTheme.typography.headlineSmall)
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 12.dp)) {
                         Text("${ml.roundToInt()}", style = MaterialTheme.typography.displayMedium)
@@ -121,14 +130,14 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount
                         listOf(60, 90, 120, 150, 180).forEach { v -> FilterChip(selected = ml.roundToInt() == v, onClick = { ml = v.toFloat() }, label = { Text("$v") }) }
                     }
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onAmount(ml.roundToInt()) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                    Button(onClick = { onAmount(ml.roundToInt(), at()) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
                 }
                 Ask.Diaper -> {
                     Text("换尿布", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(16.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         listOf("wet" to "湿", "dirty" to "便", "both" to "都有").forEach { (k, t) ->
-                            Surface(onClick = { onDiaper(k) }, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.weight(1f).height(96.dp)) {
+                            Surface(onClick = { onDiaper(k, at()) }, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.weight(1f).height(96.dp)) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     Glyph(G.Diaper, size = 28.dp, color = MaterialTheme.colorScheme.onPrimaryContainer)
                                     Text(t, style = MaterialTheme.typography.titleMedium)
@@ -148,7 +157,7 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount
                     }
                     Text("°C", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onTemp(c) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                    Button(onClick = { onTemp(c, at()) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
                 }
                 Ask.Text -> {
                     var t by remember { mutableStateOf("") }
@@ -163,7 +172,7 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String) -> Unit, onAmount
                         chips.forEach { ch -> FilterChip(selected = t.contains(ch), onClick = { t = if (t.isBlank()) ch else "$t、$ch" }, label = { Text(ch) }) }
                     }
                     Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onText(t.trim()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
+                    Button(onClick = { onText(t.trim(), at()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
                 }
                 Ask.None, Ask.Measure -> Unit
             }
@@ -182,14 +191,22 @@ fun describe(e: LogEntry): String = when (e.type) {
 }
 
 @Composable
-fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(24.dp), color = if (running) k.tint else k.tint.copy(alpha = 0.10f), modifier = modifier.height(88.dp)) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, since: String? = null) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(24.dp), color = if (running) k.tint else k.tint.copy(alpha = 0.10f), modifier = modifier.heightIn(min = 88.dp)) {
+        Column(Modifier.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             Glyph(k.glyph, size = 26.dp, color = if (running) Color.White else k.tint, filled = running)
             Spacer(Modifier.size(6.dp))
             Text(if (running) "进行中" else k.name, style = MaterialTheme.typography.labelLarge, color = if (running) Color.White else MaterialTheme.colorScheme.onSurface)
+            // how long ago this was last done — the question a parent asks before every feed
+            if (!running && since != null) Text(since, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** "刚刚", "25 分钟前", "3 小时前" — short enough to sit under a button. */
+fun ago(then: Long, now: Long = System.currentTimeMillis()): String {
+    val m = ((now - then) / 60_000).toInt()
+    return when { m < 2 -> "刚刚"; m < 60 -> "$m 分钟前"; m < 48 * 60 -> "${m / 60} 小时前"; else -> "${m / 1440} 天前" }
 }
 
 /**

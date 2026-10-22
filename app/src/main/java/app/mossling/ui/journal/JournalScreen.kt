@@ -1,5 +1,9 @@
 package app.mossling.ui.journal
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -56,11 +60,12 @@ data class JournalActions(
     val growth: () -> Unit = {},
     /** add an entry after the fact, on the selected day */
     val backfill: () -> Unit = {},
+    val timer: TimerActions = TimerActions(),
 )
 
 /** The day, as it happened. Quick buttons at the top, then the day's entries with a small summary. */
 @Composable
-fun JournalScreen(ui: AppUi, day: LocalDate, logs: List<LogEntry>, a: JournalActions, modifier: Modifier = Modifier) {
+fun JournalScreen(ui: AppUi, day: LocalDate, logs: List<LogEntry>, a: JournalActions, modifier: Modifier = Modifier, last: Map<String, Long> = emptyMap(), now: () -> Long = System::currentTimeMillis) {
     val companion = LocalCompanion.current
     LazyColumn(modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 40.dp)) {
         item("head") {
@@ -72,27 +77,44 @@ fun JournalScreen(ui: AppUi, day: LocalDate, logs: List<LogEntry>, a: JournalAct
                 Creature(companion, Modifier.size(64.dp), mood = if (ui.timers.any { it.type == LogType.Sleep }) Mood.Sleep else Mood.Open, look = Offset(0f, 0.7f))
             }
         }
-        item("week") { Week(ui.today, day, a.pickDay) }
-        item("tools") {
-            Row(Modifier.padding(horizontal = 16.dp).padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(Triple(G.Plus, "补记", a.backfill), Triple(G.Chart, "统计", a.stats), Triple(G.Ruler, "生长", a.growth)).forEach { (g, t, f) ->
-                    androidx.compose.material3.AssistChip(onClick = f, label = { Text(t) }, leadingIcon = { Glyph(g, size = 18.dp) }, modifier = Modifier.heightIn(min = 48.dp))
-                }
+        // what is running comes first: it is what the hands are busy with
+        if (ui.timers.isNotEmpty()) item("timers") {
+            Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ui.timers.forEach { t -> TimerCard(t, a.timer, now = now) }
             }
         }
         item("grid") {
-            Column(Modifier.padding(horizontal = 16.dp).padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            val t = now()
+            Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 LogKinds.chunked(4).forEach { row ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { k -> LogButton(k, ui.timers.any { it.type == k.type }, onClick = { a.log(k.type) }, modifier = Modifier.weight(1f)) }
+                        row.forEach { k -> LogButton(k, ui.timers.any { it.type == k.type }, onClick = { a.log(k.type) }, modifier = Modifier.weight(1f), since = last[k.type]?.let { ago(it, t) }) }
                         repeat(4 - row.size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
+        item("week") { Week(ui.today, day, a.pickDay) }
+        item("ribbon") { DayRibbon(day, logs, ui.timers, now) }
         item("sum") { Summary(logs) }
-        item("title") { SectionTitle(if (logs.isEmpty()) "还没有记录" else "这一天", kicker = if (logs.isEmpty()) null else "${logs.size} 条") }
-        items(logs, key = { it.id }) { e -> Entry(e) { a.open(e) } }
+        item("title") {
+            SectionTitle(if (logs.isEmpty()) "这一天还没有记录" else "这一天", kicker = if (logs.isEmpty()) null else "${logs.size} 条", trailing = {
+                androidx.compose.material3.TextButton(onClick = a.backfill) { Glyph(G.Plus, size = 18.dp); Text(" 补记") }
+            })
+        }
+        itemsIndexed(logs, key = { _, e -> e.id }) { i, e -> Entry(e, first = i == 0, last = i == logs.lastIndex) { a.open(e) } }
+        item("more") {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(Triple(G.Chart, "统计", a.stats), Triple(G.Ruler, "生长曲线", a.growth)).forEach { (g, t, f) ->
+                    Surface(onClick = f, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
+                        Row(Modifier.padding(14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            app.mossling.ui.components.ShapeBadge(g, MaterialTheme.colorScheme.primary.copy(alpha = 0.12f), MaterialTheme.colorScheme.primary, shape = app.mossling.ui.components.Shapes.of(t), size = 36.dp)
+                            Text(t, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(start = 10.dp))
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -135,19 +157,71 @@ private fun Fact(n: String, label: String, modifier: Modifier) {
     }
 }
 
+/** One entry on the day's thread: time, a coloured bead with its pictogram, a line joining it to the next. */
 @Composable
-private fun Entry(e: LogEntry, onClick: () -> Unit) {
+private fun Entry(e: LogEntry, first: Boolean = false, last: Boolean = false, onClick: () -> Unit) {
     val k = logKind(e.type)
+    val thread = MaterialTheme.colorScheme.outlineVariant
     Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(horizontal = 20.dp).height(androidx.compose.foundation.layout.IntrinsicSize.Min), verticalAlignment = Alignment.CenterVertically) {
             Text(hm(e.start), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, softWrap = false, modifier = Modifier.widthIn(min = 64.dp).padding(end = 8.dp))
-            Box(Modifier.size(36.dp).clip(CircleShape).background(k.tint.copy(alpha = 0.12f)), contentAlignment = Alignment.Center) { Glyph(k.glyph, size = 20.dp, color = k.tint) }
+            Box(Modifier.width(36.dp).fillMaxHeight(), contentAlignment = Alignment.Center) {
+                androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+                    val x = size.width / 2
+                    if (!first) drawLine(thread, androidx.compose.ui.geometry.Offset(x, 0f), androidx.compose.ui.geometry.Offset(x, size.height / 2), 2.dp.toPx())
+                    if (!last) drawLine(thread, androidx.compose.ui.geometry.Offset(x, size.height / 2), androidx.compose.ui.geometry.Offset(x, size.height), 2.dp.toPx())
+                }
+                Box(Modifier.padding(vertical = 10.dp).size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.background).background(k.tint.copy(alpha = 0.14f)), contentAlignment = Alignment.Center) { Glyph(k.glyph, size = 20.dp, color = k.tint) }
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(k.name, style = MaterialTheme.typography.titleMedium)
                 val d = describe(e); if (d.isNotBlank()) Text(d, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (e.end != null) Text(hm(e.end), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+/**
+ * The day as one strip from midnight to midnight: sleeps and feeds as blocks of their length, everything else as a
+ * mark at its time, what is running now drawn up to the present. All 24 hours fit the width — nothing to scroll.
+ */
+@Composable
+private fun DayRibbon(day: LocalDate, logs: List<LogEntry>, running: List<app.mossling.data.RunningTimer>, now: () -> Long) {
+    val z = java.time.ZoneId.systemDefault()
+    val d0 = day.atStartOfDay(z).toInstant().toEpochMilli(); val d1 = d0 + 86_400_000L
+    val track = MaterialTheme.colorScheme.surfaceContainerHigh
+    val nowLine = MaterialTheme.colorScheme.primary
+    val t = now()
+    Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 4.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            androidx.compose.foundation.Canvas(Modifier.fillMaxWidth().height(44.dp).semantics { contentDescription = "这一天的时间条：" + logs.size + " 条记录" }) {
+                fun x(ms: Long) = ((ms - d0).toFloat() / (d1 - d0) * size.width).coerceIn(0f, size.width)
+                val top = 6.dp.toPx(); val h = size.height - 12.dp.toPx()
+                drawRoundRect(track, androidx.compose.ui.geometry.Offset(0f, top), androidx.compose.ui.geometry.Size(size.width, h), androidx.compose.ui.geometry.CornerRadius(h / 2))
+                for (hr in listOf(6, 12, 18)) drawLine(Color.Black.copy(alpha = 0.06f), androidx.compose.ui.geometry.Offset(size.width * hr / 24f, top), androidx.compose.ui.geometry.Offset(size.width * hr / 24f, top + h), 1.dp.toPx())
+                fun block(a: Long, b: Long, c: Color, inset: Float) {
+                    if (b <= d0 || a >= d1) return
+                    val l = x(a); val r = x(b).coerceAtLeast(l + 3.dp.toPx())
+                    drawRoundRect(c, androidx.compose.ui.geometry.Offset(l, top + inset), androidx.compose.ui.geometry.Size(r - l, h - 2 * inset), androidx.compose.ui.geometry.CornerRadius((h - 2 * inset) / 2))
+                }
+                logs.forEach { e ->
+                    val k = logKind(e.type)
+                    when {
+                        e.end != null -> block(e.start, e.end, k.tint.copy(alpha = if (e.type == LogType.Sleep) 0.85f else 0.95f), if (e.type == LogType.Sleep) 0f else 5.dp.toPx())
+                        e.start in d0 until d1 -> drawCircle(k.tint, 4.dp.toPx(), androidx.compose.ui.geometry.Offset(x(e.start), top + h / 2))
+                    }
+                }
+                running.forEach { r -> block(r.start, t, logKind(r.type).tint.copy(alpha = 0.55f), if (r.type == LogType.Sleep) 0f else 5.dp.toPx()) }
+                if (t in d0 until d1) drawLine(nowLine, androidx.compose.ui.geometry.Offset(x(t), 0f), androidx.compose.ui.geometry.Offset(x(t), size.height), 2.dp.toPx())
+            }
+            Row(Modifier.fillMaxWidth()) {
+                // each label starts exactly where its hour line is
+                listOf("0 点", "6 点", "12 点", "18 点").forEach { s ->
+                    Text(s, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Start, modifier = Modifier.weight(1f))
+                }
+            }
         }
     }
 }

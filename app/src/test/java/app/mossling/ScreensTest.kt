@@ -99,7 +99,8 @@ class ScreensTest {
     @Test fun growDark() = shot("08_grow_dark", dark = true) { GrowScreen(ui(), 9, GrowActions()) }
     @Test fun play() = shot("09_play") { PlayScreen(content.play("A11")!!, 6, false, {}, {}) }
     @Test fun playDone() = shot("10_play_done_dark", dark = true, companion = Kind.Otto) { PlayScreen(content.play("A08")!!, 6, true, {}, {}) }
-    @Test fun journal() = shot("11_journal") { JournalScreen(ui(), today, logs, JournalActions()) }
+    @Test fun journal() = shot("11_journal") { JournalScreen(ui(), today, logs, JournalActions(), last = mapOf(LogType.Bottle to at(19, 40), LogType.Diaper to at(18, 5), LogType.Nurse to at(16, 28), LogType.Sleep to at(14, 35)), now = { at(20, 0) }) }
+    @Test fun journalTimer() = shot("11b_journal_nursing") { JournalScreen(ui(timers = listOf(RunningTimer(LogType.Nurse, at(19, 42), "l"))), today, logs, JournalActions(), now = { at(20, 0) }) }
     @Test fun journalDark() = shot("12_journal_dark", dark = true) { JournalScreen(ui(timers = listOf(RunningTimer(LogType.Sleep, at(19, 30)))), today, logs, JournalActions()) }
     @Test fun you() = shot("13_you") { YouScreen(ui(), YouActions()) }
     @Test fun youOttoDark() = shot("14_you_otto_dark", dark = true, companion = Kind.Otto) { YouScreen(ui(Kind.Otto), YouActions()) }
