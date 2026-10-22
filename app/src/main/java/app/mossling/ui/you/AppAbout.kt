@@ -71,7 +71,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                     Creature(Kind.Otto, Modifier.size(96.dp))
                 }
                 Text("Mossling", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-                Text("苔生 · 0–3 岁养育手帐", style = MaterialTheme.typography.titleMedium)
+                Text("苔生 · 0–3 岁早教活动规划", style = MaterialTheme.typography.titleMedium)
                 Text("版本 $version（$build）", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }

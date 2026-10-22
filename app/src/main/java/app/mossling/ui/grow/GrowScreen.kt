@@ -116,7 +116,14 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
             Surface(color = MaterialTheme.colorScheme.background) {
                 Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     BeadChain(month, baby, a.select, Modifier.weight(1f))
-                    IconButton(onClick = a.openMap, modifier = Modifier.semantics { contentDescription = "成长地图" }) { Glyph(G.Walk, size = 22.dp) }
+                    // the way into the growth map: a child growing up, 0 to 3, in a loop
+                    Surface(onClick = a.openMap, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.secondaryContainer,
+                        modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = "成长地图" }) {
+                        Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            app.mossling.ui.ip.GrowingChild(Modifier.size(40.dp))
+                            Text("地图", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        }
+                    }
                 }
             }
         }

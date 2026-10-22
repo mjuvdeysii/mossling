@@ -57,8 +57,8 @@ fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
         Spacer(Modifier.height(28.dp))
         Text("Mossling", fontFamily = Numerals, style = MaterialTheme.typography.displayMedium)
         Text("苔生", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary)
-        Text("头一千天，跟着孩子，慢慢来。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
-        Text("Moss 会安静地看，Otto 一次只专心一件事。它们陪你看每个月可以做什么，记下每天发生了什么。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+        Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
+        Text("0–3 岁早教活动规划：每个月该留意什么、适合和孩子一起做什么、这一周把哪几件教具放上架子。Moss 安静地看，Otto 一次只专心一件事，它们陪你一站一站往前走。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.weight(1f))
         Button(onClick = onBirth, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(20.dp)) { Text("填写宝宝的出生日期") }
         TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("先看看") }
