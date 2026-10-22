@@ -249,7 +249,11 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
 private fun PlayCard(p: Play, did: Boolean, companion: Kind, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = modifier) {
         Column(Modifier.padding(16.dp)) {
-            app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer))
+            // the play's own first picture, so each card shows what is actually done
+            val ctx = androidx.compose.ui.platform.LocalContext.current
+            val first = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code).firstOrNull() }
+            if (first != null) app.mossling.ui.components.Art(first, "", Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(16.dp)))
+            else app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Surface(shape = RoundedCornerShape(12.dp), color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, modifier = Modifier.shared("code-${p.code}")) {
                     Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, color = Palette.Paper, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
