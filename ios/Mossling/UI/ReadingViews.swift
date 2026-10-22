@@ -46,6 +46,7 @@ struct SearchView: View {
                 ContentUnavailableView.search(text: t)
             }
         }
+        .scrollContentBackground(.hidden).background(Palette.background)
         .searchable(text: $q, prompt: "活动、月份、专题")
         .navigationTitle("搜索")
     }
@@ -80,6 +81,7 @@ struct PlanView: View {
                 }
             }
         }
+        .scrollContentBackground(.hidden).background(Palette.background)
         .navigationTitle("本周的架子")
     }
     private func playLabel(_ p: Play) -> some View {

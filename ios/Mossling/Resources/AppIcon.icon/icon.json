@@ -3,8 +3,8 @@
     {
       "value": {
         "linear-gradient": [
-          "display-p3:0.93000,0.96500,0.92500,1.00000",
-          "display-p3:0.82000,0.91500,0.84500,1.00000"
+          "display-p3:1.00000,0.97000,0.91000,1.00000",
+          "display-p3:1.00000,0.88500,0.79000,1.00000"
         ]
       }
     },
@@ -17,8 +17,8 @@
     {
       "layers": [
         {
-          "image-name": "moss-eyes.svg",
-          "name": "moss-eyes",
+          "image-name": "moss-face.svg",
+          "name": "moss-face",
           "glass": false,
           "hidden": false,
           "position": {
@@ -64,15 +64,15 @@
       "specular": true,
       "translucency": {
         "enabled": true,
-        "value": 0.25
+        "value": 0.2
       },
       "blur-material": 0.1
     },
     {
       "layers": [
         {
-          "image-name": "otto-eye.svg",
-          "name": "otto-eye",
+          "image-name": "otto-face.svg",
+          "name": "otto-face",
           "glass": false,
           "hidden": false,
           "position": {
@@ -84,8 +84,8 @@
           }
         },
         {
-          "image-name": "bead.svg",
-          "name": "bead",
+          "image-name": "beads.svg",
+          "name": "beads",
           "glass": true,
           "hidden": false,
           "position": {
@@ -118,7 +118,35 @@
       "specular": true,
       "translucency": {
         "enabled": true,
-        "value": 0.25
+        "value": 0.2
+      },
+      "blur-material": 0.1
+    },
+    {
+      "layers": [
+        {
+          "image-name": "rainbow.svg",
+          "name": "rainbow",
+          "glass": true,
+          "hidden": false,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          }
+        }
+      ],
+      "lighting": "individual",
+      "shadow": {
+        "kind": "layer-color",
+        "opacity": 0.5
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.3
       },
       "blur-material": 0.1
     }

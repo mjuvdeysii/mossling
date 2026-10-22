@@ -61,7 +61,7 @@ final class ScreenshotTests: XCTestCase {
     func test05Journey() { let m = model(); shot("05_journey", height: 1600, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
     func test05JourneyDark() { let m = model(companion: .otto); shot("05_journey_dark", dark: true, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
     func test06Play() { let m = model(); shot("06_play", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
-    func test07Month() { let m = model(); shot("07_month", height: 3200, tabs(m, MonthView(month: 6))) }
+    func test07Month() { let m = model(); shot("07_month", height: 2600, tabs(m, MonthView(month: 6))) }
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }
     func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }
     func test06PlayDark() { let m = model(); shot("06_play_dark", dark: true, height: 1400, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
@@ -88,5 +88,5 @@ final class ScreenshotTests: XCTestCase {
     func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
     func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
-    func test14Month36() { let m = model(); shot("14_month36", height: 3400, tabs(m, MonthView(month: 36))) }
+    func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

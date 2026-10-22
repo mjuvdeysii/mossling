@@ -43,19 +43,17 @@ enum Kind: String, CaseIterable, Codable { case moss = "Moss", otto = "Otto"
 }
 enum Mood { case open, happy, wow, sleep }
 
-/// Geometry in a 100 × 100 box, drawn for iOS: soft, rounded volumes that read as polished glass objects. The feet
-/// rest on y = 88.
+/// Geometry in a 100 × 100 box. The two are painted wooden toys, as on a Montessori shelf: Moss a round, egg-shaped
+/// figure painted moss green with a mint sprout; Otto a tall peg painted rod blue, a golden bead on top and a string of
+/// golden beads across him. The unpainted wooden foot shows at the bottom of each. The feet rest on y = 88.
 enum Shapes {
-    /// Moss: a smooth pebble, a little wider at the base.
-    static let mossBody = SVGPath.parse("M17 71 C15 53 30 37 50 36 C71 35 86 51 85 69 C84 83 70 89 50 89 C31 89 18 84 17 71Z")
-    static let mossStem = SVGPath.parse("M50 37.5 C49.4 33 49.6 28.5 50.4 24.5")
-    /// Otto: tall and rounded, one big eye.
-    static let ottoBody = SVGPath.parse("M28 82 C24.5 66 24.5 48 26.5 35 C28.5 21 38.5 13 51 13 C63.5 13 73.5 21 75.5 35 C77.5 48 77.5 66 74 82 C67 89.5 35 89.5 28 82Z")
-    static let ottoStem = SVGPath.parse("M51.5 13.5 C52.5 9 56 5.5 60.5 4.5")
-    /// The string of golden beads Otto wears, as points along a gentle curve.
-    static let beadStrand: [CGPoint] = (0..<6).map { i in
-        let t = Double(i) / 5
-        return CGPoint(x: 32 + 37 * t, y: 62 + 9 * t + 6 * t * (1 - t))
+    static let mossBody = SVGPath.parse("M50 30 C70 30 84 48 84 66 C84 80 72 88 50 88 C28 88 16 80 16 66 C16 48 30 30 50 30Z")
+    static let mossStem = SVGPath.parse("M50 31 C49.5 27 49.8 23.5 50.6 20.5")
+    static let ottoBody = SVGPath.parse("M30 36 C30 24 39 16 50 16 C61 16 70 24 70 36 L70 80 C70 85 66 88 61 88 L39 88 C34 88 30 85 30 80Z")
+    /// The golden beads Otto wears, along a gentle curve.
+    static let beadStrand: [CGPoint] = (0..<5).map { i in
+        let t = Double(i) / 4
+        return CGPoint(x: 34.5 + 31 * t, y: 63 + 5 * sin(t * .pi))
     }
     /// A mint leaf of length `l` pointing along +x from the origin.
     static func leaf(_ l: CGFloat, _ w: CGFloat) -> Path {

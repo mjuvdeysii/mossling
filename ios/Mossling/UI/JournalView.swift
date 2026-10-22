@@ -242,9 +242,12 @@ struct TimerCard: View {
                     .contentTransition(.numericText())
             }
             HStack(spacing: 10) {
-                Button { j.stop(timer.type) } label: { Text("结束").padding(.horizontal, 6) }.buttonStyle(.glassProminent).tint(c).controlSize(.large)
-                Button(paused ? "继续" : "暂停") { j.togglePause(timer.type) }.buttonStyle(.glass).controlSize(.large)
-                if timer.type == LogType.nurse { Button(timer.side == "r" ? "换左边" : "换右边") { j.switchSide(timer.type) }.buttonStyle(.glass).controlSize(.large) }
+                Button { j.stop(timer.type) } label: { Label("结束", systemImage: "stop.fill").fixedSize() }.buttonStyle(.glassProminent).tint(c).controlSize(.large)
+                Button { j.togglePause(timer.type) } label: { Image(systemName: paused ? "play.fill" : "pause.fill").frame(width: 24, height: 24) }
+                    .buttonStyle(.glass).controlSize(.large).accessibilityLabel(paused ? "继续" : "暂停")
+                if timer.type == LogType.nurse {
+                    Button { j.switchSide(timer.type) } label: { Label("换侧", systemImage: "arrow.left.arrow.right").fixedSize() }.buttonStyle(.glass).controlSize(.large)
+                }
                 Spacer(minLength: 0)
                 Menu {
                     Button("开始时间…", systemImage: "clock") { picking = true }
