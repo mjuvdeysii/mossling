@@ -44,11 +44,12 @@ fun GrowingChild(modifier: Modifier = Modifier) {
         withTransform({ translate((size.width - 48 * s) / 2, (size.height - 48 * s) / 2); scale(s, s, Offset.Zero) }) {
             // the floor
             drawLine(Palette.Stone, Offset(4f, 42f), Offset(44f, 42f), 1.6f, StrokeCap.Round)
-            val v = t?.value ?: 4.2f
+            // start in the middle of a pose, never on the hand-over between two
+            val v = t?.value?.let { (it + 0.5f) % 6f } ?: 4.5f
             val stage = v.toInt().coerceIn(0, 5)
             val f = v - stage                       // progress inside the stage
             // ease in and out of each pose: a short fade where one stage hands over to the next
-            val fade = when { f < 0.12f -> f / 0.12f; f > 0.88f -> (1f - f) / 0.12f; else -> 1f }.coerceIn(0f, 1f)
+            val fade = when { f < 0.12f -> 0.25f + 0.75f * f / 0.12f; f > 0.88f -> 0.25f + 0.75f * (1f - f) / 0.12f; else -> 1f }.coerceIn(0f, 1f)
             val a = if (t == null) 1f else fade
             when (stage) {
                 0 -> lying(a)
