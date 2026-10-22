@@ -234,7 +234,7 @@ extension EnvironmentValues {
 private struct ZoomSource<ID: Hashable>: ViewModifier {
     let id: ID
     @Environment(\.zoomNS) private var ns
-    @ViewBuilder func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Self.Content) -> some View {
         if let ns { content.matchedTransitionSource(id: id, in: ns) } else { content }
     }
 }
@@ -242,7 +242,7 @@ private struct ZoomSource<ID: Hashable>: ViewModifier {
 private struct ZoomDestination<ID: Hashable>: ViewModifier {
     let id: ID
     @Environment(\.zoomNS) private var ns
-    @ViewBuilder func body(content: Content) -> some View {
+    @ViewBuilder func body(content: Self.Content) -> some View {
         if let ns { content.navigationTransition(.zoom(sourceID: id, in: ns)) } else { content }
     }
 }
