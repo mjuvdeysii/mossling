@@ -199,7 +199,6 @@ def ground(s, kind):
         s.add(f'<rect x="60" y="420" width="600" height="56" rx="20" fill="{P["linen"]}"/><path d="M88,436 H632" stroke="{P["stone"]}" stroke-width="3" stroke-dasharray="1 12" stroke-linecap="round"/>')
         return 446
     if kind == "table":
-        s.add(f'<rect x="300" y="352" width="300" height="20" rx="8" fill="{P["wood"]}"/><rect x="320" y="370" width="16" height="100" rx="6" fill="{P["woodD"]}"/><rect x="564" y="370" width="16" height="100" rx="6" fill="{P["woodD"]}"/>')
         s.add(f'<rect x="40" y="470" width="640" height="10" rx="5" fill="{P["stone"]}"/>')
         return 470
     if kind == "outdoor":
@@ -282,7 +281,11 @@ def draw_step(play, i, text):
     s = frame(fam, i, seed=sum(map(ord, play["code"])))
     base = ground(s, setting)
     backdrop(s, setting, base, fam)
-    s.add(f'<g transform="translate(360 {base}) scale(1.5) translate(-360 {-base})">')
+    k = {"table": 1.25, "outdoor": 1.3}.get(setting, 1.5)
+    s.add(f'<g transform="translate(360 {base}) scale({k}) translate(-360 {-base})">')
+    if setting == "table":
+        # a low child-height table between the adult and the child, in the same space as the people
+        s.add(f'<rect x="270" y="{base - 118}" width="200" height="20" rx="8" fill="{P["wood"]}"/><rect x="288" y="{base - 100}" width="16" height="100" rx="6" fill="{P["woodD"]}"/><rect x="436" y="{base - 100}" width="16" height="100" rx="6" fill="{P["woodD"]}"/>')
     ax, cxp = 250, 468
     # who reaches for what in this step
     obj_at = (340, base)
@@ -290,9 +293,15 @@ def draw_step(play, i, text):
     if thing and act in ("child", "together", "look"): child_hand = (obj_at[0] + 20, base - 40)
     if thing and act == "demo": adult_hand = (obj_at[0] - 10, base - 50)
     if theme in ("pass",) and i == 0: adult_hand = (cxp - 60, base - 90)
+    if setting == "table":
+        # everything happens on the table top: hands go there, not under it
+        top = base - 118
+        adult_hand = (350, top - 14) if act in ("demo", "talk", "together") or i == 0 else (318, top - 6)
+        child_hand = (400, top - 10) if act in ("child", "together", "look") or i > 0 else None
     # the adult
     apose = "kneel" if setting in ("mat",) else ("stand" if setting in ("outdoor",) else "sit" if setting == "floor" and child_pose in ("held",) else "stand")
-    if setting == "table": apose = "stand"; ax = 160
+    if setting == "table": apose = "stand"; ax = 170; cxp = 560
+    if theme == "mirror": cxp = 420
     if child_pose == "held":
         hd, sh = adult(s, "hold", ax + 60, base, ADULT)
         # the child in the adult's arms
@@ -307,27 +316,27 @@ def draw_step(play, i, text):
         hd, sh = adult(s, apose, ax, base, ADULT, hand_to=adult_hand, lean=lean)
         chead, csh = baby(s, child_pose, cxp, base, CHILD, hand_to=child_hand)
         if thing and thing not in ("tree", "frame", "mirror", "cushion", "car"):
-            sx_, sy_ = (450, 330) if setting == "table" and thing in ("cards3", "crayon", "pot", "cloth") else (obj_at[0], base - 34)
+            sx_, sy_ = (370, base - 150) if setting == "table" and thing in ("cards3", "crayon", "pot", "cloth") else (obj_at[0], base - 34)
             s.add(f'<path d="{shape("flower" if fam != "Together" else "cookie", sx_, sy_, 62)}" fill="{FIELD[fam][1]}"/>')
         if thing and thing not in ("tree",):
             if setting == "table" and thing in ("cards3", "crayon", "pot", "cloth"):
-                obj(s, thing, 450, 352)
-            elif thing in ("mirror",): obj(s, "mirror", 600, base)
+                obj(s, thing, 370, base - 118, 0.85)
+            elif thing in ("mirror",): obj(s, "mirror", 540, base)
             elif thing == "frame": obj(s, "frame", 340, base - 120)
             elif thing == "cushion": obj(s, "cushion", 360, base); obj(s, "cushion", 560, base, 0.8, P["rodL"])
             elif thing == "car": obj(s, "car", 360, base)
             else: obj(s, thing, *obj_at)
-        if thing == "tree" or theme == "nature": obj(s, "tree", 610, base); obj(s, "sun", 610, 110, 0.9)
+        if thing == "tree" or theme == "nature": obj(s, "tree", 580, base, 0.9); obj(s, "sun", 560, base - 300, 0.8)
         if theme == "road": s.add(f'<rect x="60" y="{base - 6}" width="600" height="6" fill="{P["stone"]}"/>' + "".join(f'<rect x="{90 + k * 90}" y="{base + 14}" width="50" height="8" rx="4" fill="{P["paper"]}"/>' for k in range(6)))
         if theme == "peer": baby(s, "sit", 620, base, CHILD2)
-        if theme == "mirror": mark(s, "look", (chead[0] + 18, chead[1]), (590, base - 60))
+        if theme == "mirror": mark(s, "look", (chead[0] + 18, chead[1]), (530, base - 60))
     # the step's own sign
     talk_from = (hd[0] + 40, hd[1])
     if act == "talk" or theme in ("talk",) and act == "together": mark(s, "talk", talk_from)
     elif act == "wait": mark(s, "pause", (hd[0] + 50, hd[1] - 30)); mark(s, "talkL", (chead[0] - 34, chead[1]), color=P["rodL"])
     elif act == "look": mark(s, "look", (hd[0] + 26, hd[1] + 4), (chead[0] - 20, chead[1]))
     elif act == "rest": mark(s, "rest", (chead[0] + 40, chead[1] - 60))
-    elif act == "note": obj(s, "notebook", 560, 352 if setting == "table" else base)
+    elif act == "note": obj(s, "notebook", 370 if setting == "table" else 560, base - 118 if setting == "table" else base)
     elif act == "child" and not thing: mark(s, "talkL", (chead[0] - 30, chead[1]), color=P["rodL"])
     elif act == "demo" and not thing: mark(s, "hands", (hd[0] + 70, hd[1] + 60))
     # theme accents
