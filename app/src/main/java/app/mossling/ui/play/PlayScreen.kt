@@ -86,7 +86,7 @@ fun PlayScreen(p: Play, month: Int, did: Boolean, onDid: (Boolean) -> Unit, onBa
                 }
             }
             item("steps") {
-                SectionTitle("怎么做", kicker = "${p.steps.size} 步 · 左右滑动")
+                SectionTitle("怎么做", kicker = "${p.steps.size} 步")
                 Steps(p)
             }
             if (p.observe.isNotBlank() || p.pause.isNotBlank()) item("watch") {
@@ -139,38 +139,25 @@ private fun share(ctx: android.content.Context, p: Play) {
  * can never be read as belonging to the text above it. The next card peeks in from the edge; golden beads below
  * count the steps, the current one larger.
  */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 private fun Steps(p: Play) {
     val ctx = androidx.compose.ui.platform.LocalContext.current
     val frames = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code) }
-    val pager = androidx.compose.foundation.pager.rememberPagerState { p.steps.size }
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-    androidx.compose.foundation.pager.HorizontalPager(pager, contentPadding = PaddingValues(start = 16.dp, end = if (p.steps.size > 1) 48.dp else 16.dp),
-        pageSpacing = 12.dp, verticalAlignment = Alignment.Top, key = { it }) { i ->
-        val off = ((pager.currentPage - i) + pager.currentPageOffsetFraction).let { kotlin.math.abs(it) }.coerceIn(0f, 1f)
-        Surface(shape = RoundedCornerShape(32.dp), color = MaterialTheme.colorScheme.surfaceContainerLow,
-            modifier = Modifier.fillMaxWidth().graphicsLayer { val k = 1f - 0.06f * off; scaleX = k; scaleY = k; alpha = 1f - 0.35f * off }) {
-            Column {
-                frames.getOrNull(i)?.let { f ->
-                    app.mossling.ui.components.Art(f, "第 ${i + 1} 步的图示", Modifier.fillMaxWidth().padding(8.dp).clip(RoundedCornerShape(26.dp)))
-                }
-                Row(Modifier.padding(start = 16.dp, end = 18.dp, top = 6.dp, bottom = 18.dp), verticalAlignment = Alignment.Top) {
-                    Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 44.dp).padding(end = 8.dp))
-                    Text(p.steps[i], style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
+    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        p.steps.forEachIndexed { i, step ->
+            Surface(shape = RoundedCornerShape(32.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+                Column {
+                    // the number and the words first, then the picture of the same step — all in one card
+                    Row(Modifier.padding(start = 16.dp, end = 18.dp, top = 14.dp, bottom = 8.dp), verticalAlignment = Alignment.Top) {
+                        Text("${i + 1}", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.tertiary, softWrap = false, modifier = Modifier.widthIn(min = 44.dp).padding(end = 8.dp))
+                        Text(step, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 8.dp))
+                    }
+                    frames.getOrNull(i)?.let { f ->
+                        app.mossling.ui.components.Art(f, "第 ${i + 1} 步的图示", Modifier.fillMaxWidth().padding(start = 8.dp, end = 8.dp, bottom = 8.dp).clip(RoundedCornerShape(26.dp)))
+                    }
                 }
             }
         }
-    }
-    if (p.steps.size > 1) Row(Modifier.fillMaxWidth().padding(top = 14.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-        repeat(p.steps.size) { i ->
-            val on = pager.currentPage == i
-            val d by androidx.compose.animation.core.animateDpAsState(if (on) 16.dp else 10.dp, androidx.compose.animation.core.spring(dampingRatio = 0.5f, stiffness = 500f), label = "bead")
-            Box(Modifier.size(32.dp).clickable(onClickLabel = "第 ${i + 1} 步") { scope.launch { pager.animateScrollToPage(i) } }, contentAlignment = Alignment.Center) {
-                Box(Modifier.size(d).background(if (on || i < pager.currentPage) Palette.Bead else MaterialTheme.colorScheme.outlineVariant, androidx.compose.foundation.shape.CircleShape))
-            }
-        }
-        Text("第 ${pager.currentPage + 1} / ${p.steps.size} 步", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp))
     }
 }
 

@@ -1,5 +1,6 @@
 package app.mossling.ui.grow
 
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
@@ -155,7 +156,7 @@ private fun Station(ui: AppUi, mo: Month, m: Int, baby: Int?, family: Family?, o
     val date = ui.settings.birth?.let { monthStart(it, m) }
     val road = MaterialTheme.colorScheme.surfaceContainerHigh
     val dash = MaterialTheme.colorScheme.outlineVariant
-    BoxWithConstraints(Modifier.fillMaxWidth().height(150.dp).clickable(onClick = onClick).semantics {
+    BoxWithConstraints(Modifier.fillMaxWidth().height(168.dp).clickable(onClick = onClick).semantics {
         contentDescription = "满 $m 个月，${mo.title}" + (if (here) "，宝宝现在在这里" else "") + (if (done) "，都记下了" else "")
     }) {
         val w = maxWidth
@@ -173,7 +174,7 @@ private fun Station(ui: AppUi, mo: Month, m: Int, baby: Int?, family: Family?, o
         }
         // the station: a numbered bead on the road
         val sx = if (left) w * 0.18f else w * 0.82f
-        Box(Modifier.offset(x = sx - 28.dp, y = 75.dp - 28.dp).size(56.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.offset(x = sx - 28.dp, y = 84.dp - 28.dp).size(56.dp), contentAlignment = Alignment.Center) {
             Surface(shape = CircleShape, color = when { here -> MaterialTheme.colorScheme.primary; past -> Palette.Bead; else -> MaterialTheme.colorScheme.surfaceContainerLowest },
                 border = androidx.compose.foundation.BorderStroke(2.dp, if (here) MaterialTheme.colorScheme.primary else Palette.Bead.copy(alpha = if (past) 1f else 0.6f)), modifier = Modifier.size(52.dp)) {
                 Box(contentAlignment = Alignment.Center) {
@@ -188,7 +189,7 @@ private fun Station(ui: AppUi, mo: Month, m: Int, baby: Int?, family: Family?, o
         // the card on the other side of the road
         Surface(shape = RoundedCornerShape(20.dp), color = if (here) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLowest,
             border = if (here) androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
-            modifier = Modifier.width(w * 0.62f).offset(x = if (left) w * 0.34f else w * 0.04f, y = 18.dp).height(114.dp)) {
+            modifier = Modifier.width(w * 0.62f).offset(x = if (left) w * 0.34f else w * 0.04f, y = 18.dp).heightIn(min = 114.dp)) {
             Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
                 val ctx = androidx.compose.ui.platform.LocalContext.current
                 val cover = remember(m) { app.mossling.ui.components.ArtIndex.cover(ctx, m) }
@@ -201,7 +202,7 @@ private fun Station(ui: AppUi, mo: Month, m: Int, baby: Int?, family: Family?, o
                         Spacer(Modifier.weight(1f))
                         if (date != null) Text("${date.year}.${date.monthValue}.${date.dayOfMonth}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(mo.title, style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(mo.title, style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

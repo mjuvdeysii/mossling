@@ -89,9 +89,12 @@ fun PlanScreen(ui: AppUi, week: List<LogEntry>, a: PlanActions) {
         item {
             SectionTitle("架子上", kicker = "${shelf.size} / ${Shelf.Max} 件")
             WoodShelf(Modifier.fillMaxWidth()) {
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(shelf, key = { it.code }) { p ->
-                        Slot(p, times(p.code), onOpen = { a.openPlay(p.code) }, onRemove = if (shelf.size > 1) ({ a.set(codes - p.code) }) else null)
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    shelf.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            row.forEach { p -> Slot(p, times(p.code), onOpen = { a.openPlay(p.code) }, onRemove = if (shelf.size > 1) ({ a.set(codes - p.code) }) else null, modifier = Modifier.weight(1f)) }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -114,7 +117,7 @@ fun PlanScreen(ui: AppUi, week: List<LogEntry>, a: PlanActions) {
                 MaterialStill(Family.of(p.domains), Modifier.width(80.dp), ground = MaterialTheme.colorScheme.surfaceContainerHigh)
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    Text(p.name, style = MaterialTheme.typography.titleMedium)
                     Text(p.age, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 FilledTonalButton(onClick = { a.set(codes + p.code) }, enabled = shelf.size < Shelf.Max, modifier = Modifier.heightIn(min = 48.dp)) { Text("放上架") }
@@ -135,9 +138,9 @@ private fun Step(n: String, title: String, text: String) {
 }
 
 @Composable
-private fun Slot(p: Play, times: Int, onOpen: () -> Unit, onRemove: (() -> Unit)?) {
+private fun Slot(p: Play, times: Int, onOpen: () -> Unit, onRemove: (() -> Unit)?, modifier: Modifier = Modifier) {
     val companion = LocalCompanion.current
-    Surface(onClick = onOpen, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.width(200.dp)) {
+    Surface(onClick = onOpen, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = modifier) {
         Column(Modifier.padding(14.dp)) {
             MaterialStill(Family.of(p.domains), Modifier.fillMaxWidth(), ground = MaterialTheme.colorScheme.surfaceContainerHigh)
             Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -147,11 +150,11 @@ private fun Slot(p: Play, times: Int, onOpen: () -> Unit, onRemove: (() -> Unit)
                 Spacer(Modifier.weight(1f))
                 if (onRemove != null) IconButton(onClick = onRemove, modifier = Modifier.semantics { contentDescription = "从架子上拿下来" }) { Glyph(G.Close, size = 18.dp) }
             }
-            Text(p.name, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp))
-            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                repeat(7) { i -> Surface(shape = RoundedCornerShape(50), color = if (i < times) Palette.Bead else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 3.dp).size(10.dp)) {} }
-                Text(if (times == 0) "这周还没做" else "这周做过 $times 次", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 4.dp))
+            Text(p.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 6.dp))
+            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                repeat(7) { i -> Surface(shape = RoundedCornerShape(50), color = if (i < times) Palette.Bead else MaterialTheme.colorScheme.outlineVariant, modifier = Modifier.padding(end = 3.dp).size(9.dp)) {} }
             }
+            Text(if (times == 0) "这周还没做" else "这周做过 $times 次", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
         }
     }
 }

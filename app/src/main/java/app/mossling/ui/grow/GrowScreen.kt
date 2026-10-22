@@ -71,6 +71,7 @@ data class GrowActions(
     val openGrowth: () -> Unit = {},
 )
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modifier) {
     val c = ui.content ?: return
@@ -88,7 +89,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                             SandpaperNumber("$m", MaterialTheme.typography.displayMedium)
                             Text("  个月", style = MaterialTheme.typography.titleLarge)
                         }
-                        Text(c.month(m).title, style = MaterialTheme.typography.titleMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        Text(c.month(m).title, style = MaterialTheme.typography.titleMedium)
                     }
                 }
                 val look = when { baby == null -> Offset.Zero; month < baby -> Offset(-0.9f, 0.1f); month > baby -> Offset(0.9f, 0.1f); else -> Offset(0f, 0.6f) }
@@ -96,7 +97,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                     Creature(companion, Modifier.size(72.dp), look = look)
                 }
             }
-            Row(Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (baby != null) {
                     val text = when { month == baby -> "宝宝现在在这里"; month < baby -> "以前的月份"; else -> "以后的月份" }
                     AssistChip(onClick = { a.select(baby) }, label = { Text(if (month == baby) text else "回到满 $baby 个月") })
@@ -144,9 +145,15 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
         val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().mapNotNull(play)
         if (plays.isNotEmpty()) item("plays") {
             SectionTitle("这个月玩什么", kicker = "${plays.size} 个游戏")
+            // every play of the month in view: two to a row on the shelf, nothing hidden off the edge
             Shelf(Modifier.fillMaxWidth()) {
-                LazyRow(contentPadding = PaddingValues(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    items(plays, key = { it.code }) { p -> PlayCard(p, ui.ticked(m, TickKind.Did, p.code), companion) { a.openPlay(p.code, m) } }
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    plays.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            row.forEach { p -> PlayCard(p, ui.ticked(m, TickKind.Did, p.code), companion, Modifier.weight(1f)) { a.openPlay(p.code, m) } }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
@@ -205,8 +212,8 @@ private fun MonthBody(ui: AppUi, mo: Month, m: Int, a: GrowActions, companion: K
 }
 
 @Composable
-private fun PlayCard(p: Play, did: Boolean, companion: Kind, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.width(220.dp)) {
+private fun PlayCard(p: Play, did: Boolean, companion: Kind, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = modifier) {
         Column(Modifier.padding(16.dp)) {
             app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer))
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -216,7 +223,7 @@ private fun PlayCard(p: Play, did: Boolean, companion: Kind, onClick: () -> Unit
                 Spacer(Modifier.weight(1f))
                 if (did) Text("做过", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
-            Text(p.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(p.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
             Text(p.age, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }

@@ -215,7 +215,7 @@ private fun PlayPlate(p: Play, m: Int, total: Int, companion: Kind, onOpen: () -
         androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code).firstOrNull() }?.let { f ->
             app.mossling.ui.components.Art(f, "第一步的图示", Modifier.fillMaxWidth().padding(top = 14.dp).clip(RoundedCornerShape(18.dp)))
         }
-        p.steps.firstOrNull()?.let { Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 14.dp), maxLines = 3, overflow = TextOverflow.Ellipsis) }
+        p.steps.firstOrNull()?.let { Text(it, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 14.dp)) }
         if (p.safety.isNotBlank()) Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.Top) {
             Text("安全", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.error, modifier = Modifier.widthIn(min = 40.dp).padding(top = 2.dp, end = 8.dp), softWrap = false)
             Text(p.safety, style = MaterialTheme.typography.bodySmall)
@@ -289,7 +289,7 @@ private fun NextCare(ui: AppUi, m: Int, a: TodayActions) {
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(if (next == m) "这个月的接种与儿保" else "下一次 · 满 $next 个月 · ${md(monthStart(birth, next))}", style = MaterialTheme.typography.labelLarge)
-                Text(items.first() + if (items.size > 1) " 等 ${items.size} 项" else "", style = MaterialTheme.typography.bodyMedium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(items.first() + if (items.size > 1) " 等 ${items.size} 项" else "", style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -306,7 +306,7 @@ private fun ThisMonth(month: Month, onOpen: () -> Unit) {
             }
             Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                 Text("满 ${month.month} 个月", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                Text(month.title, style = MaterialTheme.typography.titleMedium, maxLines = 3)
+                Text(month.title, style = MaterialTheme.typography.titleMedium)
                 Text("打开这个月 →", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
             }
         }
