@@ -42,11 +42,11 @@ import java.time.ZoneId
 
 /**
  * Full-resolution phone screens with the real illustrations, for promotion. Paparazzi caps an image at 1000 px, so a
- * 1000 × 2166 px screen (381 × 825 dp) is rendered as three 1000 px tiles: promo_<name>_<k>.png, stitched afterwards.
+ * 1000 × 2166 px screen (333 × 722 dp) is rendered as three 1000 px tiles: promo_<name>_<k>.png, stitched afterwards.
  */
 class PromoTest {
     @get:Rule val paparazzi = Paparazzi(
-        deviceConfig = DeviceConfig(screenWidth = 1000, screenHeight = 1000, xdpi = 420, ydpi = 420, density = Density.DPI_420, softButtons = false),
+        deviceConfig = DeviceConfig(screenWidth = 1000, screenHeight = 1000, xdpi = 480, ydpi = 480, density = Density.XXHIGH, softButtons = false),
         maxPercentDifference = 100.0,
     )
 
@@ -70,14 +70,14 @@ class PromoTest {
         LogEntry(5, LogType.Bath, at(10, 20)), LogEntry(6, LogType.Solid, at(11, 30), detail = "米粉"),
     )
 
-    private val tileDp = 1000 / 2.625f
-    private val screenDp = 825.dp
+    private val tileDp = 1000 / 3f
+    private val screenDp = 722.dp
 
     private fun tiles(name: String, companion: Kind = Kind.Moss, body: @Composable () -> Unit) = (0 until 3).forEach { k ->
         paparazzi.snapshot("promo_${name}_$k") {
             MosslingTheme(ThemeMode.Light, companion) {
-                Box(Modifier.requiredWidth(381.dp).requiredHeight(tileDp.dp).clipToBounds(), contentAlignment = Alignment.TopStart) {
-                    androidx.compose.material3.Surface(Modifier.wrapContentSize(Alignment.TopStart, unbounded = true).offset(y = (-k * tileDp).dp).requiredWidth(381.dp).requiredHeight(screenDp),
+                Box(Modifier.requiredWidth(333.33.dp).requiredHeight(tileDp.dp).clipToBounds(), contentAlignment = Alignment.TopStart) {
+                    androidx.compose.material3.Surface(Modifier.wrapContentSize(Alignment.TopStart, unbounded = true).offset(y = (-k * tileDp).dp).requiredWidth(333.33.dp).requiredHeight(screenDp),
                         color = MaterialTheme.colorScheme.background, contentColor = MaterialTheme.colorScheme.onBackground) { body() }
                 }
             }
