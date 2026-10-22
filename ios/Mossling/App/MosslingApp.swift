@@ -8,10 +8,12 @@ enum Route: Hashable {
 @main
 struct MosslingApp: App {
     @State private var app = AppModel()
+    @State private var journal = JournalStore()
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(app)
+                .environment(journal)
                 .preferredColorScheme(app.theme.scheme)
                 .tint(Palette.primary)
         }
@@ -25,6 +27,8 @@ struct RootView: View {
     @State private var todayPath = NavigationPath()
     @State private var growPath = NavigationPath()
     @State private var youPath = NavigationPath()
+    @State private var journalPath = NavigationPath()
+    @Environment(JournalStore.self) private var journal
     @State private var locked = true
 
     var body: some View {
@@ -37,6 +41,10 @@ struct RootView: View {
                         .tabItem { Label("今天", systemImage: "sun.max") }.tag(0)
                     NavigationStack(path: $growPath) { GrowView(path: $growPath).routes(path: $growPath) }
                         .tabItem { Label("成长", systemImage: "leaf") }.tag(1)
+                    if app.journal {
+                        NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
+                            .tabItem { Label("手帐", systemImage: "book.closed") }.tag(2)
+                    }
                     NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
                         .tabItem { Label("我的", systemImage: "person.crop.circle") }.tag(3)
                 }
@@ -44,10 +52,11 @@ struct RootView: View {
             if app.lock && locked { LockView { unlock() } }
         }
         .onChange(of: phase) { _, p in
-            if p == .active { app.today = .today }
+            if p == .active { app.today = .today; journal.reload(); Task { await LiveTimers.sync() } }
             if p == .background { locked = true }
         }
-        .task { if app.lock { unlock() } }
+        .task { if app.lock { unlock() }; app.publish() }
+        .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
 
     private func unlock() {
@@ -76,6 +85,9 @@ extension View {
     /// Every page that can be opened from a tab.
     func routes(path: Binding<NavigationPath>) -> some View {
         navigationDestination(for: Route.self) { r in RouteView(route: r, path: path) }
+            .navigationDestination(for: JournalRoute.self) { r in
+                switch r { case .stats: StatsView(); case .growth: GrowthView() }
+            }
     }
 }
 

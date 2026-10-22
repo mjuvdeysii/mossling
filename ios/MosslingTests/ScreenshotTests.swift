@@ -5,6 +5,7 @@ import SwiftUI
 /// Renders each screen in the simulator and writes a PNG to $SNAPSHOT_DIR (set by CI) for review.
 @MainActor
 final class ScreenshotTests: XCTestCase {
+    // the journal in these shots is in memory; nothing is written
     private func model(companion: Kind = .moss, birth: Day? = Day(y: 2026, m: 4, d: 2)) -> AppModel {
         let d = UserDefaults(suiteName: "shots-\(UUID().uuidString)")!
         let m = AppModel(defaults: d)
@@ -37,8 +38,20 @@ final class ScreenshotTests: XCTestCase {
         window.isHidden = true
     }
 
+    private func at(_ h: Int, _ mi: Int) -> Double { ms(Day.cal.date(bySettingHour: h, minute: mi, second: 0, of: Day(y: 2026, m: 10, d: 19).date)!) }
+    private lazy var journal: JournalStore = {
+        var b = JournalFile.Body()
+        b.logs = [LogEntry(type: LogType.bottle, start: self.at(19, 40), amount: 120), LogEntry(type: LogType.diaper, start: self.at(18, 5), detail: "wet"),
+                  LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"), LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
+                  LogEntry(type: LogType.bath, start: self.at(10, 20)), LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "米粉")]
+        b.measures = [Measure(at: self.at(9, 0) - 200 * 86_400_000, weightG: 3300, lengthMm: 500, headMm: 340), Measure(at: self.at(9, 0) - 140 * 86_400_000, weightG: 5400, lengthMm: 580, headMm: 385),
+                      Measure(at: self.at(9, 0) - 80 * 86_400_000, weightG: 6600, lengthMm: 625, headMm: 410), Measure(at: self.at(9, 0) - 10 * 86_400_000, weightG: 7400, lengthMm: 655, headMm: 425)]
+        b.timers = [RunningTimer(type: LogType.nurse, start: ms(Date()) - 12 * 60_000, side: "l")]
+        return JournalStore(preview: b)
+    }()
+
     private func tabs(_ m: AppModel, _ tab: some View) -> some View {
-        NavigationStack { tab }.environment(m).tint(Palette.primary)
+        NavigationStack { tab }.environment(m).environment(journal).tint(Palette.primary)
     }
 
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m)) }
@@ -61,5 +74,10 @@ final class ScreenshotTests: XCTestCase {
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.background))
     }
     func test13Doc() { let m = model(); shot("13_terms", height: 1400, tabs(m, DocView(name: "TERMS"))) }
+    func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath())))) }
+    func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }
+    func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
+    func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }
+    func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, ScrollView { MonthContent(month: 36, path: .constant(NavigationPath())) }.background(Palette.background))) }
 }

@@ -166,6 +166,18 @@ struct MonthContent: View {
                 .padding(.horizontal, 16)
             }
 
+            Button { path.append(JournalRoute.growth) } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Palette.onSecondaryContainer).frame(width: 36, height: 36).background(Palette.onSecondaryContainer.opacity(0.1), in: Circle())
+                    VStack(alignment: .leading, spacing: 1) { Text("生长曲线").font(.subheadline.weight(.semibold)); Text("体重 · 身长 · 头围").font(.caption) }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
+                }
+                .foregroundStyle(Palette.onSecondaryContainer)
+                .card(Palette.secondaryContainer, radius: 20, padding: 12)
+            }
+            .buttonStyle(.plain).padding(.horizontal, 16).padding(.top, 8)
+
             if m == 36 { StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 20) }
 
             if !c.topics.isEmpty {

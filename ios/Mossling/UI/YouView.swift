@@ -7,6 +7,11 @@ struct YouView: View {
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var clearing = false
+    @Environment(JournalStore.self) private var j
+    @State private var exporting: DataFile?
+    @State private var exportName = ""
+    @State private var importing = false
+    @State private var message: String?
 
     var body: some View {
         @Bindable var app = app
@@ -49,31 +54,47 @@ struct YouView: View {
                 .padding(.vertical, 4)
             }
 
-            Section("功能") {
+            Section {
+                Toggle(isOn: $app.journal) { Label { VStack(alignment: .leading) { Text("手帐"); Text("喂养、睡眠、尿布、体温").font(.caption).foregroundStyle(Palette.secondaryText) } } icon: { Image(systemName: "book.closed") } }
                 if LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock {
                     Toggle(isOn: $app.lock) { Label("应用锁", systemImage: "faceid") }
                 }
-            }
+            } header: { Text("功能") }
 
             Section("显示") {
                 Picker(selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } } label: { Label("外观", systemImage: "circle.lefthalf.filled") }
             }
 
-            Section("记录") {
+            Section {
+                Button { exportName = "芽芽月历记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) } label: { LabeledContent { Text("JSON") } label: { Label("导出记录文件", systemImage: "square.and.arrow.up") } }
+                Button { exportName = "芽芽月历记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) } label: { LabeledContent { Text("CSV") } label: { Label("导出表格", systemImage: "tablecells") } }
+                Button { importing = true } label: { LabeledContent { Text("JSON") } label: { Label("导入记录文件", systemImage: "square.and.arrow.down") } }
                 Button(role: .destructive) { clearing = true } label: { Label("清除全部数据", systemImage: "trash") }
-            }
+            } header: { Text("记录") } footer: { Text("记录文件与安卓版通用；所有记录只保存在这台手机上。") }
 
             Section {
                 NavigationLink(value: Route.about) { Label("关于芽芽月历", systemImage: "info.circle") }
             }
         }
         .navigationTitle("我的")
+        .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting, contentType: exportName.hasSuffix(".csv") ? .commaSeparatedText : .json, defaultFilename: exportName) { r in
+            if case .success = r { message = "已导出" }
+        }
+        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
+            guard case let .success(url) = r else { return }
+            let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
+            do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j); message = "已导入" }
+            catch { message = error is RecordFile.Failure ? "这不是芽芽月历导出的记录文件" : "没有导入成功，文件可能已损坏" }
+        }
+        .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
-            Button("全部清除", role: .destructive) { app.clearAll() }
+            Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
         } message: { Text("清除后无法恢复。") }
     }
 }
+
+private var stamp: String { let d = Day.today; return String(format: "%04d%02d%02d", d.y, d.m, d.d) }
 
 /// About: name, version, the documents, sources and licences, a short disclaimer.
 struct AboutView: View {

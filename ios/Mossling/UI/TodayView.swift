@@ -3,6 +3,7 @@ import SwiftUI
 /// Today: how old the child is today, the one play for today, this week's shelf, and the next vaccination or check-up.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var journal
     @Binding var path: NavigationPath
     @State private var askBirth = false
 
@@ -29,6 +30,9 @@ struct TodayView: View {
                             }
                         }
                         .padding(.horizontal, 16).padding(.top, 20)
+                    }
+                    if app.journal && !journal.timers.isEmpty {
+                        VStack(spacing: 8) { ForEach(journal.timers, id: \.type) { TimerCard(timer: $0) } }.padding(.horizontal, 16).padding(.top, 14)
                     }
                     ShelfCard(month: m) { path.append(Route.plan) }.padding(.horizontal, 16).padding(.top, 14)
                     NextCare(month: m) { path.append(Route.month(m)) }.padding(.horizontal, 16).padding(.top, 14)

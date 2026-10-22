@@ -1,5 +1,6 @@
 import SwiftUI
 import Observation
+import WidgetKit
 
 enum TickKind { static let observed = "c", did = "a", vaccine = "v", checkup = "k" }
 func tickKey(_ month: Int, _ kind: String, _ id: String) -> String { "\(month):\(kind):\(id)" }
@@ -77,8 +78,20 @@ final class AppModel {
     func another() { if let m = babyMonth { pick = "\(m):\(pickIndex + 1)" } }
     var skippedToday: Bool { skipDay == today.epochDay }
 
+    func replaceTicks(_ l: [Tick]) { ticks = Dictionary(l.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a }) }
+
+    /// What the widget shows, written whenever it changes.
+    func publish() {
+        var code: String?, name: String?
+        if let m = babyMonth, !skippedToday { let ps = todaysPlays(m); if !ps.isEmpty { let p = ps[pickIndex % ps.count]; code = p.code; name = p.name } }
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name))
+        WidgetCenter.shared.reloadAllTimelines()
+    }
+    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(skipDay)|\(today.epochDay)" }
+
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "nickname", "lock", "shelf", "journal", "ticks"] { d.removeObject(forKey: k) }
+        JournalFile.write(JournalFile.Body())
         birth = nil; sex = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; journal = false; lock = false; onboarded = false
     }
 }
