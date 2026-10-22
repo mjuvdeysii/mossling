@@ -88,10 +88,10 @@ struct GrowthView: View {
         let pts: [(Measure, Double, Double)] = j.measures.compactMap { m in months(m).flatMap { mo in value(m, ind).map { (m, mo, $0) } } }
         let now = app.age.map { Double($0.months) + Double($0.days) / 30.4375 }
         let span = min(36, max(6, max(now ?? 0, pts.map(\.1).max() ?? 0) + 3))
-        let xs = stride(from: 0.0, through: span, by: 0.25).map { $0 }
-        let mid = xs.dropLast().map { $0 + 0.125 }
-        let outer = mid.map { m in Band(m: m - 0.125, lo: g.at(ind, girl: girl, months: m, percentile: 3), hi: g.at(ind, girl: girl, months: m, percentile: 97), series: "3–97") }
-        let inner = mid.map { m in Band(m: m - 0.125, lo: g.at(ind, girl: girl, months: m, percentile: 15), hi: g.at(ind, girl: girl, months: m, percentile: 85), series: "15–85") }
+        let xs = stride(from: 0.0, through: span, by: 0.1).map { $0 }
+        let mid = xs.dropLast().map { $0 + 0.05 }
+        let outer = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 3), hi: g.at(ind, girl: girl, months: m, percentile: 97), series: "3–97") }
+        let inner = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 15), hi: g.at(ind, girl: girl, months: m, percentile: 85), series: "15–85") }
         let lines = [3, 50, 97].flatMap { p in xs.map { Line(m: $0, v: g.at(ind, girl: girl, months: $0, percentile: p), p: p) } }
         return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
@@ -102,9 +102,9 @@ struct GrowthView: View {
                 }
             }
             Chart {
-                // the bands, as thin slices (a quarter month each)
-                ForEach(outer) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.25)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.09)) }
-                ForEach(inner) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.25)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.13)) }
+                // the bands, as thin slices (a tenth of a month each)
+                ForEach(outer) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.1)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.09)) }
+                ForEach(inner) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.1)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.13)) }
                 ForEach(lines) { l in
                     LineMark(x: .value("月龄", l.m), y: .value("值", l.v), series: .value("百分位", "p\(l.p)"))
                         .foregroundStyle(l.p == 50 ? Palette.secondaryText : Palette.secondaryText.opacity(0.6))
