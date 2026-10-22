@@ -21,6 +21,7 @@
 	<dict><key>UIColorName</key><string>Chalk</string></dict>
 	<key>UIApplicationSceneManifest</key>
 	<dict><key>UIApplicationSupportsMultipleScenes</key><false/></dict>
+	<key>UIRequiresFullScreen</key><true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array><string>UIInterfaceOrientationPortrait</string></array>
 	<key>CFBundleLocalizations</key><array><string>zh-Hans</string></array>
