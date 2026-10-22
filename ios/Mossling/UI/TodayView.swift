@@ -41,7 +41,8 @@ struct TodayView: View {
             .padding(.bottom, 32)
         }
         .background(Palette.background)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("今天")
+        .navigationSubtitle([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
         .sheet(isPresented: $askBirth) { BirthSheet() }
     }
 }
@@ -51,16 +52,14 @@ private struct Hero: View {
     @Binding var askBirth: Bool
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) · \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
-                .font(.subheadline.weight(.medium)).foregroundStyle(Palette.secondaryText)
             HStack(alignment: .center) {
                 if let age = app.age {
                     VStack(alignment: .leading, spacing: 8) {
                         HStack(alignment: .center, spacing: 12) {
                             // the age on a sandpaper-number board
-                            Text("\(age.months)").font(Typeface.numerals(64, relativeTo: .largeTitle)).foregroundStyle(Palette.paper)
-                                .padding(.horizontal, 14).padding(.vertical, 2)
-                                .background(Palette.mossDeep, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            Text("\(age.months)").font(Typeface.numerals(60, relativeTo: .largeTitle)).foregroundStyle(.white)
+                                .padding(.horizontal, 16).padding(.vertical, 4)
+                                .glassEffect(.regular.tint(Palette.moss), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                             VStack(alignment: .leading, spacing: 0) {
                                 Text("个月").font(Typeface.serif(20))
                                 if age.days > 0 {
@@ -82,14 +81,14 @@ private struct Hero: View {
                         Text("你好。").font(Typeface.serif(32, relativeTo: .largeTitle))
                         Text("填写出生日期，开始第一站。").font(.body)
                         Button { askBirth = true } label: { Text("填写出生日期").padding(.horizontal, 6) }
-                            .buttonStyle(.borderedProminent).controlSize(.large)
+                            .buttonStyle(.glassProminent).controlSize(.large)
                     }
                 }
                 Spacer(minLength: 8)
                 Duo(primary: app.companion, size: 92, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.85, y: 0.25))
             }
         }
-        .padding(.horizontal, 20).padding(.top, 12)
+        .padding(.horizontal, 20).padding(.top, 4)
     }
     private var isNight: Bool { let h = Day.cal.component(.hour, from: Date()); return h >= 22 || h < 6 }
 }
@@ -142,15 +141,13 @@ private struct PlayPlate: View {
             }
         }
         .padding(18)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .padding(8)
-        .background(Palette.wood.opacity(0.85), in: RoundedRectangle(cornerRadius: 32, style: .continuous))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
         .contentShape(Rectangle())
         .onTapGesture(perform: open)
     }
     @ViewBuilder private var buttons: some View {
-        Button(action: open) { Text("开始").frame(minWidth: 60) }.buttonStyle(.borderedProminent).controlSize(.large)
-        if count > 1 { Button("换一个") { withAnimation(.snappy) { app.another() } } }
+        Button(action: open) { Text("开始").frame(minWidth: 64) }.buttonStyle(.glassProminent).controlSize(.large)
+        if count > 1 { Button("换一个") { withAnimation(.snappy) { app.another() } }.buttonStyle(.glass).controlSize(.large) }
         Spacer(minLength: 0)
         Button("今天不做") { withAnimation(.snappy) { app.skipDay = app.today.epochDay } }.foregroundStyle(Palette.secondaryText)
     }
@@ -183,9 +180,8 @@ private struct ShelfCard: View {
                     }
                     ForEach(0..<max(0, 3 - s.plays.count), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
                 }
-                Rectangle().fill(Palette.wood).frame(height: 6).clipShape(Capsule())
             }
-            .card(Palette.cardLow, radius: 24)
+            .card(Palette.cardLow, radius: 28)
         }
         .buttonStyle(.plain)
     }

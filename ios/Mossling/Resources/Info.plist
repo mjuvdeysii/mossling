@@ -15,8 +15,6 @@
 	<key>ITSAppUsesNonExemptEncryption</key><false/>
 	<key>NSFaceIDUsageDescription</key><string>打开应用锁后，用面容 ID 确认是你本人。</string>
 	<key>NSSupportsLiveActivities</key><true/>
-	<key>UIAppFonts</key>
-	<array><string>young_serif.ttf</string><string>noto_serif_sc_semibold.ttf</string></array>
 	<key>UILaunchScreen</key>
 	<dict><key>UIColorName</key><string>Chalk</string></dict>
 	<key>UIApplicationSceneManifest</key>

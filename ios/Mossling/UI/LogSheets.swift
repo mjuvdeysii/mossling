@@ -104,7 +104,7 @@ struct AskSheet: View {
 
     private func save(enabled: Bool = true, _ f: @escaping () -> Void) -> some View {
         Button { f(); dismiss() } label: { Text("记下来").frame(maxWidth: .infinity).padding(.vertical, 6) }
-            .buttonStyle(.borderedProminent).controlSize(.large).disabled(!enabled)
+            .buttonStyle(.glassProminent).controlSize(.large).disabled(!enabled)
     }
 }
 

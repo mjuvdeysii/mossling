@@ -28,6 +28,7 @@ struct RootView: View {
     @State private var growPath = NavigationPath()
     @State private var youPath = NavigationPath()
     @State private var journalPath = NavigationPath()
+    @State private var searchPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
     @State private var locked = true
 
@@ -36,18 +37,27 @@ struct RootView: View {
             if !app.onboarded {
                 OnboardingView()
             } else {
+                // the system tab bar (Liquid Glass): it shrinks while reading; search is its own tab
                 TabView(selection: $tab) {
-                    NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
-                        .tabItem { Label("今天", systemImage: "sun.max") }.tag(0)
-                    NavigationStack(path: $growPath) { GrowView(path: $growPath).routes(path: $growPath) }
-                        .tabItem { Label("成长", systemImage: "leaf") }.tag(1)
-                    if app.journal {
-                        NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
-                            .tabItem { Label("手帐", systemImage: "book.closed") }.tag(2)
+                    Tab("今天", systemImage: "sun.max", value: 0) {
+                        NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
                     }
-                    NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
-                        .tabItem { Label("我的", systemImage: "person.crop.circle") }.tag(3)
+                    Tab("成长", systemImage: "leaf", value: 1) {
+                        NavigationStack(path: $growPath) { GrowView(path: $growPath).routes(path: $growPath) }
+                    }
+                    if app.journal {
+                        Tab("手帐", systemImage: "book.closed", value: 2) {
+                            NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
+                        }
+                    }
+                    Tab("我的", systemImage: "person.crop.circle", value: 3) {
+                        NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
+                    }
+                    Tab(value: 4, role: .search) {
+                        NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }
+                    }
                 }
+                .tabBarMinimizeBehavior(.onScrollDown)
             }
             if app.lock && locked { LockView { unlock() } }
         }
@@ -74,7 +84,7 @@ private struct LockView: View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
             Text("芽芽月历已锁定").font(Typeface.serif(22))
-            Button("解锁", action: unlock).buttonStyle(.borderedProminent).controlSize(.large)
+            Button("解锁", action: unlock).buttonStyle(.glassProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
@@ -135,7 +145,7 @@ struct OnboardingView: View {
             Text("0–3 岁早教活动规划").font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.top, 4)
             Spacer()
             Button { askBirth = true } label: { Text("填写宝宝的出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.borderedProminent).controlSize(.large)
+                .buttonStyle(.glassProminent).controlSize(.large)
             Button { app.onboarded = true } label: { Text("先看看").frame(maxWidth: .infinity).padding(.vertical, 8) }
             Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")
                 .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.top, 8)

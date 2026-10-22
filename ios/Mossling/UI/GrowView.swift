@@ -13,21 +13,19 @@ struct GrowView: View {
             ScrollView {
                 MonthContent(month: m, path: $path).id("top")
             }
-            .safeAreaInset(edge: .top, spacing: 0) {
-                HStack(spacing: 6) {
-                    Button { path.append(Route.search) } label: { Image(systemName: "magnifyingglass").font(.title3).frame(width: 40, height: 40) }
-                        .accessibilityLabel("搜索")
-                    BeadChain(month: m, baby: app.babyMonth) { k in withAnimation(.snappy) { month = k; proxy.scrollTo("top", anchor: .top) } }
-                    Button { path.append(Route.map) } label: {
-                        VStack(spacing: 0) { GrowingChild().frame(width: 34, height: 34); Text("地图").font(.caption2) }
-                            .padding(.horizontal, 6).padding(.vertical, 3)
-                            .background(Palette.secondaryContainer, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // the bead chain floats over the page on glass; the map button sits beside it
+            .safeAreaBar(edge: .top) {
+                GlassEffectContainer(spacing: 10) {
+                    HStack(spacing: 10) {
+                        BeadChain(month: m, baby: app.babyMonth) { k in withAnimation(.snappy) { month = k; proxy.scrollTo("top", anchor: .top) } }
+                            .padding(.horizontal, 14).padding(.vertical, 4)
+                            .glassEffect(.regular, in: Capsule())
+                        Button { path.append(Route.map) } label: { GrowingChild().frame(width: 34, height: 34).padding(6) }
+                            .buttonStyle(.glass)
+                            .accessibilityLabel("成长地图")
                     }
-                    .foregroundStyle(Palette.onSecondaryContainer)
-                    .accessibilityLabel("成长地图")
                 }
-                .padding(.horizontal, 8).padding(.vertical, 6)
-                .background(.bar)
+                .padding(.horizontal, 16).padding(.vertical, 6)
             }
         }
         .background(Palette.background)

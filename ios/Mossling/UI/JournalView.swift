@@ -17,16 +17,6 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("手帐").font(Typeface.serif(32, relativeTo: .largeTitle))
-                        Text(day == app.today ? "今天 · \(day.md)" : "\(day.md) · \(day.weekday)").font(.subheadline).foregroundStyle(Palette.secondaryText)
-                    }
-                    Spacer()
-                    Duo(primary: app.companion, size: 56, mood: j.timers.contains { $0.type == LogType.sleep } ? .sleep : .open, look: CGPoint(x: 0.2, y: 0.7))
-                }
-                .padding(.horizontal, 20).padding(.top, 8)
-
                 if !j.timers.isEmpty {
                     VStack(spacing: 8) { ForEach(j.timers, id: \.type) { TimerCard(timer: $0) } }.padding(.horizontal, 16).padding(.top, 12)
                 }
@@ -67,7 +57,14 @@ struct JournalView: View {
             .padding(.bottom, 32)
         }
         .background(Palette.background)
-        .toolbar(.hidden, for: .navigationBar)
+        .navigationTitle("手帐")
+        .navigationSubtitle(day == app.today ? "今天 · \(day.md)" : "\(day.md) · \(day.weekday)")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Duo(primary: app.companion, size: 34, mood: j.timers.contains { $0.type == LogType.sleep } ? .sleep : .open, look: CGPoint(x: 0.2, y: 0.7), poke: false)
+            }
+            .sharedBackgroundVisibility(.hidden)
+        }
         .sheet(item: Binding(get: { ask.map { Wrap(id: $0) } }, set: { ask = $0?.id })) { w in AskSheet(type: w.id) }
         .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }) }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }) }
@@ -277,9 +274,9 @@ struct TimerCard: View {
         }
     }
     @ViewBuilder private var buttons: some View {
-        Button { j.stop(timer.type) } label: { Text("结束并记下").padding(.horizontal, 4) }.buttonStyle(.borderedProminent).tint(.white).foregroundStyle(LogType.color(timer.type))
-        Button(timer.pausedAt == nil ? "暂停" : "继续") { j.togglePause(timer.type) }.buttonStyle(.bordered)
-        if timer.type == LogType.nurse { Button(timer.side == "r" ? "换到左边" : "换到右边") { j.switchSide(timer.type) }.buttonStyle(.bordered) }
+        Button { j.stop(timer.type) } label: { Text("结束并记下").padding(.horizontal, 4) }.buttonStyle(.glassProminent).tint(.white).foregroundStyle(LogType.color(timer.type))
+        Button(timer.pausedAt == nil ? "暂停" : "继续") { j.togglePause(timer.type) }.buttonStyle(.glass)
+        if timer.type == LogType.nurse { Button(timer.side == "r" ? "换到左边" : "换到右边") { j.switchSide(timer.type) }.buttonStyle(.glass) }
     }
 }
 

@@ -26,7 +26,7 @@ struct GrowthView: View {
                 if app.sex == nil {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("选择性别以对照 WHO 生长曲线").font(.subheadline)
-                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.borderedProminent)
+                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.glassProminent)
                     }
                     .card(Palette.cardLow)
                 }
@@ -48,9 +48,9 @@ struct GrowthView: View {
             .padding(.horizontal, 16).padding(.bottom, 24)
         }
         .background(Palette.background)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaBar(edge: .bottom) {
             Button { editing = Measure(at: ms(Date())) } label: { Label("记一次测量", systemImage: "plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.borderedProminent).controlSize(.large).padding(.horizontal, 16).padding(.vertical, 8).background(.bar)
+                .buttonStyle(.glassProminent).controlSize(.large).padding(.horizontal, 16).padding(.vertical, 8)
         }
         .navigationTitle("生长").navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }) }

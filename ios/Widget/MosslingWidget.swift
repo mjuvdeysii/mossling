@@ -15,7 +15,7 @@ private extension Color {
     init(hex: UInt32) { self.init(.sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255) }
     static let moss = Color(hex: 0x3D5434), bead = Color(hex: 0xD4A21C)
 }
-private func serif(_ s: CGFloat) -> Font { .custom("YoungSerif-Regular", size: s) }
+private func serif(_ s: CGFloat) -> Font { .system(size: s, weight: .semibold, design: .rounded).monospacedDigit() }
 
 // MARK: Home Screen and Lock Screen widget
 

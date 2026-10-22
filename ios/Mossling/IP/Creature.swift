@@ -144,7 +144,17 @@ struct Creature: View {
         ctx.fill(Path(roundedRect: CGRect(x: x, y: 80, width: 6.5, height: 10), cornerRadius: 3.2), with: .color(Palette.ink))
     }
     private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, _ deep: Color) {
-        ctx.fill(p.offsetBy(dx: 1.4, dy: 1.2), with: .color(deep)); ctx.fill(p, with: .color(fill))
+        // a glassy body: the colour lit from above, a soft highlight along the top edge, a rim of light, depth below
+        let r = p.boundingRect
+        ctx.fill(p.offsetBy(dx: 0, dy: 1.6), with: .color(deep.opacity(0.55)))
+        ctx.fill(p, with: .linearGradient(Gradient(colors: [fill.mix(with: .white, by: 0.18), fill, fill.mix(with: deep, by: 0.45)]),
+                                          startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.minX + r.width * 0.25, y: r.maxY)))
+        var c = ctx
+        c.clip(to: p)
+        c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.12, y: r.minY + r.height * 0.04, width: r.width * 0.62, height: r.height * 0.32)),
+               with: .linearGradient(Gradient(colors: [.white.opacity(0.42), .white.opacity(0)]), startPoint: CGPoint(x: r.midX, y: r.minY), endPoint: CGPoint(x: r.midX, y: r.minY + r.height * 0.36)))
+        c.stroke(p, with: .linearGradient(Gradient(colors: [.white.opacity(0.55), .white.opacity(0.05), .white.opacity(0.25)]),
+                                          startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.maxX, y: r.maxY)), lineWidth: 1.6)
     }
     private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ skin: Color) {
         if mood == .sleep {
@@ -158,6 +168,8 @@ struct Creature: View {
         let pr = min(rx, ry) * (mood == .wow ? 0.5 : 0.62)
         let px = cx + max(-1, min(1, look.x)) * (rx - pr - 0.3), py = cy + max(-1, min(1, look.y)) * (ry - pr - 0.3)
         c.fill(Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)), with: .color(Palette.ink))
+        // a glint on the eye
+        c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.55, y: py - pr * 0.65, width: pr * 0.5, height: pr * 0.5)), with: .color(.white.opacity(0.85)))
         if mood == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.12, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
         if lid > 0 { c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: (ry * 2 + 1.2) * lid)), with: .color(skin)) }
     }

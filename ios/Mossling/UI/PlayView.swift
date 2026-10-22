@@ -56,15 +56,15 @@ struct PlayView: View {
             .padding(.horizontal, 16).padding(.bottom, 24)
         }
         .background(Palette.background)
-        .safeAreaInset(edge: .bottom) {
+        .safeAreaBar(edge: .bottom) {
             Button { withAnimation(.snappy) { app.toggle(month, TickKind.did, play.code, play.name) } } label: {
                 Label(did ? "这个月做过了" : "记为做过", systemImage: did ? "checkmark.circle.fill" : "checkmark.circle")
                     .frame(maxWidth: .infinity).padding(.vertical, 6)
             }
-            .buttonStyle(.borderedProminent).controlSize(.large)
+            .buttonStyle(.glassProminent).controlSize(.large)
             .tint(did ? Palette.mossLight : Palette.primary)
             .padding(.horizontal, 16).padding(.vertical, 8)
-            .background(.bar)
+
             .sensoryFeedback(.success, trigger: did)
         }
         .navigationTitle("满 \(month) 个月").navigationBarTitleDisplayMode(.inline)

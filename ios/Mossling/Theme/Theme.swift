@@ -28,25 +28,26 @@ enum Palette {
     static let beadLight = Color(hex: 0xEDCB6A)
     static let wood = Color(hex: 0xC99B63)
     static let red = Color(hex: 0xB8382B)
-    static let stone = Color(hex: 0xD9D4C7)
+    static let stone = Color(uiColor: .systemGray4)
 
-    // surfaces and text, light / dark
-    static let background = Color.dyn(0xF4F2EC, 0x121411)
-    static let card = Color.dyn(0xFBF9F3, 0x1B1E19)
-    static let cardLow = Color.dyn(0xF0EDE5, 0x1E211B)
-    static let cardHigh = Color.dyn(0xE6E2D8, 0x2A2D26)
-    static let primary = Color.dyn(0x3D5434, 0xB3CB9F)
-    static let primaryContainer = Color.dyn(0xD7E3C9, 0x34472C)
-    static let onPrimaryContainer = Color.dyn(0x1E2C17, 0xD7E3C9)
-    static let tertiary = Color.dyn(0x8A6508, 0xE9C860)
-    static let tertiaryContainer = Color.dyn(0xF6E4AE, 0x5A4300)
-    static let onTertiaryContainer = Color.dyn(0x3A2A00, 0xF6E4AE)
-    static let secondaryContainer = Color.dyn(0xD9E0F2, 0x2A3D6B)
+    // surfaces and text: the system's own semantic colours, so the app sits naturally in light, dark and
+    // increased-contrast modes; the brand colours are kept for the companions, the beads and accents
+    static let background = Color(uiColor: .systemGroupedBackground)
+    static let card = Color(uiColor: .secondarySystemGroupedBackground)
+    static let cardLow = Color(uiColor: .secondarySystemGroupedBackground)
+    static let cardHigh = Color(uiColor: .tertiarySystemFill)
+    static let primary = Color.dyn(0x3B7A4B, 0x86CF95)
+    static let primaryContainer = Color.dyn(0xE2F0E2, 0x1E3524)
+    static let onPrimaryContainer = Color.dyn(0x1C3A24, 0xCDEBD1)
+    static let tertiary = Color.dyn(0x9A6A06, 0xF2C14E)
+    static let tertiaryContainer = Color.dyn(0xFBF1D4, 0x3A2F12)
+    static let onTertiaryContainer = Color.dyn(0x4A3300, 0xF6E4AE)
+    static let secondaryContainer = Color.dyn(0xE4EBFB, 0x1D2A4A)
     static let onSecondaryContainer = Color.dyn(0x15254A, 0xD9E0F2)
-    static let text = Color.dyn(0x1C1D19, 0xE4E3DC)
-    static let secondaryText = Color.dyn(0x4A4C43, 0xC5C7BA)
-    static let outline = Color.dyn(0xD9D4C7, 0x44473F)
-    static let danger = Color.dyn(0xB8382B, 0xF0A094)
+    static let text = Color.primary
+    static let secondaryText = Color.secondary
+    static let outline = Color(uiColor: .separator)
+    static let danger = Color(uiColor: .systemRed)
 
     /// The six areas of development, each with its own colour and SF Symbol.
     static func area(_ key: String) -> Color {
@@ -63,10 +64,22 @@ enum Palette {
     }
 }
 
-/// Numerals and Latin display: Young Serif. Chinese headings: Noto Serif SC. Interface text: the system font (PingFang).
+/// Type: the system font throughout (SF Pro and PingFang), scaled with Dynamic Type. Headings are bold, numbers use
+/// SF Pro Rounded with tabular digits.
 enum Typeface {
-    static func numerals(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font { .custom("YoungSerif-Regular", size: size, relativeTo: style) }
-    static func serif(_ size: CGFloat, relativeTo style: Font.TextStyle = .title3) -> Font { .custom("NotoSerifSCExtraLight-SemiBold", size: size, relativeTo: style) }
+    private static func scaled(_ size: CGFloat, _ style: Font.TextStyle) -> CGFloat {
+        let ui: UIFont.TextStyle = switch style {
+        case .largeTitle: .largeTitle; case .title: .title1; case .title2: .title2; case .title3: .title3
+        case .headline: .headline; case .subheadline: .subheadline; case .caption: .caption1; case .footnote: .footnote
+        default: .body }
+        return UIFontMetrics(forTextStyle: ui).scaledValue(for: size)
+    }
+    static func numerals(_ size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
+        .system(size: scaled(size, style), weight: .semibold, design: .rounded).monospacedDigit()
+    }
+    static func serif(_ size: CGFloat, relativeTo style: Font.TextStyle = .title3) -> Font {
+        .system(size: scaled(size, style), weight: .bold)
+    }
 }
 
 extension View {
