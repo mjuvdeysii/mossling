@@ -279,7 +279,7 @@ private fun WhenRow(label: String, at: Long, onPick: () -> Unit, step: (Int) -> 
     Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
     // the whole day and time on one tonal button; the nudges wrap to the next line when space is short
     androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp), itemVerticalAlignment = Alignment.CenterVertically) {
+        verticalArrangement = Arrangement.spacedBy(6.dp)) {
         FilledTonalButton(onClick = onPick, shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), modifier = Modifier.heightIn(min = 52.dp)) {
             Text(whenLabel(at), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, softWrap = false)
         }

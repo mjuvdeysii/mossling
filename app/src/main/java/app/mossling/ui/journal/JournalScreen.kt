@@ -74,7 +74,7 @@ fun JournalScreen(ui: AppUi, day: LocalDate, logs: List<LogEntry>, a: JournalAct
                     Text("手帐", style = MaterialTheme.typography.headlineLarge)
                     Text(if (day == ui.today) "今天 · ${md(day)}" else "${md(day)} · ${weekday(day)}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Creature(companion, Modifier.size(64.dp), mood = if (ui.timers.any { it.type == LogType.Sleep }) Mood.Sleep else Mood.Open, look = Offset(0f, 0.7f))
+                app.mossling.ui.ip.Duo(companion, size = 60.dp, mood = if (ui.timers.any { it.type == LogType.Sleep }) Mood.Sleep else Mood.Open, look = Offset(0.2f, 0.7f))
             }
         }
         // what is running comes first: it is what the hands are busy with

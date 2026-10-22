@@ -105,10 +105,10 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
             }
         }
         item("companion") {
-            Group("伙伴") {
+            Group("伙伴 · 选一位站在前面") {
                 Row(Modifier.padding(8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Pick(Kind.Moss, "Moss", "两只眼睛，安静地看", ui.settings.companion == Kind.Moss, Modifier.weight(1f)) { a.companion(Kind.Moss) }
-                    Pick(Kind.Otto, "Otto", "一只眼睛，专心一件事", ui.settings.companion == Kind.Otto, Modifier.weight(1f)) { a.companion(Kind.Otto) }
+                    Pick(Kind.Moss, "Moss", "长着薄荷芽，安静地看", ui.settings.companion == Kind.Moss, Modifier.weight(1f)) { a.companion(Kind.Moss) }
+                    Pick(Kind.Otto, "Otto", "带着金珠，专心一件事", ui.settings.companion == Kind.Otto, Modifier.weight(1f)) { a.companion(Kind.Otto) }
                 }
             }
         }
