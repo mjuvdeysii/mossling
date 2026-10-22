@@ -252,6 +252,9 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
                 }
             }
         }
+        if (m == 36) item("onward") {
+            app.mossling.ui.ip.StoryGoesOn(companion, Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 20.dp))
+        }
         if (c.topics.isNotEmpty()) item("topics") {
             SectionTitle("专题", kicker = null)
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {

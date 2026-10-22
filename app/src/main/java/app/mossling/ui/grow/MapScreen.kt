@@ -117,6 +117,10 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
                     Station(ui, c.month(m), m, baby, family = c.month(m).feature?.let { c.play(it) }?.let { Family.of(it.domains) }) { open(m) }
                 }
             }
+            // past the last station the road goes on
+            item("onward") {
+                app.mossling.ui.ip.StoryGoesOn(app.mossling.ui.theme.LocalCompanion.current, Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp))
+            }
         }
         Butterfly(Modifier.fillMaxSize()) { if (baby != null) scope.launch { list.animateScrollToItem((indexOf(baby) - 1).coerceAtLeast(0)) } }
     }

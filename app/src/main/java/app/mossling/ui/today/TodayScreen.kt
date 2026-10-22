@@ -115,6 +115,9 @@ fun TodayScreen(ui: AppUi, a: TodayActions, modifier: Modifier = Modifier, now: 
             val t by androidx.compose.runtime.produceState(now()) { while (true) { kotlinx.coroutines.delay(60_000); value = now() } }
             Hero(ui, companion, a, if (ui.settings.journal) since(ui, t) else null)
         }
+        if (age != null && age.months >= 36) item(key = "onward") {
+            app.mossling.ui.ip.StoryGoesOn(companion, Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp))
+        }
         if (age != null && play != null) item(key = "play") {
             Box(Modifier.padding(horizontal = 16.dp)) {
                 AnimatedContent(targetState = if (skipped) null else play, transitionSpec = {

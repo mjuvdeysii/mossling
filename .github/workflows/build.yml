@@ -75,8 +75,8 @@ jobs:
           notes="RELEASE_NOTES.md"; [ -f "$notes" ] || notes=/dev/null
           gh release create "v${VERSION_NAME}" "mossling-${VERSION_NAME}.apk" --target "${GITHUB_SHA}" --title "芽芽月历 Mossling ${VERSION_NAME}" --notes-file "$notes" --latest
       - name: Keep only the current release
-        # 1.0 starts the record: every other release and tag (earlier versions, previews) is removed.
-        if: success() && env.RELEASE == '1'
+        # 1.0 started the record: earlier versions and previews were removed when it was published.
+        if: success() && env.RELEASE == '1' && env.VERSION_NAME == '1.0.0'
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}

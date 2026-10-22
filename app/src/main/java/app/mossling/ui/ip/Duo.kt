@@ -4,6 +4,8 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -64,5 +66,37 @@ fun Duo(
             look = if (beat >= 1) Offset(0.95f, -0.35f) else look,
             lid = if (beat >= 1) null else lid,
             label = if (primary == Kind.Moss) "Moss 和 Otto" else "Otto 和 Moss", poke = poke)
+    }
+}
+
+/**
+ * The end of the map is not the end: the road runs on past the last station, the two companions walk on along it.
+ * Shown after 36 months on the map, at the foot of month 36, and on Today once the child is past three.
+ */
+@Composable
+fun StoryGoesOn(primary: Kind, modifier: Modifier = Modifier) {
+    val road = androidx.compose.material3.MaterialTheme.colorScheme.outlineVariant
+    val bead = app.mossling.ui.theme.Palette.Bead
+    val mint = app.mossling.ui.theme.Palette.Mint
+    androidx.compose.material3.Surface(shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
+        color = mint.copy(alpha = 0.12f), modifier = modifier) {
+        androidx.compose.foundation.layout.Column(Modifier.padding(horizontal = 20.dp, vertical = 18.dp)) {
+            Box(Modifier.fillMaxWidth().height(96.dp)) {
+                // the road, leaving the frame: beads that grow fainter toward the right
+                androidx.compose.foundation.Canvas(Modifier.matchParentSize()) {
+                    val y = size.height - 10.dp.toPx()
+                    val n = 14
+                    for (i in 0 until n) {
+                        val x = size.width * (0.08f + 0.92f * i / (n - 1))
+                        val a = (1f - i / n.toFloat()).coerceIn(0.12f, 1f)
+                        drawCircle(if (i % 4 == 3) bead.copy(alpha = a) else road.copy(alpha = a), (if (i % 4 == 3) 5f else 3.5f).dp.toPx(), androidx.compose.ui.geometry.Offset(x, y))
+                    }
+                }
+                Duo(primary, Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 14.dp), size = 64.dp, look = Offset(0.9f, -0.1f))
+            }
+            androidx.compose.material3.Text("故事仍在继续", style = androidx.compose.material3.MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 8.dp))
+            androidx.compose.material3.Text("36 个月以后，路还很长，每一天都有新的样子。",
+                style = androidx.compose.material3.MaterialTheme.typography.bodyMedium, color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
