@@ -2,7 +2,7 @@ import SwiftUI
 import LocalAuthentication
 
 enum Route: Hashable {
-    case play(String, Int), month(Int), plan, map, topic(String), search, about, sources, licenses, doc(String)
+    case play(String, Int), month(Int), observe(Int), plan, topic(String), search, about, sources, licenses, doc(String)
 }
 
 @main
@@ -15,7 +15,8 @@ struct MosslingApp: App {
                 .environment(app)
                 .environment(journal)
                 .preferredColorScheme(app.theme.scheme)
-                .tint(Palette.primary)
+                .tint(Palette.accent)
+                .fontDesign(.rounded)
         }
     }
 }
@@ -37,27 +38,9 @@ struct RootView: View {
             if !app.onboarded {
                 OnboardingView()
             } else {
-                // the system tab bar (Liquid Glass): it shrinks while reading; search is its own tab
-                TabView(selection: $tab) {
-                    Tab("今天", systemImage: "sun.max", value: 0) {
-                        NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
-                    }
-                    Tab("成长", systemImage: "leaf", value: 1) {
-                        NavigationStack(path: $growPath) { GrowView(path: $growPath).routes(path: $growPath) }
-                    }
-                    if app.journal {
-                        Tab("手帐", systemImage: "book.closed", value: 2) {
-                            NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
-                        }
-                    }
-                    Tab("我的", systemImage: "person.crop.circle", value: 3) {
-                        NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
-                    }
-                    Tab(value: 4, role: .search) {
-                        NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }
-                    }
-                }
-                .tabBarMinimizeBehavior(.onScrollDown)
+                // the system tab bar (Liquid Glass): it shrinks while reading; search is its own tab; a running feed or
+                // sleep rides above it on every tab
+                tabs.timerAccessory(journal.timers.first)
             }
             if app.lock && locked { LockView { unlock() } }
         }
@@ -67,6 +50,29 @@ struct RootView: View {
         }
         .task { if app.lock { unlock() }; app.publish() }
         .onChange(of: app.publishKey) { _, _ in app.publish() }
+    }
+
+    private var tabs: some View {
+        TabView(selection: $tab) {
+            Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
+                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
+            }
+            Tab("旅程", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath.fill", value: 1) {
+                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }
+            }
+            if app.journal {
+                Tab("手帐", systemImage: "book.closed.fill", value: 2) {
+                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }
+                }
+            }
+            Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
+                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
+            }
+            Tab(value: 4, role: .search) {
+                NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }
+            }
+        }
+        .tabBarMinimizeBehavior(.onScrollDown)
     }
 
     private func unlock() {
@@ -83,8 +89,8 @@ private struct LockView: View {
     var body: some View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
-            Text("芽芽月历已锁定").font(Typeface.serif(22))
-            Button("解锁", action: unlock).buttonStyle(.glassProminent).controlSize(.large)
+            Text("芽芽月历已锁定").font(.title2.weight(.bold))
+            Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Palette.background)
@@ -108,11 +114,9 @@ private struct RouteView: View {
     var body: some View {
         switch route {
         case let .play(code, m): if let p = app.content.play(code) { PlayView(play: p, month: m) }
-        case let .month(m):
-            ScrollView { MonthContent(month: m, path: $path) }.background(Palette.background)
-                .navigationTitle("满 \(m) 个月").navigationBarTitleDisplayMode(.inline)
+        case let .month(m): MonthView(month: m)
+        case let .observe(m): ObserveView(month: m)
         case .plan: PlanView(path: $path)
-        case .map: MapView(path: $path)
         case let .topic(id): if let t = app.content.topics.first(where: { $0.id == id }) { TopicView(topic: t) }
         case .search: SearchView(path: $path)
         case .about: AboutView()
@@ -130,40 +134,64 @@ struct OnboardingView: View {
     @State private var doc: String?
     @State private var rise = false
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Spacer()
-            HStack(alignment: .bottom, spacing: -18) {
-                Creature(kind: .moss, look: CGPoint(x: 0.9, y: -0.1), poke: true).frame(width: 170, height: 170).offset(y: rise ? 0 : 40)
-                Creature(kind: .otto, look: CGPoint(x: -0.9, y: 0), poke: true).frame(width: 150, height: 150).offset(y: rise ? 0 : 60)
+        VStack(spacing: 0) {
+            ZStack(alignment: .bottom) {
+                Sky()
+                HStack(alignment: .bottom, spacing: -14) {
+                    Creature(kind: .moss, look: CGPoint(x: 0.9, y: -0.1), poke: true).frame(width: 150, height: 150).offset(y: rise ? 0 : 40)
+                    Creature(kind: .otto, look: CGPoint(x: -0.9, y: 0), poke: true).frame(width: 132, height: 132).offset(y: rise ? 0 : 60)
+                }
+                .opacity(rise ? 1 : 0)
+                .padding(.bottom, 26)
             }
-            .opacity(rise ? 1 : 0)
-            .frame(maxWidth: .infinity)
-            Spacer().frame(height: 28)
-            Text("芽芽月历").font(Typeface.serif(44, relativeTo: .largeTitle)).foregroundStyle(Palette.primary)
-            Text("Mossling").font(Typeface.numerals(22)).foregroundStyle(Palette.secondaryText)
-            Text("跟着孩子，一个月一站。").font(.body).padding(.top, 12)
-            Text("0–3 岁早教活动规划").font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.top, 4)
-            Spacer()
-            Button { askBirth = true } label: { Text("填写宝宝的出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.glassProminent).controlSize(.large)
-            Button { app.onboarded = true } label: { Text("先看看").frame(maxWidth: .infinity).padding(.vertical, 8) }
-            Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")
-                .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).frame(maxWidth: .infinity).padding(.top, 8)
-            HStack {
-                ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
-                    Button("《\(t)》") { doc = f }.font(.caption.weight(.semibold))
+            .frame(maxHeight: .infinity)
+            .ignoresSafeArea(edges: .top)
+
+            VStack(spacing: 8) {
+                Text("芽芽月历").font(.largeTitle.weight(.bold))
+                Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(.secondary)
+            }
+            .multilineTextAlignment(.center)
+            .padding(.top, 8)
+
+            VStack(spacing: 10) {
+                Button { askBirth = true } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                    .buttonStyle(.glassProminent).controlSize(.large)
+                Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                    .buttonStyle(.glass).controlSize(.large)
+                Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")
+                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.top, 6)
+                HStack(spacing: 16) {
+                    ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
+                        Button(t) { doc = f }.font(.caption.weight(.semibold))
+                    }
                 }
             }
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 24).padding(.top, 28).padding(.bottom, 12)
         }
-        .padding(24)
         .background(Palette.background)
         .onAppear { withAnimation(.spring(duration: 0.9)) { rise = true } }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
-            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成") { doc = nil } } } }
+            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { doc = nil } } } }
         }
     }
 }
 
 private struct DocName: Identifiable { let id: String }
+
+/// The running timer above the tab bar. The accessory is attached only while a timer runs, so no empty bar shows.
+private struct TimerAccessoryModifier: ViewModifier {
+    let timer: RunningTimer?
+    @ViewBuilder func body(content: Content) -> some View {
+        if let timer {
+            content.tabViewBottomAccessory { TimerAccessory(timer: timer) }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func timerAccessory(_ t: RunningTimer?) -> some View { modifier(TimerAccessoryModifier(timer: t)) }
+}

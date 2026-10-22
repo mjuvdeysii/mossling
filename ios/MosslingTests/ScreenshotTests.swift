@@ -51,16 +51,22 @@ final class ScreenshotTests: XCTestCase {
     }()
 
     private func tabs(_ m: AppModel, _ tab: some View) -> some View {
-        NavigationStack { tab }.environment(m).environment(journal).tint(Palette.primary)
+        NavigationStack { tab }.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)
     }
 
-    func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.primary)) }
-    func test02Today() { let m = model(); shot("02_today", tabs(m, TodayView(path: .constant(NavigationPath())))) }
-    func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, tabs(m, TodayView(path: .constant(NavigationPath())))) }
+    func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
+    func test02Today() { let m = model(); shot("02_today", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
+    func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
-    func test05Grow() { let m = model(); shot("05_grow", height: 2400, tabs(m, ScrollView { MonthContent(month: 6, path: .constant(NavigationPath())) }.background(Palette.background))) }
+    func test05Journey() { let m = model(); shot("05_journey", height: 1600, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
+    func test05JourneyDark() { let m = model(companion: .otto); shot("05_journey_dark", dark: true, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
     func test06Play() { let m = model(); shot("06_play", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
-    func test07Map() { let m = model(); shot("07_map", tabs(m, MapView(path: .constant(NavigationPath())))) }
+    func test07Month() { let m = model(); shot("07_month", height: 3200, tabs(m, MonthView(month: 6))) }
+    func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }
+    func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }
+    func test06PlayDark() { let m = model(); shot("06_play_dark", dark: true, height: 1400, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
+    func test15JournalDark() { let m = model(); m.journal = true; shot("15_journal_dark", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())))) }
+    func test20Search() { let m = model(); shot("20_you_dark", dark: true, height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test08You() { let m = model(); shot("08_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test09About() { let m = model(); shot("09_about", tabs(m, AboutView())) }
     func test10Topic() { let m = model(); shot("10_topic", height: 1600, tabs(m, TopicView(topic: m.content.topics[0]))) }
@@ -82,5 +88,5 @@ final class ScreenshotTests: XCTestCase {
     func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
     func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
-    func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, ScrollView { MonthContent(month: 36, path: .constant(NavigationPath())) }.background(Palette.background))) }
+    func test14Month36() { let m = model(); shot("14_month36", height: 3400, tabs(m, MonthView(month: 36))) }
 }

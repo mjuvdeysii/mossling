@@ -16,25 +16,22 @@ struct AskSheet: View {
     private var at: Date { exact ?? Date().addingTimeInterval(-Double(ago) * 60) }
 
     var body: some View {
+        let c = LogType.color(type)
         NavigationStack {
             ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    Text(type == LogType.nurse ? "什么时候开始的" : "什么时候").font(.subheadline).foregroundStyle(Palette.secondaryText)
-                    FlowChips(items: [(0, "现在"), (5, "5 分钟前"), (15, "15 分钟前"), (30, "半小时前"), (60, "1 小时前")], selected: exact == nil ? ago : nil) { ago = $0; exact = nil }
-                    Button { choosing = true } label: {
-                        Label(exact.map { whenLabel($0) } ?? "选择准确时间…", systemImage: "clock")
-                            .font(.subheadline.weight(.semibold)).monospacedDigit()
-                            .padding(.horizontal, 12).padding(.vertical, 8)
-                            .background(exact == nil ? Palette.cardHigh : Palette.primaryContainer, in: Capsule())
+                VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text(type == LogType.nurse ? "开始时间" : "时间").font(.headline)
+                        FlowChips(items: [(0, "现在"), (5, "5 分钟前"), (15, "15 分钟前"), (30, "半小时前"), (60, "1 小时前")], selected: exact == nil ? ago : nil, tint: c) { ago = $0; exact = nil }
+                        Button { choosing = true } label: { Label(exact.map { whenLabel($0) } ?? "选择时间", systemImage: "clock").monospacedDigit() }
+                            .buttonStyle(.bordered).tint(exact == nil ? .secondary : c)
                     }
-                    .buttonStyle(.plain)
-                    Divider()
                     content
                 }
                 .padding(20)
             }
             .navigationTitle(LogType.name(type)).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
             .sheet(isPresented: $choosing) { TimeSheet(title: type == LogType.nurse ? "开始时间" : "时间", initial: at) { exact = $0 } }
         }
         .presentationDetents([.medium, .large])
@@ -42,58 +39,56 @@ struct AskSheet: View {
     }
 
     @ViewBuilder private var content: some View {
+        let c = LogType.color(type)
         switch type {
         case LogType.nurse:
-            Text("从哪边开始").font(Typeface.serif(20))
-            HStack(spacing: 16) {
-                ForEach([("l", "L", "左边"), ("r", "R", "右边")], id: \.0) { k, big, t in
+            Text("从哪一侧开始").font(.headline)
+            HStack(spacing: 14) {
+                ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, t in
                     Button { j.start(LogType.nurse, side: k, at: at); dismiss() } label: {
-                        VStack { Text(big).font(Typeface.numerals(40)).foregroundStyle(LogType.color(LogType.nurse)); Text(t).font(.headline) }
-                            .frame(maxWidth: .infinity).aspectRatio(1, contentMode: .fit)
-                            .background(LogType.color(LogType.nurse).opacity(0.12), in: Circle())
+                        VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
+                            .foregroundStyle(c).frame(maxWidth: .infinity, minHeight: 110)
+                            .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
             }
         case LogType.bottle:
-            Text("喝了多少").font(Typeface.serif(20))
             HStack(alignment: .firstTextBaseline) {
-                Text("\(Int(ml))").font(Typeface.numerals(48)).monospacedDigit(); Text("毫升").font(.headline)
+                ValueText(parts: [("\(Int(ml))", "毫升")], size: 44)
                 Spacer()
-                Stepper("", value: $ml, in: 10...300, step: 10).labelsHidden()
+                Stepper("奶量", value: $ml, in: 10...300, step: 10).labelsHidden()
             }
-            Slider(value: $ml, in: 10...300, step: 10)
-            FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml)) { ml = Double($0) }
+            Slider(value: $ml, in: 10...300, step: 10).tint(c)
+            FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
             save { j.add(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml))) }
         case LogType.diaper:
-            Text("换尿布").font(Typeface.serif(20))
             HStack(spacing: 12) {
-                ForEach([("wet", "湿", "drop"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, s in
+                ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
                     Button { j.add(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {
-                        VStack(spacing: 6) { Image(systemName: s).font(.title2); Text(t).font(.headline) }
-                            .frame(maxWidth: .infinity, minHeight: 92).foregroundStyle(Palette.onPrimaryContainer)
-                            .background(Palette.primaryContainer, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                        VStack(spacing: 8) { Image(systemName: sym).font(.title2); Text(t).font(.subheadline.weight(.semibold)) }
+                            .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(c)
+                            .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
                     }
                     .buttonStyle(.plain)
                 }
             }
         case LogType.temp:
-            Text("体温").font(Typeface.serif(20))
-            HStack {
-                Text(String(format: "%.1f", Double(temp) / 10)).font(Typeface.numerals(48)).monospacedDigit().foregroundStyle(temp >= 380 ? Palette.danger : Palette.text)
-                Text("°C").font(.headline)
+            HStack(alignment: .firstTextBaseline) {
+                ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 44).foregroundStyle(temp >= 380 ? Palette.danger : .primary)
                 Spacer()
-                Stepper("", value: $temp, in: 340...425).labelsHidden()
+                Stepper("体温", value: $temp, in: 340...425).labelsHidden()
             }
             save { j.add(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
         default:
             let (title, hint, chips): (String, String, [String]) = type == LogType.solid ? ("吃了什么", "食物和大概的量", ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
                 : type == LogType.medicine ? ("用了什么药", "药名与剂量，按医嘱或说明书", ["维生素 D", "维生素 AD"]) : ("备注", "发生了什么", [])
-            Text(title).font(Typeface.serif(20))
+            Text(title).font(.headline)
             TextField(hint, text: $text, axis: .vertical).lineLimit(type == LogType.note ? 3...6 : 1...3).focused($typing)
-                .padding(12).background(Palette.cardLow, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(Palette.background)
             if !chips.isEmpty {
-                FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
+                FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
             }
             save(enabled: !text.trimmingCharacters(in: .whitespaces).isEmpty || type == LogType.solid) {
                 typing = false
@@ -103,28 +98,28 @@ struct AskSheet: View {
     }
 
     private func save(enabled: Bool = true, _ f: @escaping () -> Void) -> some View {
-        Button { f(); dismiss() } label: { Text("记下来").frame(maxWidth: .infinity).padding(.vertical, 6) }
-            .buttonStyle(.glassProminent).controlSize(.large).disabled(!enabled)
+        Button { f(); dismiss() } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
+            .buttonStyle(.glassProminent).tint(LogType.color(type)).controlSize(.large).disabled(!enabled)
     }
 }
 
 func ms(_ d: Date) -> Double { d.timeIntervalSince1970 * 1000 }
 
-/// Chips that wrap onto the next line rather than scroll sideways.
+/// Choices that wrap onto the next line rather than scroll sideways.
 struct FlowChips<T: Hashable>: View {
     let items: [(T, String)]
     let selected: T?
+    var tint: Color = Palette.accent
     let pick: (T) -> Void
     var body: some View {
         WrapLayout(spacing: 8) {
             ForEach(items, id: \.0) { v, t in
-                Button { pick(v) } label: {
-                    Text(t).font(.subheadline).padding(.horizontal, 12).padding(.vertical, 7)
-                        .foregroundStyle(selected == v ? Palette.paper : Palette.text)
-                        .background(selected == v ? Palette.primary : Palette.cardHigh, in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected == v ? .isSelected : [])
+                let on = selected == v
+                Button { pick(v) } label: { Text(t).monospacedDigit() }
+                    .buttonStyle(.bordered).buttonBorderShape(.capsule)
+                    .tint(on ? tint : .secondary)
+                    .fontWeight(on ? .semibold : .regular)
+                    .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
     }
@@ -190,8 +185,8 @@ struct EntrySheet: View {
             }
             .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(isNew ? "记下来" : "好") { if isNew { j.add(entry) } else { j.update(entry) }; dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if isNew { j.add(entry) } else { j.update(entry) }; dismiss() } }
             }
         }
     }
@@ -239,9 +234,9 @@ struct MeasureSheet: View {
             }
             .navigationTitle(isNew ? "记一次测量" : "这次测量").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("好") {
+                    Button("完成", systemImage: "checkmark") {
                         var m = measure; m.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day); m.weightG = wg; m.lengthMm = lm; m.headMm = hm
                         j.saveMeasure(m); dismiss()
                     }
@@ -268,6 +263,6 @@ struct MeasureSheet: View {
 }
 
 extension Indicator {
-    var tint: Color { switch self { case .weight: Color(hex: 0xB07D0C); case .length: Palette.rod; case .head: Palette.mint } }
+    var tint: Color { switch self { case .weight: Crayon.tangerine; case .length: Crayon.sky; case .head: Crayon.aqua } }
     var symbol: String { switch self { case .weight: "scalemass.fill"; case .length: "ruler.fill"; case .head: "circle.dashed" } }
 }

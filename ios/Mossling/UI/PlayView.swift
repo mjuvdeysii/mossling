@@ -1,92 +1,87 @@
 import SwiftUI
 
-/// One play: before you start (what to prepare, safety), each step as a card with its picture, what to watch for and
-/// when to stop, and "记为做过".
+/// One play, step by step as pictures: before starting (what to prepare, safety), each step as its picture with one
+/// sentence, what to watch for and when to stop; "记为做过" stays at the bottom.
 struct PlayView: View {
     @Environment(AppModel.self) private var app
     let play: Play
     let month: Int
+    @State private var scrolled = false
 
     var body: some View {
         let did = app.ticked(month, TickKind.did, play.code)
         let art = ArtIndex.shared.steps(play.code)
+        let key = Palette.areaKey(of: play)
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        CodeTile(code: play.code, tint: app.companion.tint, size: 30)
-                        Text(play.name).font(Typeface.serif(28, relativeTo: .largeTitle)).fixedSize(horizontal: false, vertical: true)
-                        Text([play.age, play.domains.joined(separator: "、")].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.subheadline).foregroundStyle(Palette.secondaryText)
-                    }
-                    Spacer(minLength: 8)
-                    Duo(primary: app.companion, size: 70, mood: did ? .happy : .open, look: CGPoint(x: -0.7, y: 0.6))
+            VStack(alignment: .leading, spacing: 20) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Label(play.domains.joined(separator: "、"), systemImage: Palette.areaSymbol(key))
+                        .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
+                    Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                    Text("\(play.age) · \(play.code)").font(.subheadline).foregroundStyle(.secondary)
                 }
+                .padding(.horizontal, 4)
+                .onScrollVisibilityChange(threshold: 0.2) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
 
                 if !play.prepare.isEmpty || !play.safety.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("开始之前").font(.headline)
-                        if !play.prepare.isEmpty { line("准备", play.prepare, Palette.primary) }
-                        if !play.safety.isEmpty { line("安全", play.safety, Palette.danger) }
+                    Box {
+                        if !play.prepare.isEmpty { BoxRow(symbol: "tray.full.fill", color: Crayon.caramel, title: "准备", text: play.prepare, last: play.safety.isEmpty) }
+                        if !play.safety.isEmpty { BoxRow(symbol: "exclamationmark.triangle.fill", color: Crayon.tangerine, title: "安全", text: play.safety, last: true) }
                     }
-                    .card(Palette.cardLow, radius: 22)
                 }
 
-                SectionHeader(title: "怎么做", kicker: "\(play.steps.count) 步", symbol: "play.circle.fill").padding(.horizontal, -20).padding(.top, -14)
-                ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
-                    VStack(alignment: .leading, spacing: 12) {
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text("\(i + 1)").font(Typeface.numerals(28)).foregroundStyle(Palette.tertiary)
-                            Text(s).font(.body).fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 22) {
+                    ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
+                        VStack(alignment: .leading, spacing: 12) {
+                            if i < art.count { ArtView(name: art[i], label: "第 \(i + 1) 步的图示", radius: 24) }
+                            HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                Text("\(i + 1)").font(Typeface.numerals(15, relativeTo: .headline, weight: .bold)).foregroundStyle(.white)
+                                    .frame(width: 28, height: 28).background(Palette.area(key), in: Circle())
+                                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
+                                Text(s).font(.title3).fixedSize(horizontal: false, vertical: true)
+                            }
+                            .padding(.horizontal, 4)
+                            .accessibilityElement(children: .combine)
                         }
-                        if i < art.count { ArtView(name: art[i], label: "第 \(i + 1) 步的图示", radius: 16) }
                     }
-                    .card(Palette.cardLow, radius: 24)
                 }
 
                 if !play.observe.isEmpty || !play.pause.isEmpty {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("做的时候").font(.headline)
-                        if !play.observe.isEmpty { line("看什么", play.observe, Palette.rod) }
-                        if !play.pause.isEmpty { line("停下", play.pause, Palette.tertiary) }
+                    Box(title: "做的时候") {
+                        if !play.observe.isEmpty { BoxRow(symbol: "eye.fill", color: Crayon.sky, title: "看什么", text: play.observe, last: play.pause.isEmpty) }
+                        if !play.pause.isEmpty { BoxRow(symbol: "hand.raised.fill", color: Crayon.pebble, title: "停下来", text: play.pause, last: true) }
                     }
-                    .card(Palette.cardLow, radius: 22)
                 }
             }
-            .padding(.horizontal, 16).padding(.bottom, 24)
+            .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
         }
         .background(Palette.background)
         .safeAreaBar(edge: .bottom) {
             Button { withAnimation(.snappy) { app.toggle(month, TickKind.did, play.code, play.name) } } label: {
                 Label(did ? "这个月做过了" : "记为做过", systemImage: did ? "checkmark.circle.fill" : "checkmark.circle")
+                    .contentTransition(.symbolEffect(.replace))
                     .frame(maxWidth: .infinity).padding(.vertical, 6)
             }
             .buttonStyle(.glassProminent).controlSize(.large)
-            .tint(did ? Palette.mossLight : Palette.primary)
+            .tint(did ? Color(uiColor: .systemGray) : Palette.accent)
             .padding(.horizontal, 16).padding(.vertical, 8)
-
             .sensoryFeedback(.success, trigger: did)
         }
-        .navigationTitle("满 \(month) 个月").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(play.name)
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .principal) { Text(play.name).font(.headline).lineLimit(1).opacity(scrolled ? 1 : 0) }
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(item: shareText) { Image(systemName: "square.and.arrow.up") }.accessibilityLabel("分享")
             }
         }
     }
 
-    private func line(_ label: String, _ text: String, _ color: Color) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(label).font(.subheadline.weight(.semibold)).foregroundStyle(color).frame(minWidth: 44, alignment: .leading)
-            Text(text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
-        }
-    }
-
     private var shareText: String {
-        var s = "\(play.code) \(play.name)\n\(play.age)\n\n"
+        var s = "\(play.name)（\(play.code)）\n\(play.age)\n\n"
         if !play.prepare.isEmpty { s += "准备：\(play.prepare)\n" }
         if !play.safety.isEmpty { s += "安全：\(play.safety)\n" }
         s += "\n" + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")
-        return s + "\n\n— 来自 芽芽月历 Mossling"
+        return s + "\n\n— 芽芽月历 Mossling"
     }
 }

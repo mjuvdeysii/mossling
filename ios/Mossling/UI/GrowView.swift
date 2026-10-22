@@ -1,299 +1,363 @@
 import SwiftUI
 
-/// Grow: any month, 0 to 36, read in full. The bead chain stays at the top; the month's cover, points, plays, the six
-/// areas, what to look out for, vaccinations and check-ups, notes, the day's rhythm.
-struct GrowView: View {
+/// The journey: 0 to 36 months as one string of golden beads running down the page, a bead per month. Months already
+/// lived are gold, the child's month is larger with the two companions beside it, the months ahead are open rings.
+/// Past the last bead the string runs on. Each bead opens its month.
+struct JourneyView: View {
     @Environment(AppModel.self) private var app
     @Binding var path: NavigationPath
-    @State private var month: Int? = nil
+    private let stages: [Int: String] = [0: "0–3 个月", 3: "3–6 个月", 6: "6–9 个月", 9: "9–12 个月", 12: "1 岁 · 12–18 个月", 18: "18–24 个月", 24: "2 岁 · 24–30 个月", 30: "30–36 个月"]
 
     var body: some View {
-        let m = month ?? app.babyMonth ?? 0
         ScrollViewReader { proxy in
             ScrollView {
-                MonthContent(month: m, path: $path).id("top")
-            }
-            // the bead chain floats over the page on glass; the map button sits beside it
-            .safeAreaBar(edge: .top) {
-                GlassEffectContainer(spacing: 10) {
-                    HStack(spacing: 10) {
-                        BeadChain(month: m, baby: app.babyMonth) { k in withAnimation(.snappy) { month = k; proxy.scrollTo("top", anchor: .top) } }
-                            .padding(.horizontal, 14).padding(.vertical, 4)
-                            .glassEffect(.regular, in: Capsule())
-                        Button { path.append(Route.map) } label: { GrowingChild().frame(width: 34, height: 34).padding(6) }
-                            .buttonStyle(.glass)
-                            .accessibilityLabel("成长地图")
-                    }
-                }
-                .padding(.horizontal, 16).padding(.vertical, 6)
-            }
-        }
-        .background(Palette.background)
-        .toolbar(.hidden, for: .navigationBar)
-        .onChange(of: app.babyMonth) { _, _ in month = nil }
-    }
-}
-
-/// One month, as a page. Used by Grow and when a month is opened from elsewhere.
-struct MonthContent: View {
-    @Environment(AppModel.self) private var app
-    let month: Int
-    @Binding var path: NavigationPath
-
-    var body: some View {
-        let c = app.content, mo = c.month(month), m = month
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 6) {
-                if let f = ArtIndex.shared.cover(m) { ArtView(name: f, label: "满 \(m) 个月：\(mo.title)", radius: 30) }
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text("\(m)").font(Typeface.numerals(40, relativeTo: .largeTitle)).foregroundStyle(Palette.primary)
-                    Text("个月").font(.headline)
-                    if let b = app.babyMonth, b != m { Text(m < b ? " · 以前的月份" : " · 以后的月份").font(.subheadline).foregroundStyle(Palette.secondaryText) }
-                }
-                .padding(.top, 8)
-                Text(mo.title).font(Typeface.serif(22, relativeTo: .title2)).fixedSize(horizontal: false, vertical: true)
-            }
-            .padding(.horizontal, 16).padding(.top, 8)
-            .id(m)
-            .transition(.opacity)
-
-            // the month at a glance; a point that only names a play is already among the plays below
-            VStack(spacing: 8) {
-                ForEach(Array(mo.highlights.filter { c.play($0.anchor ?? "") == nil }.enumerated()), id: \.offset) { i, h in
-                    let even = i % 2 == 0
-                    HStack(alignment: .top, spacing: 12) {
-                        Image(systemName: even ? "eye.fill" : "exclamationmark.shield.fill").font(.body)
-                            .frame(width: 36, height: 36).background((even ? Palette.onPrimaryContainer : Palette.onTertiaryContainer).opacity(0.1), in: Circle())
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(h.kind).font(.subheadline.weight(.semibold))
-                            Text(h.text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .foregroundStyle(even ? Palette.onPrimaryContainer : Palette.onTertiaryContainer)
-                    .card(even ? Palette.primaryContainer : Palette.tertiaryContainer, radius: 22, padding: 14)
-                }
-            }
-            .padding(.horizontal, 16).padding(.top, 16)
-
-            let plays = c.plays(of: m)
-            if !plays.isEmpty {
-                SectionHeader(title: "这个月玩什么", kicker: "\(plays.count) 个活动", symbol: "puzzlepiece.fill")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                    ForEach(plays) { p in
-                        Button { path.append(Route.play(p.code, m)) } label: { PlayCard(play: p, did: app.ticked(m, TickKind.did, p.code)) }.buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-
-            SectionHeader(title: "六个方面", kicker: "家里可以这样做", symbol: "circle.hexagongrid.fill")
-            VStack(spacing: 8) {
-                ForEach(mo.domains, id: \.key) { d in
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(spacing: 10) {
-                            Image(systemName: Palette.areaSymbol(d.key)).font(.subheadline).foregroundStyle(Palette.area(d.key))
-                                .frame(width: 34, height: 34).background(Palette.area(d.key).opacity(0.13), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
-                            Text(d.name).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(d.key))
-                            if d.key == mo.focus { Text("本月重点").font(.caption2.weight(.semibold)).foregroundStyle(Palette.tertiary)
-                                .padding(.horizontal, 6).padding(.vertical, 2).background(Palette.tertiaryContainer, in: Capsule()) }
-                        }
-                        Text(d.text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
-                    }
-                    .card(Palette.cardLow, radius: 20, padding: 14)
-                }
-            }
-            .padding(.horizontal, 16)
-
-            if !mo.observe.isEmpty {
-                SectionHeader(title: "可以留意", kicker: "看到了就勾上，不是考核", symbol: "eye.fill", tint: Palette.rod)
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
-                        Text(g.area).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16).padding(.top, gi == 0 ? 6 : 12)
-                        ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
-                            CheckRow(text: t, on: app.ticked(m, TickKind.observed, "\(gi)-\(ii)")) { app.toggle(m, TickKind.observed, "\(gi)-\(ii)", t) }
-                        }
-                    }
-                }
-                .background(Palette.cardLow, in: RoundedRectangle(cornerRadius: 22, style: .continuous)).padding(.horizontal, 16)
-            }
-
-            if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-                SectionHeader(title: "接种与儿保", symbol: "syringe.fill", tint: Palette.red)
-                VStack(spacing: 0) {
-                    ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
-                        CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), tag: "接种") { app.toggle(m, TickKind.vaccine, "\(i)", t) }
-                    }
-                    ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
-                        CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), tag: "儿保") { app.toggle(m, TickKind.checkup, "\(i)", t) }
-                    }
-                }
-                .background(Palette.cardLow, in: RoundedRectangle(cornerRadius: 22, style: .continuous)).padding(.horizontal, 16)
-            }
-
-            if !mo.notes.isEmpty {
-                SectionHeader(title: "这个月还要知道", symbol: "lightbulb.fill", tint: Palette.tertiary)
-                VStack(spacing: 8) {
-                    ForEach(Array(mo.notes.enumerated()), id: \.offset) { _, n in
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(n.topic).font(.subheadline.weight(.semibold))
-                            Text(rich(n.text)).font(.subheadline).fixedSize(horizontal: false, vertical: true)
-                        }
-                        .card(Palette.cardLow, radius: 20, padding: 14)
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-
-            if !mo.who.isEmpty {
-                SectionHeader(title: "一天的节奏", kicker: "睡眠、活动与屏幕", symbol: "sun.max.fill", tint: Palette.tertiary)
-                let parts = mo.who.replacingOccurrences(of: "WHO", with: "").split(whereSeparator: { $0 == "；" || $0 == ";" })
-                    .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "。")) }.filter { !$0.isEmpty }
-                VStack(spacing: 8) {
-                    ForEach(parts, id: \.self) { t in
-                        let (sym, col): (String, Color) = t.contains("睡") ? ("moon.fill", Palette.rod) : t.contains("屏幕") ? ("iphone", Palette.red)
-                            : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Palette.moss) : ("clock.fill", Palette.bead)
-                        HStack(spacing: 12) {
-                            Image(systemName: sym).foregroundStyle(col).frame(width: 36, height: 36).background(col.opacity(0.13), in: Circle())
-                            Text(t).font(.subheadline).fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 0)
-                        }
-                        .card(Palette.cardLow, radius: 20, padding: 12)
-                    }
-                }
-                .padding(.horizontal, 16)
-            }
-
-            Button { path.append(JournalRoute.growth) } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: "chart.line.uptrend.xyaxis").foregroundStyle(Palette.onSecondaryContainer).frame(width: 36, height: 36).background(Palette.onSecondaryContainer.opacity(0.1), in: Circle())
-                    VStack(alignment: .leading, spacing: 1) { Text("生长曲线").font(.subheadline.weight(.semibold)); Text("体重 · 身长 · 头围").font(.caption) }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold))
-                }
-                .foregroundStyle(Palette.onSecondaryContainer)
-                .card(Palette.secondaryContainer, radius: 20, padding: 12)
-            }
-            .buttonStyle(.plain).padding(.horizontal, 16).padding(.top, 8)
-
-            if m == 36 { StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 20) }
-
-            if !c.topics.isEmpty {
-                SectionHeader(title: "专题", symbol: "book.closed.fill", tint: Palette.tertiary)
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
-                    ForEach(c.topics) { t in
-                        Button { path.append(Route.topic(t.id)) } label: {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Image(systemName: "book.pages.fill").foregroundStyle(Palette.tertiary)
-                                Text(t.title).font(.subheadline.weight(.semibold)).multilineTextAlignment(.leading)
-                                Spacer(minLength: 0)
+                LazyVStack(alignment: .leading, spacing: 0) {
+                    ForEach(0...36, id: \.self) { m in
+                        if let s = stages[m] {
+                            HStack(spacing: 8) {
+                                Circle().fill(stageColor(m)).frame(width: 10, height: 10)
+                                Text(s).font(.title3.weight(.bold))
                             }
-                            .frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
-                            .card(Palette.cardLow, radius: 20, padding: 14)
+                            .padding(.leading, 20).padding(.top, m == 0 ? 8 : 26).padding(.bottom, 4)
+                            .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
                         }
-                        .buttonStyle(.plain)
+                        NavigationLink(value: Route.month(m)) { Station(month: m, first: m == 0) }
+                            .buttonStyle(.plain).id(m)
+                    }
+                    Trail().frame(height: 90)
+                    StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 4)
+                }
+                .padding(.bottom, 40)
+            }
+            .background(Palette.background)
+            .navigationTitle("旅程")
+            .navigationSubtitle("一个月一站 · 0–36 个月")
+            .toolbar {
+                if let b = app.babyMonth {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("满 \(b) 个月", systemImage: "location.fill") { withAnimation(.snappy) { proxy.scrollTo(b, anchor: .center) } }
                     }
                 }
-                .padding(.horizontal, 16)
             }
+            .onAppear { if let b = app.babyMonth { proxy.scrollTo(b, anchor: .center) } }
         }
-        .padding(.bottom, 40)
-        .foregroundStyle(Palette.text)
     }
 }
 
-struct PlayCard: View {
+/// Each stretch of months has its own crayon; the beads of lived months take it, like a bead stair.
+func stageColor(_ m: Int) -> Color {
+    let i = [0, 3, 6, 9, 12, 18, 24, 30].lastIndex { $0 <= m } ?? 0
+    return Crayon.rainbow[i % Crayon.rainbow.count]
+}
+
+/// Where the bead of month m sits across the page: a gentle wave near the leading edge.
+private func beadX(_ m: Int) -> CGFloat { 44 + 16 * CGFloat(sin(Double(m) * 0.85)) }
+
+private struct Station: View {
     @Environment(AppModel.self) private var app
-    let play: Play
-    let did: Bool
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            if let f = ArtIndex.shared.steps(play.code).first { ArtView(name: f, radius: 14) }
-            HStack {
-                CodeTile(code: play.code, tint: app.companion.tint, size: 15)
-                Spacer()
-                if did { Label("做过", systemImage: "checkmark").font(.caption2.weight(.semibold)).foregroundStyle(Palette.primary) }
-            }
-            Text(play.name).font(.subheadline.weight(.semibold)).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            Text(play.age).font(.caption).foregroundStyle(Palette.secondaryText)
-        }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .card(Palette.card, radius: 20, padding: 10)
-    }
-}
-
-/// 0–36 months as golden beads on one string, fitted to the width: tap or drag to choose a month. Nothing scrolls.
-struct BeadChain: View {
     let month: Int
-    let baby: Int?
-    let select: (Int) -> Void
+    var first = false
+
     var body: some View {
-        GeometryReader { g in
-            let w = g.size.width, gap = w / 37
-            Canvas { ctx, size in
-                let y = size.height * 0.4
-                ctx.stroke(Path { p in p.move(to: CGPoint(x: gap / 2, y: y)); p.addLine(to: CGPoint(x: w - gap / 2, y: y)) }, with: .color(Palette.outline), lineWidth: 1)
-                for i in 0...36 {
-                    let x = gap * CGFloat(i) + gap / 2
-                    let big = i % 12 == 0, sel = i == month
-                    let r: CGFloat = sel ? min(gap * 0.7, 9) : big ? min(gap * 0.42, 5) : min(gap * 0.34, 3.6)
-                    let col: Color = sel ? Palette.bead : (baby.map { i <= $0 } ?? false) ? Palette.primary : Palette.stone
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(col))
-                    if sel { ctx.stroke(Path(ellipseIn: CGRect(x: x - r - 2, y: y - r - 2, width: r * 2 + 4, height: r * 2 + 4)), with: .color(Palette.bead.opacity(0.4)), lineWidth: 2) }
+        let mo = app.content.month(month)
+        let baby = app.babyMonth
+        let here = baby == month, past = (baby ?? -1) > month
+        let care = !mo.vaccines.isEmpty || !mo.checkups.isEmpty
+        let careDone = care && mo.vaccines.indices.allSatisfy { app.ticked(month, TickKind.vaccine, "\($0)") } && mo.checkups.indices.allSatisfy { app.ticked(month, TickKind.checkup, "\($0)") }
+        HStack(alignment: .center, spacing: 0) {
+            Color.clear.frame(width: 92)
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 6) {
+                    Text(month == 0 ? "出生" : "满 \(month) 个月").font(here ? .headline : .body.weight(.semibold))
+                    if let b = app.birth { Text(b.plus(months: month).md).font(.footnote).foregroundStyle(.secondary).monospacedDigit() }
                 }
-                for (i, t) in [(0, "出生"), (12, "1岁"), (24, "2岁"), (36, "3岁")] {
-                    let txt = ctx.resolve(Text(t).font(.system(size: 10)).foregroundStyle(Palette.secondaryText))
-                    let x = gap * CGFloat(i) + gap / 2
-                    ctx.draw(txt, at: CGPoint(x: min(max(x, 14), w - 14), y: size.height * 0.85))
+                Text(mo.title).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading).lineLimit(2)
+                if care {
+                    HStack(spacing: 8) {
+                        if !mo.vaccines.isEmpty { Image(systemName: "syringe.fill").foregroundStyle(Crayon.sky) }
+                        if !mo.checkups.isEmpty { Image(systemName: "stethoscope").foregroundStyle(Crayon.aqua) }
+                        if careDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.accent) }
+                    }
+                    .font(.caption).padding(.top, 2)
+                    .accessibilityElement().accessibilityLabel(careDone ? "接种与儿保已记下" : "有接种或儿保")
                 }
             }
-            .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0).onChanged { v in
-                let k = max(0, min(36, Int(v.location.x / gap)))
-                if k != month { select(k) }
-            })
+            .frame(maxWidth: .infinity, alignment: .leading)
+            if here {
+                Duo(primary: app.companion, size: 54, look: CGPoint(x: -0.9, y: 0.3)).padding(.trailing, 12)
+            } else {
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).padding(.trailing, 20)
+            }
         }
-        .frame(height: 40)
-        .sensoryFeedback(.selection, trigger: month)
-        .accessibilityElement()
-        .accessibilityLabel("月份")
-        .accessibilityValue("满 \(month) 个月")
-        .accessibilityAdjustableAction { d in
-            switch d { case .increment: select(min(36, month + 1)); case .decrement: select(max(0, month - 1)); default: break }
+        .padding(.vertical, here ? 18 : 12)
+        .frame(minHeight: here ? 104 : 78)
+        .background(alignment: .leading) { StringAndBead(month: month, here: here, past: past, first: first) }
+        .background {
+            if here { RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Palette.card).padding(.horizontal, 12) }
         }
+        .contentShape(Rectangle())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel((month == 0 ? "出生" : "满 \(month) 个月") + "，\(mo.title)" + (here ? "，宝宝在这里" : ""))
     }
 }
 
-/// The way into the growth map: a peg child growing from lying down to walking, in a loop.
-struct GrowingChild: View {
-    @Environment(\.accessibilityReduceMotion) private var reduce
+/// The string through this month's row and the bead on it.
+private struct StringAndBead: View {
+    let month: Int, here: Bool, past: Bool, first: Bool
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
-            Canvas { ctx, size in
-                let s = min(size.width, size.height) / 48
-                ctx.scaleBy(x: s, y: s)
-                ctx.stroke(Path { p in p.move(to: CGPoint(x: 4, y: 42)); p.addLine(to: CGPoint(x: 44, y: 42)) }, with: .color(Palette.stone), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
-                let v = reduce ? 4.5 : (tl.date.timeIntervalSinceReferenceDate / 0.9).truncatingRemainder(dividingBy: 6)
-                let stage = Int(v), f = v - Double(stage)
-                let a = f < 0.12 ? 0.25 + 0.75 * f / 0.12 : f > 0.88 ? 0.25 + 0.75 * (1 - f) / 0.12 : 1
-                let grow = 0.7 + 0.06 * Double(stage)
-                ctx.opacity = reduce ? 1 : a
-                let skin = Color(hex: 0xEAC9A1), bodyC = Palette.bead
-                func head(_ x: Double, _ y: Double, _ r: Double) { ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(skin)) }
-                func peg(_ x: Double, _ y: Double, _ w: Double, _ h: Double, _ rot: Double) {
-                    var c = ctx; c.translateBy(x: x, y: y); c.rotate(by: .degrees(rot))
-                    c.fill(Path(roundedRect: CGRect(x: -w / 2, y: -h, width: w, height: h), cornerRadius: w / 2), with: .color(bodyC))
-                }
-                switch stage {
-                case 0: peg(24, 40, 7 * grow, 16 * grow, -90); head(31 * 1, 37, 5 * grow)            // lying
-                case 1: peg(22, 41, 7 * grow, 16 * grow, -80); head(31, 33 - sin(f * .pi) * 2, 5 * grow) // tummy, head up
-                case 2: peg(24, 42, 9 * grow, 16 * grow, 0); head(24, 42 - 16 * grow - 5, 5 * grow)  // sitting
-                case 3: peg(20 + f * 6, 38, 7 * grow, 17 * grow, -70); head(32 + f * 6, 31, 5 * grow) // crawling
-                case 4: peg(24, 42, 8 * grow, 24 * grow, 0); head(24, 42 - 24 * grow - 5, 5 * grow)  // standing
-                default: let x = 14 + f * 20; peg(x, 42, 8 * grow, 26 * grow, sin(f * .pi * 6) * 5); head(x, 42 - 26 * grow - 5, 5 * grow) // walking
-                }
+        Canvas { ctx, size in
+            let x0 = (beadX(month - 1) + beadX(month)) / 2, x = beadX(month), x1 = (beadX(month) + beadX(month + 1)) / 2
+            let y = size.height / 2
+            var s = Path()
+            s.move(to: CGPoint(x: first ? x : x0, y: first ? y : 0))
+            if !first { s.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: x0, y: y * 0.6)) }
+            s.addQuadCurve(to: CGPoint(x: x1, y: size.height), control: CGPoint(x: x1, y: y + (size.height - y) * 0.4))
+            ctx.stroke(s, with: .color(stageColor(month).opacity(0.45)), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
+        }
+        .frame(width: 100)
+        .overlay(alignment: .topLeading) {
+            GeometryReader { g in
+                Bead(month: month, here: here, past: past).position(x: beadX(month), y: g.size.height / 2)
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// A golden bead: polished when the month has been lived, larger for the child's month, an open ring for months ahead.
+struct Bead: View {
+    let month: Int, here: Bool, past: Bool
+    var body: some View {
+        let d: CGFloat = here ? 44 : 32
+        ZStack {
+            let c = stageColor(month)
+            if here {
+                Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x8A6206)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: d * 0.75))
+            } else if past {
+                Circle().fill(c.gradient)
+            } else {
+                Circle().fill(Palette.card)
+                Circle().strokeBorder(c.opacity(0.7), lineWidth: 2.5)
+            }
+            if here || past { Ellipse().fill(.white.opacity(0.7)).frame(width: d * 0.26, height: d * 0.16).offset(x: -d * 0.18, y: -d * 0.24) }
+            Text("\(month)").font(Typeface.numerals(here ? 18 : 13, relativeTo: .footnote, weight: .bold))
+                .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Crayon.glyph(on: c) : Color.secondary)
+        }
+        .frame(width: d, height: d)
+        .shadow(color: here ? Palette.bead.opacity(0.5) : .clear, radius: 8)
+    }
+}
+
+/// Past the last bead the string goes on, fading.
+private struct Trail: View {
+    var body: some View {
+        Canvas { ctx, size in
+            for i in 0..<5 {
+                let m = 37 + i
+                let y = 10 + CGFloat(i) * 18
+                let r: CGFloat = 5 - CGFloat(i) * 0.7
+                ctx.fill(Path(ellipseIn: CGRect(x: beadX(m) - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Crayon.rainbow[i].opacity(0.7 - Double(i) * 0.12)))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// One month as a page: the cover picture, then the month in order — points, plays, the six areas, what to look out
+/// for, vaccinations and check-ups, notes, the day's rhythm, topics.
+struct MonthView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    @State private var scrolled = false
+
+    var body: some View {
+        let c = app.content, mo = c.month(month), m = month
+        ScrollView {
+            VStack(alignment: .leading, spacing: 0) {
+                if let f = ArtIndex.shared.cover(m) { StretchyArt(name: f, height: 300) }
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(m == 0 ? "出生" : "满 \(m) 个月").font(.largeTitle.weight(.bold))
+                    Text(mo.title).font(.title3).foregroundStyle(.secondary)
+                    if let b = app.birth { Text(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : "")).font(.subheadline).foregroundStyle(.secondary).padding(.top, 2) }
+                }
+                .padding(.horizontal, 20).padding(.top, 16)
+                .onScrollVisibilityChange(threshold: 0.1) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
+
+                MonthBody(month: m).padding(.horizontal, 16).padding(.top, 8)
+            }
+            .padding(.bottom, 40)
+        }
+        .ignoresSafeArea(edges: .top)
+        .background(Palette.background)
+        .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .principal) { Text(m == 0 ? "出生" : "满 \(m) 个月").font(.headline).opacity(scrolled ? 1 : 0) }
+        }
+    }
+}
+
+/// A picture across the top of a page that stretches when pulled down.
+struct StretchyArt: View {
+    let name: String
+    var height: CGFloat = 300
+    var body: some View {
+        GeometryReader { g in
+            let y = g.frame(in: .scrollView).minY
+            ArtFill(name: name).frame(width: g.size.width, height: height + max(0, y)).offset(y: -max(0, y))
+        }
+        .frame(height: height)
+    }
+}
+
+private struct MonthBody: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let c = app.content, mo = c.month(month), m = month
+        VStack(alignment: .leading, spacing: 18) {
+            // the month at a glance; a point that only names a play is already among the plays below
+            let points = mo.highlights.filter { c.play($0.anchor ?? "") == nil }
+            if !points.isEmpty {
+                Box {
+                    ForEach(Array(points.enumerated()), id: \.offset) { i, h in
+                        let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
+                        BoxRow(symbol: sym, color: col, title: h.kind, text: h.text, last: i == points.count - 1)
+                    }
+                }
+            }
+
+            let plays = c.plays(of: m)
+            if !plays.isEmpty {
+                VStack(alignment: .leading, spacing: 10) {
+                    SectionTitle(title: "一起玩", detail: "\(plays.count) 个活动")
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        ForEach(plays) { p in
+                            NavigationLink(value: Route.play(p.code, m)) { PlayTile(play: p, did: app.ticked(m, TickKind.did, p.code)) }.buttonStyle(.plain)
+                        }
+                    }
+                }
+            }
+
+            Box(title: "六个方面") {
+                ForEach(Array(mo.domains.enumerated()), id: \.offset) { i, d in
+                    BoxRow(symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), title: d.name, text: d.text, last: i == mo.domains.count - 1) {
+                        if d.key == mo.focus { Text("本月重点").font(.caption.weight(.semibold)).foregroundStyle(Palette.area(d.key)) }
+                    }
+                }
+            }
+
+            if !mo.observe.isEmpty {
+                let total = mo.observe.reduce(0) { $0 + $1.items.count }
+                Box {
+                    NavigationLink(value: Route.observe(m)) {
+                        BoxRow(symbol: "eye.fill", color: Crayon.lilac, title: "可以留意", text: "看到了就记下，不是考核", last: true, opens: true) {
+                            Text("\(app.count(m, TickKind.observed)) / \(total)").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                        }
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
+                let n = mo.vaccines.count + mo.checkups.count
+                Box(title: "接种与儿保", footer: "以当地接种门诊与儿童保健机构的安排为准。") {
+                    ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
+                        CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), tag: "接种", last: i == n - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
+                    }
+                    ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
+                        CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), tag: "儿保", last: mo.vaccines.count + i == n - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
+                    }
+                }
+            }
+
+            if !mo.notes.isEmpty {
+                Box(title: "还要知道") {
+                    ForEach(Array(mo.notes.enumerated()), id: \.offset) { i, n in
+                        BoxRow(symbol: "lightbulb.fill", color: Crayon.sunflower, title: n.topic, text: n.text, last: i == mo.notes.count - 1)
+                    }
+                }
+            }
+
+            if !mo.who.isEmpty {
+                let parts = mo.who.replacingOccurrences(of: "WHO", with: "").split(whereSeparator: { $0 == "；" || $0 == ";" })
+                    .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "。")) }.filter { !$0.isEmpty }
+                Box(title: "一天的节奏", footer: "依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》。") {
+                    ForEach(Array(parts.enumerated()), id: \.offset) { i, t in
+                        let (sym, col): (String, Color) = t.contains("睡") ? ("moon.fill", Crayon.lilac) : t.contains("屏幕") ? ("iphone", Crayon.pebble)
+                            : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Crayon.tangerine) : ("clock.fill", Crayon.aqua)
+                        BoxRow(symbol: sym, color: col, title: t, last: i == parts.count - 1)
+                    }
+                }
+            }
+
+            Box(title: "更多") {
+                NavigationLink(value: JournalRoute.growth) { BoxRow(symbol: "chart.line.uptrend.xyaxis", color: Crayon.tangerine, title: "生长曲线", opens: true) }.buttonStyle(.plain)
+                ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
+                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.plain)
+                }
+            }
+
+            if m == 36 { StoryGoesOn(primary: app.companion) }
+        }
+    }
+}
+
+/// A play in the month's grid: its first picture, its name, its age.
+struct PlayTile: View {
+    let play: Play
+    let did: Bool
+    var body: some View {
+        let key = Palette.areaKey(of: play)
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topTrailing) {
+                if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(4 / 3, contentMode: .fit) }
+                else { Palette.fill.aspectRatio(4 / 3, contentMode: .fit) }
+                if did {
+                    Image(systemName: "checkmark").font(.footnote.weight(.bold)).foregroundStyle(.white)
+                        .frame(width: 28, height: 28).background(Palette.accent, in: Circle()).padding(8)
+                        .accessibilityLabel("这个月做过")
+                }
+            }
+            VStack(alignment: .leading, spacing: 3) {
+                Label(play.domains.first ?? "", systemImage: Palette.areaSymbol(key)).font(.caption.weight(.semibold)).foregroundStyle(Palette.area(key)).lineLimit(1)
+                Text(play.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading).lineLimit(3)
+                Text(play.age).font(.caption).foregroundStyle(.secondary)
+            }
+            .padding(12)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(Palette.area(key).opacity(0.1))
+        .background(Palette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// What to look out for this month, by area: tick what has been seen.
+struct ObserveView: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
+                    Box(title: g.area) {
+                        ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
+                            CheckRow(text: t, on: app.ticked(month, TickKind.observed, "\(gi)-\(ii)"), last: ii == g.items.count - 1) {
+                                app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t)
+                            }
+                        }
+                    }
+                }
+                Text("每个孩子有自己的节奏。没看到的项目不代表落后；如有疑虑，请咨询儿童保健医生。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 40)
+        }
+        .background(Palette.background)
+        .navigationTitle("可以留意")
+        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
 }

@@ -17,11 +17,6 @@ enum LogType {
         case solid: "fork.knife"; case bath: "bathtub.fill"; case temp: "thermometer.medium"; case medicine: "pills.fill"; case note: "pencil"
         case play: "puzzlepiece.fill"; case growth: "ruler.fill"; default: "circle" }
     }
-    /// sRGB hex of each kind's colour
-    static func tint(_ t: String) -> UInt32 {
-        switch t { case nurse: 0xC0607A; case bottle: 0xB07B12; case sleep: 0x2D4A8C; case diaper: 0x3D5434; case solid: 0x8C6A45
-        case bath: 0x3F7F86; case temp: 0xB8452E; case medicine: 0x6B5B95; case growth: 0x8A6508; case play: 0x55704A; default: 0x5A5C55 }
-    }
     static let timed: Set<String> = [nurse, sleep]
     static let buttons = [nurse, bottle, sleep, diaper, solid, bath, temp, medicine, growth, note]
 }

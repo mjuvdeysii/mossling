@@ -13,7 +13,7 @@ struct MosslingWidgets: WidgetBundle {
 
 private extension Color {
     init(hex: UInt32) { self.init(.sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255) }
-    static let moss = Color(hex: 0x3D5434), bead = Color(hex: 0xD4A21C)
+    static let moss = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255, alpha: 1) : UIColor(red: 0x24 / 255, green: 0x8A / 255, blue: 0x3D / 255, alpha: 1) })
 }
 private func serif(_ s: CGFloat) -> Font { .system(size: s, weight: .semibold, design: .rounded).monospacedDigit() }
 
@@ -41,7 +41,7 @@ struct TodayProvider: TimelineProvider {
 
 struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
-        StaticConfiguration(kind: "today", provider: TodayProvider()) { e in TodayWidgetView(e: e).containerBackground(for: .widget) { Color(hex: 0xF4F2EC) } }
+        StaticConfiguration(kind: "today", provider: TodayProvider()) { e in TodayWidgetView(e: e).containerBackground(for: .widget) { Color(uiColor: .systemBackground) } }
             .configurationDisplayName("芽芽月历")
             .description("月龄、今天的活动；打开手帐后可以直接计时和记一笔。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
@@ -102,7 +102,7 @@ private struct TodayWidgetView: View {
                 Text(p).font(.footnote.weight(.semibold)).lineLimit(2)
             }
         }
-        .foregroundStyle(Color(hex: 0x1C1D19))
+        .foregroundStyle(.primary)
     }
 
     private var medium: some View {
@@ -124,11 +124,11 @@ private struct TodayWidgetView: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .foregroundStyle(Color(hex: 0x1C1D19))
+        .foregroundStyle(.primary)
     }
 
     private func timerLine(_ t: RunningTimer) -> some View {
-        let c = Color(hex: LogType.tint(t.type))
+        let c = LogType.color(t.type)
         return HStack(spacing: 6) {
             Image(systemName: LogType.symbol(t.type)).foregroundStyle(c)
             if t.pausedAt != nil { Text(minutesOf(t.elapsed(t.pausedAt!) )).font(.footnote.weight(.semibold)) }
@@ -137,7 +137,7 @@ private struct TodayWidgetView: View {
     }
 
     private func quick(_ type: String, running: Bool, intent: TimerIntent) -> some View {
-        let c = Color(hex: LogType.tint(type))
+        let c = LogType.color(type)
         return Button(intent: intent) {
             VStack(spacing: 2) {
                 Image(systemName: LogType.symbol(type)).font(.body)
@@ -152,7 +152,7 @@ private struct TodayWidgetView: View {
     }
 
     private var quickLog: some View {
-        let c = Color(hex: LogType.tint(LogType.diaper))
+        let c = LogType.color(LogType.diaper)
         return Button(intent: QuickLogIntent(type: LogType.diaper, detail: "wet")) {
             VStack(spacing: 2) {
                 Image(systemName: LogType.symbol(LogType.diaper)).font(.body)
@@ -172,9 +172,9 @@ struct TimerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimerAttributes.self) { ctx in
             LockScreenTimer(type: ctx.attributes.type, s: ctx.state)
-                .activityBackgroundTint(Color(hex: 0xF4F2EC)).activitySystemActionForegroundColor(Color(hex: LogType.tint(ctx.attributes.type)))
+                .activityBackgroundTint(Color(uiColor: .systemBackground)).activitySystemActionForegroundColor(LogType.color(ctx.attributes.type))
         } dynamicIsland: { ctx in
-            let c = Color(hex: LogType.tint(ctx.attributes.type))
+            let c = LogType.color(ctx.attributes.type)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     Label(LogType.name(ctx.attributes.type) + side(ctx.state.side), systemImage: LogType.symbol(ctx.attributes.type)).foregroundStyle(c).font(.headline)
@@ -203,14 +203,14 @@ private struct LockScreenTimer: View {
     let type: String
     let s: TimerAttributes.ContentState
     var body: some View {
-        let c = Color(hex: LogType.tint(type))
+        let c = LogType.color(type)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Label(LogType.name(type) + side(s.side) + (s.pausedAt != nil ? " · 暂停中" : ""), systemImage: LogType.symbol(type)).font(.headline).foregroundStyle(c)
                 Spacer()
                 Image("Pair").resizable().scaledToFit().frame(height: 30)
             }
-            elapsed(s).font(serif(40)).monospacedDigit().foregroundStyle(Color(hex: 0x1C1D19))
+            elapsed(s).font(serif(40)).monospacedDigit().foregroundStyle(.primary)
             TimerButtons(type: type, s: s, light: false)
         }
         .padding(16)
@@ -222,7 +222,7 @@ private struct TimerButtons: View {
     let s: TimerAttributes.ContentState
     let light: Bool
     var body: some View {
-        let c = Color(hex: LogType.tint(type))
+        let c = LogType.color(type)
         HStack(spacing: 8) {
             Button(intent: TimerIntent(type: type, action: "stop")) { Text("结束").frame(maxWidth: .infinity) }.tint(c)
             Button(intent: TimerIntent(type: type, action: "pause")) { Text(s.pausedAt == nil ? "暂停" : "继续").frame(maxWidth: .infinity) }.tint(light ? .white : .gray)

@@ -35,7 +35,7 @@ struct ArtView: View {
     var body: some View {
         GeometryReader { g in
             ZStack {
-                Palette.cardHigh
+                Palette.fill
                 if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
             }
             .frame(width: g.size.width, height: g.size.height)
@@ -61,38 +61,55 @@ func rich(_ s: String) -> AttributedString {
     (try? AttributedString(markdown: s, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))) ?? AttributedString(s)
 }
 
-/// A section heading: an SF Symbol on a soft badge, the title in the serif, an optional line above it.
-struct SectionHeader: View {
-    let title: String
-    var kicker: String? = nil
-    var symbol: String? = nil
-    var tint: Color = Palette.primary
+/// A grouped box: rows on one rounded surface, an optional heading above and a note below. The one container used for
+/// lists inside scrolling pages, so every page groups the same way.
+struct Box<Content: View>: View {
+    var title: String? = nil
+    var detail: String? = nil
+    var footer: String? = nil
+    @ViewBuilder let content: Content
     var body: some View {
-        HStack(spacing: 12) {
-            if let symbol {
-                Image(systemName: symbol).font(.system(size: 16, weight: .semibold)).foregroundStyle(tint)
-                    .frame(width: 36, height: 36).background(tint.opacity(0.13), in: Circle())
-            }
-            VStack(alignment: .leading, spacing: 1) {
-                if let kicker { Text(kicker).font(.caption).foregroundStyle(Palette.secondaryText) }
-                Text(title).font(Typeface.serif(21, relativeTo: .title2)).foregroundStyle(Palette.text)
-            }
-            Spacer(minLength: 0)
+        VStack(alignment: .leading, spacing: 8) {
+            if let title { SectionTitle(title: title, detail: detail) }
+            VStack(alignment: .leading, spacing: 0) { content }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Palette.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+            if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16) }
         }
-        .padding(.horizontal, 20).padding(.top, 28).padding(.bottom, 8)
-        .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
     }
 }
 
-/// The activity's code on a coloured tile; grows with the code so it is always whole.
-struct CodeTile: View {
-    let code: String
-    var tint: Color = Palette.moss
-    var size: CGFloat = 26
+/// A row in a box: an icon tile, a title, an optional line under it, something at the end; a hairline under it unless
+/// it is the last.
+struct BoxRow<Trailing: View>: View {
+    var symbol: String? = nil
+    var color: Color = Palette.accent
+    let title: String
+    var text: String? = nil
+    var last = false
+    var opens = false
+    @ViewBuilder var trailing: Trailing
     var body: some View {
-        Text(code).font(Typeface.numerals(size, relativeTo: .title2)).foregroundStyle(Palette.paper).lineLimit(1).fixedSize()
-            .padding(.horizontal, size * 0.5).padding(.vertical, size * 0.3)
-            .background(tint, in: RoundedRectangle(cornerRadius: size * 0.6, style: .continuous))
+        VStack(spacing: 0) {
+            HStack(alignment: .center, spacing: 14) {
+                if let symbol { IconTile(symbol: symbol, color: color) }
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(title).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                    if let text, !text.isEmpty { Text(rich(text)).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading) }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                trailing
+                if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
+            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .contentShape(Rectangle())
+            if !last { Divider().padding(.leading, symbol == nil ? 16 : 60) }
+        }
+    }
+}
+extension BoxRow where Trailing == EmptyView {
+    init(symbol: String? = nil, color: Color = Palette.accent, title: String, text: String? = nil, last: Bool = false, opens: Bool = false) {
+        self.init(symbol: symbol, color: color, title: title, text: text, last: last, opens: opens) { EmptyView() }
     }
 }
 
@@ -101,19 +118,25 @@ struct CheckRow: View {
     let text: String
     let on: Bool
     var tag: String? = nil
+    var last = false
     let toggle: () -> Void
     var body: some View {
         Button(action: toggle) {
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
-                Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title3).foregroundStyle(on ? Palette.primary : Palette.secondaryText.opacity(0.6))
-                    .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
-                VStack(alignment: .leading, spacing: 2) {
-                    if let tag { Text(tag).font(.caption.weight(.semibold)).foregroundStyle(tag == "接种" ? Palette.rod : Palette.red) }
-                    Text(text).font(.body).foregroundStyle(Palette.text).multilineTextAlignment(.leading)
+            VStack(spacing: 0) {
+                HStack(alignment: .center, spacing: 14) {
+                    Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title2)
+                        .foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
+                        .contentTransition(.symbolEffect(.replace))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(text).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        if let tag { Text(tag).font(.footnote).foregroundStyle(.secondary) }
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+                .padding(.horizontal, 16).padding(.vertical, 11)
+                if !last { Divider().padding(.leading, 56) }
             }
-            .padding(.vertical, 10).padding(.horizontal, 16).contentShape(Rectangle())
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -121,37 +144,40 @@ struct CheckRow: View {
     }
 }
 
-/// Content blocks (paragraphs, lists, tables). A table becomes one card per row — label above value — so nothing
+/// Content blocks (paragraphs, lists, tables). A table becomes one box per row — label above value — so nothing
 /// needs scrolling sideways.
 struct BlocksView: View {
     let blocks: [Block]
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 16) {
             ForEach(Array(blocks.enumerated()), id: \.offset) { _, b in
                 switch b.type {
                 case "list":
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         ForEach(Array((b.items ?? []).enumerated()), id: \.offset) { _, t in
                             HStack(alignment: .firstTextBaseline, spacing: 10) {
-                                Circle().fill(Palette.primary).frame(width: 6, height: 6).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                                Circle().fill(Palette.accent).frame(width: 6, height: 6).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                                 Text(rich(t)).font(.body)
                             }
                         }
                     }
                 case "table":
                     let head = b.head ?? []
-                    VStack(spacing: 8) {
+                    VStack(spacing: 10) {
                         ForEach(Array((b.rows ?? []).enumerated()), id: \.offset) { _, row in
-                            VStack(alignment: .leading, spacing: 6) {
-                                if let first = row.first { Text(first).font(.headline) }
+                            VStack(alignment: .leading, spacing: 0) {
+                                if let first = row.first { Text(first).font(.headline).padding(.horizontal, 16).padding(.vertical, 12) }
                                 ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { i, cell in
-                                    VStack(alignment: .leading, spacing: 1) {
-                                        if i + 1 < head.count { Text(head[i + 1]).font(.caption).foregroundStyle(Palette.secondaryText) }
-                                        Text(rich(cell)).font(.subheadline)
+                                    Divider().padding(.leading, 16)
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        if i + 1 < head.count { Text(head[i + 1]).font(.footnote).foregroundStyle(.secondary) }
+                                        Text(rich(cell)).font(.body)
                                     }
+                                    .padding(.horizontal, 16).padding(.vertical, 10)
                                 }
                             }
-                            .card(Palette.cardLow, radius: 16, padding: 14)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .background(Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
                         }
                     }
                 default:
@@ -159,6 +185,32 @@ struct BlocksView: View {
                 }
             }
         }
+    }
+}
+
+/// A picture that fills its frame (cropped to it), for headers and tiles.
+struct ArtFill: View {
+    let name: String
+    var label: String = ""
+    @Environment(\.displayScale) private var scale
+    @State private var img: UIImage?
+    var body: some View {
+        GeometryReader { g in
+            ZStack {
+                Palette.fill
+                if let img { Image(uiImage: img).resizable().scaledToFill().frame(width: g.size.width, height: g.size.height).clipped().transition(.opacity) }
+            }
+            .task(id: name) {
+                let px = Int(max(g.size.width, g.size.height) * scale)
+                let n = name
+                let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
+                withAnimation(.easeOut(duration: 0.18)) { img = i }
+            }
+        }
+        .accessibilityElement()
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(.isImage)
+        .accessibilityHidden(label.isEmpty)
     }
 }
 

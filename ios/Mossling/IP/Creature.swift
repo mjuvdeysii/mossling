@@ -349,27 +349,32 @@ struct Duo: View {
     }
 }
 
-/// The end of the map is not the end: the road runs on past the last station, and the two walk on along it.
+/// The end of the journey is not the end: the string of beads runs on past the last one, and the two walk on along it.
 struct StoryGoesOn: View {
     let primary: Kind
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             ZStack(alignment: .bottomLeading) {
                 Canvas { ctx, size in
-                    let y = size.height - 10, n = 14
+                    let y = size.height - 8, n = 16
+                    var s = Path(); s.move(to: CGPoint(x: 0, y: y)); s.addLine(to: CGPoint(x: size.width, y: y))
+                    ctx.stroke(s, with: .linearGradient(Gradient(colors: [Palette.bead.opacity(0.6), Palette.bead.opacity(0)]), startPoint: .zero, endPoint: CGPoint(x: size.width, y: 0)), lineWidth: 1.5)
                     for i in 0..<n {
-                        let x = size.width * (0.08 + 0.92 * Double(i) / Double(n - 1))
-                        let a = max(0.12, 1 - Double(i) / Double(n))
-                        let gold = i % 4 == 3, r: CGFloat = gold ? 5 : 3.5
-                        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color((gold ? Palette.bead : Palette.stone).opacity(a)))
+                        let x = size.width * (0.06 + 0.94 * Double(i) / Double(n - 1))
+                        let a = max(0.08, 1 - Double(i) / Double(n))
+                        let r: CGFloat = i % 4 == 3 ? 5.5 : 4
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Crayon.rainbow[i % Crayon.rainbow.count].opacity(a)))
                     }
                 }
-                Duo(primary: primary, size: 64, look: CGPoint(x: 0.9, y: -0.1)).padding(.leading, 12).padding(.bottom, 14)
+                Duo(primary: primary, size: 64, look: CGPoint(x: 0.9, y: -0.1)).padding(.leading, 18).padding(.bottom, 12)
             }
             .frame(height: 96)
-            Text("故事仍在继续").font(Typeface.serif(19, relativeTo: .title3)).padding(.top, 8)
-            Text("36 个月以后，路还很长，每一天都有新的样子。").font(.subheadline).foregroundStyle(Palette.secondaryText)
+            Text("故事仍在继续").font(.title2.weight(.bold)).padding(.top, 10)
+            Text("36 个月以后，路还很长，每一天都有新的样子。").font(.subheadline).foregroundStyle(.secondary)
         }
-        .card(Palette.mint.opacity(0.12), radius: 28, padding: 20)
+        .padding(20)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .accessibilityElement(children: .combine)
     }
 }

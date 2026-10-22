@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// Today: how old the child is today, the one play for today, this week's shelf, and the next vaccination or check-up.
+/// Today: the scene with the two companions and the child's age, then only what matters today — the one play, this
+/// week's shelf, the next vaccination or check-up — and, from 36 months, the road that goes on.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var journal
     @Binding var path: NavigationPath
     @State private var askBirth = false
 
@@ -11,205 +11,167 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 Hero(askBirth: $askBirth)
-                if let age = app.age {
-                    let m = age.bookMonth
-                    if age.months >= 36 { StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 16) }
-                    let plays = app.todaysPlays(m)
-                    if !plays.isEmpty {
-                        let p = plays[app.pickIndex % plays.count]
-                        Group {
+                VStack(alignment: .leading, spacing: 14) {
+                    if let age = app.age {
+                        let m = age.bookMonth
+                        if age.months >= 36 { StoryGoesOn(primary: app.companion) }
+                        let plays = app.todaysPlays(m)
+                        if !plays.isEmpty {
                             if app.skippedToday {
-                                HStack {
-                                    Text("今天不做活动，也很好。").font(.subheadline)
-                                    Spacer()
-                                    Button("还是看看") { app.skipDay = -1 }
+                                Card(title: "今天一起玩", symbol: "sun.max.fill", color: Palette.accent) {
+                                    HStack {
+                                        Text("今天不安排活动。").font(.body)
+                                        Spacer()
+                                        Button("恢复") { withAnimation(.snappy) { app.skipDay = -1 } }.buttonStyle(.glass)
+                                    }
                                 }
-                                .card(Palette.cardLow)
                             } else {
-                                PlayPlate(play: p, month: m, count: plays.count) { path.append(Route.play(p.code, m)) }
+                                let p = plays[app.pickIndex % plays.count]
+                                PlayHero(play: p, month: m, count: plays.count)
                             }
                         }
-                        .padding(.horizontal, 16).padding(.top, 20)
+                        NavigationLink(value: Route.plan) { ShelfCard(month: m) }.buttonStyle(.plain)
+                        NextCare(month: m)
                     }
-                    if app.journal && !journal.timers.isEmpty {
-                        VStack(spacing: 8) { ForEach(journal.timers, id: \.type) { TimerCard(timer: $0) } }.padding(.horizontal, 16).padding(.top, 14)
-                    }
-                    ShelfCard(month: m) { path.append(Route.plan) }.padding(.horizontal, 16).padding(.top, 14)
-                    NextCare(month: m) { path.append(Route.month(m)) }.padding(.horizontal, 16).padding(.top, 14)
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 32)
             }
-            .padding(.bottom, 32)
         }
+        .ignoresSafeArea(edges: .top)
         .background(Palette.background)
-        .navigationTitle("今天")
-        .navigationSubtitle([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
+        .toolbar(.hidden, for: .navigationBar)
         .sheet(isPresented: $askBirth) { BirthSheet() }
     }
 }
 
+/// The scene: sky, hills, the companions, and the age set large.
 private struct Hero: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
     @Binding var askBirth: Bool
+    private var hour: Int { Day.cal.component(.hour, from: Date()) }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .center) {
+        let ink = Sky.ink(hour, scheme)
+        ZStack(alignment: .topLeading) {
+            Sky(hour: hour)
+            VStack(alignment: .leading, spacing: 4) {
+                Text([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(ink.opacity(0.75))
                 if let age = app.age {
-                    VStack(alignment: .leading, spacing: 8) {
-                        HStack(alignment: .center, spacing: 12) {
-                            // the age on a sandpaper-number board
-                            Text("\(age.months)").font(Typeface.numerals(60, relativeTo: .largeTitle)).foregroundStyle(.white)
-                                .padding(.horizontal, 16).padding(.vertical, 4)
-                                .glassEffect(.regular.tint(Palette.moss), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text("个月").font(Typeface.serif(20))
-                                if age.days > 0 {
-                                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                        Text("\(age.days)").font(Typeface.numerals(30)).foregroundStyle(Palette.primary)
-                                        Text("天").font(.headline)
-                                    }
-                                }
-                            }
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text("\(age.months)").font(Typeface.numerals(64, relativeTo: .largeTitle, weight: .bold))
+                        Text("个月").font(.title3.weight(.semibold))
+                        if age.days > 0 {
+                            Text("\(age.days)").font(Typeface.numerals(34, relativeTo: .title, weight: .bold)).padding(.leading, 6)
+                            Text("天").font(.title3.weight(.semibold))
                         }
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(age.days > 0 ? "\(age.months) 个月 \(age.days) 天" : "满 \(age.months) 个月")
-                        Text(verbatim: age.months < 36 ? "再过 \(age.toNext) 天满 \(age.months + 1) 个月 · 一起走过第 \(age.lived) 天" : "一起走过第 \(age.lived) 天")
-                            .font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
-                        DayBeads(done: age.days, total: age.days + age.toNext).frame(height: 10)
                     }
+                    .foregroundStyle(ink)
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(age.days > 0 ? "\(age.months) 个月 \(age.days) 天" : "满 \(age.months) 个月")
+                    Text(verbatim: age.months < 36 ? "再过 \(age.toNext) 天满 \(age.months + 1) 个月 · 第 \(age.lived) 天" : "第 \(age.lived) 天")
+                        .font(.footnote.weight(.medium)).foregroundStyle(ink.opacity(0.75)).monospacedDigit()
                 } else {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text("你好。").font(Typeface.serif(32, relativeTo: .largeTitle))
-                        Text("填写出生日期，开始第一站。").font(.body)
-                        Button { askBirth = true } label: { Text("填写出生日期").padding(.horizontal, 6) }
-                            .buttonStyle(.glassProminent).controlSize(.large)
-                    }
+                    Text("芽芽月历").font(.largeTitle.weight(.bold)).foregroundStyle(ink)
+                    Button { askBirth = true } label: { Text("填写出生日期").padding(.horizontal, 4) }
+                        .buttonStyle(.glassProminent).controlSize(.large).padding(.top, 10)
                 }
-                Spacer(minLength: 8)
-                Duo(primary: app.companion, size: 92, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.85, y: 0.25))
             }
+            .padding(.horizontal, 20)
+            .padding(.top, 70)
+            Duo(primary: app.companion, size: 104, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.7, y: 0.1))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                .padding(.trailing, 12).padding(.bottom, 18)
         }
-        .padding(.horizontal, 20).padding(.top, 4)
+        .frame(height: 360)
     }
-    private var isNight: Bool { let h = Day.cal.component(.hour, from: Date()); return h >= 22 || h < 6 }
+    private var isNight: Bool { let h = hour; return h >= 22 || h < 6 }
 }
 
-/// This month as a row of beads: one per day, filled up to today.
-private struct DayBeads: View {
-    let done: Int, total: Int
-    var body: some View {
-        Canvas { ctx, size in
-            let n = max(1, min(31, total)); let gap = size.width / CGFloat(n); let r = min(gap * 0.32, 4)
-            for i in 0..<n {
-                let c = CGPoint(x: gap * CGFloat(i) + gap / 2, y: size.height / 2)
-                if i < done { ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)), with: .color(Palette.primary)) }
-                else if i == done { let R = r * 1.25; ctx.fill(Path(ellipseIn: CGRect(x: c.x - R, y: c.y - R, width: R * 2, height: R * 2)), with: .color(Palette.bead)) }
-                else { ctx.stroke(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)), with: .color(Palette.outline), lineWidth: 1.2) }
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Today's play on a wooden work tray: what, for whom, the first step as a picture, safety, and what to do next.
-private struct PlayPlate: View {
+/// Today's play, picture first: the first step as a picture, the name, the area and age, and the three things one can
+/// do with it.
+private struct PlayHero: View {
     @Environment(AppModel.self) private var app
     let play: Play, month: Int, count: Int
-    let open: () -> Void
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("今天一起玩").font(.caption.weight(.semibold)).foregroundStyle(Palette.primary)
-                    Text(play.name).font(Typeface.serif(22, relativeTo: .title2)).fixedSize(horizontal: false, vertical: true)
-                    Text([play.age, play.domains.joined(separator: "、")].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .font(.footnote).foregroundStyle(Palette.secondaryText)
-                }
-                Spacer(minLength: 8)
-                CodeTile(code: play.code, tint: app.companion.tint, size: 22)
-            }
-            if let f = ArtIndex.shared.steps(play.code).first { ArtView(name: f, label: "第一步的图示") }
-            if let s = play.steps.first { Text(s).font(.body).fixedSize(horizontal: false, vertical: true) }
-            if !play.safety.isEmpty {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text("安全").font(.caption.weight(.bold)).foregroundStyle(Palette.danger)
-                    Text(play.safety).font(.footnote)
+        let key = Palette.areaKey(of: play)
+        VStack(alignment: .leading, spacing: 0) {
+            NavigationLink(value: Route.play(play.code, month)) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let f = ArtIndex.shared.steps(play.code).first {
+                        ArtFill(name: f, label: "第一步的图示").frame(height: 190)
+                    }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Label("今天一起玩", systemImage: Palette.areaSymbol(key)).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
+                        Text(play.name).font(.title2.weight(.bold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        Text([play.age, play.domains.joined(separator: "、")].filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    .padding(.horizontal, 16).padding(.top, 14)
                 }
             }
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 12) { buttons }
-                VStack(alignment: .leading, spacing: 8) { buttons }
+            .buttonStyle(.plain)
+            HStack(spacing: 10) {
+                NavigationLink(value: Route.play(play.code, month)) { Text("开始").padding(.horizontal, 8) }
+                    .buttonStyle(.glassProminent).controlSize(.large)
+                if count > 1 {
+                    Button("换一个") { withAnimation(.snappy) { app.another() } }.buttonStyle(.glass).controlSize(.large)
+                }
+                Spacer(minLength: 0)
+                Menu {
+                    Button("今天不安排活动", systemImage: "moon.zzz") { withAnimation(.snappy) { app.skipDay = app.today.epochDay } }
+                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
+                    .buttonStyle(.glass).controlSize(.large).accessibilityLabel("更多")
             }
+            .padding(16)
         }
-        .padding(18)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 28, style: .continuous))
-        .contentShape(Rectangle())
-        .onTapGesture(perform: open)
-    }
-    @ViewBuilder private var buttons: some View {
-        Button(action: open) { Text("开始").frame(minWidth: 64) }.buttonStyle(.glassProminent).controlSize(.large)
-        if count > 1 { Button("换一个") { withAnimation(.snappy) { app.another() } }.buttonStyle(.glass).controlSize(.large) }
-        Spacer(minLength: 0)
-        Button("今天不做") { withAnimation(.snappy) { app.skipDay = app.today.epochDay } }.foregroundStyle(Palette.secondaryText)
+        .background(Palette.card)
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 }
 
-/// This week's shelf: the materials out this week, as small pictures.
+/// This week's shelf: the materials out this week.
 private struct ShelfCard: View {
     @Environment(AppModel.self) private var app
     let month: Int
-    let open: () -> Void
     var body: some View {
         let s = app.weekShelf(month)
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("本周的架子").font(.headline)
-                        Text(s.stale ? "新的一周，可以换一换" : "\(s.plays.count) 件教具").font(.footnote).foregroundStyle(s.stale ? Palette.tertiary : Palette.secondaryText)
+        Card(title: "本周的架子", symbol: "square.grid.2x2.fill", color: Crayon.caramel, detail: s.stale ? "可以换新" : "\(s.plays.count) 件", opens: true) {
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(s.plays.prefix(4)) { p in
+                    let k = Palette.areaKey(of: p)
+                    HStack(spacing: 12) {
+                        IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k), size: 28)
+                        Text(p.name).font(.body).foregroundStyle(.primary).lineLimit(2)
                     }
-                    Spacer()
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                }
-                HStack(alignment: .top, spacing: 10) {
-                    ForEach(s.plays.prefix(4)) { p in
-                        VStack(spacing: 6) {
-                            if let f = ArtIndex.shared.steps(p.code).first { ArtView(name: f, radius: 12) }
-                            Text(p.code).font(Typeface.numerals(15))
-                        }
-                        .frame(maxWidth: .infinity)
-                    }
-                    ForEach(0..<max(0, 3 - s.plays.count), id: \.self) { _ in Color.clear.frame(maxWidth: .infinity) }
                 }
             }
-            .card(Palette.cardLow, radius: 28)
         }
-        .buttonStyle(.plain)
     }
 }
 
-/// The next vaccination or check-up not yet recorded; shown only when the app is opened, never as a reminder.
+/// The next vaccination or check-up not yet recorded; shown when the app is opened, never as a reminder.
 private struct NextCare: View {
     @Environment(AppModel.self) private var app
     let month: Int
-    let open: () -> Void
     var body: some View {
         let c = app.content
         if let birth = app.birth, let next = (month...36).first(where: { k in
             let mo = c.month(k)
             return mo.vaccines.indices.contains { !app.ticked(k, TickKind.vaccine, "\($0)") } || mo.checkups.indices.contains { !app.ticked(k, TickKind.checkup, "\($0)") }
         }) {
-            let mo = c.month(next); let items = mo.vaccines + mo.checkups
-            Button(action: open) {
-                HStack(spacing: 14) {
-                    Image(systemName: "syringe.fill").foregroundStyle(Palette.onSecondaryContainer)
-                        .frame(width: 44, height: 44).background(Palette.secondaryContainer, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(next == month ? "这个月的接种与儿保" : "下一次 · 满 \(next) 个月 · \(birth.plus(months: next).md)").font(.subheadline.weight(.semibold))
-                        Text(items[0] + (items.count > 1 ? " 等 \(items.count) 项" : "")).font(.subheadline).foregroundStyle(Palette.secondaryText)
+            let mo = c.month(next)
+            let items = mo.vaccines.enumerated().filter { !app.ticked(next, TickKind.vaccine, "\($0.offset)") }.map(\.element)
+                + mo.checkups.enumerated().filter { !app.ticked(next, TickKind.checkup, "\($0.offset)") }.map(\.element)
+            NavigationLink(value: Route.month(next)) {
+                Card(title: "接种与儿保", symbol: "syringe.fill", color: Crayon.sky, detail: next == month ? "满 \(next) 个月" : birth.plus(months: next).md, opens: true) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(items.first ?? "").font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        if items.count > 1 { Text("另有 \(items.count - 1) 项").font(.subheadline).foregroundStyle(.secondary) }
                     }
-                    Spacer(minLength: 0)
                 }
-                .card(Palette.cardLow, radius: 22, padding: 14)
             }
             .buttonStyle(.plain)
         }
@@ -227,10 +189,10 @@ struct BirthSheet: View {
                 DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                     .datePickerStyle(.graphical)
             }
-            .navigationTitle("宝宝的出生日期").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle("出生日期").navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("好") { app.birth = Day(date); dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { app.birth = Day(date); dismiss() } }
             }
             .onAppear { if let b = app.birth { date = b.date } }
         }

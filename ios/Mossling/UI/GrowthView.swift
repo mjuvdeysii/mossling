@@ -21,63 +21,35 @@ struct GrowthView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(spacing: 8) { ForEach(Indicator.allCases) { tile($0) } }
+            VStack(alignment: .leading, spacing: 18) {
+                Picker("指标", selection: $ind) { ForEach(Indicator.allCases) { Text($0.short).tag($0) } }
+                    .pickerStyle(.segmented)
+                    .onChange(of: ind) { _, _ in picked = nil }
                 if app.sex == nil {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("选择性别以对照 WHO 生长曲线").font(.subheadline)
-                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.glassProminent)
+                    Card(title: "生长曲线按性别区分", symbol: "person.2.fill", color: Crayon.sky) {
+                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.glass)
                     }
-                    .card(Palette.cardLow)
                 }
                 chartCard
-                Text("资料来源：世界卫生组织儿童生长标准（2006）。百分位表示同龄同性别儿童中的位置，不是评分；判断生长情况请以儿童保健医生的评估为准。")
-                    .font(.caption).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
-
-                HStack {
-                    Text("每一次测量").font(Typeface.serif(21))
-                    Text(j.measures.isEmpty ? "还没有" : "\(j.measures.count) 次").font(.caption).foregroundStyle(Palette.secondaryText)
-                    Spacer()
+                Box(title: "每一次测量", detail: j.measures.isEmpty ? nil : "\(j.measures.count) 次") {
+                    let all = j.measures
+                    if all.isEmpty { Text("还没有测量记录").font(.subheadline).foregroundStyle(.secondary).padding(16) }
+                    ForEach(Array(all.reversed().enumerated()), id: \.element.id) { i, m in
+                        Button { editing = m } label: { row(m, last: i == all.count - 1) }.buttonStyle(.plain)
+                            .contextMenu { Button("删除", systemImage: "trash", role: .destructive) { j.deleteMeasure(m) } }
+                    }
                 }
-                .padding(.top, 12)
-                ForEach(Array(j.measures.reversed().enumerated()), id: \.element.id) { i, m in
-                    let all = j.measures, idx = all.firstIndex(of: m) ?? 0, prev = idx > 0 ? all[idx - 1] : nil
-                    Button { editing = m } label: { row(m, prev) }.buttonStyle(.plain)
-                }
+                Text("数据来源：世界卫生组织（WHO）儿童生长标准（2006）。百分位表示在同龄同性别儿童中的位置，不是评分；生长情况以儿童保健医生的评估为准。")
+                    .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
             }
-            .padding(.horizontal, 16).padding(.bottom, 24)
+            .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .background(Palette.background)
-        .safeAreaBar(edge: .bottom) {
-            Button { editing = Measure(at: ms(Date())) } label: { Label("记一次测量", systemImage: "plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.glassProminent).controlSize(.large).padding(.horizontal, 16).padding(.vertical, 8)
+        .navigationTitle("生长曲线")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) { Button("记一次测量", systemImage: "plus") { editing = Measure(at: ms(Date())) } }
         }
-        .navigationTitle("生长").navigationBarTitleDisplayMode(.inline)
         .sheet(item: $editing) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }) }
-    }
-
-    private func tile(_ x: Indicator) -> some View {
-        let hist = j.measures.filter { value($0, x) != nil }
-        let last = hist.last, prev = hist.dropLast().last
-        let on = ind == x
-        return Button { withAnimation(.snappy) { ind = x; picked = nil } } label: {
-            VStack(alignment: .leading, spacing: 4) {
-                Label(x.short, systemImage: x.symbol).font(.caption.weight(.semibold)).foregroundStyle(x.tint)
-                HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(last.flatMap { value($0, x) }.map { x.fmt($0) } ?? "—").font(Typeface.numerals(22)).monospacedDigit()
-                    if last != nil { Text(x.unitShort).font(.caption2).foregroundStyle(Palette.secondaryText) }
-                }
-                if let l = last, let p = prev, let a = value(l, x), let b = value(p, x) {
-                    Text((a >= b ? "+" : "−") + x.fmt(abs(a - b))).font(.caption.weight(.semibold)).foregroundStyle(x.tint).monospacedDigit()
-                }
-                if let l = last, let p = pct(l, x) { Text(pctText(p)).font(.caption2).foregroundStyle(Palette.secondaryText) }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-            .background(on ? x.tint.opacity(0.14) : Palette.cardLow, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-            .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).stroke(on ? x.tint : .clear, lineWidth: 2))
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private struct Band: Identifiable { let id = UUID(); let m: Double; let lo: Double; let hi: Double; let series: String }
@@ -93,13 +65,16 @@ struct GrowthView: View {
         let outer = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 3), hi: g.at(ind, girl: girl, months: m, percentile: 97), series: "3–97") }
         let inner = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 15), hi: g.at(ind, girl: girl, months: m, percentile: 85), series: "15–85") }
         let lines = [3, 50, 97].flatMap { p in xs.map { Line(m: $0, v: g.at(ind, girl: girl, months: $0, percentile: p), p: p) } }
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 10) {
-                Image(systemName: ind.symbol).foregroundStyle(ind.tint).frame(width: 34, height: 34).background(ind.tint.opacity(0.14), in: Circle())
-                VStack(alignment: .leading, spacing: 1) {
-                    Text("\(ind.label) · \(ind.unit)").font(.headline)
-                    Text("WHO 儿童生长标准" + (app.sex == nil ? "" : girl ? " · 女孩" : " · 男孩")).font(.caption).foregroundStyle(Palette.secondaryText)
+        let lastM = j.measures.filter { value($0, ind) != nil }.last
+        return Card(title: ind.label + (app.sex == nil ? "" : girl ? " · 女孩" : " · 男孩"), symbol: ind.symbol, color: ind.tint,
+                    detail: lastM.map { "最近 " + Day(Date(timeIntervalSince1970: $0.at / 1000)).md }) {
+            if let l = lastM, let v = value(l, ind) {
+                VStack(alignment: .leading, spacing: 2) {
+                    ValueText(parts: [(ind.fmt(v), ind.unit)], size: 34)
+                    if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(.secondary) }
                 }
+            } else {
+                Text("还没有\(ind.short)记录").font(.subheadline).foregroundStyle(.secondary)
             }
             Chart {
                 // the bands, as thin slices (a tenth of a month each)
@@ -122,7 +97,7 @@ struct GrowthView: View {
                     PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(.clear)
                         .annotation(position: .top) {
                             Text("\(Day(Date(timeIntervalSince1970: m.at / 1000)).md) · \(ind.fmt(p.2)) \(ind.unit)").font(.caption.weight(.semibold)).monospacedDigit()
-                                .padding(.horizontal, 8).padding(.vertical, 4).background(Palette.cardHigh, in: RoundedRectangle(cornerRadius: 8))
+                                .padding(.horizontal, 8).padding(.vertical, 4).background(.regularMaterial, in: Capsule())
                         }
                 }
             }
@@ -139,7 +114,7 @@ struct GrowthView: View {
                     }
                 }
             }
-            .frame(height: 300)
+            .frame(height: 260)
             .accessibilityLabel("\(ind.label)曲线，\(pts.count) 个测量点")
             WrapLayout(spacing: 14) {
                 legend(AnyView(RoundedRectangle(cornerRadius: 3).fill(ind.tint.opacity(0.2)).frame(width: 20, height: 10)), "第 15–85 百分位")
@@ -148,7 +123,6 @@ struct GrowthView: View {
                 legend(AnyView(Circle().fill(ind.tint).frame(width: 8, height: 8)), "测量")
             }
         }
-        .card(Palette.cardLow, radius: 26)
     }
 
     private func yDomain(_ lo: [Double], _ hi: [Double]) -> ClosedRange<Double> {
@@ -158,28 +132,28 @@ struct GrowthView: View {
 
     private func legend(_ v: AnyView, _ t: String) -> some View { HStack(spacing: 5) { v; Text(t).font(.caption2).foregroundStyle(Palette.secondaryText) } }
 
-    private func row(_ m: Measure, _ prev: Measure?) -> some View {
+    private func row(_ m: Measure, last: Bool) -> some View {
         let d = Day(Date(timeIntervalSince1970: m.at / 1000))
-        return HStack(alignment: .top, spacing: 12) {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(verbatim: "\(d.y).\(d.m).\(d.d)").font(Typeface.numerals(17))
-                if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.caption).foregroundStyle(Palette.secondaryText) }
-            }
-            .frame(width: 104, alignment: .leading)
-            VStack(alignment: .leading, spacing: 4) {
-                WrapLayout(spacing: 10) {
+        return VStack(spacing: 0) {
+            HStack(alignment: .top, spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: "\(d.y)年\(d.md)").font(.body)
+                    if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.subheadline).foregroundStyle(.secondary) }
+                }
+                Spacer(minLength: 8)
+                VStack(alignment: .trailing, spacing: 2) {
                     ForEach(Indicator.allCases) { x in
                         if let v = value(m, x) {
-                            HStack(spacing: 3) { Image(systemName: x.symbol).font(.caption).foregroundStyle(x.tint); Text(x.fmt(v)).font(Typeface.numerals(16)).monospacedDigit(); Text(x.unitShort).font(.caption2).foregroundStyle(Palette.secondaryText) }
+                            HStack(spacing: 3) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(.secondary) }
+                                .foregroundStyle(x == ind ? x.tint : .primary)
                         }
                     }
                 }
-                let bits = [pct(m, ind).map { pctText($0) }, prev.flatMap { p in value(p, ind).flatMap { pv in value(m, ind).map { v in (v >= pv ? "比上次 +" : "比上次 −") + ind.fmt(abs(v - pv)) } } }].compactMap { $0 }
-                if !bits.isEmpty { Text("\(ind.short) " + bits.joined(separator: " · ")).font(.caption.weight(.medium)).foregroundStyle(ind.tint) }
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 16).padding(.vertical, 12)
+            .contentShape(Rectangle())
+            if !last { Divider().padding(.leading, 16) }
         }
-        .card(Palette.cardLow, radius: 18, padding: 12)
     }
 }
 
@@ -196,12 +170,12 @@ struct StatsView: View {
                     l.filter { $0.type == LogType.diaper }.count)
         }
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
                 chart("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })
                 chart("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) })
                 chart("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })
             }
-            .padding(16)
+            .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .background(Palette.background)
         .navigationTitle("最近七天")
@@ -209,17 +183,16 @@ struct StatsView: View {
     private func chart(_ t: String, _ unit: String, _ type: String, _ data: [(Day, Double)]) -> some View {
         let had = data.filter { $0.1 > 0 }
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
-        return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                Label(t, systemImage: LogType.symbol(type)).font(.headline).foregroundStyle(LogType.color(type))
-                Spacer()
-                Text("有记录的日子平均 " + String(format: unit == "小时" ? "%.1f" : "%.0f", avg) + " " + unit).font(.caption).foregroundStyle(Palette.secondaryText)
+        return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
+            VStack(alignment: .leading, spacing: 0) {
+                Text("有记录的日子平均").font(.footnote).foregroundStyle(.secondary)
+                ValueText(parts: [(String(format: unit == "小时" ? "%.1f" : "%.0f", avg), unit)], size: 30)
             }
             Chart(data, id: \.0) { d in
-                BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1)).foregroundStyle(LogType.color(type).gradient).cornerRadius(6)
+                BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1)).foregroundStyle(LogType.color(type).gradient).cornerRadius(5)
             }
+            .chartYAxis { AxisMarks(position: .trailing) }
             .frame(height: 150)
         }
-        .card(Palette.cardLow, radius: 22)
     }
 }
