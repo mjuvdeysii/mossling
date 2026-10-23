@@ -18,7 +18,8 @@ struct HuggedAvatar: View {
         let shoulder = kind == .moss ? CGPoint(x: 0.21, y: 0.62) : CGPoint(x: 0.31, y: 0.6)
         ZStack(alignment: .topLeading) {
             Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
-                .padding(size * 0.08)
+                .scaleEffect(1.3, anchor: .bottom)   // the figures carry a margin; fill the frame with the child
+                .offset(y: size * 0.06)
                 .frame(width: size, height: size)
                 .background(Crayon.sunflower.opacity(0.2), in: Circle())
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: 3))
@@ -35,10 +36,13 @@ struct HuggedAvatar: View {
             // the arm round the frame, in front of it: from the shoulder across the frame's lower edge
             Canvas { ctx, _ in
                 let from = CGPoint(x: box.minX + shoulder.x * c, y: box.minY + shoulder.y * c)
-                let to = CGPoint(x: size * (hugging ? 0.6 : 0.66), y: size * 0.86)
+                // round the child's back: the hand rests inside the frame, further in for a squeeze
+                let to = CGPoint(x: size * (hugging ? 0.44 : 0.52), y: size * (hugging ? 0.62 : 0.66))
                 var p = Path(); p.move(to: from)
-                p.addQuadCurve(to: to, control: CGPoint(x: (from.x + to.x) / 2 + size * 0.02, y: max(from.y, to.y) + size * 0.12))
-                ctx.stroke(p, with: .color(kind == .moss ? Palette.mossDeep : Palette.rodDeep), style: StrokeStyle(lineWidth: c * 0.075, lineCap: .round))
+                p.addQuadCurve(to: to, control: CGPoint(x: (from.x + to.x) / 2, y: max(from.y, to.y) + size * 0.16))
+                let arm = kind == .moss ? Palette.mossDeep : Palette.rodDeep
+                ctx.stroke(p, with: .color(.white.opacity(0.9)), style: StrokeStyle(lineWidth: c * 0.075 + 3, lineCap: .round))   // a paper edge so it reads over the picture
+                ctx.stroke(p, with: .color(arm), style: StrokeStyle(lineWidth: c * 0.075, lineCap: .round))
             }
             .frame(width: size * 1.4, height: size * 1.1)
             .allowsHitTesting(false)

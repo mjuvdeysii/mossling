@@ -133,9 +133,10 @@ private struct SidePad: View {
                 VStack(spacing: 2) {
                     Text(side == "l" ? "L" : "R").font(Typeface.numerals(30, weight: .heavy))
                     Text(seconds >= 1 ? clock(seconds) : "—").font(Typeface.numerals(20, relativeTo: .title3, weight: .bold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
                     Label(hint, systemImage: on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
-                        .font(.caption2.weight(.bold)).labelStyle(.titleAndIcon)
+                        .font(.caption2.weight(.bold)).labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.7)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Capsule().fill(on ? Color.white.opacity(0.18) : color.opacity(0.16)))
                         .padding(.top, 4)
@@ -190,16 +191,18 @@ private struct SleepPad: View {
                 Dial(seconds: seconds, color: paused ? color : .white).padding(10)
                 VStack(spacing: 6) {
                     IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
-                    Text(clock(seconds)).font(Typeface.numerals(40, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
+                    Text(clock(seconds)).font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
-                    Label(paused ? "已暂停 · 点按继续" : "睡着了 · 点按暂停", systemImage: paused ? "play.fill" : "pause.fill")
-                        .font(.caption.weight(.bold))
+                    Label(paused ? "点按继续" : "点按暂停", systemImage: paused ? "play.fill" : "pause.fill")
+                        .font(.caption.weight(.bold)).lineLimit(1)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(Capsule().fill(paused ? color.opacity(0.16) : Color.white.opacity(0.18)))
                 }
+                .frame(width: 170)
                 .foregroundStyle(ink)
             }
-            .frame(maxWidth: 300).aspectRatio(1, contentMode: .fit)
+            .frame(width: 250, height: 250)
             .background {
                 Circle().fill(paused ? AnyShapeStyle(color.opacity(0.14))
                               : AnyShapeStyle(RadialGradient(colors: [Crayon.buttonFill(color).mix(with: color, by: 0.15), Crayon.buttonFill(color)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
