@@ -455,30 +455,36 @@ struct TimerScreen: View {
 private struct Dial: View {
     let seconds: Double
     let color: Color
-    var body: some View {
-        Canvas { ctx, size in
-            let r = min(size.width, size.height) / 2 - 12
-            let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            let minutes = Int(seconds / 60), inHour = minutes % 60, hours = minutes / 60
-            for i in 0..<60 {
-                let a = Double(i) / 60 * 2 * .pi - .pi / 2
-                let p = CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
-                let done = i < inHour, now = i == inHour
-                let d: CGFloat = i % 5 == 0 ? 11 : 8
-                let rect = CGRect(x: p.x - d / 2, y: p.y - d / 2, width: d, height: d)
-                if done || now {
-                    ctx.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [color.mix(with: .white, by: 0.45), color]), center: CGPoint(x: rect.minX + d * 0.35, y: rect.minY + d * 0.3), startRadius: 0, endRadius: d))
-                    if now { ctx.stroke(Path(ellipseIn: rect.insetBy(dx: -3, dy: -3)), with: .color(color.opacity(0.4)), lineWidth: 2) }
-                } else {
-                    ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.14)))
-                }
-            }
-            for h in 0..<min(hours, 6) {
-                let x = c.x - CGFloat(min(hours, 6) - 1) * 9 + CGFloat(h) * 18
-                let rect = CGRect(x: x - 7, y: c.y - r * 0.62 - 7, width: 14, height: 14)
-                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [Palette.beadLight, Palette.bead]), center: CGPoint(x: rect.minX + 5, y: rect.minY + 4), startRadius: 0, endRadius: 12))
+
+    private func paint(_ ctx: inout GraphicsContext, _ size: CGSize) {
+        let r: CGFloat = min(size.width, size.height) / 2 - 12
+        let c = CGPoint(x: size.width / 2, y: size.height / 2)
+        let minutes: Int = Int(seconds / 60)
+        let inHour: Int = minutes % 60, hours: Int = minutes / 60
+        let lit = Gradient(colors: [color.mix(with: .white, by: 0.45), color])
+        for i in 0..<60 {
+            let a: CGFloat = CGFloat(i) / 60 * 2 * .pi - .pi / 2
+            let px: CGFloat = c.x + cos(a) * r, py: CGFloat = c.y + sin(a) * r
+            let d: CGFloat = i % 5 == 0 ? 11 : 8
+            let rect = CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)
+            if i <= inHour {
+                let hi = CGPoint(x: rect.minX + d * 0.35, y: rect.minY + d * 0.3)
+                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(lit, center: hi, startRadius: 0, endRadius: d))
+                if i == inHour { ctx.stroke(Path(ellipseIn: rect.insetBy(dx: -3, dy: -3)), with: .color(color.opacity(0.4)), lineWidth: 2) }
+            } else {
+                ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.14)))
             }
         }
+        let shown: Int = min(hours, 6)
+        let gold = Gradient(colors: [Palette.beadLight, Palette.bead])
+        for h in 0..<shown {
+            let x: CGFloat = c.x - CGFloat(shown - 1) * 9 + CGFloat(h) * 18
+            let rect = CGRect(x: x - 7, y: c.y - r * 0.62 - 7, width: 14, height: 14)
+            ctx.fill(Path(ellipseIn: rect), with: .radialGradient(gold, center: CGPoint(x: rect.minX + 5, y: rect.minY + 4), startRadius: 0, endRadius: 12))
+        }
+    }
+    var body: some View {
+        Canvas { ctx, size in paint(&ctx, size) }
         .accessibilityHidden(true)
     }
 }
