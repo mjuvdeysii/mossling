@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// The home: the child's months as a growth map — the stage and wheel at the top, set to this month — and under it
-/// the chosen month: this week's shelf (this month only), the plays, the month's parts in small tiles, and the topics.
-/// Most of the page is the plays, the heart of the book.
+/// The home, in the order of how often it is needed (ios/DESIGN.md §5): the month as one compact card that opens into
+/// the growth wheel in place; this week's shelf, the everyday reason to open the app; the month's other plays; the
+/// month's parts and the topics as small tiles. Turning the wheel changes the month and everything below follows.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -10,6 +10,7 @@ struct TodayView: View {
     @State private var askBirth = false
     @State private var arranging = false
     @State private var chosen: Int?
+    @State private var wheel = false
 
     var body: some View {
         let baby = app.babyMonth ?? 0
@@ -18,9 +19,22 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 22) {
                 if app.age == nil {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                        .buttonStyle(.glassProminent).controlSize(.large)
+                        .buttonStyle(.borderedProminent).controlSize(.large)
                 }
-                GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
+                if wheel {
+                    GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
+                        .overlay(alignment: .topTrailing) {
+                            Button { withAnimation(.snappy) { wheel = false } } label: {
+                                Image(systemName: "chevron.up").font(.footnote.weight(.bold)).frame(width: 30, height: 30)
+                                    .background(.white.opacity(0.85), in: Circle())
+                            }
+                            .foregroundStyle(Color(hex: 0x2E2418)).padding(12).accessibilityLabel("收起成长滚轮")
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+                } else {
+                    MonthCard(month: m, baby: baby) { withAnimation(.snappy) { wheel = true } }
+                        .transition(.opacity)
+                }
                 if m >= 36 { StoryGoesOn(primary: app.companion) }
                 if m == baby && app.age != nil { ShelfView(month: m) { arranging = true } }
                 PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
@@ -44,6 +58,42 @@ struct TodayView: View {
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
         .onChange(of: app.babyMonth) { _, _ in chosen = nil }
+    }
+}
+
+/// The month, folded: the child at this age on a small patch of sky, the month and its title. Tapping it opens the
+/// growth wheel in place.
+private struct MonthCard: View {
+    @Environment(AppModel.self) private var app
+    let month: Int, baby: Int
+    let open: () -> Void
+    var body: some View {
+        Button(action: open) {
+            HStack(spacing: 14) {
+                ZStack {
+                    Sky(hour: 12)
+                    GrowingChild(month: month).frame(width: 58, height: 58).offset(y: 4)
+                }
+                .frame(width: 76, height: 76)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: 3) {
+                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                        if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
+                        if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
+                    }
+                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+                }
+                .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+            }
+            .padding(10).padding(.trailing, 6)
+            .printCard(radius: 24)
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
+        .accessibilityHint("打开成长滚轮，选择月份")
     }
 }
 
@@ -71,7 +121,9 @@ private struct Topics: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         let t = app.content.topics
-        let marks: [(String, Color)] = [("moon.zzz.fill", Crayon.lilac), ("bed.double.fill", Crayon.sky), ("fork.knife", Crayon.leaf), ("mouth.fill", Crayon.pink), ("cross.case.fill", Crayon.cherry)]
+        // all five are care topics: one colour (the care area's), told apart by their symbols
+        let care = Palette.area("F")
+        let marks: [(String, Color)] = [("moon.zzz.fill", care), ("bed.double.fill", care), ("fork.knife", care), ("mouth.fill", care), ("cross.case.fill", care)]
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题")
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
@@ -131,12 +183,6 @@ struct ShelfView: View {
                 Plank().frame(height: 22).padding(.horizontal, 6)
             }
             .padding(.bottom, 12)
-            .background(alignment: .bottom) {
-                // a frosted back panel behind the shelf, like a glass cabinet
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(LinearGradient(colors: [Crayon.peach.opacity(0.18), Crayon.pink.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 22)
-            }
             .printCard(radius: 26)
         }
     }

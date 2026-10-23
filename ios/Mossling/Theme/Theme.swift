@@ -32,7 +32,8 @@ enum Palette {
     static let stone = Color(uiColor: .systemGray4)
 
     static let accent = Color.dyn(0x2E8B3A, 0x66CC66)
-    static let background = Color.dyn(0xF5F5F7, 0x000000)
+    /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
+    static let background = Color.dyn(0xFBF7F0, 0x14120F)
     static let card = Color(uiColor: .secondarySystemGroupedBackground)
     static let fill = Color.dyn(0xF2EBE0, 0x2A2723)
     static let text = Color.primary
@@ -84,9 +85,8 @@ enum Typeface {
 
 // MARK: building blocks
 
-/// A category mark: a white SF Symbol on a small rounded tile with depth — the colour lit from the upper left, a gloss
-/// across the top, a fine light edge and a soft coloured shadow, like the icons on the Home Screen. The one way a
-/// category is marked across the app.
+/// A category mark: a white SF Symbol on a small rounded tile with the pictures' soft volume — the colour lit from the
+/// upper left, a soft shadow beneath, no gloss. The one way a category is marked across the app.
 struct IconTile: View {
     let symbol: String
     let color: Color
@@ -99,57 +99,23 @@ struct IconTile: View {
         Image(systemName: symbol)
             .font(.system(size: s * 0.48, weight: .bold))
             .foregroundStyle(Crayon.glyph(on: color))
-            .shadow(color: .black.opacity(0.18), radius: 0.5, y: 0.6)
             .frame(width: s, height: s)
             .background {
-                ZStack {
-                    shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.34), color, color.mix(with: Crayon.pink, by: 0.22).mix(with: .black, by: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                    shape.fill(LinearGradient(colors: [.white.opacity(0.38), .white.opacity(0)], startPoint: .top, endPoint: .center)).padding(s * 0.06)
-                    shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.6), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
-                }
+                shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.22), color, color.mix(with: .black, by: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
             }
-            .shadow(color: color.opacity(0.35), radius: s * 0.12, y: s * 0.08)
+            .shadow(color: color.opacity(0.22), radius: s * 0.08, y: s * 0.05)
             .accessibilityHidden(true)
     }
 }
 
-/// The page behind everything: warm paper with large soft washes of colour. Each tab has its own hue — peach for
-/// Today, mint for the map, glass pink for the journal, lilac for Me — and every page opened from a tab keeps it, so
-/// the glass bars above pick up the same light.
-enum Hue { case peach, mint, pink, lilac
-    var colors: (Color, Color) {
-        switch self {
-        case .peach: (Crayon.peach, Crayon.sunflower)
-        case .mint: (Crayon.mint, Crayon.sky)
-        case .pink: (Crayon.pink, Crayon.lilac)
-        case .lilac: (Crayon.lilac, Crayon.sky)
-        }
-    }
-}
-extension EnvironmentValues { @Entry var hue: Hue = .peach }
-
+/// The page behind everything: plain paper. Colour belongs to the pictures and the materials, not the page
+/// (ios/DESIGN.md §3); hierarchy comes from layout and grouping.
 struct PageBackground: View {
-    @Environment(\.hue) private var hue
-    @Environment(\.colorScheme) private var scheme
-    var body: some View {
-        let (a, b) = hue.colors
-        let k = scheme == .dark ? 0.16 : 0.16
-        GeometryReader { g in
-            let w = g.size.width, h = g.size.height
-            ZStack {
-                Palette.background
-                RadialGradient(colors: [a.opacity(k), a.opacity(0)], center: .topLeading, startRadius: 0, endRadius: w * 0.95)
-                RadialGradient(colors: [b.opacity(k * 0.8), b.opacity(0)], center: UnitPoint(x: 1, y: 0.35), startRadius: 0, endRadius: w * 0.8)
-                RadialGradient(colors: [a.opacity(k * 0.6), a.opacity(0)], center: UnitPoint(x: 0.2, y: 1), startRadius: 0, endRadius: max(w, h) * 0.6)
-            }
-        }
-        .ignoresSafeArea()
-        .accessibilityHidden(true)
-    }
+    var body: some View { Palette.background.ignoresSafeArea().accessibilityHidden(true) }
 }
 
 extension View {
-    /// The page's background, in the hue of its tab.
+    /// The page's background: paper.
     func pageBackground() -> some View { background { PageBackground() } }
 }
 
@@ -210,8 +176,8 @@ struct SectionTitle: View {
     }
 }
 
-/// A surface with depth, the same everywhere: the card colour with a faint light falling from the top, a fine light
-/// edge, and a soft warm shadow under it, so cards sit on the page like objects.
+/// A card of paper on the page: one flat colour and a soft shadow — no gloss, no light edge, no gradient
+/// (ios/DESIGN.md §3). In dark mode a hairline replaces the shadow, which would not show.
 struct PrintCard: ViewModifier {
     var radius: CGFloat = 24
     var fill: Color = Palette.card
@@ -219,15 +185,10 @@ struct PrintCard: ViewModifier {
     func body(content: Self.Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background {
-                ZStack {
-                    shape.fill(fill)
-                    shape.fill(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.06 : 0.55), .white.opacity(0)], startPoint: .top, endPoint: .center))
-                }
-            }
+            .background(fill, in: shape)
             .clipShape(shape)
-            .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.14 : 0.9), .white.opacity(scheme == .dark ? 0.03 : 0.2)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-            .shadow(color: scheme == .dark ? .black.opacity(0.45) : Color(hex: 0x8A5A2B).opacity(0.12), radius: 14, y: 7)
+            .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
+            .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)
     }
 }
 

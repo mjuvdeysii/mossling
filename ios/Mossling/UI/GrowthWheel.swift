@@ -35,7 +35,7 @@ struct GrowthWheel: View {
                 }
                 .foregroundStyle(Color(hex: 0x2E2418))
                 .padding(.horizontal, 12).padding(.vertical, 8)
-                .glassEffect(.regular.tint(.white.opacity(0.35)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(.white.opacity(0.82), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .padding(12)
                 .accessibilityElement(children: .combine)
             }
@@ -109,10 +109,10 @@ private struct MonthDial: View {
             .scrollPosition(id: $pos, anchor: .center)
             .defaultScrollAnchor(UnitPoint(x: CGFloat(month) / 36, y: 0.5))
             .background(alignment: .top) {
-                // the lens over the chosen month
-                Capsule().fill(.clear)
-                    .frame(width: item + 6, height: 46)
-                    .glassEffect(.regular.tint(Palette.bead.opacity(0.25)), in: Capsule())
+                // a ring of gold under the chosen month (content layer: no glass)
+                Circle().fill(Palette.bead.opacity(0.14))
+                    .overlay(Circle().strokeBorder(Palette.bead.opacity(0.55), lineWidth: 2))
+                    .frame(width: 46, height: 46).offset(y: -3)
                     .allowsHitTesting(false)
             }
         }
@@ -170,19 +170,27 @@ struct GrowingChild: View {
 
     var body: some View {
         let p = pose
-        let skin = Color(hex: 0xF1CFA4), suit = Crayon.sunflower
+        // the same child as in the pictures (tools/picturebook.py): warm skin, sunflower top, sky-blue legs
+        let skin = Color(hex: 0xD9A57C), suit = Color(hex: 0xF2B526), legs = Color(hex: 0x5BA8E0)
         GeometryReader { g in
             let k = min(g.size.width, g.size.height) / 130
             ZStack(alignment: .topLeading) {
                 Ellipse().fill(Color.black.opacity(0.1)).frame(width: 70 * k, height: 8 * k).position(x: 64 * k, y: 122 * k)
-                part(p.legs, p.legsSize, p.legsTurn, k, suit.mix(with: .black, by: 0.12))
+                part(p.legs, p.legsSize, p.legsTurn, k, legs)
                 part(p.body, p.bodySize, p.bodyTurn, k, suit)
                 part(p.arm, p.armSize, p.armTurn, k, suit.mix(with: .white, by: 0.1))
                 Circle()
                     .fill(RadialGradient(colors: [skin.mix(with: .white, by: 0.55), skin, skin.mix(with: .black, by: 0.18)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: p.headR * k * 1.4))
                     .frame(width: p.headR * 2 * k, height: p.headR * 2 * k)
-                    .overlay(alignment: .topLeading) {
-                        Ellipse().fill(.white.opacity(0.7)).frame(width: p.headR * 0.6 * k, height: p.headR * 0.36 * k).offset(x: p.headR * 0.42 * k, y: p.headR * 0.32 * k)
+                    .overlay {
+                        // a face looking left, toward the adult in the pictures: two eyes and a smile
+                        let r = p.headR * k
+                        ZStack {
+                            Circle().fill(Color(hex: 0x3B3330)).frame(width: r * 0.22, height: r * 0.26).offset(x: -r * 0.5, y: -r * 0.12)
+                            Circle().fill(Color(hex: 0x3B3330)).frame(width: r * 0.2, height: r * 0.24).offset(x: -r * 0.08, y: -r * 0.12)
+                            Ellipse().fill(Color(hex: 0xF08A8A).opacity(0.45)).frame(width: r * 0.3, height: r * 0.18).offset(x: -r * 0.62, y: r * 0.2)
+                            Capsule().fill(Color(hex: 0x3B3330)).frame(width: r * 0.3, height: r * 0.08).offset(x: -r * 0.3, y: r * 0.32)
+                        }
                     }
                     .position(x: p.head.x * k, y: p.head.y * k)
                     .shadow(color: .black.opacity(0.12), radius: 3 * k, y: 2 * k)

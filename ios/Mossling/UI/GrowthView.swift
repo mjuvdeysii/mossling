@@ -27,7 +27,7 @@ struct GrowthView: View {
                     .onChange(of: ind) { _, _ in picked = nil }
                 if app.sex == nil {
                     Card(title: "生长曲线按性别区分", symbol: "person.2.fill", color: Crayon.sky) {
-                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.glass)
+                        HStack { Button("男孩") { app.sex = "boy" }; Button("女孩") { app.sex = "girl" } }.buttonStyle(.bordered)
                     }
                 }
                 chartCard

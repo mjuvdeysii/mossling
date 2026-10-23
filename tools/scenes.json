@@ -1,0 +1,8435 @@
+{
+ "N01": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#C4EAE4",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "dots",
+     "dx": 60,
+     "dy": 76,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     "child.chest",
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 1,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#C4EAE4",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "adult.head",
+     "b": "child.head",
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "eye",
+     "dx": 20,
+     "dy": -80,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 10
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 1,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#C4EAE4",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "dots",
+     "dx": 40,
+     "dy": 74,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 2,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  }
+ ],
+ "N02": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 300
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": "adult.head",
+     "c": "#EE6F9A"
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": -60,
+     "dy": 80,
+     "side": -1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 300,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     "child.under",
+     "child.under2"
+    ]
+   },
+   "child": {
+    "pose": "bundle",
+    "x": 0,
+    "age": 1,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     372,
+     300
+    ],
+    "tilt": 12
+   },
+   "zoom": 1.2
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#F8D0DE",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "arrow",
+     "a": [
+      520,
+      330
+     ],
+     "b": [
+      600,
+      300
+     ],
+     "bend": -10,
+     "c": "#8A7F76",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 2,
+    "e": "flat",
+    "look": [
+     640,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1,
+    "at": [
+     470,
+     440
+    ]
+   }
+  }
+ ],
+ "N03": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 480,
+     "c": "#C4EAE4",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "drop",
+     "dx": 30,
+     "dy": 80,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "arrow",
+     "a": [
+      300,
+      270
+     ],
+     "b": [
+      400,
+      330
+     ],
+     "bend": -26,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     "child.chest",
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 1,
+    "e": "sad",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     490,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 300
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 74,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "dots",
+     "dx": 60,
+     "dy": 82,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 300,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     "child.under",
+     "child.under2"
+    ]
+   },
+   "child": {
+    "pose": "bundle",
+    "x": 0,
+    "age": 1,
+    "e": "calm",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     372,
+     300
+    ],
+    "tilt": 16
+   },
+   "zoom": 1.2
+  }
+ ],
+ "N04": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "sun",
+     "dx": -10,
+     "dy": -90,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "clock",
+     "dx": 80,
+     "dy": -30,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 260,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.back",
+     null
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 540,
+    "age": 1,
+    "e": "wow",
+    "look": [
+     640,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "grow",
+     "dx": 10,
+     "dy": -90,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 540,
+    "age": 2,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": -10
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 40,
+     "dy": 84,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "arrow",
+     "a": [
+      600,
+      380
+     ],
+     "b": [
+      600,
+      320
+     ],
+     "bend": 0,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "prone",
+    "x": 300,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 600,
+    "age": 3,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": -24
+   },
+   "zoom": 1.1,
+   "cx": 420
+  }
+ ],
+ "N05": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 280
+    },
+    {
+     "k": "bookopen",
+     "x": 360,
+     "on": "adult.hand2",
+     "s": 0.8,
+     "h": 40
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sun",
+     "dx": 40,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 280,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     "child.under",
+     [
+      420,
+      300
+     ]
+    ]
+   },
+   "child": {
+    "pose": "bundle",
+    "x": 0,
+    "age": 1,
+    "e": "wow",
+    "look": [
+     430,
+     270
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     350,
+     320
+    ],
+    "tilt": -8
+   },
+   "zoom": 1.2
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 280
+    },
+    {
+     "k": "book",
+     "x": 470,
+     "s": 1.1
+    }
+   ],
+   "marks": [
+    {
+     "k": "zz",
+     "at": [
+      380,
+      220
+     ]
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 280,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.under",
+     "child.under2"
+    ]
+   },
+   "child": {
+    "pose": "bundle",
+    "x": 0,
+    "age": 1,
+    "e": "sleep",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     350,
+     320
+    ],
+    "tilt": 10
+   },
+   "zoom": 1.2
+  }
+ ],
+ "N06": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 230
+    },
+    {
+     "k": "table",
+     "x": 360,
+     "s": 0.55
+    },
+    {
+     "k": "notebook",
+     "x": 370,
+     "y": 316
+    },
+    {
+     "k": "mat",
+     "x": 540,
+     "c": "#C4EAE4",
+     "s": 0.6
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "dots",
+     "dx": 40,
+     "dy": 74,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "eye",
+     "dx": 60,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     380,
+     300
+    ],
+    "hands": [
+     [
+      370,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 1,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1,
+    "at": [
+     520,
+     440
+    ]
+   },
+   "zoom": 1.15
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 220
+    },
+    {
+     "k": "stool",
+     "x": 520
+    },
+    {
+     "k": "table",
+     "x": 370,
+     "s": 0.55
+    },
+    {
+     "k": "notebook",
+     "x": 370,
+     "y": 316
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "q",
+     "dx": 50,
+     "dy": 86,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "adult2.mouth",
+     "sym": "heart",
+     "dx": 50,
+     "dy": 86,
+     "side": -1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 220,
+    "e": "talk",
+    "look": "adult2.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.15,
+   "adult2": {
+    "pose": "chair",
+    "x": 520,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1
+   }
+  }
+ ],
+ "A01": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 460,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "adult.head",
+     "b": "child.head",
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": "adult.head",
+     "c": "#EE6F9A"
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "sun",
+     "dx": 40,
+     "dy": -90,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 8
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 4,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     470,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 460,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "dots",
+     "dx": 60,
+     "dy": 76,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 8
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 4,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     470,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 460,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 76,
+     "dy": -40,
+     "s": 1.2
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 8
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 4,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     470,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 460,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "note",
+     "dx": 40,
+     "dy": 80,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": 10,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "wow",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 8
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 5,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     470,
+     440
+    ]
+   }
+  }
+ ],
+ "A02": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.7,
+     "h": 28
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sock",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      350,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 12,
+    "e": "wow",
+    "look": [
+     350,
+     320
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.7,
+     "h": 28
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      380,
+      370
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     [
+      380,
+      380
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 12,
+    "e": "smile",
+    "look": [
+     380,
+     370
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 350,
+     "y": 395,
+     "s": 0.6,
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "sock",
+     "x": 410,
+     "y": 410,
+     "s": 0.6,
+     "c": "#EE6F9A"
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "two",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      350,
+      360
+     ],
+     [
+      330,
+      380
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 26,
+    "e": "smile",
+    "look": [
+     350,
+     360
+    ],
+    "hands": [
+     [
+      400,
+      390
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A03": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 430,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "sun",
+     "dx": -10,
+     "dy": -90,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.back",
+     "child.chest"
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 520,
+    "age": 2,
+    "e": "wow",
+    "look": [
+     300,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 450,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "adult.head",
+     "b": "child.head",
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "eye",
+     "dx": 60,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 330,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ],
+    "tilt": 10
+   },
+   "child": {
+    "pose": "prone",
+    "x": 560,
+    "age": 3,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 450,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 40,
+     "dy": 84,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "prone",
+    "x": 290,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 600,
+    "age": 3,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.1,
+   "cx": 420
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 440,
+     "c": "#FBD9B6",
+     "s": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "grow",
+     "dx": 30,
+     "dy": -90,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "clock",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "prone",
+    "x": 540,
+    "age": 4,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": -18
+   }
+  }
+ ],
+ "A04": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#DDD3F5",
+     "s": 0.7
+    },
+    {
+     "k": "rattle",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.9,
+     "h": 50
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      440,
+      300
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": [
+     430,
+     290
+    ],
+    "hands": [
+     [
+      430,
+      290
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 5,
+    "e": "wow",
+    "look": [
+     440,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#DDD3F5",
+     "s": 0.7
+    },
+    {
+     "k": "rattle",
+     "x": 400,
+     "s": 0.9,
+     "r": 60
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 6,
+    "e": "wow",
+    "look": [
+     410,
+     380
+    ],
+    "hands": [
+     [
+      420,
+      360
+     ],
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 470,
+     "c": "#DDD3F5",
+     "s": 0.7
+    },
+    {
+     "k": "rattle",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.8,
+     "h": 60
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      500,
+      250
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 7,
+    "e": "smile",
+    "look": [
+     470,
+     300
+    ],
+    "hands": [
+     [
+      470,
+      320
+     ],
+     null
+    ],
+    "f": -1,
+    "at": [
+     480,
+     440
+    ]
+   }
+  }
+ ],
+ "A05": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 480,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "sound",
+     "at": [
+      320,
+      300
+     ],
+     "dir": 1,
+     "c": "#8E6FDB"
+    },
+    {
+     "k": "arrow",
+     "a": [
+      520,
+      330
+     ],
+     "b": [
+      470,
+      330
+     ],
+     "bend": -24,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 3,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     490,
+     440
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 480,
+     "c": "#CFE4F6",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 74,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.hand",
+     null
+    ],
+    "tilt": 8
+   },
+   "child": {
+    "pose": "lieback",
+    "x": 0,
+    "age": 4,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": -1,
+    "at": [
+     490,
+     440
+    ]
+   }
+  }
+ ],
+ "A06": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      330,
+      330
+     ],
+     "b": [
+      420,
+      320
+     ],
+     "bend": -30,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "smile",
+    "look": [
+     380,
+     360
+    ],
+    "hands": [
+     [
+      340,
+      390
+     ],
+     [
+      420,
+      390
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 8,
+    "e": "wow",
+    "look": [
+     380,
+     370
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      352,
+      392
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "smile",
+    "look": [
+     355,
+     390
+    ],
+    "hands": [
+     [
+      352,
+      398
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 9,
+    "e": "wow",
+    "look": [
+     350,
+     395
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sun",
+     "dx": 50,
+     "dy": 86,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 9,
+    "e": "smile",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "dots",
+     "dx": 30,
+     "dy": 74,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 10,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "book",
+     "x": 330,
+     "s": 1.1
+    },
+    {
+     "k": "ball",
+     "x": 630,
+     "s": 0.6,
+     "c": "#F58A1F"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      540,
+      330
+     ],
+     "b": [
+      620,
+      340
+     ],
+     "bend": -16,
+     "c": "#8A7F76",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     [
+      310,
+      410
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "crawl",
+    "x": 520,
+    "age": 11,
+    "e": "smile",
+    "look": [
+     640,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   }
+  }
+ ],
+ "A07": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "zh",
+      "note"
+     ],
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "smile",
+    "look": [
+     330,
+     180
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 12,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      340,
+      220
+     ]
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 40,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "sing",
+    "look": "child.head",
+    "hands": [
+     [
+      330,
+      250
+     ],
+     [
+      310,
+      260
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 12,
+    "e": "wow",
+    "look": [
+     330,
+     250
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    },
+    {
+     "k": "sparkle",
+     "at": [
+      470,
+      250
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 13,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     [
+      470,
+      300
+     ],
+     [
+      500,
+      300
+     ]
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 80,
+     "dy": -50,
+     "s": 1
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 40,
+     "dy": 110,
+     "side": 1,
+     "s": 0.7
+    },
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "note",
+     "dx": 30,
+     "dy": 80,
+     "side": 1,
+     "s": 0.6
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 260,
+    "e": "sing",
+    "look": "child.head",
+    "hands": [
+     [
+      330,
+      270
+     ],
+     [
+      320,
+      280
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 18,
+    "e": "sing",
+    "look": "adult.head",
+    "hands": [
+     [
+      455,
+      330
+     ],
+     [
+      470,
+      330
+     ]
+    ]
+   }
+  }
+ ],
+ "A08": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cloth",
+     "x": 360,
+     "s": 0.8
+    },
+    {
+     "k": "cloth2",
+     "x": 430,
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "two",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     [
+      370,
+      420
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 7,
+    "e": "wow",
+    "look": [
+     390,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cloth",
+     "x": 410,
+     "s": 0.8
+    },
+    {
+     "k": "cloth2",
+     "x": 330,
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      430,
+      380
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 8,
+    "e": "wow",
+    "look": [
+     420,
+     420
+    ],
+    "hands": [
+     [
+      420,
+      420
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cloth",
+     "x": 420,
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "hand",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     420,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 9,
+    "e": "smile",
+    "look": [
+     420,
+     420
+    ],
+    "hands": [
+     [
+      430,
+      410
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cloth",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.6,
+     "h": 40
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "adult.head",
+     "b": "child.head",
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "eye",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 10,
+    "e": "wow",
+    "look": [
+     480,
+     320
+    ],
+    "hands": [
+     [
+      470,
+      330
+     ],
+     [
+      500,
+      340
+     ]
+    ]
+   }
+  }
+ ],
+ "A09": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mirrorfaces",
+     "x": 590,
+     "c": 2
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "kneel",
+    "x": 280,
+    "e": "smile",
+    "look": [
+     590,
+     300
+    ],
+    "hands": [
+     "child.back",
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 440,
+    "age": 6,
+    "e": "wow",
+    "look": [
+     590,
+     320
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.25
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mirrorfaces",
+     "x": 590,
+     "c": 2
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      560,
+      220
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 280,
+    "e": "wow",
+    "look": [
+     590,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 440,
+    "age": 7,
+    "e": "smile",
+    "look": [
+     590,
+     320
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.25
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mirrorfaces",
+     "x": 590,
+     "c": 2
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "happy",
+     "dx": 30,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 280,
+    "e": "talk",
+    "look": [
+     590,
+     300
+    ],
+    "hands": [
+     [
+      570,
+      320
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 440,
+    "age": 8,
+    "e": "wow",
+    "look": [
+     590,
+     320
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.25
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mirrorfaces",
+     "x": 590,
+     "c": 1
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 470,
+    "age": 10,
+    "e": "smile",
+    "look": [
+     590,
+     320
+    ],
+    "hands": [
+     [
+      560,
+      330
+     ],
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.25
+  }
+ ],
+ "A10": [
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "stroller",
+     "x": 390
+    },
+    {
+     "k": "tree",
+     "x": 610,
+     "s": 0.9,
+     "back": true
+    },
+    {
+     "k": "sun",
+     "x": 520,
+     "y": 150,
+     "back": true
+    },
+    {
+     "k": "cloud",
+     "x": 300,
+     "y": 150,
+     "back": true
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "walk",
+    "x": 200,
+    "e": "smile",
+    "look": [
+     420,
+     300
+    ],
+    "hands": [
+     [
+      300,
+      290
+     ],
+     [
+      296,
+      296
+     ]
+    ]
+   },
+   "zoom": 1.0
+  },
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "tree",
+     "x": 600,
+     "s": 0.9,
+     "back": true
+    },
+    {
+     "k": "bird",
+     "x": 560,
+     "y": 200
+    }
+   ],
+   "marks": [
+    {
+     "k": "sound",
+     "at": [
+      590,
+      190
+     ],
+     "dir": 1,
+     "c": "#8E6FDB"
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "bird",
+     "dx": -70,
+     "dy": 40,
+     "side": -1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 260,
+    "e": "talk",
+    "look": [
+     560,
+     190
+    ],
+    "hands": [
+     "child.back",
+     [
+      520,
+      210
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 0,
+    "age": 9,
+    "e": "wow",
+    "look": [
+     560,
+     200
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1,
+    "at": [
+     300,
+     290
+    ]
+   },
+   "zoom": 1.0
+  },
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "stroller",
+     "x": 330
+    },
+    {
+     "k": "tree",
+     "x": 610,
+     "s": 0.85,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "zz",
+     "at": [
+      300,
+      200
+     ]
+    },
+    {
+     "k": "arrow",
+     "a": [
+      250,
+      250
+     ],
+     "b": [
+      140,
+      250
+     ],
+     "bend": 0,
+     "c": "#8A7F76",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "walk",
+    "x": 520,
+    "e": "smile",
+    "look": [
+     380,
+     300
+    ],
+    "hands": [
+     [
+      420,
+      290
+     ],
+     [
+      416,
+      296
+     ]
+    ],
+    "f": -1
+   },
+   "zoom": 1.0
+  }
+ ],
+ "A11": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 380,
+     "c": "#DDD3F5",
+     "s": 1
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.7,
+     "dx": 6,
+     "c": "#E84F4F"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      330,
+      260
+     ],
+     "b": [
+      440,
+      260
+     ],
+     "bend": -30,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      405,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 8,
+    "e": "wow",
+    "look": [
+     405,
+     330
+    ],
+    "hands": [
+     [
+      425,
+      350
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 380,
+     "c": "#DDD3F5",
+     "s": 1
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.55,
+     "c": "#E84F4F"
+    },
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "child.hand2",
+     "s": 0.5,
+     "c": "#3E9BE0",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      445,
+      320
+     ],
+     "b": [
+      515,
+      320
+     ],
+     "bend": -30,
+     "c": "#8E6FDB",
+     "twoway": true
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "smile",
+    "look": "child.hand",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 9,
+    "e": "wow",
+    "look": [
+     480,
+     360
+    ],
+    "hands": [
+     [
+      440,
+      380
+     ],
+     [
+      520,
+      380
+     ]
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "mat",
+     "x": 380,
+     "c": "#DDD3F5",
+     "s": 1
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.55,
+     "c": "#E84F4F"
+    },
+    {
+     "k": "ball",
+     "x": 570,
+     "s": 0.5,
+     "c": "#3E9BE0"
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "clock",
+     "dx": 60,
+     "dy": -50,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 470,
+    "age": 10,
+    "e": "smile",
+    "look": [
+     430,
+     360
+    ],
+    "hands": [
+     [
+      430,
+      380
+     ],
+     "child.lap"
+    ]
+   }
+  }
+ ],
+ "A12": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "hands_cover"
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 0,
+     "dy": -84,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     [
+      285,
+      250
+     ],
+     [
+      280,
+      262
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 10,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      300,
+      210
+     ],
+     "c": "#F2B526"
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 90,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      190,
+      230
+     ],
+     [
+      320,
+      230
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 480,
+    "age": 10,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "hands_cover",
+     "who": "child"
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "q",
+     "dx": 60,
+     "dy": 84,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 470,
+    "age": 14,
+    "e": "flat",
+    "look": "adult.head",
+    "hands": [
+     [
+      490,
+      330
+     ],
+     [
+      485,
+      340
+     ]
+    ]
+   }
+  }
+ ],
+ "A13": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "drum",
+     "x": 380
+    }
+   ],
+   "marks": [
+    {
+     "k": "sound",
+     "at": [
+      400,
+      360
+     ],
+     "dir": 1,
+     "c": "#8E6FDB"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     [
+      375,
+      385
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 10,
+    "e": "wow",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "drum",
+     "x": 380
+    }
+   ],
+   "marks": [
+    {
+     "k": "sound",
+     "at": [
+      380,
+      330
+     ],
+     "dir": 1,
+     "c": "#8E6FDB"
+    },
+    {
+     "k": "sound",
+     "at": [
+      380,
+      330
+     ],
+     "dir": -1,
+     "c": "#8E6FDB"
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "eye",
+     "dx": 10,
+     "dy": -90,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "wow",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 11,
+    "e": "wow",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "drum",
+     "x": 400
+    }
+   ],
+   "marks": [
+    {
+     "k": "sound",
+     "at": [
+      420,
+      350
+     ],
+     "dir": 1,
+     "c": "#F58A1F"
+    },
+    {
+     "k": "sparkle",
+     "at": [
+      450,
+      300
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 210,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 470,
+    "age": 12,
+    "e": "talk",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     [
+      395,
+      385
+     ],
+     [
+      410,
+      380
+     ]
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "drum",
+     "x": 400
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "sound",
+     "at": [
+      420,
+      350
+     ],
+     "dir": 1,
+     "c": "#F58A1F"
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 210,
+    "e": "talk",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 470,
+    "age": 14,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     [
+      395,
+      380
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A14": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 380
+    },
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.5,
+     "c": "#F58A1F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      420,
+      300
+     ],
+     "b": [
+      400,
+      380
+     ],
+     "bend": 30,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     [
+      380,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 12,
+    "e": "wow",
+    "look": [
+     380,
+     360
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 380
+    },
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.5,
+     "c": "#F58A1F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      380,
+      390
+     ],
+     "b": [
+      400,
+      300
+     ],
+     "bend": -30,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 14,
+    "e": "wow",
+    "look": [
+     420,
+     320
+    ],
+    "hands": [
+     [
+      420,
+      320
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 380
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.45,
+     "c": "#3E9BE0"
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "ball",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "arrow",
+     "a": [
+      300,
+      300
+     ],
+     "b": [
+      300,
+      300
+     ],
+     "bend": 0,
+     "c": "#FFFFFF",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 16,
+    "e": "smile",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     [
+      390,
+      360
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A15": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "box",
+     "x": 200
+    },
+    {
+     "k": "cup",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.6,
+     "h": 30
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      400,
+      360
+     ],
+     "b": [
+      220,
+      360
+     ],
+     "bend": -60,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "squat",
+    "x": 300,
+    "e": "smile",
+    "look": [
+     420,
+     420
+    ],
+    "hands": [
+     [
+      420,
+      420
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "crawl",
+    "x": 570,
+    "age": 10,
+    "e": "smile",
+    "look": [
+     420,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.6,
+     "c": "#F58A1F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      420,
+      410
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": [
+     420,
+     420
+    ],
+    "hands": [
+     [
+      420,
+      400
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "crawl",
+    "x": 560,
+    "age": 10,
+    "e": "wow",
+    "look": [
+     420,
+     410
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 610,
+     "s": 0.6,
+     "c": "#F58A1F"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      480,
+      330
+     ],
+     "b": [
+      580,
+      330
+     ],
+     "bend": -24,
+     "c": "#F58A1F",
+     "twoway": false
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "eye",
+     "dx": 60,
+     "dy": -50,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 180,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "crawl",
+    "x": 430,
+    "age": 12,
+    "e": "smile",
+    "look": [
+     600,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A16": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 350,
+     "s": 0.5
+    },
+    {
+     "k": "thing",
+     "x": 350,
+     "y": 316,
+     "c": "apple"
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      350,
+      300
+     ],
+     "c": "#EE6F9A"
+    },
+    {
+     "k": "look",
+     "a": "adult.head",
+     "b": "child.head",
+     "c": "#3E9BE0"
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 470,
+    "age": 14,
+    "e": "wow",
+    "look": [
+     350,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 350,
+     "s": 0.5
+    },
+    {
+     "k": "thing",
+     "x": 350,
+     "y": 316,
+     "c": "apple"
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "apple",
+     "dx": 40,
+     "dy": 100,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "talk",
+    "look": [
+     350,
+     300
+    ],
+    "hands": [
+     [
+      340,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 470,
+    "age": 15,
+    "e": "wow",
+    "look": [
+     350,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 350,
+     "s": 0.5
+    },
+    {
+     "k": "thing",
+     "x": 350,
+     "y": 316,
+     "c": "apple"
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 60,
+     "dy": -50,
+     "s": 1
+    },
+    {
+     "k": "say",
+     "from": "child.head",
+     "sym": "dots",
+     "dx": 30,
+     "dy": 80,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 470,
+    "age": 16,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     [
+      400,
+      300
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 350,
+     "s": 0.5
+    },
+    {
+     "k": "thing",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "apple",
+     "h": 26
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "apple",
+     "dx": 30,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 90,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      380,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 470,
+    "age": 18,
+    "e": "smile",
+    "look": [
+     380,
+     300
+    ],
+    "hands": [
+     [
+      400,
+      310
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A17": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      270,
+      200
+     ],
+     "b": [
+      330,
+      200
+     ],
+     "bend": -20,
+     "c": "#F58A1F",
+     "twoway": true
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      300,
+      220
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 12,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.5,
+     "c": "#F58A1F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "ball",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "talk",
+    "look": [
+     390,
+     400
+    ],
+    "hands": [
+     [
+      390,
+      380
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 14,
+    "e": "talk",
+    "look": [
+     390,
+     400
+    ],
+    "hands": [
+     [
+      400,
+      330
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      460,
+      260
+     ],
+     "c": "#F2B526"
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 16,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     [
+      450,
+      300
+     ],
+     [
+      460,
+      300
+     ]
+    ]
+   }
+  }
+ ],
+ "A18": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 360,
+     "c": "#E84F4F",
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      380,
+      380
+     ],
+     "b": [
+      470,
+      390
+     ],
+     "bend": -20,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     [
+      330,
+      410
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 14,
+    "e": "wow",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 440,
+     "c": "#E84F4F",
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 60,
+     "dy": -50,
+     "s": 1
+    },
+    {
+     "k": "arrow",
+     "a": [
+      430,
+      380
+     ],
+     "b": [
+      330,
+      390
+     ],
+     "bend": -20,
+     "c": "#3E9BE0",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 220,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 16,
+    "e": "smile",
+    "look": [
+     450,
+     400
+    ],
+    "hands": [
+     [
+      460,
+      400
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 380,
+     "c": "#E84F4F",
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      300,
+      380
+     ],
+     "b": [
+      460,
+      380
+     ],
+     "bend": -40,
+     "c": "#F58A1F",
+     "twoway": true
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 20,
+    "e": "smile",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A19": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "block",
+     "x": 380,
+     "c": "#3E9BE0",
+     "s": 0.8
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "#F2B526",
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      380,
+      300
+     ],
+     "b": [
+      380,
+      340
+     ],
+     "bend": 0,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     380,
+     360
+    ],
+    "hands": [
+     [
+      380,
+      360
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 16,
+    "e": "wow",
+    "look": [
+     380,
+     360
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "blocks",
+     "x": 400,
+     "s": 0.8,
+     "c": [
+      "#3E9BE0",
+      "#F2B526"
+     ]
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "child.hand",
+     "c": "#E84F4F",
+     "s": 0.6
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     400,
+     330
+    ],
+    "hands": [
+     [
+      400,
+      320
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "tumble",
+     "x": 400
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "dots",
+     "dx": 50,
+     "dy": 86,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "repeat",
+     "dx": 20,
+     "dy": -86,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "talk",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 22,
+    "e": "wow",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A20": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "cloth2",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.6,
+     "h": 20,
+     "c": "#2DB3A6"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      330,
+      280
+     ],
+     "b": [
+      420,
+      280
+     ],
+     "bend": -20,
+     "c": "#F58A1F",
+     "twoway": true
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     370,
+     316
+    ],
+    "hands": [
+     [
+      370,
+      310
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 510,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     370,
+     316
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "cloth2",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.45,
+     "h": 16,
+     "c": "#F2B526"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      360,
+      260
+     ],
+     "b": [
+      440,
+      260
+     ],
+     "bend": -20,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     [
+      410,
+      320
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     420,
+     320
+    ],
+    "hands": [
+     [
+      430,
+      320
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "cloth2",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.45,
+     "h": 16,
+     "c": "#F2B526"
+    },
+    {
+     "k": "basket",
+     "x": 590,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      420,
+      260
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 24,
+    "e": "smile",
+    "look": [
+     400,
+     316
+    ],
+    "hands": [
+     [
+      400,
+      312
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A21": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "#3E9BE0",
+     "s": 0.85,
+     "h": 40,
+     "dx": 10
+    },
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand2",
+     "c": "#EE6F9A",
+     "s": 0.85,
+     "h": 40,
+     "dx": -40
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "two",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     [
+      360,
+      300
+     ],
+     [
+      320,
+      310
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     340,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "#3E9BE0",
+     "s": 0.85,
+     "h": 40,
+     "dx": 10
+    },
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand2",
+     "c": "#EE6F9A",
+     "s": 0.85,
+     "h": 40,
+     "dx": -40
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "q",
+     "dx": 60,
+     "dy": 80,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      360,
+      300
+     ],
+     [
+      320,
+      310
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 22,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "#3E9BE0",
+     "s": 0.85,
+     "h": 40,
+     "dx": 10
+    },
+    {
+     "k": "shirt",
+     "x": 360,
+     "on": "adult.hand2",
+     "c": "#EE6F9A",
+     "s": 0.85,
+     "h": 40,
+     "dx": -40
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 60,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "flat",
+    "look": "child.head",
+    "hands": [
+     [
+      360,
+      300
+     ],
+     [
+      320,
+      310
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 24,
+    "e": "talk",
+    "look": [
+     370,
+     300
+    ],
+    "hands": [
+     [
+      400,
+      290
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A22": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "thing",
+     "x": 330,
+     "c": "apple"
+    },
+    {
+     "k": "card",
+     "x": 430,
+     "c": "apple",
+     "s": 0.9
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "check",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 16,
+    "e": "wow",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "card",
+     "x": 430,
+     "c": "apple",
+     "s": 0.9
+    },
+    {
+     "k": "thing",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "apple",
+     "h": 26
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      360,
+      330
+     ],
+     "b": [
+      420,
+      340
+     ],
+     "bend": -20,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": [
+     420,
+     380
+    ],
+    "hands": [
+     [
+      420,
+      370
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     420,
+     380
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "card",
+     "x": 350,
+     "c": "apple",
+     "s": 0.9
+    },
+    {
+     "k": "card",
+     "x": 430,
+     "c": "cup",
+     "s": 0.9
+    },
+    {
+     "k": "thing",
+     "x": 360,
+     "on": "child.hand",
+     "c": "cup",
+     "h": 26
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      450,
+      330
+     ],
+     "b": [
+      430,
+      360
+     ],
+     "bend": -10,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 22,
+    "e": "smile",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     [
+      410,
+      370
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A23": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "book",
+     "x": 400,
+     "c": "#E84F4F"
+    },
+    {
+     "k": "book",
+     "x": 330,
+     "c": "#3E9BE0"
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      400,
+      410
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     [
+      410,
+      410
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sun",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     380,
+     390
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 22,
+    "e": "wow",
+    "look": [
+     400,
+     395
+    ],
+    "hands": [
+     [
+      400,
+      395
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      320,
+      330
+     ],
+     "b": [
+      440,
+      330
+     ],
+     "bend": -30,
+     "c": "#8E6FDB",
+     "twoway": true
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 24,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     [
+      420,
+      400
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A24": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "paper",
+     "x": 380,
+     "y": 316,
+     "s": 0.9
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": [
+      440,
+      312
+     ],
+     "sym": "hand",
+     "dx": 0,
+     "dy": -50,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     380,
+     316
+    ],
+    "hands": [
+     [
+      320,
+      312
+     ],
+     [
+      440,
+      312
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 530,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     380,
+     316
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "paper",
+     "x": 380,
+     "y": 316,
+     "s": 0.9,
+     "c": [
+      "#3E9BE0"
+     ]
+    },
+    {
+     "k": "crayon",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "#3E9BE0",
+     "h": 20,
+     "r": -30
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     380,
+     312
+    ],
+    "hands": [
+     [
+      380,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     380,
+     312
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "paper",
+     "x": 380,
+     "y": 316,
+     "s": 0.9,
+     "c": [
+      "#E84F4F",
+      "#3E9BE0",
+      "#4DAF4E",
+      "#F2B526"
+     ]
+    },
+    {
+     "k": "crayon",
+     "x": 360,
+     "on": "child.hand",
+     "c": "#E84F4F",
+     "h": 20,
+     "r": 30
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      420,
+      250
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 24,
+    "e": "wow",
+    "look": [
+     400,
+     312
+    ],
+    "hands": [
+     [
+      400,
+      300
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "paper",
+     "x": 380,
+     "y": 316,
+     "s": 0.9,
+     "c": [
+      "#E84F4F",
+      "#3E9BE0",
+      "#4DAF4E",
+      "#F2B526"
+     ]
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "scribble",
+     "dx": 50,
+     "dy": 100,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 210,
+    "e": "talk",
+    "look": [
+     380,
+     312
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 26,
+    "e": "smile",
+    "look": [
+     380,
+     312
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A25": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "dollbed",
+     "x": 410
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      360,
+      340
+     ],
+     "b": [
+      420,
+      390
+     ],
+     "bend": 20,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     [
+      410,
+      410
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 530,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "doll",
+     "x": 420,
+     "s": 0.8
+    },
+    {
+     "k": "bowl",
+     "x": 340,
+     "s": 0.8
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": [
+      "bowl",
+      "bed"
+     ],
+     "dx": 30,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 24,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     [
+      440,
+      380
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "doll",
+     "x": 420,
+     "s": 0.8
+    },
+    {
+     "k": "spoon",
+     "x": 360,
+     "on": "child.hand",
+     "h": 30,
+     "r": -60
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": [
+     420,
+     380
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 28,
+    "e": "smile",
+    "look": [
+     420,
+     380
+    ],
+    "hands": [
+     [
+      440,
+      360
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A26": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sad",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "drop",
+     "dx": 30,
+     "dy": -60,
+     "s": 0.7
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 260,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "tilt": 6
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 24,
+    "e": "sad",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 40,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 330,
+    "e": "calm",
+    "look": "child.head",
+    "hands": [
+     "child.back",
+     "child.back"
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 450,
+    "age": 26,
+    "e": "calm",
+    "look": "adult.head",
+    "hands": [
+     "adult.chest",
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cushion",
+     "x": 430,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "stop",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "badge",
+     "at": [
+      600,
+      400
+     ],
+     "sym": "check",
+     "dx": 0,
+     "dy": -60,
+     "s": 0.8
+    },
+    {
+     "k": "sparkle",
+     "at": [
+      430,
+      360
+     ]
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     420,
+     410
+    ],
+    "hands": [
+     [
+      400,
+      400
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 30,
+    "e": "flat",
+    "look": [
+     420,
+     410
+    ],
+    "hands": [
+     [
+      430,
+      400
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A27": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 330,
+     "s": 0.8
+    },
+    {
+     "k": "basket",
+     "x": 450,
+     "s": 0.8,
+     "c": "#5BA8E0"
+    },
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.4,
+     "c": "#F58A1F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      330,
+      300
+     ],
+     "b": [
+      330,
+      360
+     ],
+     "bend": 0,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     340,
+     380
+    ],
+    "hands": [
+     [
+      340,
+      360
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 530,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     380,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 330,
+     "s": 0.8
+    },
+    {
+     "k": "basket",
+     "x": 450,
+     "s": 0.8,
+     "c": "#5BA8E0"
+    },
+    {
+     "k": "block",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.4,
+     "c": "#3E9BE0"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      470,
+      310
+     ],
+     "b": [
+      450,
+      360
+     ],
+     "bend": 20,
+     "c": "#3E9BE0",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 530,
+    "age": 24,
+    "e": "wow",
+    "look": [
+     450,
+     380
+    ],
+    "hands": [
+     [
+      450,
+      350
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "basket",
+     "x": 330,
+     "s": 0.8
+    },
+    {
+     "k": "basket",
+     "x": 450,
+     "s": 0.8,
+     "c": "#5BA8E0"
+    },
+    {
+     "k": "ball",
+     "x": 310,
+     "y": 396,
+     "s": 0.35,
+     "c": "#E84F4F",
+     "front": true
+    },
+    {
+     "k": "block",
+     "x": 345,
+     "y": 400,
+     "s": 0.35,
+     "c": "#E84F4F",
+     "front": true
+    },
+    {
+     "k": "ball",
+     "x": 430,
+     "y": 396,
+     "s": 0.35,
+     "c": "#3E9BE0",
+     "front": true
+    },
+    {
+     "k": "block",
+     "x": 468,
+     "y": 400,
+     "s": 0.35,
+     "c": "#3E9BE0",
+     "front": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "check",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 530,
+    "age": 28,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A28": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "card",
+     "x": 340,
+     "y": 316,
+     "c": "apple",
+     "s": 0.7
+    },
+    {
+     "k": "card",
+     "x": 400,
+     "y": 316,
+     "c": "bowl",
+     "s": 0.7
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "tallkneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     380,
+     316
+    ],
+    "hands": [
+     [
+      360,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 26,
+    "e": "wow",
+    "look": [
+     380,
+     316
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 220
+    },
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "plate",
+     "x": 340,
+     "y": 316,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "bowl",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 28,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.2
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 200
+    },
+    {
+     "k": "table",
+     "x": 400,
+     "s": 0.6
+    },
+    {
+     "k": "pot",
+     "x": 420,
+     "y": 316,
+     "s": 0.8
+    },
+    {
+     "k": "spoon",
+     "x": 360,
+     "on": "child.hand",
+     "h": 30,
+     "r": 20
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      430,
+      250
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 30,
+    "e": "smile",
+    "look": [
+     420,
+     300
+    ],
+    "hands": [
+     [
+      420,
+      290
+     ],
+     null
+    ]
+   },
+   "zoom": 1.2
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 200
+    },
+    {
+     "k": "table",
+     "x": 380,
+     "s": 0.6
+    },
+    {
+     "k": "bowl",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.7,
+     "h": 10
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "happy",
+     "dx": 30,
+     "dy": 90,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 200,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      340,
+      300
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 480,
+    "age": 32,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     [
+      360,
+      300
+     ],
+     null
+    ]
+   },
+   "zoom": 1.2
+  }
+ ],
+ "A29": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cushion",
+     "x": 380,
+     "s": 0.7
+    },
+    {
+     "k": "cushion",
+     "x": 490,
+     "s": 0.6,
+     "c": "#2DB3A6"
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      330,
+      360
+     ],
+     "b": [
+      520,
+      360
+     ],
+     "bend": -30,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "squat",
+    "x": 260,
+    "e": "smile",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     [
+      380,
+      410
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 590,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     400,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cushion",
+     "x": 400,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      300,
+      340
+     ],
+     "b": [
+      480,
+      340
+     ],
+     "bend": -70,
+     "c": "#4DAF4E",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "walk",
+    "x": 380,
+    "e": "smile",
+    "look": [
+     460,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 600,
+    "age": 22,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.05
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cushion",
+     "x": 470,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      400,
+      350
+     ],
+     "b": [
+      540,
+      350
+     ],
+     "bend": -70,
+     "c": "#4DAF4E",
+     "twoway": false
+    },
+    {
+     "k": "arrow",
+     "a": [
+      400,
+      430
+     ],
+     "b": [
+      540,
+      430
+     ],
+     "bend": 30,
+     "c": "#3E9BE0",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 180,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "walk",
+    "x": 360,
+    "age": 26,
+    "e": "wow",
+    "look": [
+     460,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "cushion",
+     "x": 500,
+     "s": 0.6
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "hand",
+     "dx": 70,
+     "dy": -30,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "walk",
+    "x": 300,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.hand",
+     null
+    ]
+   },
+   "child": {
+    "pose": "walk",
+    "x": 440,
+    "age": 22,
+    "e": "smile",
+    "look": [
+     520,
+     420
+    ],
+    "hands": [
+     "adult.hand",
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.05
+  }
+ ],
+ "A30": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "note",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "sparkle",
+     "at": [
+      400,
+      250
+     ]
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 240,
+    "e": "sing",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 490,
+    "age": 16,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      330,
+      210
+     ],
+     "c": "#F2B526"
+    },
+    {
+     "k": "arrow",
+     "a": [
+      230,
+      450
+     ],
+     "b": [
+      290,
+      450
+     ],
+     "bend": -20,
+     "c": "#F58A1F",
+     "twoway": true
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 250,
+    "e": "sing",
+    "look": "child.head",
+    "hands": [
+     [
+      320,
+      230
+     ],
+     [
+      310,
+      240
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 490,
+    "age": 18,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.05
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      460,
+      290
+     ],
+     "c": "#F2B526"
+    },
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "pause",
+     "dx": 50,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 250,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     [
+      320,
+      230
+     ],
+     [
+      310,
+      240
+     ]
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 490,
+    "age": 24,
+    "e": "sing",
+    "look": "adult.head",
+    "hands": [
+     [
+      455,
+      330
+     ],
+     [
+      465,
+      330
+     ]
+    ]
+   },
+   "zoom": 1.05
+  }
+ ],
+ "A31": [
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "sun",
+      "car"
+     ],
+     "dx": 50,
+     "dy": 96,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 26,
+    "e": "wow",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "people",
+      "sun",
+      "car"
+     ],
+     "dx": 60,
+     "dy": 100,
+     "side": 1,
+     "s": 1.1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 240,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      330,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 28,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": [
+      "car",
+      "dots"
+     ],
+     "dx": 20,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "eye",
+     "dx": 60,
+     "dy": -50,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 240,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 490,
+    "age": 30,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     [
+      460,
+      320
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A32": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "blocks",
+     "x": 560,
+     "s": 0.6
+    }
+   ],
+   "marks": [
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      540,
+      380
+     ],
+     "c": "#EE6F9A"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 190,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 380,
+    "age": 20,
+    "e": "wow",
+    "look": [
+     540,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "peer": {
+    "pose": "sit",
+    "x": 600,
+    "age": 22,
+    "e": "smile",
+    "look": [
+     560,
+     380
+    ],
+    "hands": [
+     [
+      565,
+      360
+     ],
+     null
+    ],
+    "f": -1
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "ball",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.5,
+     "c": "#E84F4F",
+     "h": 34
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      410,
+      300
+     ],
+     "b": [
+      520,
+      330
+     ],
+     "bend": -30,
+     "c": "#F58A1F",
+     "twoway": false
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "repeat",
+     "dx": 50,
+     "dy": -60,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 330,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      420,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 560,
+    "age": 22,
+    "e": "wow",
+    "look": [
+     420,
+     330
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "peer": {
+    "pose": "sit",
+    "x": 170,
+    "age": 24,
+    "e": "smile",
+    "look": [
+     420,
+     330
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "order": [
+    "peer",
+    "adult",
+    "child"
+   ]
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "car",
+     "x": 460,
+     "s": 0.7
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sad",
+     "dx": 40,
+     "dy": 90,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "peer.mouth",
+     "sym": "sad",
+     "dx": 40,
+     "dy": 80,
+     "side": 1,
+     "s": 0.7
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 360,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "child": {
+    "pose": "sit",
+    "x": 560,
+    "age": 26,
+    "e": "sad",
+    "look": "adult.head",
+    "hands": [
+     [
+      470,
+      380
+     ],
+     null
+    ]
+   },
+   "peer": {
+    "pose": "sit",
+    "x": 180,
+    "age": 26,
+    "e": "sad",
+    "look": "adult.head",
+    "hands": [
+     [
+      440,
+      390
+     ],
+     null
+    ],
+    "f": 1
+   },
+   "order": [
+    "peer",
+    "adult",
+    "child"
+   ]
+  }
+ ],
+ "A33": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "block",
+     "x": 320,
+     "s": 0.5,
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "block",
+     "x": 370,
+     "s": 0.5,
+     "c": "#4DAF4E"
+    },
+    {
+     "k": "block",
+     "x": 440,
+     "s": 0.5,
+     "c": "#E84F4F"
+    },
+    {
+     "k": "block",
+     "x": 480,
+     "s": 0.5,
+     "c": "#F2B526"
+    }
+   ],
+   "marks": [],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     320,
+     420
+    ],
+    "hands": [
+     [
+      320,
+      400
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 26,
+    "e": "smile",
+    "look": [
+     440,
+     420
+    ],
+    "hands": [
+     [
+      440,
+      400
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "block",
+     "x": 360,
+     "s": 0.5,
+     "c": "#3E9BE0"
+    },
+    {
+     "k": "block",
+     "x": 420,
+     "s": 0.5,
+     "c": "#E84F4F"
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "tower",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "q",
+     "dx": 20,
+     "dy": 90,
+     "side": 1,
+     "s": 0.7
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 28,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "blocks",
+     "x": 420,
+     "s": 0.75,
+     "c": [
+      "#3E9BE0",
+      "#4DAF4E",
+      "#E84F4F",
+      "#F2B526"
+     ]
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "hand",
+     "dx": 70,
+     "dy": -40,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": [
+     420,
+     330
+    ],
+    "hands": [
+     [
+      380,
+      420
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 520,
+    "age": 32,
+    "e": "wow",
+    "look": [
+     420,
+     300
+    ],
+    "hands": [
+     [
+      430,
+      300
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A34": [
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "tree",
+     "x": 600,
+     "s": 0.9,
+     "back": true
+    },
+    {
+     "k": "bird",
+     "x": 560,
+     "y": 180
+    },
+    {
+     "k": "sun",
+     "x": 160,
+     "y": 150,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      440,
+      470
+     ],
+     "b": [
+      560,
+      470
+     ],
+     "bend": -10,
+     "c": "#8A7F76",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "walk",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     560,
+     180
+    ],
+    "hands": [
+     "child.hand",
+     [
+      330,
+      200
+     ]
+    ]
+   },
+   "child": {
+    "pose": "walk",
+    "x": 380,
+    "age": 24,
+    "e": "wow",
+    "look": [
+     560,
+     180
+    ],
+    "hands": [
+     "adult.hand",
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.0
+  },
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "tree",
+     "x": 600,
+     "s": 0.9,
+     "back": true
+    },
+    {
+     "k": "leaf",
+     "x": 470,
+     "y": 270,
+     "r": 30
+    },
+    {
+     "k": "leaf",
+     "x": 520,
+     "y": 430,
+     "r": -60,
+     "c": "#F2B526"
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "leaf",
+     "dx": 40,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "arrow",
+     "a": [
+      470,
+      200
+     ],
+     "b": [
+      470,
+      250
+     ],
+     "bend": 20,
+     "c": "#F58A1F",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 260,
+    "e": "talk",
+    "look": [
+     460,
+     250
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 420,
+    "age": 26,
+    "e": "wow",
+    "look": [
+     460,
+     250
+    ],
+    "hands": [
+     null,
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.0
+  },
+  {
+   "set": "outdoor",
+   "objs": [
+    {
+     "k": "flower",
+     "x": 570
+    },
+    {
+     "k": "tree",
+     "x": 640,
+     "s": 0.8,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "pause",
+     "dx": 60,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 260,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "squat",
+    "x": 480,
+    "age": 28,
+    "e": "wow",
+    "look": [
+     560,
+     420
+    ],
+    "hands": [
+     [
+      550,
+      410
+     ],
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.0
+  }
+ ],
+ "A35": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 360,
+     "on": "adult.hand",
+     "s": 0.7,
+     "h": 28
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "sock",
+     "dx": 30,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     360,
+     340
+    ],
+    "hands": [
+     [
+      350,
+      330
+     ],
+     [
+      370,
+      335
+     ]
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 26,
+    "e": "wow",
+    "look": [
+     360,
+     340
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 360,
+     "on": "child.hand",
+     "s": 0.6,
+     "h": 30
+    }
+   ],
+   "marks": [
+    {
+     "k": "sparkle",
+     "at": [
+      450,
+      340
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 210,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 28,
+    "e": "wow",
+    "look": [
+     440,
+     400
+    ],
+    "hands": [
+     [
+      440,
+      400
+     ],
+     [
+      450,
+      405
+     ]
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "sock",
+     "x": 440,
+     "y": 440,
+     "s": 0.6,
+     "front": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "hand",
+     "dx": 70,
+     "dy": -40,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 280,
+    "e": "smile",
+    "look": [
+     460,
+     420
+    ],
+    "hands": [
+     [
+      440,
+      425
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 30,
+    "e": "smile",
+    "look": [
+     440,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "box",
+     "x": 400
+    },
+    {
+     "k": "shirt",
+     "x": 400,
+     "y": 400,
+     "s": 0.5,
+     "front": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": 50,
+     "dy": 90,
+     "side": 1,
+     "s": 1
+    },
+    {
+     "k": "sparkle",
+     "at": [
+      450,
+      300
+     ],
+     "c": "#F2B526"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 32,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     [
+      410,
+      400
+     ],
+     null
+    ]
+   }
+  }
+ ],
+ "A36": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "card",
+     "x": 330,
+     "c": "sun",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 400,
+     "c": "car",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 470,
+     "c": "moon",
+     "s": 0.75
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      310,
+      330
+     ],
+     "b": [
+      490,
+      330
+     ],
+     "bend": -10,
+     "c": "#8A7F76",
+     "twoway": false
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 200,
+    "e": "talk",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     [
+      330,
+      400
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 560,
+    "age": 28,
+    "e": "wow",
+    "look": [
+     400,
+     400
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "card",
+     "x": 330,
+     "c": "moon",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 400,
+     "c": "sun",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 360,
+     "on": "child.hand",
+     "c": "car",
+     "s": 0.75,
+     "h": 35
+    }
+   ],
+   "marks": [
+    {
+     "k": "arrow",
+     "a": [
+      470,
+      320
+     ],
+     "b": [
+      400,
+      320
+     ],
+     "bend": -30,
+     "c": "#4DAF4E",
+     "twoway": false
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "q",
+     "dx": 50,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 560,
+    "age": 30,
+    "e": "wow",
+    "look": [
+     430,
+     400
+    ],
+    "hands": [
+     [
+      470,
+      380
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "card",
+     "x": 330,
+     "c": "moon",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 400,
+     "c": "car",
+     "s": 0.75
+    },
+    {
+     "k": "card",
+     "x": 470,
+     "c": "sun",
+     "s": 0.75
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": [
+      "moon",
+      "car"
+     ],
+     "dx": 10,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "heart",
+     "dx": 70,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 200,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 560,
+    "age": 32,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A37": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "thing",
+     "x": 360,
+     "on": "adult.hand",
+     "c": "apple",
+     "h": 26
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "zh",
+      "apple"
+     ],
+     "dx": 40,
+     "dy": 110,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      360,
+      340
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     360,
+     340
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "bookopen",
+     "x": 380,
+     "y": 430
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "en",
+      "note"
+     ],
+     "dx": 50,
+     "dy": 100,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "sitcross",
+    "x": 240,
+    "e": "sing",
+    "look": [
+     380,
+     390
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 22,
+    "e": "smile",
+    "look": [
+     380,
+     390
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "en",
+     "dx": 30,
+     "dy": 86,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "en",
+     "dx": 50,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 28,
+    "e": "talk",
+    "look": "adult.head",
+    "hands": [
+     null,
+     null
+    ]
+   }
+  }
+ ],
+ "A38": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "photo",
+     "x": 380,
+     "c": 3
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "people",
+     "dx": 40,
+     "dy": 100,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     [
+      370,
+      370
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 510,
+    "age": 18,
+    "e": "wow",
+    "look": [
+     380,
+     380
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "phone",
+     "x": 360,
+     "on": "adult.hand",
+     "h": 32
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "heart",
+     "dx": 30,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    },
+    {
+     "k": "sound",
+     "at": [
+      400,
+      290
+     ],
+     "dir": 1,
+     "c": "#4DAF4E"
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      380,
+      330
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 22,
+    "e": "wow",
+    "look": [
+     380,
+     320
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "photo",
+     "x": 360,
+     "on": "child.hand",
+     "c": 3,
+     "s": 0.8,
+     "h": 40
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "people",
+     "dx": 20,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "adult.lap",
+     "adult.lap"
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 26,
+    "e": "talk",
+    "look": [
+     420,
+     360
+    ],
+    "hands": [
+     [
+      430,
+      360
+     ],
+     [
+      440,
+      380
+     ]
+    ]
+   }
+  }
+ ],
+ "A39": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "kerb",
+     "x": 360,
+     "y": 440,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "child.head",
+     "sym": "stop",
+     "dx": 40,
+     "dy": -80,
+     "s": 1
+    },
+    {
+     "k": "look",
+     "a": "child.head",
+     "b": [
+      620,
+      330
+     ],
+     "c": "#3E9BE0"
+    }
+   ],
+   "adult": {
+    "pose": "stand",
+    "x": 260,
+    "e": "smile",
+    "look": [
+     600,
+     300
+    ],
+    "hands": [
+     "child.hand",
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 400,
+    "age": 26,
+    "e": "wow",
+    "look": [
+     600,
+     320
+    ],
+    "hands": [
+     "adult.hand",
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.05
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "car",
+     "x": 440,
+     "s": 0.8
+    },
+    {
+     "k": "road",
+     "x": 360,
+     "y": 470,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "stop",
+     "dx": 40,
+     "dy": 96,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 220,
+    "e": "talk",
+    "look": [
+     420,
+     410
+    ],
+    "hands": [
+     [
+      360,
+      380
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 520,
+    "age": 28,
+    "e": "wow",
+    "look": [
+     440,
+     410
+    ],
+    "hands": [
+     [
+      460,
+      400
+     ],
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "road",
+     "x": 360,
+     "y": 480,
+     "back": true
+    },
+    {
+     "k": "car",
+     "x": 620,
+     "y": 520,
+     "s": 0.9,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "badge",
+     "at": "adult.head",
+     "sym": "check",
+     "dx": 60,
+     "dy": -40,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "walk",
+    "x": 300,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     "child.hand",
+     null
+    ]
+   },
+   "child": {
+    "pose": "walk",
+    "x": 420,
+    "age": 30,
+    "e": "smile",
+    "look": "adult.head",
+    "hands": [
+     "adult.hand",
+     null
+    ],
+    "f": 1
+   },
+   "zoom": 1.0
+  }
+ ],
+ "A40": [
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "stool",
+     "x": 220
+    },
+    {
+     "k": "photo",
+     "x": 360,
+     "on": "adult.hand",
+     "c": 4,
+     "s": 0.8,
+     "h": 40
+    },
+    {
+     "k": "lantern",
+     "x": 600,
+     "y": 260,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": "lantern",
+     "dx": 30,
+     "dy": 110,
+     "side": 1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "chair",
+    "x": 220,
+    "e": "talk",
+    "look": "child.head",
+    "hands": [
+     [
+      340,
+      320
+     ],
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 24,
+    "e": "wow",
+    "look": [
+     350,
+     300
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "zoom": 1.15
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "plate",
+     "x": 380
+    },
+    {
+     "k": "dumpling",
+     "x": 380,
+     "y": 432
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "adult.mouth",
+     "sym": [
+      "note",
+      "bowl"
+     ],
+     "dx": 40,
+     "dy": 100,
+     "side": 1,
+     "s": 1
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "sing",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "sit",
+    "x": 500,
+    "age": 28,
+    "e": "smile",
+    "look": [
+     380,
+     420
+    ],
+    "hands": [
+     null,
+     null
+    ]
+   }
+  },
+  {
+   "set": "floor",
+   "objs": [
+    {
+     "k": "lantern",
+     "x": 600,
+     "y": 300,
+     "back": true
+    }
+   ],
+   "marks": [
+    {
+     "k": "say",
+     "from": "child.mouth",
+     "sym": "q",
+     "dx": -60,
+     "dy": 80,
+     "side": -1,
+     "s": 0.8
+    }
+   ],
+   "adult": {
+    "pose": "kneel",
+    "x": 230,
+    "e": "smile",
+    "look": "child.head",
+    "hands": [
+     null,
+     null
+    ]
+   },
+   "child": {
+    "pose": "stand",
+    "x": 500,
+    "age": 30,
+    "e": "talk",
+    "look": [
+     600,
+     220
+    ],
+    "hands": [
+     [
+      560,
+      240
+     ],
+     null
+    ]
+   }
+  }
+ ]
+}

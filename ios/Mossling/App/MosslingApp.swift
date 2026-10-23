@@ -70,15 +70,15 @@ struct RootView: View {
     private var tabView: some View {
         TabView(selection: $tab) {
             Tab("本月", systemImage: "leaf.fill", value: 0) {
-                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday).environment(\.hue, .peach)
+                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
             }
             if app.journal {
                 Tab("记录", systemImage: "list.bullet.clipboard.fill", value: 2) {
-                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal).environment(\.hue, .pink)
+                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
                 }
             }
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
-                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou).environment(\.hue, .lilac)
+                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
             }
         }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
