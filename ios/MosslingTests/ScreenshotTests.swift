@@ -104,5 +104,11 @@ final class ScreenshotTests: XCTestCase {
     func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2200, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextYou() { let m = model(); shot("25_bigtext_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextTimer() { let m = model(); shot("25_bigtext_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2)) }
+    // records on: the Now card (a feed is running in the test journal)
+    func test26HomeNow() { let m = model(); m.journal = true; shot("26_home_now", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
+    // night: Otto's lamp on the records and the timer; the home under the night sky
+    func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
+    func test27LampTimer() { let m = model(); shot("27_lamp_timer", dark: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

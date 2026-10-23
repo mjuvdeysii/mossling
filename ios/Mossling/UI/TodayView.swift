@@ -21,6 +21,7 @@ struct TodayView: View {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
                         .buttonStyle(.borderedProminent).tint(Palette.accentFill).controlSize(.large)
                 }
+                if app.journal && app.age != nil { NowCard(month: baby) }
                 if wheel {
                     GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
                         .overlay(alignment: .topTrailing) {
@@ -58,6 +59,64 @@ struct TodayView: View {
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
         .onChange(of: app.babyMonth) { _, _ in chosen = nil }
+    }
+}
+
+/// Now: what the baby is doing, from the parent's own records, and what that means for play — the one place where
+/// the care log and the picture book meet. Asleep: the companions sleep too, and one tap says the baby woke. Feeding:
+/// how long, and the timer. Awake (after a recorded sleep): how long awake, and the shelf's next play to do now, while
+/// the baby is awake and calm. Only facts from the records; no predictions. Hidden when there is nothing to say.
+private struct NowCard: View {
+    @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
+    @Environment(\.night) private var night
+    let month: Int
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
+            let now = tl.date.timeIntervalSince1970 * 1000
+            if let sleep = j.timers.first(where: { $0.type == LogType.sleep }) {
+                card(tint: Crayon.lilac) {
+                    Duo(primary: .otto, size: 44, mood: .sleep, night: true)
+                    words("宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)))
+                    Spacer(minLength: 0)
+                    Button { withAnimation(.snappy) { j.stop(LogType.sleep) } } label: { Text("醒了").font(.subheadline.weight(.semibold)).padding(.horizontal, 6) }
+                        .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(Crayon.lilac))
+                }
+            } else if let feed = j.timers.first(where: { $0.type == LogType.nurse }) {
+                Button { j.focus = LogType.nurse } label: {
+                    card(tint: Crayon.pink) {
+                        IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
+                        words("正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.toy)
+            } else if let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end, now - woke < 6 * 3_600_000, !night {
+                let play = app.weekShelf(month).plays.min { app.record($0, j).count < app.record($1, j).count }
+                NavigationLink(value: play.map { Route.play($0.code, month) } ?? Route.month(month)) {
+                    card(tint: Crayon.sunflower) {
+                        if let p = play { Figure(name: "tray_\(p.code.lowercased()).webp").frame(width: 72, height: 54) }
+                        else { Duo(primary: app.companion, size: 44) }
+                        words("醒了 " + durationValue((now - woke) / 1000), play.map { "现在玩：" + $0.name } ?? "醒着的时候，一起玩一会儿")
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                    }
+                }
+                .buttonStyle(.toy)
+            }
+        }
+    }
+    private func words(_ a: String, _ b: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(a).font(.headline).foregroundStyle(.primary)
+            Text(b).font(.subheadline).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+        }
+    }
+    private func card<C: View>(tint: Color, @ViewBuilder _ c: () -> C) -> some View {
+        HStack(spacing: 12) { c() }
+            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+            .background(tint.opacity(0.16)).printCard(radius: 22)
     }
 }
 
