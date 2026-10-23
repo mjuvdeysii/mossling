@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The baby's picture with the chosen companion cuddled up beside it, a hand on the frame. Choose the other companion and it
+/// The baby's picture with the chosen companion cuddled up against the frame, leaning in. Choose the other companion and it
 /// comes over and takes the hug; tap the picture and the companion hugs the baby tighter — eyes closed, a squeeze, a
 /// heart — with a soft haptic. The companion keeps the baby company, so it is drawn holding the baby's picture.
 struct HuggedAvatar: View {
@@ -34,15 +34,6 @@ struct HuggedAvatar: View {
                 .offset(x: box.minX, y: box.minY)
                 .id(kind)
                 .transition(reduce ? AnyTransition.opacity : AnyTransition.asymmetric(insertion: AnyTransition.offset(x: size * 0.8).combined(with: AnyTransition.opacity), removal: AnyTransition.opacity))
-
-            // its hand on the frame's edge, as a cuddle: a round mitt resting on the rim, pressed in for a squeeze
-            Circle().fill(kind == .moss ? Palette.mossDeep : Palette.rodDeep)
-                .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 2))
-                .frame(width: c * 0.2, height: c * 0.2)
-                .offset(x: size * (hugging ? 0.84 : 0.88) - c * 0.1, y: size * (hugging ? 0.56 : 0.6) - c * 0.1)
-                .allowsHitTesting(false)
-                .id("hand-\(kind)")
-                .transition(AnyTransition.opacity)
 
             // a heart between the two, for each hug
             Figure(name: "ic_heart_fill.webp")

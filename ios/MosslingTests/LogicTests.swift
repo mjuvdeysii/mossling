@@ -217,6 +217,7 @@ final class LogicTests: XCTestCase {
             for (sn, s) in darkSurfaces { XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), s, .dark), 4.5, "\(n) ink on the \(sn)") }
             for scheme in [ColorScheme.light, .dark] {
                 XCTAssertGreaterThanOrEqual(ratio(Crayon.buttonFill(c), white, scheme), 4.5, "white text on \(n) button fill")
+                XCTAssertGreaterThanOrEqual(ratio(Crayon.fill(c, true), white, scheme), 4.5, "white text on \(n) fill under the lamp")
             }
         }
         for (sn, s) in darkSurfaces.dropFirst() { XCTAssertGreaterThanOrEqual(ratio(Palette.lampTint, s, .dark), 4.5, "lamp tint on the \(sn)") }

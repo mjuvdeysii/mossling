@@ -36,7 +36,7 @@ struct LogEntry: Codable, Identifiable, Hashable {
         switch type {
         case LogType.nurse: return [side == "l" ? "左边" : side == "r" ? "右边" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
         case LogType.sleep: return end.map { _ in minutesOf(activeSeconds) } ?? "进行中"
-        case LogType.bottle: return "\(amount ?? 0) 毫升"
+        case LogType.bottle: return [milk, "\(amount ?? 0) 毫升"].compactMap { $0 }.joined(separator: " ")
         case LogType.diaper: return ["wet": "湿", "dirty": "便", "both": "湿和便"][detail ?? ""] ?? ""
         case LogType.temp: return amount.map { String(format: "%.1f °C", Double($0) / 10) } ?? ""
         default: return detail ?? ""
@@ -45,6 +45,12 @@ struct LogEntry: Codable, Identifiable, Hashable {
 }
 
 extension LogEntry {
+    /// What was in the bottle: expressed breast milk or formula ("breastmilk" / "formula" in `detail`; older entries
+    /// and entries from the Android app have none).
+    var milk: String? {
+        guard type == LogType.bottle else { return nil }
+        return detail == "breastmilk" ? "母乳" : detail == "formula" ? "配方奶" : nil
+    }
     /// Time the timer was paused, as written by both apps in `detail` ("paused:<ms>").
     var pausedSeconds: Double {
         guard let d = detail, d.hasPrefix("paused:"), let ms = Double(d.dropFirst(7)) else { return 0 }

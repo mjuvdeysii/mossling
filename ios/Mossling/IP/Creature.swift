@@ -161,7 +161,10 @@ struct Creature: View {
     }
 
     private func shadow(_ ctx: inout GraphicsContext, _ rx: CGFloat) {
-        ctx.fill(Path(ellipseIn: CGRect(x: 50 - rx, y: 87.5, width: rx * 2, height: 6)), with: .color(Palette.ink.opacity(0.1)))
+        // a soft contact shadow, darkest right under the feet, as under the figures in the pictures
+        var g = ctx; g.translateBy(x: 50, y: 90.5); g.scaleBy(x: 1, y: 0.2)
+        g.fill(Path(ellipseIn: CGRect(x: -rx * 1.1, y: -rx * 1.1, width: rx * 2.2, height: rx * 2.2)),
+               with: .radialGradient(Gradient(colors: [Palette.ink.opacity(0.2), Palette.ink.opacity(0)]), center: .zero, startRadius: 0, endRadius: rx * 1.1))
     }
     private func leg(_ ctx: inout GraphicsContext, _ x: CGFloat) {
         ctx.fill(Path(roundedRect: CGRect(x: x, y: 80, width: 6.5, height: 10), cornerRadius: 3.2), with: .color(Palette.ink))
@@ -170,9 +173,22 @@ struct Creature: View {
     private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, under: Path, _ deep: Color) {
         // on the dark page a thin lighter rim keeps the silhouette (navy Otto would sink into black); no gloss
         if scheme == .dark { ctx.stroke(p, with: .color(fill.mix(with: .white, by: 0.35)), lineWidth: 2.4) }
-        ctx.fill(p, with: .color(fill))
+        // matte volume, lit from the top left as in the picture book: a soft light side and a soft shade side, the
+        // icon's flat underside, then a little bounce light from the floor along the bottom edge — clay, not glass:
+        // no specular highlight, no reflection
+        let b = p.boundingRect
+        ctx.fill(p, with: .linearGradient(Gradient(stops: [.init(color: fill.mix(with: .white, by: 0.2), location: 0),
+                                                           .init(color: fill, location: 0.45),
+                                                           .init(color: fill.mix(with: deep, by: 0.45), location: 1)]),
+                                          startPoint: CGPoint(x: b.minX + b.width * 0.15, y: b.minY), endPoint: CGPoint(x: b.maxX, y: b.maxY)))
         var c = ctx; c.clip(to: p)
-        c.fill(under, with: .color(deep.opacity(0.55)))
+        c.fill(under, with: .color(deep.opacity(0.5)))
+        c.fill(Path(ellipseIn: CGRect(x: b.minX + b.width * 0.08, y: b.minY + b.height * 0.05, width: b.width * 0.55, height: b.height * 0.5)),
+               with: .radialGradient(Gradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0)]),
+                                     center: CGPoint(x: b.minX + b.width * 0.32, y: b.minY + b.height * 0.25), startRadius: 0, endRadius: b.width * 0.32))
+        c.fill(Path(CGRect(x: b.minX, y: b.maxY - b.height * 0.14, width: b.width, height: b.height * 0.14)),
+               with: .linearGradient(Gradient(colors: [Color(hex: 0xFFE7B8).opacity(0), Color(hex: 0xFFE7B8).opacity(0.14)]),
+                                     startPoint: CGPoint(x: 0, y: b.maxY - b.height * 0.14), endPoint: CGPoint(x: 0, y: b.maxY)))
     }
     private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ skin: Color, _ face: Mood) {
         if face == .sleep || (face == .happy && lid >= 1) {

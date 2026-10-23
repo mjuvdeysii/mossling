@@ -204,7 +204,17 @@ struct BlocksView: View {
 /// In dark mode the pictures' paper is toned down so it does not glare during night feeds.
 struct NightDim: View {
     @Environment(\.colorScheme) private var scheme
-    var body: some View { if scheme == .dark { Color(hex: 0x1A140E).opacity(0.22).allowsHitTesting(false) } }
+    // at night a picture is printed on the same paper under the same lamp: the lamp's blue multiplied in (the paper
+    // ground goes dusky instead of glaring as a pale box), then a breath of amber light over it
+    var body: some View {
+        if scheme == .dark {
+            ZStack {
+                Palette.lampPage.opacity(0.5).blendMode(.multiply)
+                Palette.amber.opacity(0.1).blendMode(.softLight)
+            }
+            .allowsHitTesting(false)
+        }
+    }
 }
 
 struct ArtFill: View {

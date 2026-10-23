@@ -43,7 +43,7 @@ struct GrowthWheel: View {
                             .contentTransition(.numericText(value: Double(m)))
                         if m > 0 { Text("个月").font(.headline) }
                     }
-                    Text(m == baby ? "宝宝在这里" : m < baby ? "走过的一站" : (app.birth.map { $0.plus(months: m).md + " 到这一站" } ?? "以后的一站"))
+                    Text(m == baby ? "宝宝在这里" : m < baby ? "走过的一站" : (app.birth.map { b in let d = b.plus(months: m); return (d.y == Day.today.y ? d.md : "\(d.y)年\(d.md)") + " 到这一站" } ?? "以后的一站"))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(Capsule().fill(.white.opacity(0.7)))

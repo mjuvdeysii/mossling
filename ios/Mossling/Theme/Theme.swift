@@ -166,6 +166,15 @@ struct LampPresented: ViewModifier {
 }
 extension View { func lampPresented() -> some View { modifier(LampPresented()) } }
 
+extension Crayon {
+    /// A fill under white text. Under the lamp the bright kind colours would be the brightest things in a dark room —
+    /// the light shone at a waking baby — so there they sink into the lamp's blue (still ≥ 4.5:1 under white, and
+    /// darker, so higher) and leave the colour to rings and text.
+    static func fill(_ c: Color, _ lamp: Bool) -> Color {
+        lamp ? buttonFill(c).mix(with: Palette.lampCard, by: 0.5) : buttonFill(c)
+    }
+}
+
 extension Palette {
     static let lampPage = Color(hex: 0x0E1430)
     static let lampCard = Color(hex: 0x19213F)
@@ -187,11 +196,49 @@ struct PageBackground: View {
             ZStack {
                 Palette.lampPage
                 RadialGradient(colors: [Palette.amber.opacity(0.22), Palette.amber.opacity(0)], center: UnitPoint(x: 0.85, y: 0), startRadius: 0, endRadius: 420)
+                Grain(dark: true)
                 Motes()
             }
             .ignoresSafeArea().accessibilityHidden(true)
         } else {
-            Palette.background.ignoresSafeArea().accessibilityHidden(true)
+            ZStack { Palette.background; Grain(dark: false) }.ignoresSafeArea().accessibilityHidden(true)
+        }
+    }
+}
+
+/// The tooth of the paper the pictures are printed on: fine fibres and specks, tiled, too faint to see as a pattern
+/// but enough that the page and the cards read as paper like the pictures' grounds, not as flat screen colour. One
+/// small tile drawn once (deterministic), repeated. On the lamp's blue the specks are light.
+struct Grain: View {
+    var dark: Bool
+    var strength: Double = 1
+    private static let light = Grain.tile(dark: false)
+    private static let night = Grain.tile(dark: true)
+    var body: some View {
+        Image(uiImage: dark ? Self.night : Self.light)
+            .resizable(resizingMode: .tile)
+            .opacity(strength)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+    private static func tile(dark: Bool) -> UIImage {
+        let n = 96
+        let format = UIGraphicsImageRendererFormat(); format.scale = 2; format.opaque = false
+        return UIGraphicsImageRenderer(size: CGSize(width: n, height: n), format: format).image { ctx in
+            var seed: UInt64 = 0x9E3779B97F4A7C15
+            func rnd() -> Double { seed = seed &* 6364136223846793005 &+ 1442695040888963407; return Double(seed >> 33) / Double(1 << 31) }
+            let ink = dark ? UIColor(white: 1, alpha: 1) : UIColor(red: 0.45, green: 0.32, blue: 0.2, alpha: 1)
+            for _ in 0..<260 {   // specks
+                let x = rnd() * Double(n), y = rnd() * Double(n), r = 0.25 + rnd() * 0.55
+                ink.withAlphaComponent(dark ? 0.035 + rnd() * 0.04 : 0.03 + rnd() * 0.05).setFill()
+                ctx.cgContext.fillEllipse(in: CGRect(x: x, y: y, width: r * 2, height: r * 2))
+            }
+            for _ in 0..<26 {    // short fibres
+                let x = rnd() * Double(n), y = rnd() * Double(n), a = rnd() * .pi, l = 3 + rnd() * 6
+                let p = UIBezierPath(); p.move(to: CGPoint(x: x, y: y)); p.addLine(to: CGPoint(x: x + cos(a) * l, y: y + sin(a) * l))
+                p.lineWidth = 0.4
+                ink.withAlphaComponent(dark ? 0.03 : 0.045).setStroke(); p.stroke()
+            }
         }
     }
 }
@@ -291,7 +338,13 @@ struct PrintCard: ViewModifier {
     func body(content: Self.Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background(lamp ? Palette.lampCard : fill, in: shape)
+            .background {
+                ZStack {
+                    lamp ? Palette.lampCard : fill
+                    Grain(dark: lamp || scheme == .dark, strength: 0.6)
+                }
+                .clipShape(shape)
+            }
             .clipShape(shape)
             .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
             .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)

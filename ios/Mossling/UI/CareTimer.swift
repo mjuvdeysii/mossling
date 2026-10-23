@@ -51,18 +51,28 @@ struct TimerScreen: View {
                             }
 
                             HStack(spacing: 0) {
-                                Stat(title: type == LogType.sleep ? "睡了" : "合计", value: clock(t.total(now)), strong: true)
+                                // a sleep shows its length once, in the moon; here, when it began instead
+                                if type == LogType.sleep {
+                                    Button { picking = true } label: {
+                                        Stat(title: "睡着于", value: hm(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
+                                    }
+                                    .buttonStyle(.toy).accessibilityHint("改开始时间")
+                                } else {
+                                    Stat(title: "合计", value: clock(t.total(now)), strong: true)
+                                }
                                 Divider().frame(height: 34)
                                 Stat(title: "暂停", value: t.paused(now) >= 1 ? clock(t.paused(now)) : "—", strong: false)
                             }
                             .padding(.vertical, 12)
                             .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
 
+                            if type != LogType.sleep {
                             Button { picking = true } label: {
                                 Label("开始于 " + whenLabel(Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000)), systemImage: "clock")
                                     .font(.subheadline).monospacedDigit()
                             }
                             .buttonStyle(.glass)
+                            }
                         }
                         .padding(.horizontal, 20).padding(.bottom, 24)
                     }
@@ -95,7 +105,7 @@ struct TimerScreen: View {
                         Label(type == LogType.sleep ? "醒了，记下" : "喂完了，记下", systemImage: "checkmark")
                             .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 10)
                     }
-                    .buttonStyle(.glassProminent).tint(Crayon.buttonFill(c)).controlSize(.large)
+                    .buttonStyle(.glassProminent).tint(Crayon.fill(c, lamp)).controlSize(.large)
                     .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
                 }
                 .sensoryFeedback(.impact(weight: .medium), trigger: paused)
@@ -134,8 +144,11 @@ private struct SidePad: View {
                     Text(side == "l" ? "L" : "R").font(Typeface.numerals(30, weight: .heavy))
                     Text(seconds >= 1 ? clock(seconds) : "—").font(Typeface.numerals(20, relativeTo: .title3, weight: .bold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6)
-                    Label(hint, systemImage: on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
-                        .font(.caption2.weight(.bold)).labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.7)
+                    HStack(spacing: 4) {
+                        Image(systemName: on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
+                        Text(hint).lineLimit(1).minimumScaleFactor(0.7)
+                    }
+                        .font(.caption2.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .padding(.horizontal, 8).padding(.vertical, 4)
                         .background(Capsule().fill(on ? Color.white.opacity(0.18) : color.opacity(0.16)))
                         .padding(.top, 4)
@@ -146,19 +159,19 @@ private struct SidePad: View {
             .frame(maxWidth: .infinity)
             .background {
                 RoundedRectangle(cornerRadius: 34, style: .continuous)
-                    .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(color).mix(with: color, by: 0.12), Crayon.buttonFill(color)], startPoint: .top, endPoint: .bottom))
-                             : AnyShapeStyle(color.opacity(lamp ? 0.16 : 0.12)))
+                    .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
+                             : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
                     .overlay {
+                        // paused: the side stays coloured (it is still this side's feed) with a solid rim
                         if state == .paused {
-                            RoundedRectangle(cornerRadius: 34, style: .continuous)
-                                .strokeBorder(Crayon.ink(color).opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [6, 5]))
+                            RoundedRectangle(cornerRadius: 34, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
                         }
                     }
             }
             .phaseAnimator(on && !reduce ? [false, true] : [false]) { v, up in
                 v.scaleEffect(up ? 1.015 : 1)
             } animation: { _ in .easeInOut(duration: 1.6) }
-            .shadow(color: on ? color.opacity(0.4) : .clear, radius: 12, y: 6)
+            .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
         }
         .buttonStyle(.toy)
         .accessibilityLabel((side == "l" ? "左侧 " : "右侧 ") + minutesOf(seconds))
@@ -182,6 +195,7 @@ private struct SleepPad: View {
     let color: Color
     let tap: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.lamp) private var lamp
 
     var body: some View {
         let ink = paused ? Crayon.ink(color) : Color.white
@@ -192,8 +206,11 @@ private struct SleepPad: View {
                     IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
                     Text(clock(seconds)).font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6)
-                    Label(paused ? "点按继续" : "点按暂停", systemImage: paused ? "play.fill" : "pause.fill")
-                        .font(.caption.weight(.bold)).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Image(systemName: paused ? "play.fill" : "pause.fill")
+                        Text(paused ? "点按继续" : "点按暂停").lineLimit(1)
+                    }
+                        .font(.caption.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .padding(.horizontal, 10).padding(.vertical, 5)
                         .background(Capsule().fill(paused ? color.opacity(0.16) : Color.white.opacity(0.18)))
                 }
@@ -203,12 +220,12 @@ private struct SleepPad: View {
             .frame(width: 250, height: 250)
             .background {
                 Circle().fill(paused ? AnyShapeStyle(color.opacity(0.14))
-                              : AnyShapeStyle(RadialGradient(colors: [Crayon.buttonFill(color).mix(with: color, by: 0.15), Crayon.buttonFill(color)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
+                              : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
             }
             .phaseAnimator(!paused && !reduce ? [false, true] : [false]) { v, up in
                 v.scaleEffect(up ? 1.02 : 1)
             } animation: { _ in .easeInOut(duration: 2.1) }   // slow, like a sleeping breath
-            .shadow(color: paused ? .clear : color.opacity(0.4), radius: 16, y: 8)
+            .shadow(color: paused || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)

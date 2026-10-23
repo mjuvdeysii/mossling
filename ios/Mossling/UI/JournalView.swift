@@ -132,6 +132,7 @@ private struct Sticker: View {
 
 /// Seven days, as the tabs along a planner's edge.
 private struct WeekStrip: View {
+    @Environment(\.lamp) private var lamp
     let today: Day
     @Binding var day: Day
     var body: some View {
@@ -146,8 +147,8 @@ private struct WeekStrip: View {
                     }
                     .foregroundStyle(on ? Color.white : isToday ? Crayon.ink(Crayon.pink) : Color.primary)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(Crayon.pink).mix(with: Crayon.pink, by: 0.15), Crayon.buttonFill(Crayon.pink)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
-                    .shadow(color: on ? Crayon.pink.opacity(0.35) : Color.black.opacity(0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(Crayon.pink, lamp).mix(with: Crayon.pink, by: lamp ? 0.06 : 0.15), Crayon.fill(Crayon.pink, lamp)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
+                    .shadow(color: on && !lamp ? Crayon.pink.opacity(0.35) : Color.black.opacity(lamp ? 0 : 0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel("\(d.md) \(d.weekday)")
@@ -163,6 +164,7 @@ private struct WeekStrip: View {
 /// and every entry in fixed columns — time, sticker, kind, value — with the details on a second line.
 private struct DayPage: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     @Environment(\.lamp) private var lamp
     let day: Day, today: Day
     let logs: [LogEntry]
@@ -192,7 +194,7 @@ private struct DayPage: View {
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
             } else if !logs.isEmpty {
-                DayTimeline(day: day, today: today, logs: logs, edit: edit, delete: delete)
+                DayTimeline(day: day, today: today, logs: logs, all: j.logs, edit: edit, delete: delete)
             }
         }
         .padding(18)
@@ -306,17 +308,24 @@ private struct Totals: View {
         let feeds = logs.feedCount(from: day.date.timeIntervalSince1970 * 1000)
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
-        let diapers = own.filter { $0.type == LogType.diaper }.count
+        let nappies = own.filter { $0.type == LogType.diaper }
+        let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
+        let dirty = nappies.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map(\.activeSeconds).max() ?? 0
         HStack(spacing: 10) {
             stamp(LogType.nurse, "喂奶", "\(feeds)", "次", ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
-            stamp(LogType.sleep, "睡眠", durationValue(sleep), "", " ")
-            stamp(LogType.diaper, "尿布", "\(diapers)", "片", " ")
+            stamp(LogType.sleep, "睡眠", durationValue(sleep), "", longest >= 60 ? "最长一觉 " + durationValue(longest) : " ")
+            // what a doctor asks: how many wet, how many dirty
+            stamp(LogType.diaper, "尿布", "\(nappies.count)", "片", nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)")
         }
     }
     private func stamp(_ t: String, _ name: String, _ n: String, _ unit: String, _ sub: String) -> some View {
         let c = LogType.color(t)
         return VStack(alignment: .leading, spacing: 2) {
-            Label(name, systemImage: LogType.symbol(t)).font(.caption.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+            HStack(spacing: 5) {
+                IconTile(symbol: LogType.symbol(t), color: c, size: 18, round: true)
+                Text(name).font(.caption.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+            }
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
                 if !unit.isEmpty { Text(unit).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
@@ -326,7 +335,7 @@ private struct Totals: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(c.opacity(0.45), style: StrokeStyle(lineWidth: 1.5, dash: [4, 3])))
+        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(c.opacity(0.12)))   // a solid chip: dashes mean an empty slot
         .accessibilityElement(children: .combine)
     }
 }
@@ -354,6 +363,7 @@ extension LogEntry {
     func meta(on day: Day) -> String {
         var bits: [String] = []
         if type == LogType.nurse, let s = side { bits.append(s == "l" ? "左侧" : "右侧") }
+        if let m = milk { bits.append(m) }
         if let e = endDate {
             let endsLater = Day(e) > day
             if carriedOver(into: day) { bits.append("接昨天 \(hm(startDate)) · 到 \(hm(e))") }
@@ -374,6 +384,8 @@ extension LogEntry {
 private struct DayTimeline: View {
     let day: Day, today: Day
     let logs: [LogEntry]
+    /// Every entry, for intervals that reach back to the day before.
+    var all: [LogEntry] = []
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
     @ScaledMetric private var timeWidth: CGFloat = 54
@@ -392,11 +404,13 @@ private struct DayTimeline: View {
             VStack(spacing: 0) {
                 ForEach(Array(sorted.enumerated()), id: \.element.id) { i, e in
                     if i > 0 {
+                        // a quiet stretch: only when nothing at all happened for a long while (3 hours or more);
+                        // between two feeds the row itself says how long since the last one
                         let newer = sorted[i - 1]
                         let gap = (max(newer.start, d0) - reached[i]) / 1000
-                        if gap >= 30 * 60 { GapRow(seconds: gap, timeWidth: timeWidth) }
+                        if gap >= 3 * 3600 { GapRow(seconds: gap, timeWidth: timeWidth) }
                     }
-                    TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth)
+                    TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth, since: feedInterval(e))
                         .contentShape(Rectangle())
                         .onTapGesture { edit(e) }
                         .contextMenu {
@@ -406,6 +420,22 @@ private struct DayTimeline: View {
                 }
             }
         }
+    }
+}
+
+extension DayTimeline {
+    /// For a feed (a breast feed's first side, or a bottle): the time since the previous feed began, from all the
+    /// records (the previous feed may be on the day before). The second side of the same feed gets none.
+    func feedInterval(_ e: LogEntry) -> Double? {
+        guard e.type == LogType.nurse || e.type == LogType.bottle else { return nil }
+        let feeds = all.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.sorted { $0.start < $1.start }
+        guard let i = feeds.firstIndex(where: { $0.id == e.id }), i > 0 else { return nil }
+        // a side that continues the feed before it is not a new feed
+        if e.type == LogType.nurse, let p = feeds[..<i].last, p.type == LogType.nurse, let pe = p.end, e.start - pe <= 120_000 { return nil }
+        // the start of the previous feed: walk back over its sides
+        var k = i - 1
+        while k > 0, feeds[k].type == LogType.nurse, feeds[k - 1].type == LogType.nurse, let pe = feeds[k - 1].end, feeds[k].start - pe <= 120_000 { k -= 1 }
+        return (e.start - feeds[k].start) / 1000
     }
 }
 
@@ -433,13 +463,15 @@ private struct TimelineRow: View {
     let isToday: Bool
     let now: Date
     let timeWidth: CGFloat
+    /// For a feed: how long since the feed before it began (start to start, as a feeding interval is counted).
+    var since: Double? = nil
 
     var body: some View {
         let c = LogType.color(entry.type)
         let span = entry.end != nil ? entry.seconds(on: day) : 0
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
-        let meta = entry.meta(on: day)
+        let meta = [entry.meta(on: day), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))

@@ -15,6 +15,7 @@ struct AskSheet: View {
     @State private var text = ""
     @State private var finished = false
     @State private var side = "l"
+    @State private var milk = "formula"
     @FocusState private var typing: Bool
 
     private var at: Date { when }
@@ -67,7 +68,7 @@ struct AskSheet: View {
         // the start must stay before the end, however the two were set
         .onChange(of: when) { _, w in if from >= w { from = w.addingTimeInterval(-15 * 60) } }
         .onChange(of: finished) { _, _ in if from >= when { from = when.addingTimeInterval(-15 * 60) } }
-        .onAppear { if let l = lastSide { side = l == "l" ? "r" : "l" }; if type == LogType.bottle, let a = j.logs.first(where: { $0.type == LogType.bottle })?.amount { ml = Double(a) } }
+        .onAppear { if let l = lastSide { side = l == "l" ? "r" : "l" }; if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
     }
 
     @ViewBuilder private var content: some View {
@@ -77,22 +78,23 @@ struct AskSheet: View {
             Text(finished ? "哪一侧" : "从哪一侧开始").font(.headline)
             HStack(spacing: 14) {
                 ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, t in
-                    let on = !finished || side == k
+                    // the side to start on is the one not used last time: drawn as the main button
+                    let on = side == k
                     Button {
                         if finished { side = k } else { j.start(LogType.nurse, side: k, at: at); dismiss() }
                     } label: {
                         VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
-                            .foregroundStyle(finished && on ? .white : Crayon.ink(c)).frame(maxWidth: .infinity, minHeight: 104)
+                            .foregroundStyle(on ? .white : Crayon.ink(c)).frame(maxWidth: .infinity, minHeight: 104)
                             .overlay(alignment: .topTrailing) {
                                 if lastSide == k {
                                     Text("上次").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
                                         .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(c)).padding(8)
                                 }
                             }
-                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(c).mix(with: c, by: 0.15), Crayon.buttonFill(c)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
+                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(c, lamp).mix(with: c, by: lamp ? 0.06 : 0.15), Crayon.fill(c, lamp)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
                     }
                     .buttonStyle(.toy)
-                    .accessibilityAddTraits(finished && on ? .isSelected : [])
+                    .accessibilityAddTraits(on ? .isSelected : [])
                     .accessibilityValue(lastSide == k ? "上次喂的一侧" : "")
                 }
             }
@@ -106,17 +108,36 @@ struct AskSheet: View {
                 Button { j.start(LogType.sleep, at: at); dismiss() } label: {
                     Label("开始睡觉", systemImage: "moon.zzz.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(c)).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(Crayon.fill(c, lamp)).controlSize(.large)
             }
         case LogType.bottle:
+            // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
+            HStack(spacing: 12) {
+                ForEach([("breastmilk", "母乳", "heart.fill"), ("formula", "配方奶", "waterbottle.fill")], id: \.0) { k, t, sym in
+                    let on = milk == k
+                    Button { withAnimation(.snappy) { milk = k } } label: {
+                        HStack(spacing: 10) {
+                            IconTile(symbol: sym, color: k == "breastmilk" ? Crayon.pink : Crayon.peach, size: 36, round: true)
+                            Text(t).font(.headline).foregroundStyle(on ? Crayon.ink(c) : Color.primary)
+                            Spacer(minLength: 0)
+                            if on { Image(systemName: "checkmark.circle.fill").foregroundStyle(Crayon.ink(c)) }
+                        }
+                        .padding(12)
+                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(on ? c.opacity(0.18) : Palette.card))
+                        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(on ? Crayon.ink(c) : Color.clear, lineWidth: 2))
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
             HStack(alignment: .firstTextBaseline) {
                 ValueText(parts: [("\(Int(ml))", "毫升")], size: 44)
                 Spacer()
                 Stepper("奶量", value: $ml, in: 10...300, step: 10).labelsHidden()
             }
-            Slider(value: $ml, in: 10...300, step: 10).tint(c)
             FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
-            save { j.add(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml))) }
+            save { j.add(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
         case LogType.diaper:
             HStack(spacing: 12) {
                 ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
@@ -153,7 +174,7 @@ struct AskSheet: View {
 
     private func save(enabled: Bool = true, _ f: @escaping () -> Void) -> some View {
         Button { f(); dismiss() } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
-            .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(LogType.color(type))).controlSize(.large).disabled(!enabled)
+            .buttonStyle(.borderedProminent).tint(Crayon.fill(LogType.color(type), lamp)).controlSize(.large).disabled(!enabled)
     }
 }
 
@@ -231,7 +252,7 @@ struct EntrySheet: View {
                         DatePicker("结束", selection: Binding(get: { e }, set: { entry.end = max(entry.start + 60_000, ms($0)) }), in: entry.startDate...Date(), displayedComponents: [.date, .hourAndMinute])
                         LabeledContent("时长", value: minutesOf((entry.end! - entry.start) / 1000))
                     }
-                } footer: { Text(whenLabel(entry.startDate) + (entry.endDate.map { " – " + whenLabel($0) } ?? "")).monospacedDigit() }
+                }
                 Section { fields }
                 if !isNew {
                     Section { Button("删除这条", role: .destructive) { j.delete(entry); dismiss() } }
@@ -248,6 +269,9 @@ struct EntrySheet: View {
     @ViewBuilder private var fields: some View {
         switch entry.type {
         case LogType.bottle:
+            Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
+                Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
+            }
             Stepper(value: Binding(get: { entry.amount ?? 120 }, set: { entry.amount = $0 }), in: 10...300, step: 10) { LabeledContent("奶量", value: "\(entry.amount ?? 120) 毫升") }
         case LogType.nurse:
             Picker("哪边", selection: Binding(get: { entry.side ?? "l" }, set: { entry.side = $0 })) { Text("左边").tag("l"); Text("右边").tag("r") }.pickerStyle(.segmented)

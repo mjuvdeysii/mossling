@@ -163,8 +163,9 @@ private struct CompanionStage: View {
                         Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Color.secondary)
                         Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity)
+                    .frame(maxWidth: .infinity, minHeight: 150)
                     .padding(.vertical, 12)
+                    .contentShape(Rectangle())   // the whole half of the stage is the button, not just the drawing
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel("\(k.rawValue)，\(k == .moss ? "白天陪玩" : "夜里点灯")").accessibilityAddTraits(on ? .isSelected : [])

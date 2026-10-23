@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// One play, to read through: the name and area, how many times it has been done, before starting (prepare, safety),
-/// each step as its picture with one sentence, what to watch for and when to stop. One button at the bottom records a
-/// time it was done; each tap counts.
+/// One play, to read and to play along with, on one page (build 162: the separate play-along screen repeated this
+/// page, so it is gone). Everything that is not the step at hand is folded: before starting (prepare, safety) is one
+/// line, open the first time; the steps are a column of small rows — picture, number, sentence — and the one being
+/// done opens in place as a big picture with its sentence and 下一步, which folds it (marked done) and opens the next;
+/// what to watch for and when to stop is one line at the end. The page remembers the open step, and keeps the screen
+/// on while it is open. One button at the bottom records a time it was done.
 struct PlayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -10,14 +13,17 @@ struct PlayView: View {
     let month: Int
     @State private var scrolled = false
     @State private var cheer = 0
-    @State private var along = false
+    @State private var open = 0
+    @State private var before = false
+    @State private var during = false
 
     var body: some View {
         let rec = app.record(play, j)
         let art = ArtIndex.shared.steps(play.code)
         let key = Palette.areaKey(of: play)
+        ScrollViewReader { proxy in
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
@@ -28,67 +34,61 @@ struct PlayView: View {
                     Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
                     DoneCount(record: rec, cheer: cheer)
                 }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 4).padding(.bottom, 8)
                 .onScrollVisibilityChange(threshold: 0.2) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
 
                 if !play.prepare.isEmpty || !play.safety.isEmpty {
-                    Box {
+                    Fold(title: "开始之前", summary: [play.prepare.isEmpty ? nil : "准备", play.safety.isEmpty ? nil : "安全"].compactMap { $0 }.joined(separator: " · "),
+                         symbol: "tray.full.fill", color: Crayon.caramel, open: $before) {
                         if !play.prepare.isEmpty { BoxRow(symbol: "tray.full.fill", color: Crayon.caramel, title: "准备", text: play.prepare, last: play.safety.isEmpty) }
                         if !play.safety.isEmpty { BoxRow(symbol: "exclamationmark.triangle.fill", color: Crayon.tangerine, title: "安全", text: play.safety, last: true) }
                     }
                 }
 
                 ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
-                    VStack(alignment: .leading, spacing: 0) {
-                        if i < art.count { ArtView(name: art[i], label: "第 \(i + 1) 步的图示", radius: 0) }
-                        HStack(alignment: .firstTextBaseline, spacing: 12) {
-                            Text("\(i + 1)").font(Typeface.numerals(15, relativeTo: .headline, weight: .bold)).foregroundStyle(.white)
-                                .frame(width: 30, height: 30)
-                                .background(Circle().fill(Palette.accentFill))
-                                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
-                            Text(s).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
-                        }
-                        .padding(16)
+                    StepCard(n: i + 1, text: s, art: i < art.count ? art[i] : nil, open: i == open, done: i < open, last: i == play.steps.count - 1) {
+                        go(i, proxy)
+                    } next: {
+                        go(i + 1, proxy)
                     }
-                    .printCard(radius: 26)
-                    .accessibilityElement(children: .combine)
+                    .id(i)
                 }
 
                 if !play.observe.isEmpty || !play.pause.isEmpty {
-                    Box(title: "做的时候") {
+                    Fold(title: "做的时候", summary: [play.observe.isEmpty ? nil : "看什么", play.pause.isEmpty ? nil : "停下来"].compactMap { $0 }.joined(separator: " · "),
+                         symbol: "eye.fill", color: Crayon.sky, open: $during) {
                         if !play.observe.isEmpty { BoxRow(symbol: "eye.fill", color: Crayon.sky, title: "看什么", text: play.observe, last: play.pause.isEmpty) }
                         if !play.pause.isEmpty { BoxRow(symbol: "hand.raised.fill", color: Crayon.lilac, title: "停下来", text: play.pause, last: true) }
                     }
+                    .id("during")
                 }
             }
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
         }
+        }
         .pageBackground()
         .safeAreaBar(edge: .bottom) {
-            // the companions stand by; the main button plays along step by step (and records it at the end); the round
-            // one beside it records a time done without the app, and the beads fly up out of it
-            let resume = app.playing.flatMap { $0.play.code == play.code ? $0.step : nil }
+            // the companions stand by the button; when it is pressed they cheer and golden beads fly up
             HStack(alignment: .bottom, spacing: 8) {
                 Duo(primary: app.companion, size: 46, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer).padding(.top, 14)
-                Button { along = true } label: {
-                    Label(resume.map { "接着做 · 第 \($0 + 1) 步" } ?? "跟着做", systemImage: "play.fill")
+                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); app.finishPlaying(); cheer += 1 } } label: {
+                    Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
                         .font(.headline)
                         .frame(maxWidth: .infinity).padding(.vertical, 6)
                 }
                 .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
-                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
-                    Image(systemName: "checkmark").font(.title3.weight(.bold)).frame(width: 30, height: 34)
-                }
-                .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
-                .accessibilityLabel(rec.count == 0 ? "做过了，记一次" : "又做了一次，记一次")
                 .overlay { BeadBurst(trigger: cheer) }
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
             .sensoryFeedback(.success, trigger: cheer)
         }
-        .fullScreenCover(isPresented: $along) {
-            PlayAlong(play: play, month: month, from: app.playing.flatMap { $0.play.code == play.code ? $0.step : nil } ?? 0)
+        .sensoryFeedback(.selection, trigger: open)
+        .onAppear {
+            if let p = app.playing, p.play.code == play.code { open = p.step }
+            before = rec.count == 0
+            UIApplication.shared.isIdleTimerDisabled = true   // playing along: the phone lies on the floor
         }
+        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -97,6 +97,124 @@ struct PlayView: View {
                 Menu { PlayActions(play: play, month: month) } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
             }
         }
+    }
+
+    private func go(_ i: Int, _ proxy: ScrollViewProxy) {
+        if i >= play.steps.count {
+            // past the last step: what to watch for opens
+            withAnimation(.snappy) { open = play.steps.count; during = true }
+            withAnimation(.smooth) { proxy.scrollTo("during", anchor: .top) }
+            return
+        }
+        withAnimation(.snappy) { open = i }
+        app.play(play, month: month, at: i)
+        withAnimation(.smooth.delay(0.15)) { proxy.scrollTo(i, anchor: .top) }
+    }
+}
+
+/// A folded section: one line (sticker, title, what is inside) that opens in place.
+struct Fold<Content: View>: View {
+    let title: String
+    let summary: String
+    let symbol: String
+    let color: Color
+    @Binding var open: Bool
+    @ViewBuilder let content: Content
+    var body: some View {
+        VStack(spacing: 0) {
+            Button { withAnimation(.snappy) { open.toggle() } } label: {
+                HStack(spacing: 12) {
+                    IconTile(symbol: symbol, color: color, size: 30)
+                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(summary).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.secondary)
+                        .rotationEffect(.degrees(open ? 180 : 0))
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.toy)
+            .accessibilityValue(open ? "已展开" : "已折叠")
+            if open {
+                Divider().padding(.horizontal, 16)
+                VStack(spacing: 0) { content }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .printCard(radius: 22)
+        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+    }
+}
+
+/// One step. Open: the big picture, the number and the sentence, and 下一步. Folded: a small row — the picture as a
+/// thumbnail, the number (a gold bead once done) and the sentence — that opens it when tapped.
+private struct StepCard: View {
+    let n: Int
+    let text: String
+    let art: String?
+    let open: Bool
+    let done: Bool
+    let last: Bool
+    let tap: () -> Void
+    let next: () -> Void
+
+    var body: some View {
+        Group {
+            if open {
+                VStack(alignment: .leading, spacing: 0) {
+                    if let art { ArtView(name: art, label: "第 \(n) 步的图示", radius: 0) }
+                    VStack(alignment: .leading, spacing: 14) {
+                        HStack(alignment: .firstTextBaseline, spacing: 12) {
+                            badge
+                            Text(text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Button(action: next) {
+                            Label(last ? "做完这一步" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
+                                .font(.subheadline.weight(.semibold)).padding(.horizontal, 6)
+                        }
+                        .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Palette.accent)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                    }
+                    .padding(16)
+                }
+                .printCard(radius: 26)
+                .transition(.opacity)
+            } else {
+                Button(action: tap) {
+                    HStack(spacing: 12) {
+                        if let art {
+                            ArtView(name: art, radius: 10).frame(width: 76).opacity(done ? 0.6 : 1)
+                        }
+                        badge
+                        Text(text).font(.subheadline.weight(.medium)).foregroundStyle(done ? Color.secondary : Color.primary)
+                            .lineLimit(2).multilineTextAlignment(.leading)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(10)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.toy)
+                .printCard(radius: 18)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("第 \(n) 步，\(text)" + (done ? "，已做" : ""))
+        .accessibilityAddTraits(open ? [] : .isButton)
+    }
+
+    @ViewBuilder private var badge: some View {
+        ZStack {
+            if done {
+                Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 16))
+                Image(systemName: "checkmark").font(.caption.weight(.heavy)).foregroundStyle(Color(hex: 0x5A3D00))
+            } else {
+                Circle().fill(Palette.accentFill)
+                Text("\(n)").font(Typeface.numerals(15, relativeTo: .headline, weight: .bold)).foregroundStyle(.white)
+            }
+        }
+        .frame(width: 30, height: 30)
+        .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
     }
 }
 

@@ -70,6 +70,7 @@ private struct NowCard: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.night) private var night
+    @Environment(\.lamp) private var lamp
     let month: Int
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { tl in
@@ -80,18 +81,37 @@ private struct NowCard: View {
                     words("宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)))
                     Spacer(minLength: 0)
                     Button { withAnimation(.snappy) { j.stop(LogType.sleep) } } label: { Text("醒了").font(.subheadline.weight(.semibold)).padding(.horizontal, 6) }
-                        .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(Crayon.lilac))
+                        .buttonStyle(.borderedProminent).tint(Crayon.fill(Crayon.lilac, lamp))
                 }
             } else if let feed = j.timers.first(where: { $0.type == LogType.nurse }) {
-                Button { j.focus = LogType.nurse } label: {
-                    card(tint: Crayon.pink) {
-                        IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
-                        words("正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                // the sides right here, as on the timer: tap the side being fed to pause, the other to change sides
+                card(tint: Crayon.pink) {
+                    Button { j.focus = LogType.nurse } label: {
+                        HStack(spacing: 12) {
+                            IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
+                            words(feed.pausedAt != nil ? "亲喂 · 已暂停" : "正在亲喂", "已经 " + durationValue(feed.total(now)))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.toy)
+                    Spacer(minLength: 0)
+                    ForEach(["l", "r"], id: \.self) { k in
+                        let on = (feed.side ?? "l") == k
+                        Button { withAnimation(.snappy) { j.tapSide(LogType.nurse, k) } } label: {
+                            VStack(spacing: 0) {
+                                Text(k == "l" ? "L" : "R").font(Typeface.numerals(17, weight: .heavy))
+                                Image(systemName: on ? (feed.pausedAt == nil ? "pause.fill" : "play.fill") : "arrow.left.arrow.right").font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundStyle(on ? .white : Crayon.ink(Crayon.pink))
+                            .frame(width: 44, height: 44)
+                            .background(Circle().fill(on ? Crayon.fill(Crayon.pink, lamp) : Crayon.pink.opacity(0.16)))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityLabel((k == "l" ? "左侧" : "右侧") + (on ? (feed.pausedAt == nil ? "，点按暂停" : "，点按继续") : "，点按换到这侧"))
                     }
                 }
-                .buttonStyle(.toy)
+                .sensoryFeedback(.selection, trigger: feed.side)
+                .sensoryFeedback(.impact(weight: .medium), trigger: feed.pausedAt != nil)
             } else if let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end, now - woke < 6 * 3_600_000, !night {
                 let play = app.weekShelf(month).plays.min { app.record($0, j).count < app.record($1, j).count }
                 NavigationLink(value: play.map { Route.play($0.code, month) } ?? Route.month(month)) {
