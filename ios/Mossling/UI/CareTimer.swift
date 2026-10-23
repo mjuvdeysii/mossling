@@ -134,7 +134,6 @@ private struct SidePad: View {
                     Text(side == "l" ? "L" : "R").font(Typeface.numerals(30, weight: .heavy))
                     Text(seconds >= 1 ? clock(seconds) : "—").font(Typeface.numerals(20, relativeTo: .title3, weight: .bold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6)
-                        .contentTransition(.numericText())
                     Label(hint, systemImage: on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
                         .font(.caption2.weight(.bold)).labelStyle(.titleAndIcon).lineLimit(1).minimumScaleFactor(0.7)
                         .padding(.horizontal, 8).padding(.vertical, 4)
@@ -193,7 +192,6 @@ private struct SleepPad: View {
                     IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
                     Text(clock(seconds)).font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
                         .lineLimit(1).minimumScaleFactor(0.6)
-                        .contentTransition(.numericText())
                     Label(paused ? "点按继续" : "点按暂停", systemImage: paused ? "play.fill" : "pause.fill")
                         .font(.caption.weight(.bold)).lineLimit(1)
                         .padding(.horizontal, 10).padding(.vertical, 5)
@@ -228,7 +226,6 @@ private struct Stat: View {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
             Text(value).font(Typeface.numerals(strong ? 26 : 20, relativeTo: .title2, weight: .bold)).monospacedDigit()
                 .foregroundStyle(strong ? Color.primary : Color.secondary)
-                .contentTransition(.numericText())
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

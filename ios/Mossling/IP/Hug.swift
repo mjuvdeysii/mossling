@@ -37,10 +37,10 @@ struct HuggedAvatar: View {
             // the arm round the frame, in front of it: from the shoulder across the frame's lower edge
             Canvas { ctx, _ in
                 let from = CGPoint(x: box.minX + shoulder.x * c, y: box.minY + shoulder.y * c)
-                // round the child's back: the hand rests inside the frame, further in for a squeeze
-                let to = CGPoint(x: size * (hugging ? 0.44 : 0.52), y: size * (hugging ? 0.62 : 0.66))
+                // draped round the frame: up along its right edge, the hand resting on the rim (never over the child)
+                let to = CGPoint(x: size * (hugging ? 0.84 : 0.9), y: size * (hugging ? 0.3 : 0.36))
                 var p = Path(); p.move(to: from)
-                p.addQuadCurve(to: to, control: CGPoint(x: (from.x + to.x) / 2, y: max(from.y, to.y) + size * 0.16))
+                p.addQuadCurve(to: to, control: CGPoint(x: size * 1.04, y: size * 0.66))
                 let arm = kind == .moss ? Palette.mossDeep : Palette.rodDeep
                 ctx.stroke(p, with: .color(.white.opacity(0.9)), style: StrokeStyle(lineWidth: c * 0.075 + 3, lineCap: .round))   // a paper edge so it reads over the picture
                 ctx.stroke(p, with: .color(arm), style: StrokeStyle(lineWidth: c * 0.075, lineCap: .round))

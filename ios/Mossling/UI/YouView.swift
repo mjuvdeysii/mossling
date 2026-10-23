@@ -197,7 +197,8 @@ struct ProfileSheet: View {
                                 VStack(spacing: 6) {
                                     Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
                                         .environment(\.girlArt, k == "girl")
-                                        .frame(height: 84)
+                                        .scaleEffect(1.7, anchor: .bottom)   // the figure carries a margin
+                                        .frame(height: 96).clipped()
                                     Text(k == "girl" ? "女宝" : "男宝").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                                 }
                                 .frame(maxWidth: .infinity).padding(.vertical, 10)
