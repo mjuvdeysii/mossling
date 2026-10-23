@@ -5,7 +5,8 @@ import SwiftUI
 /// line, open the first time; the steps are a column of small rows — picture, number, sentence — and the one being
 /// done opens in place as a big picture with its sentence and 下一步, which folds it (marked done) and opens the next;
 /// what to watch for and when to stop is one line at the end. The page remembers the open step, and keeps the screen
-/// on while it is open. One button at the bottom records a time it was done.
+/// on while it is open. Nothing is pinned over the page: finishing the last step records a time (the companions cheer
+/// in a card that appears in its place), and a small 记一次 by the count records a time played without the steps.
 struct PlayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -32,7 +33,15 @@ struct PlayView: View {
                         Text(play.age).font(.subheadline).foregroundStyle(.secondary)
                     }
                     Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                    DoneCount(record: rec, cheer: cheer)
+                    // how many times, and — for a time played without following the steps here — a small 记一次
+                    HStack {
+                        DoneCount(record: rec, cheer: cheer)
+                        Spacer(minLength: 8)
+                        Button { record() } label: { Label("记一次", systemImage: "plus").font(.subheadline.weight(.semibold)) }
+                            .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Palette.accent).controlSize(.small)
+                            .overlay { BeadBurst(trigger: cheer) }
+                            .accessibilityLabel("做过了，记一次")
+                    }
                 }
                 .padding(.horizontal, 4).padding(.bottom, 8)
                 .onScrollVisibilityChange(threshold: 0.2) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
@@ -54,6 +63,22 @@ struct PlayView: View {
                     .id(i)
                 }
 
+                // finishing the last step records the time: the companions come out to cheer, here, in the page
+                if open >= play.steps.count {
+                    HStack(spacing: 14) {
+                        Duo(primary: app.companion, size: 56, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("做完了").font(.headline)
+                            Text("记下了第 \(rec.count) 次" + (rec.count >= 3 ? "，越来越熟练" : "")).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(14).printCard(radius: 22)
+                    .overlay { BeadBurst(trigger: cheer) }
+                    .transition(.scale(scale: 0.9).combined(with: .opacity))
+                    .id("finished")
+                }
+
                 if !play.observe.isEmpty || !play.pause.isEmpty {
                     Fold(title: "做的时候", summary: [play.observe.isEmpty ? nil : "看什么", play.pause.isEmpty ? nil : "停下来"].compactMap { $0 }.joined(separator: " · "),
                          symbol: "eye.fill", color: Crayon.sky, open: $during) {
@@ -67,21 +92,7 @@ struct PlayView: View {
         }
         }
         .pageBackground()
-        .safeAreaBar(edge: .bottom) {
-            // the companions stand by the button; when it is pressed they cheer and golden beads fly up
-            HStack(alignment: .bottom, spacing: 8) {
-                Duo(primary: app.companion, size: 46, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer).padding(.top, 14)
-                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); app.finishPlaying(); cheer += 1 } } label: {
-                    Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
-                        .font(.headline)
-                        .frame(maxWidth: .infinity).padding(.vertical, 6)
-                }
-                .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
-                .overlay { BeadBurst(trigger: cheer) }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 8)
-            .sensoryFeedback(.success, trigger: cheer)
-        }
+        .sensoryFeedback(.success, trigger: cheer)
         .sensoryFeedback(.selection, trigger: open)
         .onAppear {
             if let p = app.playing, p.play.code == play.code { open = p.step }
@@ -99,11 +110,16 @@ struct PlayView: View {
         }
     }
 
+    private func record() {
+        withAnimation(.snappy) { app.didPlay(play, month: month, j); app.finishPlaying(); cheer += 1 }
+    }
+
     private func go(_ i: Int, _ proxy: ScrollViewProxy) {
         if i >= play.steps.count {
-            // past the last step: what to watch for opens
-            withAnimation(.snappy) { open = play.steps.count; during = true }
-            withAnimation(.smooth) { proxy.scrollTo("during", anchor: .top) }
+            // the last step done: that is a time played — recorded, cheered, and the steps fold away
+            withAnimation(.snappy) { open = play.steps.count }
+            record()
+            withAnimation(.smooth.delay(0.15)) { proxy.scrollTo("finished", anchor: .center) }
             return
         }
         withAnimation(.snappy) { open = i }
@@ -170,7 +186,7 @@ private struct StepCard: View {
                             Text(text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
                         Button(action: next) {
-                            Label(last ? "做完这一步" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
+                            Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
                                 .font(.subheadline.weight(.semibold)).padding(.horizontal, 6)
                         }
                         .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Palette.accent)
