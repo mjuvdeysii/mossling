@@ -25,7 +25,7 @@ struct JournalView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("手帐")
         .navigationSubtitle(day == app.today ? "今天 · \(day.md)" : "\(day.md) · \(day.weekday)")
         .toolbar {
@@ -108,18 +108,12 @@ private struct StickerSheet: View {
 private struct Sticker: View {
     let type: String, running: Bool, since: String?
     let action: () -> Void
-    @ScaledMetric private var d: CGFloat = 48
     var body: some View {
         let c = LogType.color(type)
         Button(action: action) {
             VStack(spacing: 4) {
-                Image(systemName: running ? "stop.fill" : LogType.symbol(type))
-                    .font(.system(size: d * 0.42, weight: .semibold)).foregroundStyle(Crayon.glyph(on: c))
-                    .frame(width: d, height: d)
-                    .background(Circle().fill(c))
-                    .background(Circle().fill(Color.black.opacity(0.18)).offset(x: 1.5, y: 2))
+                IconTile(symbol: running ? "stop.fill" : LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
-                    .contentTransition(.symbolEffect(.replace))
                 Text(running ? "结束" : LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
                 Text(running ? "进行中" : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
             }
@@ -146,10 +140,10 @@ private struct WeekStrip: View {
                         Text(String(d.weekday.suffix(1))).font(.caption2.weight(.semibold))
                         Text("\(d.d)").font(Typeface.numerals(17, relativeTo: .body, weight: .bold))
                     }
-                    .foregroundStyle(on ? Color.white : isToday ? Palette.accent : Color.primary)
+                    .foregroundStyle(on ? Color.white : isToday ? Crayon.pink : Color.primary)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? Palette.accent : Palette.card))
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color.black.opacity(on ? 0.2 : 0.08)).offset(x: 1.5, y: 2))
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.pink.mix(with: .white, by: 0.2), Crayon.pink], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
+                    .shadow(color: on ? Crayon.pink.opacity(0.35) : Color.black.opacity(0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("\(d.md) \(d.weekday)")
@@ -321,8 +315,7 @@ private struct EntryRow: View {
         HStack(alignment: .firstTextBaseline, spacing: 12) {
             Text(hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                 .frame(width: timeWidth, alignment: .leading)
-            Image(systemName: LogType.symbol(entry.type)).font(.system(size: 13, weight: .semibold)).foregroundStyle(Crayon.glyph(on: LogType.color(entry.type)))
-                .frame(width: 26, height: 26).background(Circle().fill(LogType.color(entry.type)))
+            IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 26, round: true)
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
             VStack(alignment: .leading, spacing: 2) {
                 Text(LogType.name(entry.type)).font(.body)

@@ -67,7 +67,6 @@ final class ScreenshotTests: XCTestCase {
     func test22Shelf() { let m = model(); shot("22_shelf_editor", ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
     func test07Care() { let m = model(); shot("07_care", tabs(m, CareView(month: 6))) }
     func test07Areas() { let m = model(); shot("07_areas", height: 1400, tabs(m, AreasView(month: 6))) }
-    func test06Step() { let m = model(); shot("06_step", StepMode(play: m.content.play("A11")!, month: 6).environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }
     func test06PlayDark() { let m = model(); shot("06_play_dark", dark: true, height: 1400, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
     func test15JournalDark() { let m = model(); m.journal = true; shot("15_journal_dark", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())))) }

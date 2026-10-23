@@ -4,7 +4,7 @@ import SwiftUI
 /// character's own rest (Otto rests under a heavy lid). It breathes, blinks now and then, glances away and back, hops
 /// once when it becomes happy; Moss's mint leaves sway. Five quick taps on Moss send a few mint leaves drifting up.
 /// Everything is computed from time, so it stays still when Reduce Motion is on. They are drawn flat, in the
-/// picture-book print style of the whole app: plain colour over an offset deeper copy, no gloss.
+/// same soft light as the rest of the app: rounded volumes lit from the upper left, no hard gloss.
 struct Creature: View {
     let kind: Kind
     var mood: Mood = .open
@@ -145,9 +145,18 @@ struct Creature: View {
         ctx.fill(Path(roundedRect: CGRect(x: x, y: 80, width: 6.5, height: 10), cornerRadius: 3.2), with: .color(Palette.ink))
     }
     private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, _ deep: Color) {
-        // a flat, printed body: the colour laid over a slightly offset deeper copy of itself, like a picture-book print
-        ctx.fill(p.offsetBy(dx: 1.4, dy: 1.2), with: .color(deep))
-        ctx.fill(p, with: .color(fill))
+        // a soft, rounded volume: lit from the upper left, deepening toward the lower right, a gentle sheen near the
+        // top and a little reflected light along the bottom — the same light as every tile and card in the app
+        let r = p.boundingRect
+        ctx.fill(p.offsetBy(dx: 0.8, dy: 1.4), with: .color(deep.opacity(0.6)))
+        ctx.fill(p, with: .radialGradient(Gradient(colors: [fill.mix(with: .white, by: 0.22), fill, deep]),
+                                          center: CGPoint(x: r.minX + r.width * 0.32, y: r.minY + r.height * 0.22), startRadius: 0, endRadius: max(r.width, r.height) * 0.95))
+        var c = ctx
+        c.clip(to: p)
+        c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.14, y: r.minY + r.height * 0.06, width: r.width * 0.5, height: r.height * 0.26)),
+               with: .radialGradient(Gradient(colors: [.white.opacity(0.32), .white.opacity(0)]), center: CGPoint(x: r.minX + r.width * 0.36, y: r.minY + r.height * 0.16), startRadius: 0, endRadius: r.width * 0.28))
+        c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.2, y: r.maxY - r.height * 0.14, width: r.width * 0.6, height: r.height * 0.2)),
+               with: .radialGradient(Gradient(colors: [fill.mix(with: .white, by: 0.3).opacity(0.35), .clear]), center: CGPoint(x: r.midX, y: r.maxY - r.height * 0.04), startRadius: 0, endRadius: r.width * 0.3))
     }
     private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ skin: Color) {
         if mood == .sleep {
@@ -161,6 +170,7 @@ struct Creature: View {
         let pr = min(rx, ry) * (mood == .wow ? 0.5 : 0.62)
         let px = cx + max(-1, min(1, look.x)) * (rx - pr - 0.3), py = cy + max(-1, min(1, look.y)) * (ry - pr - 0.3)
         c.fill(Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)), with: .color(Palette.ink))
+        c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.5, y: py - pr * 0.6, width: pr * 0.46, height: pr * 0.46)), with: .color(.white.opacity(0.9)))
         if mood == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.12, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
         if lid > 0 { c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: (ry * 2 + 1.2) * lid)), with: .color(skin)) }
     }

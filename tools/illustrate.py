@@ -8,9 +8,9 @@ Faces are left out on purpose: posture, gaze lines and hands say what happens.
 Output: app/src/main/assets/art/play_<code>_<n>.webp (one per step), cover_<mm>.webp (one per month), index.json.
 Usage: python3 tools/illustrate.py [--ios] [--sheet out.png]
 
---ios draws the iOS set (ios/Art/art) in the app's picture-book print: no Material shapes — circles, capsules and
-rounded rectangles — flat warm crayon colours on warm paper, and every shape laid over a slightly offset, darker copy
-of itself, as Moss and Otto are drawn. The month covers have the two companions in them.
+--ios draws the iOS set (ios/Art/art) in the app's soft light: no Material shapes — circles, capsules and rounded
+rectangles — warm crayon colours on warm paper, every colour lit from above, and a soft shadow under the whole
+drawing, like the companions and the cards. The month covers have the two companions in them.
 """
 import io, json, math, os, re, sys
 import cairosvg
@@ -75,7 +75,7 @@ class S:
     def add(self, s): self.parts.append(s); return self
     def svg(self, w=W, h=H):
         body = "".join(self.parts)
-        if IOS: body = printed(body)
+        if IOS: body = glassy(printed(body))
         return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + self.bg + body + "</svg>"
 
 def _mix(hexc, t, to):
@@ -96,7 +96,7 @@ def printed(body):
     brown, faint), like a cut-paper picture lifted a little off the page."""
     shade = re.sub(r'(fill|stroke)="#[0-9A-Fa-f]{6}"', r'\1="#6B4A2B"', body)
     shade = re.sub(r'fill="url\(#[^)]*\)"', 'fill="#6B4A2B"', shade)
-    return f'<g transform="translate(5 6)" opacity=".16">{shade}</g>' + body
+    return f'<g transform="translate(3 7)" opacity=".11">{shade}</g>' + body
 
 def peg(s, x, base, h, body, head="#E8C9A0", lean=0.0, r=None, sit=False):
     """A wooden peg person standing on y=base: rounded body, round head, no face. Returns head centre and shoulder."""

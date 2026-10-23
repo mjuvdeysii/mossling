@@ -55,6 +55,45 @@ private struct Ground: View {
         ctx.fill(p.offsetBy(dx: 1.6, dy: 2), with: .color(deep)); ctx.fill(p, with: .color(fill))
     }
 
+    /// A ball lit from the upper left, for canopies and flower hearts.
+    private func ball(_ ctx: inout GraphicsContext, _ r: CGRect, _ c: Color) {
+        ctx.fill(Path(ellipseIn: r), with: .radialGradient(Gradient(colors: [c.mix(with: .white, by: 0.35), c, c.mix(with: .black, by: 0.25)]),
+                                                           center: CGPoint(x: r.minX + r.width * 0.32, y: r.minY + r.height * 0.28), startRadius: 0, endRadius: r.width * 0.75))
+    }
+    private func softShadow(_ ctx: inout GraphicsContext, _ x: CGFloat, _ y: CGFloat, _ w: CGFloat) {
+        ctx.fill(Path(ellipseIn: CGRect(x: x - w / 2, y: y - 2.5, width: w, height: 5)), with: .color(Color.black.opacity(0.12)))
+    }
+    private func flower(_ ctx: inout GraphicsContext, _ x: CGFloat, _ y: CGFloat, _ c: Color, _ dark: Bool, small: Bool = false) {
+        let k: CGFloat = small ? 0.7 : 1
+        var stem = Path(); stem.move(to: CGPoint(x: x, y: y + 2)); stem.addLine(to: CGPoint(x: x, y: y + 12 * k))
+        ctx.stroke(stem, with: .color(Color(hex: 0x5C9A4A)), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        for a in stride(from: CGFloat(0), to: 360, by: 72) {
+            let r: CGFloat = a * .pi / 180
+            let px: CGFloat = x + cos(r) * 4.2 * k, py: CGFloat = y + sin(r) * 4.2 * k
+            ball(&ctx, CGRect(x: px - 3.4 * k, y: py - 3.4 * k, width: 6.8 * k, height: 6.8 * k), c.opacity(dark ? 0.8 : 1))
+        }
+        ball(&ctx, CGRect(x: x - 2.4 * k, y: y - 2.4 * k, width: 4.8 * k, height: 4.8 * k), Crayon.sunflower)
+    }
+    private func tree(_ ctx: inout GraphicsContext, _ x: CGFloat, _ y: CGFloat, _ dark: Bool, k: CGFloat) {
+        softShadow(&ctx, x, y + 14 * k, 28 * k)
+        ctx.fill(Path(roundedRect: CGRect(x: x - 2.5 * k, y: y - 2 * k, width: 5 * k, height: 16 * k), cornerRadius: 2), with: .linearGradient(Gradient(colors: [Color(hex: 0xB98A55), Color(hex: 0x8A6236)]), startPoint: CGPoint(x: x - 3, y: y), endPoint: CGPoint(x: x + 3, y: y)))
+        let leaf = dark ? Color(hex: 0x4E8A55) : Color(hex: 0x6DBA5E)
+        ball(&ctx, CGRect(x: x - 15 * k, y: y - 16 * k, width: 20 * k, height: 20 * k), leaf.mix(with: .black, by: 0.08))
+        ball(&ctx, CGRect(x: x - 4 * k, y: y - 14 * k, width: 19 * k, height: 19 * k), leaf.mix(with: .black, by: 0.04))
+        ball(&ctx, CGRect(x: x - 11 * k, y: y - 28 * k, width: 22 * k, height: 22 * k), leaf)
+    }
+    private func house(_ ctx: inout GraphicsContext, _ x: CGFloat, _ y: CGFloat, _ dark: Bool, roof: Color) {
+        softShadow(&ctx, x, y + 10, 34)
+        let wall = CGRect(x: x - 12, y: y - 8, width: 24, height: 18)
+        ctx.fill(Path(roundedRect: wall, cornerRadius: 3), with: .linearGradient(Gradient(colors: [Color(hex: 0xFFFBF2), Color(hex: 0xEADCC4)]), startPoint: CGPoint(x: wall.minX, y: wall.minY), endPoint: CGPoint(x: wall.maxX, y: wall.maxY)))
+        var r = Path()
+        r.move(to: CGPoint(x: x - 16, y: y - 6)); r.addQuadCurve(to: CGPoint(x: x, y: y - 22), control: CGPoint(x: x - 9, y: y - 16))
+        r.addQuadCurve(to: CGPoint(x: x + 16, y: y - 6), control: CGPoint(x: x + 9, y: y - 16)); r.closeSubpath()
+        ctx.fill(r, with: .linearGradient(Gradient(colors: [roof.mix(with: .white, by: 0.25), roof.mix(with: .black, by: 0.15)]), startPoint: CGPoint(x: x - 10, y: y - 22), endPoint: CGPoint(x: x + 12, y: y - 4)))
+        ctx.fill(Path(roundedRect: CGRect(x: x - 7, y: y - 3, width: 6, height: 6), cornerRadius: 1.5), with: .color(Color(hex: 0xFFD978)))
+        ctx.fill(Path(roundedRect: CGRect(x: x + 2, y: y - 1, width: 6, height: 11), cornerRadius: 2), with: .color(Color(hex: 0xA97A48)))
+    }
+
     private func paint(_ ctx: inout GraphicsContext, _ size: CGSize) {
             let w: CGFloat = size.width, h: CGFloat = size.height
             let dark: Bool = scheme == .dark
@@ -71,23 +110,13 @@ private struct Ground: View {
                 switch land {
                 case .meadow:
                     let pick: Int = Int(rng.next(0...3.99))
-                    let petals: Color = [Crayon.cherry, Crayon.sunflower, Crayon.rose, Crayon.sky][pick]
-                    for a in stride(from: CGFloat(0), to: 360, by: 72) {
-                        let r: CGFloat = a * .pi / 180
-                        let px: CGFloat = x + cos(r) * 4 - 3, py: CGFloat = y + sin(r) * 4 - 3
-                        ctx.fill(Path(ellipseIn: CGRect(x: px, y: py, width: 6, height: 6)), with: .color(petals.opacity(dark ? 0.7 : 0.9)))
-                    }
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 4, height: 4)), with: .color(Color(hex: 0xFFE9A6)))
+                    let petals: Color = [Crayon.pink, Crayon.sunflower, Crayon.peach, Crayon.sky][pick]
+                    flower(&ctx, x, y, petals, dark)
+                    flower(&ctx, x + 12, y + 6, [Crayon.lilac, Crayon.pink, Crayon.sunflower, Crayon.mint][pick], dark, small: true)
                 case .forest:
-                    printed(&ctx, Path(roundedRect: CGRect(x: x - 2.5, y: y, width: 5, height: 12), cornerRadius: 2), Color(hex: 0xA77B47), Color(hex: 0x7A5730))
-                    var crown = Path(ellipseIn: CGRect(x: x - 13, y: y - 22, width: 26, height: 26))
-                    crown.addEllipse(in: CGRect(x: x - 17, y: y - 12, width: 34, height: 20))
-                    printed(&ctx, crown, dark ? Color(hex: 0x3F6B44) : Color(hex: 0x7DB26A), dark ? Color(hex: 0x2B4A30) : Color(hex: 0x5C8F4C))
+                    tree(&ctx, x, y, dark, k: rng.next(0.8...1.15))
                 case .river:
-                    var roof = Path(); roof.move(to: CGPoint(x: x - 14, y: y - 8)); roof.addLine(to: CGPoint(x: x, y: y - 20)); roof.addLine(to: CGPoint(x: x + 14, y: y - 8)); roof.closeSubpath()
-                    printed(&ctx, Path(roundedRect: CGRect(x: x - 11, y: y - 9, width: 22, height: 18), cornerRadius: 2), dark ? Color(hex: 0xC9B79A) : Color(hex: 0xFFF4E2), Color(hex: 0xC9A97A))
-                    printed(&ctx, roof, Crayon.cherry.opacity(0.9), Color(hex: 0x9C3A2E))
-                    ctx.fill(Path(roundedRect: CGRect(x: x - 3, y: y - 1, width: 6, height: 10), cornerRadius: 1), with: .color(Color(hex: 0x8F6A3E)))
+                    house(&ctx, x, y, dark, roof: [Crayon.cherry, Crayon.sky, Crayon.peach, Crayon.lilac][Int(rng.next(0...3.99))])
                 }
             }
             if land == .river && seed % 6 == 3 {
@@ -102,8 +131,9 @@ private struct Ground: View {
             road.move(to: CGPoint(x: w * top, y: 0))
             road.addCurve(to: CGPoint(x: w * mid, y: h / 2), control1: CGPoint(x: w * top, y: h * 0.25), control2: CGPoint(x: w * mid, y: h * 0.25))
             road.addCurve(to: CGPoint(x: w * bottom, y: h), control1: CGPoint(x: w * mid, y: h * 0.75), control2: CGPoint(x: w * bottom, y: h * 0.75))
-            ctx.stroke(road.offsetBy(dx: 0, dy: 2.5), with: .color(dark ? Color(hex: 0x4A3F30) : Color(hex: 0xD9B983)), style: StrokeStyle(lineWidth: 22, lineCap: .round))
-            ctx.stroke(road, with: .color(dark ? Color(hex: 0x6B5B45) : Color(hex: 0xF4E1B8)), style: StrokeStyle(lineWidth: 22, lineCap: .round))
+            ctx.stroke(road.offsetBy(dx: 0, dy: 3), with: .color(Color.black.opacity(dark ? 0.3 : 0.08)), style: StrokeStyle(lineWidth: 24, lineCap: .round))
+            ctx.stroke(road, with: .color(dark ? Color(hex: 0x6B5B45) : Color(hex: 0xEBD3A2)), style: StrokeStyle(lineWidth: 24, lineCap: .round))
+            ctx.stroke(road.offsetBy(dx: -1, dy: -1.5), with: .color(dark ? Color(hex: 0x7C6A52) : Color(hex: 0xF8E8C6)), style: StrokeStyle(lineWidth: 16, lineCap: .round))
             ctx.stroke(road, with: .color(dark ? Color.white.opacity(0.25) : Color.white.opacity(0.8)), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 9]))
     }
 }
@@ -151,11 +181,13 @@ private struct Stop: View {
                         Text(month == 0 ? "出生" : "满 \(month) 个月").font(.subheadline.weight(.bold))
                         if month == 12 || month == 24 || month == 36 { Image(systemName: "birthday.cake.fill").font(.caption).foregroundStyle(Crayon.rose) }
                     }
-                    Text(mo.title).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
-                    HStack(spacing: 8) {
-                        if let b = app.birth { Text(b.plus(months: month).md).font(.caption2).foregroundStyle(.secondary).monospacedDigit() }
-                        if done > 0 { Label("\(done)", systemImage: "checkmark.circle.fill").font(.caption2.weight(.semibold)).foregroundStyle(Palette.accent) }
-                        if care { Image(systemName: "syringe.fill").font(.caption2).foregroundStyle(Crayon.cherry) }
+                    Text(mo.title).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                    if done > 0 || care {
+                        HStack(spacing: 6) {
+                            if done > 0 { IconTile(symbol: "puzzlepiece.fill", color: Crayon.leaf, size: 18); Text("\(done)").font(.caption2.weight(.bold)).monospacedDigit() }
+                            if care { IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 18) }
+                        }
+                        .padding(.top, 2)
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 9)

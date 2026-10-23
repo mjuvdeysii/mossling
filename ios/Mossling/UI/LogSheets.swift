@@ -86,7 +86,6 @@ struct AskSheet: View {
             Text(title).font(.headline)
             TextField(hint, text: $text, axis: .vertical).lineLimit(type == LogType.note ? 3...6 : 1...3).focused($typing)
                 .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                .background(Palette.background)
             if !chips.isEmpty {
                 FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
             }

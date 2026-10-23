@@ -44,7 +44,7 @@ struct GrowthView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("生长曲线")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { Button("记一次测量", systemImage: "plus") { editing = Measure(at: ms(Date())) } }
@@ -177,7 +177,7 @@ struct StatsView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("最近七天")
     }
     private func chart(_ t: String, _ unit: String, _ type: String, _ data: [(Day, Double)]) -> some View {

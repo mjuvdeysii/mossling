@@ -18,8 +18,12 @@ enum Crayon {
     static let lilac = dyn(0x8E6FDB, 0xA98CF0)
     static let caramel = dyn(0xC98A4B, 0xDDA066)
     static let pebble = dyn(0x9A9289, 0xA9A29A)
+    // glass candy: the brighter, clearer tints
+    static let pink = dyn(0xFF6F9C, 0xFF8DB2)
+    static let mint = dyn(0x2EC4A0, 0x4FDDB9)
+    static let peach = dyn(0xFF9466, 0xFFAA82)
     /// The order of the rainbow, for things that cycle.
-    static let rainbow = [cherry, tangerine, sunflower, leaf, sky, lilac, rose, aqua]
+    static let rainbow = [cherry, tangerine, sunflower, leaf, sky, lilac, pink, mint]
     /// The glyph on a crayon: white, except dark on the light sunflower.
     static func glyph(on c: Color) -> Color { c == sunflower ? Color(red: 0.29, green: 0.2, blue: 0) : .white }
 }
@@ -29,8 +33,8 @@ enum Crayon {
 extension LogType {
     static func color(_ t: String) -> Color {
         switch t {
-        case nurse: Crayon.rose; case bottle: Crayon.tangerine; case sleep: Crayon.lilac; case diaper: Crayon.sky; case solid: Crayon.leaf
-        case bath: Crayon.aqua; case temp: Crayon.cherry; case medicine: Crayon.sunflower; case growth: Crayon.caramel; case play: Crayon.leaf
+        case nurse: Crayon.pink; case bottle: Crayon.peach; case sleep: Crayon.lilac; case diaper: Crayon.sky; case solid: Crayon.leaf
+        case bath: Crayon.mint; case temp: Crayon.cherry; case medicine: Crayon.sunflower; case growth: Crayon.caramel; case play: Crayon.leaf
         default: Crayon.pebble
         }
     }

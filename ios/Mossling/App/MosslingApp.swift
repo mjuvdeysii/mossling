@@ -36,7 +36,6 @@ struct RootView: View {
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
     @Namespace private var zoomYou
-    @State private var resuming = false
 
     var body: some View {
         ZStack {
@@ -57,13 +56,11 @@ struct RootView: View {
         .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
 
-    /// Above the tab bar, what is going on: a feed or sleep being timed, or a play started and not yet finished. It
-    /// appears only while there is one, and opens it.
+    /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
     @ViewBuilder private var tabs: some View {
         if #available(iOS 26.2, *) {
-            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty || app.playing != nil) {
+            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
                 if let t = journal.timers.first { TimerAccessory(timer: t) }
-                else if let p = app.playing { PlayingAccessory(play: p.play, step: p.step) { resuming = true } }
             }
         } else {
             tabView
@@ -73,22 +70,19 @@ struct RootView: View {
     private var tabView: some View {
         TabView(selection: $tab) {
             Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
-                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
+                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday).environment(\.hue, .peach)
             }
             Tab("地图", systemImage: "map.fill", value: 1) {
-                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }.environment(\.zoomNS, zoomJourney)
+                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }.environment(\.zoomNS, zoomJourney).environment(\.hue, .mint)
             }
             if app.journal {
                 Tab("手帐", systemImage: "book.closed.fill", value: 2) {
-                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
+                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal).environment(\.hue, .pink)
                 }
             }
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
-                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
+                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou).environment(\.hue, .lilac)
             }
-        }
-        .fullScreenCover(isPresented: $resuming) {
-            if let p = app.playing { StepMode(play: p.play, month: p.month, start: p.step) }
         }
     }
 
@@ -110,7 +104,7 @@ private struct LockView: View {
             Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(Palette.background)
+        .pageBackground()
     }
 }
 
@@ -190,7 +184,7 @@ struct OnboardingView: View {
             }
             .padding(.horizontal, 24).padding(.top, 28).padding(.bottom, 12)
         }
-        .background(Palette.background)
+        .pageBackground()
         .onAppear { withAnimation(.spring(duration: 0.9)) { rise = true } }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in

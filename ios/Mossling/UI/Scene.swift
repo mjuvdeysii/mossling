@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The little scene the companions live in, drawn like a page of a picture book: a flat sky whose colour follows the
-/// hour (dawn, day, dusk, night), a sun or moon, two clouds or a few stars, and grassy hills. Every shape sits on an
-/// offset deeper copy of itself, as the companions do.
+/// hour (dawn, day, dusk, night), a sun or moon, two clouds or a few stars, and grassy hills, each lit softly from
+/// above like everything else in the app.
 struct Sky: View {
     var hour: Int = Day.cal.component(.hour, from: Date())
     @Environment(\.colorScheme) private var scheme
@@ -31,8 +31,10 @@ struct Sky: View {
             let night = p == .night
             ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(sky))
             func printed(_ path: Path, _ fill: Color, _ deep: Color) {
-                ctx.fill(path.offsetBy(dx: 2, dy: 2), with: .color(deep))
-                ctx.fill(path, with: .color(fill))
+                let r = path.boundingRect
+                ctx.fill(path.offsetBy(dx: 0, dy: 3), with: .color(Color.black.opacity(0.08)))
+                ctx.fill(path, with: .linearGradient(Gradient(colors: [fill.mix(with: .white, by: 0.18), fill, deep]),
+                                                     startPoint: CGPoint(x: r.minX, y: r.minY), endPoint: CGPoint(x: r.minX + r.width * 0.25, y: r.maxY)))
             }
             // sun or moon
             let c = CGPoint(x: w * 0.8, y: h * 0.26)

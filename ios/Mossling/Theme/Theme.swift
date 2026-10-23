@@ -84,21 +84,73 @@ enum Typeface {
 
 // MARK: building blocks
 
-/// A white SF Symbol on a filled rounded square, as in Settings: the one way a category is marked across the app.
+/// A category mark: a white SF Symbol on a small rounded tile with depth — the colour lit from the upper left, a gloss
+/// across the top, a fine light edge and a soft coloured shadow, like the icons on the Home Screen. The one way a
+/// category is marked across the app.
 struct IconTile: View {
     let symbol: String
     let color: Color
     var size: CGFloat = 30
+    var round = false
     @ScaledMetric private var scale: CGFloat = 1
     var body: some View {
         let s = size * min(scale, 1.6)
+        let shape = RoundedRectangle(cornerRadius: round ? s / 2 : s * 0.3, style: .continuous)
         Image(systemName: symbol)
-            .font(.system(size: s * 0.5, weight: .semibold))
+            .font(.system(size: s * 0.48, weight: .bold))
             .foregroundStyle(Crayon.glyph(on: color))
+            .shadow(color: .black.opacity(0.18), radius: 0.5, y: 0.6)
             .frame(width: s, height: s)
-            .background(color.gradient, in: RoundedRectangle(cornerRadius: s * 0.27, style: .continuous))
+            .background {
+                ZStack {
+                    shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.28), color, color.mix(with: .black, by: 0.14)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    shape.fill(LinearGradient(colors: [.white.opacity(0.38), .white.opacity(0)], startPoint: .top, endPoint: .center)).padding(s * 0.06)
+                    shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.6), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
+                }
+            }
+            .shadow(color: color.opacity(0.35), radius: s * 0.12, y: s * 0.08)
             .accessibilityHidden(true)
     }
+}
+
+/// The page behind everything: warm paper with large soft washes of colour. Each tab has its own hue — peach for
+/// Today, mint for the map, glass pink for the journal, lilac for Me — and every page opened from a tab keeps it, so
+/// the glass bars above pick up the same light.
+enum Hue { case peach, mint, pink, lilac
+    var colors: (Color, Color) {
+        switch self {
+        case .peach: (Crayon.peach, Crayon.sunflower)
+        case .mint: (Crayon.mint, Crayon.sky)
+        case .pink: (Crayon.pink, Crayon.lilac)
+        case .lilac: (Crayon.lilac, Crayon.sky)
+        }
+    }
+}
+extension EnvironmentValues { @Entry var hue: Hue = .peach }
+
+struct PageBackground: View {
+    @Environment(\.hue) private var hue
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let (a, b) = hue.colors
+        let k = scheme == .dark ? 0.22 : 0.3
+        GeometryReader { g in
+            let w = g.size.width, h = g.size.height
+            ZStack {
+                Palette.background
+                RadialGradient(colors: [a.opacity(k), a.opacity(0)], center: .topLeading, startRadius: 0, endRadius: w * 0.95)
+                RadialGradient(colors: [b.opacity(k * 0.8), b.opacity(0)], center: UnitPoint(x: 1, y: 0.35), startRadius: 0, endRadius: w * 0.8)
+                RadialGradient(colors: [a.opacity(k * 0.6), a.opacity(0)], center: UnitPoint(x: 0.2, y: 1), startRadius: 0, endRadius: max(w, h) * 0.6)
+            }
+        }
+        .ignoresSafeArea()
+        .accessibilityHidden(true)
+    }
+}
+
+extension View {
+    /// The page's background, in the hue of its tab.
+    func pageBackground() -> some View { background { PageBackground() } }
 }
 
 /// A summary card, as in Health: a coloured label line (symbol, title, an optional detail and a chevron when it opens
@@ -123,7 +175,7 @@ struct Card<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .printCard(radius: 26)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 }
@@ -158,18 +210,24 @@ struct SectionTitle: View {
     }
 }
 
-/// The picture-book print: a card laid on the page with a slightly offset, deeper copy beneath it, as the companions
-/// and the pictures are drawn. Used for the things one can pick up — plays, the shelf, the scene, stops on the map.
+/// A surface with depth, the same everywhere: the card colour with a faint light falling from the top, a fine light
+/// edge, and a soft warm shadow under it, so cards sit on the page like objects.
 struct PrintCard: ViewModifier {
     var radius: CGFloat = 24
     var fill: Color = Palette.card
     @Environment(\.colorScheme) private var scheme
     func body(content: Self.Content) -> some View {
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
-            .background(RoundedRectangle(cornerRadius: radius, style: .continuous)
-                .fill(scheme == .dark ? Color.black.opacity(0.6) : Color(hex: 0x6B4A2B).opacity(0.13)).offset(x: 2.5, y: 3))
+            .background {
+                ZStack {
+                    shape.fill(fill)
+                    shape.fill(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.06 : 0.55), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                }
+            }
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(scheme == .dark ? 0.14 : 0.9), .white.opacity(scheme == .dark ? 0.03 : 0.2)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+            .shadow(color: scheme == .dark ? .black.opacity(0.45) : Color(hex: 0x8A5A2B).opacity(0.12), radius: 14, y: 7)
     }
 }
 

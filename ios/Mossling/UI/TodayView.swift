@@ -38,7 +38,7 @@ struct TodayView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("今天")
         .navigationSubtitle([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
         .toolbar {
@@ -95,7 +95,9 @@ private struct SceneCard: View {
 /// Today's play as a material card: the first step's picture, the name, the area and age, and what to do with it.
 private struct PlayHero: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     let play: Play, month: Int, count: Int
+    @State private var cheer = 0
     var body: some View {
         let key = Palette.areaKey(of: play)
         let route = Route.play(play.code, month)
@@ -106,15 +108,18 @@ private struct PlayHero: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Label(play.domains.joined(separator: "、"), systemImage: Palette.areaSymbol(key)).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
                         Text(play.name).font(.title2.weight(.bold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                        Text(play.age).font(.subheadline).foregroundStyle(.secondary)
+                        DoneCount(record: app.record(play, j), cheer: cheer)
                     }
                     .padding(.horizontal, 16).padding(.top, 14)
                 }
             }
             .buttonStyle(.plain)
             HStack(spacing: 10) {
-                NavigationLink(value: route) { Text("开始").padding(.horizontal, 8) }
-                    .buttonStyle(.glassProminent).controlSize(.large)
+                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
+                    Label(app.record(play, j).count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark").padding(.horizontal, 4)
+                }
+                .buttonStyle(.glassProminent).controlSize(.large)
+                .sensoryFeedback(.success, trigger: cheer)
                 if count > 1 {
                     Button("换一个") { withAnimation(.snappy) { app.another() } }.buttonStyle(.glass).controlSize(.large)
                 }
@@ -137,6 +142,7 @@ private struct PlayHero: View {
 /// This week's shelf: a wooden shelf with the week's materials standing on it, and empty places to fill.
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     let month: Int
     let arrange: () -> Void
     var body: some View {
@@ -153,7 +159,7 @@ struct ShelfView: View {
                     ForEach(0..<Shelf.max, id: \.self) { k in
                         if k < s.plays.count {
                             let p = s.plays[k], route = Route.play(p.code, month)
-                            NavigationLink(value: route) { ShelfItem(play: p, did: app.ticked(month, TickKind.did, p.code)) }
+                            NavigationLink(value: route) { ShelfItem(play: p, times: app.record(p, j).count) }
                                 .buttonStyle(.plain).zoomSource(route)
                                 .contextMenu { PlayActions(play: p, month: month) }
                         } else {
@@ -183,14 +189,16 @@ struct ShelfView: View {
 /// One material on the shelf: its picture on a small card, its name below.
 private struct ShelfItem: View {
     let play: Play
-    let did: Bool
+    let times: Int
     var body: some View {
         VStack(spacing: 6) {
             ZStack(alignment: .topTrailing) {
                 if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(1, contentMode: .fit) }
-                if did {
-                    Image(systemName: "checkmark").font(.caption2.weight(.bold)).foregroundStyle(.white)
-                        .frame(width: 20, height: 20).background(Palette.accent, in: Circle()).padding(4)
+                if times > 0 {
+                    Text("×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
+                        .padding(.horizontal, 6).frame(height: 18)
+                        .background(Capsule().fill(LinearGradient(colors: [Palette.beadLight, Palette.bead], startPoint: .top, endPoint: .bottom)))
+                        .padding(4)
                 }
             }
             .printCard(radius: 14)

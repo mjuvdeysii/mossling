@@ -73,7 +73,7 @@ struct Box<Content: View>: View {
             if let title { SectionTitle(title: title, detail: detail) }
             VStack(alignment: .leading, spacing: 0) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Palette.card, in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                .printCard(radius: 26)
             if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16) }
         }
     }
@@ -177,7 +177,7 @@ struct BlocksView: View {
                                 }
                             }
                             .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                            .printCard(radius: 22)
                         }
                     }
                 default:

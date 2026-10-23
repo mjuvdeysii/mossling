@@ -81,7 +81,7 @@ struct YouView: View {
                 NavigationLink(value: Route.about) { Label { Text("关于芽芽月历") } icon: { IconTile(symbol: "info", color: Crayon.pebble) } }
             }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("我的")
         .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting, contentType: exportName.hasSuffix(".csv") ? .commaSeparatedText : .json, defaultFilename: exportName) { r in
             if case .success = r { message = "已导出" }
@@ -134,7 +134,7 @@ struct AboutView: View {
                 Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。").padding(.top, 8)
             }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("关于").navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -152,7 +152,7 @@ struct DocView: View {
             }
             .padding(.horizontal, 20).padding(.bottom, 40)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationBarTitleDisplayMode(.inline)
     }
 
@@ -201,7 +201,7 @@ struct SourcesView: View {
                 }
             } header: { Text("参考文献 · \(app.content.sources.count + 1) 项") }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("内容来源")
     }
 }
@@ -216,7 +216,7 @@ struct LicensesView: View {
                 row("SwiftUI · Swift Charts · WidgetKit · ActivityKit", "Apple SDK", "© Apple Inc.")
             }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("许可与致谢")
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {

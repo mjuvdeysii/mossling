@@ -13,7 +13,7 @@ struct TopicView: View {
             }
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 40)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle(topic.title).navigationBarTitleDisplayMode(.large)
     }
 }
@@ -46,7 +46,7 @@ struct SearchView: View {
                 ContentUnavailableView.search(text: t)
             }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "活动、月份、专题")
         .navigationTitle("搜索")
     }
@@ -81,7 +81,7 @@ struct PlanView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden).background(Palette.background)
+        .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("本周的架子")
     }
     private func playLabel(_ p: Play) -> some View {

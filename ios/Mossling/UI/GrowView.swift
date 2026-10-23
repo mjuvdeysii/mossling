@@ -11,18 +11,28 @@ enum Land: Int, CaseIterable {
     var symbol: String { switch self { case .meadow: "leaf.fill"; case .forest: "tree.fill"; case .river: "house.fill" } }
 }
 
-/// A stepping stone with the month on it: coloured for months lived, gold for the child's month, white ahead.
+/// A bead with the month on it, like the beads of a Montessori bead chain: a glossy sphere in the land's colour for
+/// months lived, a larger golden one for the child's month, a pale glass one for months ahead.
 struct Bead: View {
     let month: Int, here: Bool, past: Bool
     var body: some View {
-        let d: CGFloat = here ? 46 : 36
-        let c = Land.of(month).crayon
-        Text("\(month)").font(Typeface.numerals(here ? 18 : 14, relativeTo: .footnote, weight: .bold))
-            .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Crayon.glyph(on: c) : Color.secondary)
-            .frame(width: d, height: d)
-            .background(Circle().fill(here ? Palette.bead : past ? c : Palette.card))
-            .overlay { if !here && !past { Circle().strokeBorder(c.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [4, 3])) } }
-            .background(Circle().fill(Color.black.opacity(0.16)).offset(x: 2, y: 2.5))
+        let d: CGFloat = here ? 48 : 38
+        let c = here ? Palette.bead : Land.of(month).crayon
+        ZStack {
+            if here || past {
+                Circle().fill(RadialGradient(colors: [c.mix(with: .white, by: 0.45), c, c.mix(with: .black, by: 0.28)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
+            } else {
+                Circle().fill(RadialGradient(colors: [.white.opacity(0.95), c.mix(with: .white, by: 0.7).opacity(0.9)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
+                Circle().strokeBorder(c.opacity(0.45), lineWidth: 1.5)
+            }
+            Ellipse().fill(LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
+                .frame(width: d * 0.46, height: d * 0.26).offset(x: -d * 0.12, y: -d * 0.24)
+            Text("\(month)").font(Typeface.numerals(here ? 19 : 15, relativeTo: .footnote, weight: .bold))
+                .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Color.white : c.mix(with: .black, by: 0.35))
+                .shadow(color: .black.opacity(past ? 0.25 : 0), radius: 0.5, y: 0.6)
+        }
+        .frame(width: d, height: d)
+        .shadow(color: c.opacity(0.4), radius: here ? 8 : 4, y: here ? 5 : 3)
     }
 }
 
@@ -50,7 +60,7 @@ struct MonthView: View {
             }
             .padding(.bottom, 40)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
         .navigationBarTitleDisplayMode(.large)
     }
@@ -76,44 +86,47 @@ private struct MonthBody: View {
             let plays = c.plays(of: m)
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(title: "一起玩", detail: "\(app.count(m, TickKind.did)) / \(plays.count) 做过")
+                    SectionTitle(title: "一起玩", detail: "做过 \(app.count(m, TickKind.did)) / \(plays.count)")
                     LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                         ForEach(plays) { p in PlayTileLink(play: p, month: m) }
                     }
                 }
             }
 
-            // everything else of the month, one row each; each opens its own page
-            Box(title: "这个月") {
-                NavigationLink(value: Route.areas(m)) {
-                    BoxRow(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", text: mo.domains.first { $0.key == mo.focus }.map { "本月重点：\($0.name)" }, opens: true)
-                }.buttonStyle(.plain)
-                if !mo.observe.isEmpty {
-                    let total = mo.observe.reduce(0) { $0 + $1.items.count }
-                    NavigationLink(value: Route.observe(m)) {
-                        BoxRow(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", text: "\(total) 项", opens: true) { Ring(done: app.count(m, TickKind.observed), total: total, color: Crayon.sky) }
+            // the rest of the month as tiles: a picture, a word, and how much is recorded; each opens its own page
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(title: "这个月")
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                    NavigationLink(value: Route.areas(m)) {
+                        MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 · \($0.name)" }) { EmptyView() }
+                    }.buttonStyle(.plain)
+                    if !mo.observe.isEmpty {
+                        let total = mo.observe.reduce(0) { $0 + $1.items.count }
+                        NavigationLink(value: Route.observe(m)) {
+                            MonthTile(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", note: "\(app.count(m, TickKind.observed)) / \(total)") { Ring(done: app.count(m, TickKind.observed), total: total, color: Crayon.sky) }
+                        }.buttonStyle(.plain)
+                    }
+                    if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
+                        let total = mo.vaccines.count + mo.checkups.count
+                        let done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
+                        NavigationLink(value: Route.care(m)) {
+                            MonthTile(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", note: "\(done) / \(total)") { Ring(done: done, total: total, color: Crayon.pink) }
+                        }.buttonStyle(.plain)
+                    }
+                    if !mo.notes.isEmpty {
+                        NavigationLink(value: Route.notes(m)) {
+                            MonthTile(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", note: "\(mo.notes.count) 条") { EmptyView() }
+                        }.buttonStyle(.plain)
+                    }
+                    if !mo.who.isEmpty {
+                        NavigationLink(value: Route.rhythm(m)) {
+                            MonthTile(symbol: "sun.and.horizon.fill", color: Crayon.peach, title: "一天的节奏", note: "睡眠 · 活动 · 屏幕") { EmptyView() }
+                        }.buttonStyle(.plain)
+                    }
+                    NavigationLink(value: JournalRoute.growth) {
+                        MonthTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO 标准") { EmptyView() }
                     }.buttonStyle(.plain)
                 }
-                if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-                    let total = mo.vaccines.count + mo.checkups.count
-                    let done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-                    NavigationLink(value: Route.care(m)) {
-                        BoxRow(symbol: "syringe.fill", color: Crayon.cherry, title: "接种与儿保", text: "\(mo.vaccines.count) 项接种 · \(mo.checkups.count) 项儿保", opens: true) { Ring(done: done, total: total, color: Crayon.cherry) }
-                    }.buttonStyle(.plain)
-                }
-                if !mo.notes.isEmpty {
-                    NavigationLink(value: Route.notes(m)) {
-                        BoxRow(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", text: mo.notes.map(\.topic).joined(separator: "、"), opens: true)
-                    }.buttonStyle(.plain)
-                }
-                if !mo.who.isEmpty {
-                    NavigationLink(value: Route.rhythm(m)) {
-                        BoxRow(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", text: "睡眠、活动与屏幕", opens: true)
-                    }.buttonStyle(.plain)
-                }
-                NavigationLink(value: JournalRoute.growth) {
-                    BoxRow(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", last: true, opens: true)
-                }.buttonStyle(.plain)
             }
 
             Box(title: "专题") {
@@ -127,28 +140,54 @@ private struct MonthBody: View {
     }
 }
 
+/// One part of the month as a tile: its icon large, its name, a short note, and a ring when there is something to tick.
+struct MonthTile<Accessory: View>: View {
+    let symbol: String, color: Color, title: String
+    var note: String? = nil
+    @ViewBuilder let accessory: Accessory
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                IconTile(symbol: symbol, color: color, size: 42)
+                Spacer()
+                accessory
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text(note ?? " ").font(.footnote).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: 22)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 /// A play tile that opens its page with a zoom, and offers the common actions on a long press.
 struct PlayTileLink: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     let play: Play, month: Int
     var body: some View {
         let route = Route.play(play.code, month)
-        let did = app.ticked(month, TickKind.did, play.code)
-        NavigationLink(value: route) { PlayTile(play: play, did: did) }
+        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count) }
             .buttonStyle(.plain)
             .zoomSource(route)
             .contextMenu { PlayActions(play: play, month: month) }
     }
 }
 
-/// The actions on a play, for its context menu: done, on the shelf, share.
+/// The actions on a play, for its menus: done once more, take back the last time, on the shelf, share.
 struct PlayActions: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     let play: Play, month: Int
     var body: some View {
-        let did = app.ticked(month, TickKind.did, play.code)
+        let rec = app.record(play, j)
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
-        Button(did ? "取消「做过」" : "记为做过", systemImage: did ? "arrow.uturn.backward" : "checkmark.circle") { app.toggle(month, TickKind.did, play.code, play.name) }
+        Button(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) }
+        if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         if shelf.contains(play.code) {
             Button("从架子上拿下", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
         } else if shelf.count < Shelf.max {
@@ -174,7 +213,7 @@ struct AreasView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("六个方面")
         .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
@@ -206,7 +245,7 @@ struct CareView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("接种与儿保")
         .navigationSubtitle(app.birth.map { "满 \(m) 个月 · \($0.plus(months: m).md)" } ?? "满 \(m) 个月")
     }
@@ -228,7 +267,7 @@ struct NotesView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("还要知道")
         .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
@@ -253,7 +292,7 @@ struct RhythmView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("一天的节奏")
         .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
@@ -262,17 +301,20 @@ struct RhythmView: View {
 /// A play in the month's grid: its first picture, its name, its age.
 struct PlayTile: View {
     let play: Play
-    let did: Bool
+    let times: Int
     var body: some View {
         let key = Palette.areaKey(of: play)
         VStack(alignment: .leading, spacing: 0) {
             ZStack(alignment: .topTrailing) {
                 if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(4 / 3, contentMode: .fit) }
                 else { Palette.fill.aspectRatio(4 / 3, contentMode: .fit) }
-                if did {
-                    Image(systemName: "checkmark").font(.footnote.weight(.bold)).foregroundStyle(.white)
-                        .frame(width: 28, height: 28).background(Palette.accent, in: Circle()).padding(8)
-                        .accessibilityLabel("这个月做过")
+                if times > 0 {
+                    Text("×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
+                        .padding(.horizontal, 8).frame(height: 24)
+                        .background(Capsule().fill(LinearGradient(colors: [Palette.beadLight, Palette.bead], startPoint: .top, endPoint: .bottom)))
+                        .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
+                        .padding(8)
+                        .accessibilityLabel("做过 \(times) 次")
                 }
             }
             VStack(alignment: .leading, spacing: 3) {
@@ -311,7 +353,7 @@ struct ObserveView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
-        .background(Palette.background)
+        .pageBackground()
         .navigationTitle("可以留意")
         .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
     }
