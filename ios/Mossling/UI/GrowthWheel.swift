@@ -34,7 +34,9 @@ struct GrowthWheel: View {
                         .background(Capsule().fill(.white.opacity(0.7)))
                 }
                 .foregroundStyle(Color(hex: 0x2E2418))
-                .padding(16)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .glassEffect(.regular.tint(.white.opacity(0.35)), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(12)
                 .accessibilityElement(children: .combine)
             }
             .frame(height: 210)
@@ -68,6 +70,12 @@ private struct MonthDial: View {
     @State private var pos: Int?
     private let item: CGFloat = 46
 
+    init(month: Binding<Int>, baby: Int) {
+        _month = month
+        self.baby = baby
+        _pos = State(initialValue: month.wrappedValue)   // centred on the chosen month from the first frame
+    }
+
     var body: some View {
         GeometryReader { g in
             ScrollView(.horizontal, showsIndicators: false) {
@@ -85,9 +93,9 @@ private struct MonthDial: View {
                             let mid = proxy.frame(in: .scrollView).midX
                             let d = (mid - g.size.width / 2) / (g.size.width / 2)
                             return content
-                                .rotation3DEffect(.degrees(Double(d) * 50), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-                                .scaleEffect(1 - min(0.35, abs(d) * 0.35))
-                                .opacity(1 - min(0.6, abs(d) * 0.6))
+                                .rotation3DEffect(.degrees(Double(d) * 32), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+                                .scaleEffect(1 - min(0.25, abs(d) * 0.25))
+                                .opacity(1 - min(0.45, abs(d) * 0.45))
                         }
                         .id(m)
                         .onTapGesture { withAnimation(.snappy) { pos = m } }
@@ -108,8 +116,7 @@ private struct MonthDial: View {
             }
         }
         .frame(height: 64)
-        .onAppear { pos = month }
-        .onChange(of: pos) { _, p in if let p, p != month { month = p } }
+                .onChange(of: pos) { _, p in if let p, p != month { month = p } }
         .onChange(of: month) { _, m in if pos != m { withAnimation(.snappy) { pos = m } } }
         .sensoryFeedback(.selection, trigger: pos)
         .accessibilityElement(children: .ignore)
