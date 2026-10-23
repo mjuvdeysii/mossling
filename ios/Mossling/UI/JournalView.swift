@@ -100,6 +100,9 @@ private struct StickerSheet: View {
             .padding(.vertical, 16).padding(.horizontal, 8)
             .printCard(radius: 26)
         }
+        // five across must fit the narrowest phone: past the largest standard size the stickers stop growing and a
+        // long press shows the large-content viewer instead
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 
@@ -112,8 +115,8 @@ private struct Sticker: View {
             VStack(spacing: 4) {
                 IconTile(symbol: running ? "stop.fill" : LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
-                Text(running ? "结束" : LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
-                Text(running ? "进行中" : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1)
+                Text(running ? "结束" : LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+                Text(running ? "进行中" : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -121,6 +124,7 @@ private struct Sticker: View {
         .sensoryFeedback(.impact(weight: .light), trigger: running)
         .accessibilityLabel(running ? "\(LogType.name(type))进行中，结束" : LogType.name(type))
         .accessibilityValue(since ?? "")
+        .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
     }
 }
 
@@ -146,8 +150,10 @@ private struct WeekStrip: View {
                 .buttonStyle(.toy)
                 .accessibilityLabel("\(d.md) \(d.weekday)")
                 .accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityShowsLargeContentViewer { Text("\(d.md) \(d.weekday)") }
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // seven across must fit
     }
 }
 

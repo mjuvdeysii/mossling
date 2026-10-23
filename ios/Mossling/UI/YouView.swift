@@ -43,7 +43,7 @@ struct YouView: View {
                         Button { withAnimation(.snappy) { app.companion = k } } label: {
                             HStack(spacing: 8) {
                                 Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.8 : -0.8, y: 0)).frame(width: 40, height: 40)
-                                Text(k.rawValue).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                Text(k.rawValue).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.6)
                                 Spacer(minLength: 0)
                                 Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
                             }
