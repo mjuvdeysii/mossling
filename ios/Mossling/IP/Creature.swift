@@ -155,6 +155,9 @@ struct Creature: View {
         c.clip(to: p)
         c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.14, y: r.minY + r.height * 0.06, width: r.width * 0.5, height: r.height * 0.26)),
                with: .radialGradient(Gradient(colors: [.white.opacity(0.32), .white.opacity(0)]), center: CGPoint(x: r.minX + r.width * 0.36, y: r.minY + r.height * 0.16), startRadius: 0, endRadius: r.width * 0.28))
+        // the edge turns away from the light, and a small bright spot where the light lands
+        c.stroke(p, with: .color(deep.opacity(0.45)), lineWidth: 3.2)
+        c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.26, y: r.minY + r.height * 0.12, width: r.width * 0.12, height: r.height * 0.07)), with: .color(.white.opacity(0.55)))
         c.fill(Path(ellipseIn: CGRect(x: r.minX + r.width * 0.2, y: r.maxY - r.height * 0.14, width: r.width * 0.6, height: r.height * 0.2)),
                with: .radialGradient(Gradient(colors: [fill.mix(with: .white, by: 0.3).opacity(0.35), .clear]), center: CGPoint(x: r.midX, y: r.maxY - r.height * 0.04), startRadius: 0, endRadius: r.width * 0.3))
     }

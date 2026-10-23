@@ -40,12 +40,12 @@ def family(domains):
     if any(k in d for k in ["语言", "表达", "共读"]): return "Words"
     return "Together"
 
-if IOS:  # warm paper and the crayon box
-    P.update(chalk="#FBF6EE", paper="#FFFDF8", linen="#F1E6D3", stone="#E3D5BE", ink="#2E2418", ink2="#5A4A38",
-             moss="#5DAE5B", mossD="#3F7A34", sprout="#A9D18E", rod="#3E7BD0", rodL="#6FA3E6", bead="#F2B526", beadL="#FFD978",
-             wood="#D6A46A", woodD="#A9773F", red="#EF5B4C", pink="#F4A9B8", pinkL="#FBD7DF", sky="#BFE3F7", water="#7FC1E8")
-    FIELD.update({"Words": ("#DCEBFB", "#BFD9F5", "cookie"), "Hands": ("#FDE6CC", "#F9CFA2", "pill"), "Mind": ("#FFF1BF", "#FBE08A", "clover"),
-                  "Together": ("#FCDDE6", "#F7BFD0", "flower"), "Senses": ("#D3F0E9", "#AEE3D7", "burst"), "Life": ("#F1E5D3", "#E5CFAE", "arch")})
+if IOS:  # Apple's light grey stage and candy-coloured, glossy objects
+    P.update(chalk="#F5F5F7", paper="#FFFFFF", linen="#ECE7F3", stone="#DCD8E2", ink="#3A2E40", ink2="#6A5E70",
+             moss="#7CC66B", mossD="#4E9A48", sprout="#B5E08F", rod="#6C9CF0", rodL="#8DB6F5", bead="#F7C948", beadL="#FFE08A",
+             wood="#E9B98A", woodD="#C98F5E", red="#F2787A", pink="#F49AC8", pinkL="#FAD0E6", sky="#C9E3FA", water="#8CCBF0")
+    FIELD.update({"Words": ("#E3DDFB", "#C9BDF7", "cookie"), "Hands": ("#FCE1EC", "#F7B9D3", "pill"), "Mind": ("#FFEFC9", "#FBD98F", "clover"),
+                  "Together": ("#FBDDE9", "#F5B3D0", "flower"), "Senses": ("#D6F3EF", "#A9E5DC", "burst"), "Life": ("#FDE5D6", "#F7C3A3", "arch")})
 
 # ---------- expressive shapes ----------
 def polar(cx, cy, r, n, amp, k=180, phase=0.0):
@@ -75,7 +75,7 @@ class S:
     def add(self, s): self.parts.append(s); return self
     def svg(self, w=W, h=H):
         body = "".join(self.parts)
-        if IOS: body = glassy(printed(body))
+        if IOS: body = plastic(soft_shadow(body))
         return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + self.bg + body + "</svg>"
 
 def _mix(hexc, t, to):
@@ -90,6 +90,28 @@ def glassy(body):
         f'<stop offset=".55" stop-color="#{c}"/><stop offset="1" stop-color="#{_mix(c, .12, 0)}"/></linearGradient>' for c in cols)
     body = re.sub(r'fill="#([0-9A-Fa-f]{6})"', lambda m: f'fill="url(#g{m.group(1)})"', body)
     return f"<defs>{defs}</defs>" + body
+
+def plastic(body):
+    """Glossy, candy-coloured objects, as in Apple's own illustrations: round things (circles, ellipses) shaded as spheres
+    with the light high on the left, everything else as a lit surface — light at the top left, the colour, a deeper
+    edge at the bottom right — so flat shapes read as moulded plastic."""
+    cols = sorted(set(re.findall(r'fill="#([0-9A-Fa-f]{6})"', body)))
+    defs = "".join(
+        f'<radialGradient id="r{c}" cx=".34" cy=".3" r=".78"><stop offset="0" stop-color="#{_mix(c, .62, 255)}"/>'
+        f'<stop offset=".42" stop-color="#{c}"/><stop offset="1" stop-color="#{_mix(c, .26, 0)}"/></radialGradient>'
+        f'<linearGradient id="l{c}" x1="0" y1=".1" x2="1" y2=".55"><stop offset="0" stop-color="#{_mix(c, .08, 0)}"/>'
+        f'<stop offset=".28" stop-color="#{_mix(c, .45, 255)}"/><stop offset=".62" stop-color="#{c}"/><stop offset="1" stop-color="#{_mix(c, .24, 0)}"/></linearGradient>' for c in cols)
+    def round_(m):
+        return re.sub(r'fill="#([0-9A-Fa-f]{6})"', lambda k: f'fill="url(#r{k.group(1)})"', m.group(0))
+    body = re.sub(r'<(circle|ellipse)\b[^>]*>', round_, body)
+    body = re.sub(r'fill="#([0-9A-Fa-f]{6})"', lambda m: f'fill="url(#l{m.group(1)})"', body)
+    return f"<defs>{defs}</defs>" + body
+
+def soft_shadow(body):
+    """A soft shadow under the whole drawing, from a few faint, spreading copies of it."""
+    shade = re.sub(r'(fill|stroke)="#[0-9A-Fa-f]{6}"', r'\1="#5A4A70"', body)
+    shade = re.sub(r'fill="url\(#[^)]*\)"', 'fill="#5A4A70"', shade)
+    return "".join(f'<g transform="translate({dx} {dy})" opacity="{a}">{shade}</g>' for dx, dy, a in ((2, 5, .05), (4, 11, .04), (7, 18, .03))) + body
 
 def printed(body):
     """The picture-book print: the whole drawing laid over an offset, darker copy of itself (all colours made one warm
@@ -266,12 +288,13 @@ def frame(fam, step_index, seed=0):
     # the expressive field, placed differently on each step so a sequence feels alive but never noisy
     spots = [(420, 250, 250), (300, 240, 240), (380, 230, 265), (460, 260, 240), (340, 250, 250)]
     cx, cy, r = spots[(step_index + seed) % len(spots)]
-    s.add(f'<path d="{shape(kind, cx, cy, r)}" fill="{tint}"/>')
+    rim = ' stroke="#FFFFFF" stroke-opacity=".9" stroke-width="3"' if IOS else ""
+    s.add(f'<path d="{shape(kind, cx, cy, r)}" fill="{tint}" fill-opacity="{.6 if IOS else 1}"{rim}/>')
     s.add(f'<path d="{shape(kind, cx + r * .72, cy - r * .74, r * .2)}" fill="{deep}"/>')
     return s
 
 ADULT = P["moss"]; ADULT2 = P["rod"]; CHILD = P["bead"]; CHILD2 = P["red"]
-if IOS: ADULT = "#EE9677"; CHILD = P["bead"]; CHILD2 = P["rod"]
+if IOS: ADULT = "#F28DA6"; CHILD = P["bead"]; CHILD2 = P["rod"]
 
 # ---------- the companions (the same drawings as in the app) ----------
 MINT = json.load(open(os.path.join(ROOT, "tools", "mint.json")))
@@ -447,7 +470,8 @@ def render(svg, path, width):
     png = cairosvg.svg2png(bytestring=svg.encode(), output_width=width)
     im = Image.open(io.BytesIO(png)).convert("RGB")
     # flat shapes: lossless keeps every edge as sharp as the interface around it
-    im.save(path, "WEBP", lossless=True, quality=100, method=6)
+    if IOS: im.save(path, "WEBP", quality=90, method=6)  # soft gradients: lossy keeps the set small with no visible loss
+    else: im.save(path, "WEBP", lossless=True, quality=100, method=6)
     return im.size
 
 def main():

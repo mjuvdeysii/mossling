@@ -32,7 +32,7 @@ enum Palette {
     static let stone = Color(uiColor: .systemGray4)
 
     static let accent = Color.dyn(0x2E8B3A, 0x66CC66)
-    static let background = Color.dyn(0xFBF6EE, 0x0F0E0C)
+    static let background = Color.dyn(0xF5F5F7, 0x000000)
     static let card = Color(uiColor: .secondarySystemGroupedBackground)
     static let fill = Color.dyn(0xF2EBE0, 0x2A2723)
     static let text = Color.primary
@@ -103,7 +103,7 @@ struct IconTile: View {
             .frame(width: s, height: s)
             .background {
                 ZStack {
-                    shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.28), color, color.mix(with: .black, by: 0.14)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.34), color, color.mix(with: Crayon.pink, by: 0.22).mix(with: .black, by: 0.08)], startPoint: .topLeading, endPoint: .bottomTrailing))
                     shape.fill(LinearGradient(colors: [.white.opacity(0.38), .white.opacity(0)], startPoint: .top, endPoint: .center)).padding(s * 0.06)
                     shape.strokeBorder(LinearGradient(colors: [.white.opacity(0.6), .white.opacity(0.05)], startPoint: .top, endPoint: .bottom), lineWidth: 0.8)
                 }
@@ -133,7 +133,7 @@ struct PageBackground: View {
     @Environment(\.colorScheme) private var scheme
     var body: some View {
         let (a, b) = hue.colors
-        let k = scheme == .dark ? 0.22 : 0.3
+        let k = scheme == .dark ? 0.16 : 0.16
         GeometryReader { g in
             let w = g.size.width, h = g.size.height
             ZStack {
