@@ -137,9 +137,10 @@
     "e": "flat",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": -6
    },
    "child": {
     "pose": "lieback",
@@ -857,7 +858,8 @@
      null,
      null
     ],
-    "tilt": 8
+    "tilt": 8,
+    "lean": 30
    },
    "child": {
     "pose": "lieback",
@@ -903,10 +905,14 @@
     "e": "talk",
     "look": "child.head",
     "hands": [
-     null,
+     [
+      400,
+      340
+     ],
      null
     ],
-    "tilt": 8
+    "tilt": 8,
+    "lean": 20
    },
    "child": {
     "pose": "lieback",
@@ -951,10 +957,11 @@
     "e": "flat",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.chin",
      null
     ],
-    "tilt": 8
+    "tilt": 8,
+    "lean": -6
    },
    "child": {
     "pose": "lieback",
@@ -1009,10 +1016,11 @@
     "e": "wow",
     "look": "child.head",
     "hands": [
-     null,
+     "child.hand",
      null
     ],
-    "tilt": 8
+    "tilt": 8,
+    "lean": 26
    },
    "child": {
     "pose": "lieback",
@@ -1021,7 +1029,10 @@
     "e": "talk",
     "look": "adult.head",
     "hands": [
-     null,
+     [
+      420,
+      360
+     ],
      null
     ],
     "f": -1,
@@ -1124,7 +1135,8 @@
       380
      ],
      null
-    ]
+    ],
+    "lean": -8
    },
    "child": {
     "pose": "sit",
@@ -1553,9 +1565,10 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     "adult.lap",
-     "adult.lap"
-    ]
+     "child.hand",
+     null
+    ],
+    "lean": 18
    },
    "child": {
     "pose": "lieback",
@@ -1787,7 +1800,8 @@
       398
      ],
      null
-    ]
+    ],
+    "lean": 16
    },
    "child": {
     "pose": "sit",
@@ -1830,9 +1844,13 @@
     "e": "talk",
     "look": "child.head",
     "hands": [
-     null,
+     [
+      350,
+      330
+     ],
      null
-    ]
+    ],
+    "lean": 8
    },
    "child": {
     "pose": "sit",
@@ -1883,9 +1901,10 @@
     "e": "flat",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": -8
    },
    "child": {
     "pose": "sit",
@@ -1894,7 +1913,10 @@
     "e": "talk",
     "look": "adult.head",
     "hands": [
-     null,
+     [
+      400,
+      400
+     ],
      null
     ]
    }
@@ -1987,9 +2009,10 @@
      180
     ],
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": -4
    },
    "child": {
     "pose": "sit",
@@ -2084,7 +2107,8 @@
     "hands": [
      "adult.lap",
      "adult.lap"
-    ]
+    ],
+    "lean": -8
    },
    "child": {
     "pose": "sit",
@@ -2149,7 +2173,8 @@
       320,
       280
      ]
-    ]
+    ],
+    "lean": 10
    },
    "child": {
     "pose": "sit",
@@ -2307,9 +2332,13 @@
      420
     ],
     "hands": [
-     null,
+     [
+      400,
+      420
+     ],
      null
-    ]
+    ],
+    "lean": 14
    },
    "child": {
     "pose": "sit",
@@ -2457,9 +2486,11 @@
      300
     ],
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": 10,
+    "tilt": 12
    },
    "child": {
     "pose": "sit",
@@ -2474,7 +2505,8 @@
      null,
      null
     ],
-    "f": 1
+    "f": 1,
+    "lean": 10
    },
    "zoom": 1.25
   },
@@ -2512,7 +2544,8 @@
       320
      ],
      null
-    ]
+    ],
+    "lean": 14
    },
    "child": {
     "pose": "sit",
@@ -3196,9 +3229,10 @@
     "e": "wow",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.ear",
      null
-    ]
+    ],
+    "lean": 6
    },
    "child": {
     "pose": "sit",
@@ -3310,9 +3344,13 @@
      400
     ],
     "hands": [
-     null,
+     [
+      390,
+      360
+     ],
      null
-    ]
+    ],
+    "lean": 14
    },
    "child": {
     "pose": "sit",
@@ -3503,9 +3541,13 @@
      380
     ],
     "hands": [
-     null,
+     [
+      380,
+      340
+     ],
      null
-    ]
+    ],
+    "lean": 12
    },
    "child": {
     "pose": "sit",
@@ -3742,9 +3784,10 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": -4
    },
    "child": {
     "pose": "stand",
@@ -3801,7 +3844,8 @@
       300
      ],
      null
-    ]
+    ],
+    "lean": 12
    },
    "child": {
     "pose": "stand",
@@ -3858,9 +3902,10 @@
     "e": "flat",
     "look": "child.head",
     "hands": [
-     null,
-     null
-    ]
+     "adult.lap",
+     "adult.lap"
+    ],
+    "lean": -8
    },
    "child": {
     "pose": "stand",
@@ -4743,14 +4788,15 @@
     "look": "child.head",
     "hands": [
      [
-      360,
-      300
+      350,
+      270
      ],
      [
-      320,
-      310
+      315,
+      285
      ]
-    ]
+    ],
+    "lean": 14
    },
    "child": {
     "pose": "stand",
@@ -4761,7 +4807,8 @@
     "hands": [
      null,
      null
-    ]
+    ],
+    "tilt": 10
    }
   },
   {
@@ -4810,7 +4857,8 @@
       320,
       310
      ]
-    ]
+    ],
+    "lean": -6
    },
    "child": {
     "pose": "stand",
@@ -5163,7 +5211,8 @@
     "hands": [
      "adult.lap",
      "adult.lap"
-    ]
+    ],
+    "lean": -8
    },
    "child": {
     "pose": "sit",
@@ -5575,9 +5624,13 @@
      380
     ],
     "hands": [
-     null,
+     [
+      400,
+      340
+     ],
      null
-    ]
+    ],
+    "lean": 12
    },
    "child": {
     "pose": "sit",
@@ -5952,9 +6005,13 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     "adult.lap",
-     "adult.lap"
-    ]
+     [
+      400,
+      320
+     ],
+     null
+    ],
+    "lean": 10
    },
    "child": {
     "pose": "sit",
@@ -6566,15 +6623,10 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     [
-      320,
-      230
-     ],
-     [
-      310,
-      240
-     ]
-    ]
+     null,
+     null
+    ],
+    "lean": -4
    },
    "child": {
     "pose": "stand",
@@ -6620,9 +6672,10 @@
     "e": "talk",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.chin",
      null
-    ]
+    ],
+    "lean": -4
    },
    "child": {
     "pose": "sit",
@@ -6665,7 +6718,8 @@
       330
      ],
      null
-    ]
+    ],
+    "lean": 10
    },
    "child": {
     "pose": "sit",
@@ -6710,9 +6764,10 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     null,
+     "adult.ear",
      null
-    ]
+    ],
+    "lean": 12
    },
    "child": {
     "pose": "sit",
@@ -6722,8 +6777,8 @@
     "look": "adult.head",
     "hands": [
      [
-      460,
-      320
+      430,
+      340
      ],
      null
     ]
@@ -7759,9 +7814,13 @@
     "e": "smile",
     "look": "child.head",
     "hands": [
-     null,
+     [
+      380,
+      330
+     ],
      null
-    ]
+    ],
+    "lean": 12
    },
    "child": {
     "pose": "sit",
@@ -7770,8 +7829,14 @@
     "e": "talk",
     "look": "adult.head",
     "hands": [
-     null,
-     null
+     [
+      520,
+      300
+     ],
+     [
+      540,
+      305
+     ]
     ]
    }
   }

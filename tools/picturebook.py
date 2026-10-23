@@ -136,8 +136,9 @@ POSES = {
 
 class Person:
     def __init__(s, kind, pose, x, face=1, age=30, top=None, leg=None, expr="smile", look=None, hands=(None, None),
-                 hair=None, at=None, tilt=0, girl=False):
+                 hair=None, at=None, tilt=0, girl=False, lean=0):
         s.kind, s.pose, s.f, s.age, s.expr, s.look, s.tilt = kind, pose, face, age, expr, look, tilt
+        s.lean = lean   # body language: + leans in toward the face direction (engaging), - sits back (waiting)
         s.girl = girl
         if girl and top is None: top = GIRL_TOP
         s.d = dims(kind, age)
@@ -156,7 +157,8 @@ class Person:
             s.hip = s.sh = s.bundle_c; s.legs = [(s.bundle_c, s.bundle_c)] * 2; s.arms = [(s.bundle_c,) * 3] * 2
             s.shN = s.shF = s.bundle_c
             return
-        d, p, f = s.d, POSES[s.pose], s.f
+        d, p, f = s.d, dict(POSES[s.pose]), s.f
+        p["torso"] = p["torso"] + s.lean
         hip = (0.0, 0.0)
         sh = add(hip, polar(p["torso"], d["torso"], f))
         legs = []
@@ -184,6 +186,10 @@ class Person:
             tgt = s.targets[k] if s.targets and k < len(s.targets) else None
             if tgt is not None:
                 elbow, hand = ik(shp, tgt, d["ua"], d["fa"], bend=(1 if f > 0 else -1) * (1 if p["torso"] > 40 else -1))
+                if dist(tgt, s.headc) < d["head"] * 1.6:
+                    # a hand at one's own face (chin, ear, mouth): the elbow hangs low in front of the chest
+                    e2, h2 = ik(shp, tgt, d["ua"], d["fa"], bend=-(1 if f > 0 else -1) * (1 if p["torso"] > 40 else -1))
+                    if e2[1] > elbow[1]: elbow, hand = e2, h2
             else:
                 elbow = add(shp, polar(ua, d["ua"], f)); hand = add(elbow, polar(fa, d["fa"], f))
             s.arms.append((shp, elbow, hand))
@@ -791,6 +797,12 @@ def scene(spec, area, sv=None):
         if part == "chest": return ((p.hip[0] + p.sh[0]) / 2 + p.f * p.d["tw"] * .3, (p.hip[1] + p.sh[1]) / 2)
         if part == "under" and p.pose == "bundle": return (p.bundle_c[0] - p.f * 10, p.bundle_c[1] + p.d["tw"] * .55)
         if part == "under2" and p.pose == "bundle": return (p.bundle_c[0] + p.f * p.d["torso"] * .5, p.bundle_c[1] + p.d["tw"] * .4)
+        # gestures toward one's own face: a hand at the chin (thinking, waiting), by the ear (listening), at the mouth (hush)
+        if part in ("chin", "ear", "mouth"):
+            c, r = p.head(), p.d["head"]
+            return {"chin": (c[0] + p.f * r * .45, c[1] + r * .95), "ear": (c[0] - p.f * r * .4, c[1] + r * .1),
+                    "mouth": (c[0] + p.f * r * 1.15, c[1] + r * .4)}[part]
+        if part == "up": c = p.head(); return (c[0] + p.f * p.d["head"] * 1.3, c[1] - p.d["head"] * 1.6)   # a raised hand: waving, a hello
         if part == "back": return ((p.hip[0] + p.sh[0]) / 2 - p.f * p.d["tw"] * .2, (p.hip[1] + p.sh[1]) / 2 - p.d["tw"] * .3)
         return p.hip
     # two passes: first without cross-references, then with them
@@ -803,7 +815,7 @@ def scene(spec, area, sv=None):
             leg = q.get("leg") or (PEER_LEG if who == "peer" else "#4A4C43" if who == "adult2" else None)
             built[who] = Person(kind, q["pose"], q["x"], face=q.get("f", 1 if kind == "adult" else -1), age=q.get("age", 30),
                                 top=top, leg=leg, expr=q.get("e", "smile"), look=look, hands=hands, hair=q.get("hair"),
-                                at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0), girl=GIRL and who == "child")
+                                at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0), girl=GIRL and who == "child", lean=q.get("lean", 0))
     # back objects (scenery), shadows, people and front objects
     for o in spec.get("objs", []):
         if o.get("back"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
