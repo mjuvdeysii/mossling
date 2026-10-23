@@ -224,12 +224,27 @@ private struct TimerButtons: View {
     let light: Bool
     var body: some View {
         let c = LogType.color(type)
+        // as on the timer screen: the sides are the controls (the side being fed pauses, the other changes sides);
+        // ending sits apart, at the far end
+        let quiet: Color = light ? .white.opacity(0.28) : Color(white: 0.42)
         HStack(spacing: 8) {
-            Button(intent: TimerIntent(type: type, action: "stop")) { Text("结束").frame(maxWidth: .infinity) }.tint(Crayon.buttonFill(c))
-            Button(intent: TimerIntent(type: type, action: "pause")) { Text(s.pausedAt == nil ? "暂停" : "继续").frame(maxWidth: .infinity) }.tint(light ? .white.opacity(0.28) : Color(white: 0.42))
             if type == LogType.nurse {
-                Button(intent: TimerIntent(type: type, action: "side")) { Text(s.side == "r" ? "换左边" : "换右边").frame(maxWidth: .infinity) }.tint(light ? .white.opacity(0.28) : Color(white: 0.42))
+                ForEach(["l", "r"], id: \.self) { k in
+                    let on = (s.side ?? "l") == k
+                    Button(intent: TimerIntent(type: type, action: "tap-" + k)) {
+                        Label(k == "l" ? "左" : "右", systemImage: on ? (s.pausedAt == nil ? "pause.fill" : "play.fill") : "arrow.left.arrow.right")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .tint(on ? Crayon.buttonFill(c) : quiet)
+                }
+            } else {
+                Button(intent: TimerIntent(type: type, action: "pause")) {
+                    Label(s.pausedAt == nil ? "暂停" : "继续", systemImage: s.pausedAt == nil ? "pause.fill" : "play.fill").frame(maxWidth: .infinity)
+                }
+                .tint(Crayon.buttonFill(c))
             }
+            Spacer(minLength: 10)
+            Button(intent: TimerIntent(type: type, action: "stop")) { Text(type == LogType.sleep ? "醒了" : "结束") }.tint(quiet)
         }
         .buttonStyle(.borderedProminent)
         .font(.subheadline.weight(.semibold))

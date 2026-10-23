@@ -41,6 +41,8 @@ struct TimerIntent: LiveActivityIntent {
         case "start": JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
         case "pause": JournalFile.togglePause(type)
         case "side": JournalFile.switchSide(type)
+        case "tap-l": JournalFile.tapSide(type, "l")
+        case "tap-r": JournalFile.tapSide(type, "r")
         default: JournalFile.stop(type)
         }
         await LiveTimers.sync()
