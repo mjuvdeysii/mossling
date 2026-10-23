@@ -103,7 +103,8 @@ struct TodayFace: View {
                 } else { Text("摸索台灯").font(.headline) }
             }
             Spacer(minLength: 0)
-            ArtImage(name: WidgetArt.pair).frame(width: 40, height: 40)
+            // the companions on a small disc of paper, so Otto's blue still reads on the lamp's blue
+            ArtImage(name: WidgetArt.pair).frame(width: 36, height: 36).padding(5).background(Circle().fill(WidgetInk.card))
         }
     }
 
@@ -111,7 +112,7 @@ struct TodayFace: View {
     @ViewBuilder private var play: some View {
         if let code = snap?.playCode, let name = snap?.playName {
             HStack(alignment: .center, spacing: 8) {
-                ArtImage(name: WidgetArt.tray(code)).frame(width: 52, height: 39)
+                ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
                 Text(name).font(.footnote.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.85)
             }
         }
@@ -143,7 +144,7 @@ struct TodayFace: View {
             VStack(alignment: .leading, spacing: 0) {
                 head
                 Spacer(minLength: 4)
-                if let t = body_.timers.first { running(t) } else { play }
+                if journal { play } else if let t = body_.timers.first { running(t) } else { play }
             }
             if journal {
                 HStack(spacing: 6) {
@@ -159,29 +160,31 @@ struct TodayFace: View {
 
     /// A kind of entry as a sticker on a paper card: the sticker, its name and how long ago; a timer that runs shows
     /// a coloured ring and ends from here.
-    private func card(_ type: String, title: String, sub: String?, on: Bool) -> some View {
+    private func card(_ type: String, title: String, sub: Text?, on: Bool) -> some View {
         let c = LogType.color(type)
         return VStack(spacing: 2) {
             ArtImage(name: WidgetArt.sticker(type)).frame(width: 34, height: 34)
                 .padding(3).overlay(Circle().stroke(c.opacity(on ? 0.6 : 0), lineWidth: 3))
             Text(title).font(.caption2.weight(.semibold)).foregroundStyle(on ? Crayon.ink(c) : .primary).lineLimit(1)
-            Text(sub ?? " ").font(.system(size: 10, weight: .medium, design: .rounded)).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+            (sub ?? Text(" ")).font(.system(size: 11, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(on ? Crayon.ink(LogType.color(type)) : .secondary).lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
     private func timerButton(_ type: String) -> some View {
-        let on = body_.timers.contains { $0.type == type }
-        return Button(intent: TimerIntent(type: type, action: on ? "stop" : "start")) {
-            card(type, title: on ? (type == LogType.sleep ? "醒了" : "结束") : LogType.name(type), sub: on ? "进行中" : last(type).map(agoText), on: on)
+        let t = body_.timers.first { $0.type == type }
+        // running: the card is the clock (how long so far) and ends it
+        let sub: Text? = t.map { t in t.pausedAt.map { Text(minutesOf(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoText($0)) }
+        return Button(intent: TimerIntent(type: type, action: t != nil ? "stop" : "start")) {
+            card(type, title: t != nil ? (type == LogType.sleep ? "醒了" : "结束") : LogType.name(type), sub: sub, on: t != nil)
         }
         .buttonStyle(.plain)
     }
 
     private var nappy: some View {
         Button(intent: QuickLogIntent(type: LogType.diaper, detail: "wet")) {
-            card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map(agoText), on: false)
+            card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map { Text(agoText($0)) }, on: false)
         }
         .buttonStyle(.plain)
     }
@@ -203,7 +206,7 @@ struct TimerFace: View {
                     TimerFace.elapsed(s).font(WidgetInk.numerals(34)).foregroundStyle(.primary)
                 }
                 Spacer(minLength: 0)
-                ArtImage(name: WidgetArt.pair).frame(width: 48, height: 48)
+                ArtImage(name: WidgetArt.pair).frame(width: 42, height: 42).padding(6).background(Circle().fill(WidgetInk.card))
             }
             TimerControls(type: type, s: s, light: false)
         }
