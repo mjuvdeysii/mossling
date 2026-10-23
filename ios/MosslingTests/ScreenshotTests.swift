@@ -42,7 +42,8 @@ final class ScreenshotTests: XCTestCase {
     private lazy var journal: JournalStore = {
         var b = JournalFile.Body()
         b.logs = [LogEntry(type: LogType.bottle, start: self.at(19, 40), amount: 120), LogEntry(type: LogType.diaper, start: self.at(18, 5), detail: "wet"),
-                  LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"), LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
+                  LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"),
+                  LogEntry(type: LogType.nurse, start: self.at(16, 28), end: self.at(16, 40), side: "r", detail: "paused:120000"), LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
                   LogEntry(type: LogType.bath, start: self.at(10, 20)), LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "米粉"),
                   LogEntry(type: LogType.sleep, start: self.at(0, 0) - 2 * 3_600_000, end: self.at(6, 30))]
         b.measures = [Measure(at: self.at(9, 0) - 200 * 86_400_000, weightG: 3300, lengthMm: 500, headMm: 340), Measure(at: self.at(9, 0) - 140 * 86_400_000, weightG: 5400, lengthMm: 580, headMm: 385),
@@ -98,5 +99,10 @@ final class ScreenshotTests: XCTestCase {
     func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
     func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
+    // the largest everyday text size: nothing may run off the side or need sideways scrolling
+    func test25BigTextHome() { let m = model(); shot("25_bigtext_home", height: 1800, tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2200, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextYou() { let m = model(); shot("25_bigtext_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextTimer() { let m = model(); shot("25_bigtext_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2)) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

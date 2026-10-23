@@ -165,7 +165,7 @@ struct StatsView: View {
         let days = (0..<7).reversed().map { app.today.plus(days: -$0) }
         let rows = days.map { d -> (Day, Int, Double, Int) in
             let l = j.logs(on: d)
-            return (d, l.filter { ($0.type == LogType.nurse || $0.type == LogType.bottle) && !$0.carriedOver(into: d) }.count,
+            return (d, l.filter { !$0.carriedOver(into: d) }.feedCount(),
                     l.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) } / 3600,
                     l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count)
         }

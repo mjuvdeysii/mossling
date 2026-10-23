@@ -241,7 +241,7 @@ private struct Totals: View {
     var body: some View {
         // counts are of what started on the day; sleep is the part of each sleep that falls on the day
         let own = logs.filter { !$0.carriedOver(into: day) }
-        let feeds = own.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.count
+        let feeds = own.feedCount()
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let diapers = own.filter { $0.type == LogType.diaper }.count
@@ -296,7 +296,8 @@ extension LogEntry {
             let endsLater = Day(e) > day
             if carriedOver(into: day) { bits.append("接昨天 \(hm(startDate)) · 到 \(hm(e))") }
             else { bits.append("到 " + (endsLater ? "次日 " : "") + hm(e)) }
-            if carriedOver(into: day) || endsLater { bits.append("共 " + durationValue((end! - start) / 1000)) }
+            if carriedOver(into: day) || endsLater { bits.append("共 " + durationValue(activeSeconds)) }
+            if pausedSeconds >= 60 { bits.append("暂停 " + durationValue(pausedSeconds)) }
         }
         if [LogType.solid, LogType.medicine, LogType.note, LogType.play].contains(type), let d = detail, !d.isEmpty {
             bits.append(type == LogType.play ? String(d.drop { $0 != " " }.dropFirst()) : d)
@@ -450,9 +451,14 @@ struct TimerScreen: View {
                                     VStack(spacing: 2) {
                                         Text(big).font(Typeface.numerals(30, weight: .bold))
                                         Text(name).font(.caption.weight(.semibold))
+                                        TimelineView(.periodic(from: .now, by: 1)) { tl in
+                                            let done = j.logs.feedSides(before: t.start)[k] ?? 0
+                                            let now = on ? t.elapsed(tl.date.timeIntervalSince1970 * 1000) : 0
+                                            Text(done + now > 0 ? clock(done + now) : "—").font(Typeface.numerals(13, weight: .semibold)).monospacedDigit().opacity(0.85)
+                                        }
                                     }
                                     .foregroundStyle(on ? .white : c)
-                                    .frame(maxWidth: .infinity, minHeight: 74)
+                                    .frame(maxWidth: .infinity, minHeight: 86)
                                     .background {
                                         RoundedRectangle(cornerRadius: 24, style: .continuous)
                                             .fill(on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12)))

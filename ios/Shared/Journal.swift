@@ -45,14 +45,51 @@ struct LogEntry: Codable, Identifiable, Hashable {
 }
 
 extension LogEntry {
-    /// The part of the entry that falls on a day, in seconds (a sleep across midnight counts on each day for its part).
-    func seconds(on day: Day) -> Double {
+    /// Time the timer was paused, as written by both apps in `detail` ("paused:<ms>").
+    var pausedSeconds: Double {
+        guard let d = detail, d.hasPrefix("paused:"), let ms = Double(d.dropFirst(7)) else { return 0 }
+        return max(0, ms / 1000)
+    }
+    /// How long it really lasted: from start to end, less any pause.
+    var activeSeconds: Double {
         guard let e = end else { return 0 }
+        return max(0, (e - start) / 1000 - pausedSeconds)
+    }
+    /// The part of the entry that falls on a day, in seconds, less pauses. A sleep across midnight counts on each day
+    /// for its part. Where in the span a pause fell is not recorded, so a pause is shared out in proportion.
+    func seconds(on day: Day) -> Double {
+        guard let e = end, e > start else { return 0 }
         let a = day.date.timeIntervalSince1970 * 1000, b = day.plus(days: 1).date.timeIntervalSince1970 * 1000
-        return max(0, min(e, b) - max(start, a)) / 1000
+        let part = max(0, min(e, b) - max(start, a)) / 1000
+        return part * activeSeconds / ((e - start) / 1000)
     }
     /// Whether it began on the day before the given day.
     func carriedOver(into day: Day) -> Bool { start < day.date.timeIntervalSince1970 * 1000 }
+}
+
+extension Array where Element == LogEntry {
+    /// The number of feeds: a bottle is one feed; nursing on one side then the other, entry right after entry (within
+    /// two minutes), is one feed.
+    func feedCount() -> Int {
+        let nurses = filter { $0.type == LogType.nurse }.sorted { $0.start < $1.start }
+        var n = filter { $0.type == LogType.bottle }.count
+        var lastEnd: Double?
+        for e in nurses {
+            if let l = lastEnd, e.start - l <= 120_000 { } else { n += 1 }
+            lastEnd = e.end ?? e.start
+        }
+        return n
+    }
+    /// The sides of the feed that ends where `start` begins, walking back entry by entry: seconds per side.
+    func feedSides(before start: Double) -> [String: Double] {
+        var out: [String: Double] = [:]
+        var t = start
+        while let e = first(where: { $0.type == LogType.nurse && $0.end.map { abs($0 - t) <= 120_000 } == true && $0.start < t }) {
+            out[e.side ?? "l", default: 0] += e.activeSeconds
+            t = e.start
+        }
+        return out
+    }
 }
 
 func minutesOf(_ s: Double) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
@@ -115,21 +152,39 @@ enum JournalFile {
         }
         return b
     }
+    /// Changing sides during a feed: the side so far is written as its own entry and the timer goes on for the other
+    /// side from now (and runs again if it was paused). A side of under 30 seconds is not worth an entry: the side is
+    /// just changed. Each side stays a plain nurse entry, so the file reads the same in the Android app.
     @discardableResult static func switchSide(_ type: String) -> Body {
-        var b = read(); if let i = b.timers.firstIndex(where: { $0.type == type }) { b.timers[i].side = b.timers[i].side == "l" ? "r" : "l"; write(b) }; return b
+        var b = read(); b = switchingSide(b, type, now: now()); write(b); return b
+    }
+    static func switchingSide(_ b0: Body, _ type: String, now n: Double) -> Body {
+        var b = b0
+        guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
+        let t = b.timers[i]
+        let other = t.side == "r" ? "l" : "r"
+        if t.elapsed(n) < 30 { b.timers[i].side = other; return b }
+        let paused = t.pausedTotal + (t.pausedAt.map { n - $0 } ?? 0)
+        b.logs.append(LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: paused > 0 ? "paused:\(Int(paused))" : nil))
+        b.timers[i] = RunningTimer(type: type, start: n, side: other)
+        return b
     }
     @discardableResult static func shift(_ type: String, to start: Double) -> Body {
         var b = read(); if let i = b.timers.firstIndex(where: { $0.type == type }) { b.timers[i].start = min(start, now()); write(b) }; return b
     }
     /// Ends the timer and writes the entry; nothing when it was not running.
     @discardableResult static func stop(_ type: String) -> Body {
-        var b = read(); let n = now()
+        var b = read(); b = stopping(b, type, now: now()); write(b); return b
+    }
+    static func stopping(_ b0: Body, _ type: String, now n: Double) -> Body {
+        var b = b0
         guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
         let t = b.timers.remove(at: i)
-        let paused = t.pausedTotal + (t.pausedAt.map { n - $0 } ?? 0)
+        // ended while paused: the entry ends where the pause began, so only the earlier pauses are taken off
+        let paused = t.pausedTotal
         let end = t.pausedAt ?? n
         b.logs.append(LogEntry(type: type, start: t.start, end: max(t.start + 60_000, end), side: t.side, detail: paused > 0 ? "paused:\(Int(paused))" : nil))
-        write(b); return b
+        return b
     }
     @discardableResult static func discard(_ type: String) -> Body { var b = read(); b.timers.removeAll { $0.type == type }; write(b); return b }
     @discardableResult static func add(_ e: LogEntry) -> Body { var b = read(); b.logs.append(e); write(b); return b }

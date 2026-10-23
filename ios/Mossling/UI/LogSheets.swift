@@ -17,6 +17,8 @@ struct AskSheet: View {
     @FocusState private var typing: Bool
 
     private var at: Date { when }
+    /// The side the last feed ended on (the next feed usually starts on the other).
+    private var lastSide: String? { j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side }
     private var timed: Bool { type == LogType.nurse || type == LogType.sleep }
 
     var body: some View {
@@ -59,7 +61,7 @@ struct AskSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
-        .onAppear { if type == LogType.bottle, let a = j.logs.first(where: { $0.type == LogType.bottle })?.amount { ml = Double(a) } }
+        .onAppear { if let l = lastSide { side = l == "l" ? "r" : "l" }; if type == LogType.bottle, let a = j.logs.first(where: { $0.type == LogType.bottle })?.amount { ml = Double(a) } }
     }
 
     @ViewBuilder private var content: some View {
@@ -75,10 +77,17 @@ struct AskSheet: View {
                     } label: {
                         VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
                             .foregroundStyle(finished && on ? .white : c).frame(maxWidth: .infinity, minHeight: 104)
+                            .overlay(alignment: .topTrailing) {
+                                if lastSide == k {
+                                    Text("上次").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
+                                        .background(Capsule().fill(.white.opacity(0.85))).foregroundStyle(c).padding(8)
+                                }
+                            }
                             .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
                     }
                     .buttonStyle(.toy)
                     .accessibilityAddTraits(finished && on ? .isSelected : [])
+                    .accessibilityValue(lastSide == k ? "上次喂的一侧" : "")
                 }
             }
             if finished {
