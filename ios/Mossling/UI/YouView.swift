@@ -23,9 +23,8 @@ struct YouView: View {
                 // the child, compact; tapping opens the sheet
                 Button { editing = true } label: {
                     HStack(spacing: 12) {
-                        // the child from the picture book, at the child's own stage
-                        Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp").frame(width: 46, height: 46)
-                            .background(Crayon.sunflower.opacity(0.18), in: Circle())
+                        // the child from the picture book, at the child's own stage, in the chosen companion's arms
+                        HuggedAvatar(size: 62)
                         VStack(alignment: .leading, spacing: 1) {
                             Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.headline).foregroundStyle(.primary)
                             Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
@@ -34,7 +33,7 @@ struct YouView: View {
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                     }
-                    .padding(12).printCard(radius: 22)
+                    .padding(.horizontal, 12).padding(.vertical, 10).printCard(radius: 24)
                 }
                 .buttonStyle(.toy)
 
@@ -178,6 +177,10 @@ struct ProfileSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                Section {
+                    HuggedAvatar(size: 96).frame(maxWidth: .infinity).padding(.vertical, 4)
+                        .listRowBackground(Color.clear)
+                }
                 Section {
                     TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) }))
                     DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)

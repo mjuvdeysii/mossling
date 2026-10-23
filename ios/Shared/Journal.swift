@@ -106,16 +106,21 @@ struct RunningTimer: Codable, Hashable {
     /// Time already fed on earlier sides of this same feed (ms). Changing sides starts a new side, not a new feed:
     /// every clock shows the whole feed, so a side change never looks like a reset.
     var carried: Double = 0
+    /// Pauses already taken on earlier sides of this feed (ms), so the screen can show the whole feed's pauses.
+    var carriedPause: Double = 0
     /// This side so far, in seconds.
     func elapsed(_ now: Double) -> Double { ((pausedAt ?? now) - start - pausedTotal) / 1000 }
     /// The whole feed (or sleep) so far, in seconds.
     func total(_ now: Double) -> Double { elapsed(now) + carried / 1000 }
     /// The moment a clock counting the whole feed would have started at (for timers that count up from a date).
     var countsFrom: Date { Date(timeIntervalSince1970: (start + pausedTotal - carried) / 1000) }
+    /// All the pauses of the whole feed (or sleep) so far, in seconds, the one under way included.
+    func paused(_ now: Double) -> Double { (carriedPause + pausedTotal + (pausedAt.map { now - $0 } ?? 0)) / 1000 }
 
-    enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried }
-    init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0) {
+    enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried, carriedPause }
+    init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0, carriedPause: Double = 0) {
         self.type = type; self.start = start; self.side = side; self.pausedAt = pausedAt; self.pausedTotal = pausedTotal; self.carried = carried
+        self.carriedPause = carriedPause
     }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
@@ -123,6 +128,7 @@ struct RunningTimer: Codable, Hashable {
         side = try c.decodeIfPresent(String.self, forKey: .side); pausedAt = try c.decodeIfPresent(Double.self, forKey: .pausedAt)
         pausedTotal = try c.decodeIfPresent(Double.self, forKey: .pausedTotal) ?? 0
         carried = try c.decodeIfPresent(Double.self, forKey: .carried) ?? 0   // files written before this field
+        carriedPause = try c.decodeIfPresent(Double.self, forKey: .carriedPause) ?? 0
     }
 }
 
@@ -167,12 +173,23 @@ enum JournalFile {
         var b = read(); if !b.timers.contains(where: { $0.type == type }) { b.timers.append(RunningTimer(type: type, start: at, side: side)); write(b) }; return b
     }
     @discardableResult static func togglePause(_ type: String) -> Body {
-        var b = read(); let n = now()
+        var b = read(); b = pausing(b, type, now: now()); write(b); return b
+    }
+    static func pausing(_ b0: Body, _ type: String, now n: Double) -> Body {
+        var b = b0
         if let i = b.timers.firstIndex(where: { $0.type == type }) {
             if let p = b.timers[i].pausedAt { b.timers[i].pausedTotal += n - p; b.timers[i].pausedAt = nil } else { b.timers[i].pausedAt = n }
-            write(b)
         }
         return b
+    }
+    /// A tap on one side of a feed, the one gesture of the feeding screen: on the side being fed it pauses (or goes
+    /// on); on the other side it changes sides and runs.
+    @discardableResult static func tapSide(_ type: String, _ side: String) -> Body {
+        var b = read(); b = tappingSide(b, type, side, now: now()); write(b); return b
+    }
+    static func tappingSide(_ b: Body, _ type: String, _ side: String, now n: Double) -> Body {
+        guard let t = b.timers.first(where: { $0.type == type }) else { return b }
+        return (t.side ?? "l") == side ? pausing(b, type, now: n) : switchingSide(b, type, now: n)
     }
     /// Changing sides during a feed: the side so far is written as its own entry and the timer goes on for the other
     /// side from now (and runs again if it was paused). A side of under 30 seconds is not worth an entry: the side is
@@ -185,10 +202,15 @@ enum JournalFile {
         guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
         let t = b.timers[i]
         let other = t.side == "r" ? "l" : "r"
-        if t.elapsed(n) < 30 { b.timers[i].side = other; return b }
         let paused = t.pausedTotal + (t.pausedAt.map { n - $0 } ?? 0)
+        if t.elapsed(n) < 30 {
+            // too short for an entry: just the other side, and running
+            b.timers[i].side = other
+            if let p = t.pausedAt { b.timers[i].pausedTotal += n - p; b.timers[i].pausedAt = nil }
+            return b
+        }
         b.logs.append(LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: paused > 0 ? "paused:\(Int(paused))" : nil))
-        b.timers[i] = RunningTimer(type: type, start: n, side: other, carried: t.carried + t.elapsed(n) * 1000)
+        b.timers[i] = RunningTimer(type: type, start: n, side: other, carried: t.carried + t.elapsed(n) * 1000, carriedPause: t.carriedPause + paused)
         return b
     }
     @discardableResult static func shift(_ type: String, to start: Double) -> Body {

@@ -6,6 +6,7 @@ import SwiftUI
 struct AskSheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.lamp) private var lamp
     let type: String
     @State private var when = Date()
     @State private var from = Date().addingTimeInterval(-15 * 60)
@@ -26,6 +27,7 @@ struct AskSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    CareStage(type: type)
                     if timed {
                         Picker("方式", selection: $finished) { Text("现在开始").tag(false); Text("补记").tag(true) }
                             .pickerStyle(.segmented)
@@ -57,10 +59,11 @@ struct AskSheet: View {
                 }
                 .padding(20)
             }
-            .navigationTitle(LogType.name(type)).navigationBarTitleDisplayMode(.inline)
+            .navigationBarTitleDisplayMode(.inline)   // the name is on the stage
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
+            .background(lamp ? Palette.lampPage : Palette.background)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.fraction(0.72), .large])
         // the start must stay before the end, however the two were set
         .onChange(of: when) { _, w in if from >= w { from = w.addingTimeInterval(-15 * 60) } }
         .onChange(of: finished) { _, _ in if from >= when { from = when.addingTimeInterval(-15 * 60) } }

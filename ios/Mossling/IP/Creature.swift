@@ -209,8 +209,8 @@ struct Creature: View {
     }
     /// Small round arms, only when waving or cheering; `left`/`right` are the shoulders.
     private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
-        func arm(_ from: CGPoint, _ deg: Double) {
-            let r = CGFloat(deg * .pi / 180), L: CGFloat = 13
+        func arm(_ from: CGPoint, _ deg: Double, _ L: CGFloat = 13) {
+            let r = CGFloat(deg * .pi / 180)
             var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + CGFloat(Foundation.sin(Double(r))) * L, y: from.y - CGFloat(Foundation.cos(Double(r))) * L))
             ctx.stroke(p, with: .color(c), style: StrokeStyle(lineWidth: 7, lineCap: .round))
         }
@@ -218,6 +218,7 @@ struct Creature: View {
         case .rest: break
         case .wave: arm(right, 30 + wave)
         case .cheer: arm(left, -38 - wave * 0.4); arm(right, 38 + wave * 0.4)
+        case .hug: arm(left, -112 + wave * 0.12, 24)
         }
     }
 

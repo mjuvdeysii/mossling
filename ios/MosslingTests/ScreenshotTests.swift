@@ -110,6 +110,17 @@ final class ScreenshotTests: XCTestCase {
     func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
     func test27LampTimer() { let m = model(); shot("27_lamp_timer", dark: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
     func test27LampAsk() { let m = model(); shot("27_lamp_ask", dark: true, tabs(m, AskSheet(type: LogType.sleep).lamp(true))) }
+    func test28TimerPausedAndSleep() {
+        // mid-feed on the right after 8 minutes on the left, paused; and a sleep with a 3-minute wake
+        var b = JournalFile.Body(); let n = ms(Date())
+        b.logs = [LogEntry(type: LogType.nurse, start: n - 14 * 60_000, end: n - 5 * 60_000, side: "l", detail: "paused:60000")]
+        b.timers = [RunningTimer(type: LogType.nurse, start: n - 5 * 60_000, side: "r", pausedAt: n - 30_000, carried: 8 * 60_000, carriedPause: 60_000),
+                    RunningTimer(type: LogType.sleep, start: n - 52 * 60_000, pausedTotal: 3 * 60_000)]
+        let j = JournalStore(preview: b), m = model()
+        shot("28_timer_paused", TimerScreen(type: LogType.nurse).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+        shot("28_timer_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+        shot("28_timer_sleep_lamp", dark: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+    }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

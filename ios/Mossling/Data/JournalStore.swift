@@ -32,6 +32,7 @@ final class JournalStore {
 
     func start(_ type: String, side: String? = nil, at: Date = Date()) { changed(JournalFile.start(type, side: side, at: at.timeIntervalSince1970 * 1000)); focus = type }
     func togglePause(_ type: String) { changed(JournalFile.togglePause(type)) }
+    func tapSide(_ type: String, _ side: String) { changed(JournalFile.tapSide(type, side)) }
     func switchSide(_ type: String) { changed(JournalFile.switchSide(type)) }
     func shift(_ type: String, to: Date) { changed(JournalFile.shift(type, to: to.timeIntervalSince1970 * 1000)) }
     func stop(_ type: String) { changed(JournalFile.stop(type)) }

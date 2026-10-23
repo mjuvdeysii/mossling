@@ -224,4 +224,27 @@ final class LogicTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(ratio(Palette.accent, Palette.background, .dark), 4.5)
         XCTAssertGreaterThanOrEqual(ratio(Palette.accentFill, white, .dark), 4.5)
     }
+
+    func testOneTapOnASidePausesOrChangesSides() {
+        // the feeding screen has one gesture: tap the side being fed to pause or go on, tap the other side to change
+        var b = JournalFile.Body()
+        b.timers = [RunningTimer(type: LogType.nurse, start: t(19, 10, 0), side: "l")]
+        b = JournalFile.tappingSide(b, LogType.nurse, "l", now: t(19, 10, 5))          // pause on the left
+        XCTAssertEqual(b.timers[0].pausedAt, t(19, 10, 5))
+        b = JournalFile.tappingSide(b, LogType.nurse, "l", now: t(19, 10, 7))          // go on
+        XCTAssertNil(b.timers[0].pausedAt)
+        XCTAssertEqual(b.timers[0].paused(t(19, 10, 7)), 120, accuracy: 0.5)
+        b = JournalFile.tappingSide(b, LogType.nurse, "l", now: t(19, 10, 9))          // pause again …
+        b = JournalFile.tappingSide(b, LogType.nurse, "r", now: t(19, 10, 10))         // … and change sides while paused
+        XCTAssertNil(b.timers[0].pausedAt, "changing sides runs the clock")
+        XCTAssertEqual(b.timers[0].side, "r")
+        XCTAssertEqual(b.logs.count, 1); XCTAssertEqual(b.logs[0].activeSeconds, 7 * 60, accuracy: 0.5)
+        // the whole feed: 7 min fed, 3 min of pauses, and both carried over to the right side
+        XCTAssertEqual(b.timers[0].total(t(19, 10, 10)), 420, accuracy: 0.5)
+        XCTAssertEqual(b.timers[0].paused(t(19, 10, 10)), 180, accuracy: 0.5)
+        // a quick tap back while paused within 30 s just changes the side, running
+        b = JournalFile.tappingSide(b, LogType.nurse, "r", now: t(19, 10, 10) + 5_000)
+        b = JournalFile.tappingSide(b, LogType.nurse, "l", now: t(19, 10, 10) + 15_000)
+        XCTAssertEqual(b.timers[0].side, "l"); XCTAssertNil(b.timers[0].pausedAt); XCTAssertEqual(b.logs.count, 1)
+    }
 }
