@@ -144,4 +144,19 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(logs.feedCount(from: Day(y: 2026, m: 10, d: 19).date.timeIntervalSince1970 * 1000), 0)
         XCTAssertEqual(logs.feedCount(from: Day(y: 2026, m: 10, d: 18).date.timeIntervalSince1970 * 1000), 1)
     }
+
+    func testReleaseRequirementsAreInTheBundle() {
+        // App Store: a privacy manifest in the app; the legal documents shown in the app; export compliance declared
+        XCTAssertNotNil(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "PrivacyInfo.xcprivacy is not in the app bundle")
+        for d in ["PRIVACY", "TERMS", "DISCLAIMER", "CHANGELOG"] { XCTAssertNotNil(Bundle.main.url(forResource: d, withExtension: "md"), d) }
+        XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "ITSAppUsesNonExemptEncryption") as? Bool, false)
+        XCTAssertNotNil(Bundle.main.object(forInfoDictionaryKey: "NSFaceIDUsageDescription"))
+    }
+
+    func testEveryPlayHasItsTrayAndEveryAreaItsSticker() {
+        let c = try! Content.load()
+        for p in c.activities { XCTAssertNotNil(ArtIndex.shared.size["tray_\(p.code.lowercased()).webp"], p.code) }
+        for k in ["A", "B", "C", "D", "E", "F"] { XCTAssertNotNil(IconTile.sticker(Palette.areaSymbol(k)), k) }
+        for t in LogType.buttons { XCTAssertNotNil(IconTile.sticker(LogType.symbol(t)), t) }
+    }
 }
