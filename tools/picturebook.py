@@ -680,7 +680,7 @@ def scene(spec, area, sv=None):
             hx, hy = resolve(o["on"], built)
             obj(sv, o["k"], hx + o.get("dx", 0), hy + o.get("h", 30) * o.get("s", 1) + o.get("dy", 0), o.get("s", 1), o.get("c"), o.get("r", 0))
     for m in spec.get("marks", []): mark(sv, m, built)
-    if spec.get("companions"): companions(sv, 565, GROUND + 2, 0.8, look=(-0.9, 0.1))
+    if spec.get("companions"): companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))
     sv.add('</g>')
     return sv
 
@@ -732,10 +732,10 @@ def cover_spec(m, mo, scenes=None):
         if o["k"] not in SCENERY: thing = dict(k=o["k"], x=360, s=min(1.0, o.get("s", 1) * 1.1), c=o.get("c")); break
     spec = {"set": "floor", "adult": {"pose": "kneel" if m < 12 else "tallkneel", "x": 230, "e": "smile", "look": "child.head",
                                       "hands": ["child.hand", None] if pose in ("stand", "walk") else [None, None]},
-            "child": {"pose": pose, "x": 450 if pose not in ("lieback", "prone") else 470, "age": m, "e": "wow" if m < 6 else "smile", "look": "adult.head",
+            "child": {"pose": pose, "x": 430 if pose not in ("lieback", "prone") else 450, "age": m, "e": "wow" if m < 6 else "smile", "look": "adult.head",
                       "hands": ["adult.hand", None] if pose in ("stand", "walk") else [None, None]}, "objs": [thing] if thing else [], "companions": True}
-    if pose in ("lieback",): spec["child"]["at"] = [470, 440]
-    if thing: thing["x"] = 340
+    if pose in ("lieback",): spec["child"]["at"] = [450, 440]
+    if thing: thing["x"] = 330
     return spec, area_of(feature) if feature else "A"
 
 # ---------- main ----------

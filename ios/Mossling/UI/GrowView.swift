@@ -97,7 +97,7 @@ private struct MonthBody: View {
 
             Box(title: "专题") {
                 ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
-                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
+                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: topicMarks[i % topicMarks.count].0, color: topicMarks[i % topicMarks.count].1, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
                 }
             }
 

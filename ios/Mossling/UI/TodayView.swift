@@ -116,14 +116,15 @@ private struct PlaysGrid: View {
     }
 }
 
+/// The topics' marks: all five are care topics, so one colour (the care area's), told apart by their symbols.
+let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.knife", "mouth.fill", "cross.case.fill"].map { ($0, Palette.area("F")) }
+
 /// The topics, as tiles.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         let t = app.content.topics
-        // all five are care topics: one colour (the care area's), told apart by their symbols
-        let care = Palette.area("F")
-        let marks: [(String, Color)] = [("moon.zzz.fill", care), ("bed.double.fill", care), ("fork.knife", care), ("mouth.fill", care), ("cross.case.fill", care)]
+        let marks = topicMarks
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题")
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
@@ -160,30 +161,42 @@ struct ShelfView: View {
                 Button(s.stale ? "换上新的一周" : "整理", action: arrange).font(.subheadline.weight(.semibold))
             }
             .padding(.horizontal, 4).padding(.top, 2)
-            VStack(spacing: 0) {
-                HStack(alignment: .bottom, spacing: 8) {
-                    ForEach(0..<Shelf.max, id: \.self) { k in
-                        if k < s.plays.count {
-                            let p = s.plays[k], route = Route.play(p.code, month)
-                            NavigationLink(value: route) { ShelfItem(play: p, times: app.record(p, j).count) }
-                                .buttonStyle(.toy).zoomSource(route)
-                                .contextMenu { PlayActions(play: p, month: month) }
-                        } else {
-                            Button(action: arrange) {
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
-                                    .overlay(Image(systemName: "plus").font(.title3).foregroundStyle(.tertiary))
-                                    .aspectRatio(0.72, contentMode: .fit)
-                            }
-                            .buttonStyle(.toy).accessibilityLabel("放一件教具")
+            // a two-level shelf, two materials on each level: the week's plays are the largest pictures on the page
+            VStack(spacing: 6) {
+                ForEach(0..<(Shelf.max + 1) / 2, id: \.self) { row in
+                    VStack(spacing: 0) {
+                        HStack(alignment: .bottom, spacing: 12) {
+                            ForEach([row * 2, row * 2 + 1], id: \.self) { k in slot(k, s) }
                         }
+                        .padding(.horizontal, 12).padding(.top, 12)
+                        Plank().frame(height: 20).padding(.horizontal, 6)
                     }
                 }
-                .padding(.horizontal, 12).padding(.top, 14)
-                Plank().frame(height: 22).padding(.horizontal, 6)
             }
             .padding(.bottom, 12)
             .printCard(radius: 26)
+        }
+    }
+}
+
+extension ShelfView {
+    @ViewBuilder func slot(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
+        if k < s.plays.count {
+            let p = s.plays[k], route = Route.play(p.code, month)
+            NavigationLink(value: route) { ShelfItem(play: p, times: app.record(p, j).count) }
+                .buttonStyle(.toy).zoomSource(route)
+                .contextMenu { PlayActions(play: p, month: month) }
+        } else {
+            Button(action: arrange) {
+                VStack(spacing: 6) {
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
+                        .overlay(Image(systemName: "plus").font(.title3).foregroundStyle(.tertiary))
+                        .aspectRatio(4 / 3, contentMode: .fit)
+                    Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
+                }
+            }
+            .buttonStyle(.toy).accessibilityLabel("放一件教具")
         }
     }
 }
@@ -212,7 +225,7 @@ private struct ShelfItem: View {
     var body: some View {
         VStack(spacing: 6) {
             ZStack(alignment: .topTrailing) {
-                if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(1, contentMode: .fit) }
+                if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(4 / 3, contentMode: .fit) }
                 if times > 0 {
                     Text("×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                         .padding(.horizontal, 6).frame(height: 18)
@@ -221,7 +234,7 @@ private struct ShelfItem: View {
                 }
             }
             .printCard(radius: 14)
-            Text(play.name).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
+            Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
         }
         .accessibilityElement(children: .combine)
