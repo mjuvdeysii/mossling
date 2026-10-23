@@ -24,6 +24,8 @@ struct MosslingApp: App {
 struct RootView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.scenePhase) private var phase
+    /// Whether it is night now (7 pm – 6 am), checked every minute while the app is open.
+    @State private var night = Daylight.isNight()
     @State private var tab = 0
     @State private var todayPath = NavigationPath()
     @State private var growPath = NavigationPath()
@@ -56,7 +58,12 @@ struct RootView: View {
         // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
         .task(id: phase) {
             guard phase == .active else { return }
-            while !Task.isCancelled { journal.refreshIfChanged(); try? await Task.sleep(for: .seconds(2)) }
+            var n = 0
+            while !Task.isCancelled {
+                journal.refreshIfChanged()
+                n += 1; if n % 30 == 1 { night = Daylight.isNight() }
+                try? await Task.sleep(for: .seconds(2))
+            }
         }
         .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
@@ -76,10 +83,12 @@ struct RootView: View {
         TabView(selection: $tab) {
             Tab("本月", systemImage: "leaf.fill", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
+                    .environment(\.night, night)
             }
             if app.journal {
                 Tab("记录", systemImage: "list.bullet.clipboard.fill", value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
+                        .lamp(app.nightLight && night)
                 }
             }
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
@@ -88,7 +97,7 @@ struct RootView: View {
         }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
-            TimerScreen(type: w.id)
+            TimerScreen(type: w.id).lamp(app.nightLight && night)
         }
     }
 

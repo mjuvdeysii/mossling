@@ -19,6 +19,8 @@ struct Creature: View {
     var poke: Bool = false
     var label: String? = nil
     var arms: Arms = .rest
+    /// Otto's bead lit as a lamp (at night).
+    var glow: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.colorScheme) private var scheme
@@ -243,7 +245,12 @@ struct Creature: View {
         var rod = ctx
         rod.translateBy(x: 50, y: 16.5); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -50, y: -16.5)
         rod.stroke(Shapes.ottoRod, with: .color(Palette.rodDeep), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-        rod.fill(Path(ellipseIn: CGRect(x: 15, y: 6.5, width: 10, height: 10)), with: .color(Palette.bead))
+        if glow {
+            let pulse = still ? 1 : 0.85 + 0.15 * sin(Date().timeIntervalSinceReferenceDate * 2)
+            rod.fill(Path(ellipseIn: CGRect(x: 20 - 14 * pulse, y: 11.5 - 14 * pulse, width: 28 * pulse, height: 28 * pulse)),
+                     with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.75), Palette.amber.opacity(0)]), center: CGPoint(x: 20, y: 11.5), startRadius: 2, endRadius: 14 * pulse))
+        }
+        rod.fill(Path(ellipseIn: CGRect(x: 15, y: 6.5, width: 10, height: 10)), with: .color(glow ? Palette.amber : Palette.bead))
         rod.fill(Path(ellipseIn: CGRect(x: 17, y: 8.3, width: 3.2, height: 3.2)), with: .color(Palette.beadLight))
         leg(&ctx, 38); leg(&ctx, 56)
         armsDraw(&ctx, pose, left: CGPoint(x: 29, y: 60), right: CGPoint(x: 72, y: 58), Palette.rodDeep, wave)
@@ -266,6 +273,8 @@ struct Duo: View {
     var together = true
     /// Change it to make both cheer (arms up, a hop) for a moment.
     var cheer = 0
+    /// Night: Otto's bead is a lamp, and Moss sleeps unless Moss is the one in front.
+    var night = false
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var beat = 0
     @State private var cheering = false
@@ -274,14 +283,14 @@ struct Duo: View {
         let small = size * 0.72
         let asleep = mood == .sleep
         ZStack(alignment: .bottomLeading) {
-            Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
+            Creature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest)
+                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest)
+                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)

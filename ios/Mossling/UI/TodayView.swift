@@ -65,6 +65,7 @@ struct TodayView: View {
 /// growth wheel in place.
 private struct MonthCard: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.night) private var night
     @Environment(\.dynamicTypeSize) private var type
     let month: Int, baby: Int
     let open: () -> Void
@@ -72,7 +73,7 @@ private struct MonthCard: View {
         Button(action: open) {
             HStack(spacing: 14) {
                 ZStack {
-                    Sky(hour: 12)
+                    Sky(hour: night ? 22 : 12)
                     GrowingChild(month: month).frame(width: 58, height: 58).offset(y: 4)
                 }
                 .frame(width: 76, height: 76)
@@ -98,6 +99,23 @@ private struct MonthCard: View {
     }
 }
 
+/// The month's plays as picture cards: the one done least (the natural next one) leads, full width.
+struct PlaysLeadGrid: View {
+    @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
+    let plays: [Play], month: Int
+    var body: some View {
+        // a stable order: not yet done first, then the fewest times
+        let ordered = plays.enumerated().sorted { a, b in
+            let x = app.record(a.element, j).count, y = app.record(b.element, j).count
+            return x != y ? x < y : a.offset < b.offset
+        }.map(\.element)
+        LeadGrid(items: ordered) { PlayTileLink(play: $0, month: month, form: .lead) }
+            cell: { PlayTileLink(play: $0, month: month) }
+            row: { PlayTileLink(play: $0, month: month, form: .row) }
+    }
+}
+
 /// The month's plays as picture cards, two by two; this month's shelf is shown above, so its plays are not repeated.
 private struct PlaysGrid: View {
     @Environment(AppModel.self) private var app
@@ -110,10 +128,7 @@ private struct PlaysGrid: View {
         if !plays.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的教具", detail: "\(plays.count) 个")
-                let one = plays.count == 1 || type.isAccessibilitySize
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: one ? 1 : 2), spacing: 12) {
-                    ForEach(plays) { p in PlayTileLink(play: p, month: month) }
-                }
+                PlaysLeadGrid(plays: plays, month: month)
             }
         }
     }
@@ -125,34 +140,48 @@ let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.k
 /// The topics, as tiles.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
-        let t = app.content.topics
-        let marks = topicMarks
+        let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题")
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: type.isAccessibilitySize ? 1 : 2), spacing: 12) {
-                ForEach(Array(t.enumerated()), id: \.offset) { i, x in
-                    let mk = marks[i % marks.count]
-                    NavigationLink(value: Route.topic(x.id)) {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: mk.0, color: mk.1, size: 34)
-                            Text(x.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                            Spacer(minLength: 0)
+            LeadGrid(items: items) { x in
+                link(x) {
+                    HStack(spacing: 14) {
+                        IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 56)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(x.t.title).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                            Text(x.t.sourceTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
                         }
-                        .padding(12).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                        .printCard(radius: 20)
+                        Spacer(minLength: 0)
                     }
-                    .buttonStyle(.toy)
+                    .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Palette.area("F").opacity(0.1)).printCard(radius: 22)
                 }
+            } cell: { x in
+                link(x) { tile(x).frame(minHeight: 64).printCard(radius: 20) }
+            } row: { x in
+                link(x) { tile(x).printCard(radius: 20) }
             }
         }
     }
+    private func link<L: View>(_ x: TopicItem, @ViewBuilder _ label: () -> L) -> some View {
+        NavigationLink(value: Route.topic(x.t.id)) { label() }.buttonStyle(.toy)
+    }
+    private func tile(_ x: TopicItem) -> some View {
+        HStack(spacing: 10) {
+            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 34)
+            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+    }
 }
+private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
 /// This week's shelf: a wooden shelf with the week's materials standing on it, and empty places to fill.
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.night) private var night
     @Environment(JournalStore.self) private var j
     let month: Int
     let arrange: () -> Void
@@ -180,7 +209,7 @@ struct ShelfView: View {
             .printCard(radius: 26)
             .overlay(alignment: .top) {
                 // perched on the top of the shelf, between the title and 整理
-                Duo(primary: app.companion, size: 58, look: CGPoint(x: -0.7, y: 0.4))
+                Duo(primary: night ? .otto : app.companion, size: 58, look: CGPoint(x: -0.7, y: 0.4), night: night)
                     .offset(x: 40, y: -52)
             }
             .padding(.top, 18)

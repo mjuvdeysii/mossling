@@ -106,9 +106,11 @@ def ik(shoulder, target, a, b, bend):
 def dims(kind, age):
     if kind == "adult":
         return dict(head=31, torso=118, tw=50, ua=58, fa=56, th=74, sh=72, aw=19, lw=26, hand=11)
+    # a toddler, not a small adult: a big head (about a third of the height at 3, as picture books draw it), a round
+    # tummy, short chubby arms and legs — the legs shorter than head and body together at every age
     k = min(36, max(0, age)) / 36
-    return dict(head=24 + 5 * k, torso=46 + 34 * k, tw=36 + 8 * k, ua=22 + 18 * k, fa=20 + 16 * k,
-                th=22 + 28 * k, sh=18 + 30 * k, aw=12 + 4 * k, lw=15 + 5 * k, hand=6.5 + 2.5 * k)
+    return dict(head=25 + 4 * k, torso=40 + 16 * k, tw=40 + 8 * k, ua=18 + 8 * k, fa=16 + 8 * k,
+                th=18 + 12 * k, sh=16 + 14 * k, aw=13 + 3 * k, lw=17 + 5 * k, hand=7 + 2 * k)
 
 # Poses: torso angle (from up, + leans toward the face), head tilt, legs as (thigh, shin) angles for near and far leg,
 # arms at rest (upper, fore), and which joints touch the ground.
@@ -152,7 +154,9 @@ class Person:
         hip = (0.0, 0.0)
         sh = add(hip, polar(p["torso"], d["torso"], f))
         legs = []
-        for (ta, sa) in p["legs"]:
+        spread = 6 if s.kind == "child" and s.pose in ("stand", "walk", "run", "squat") else 0
+        for n, (ta, sa) in enumerate(p["legs"]):
+            ta, sa = ta + (-spread if n == 0 else spread), sa + (-spread if n == 0 else spread)
             knee = add(hip, polar(ta, d["th"], f)); foot = add(knee, polar(sa, d["sh"], f)); legs.append((knee, foot))
         # rest on the ground
         if p["rest"] == "feet": low = max(legs[0][1][1], legs[1][1][1]) + d["lw"] * 0.45
@@ -164,7 +168,7 @@ class Person:
         s.hip, s.sh = T(hip), T(sh)
         s.legs = [(T(k), T(ft)) for k, ft in legs]
         ht = p.get("head", 0) + s.tilt
-        s.headc = add(s.sh, polar(p["torso"] + ht, d["head"] * 1.15, f))
+        s.headc = add(s.sh, polar(p["torso"] + ht, d["head"] * (1.15 if s.kind == "adult" else 0.92), f))
         # shoulders: near one a little toward the viewer
         s.shN = add(s.sh, polar(p["torso"] + 180, d["head"] * 0.25, f))
         s.shF = add(s.shN, (-f * d["tw"] * 0.12, -2))
@@ -218,9 +222,15 @@ class Person:
         a, b = s.hip, s.sh
         L = dist(a, b); ang = math.degrees(math.atan2(b[1] - a[1], b[0] - a[0]))
         cx, cy = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2
-        w = d["tw"]
-        if s.kind == "child" and s.age < 12: w *= 1.12
+        w = d["tw"] * (1.0 if s.kind == "adult" else 1.18)   # a round toddler tummy
         g = sv.lin(s.top, 120)
+        if s.kind == "child":
+            # an egg: wider at the tummy than at the shoulders
+            sv.add(f'<g transform="translate({cx:.1f} {cy:.1f}) rotate({ang:.1f})">'
+                   f'<path d="M{-L / 2 - w * .3:.1f} 0 C{-L / 2 - w * .3:.1f} {-w * .62:.1f} {L / 2 + w * .1:.1f} {-w * .46:.1f} {L / 2 + w * .18:.1f} 0 '
+                   f'C{L / 2 + w * .1:.1f} {w * .46:.1f} {-L / 2 - w * .3:.1f} {w * .62:.1f} {-L / 2 - w * .3:.1f} 0 Z" fill="{g}"/></g>')
+            if s.age < 12: sv.add(f'<circle cx="{a[0]:.1f}" cy="{a[1]:.1f}" r="{w * .48:.1f}" fill="{sv.rad(s.leg)}"/>')
+            return
         sv.add(f'<g transform="translate({cx:.1f} {cy:.1f}) rotate({ang:.1f})">'
                f'<rect x="{-L / 2 - w * .32:.1f}" y="{-w / 2:.1f}" width="{L + w * .5:.1f}" height="{w:.1f}" rx="{w / 2:.1f}" fill="{g}"/></g>')
         if s.kind == "child" and s.age < 12:  # a onesie: the same colour down to the hips
@@ -235,8 +245,13 @@ class Person:
             sv.add(f'<circle cx="{c[0] - f * r * .72:.1f}" cy="{c[1] - r * .62:.1f}" r="{r * .42:.1f}" fill="{sv.rad(hair)}"/>')
         sv.add(f'<circle cx="{c[0]:.1f}" cy="{c[1]:.1f}" r="{r:.1f}" fill="{sv.rad(s.skin)}"/>')
         # hair cap over the top and back
-        if s.hair in ("bun", "short", "bob"):
-            k = 1.08 if s.hair == "bob" else 1.03
+        if s.hair == "bob":
+            # a toddler's soft hair: a small cap at the back and top, a curl standing up
+            sv.add(f'<path d="M{c[0] - f * r * 1.02:.1f} {c[1] + r * .2:.1f} A{r:.1f} {r:.1f} 0 0 {1 if f > 0 else 0} {c[0] + f * r * .55:.1f} {c[1] - r * .84:.1f} '
+                   f'Q{c[0] + f * r * .05:.1f} {c[1] - r * .45:.1f} {c[0] - f * r * .45:.1f} {c[1] - r * .4:.1f} Q{c[0] - f * r * .8:.1f} {c[1] - r * .1:.1f} {c[0] - f * r * 1.02:.1f} {c[1] + r * .2:.1f} Z" fill="{sv.lin(hair, 120)}"/>')
+            sv.add(f'<path d="M{c[0] + f * r * .05:.1f} {c[1] - r * .95:.1f} q{f * r * .1:.1f} {-r * .45:.1f} {f * r * .45:.1f} {-r * .3:.1f}" fill="none" stroke="{hair}" stroke-width="{max(3, r * .14):.1f}" stroke-linecap="round"/>')
+        if s.hair in ("bun", "short"):
+            k = 1.03
             sv.add(f'<path d="M{c[0] - r * k:.1f} {c[1] + r * (.15 if s.hair == "bob" else -.05):.1f} '
                    f'A{r * k:.1f} {r * k:.1f} 0 0 1 {c[0] + r * k:.1f} {c[1] - r * .05:.1f} '
                    f'Q{c[0] + r * .2:.1f} {c[1] - r * .55:.1f} {c[0] - r * .35:.1f} {c[1] - r * .38:.1f} '

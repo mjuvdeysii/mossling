@@ -163,6 +163,7 @@ private struct WeekStrip: View {
 /// and every entry in fixed columns — time, sticker, kind, value — with the details on a second line.
 private struct DayPage: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.lamp) private var lamp
     let day: Day, today: Day
     let logs: [LogEntry]
     let timers: [RunningTimer]
@@ -178,14 +179,15 @@ private struct DayPage: View {
                     Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(.secondary)
                 }
                 Spacer()
-                Creature(kind: app.companion, mood: logs.isEmpty ? .open : .happy, alive: false).frame(width: 48, height: 48)
+                if lamp { Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.3), glow: true).frame(width: 52, height: 52) }
+                else { Creature(kind: app.companion, mood: logs.isEmpty ? .open : .happy, alive: false).frame(width: 48, height: 48) }
             }
             Totals(logs: logs, day: day)
             DayRibbon(day: day, logs: logs, timers: timers)
             if day == today { ForEach(timers, id: \.type) { t in RunningRow(timer: t) } }
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 VStack(spacing: 8) {
-                    Duo(primary: app.companion, size: 56, mood: .sleep)
+                    Duo(primary: lamp ? .otto : app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
                     Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
@@ -229,31 +231,51 @@ private struct RunningRow: View {
 /// The day from midnight to midnight: feeds and sleeps as bars of their length, everything else as a dot.
 private struct DayRibbon: View {
     let day: Day, logs: [LogEntry], timers: [RunningTimer]
+    @Environment(\.lamp) private var lamp
     var body: some View {
         let d0 = day.date.timeIntervalSince1970 * 1000, span = 86_400_000.0
         TimelineView(.periodic(from: .now, by: 60)) { tl in
             let now = tl.date.timeIntervalSince1970 * 1000
             VStack(spacing: 6) {
-                Canvas { ctx, size in
-                    let h = size.height
-                    ctx.fill(Path(roundedRect: CGRect(x: 0, y: 0, width: size.width, height: h), cornerRadius: h / 2), with: .color(Palette.fill))
-                    func x(_ t: Double) -> CGFloat { CGFloat(max(0, min(1, (t - d0) / span))) * size.width }
-                    for hr in [6.0, 12, 18] { ctx.fill(Path(CGRect(x: x(d0 + hr * 3_600_000), y: 4, width: 1, height: h - 8)), with: .color(Palette.outline)) }
-                    let blocks = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
-                    for (t, a, b) in blocks where b > d0 && a < d0 + span {
-                        let r = CGRect(x: x(a), y: 3, width: max(6, x(b) - x(a)), height: h - 6)
-                        ctx.fill(Path(roundedRect: r, cornerRadius: (h - 6) / 2), with: .color(LogType.color(t)))
-                    }
-                    for e in logs where e.end == nil {
-                        ctx.fill(Path(ellipseIn: CGRect(x: x(e.start) - 4, y: h / 2 - 4, width: 8, height: 8)), with: .color(LogType.color(e.type)))
-                    }
-                    if now > d0 && now < d0 + span { ctx.fill(Path(roundedRect: CGRect(x: x(now) - 1, y: 0, width: 2, height: h), cornerRadius: 1), with: .color(.primary)) }
-                }
-                .frame(height: 26)
+                Canvas { ctx, size in paint(&ctx, size, d0: d0, span: span, now: now) }
+                    .frame(height: 30)
                 HStack { ForEach(["0:00", "6:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(.secondary).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
             }
         }
-        .accessibilityElement().accessibilityLabel("这一天的时间条：\(logs.count) 条记录")
+        .accessibilityElement().accessibilityLabel("这一天的串珠：\(logs.count) 颗")
+    }
+
+    /// The day as a string of beads, like the Montessori bead chains: a cord from midnight to midnight, a bead for
+    /// each entry in its colour, a long bead for each feed or sleep as long as it lasted, and the golden bead — Otto's —
+    /// where the day has got to.
+    private func paint(_ ctx: inout GraphicsContext, _ size: CGSize, d0: Double, span: Double, now: Double) {
+        let w: CGFloat = size.width, mid: CGFloat = size.height / 2
+        func x(_ t: Double) -> CGFloat { CGFloat(max(0, min(1, (t - d0) / span))) * w }
+        var cord = Path(); cord.move(to: CGPoint(x: 0, y: mid)); cord.addLine(to: CGPoint(x: w, y: mid))
+        ctx.stroke(cord, with: .color(Color.secondary.opacity(0.35)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
+        for hr in [6.0, 12, 18] {
+            let hx = x(d0 + hr * 3_600_000)
+            ctx.fill(Path(ellipseIn: CGRect(x: hx - 1.5, y: mid - 1.5, width: 3, height: 3)), with: .color(Color.secondary.opacity(0.5)))
+        }
+        func bead(_ r: CGRect, _ c: Color) {
+            let p = Path(roundedRect: r, cornerRadius: r.height / 2)
+            ctx.fill(p, with: .color(c))
+            ctx.fill(Path(roundedRect: r.insetBy(dx: 1.5, dy: 1.5).offsetBy(dx: 0, dy: -r.height * 0.18).insetBy(dx: r.width * 0.12, dy: r.height * 0.22),
+                          cornerRadius: r.height / 3), with: .color(.white.opacity(0.28)))
+        }
+        let spans = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
+        for (t, a, b) in spans where b > d0 && a < d0 + span {
+            let h: CGFloat = t == LogType.sleep ? 18 : 14
+            bead(CGRect(x: x(a), y: mid - h / 2, width: max(h, x(b) - x(a)), height: h), LogType.color(t))
+        }
+        for e in logs where e.end == nil {
+            bead(CGRect(x: x(e.start) - 6, y: mid - 6, width: 12, height: 12), LogType.color(e.type))
+        }
+        if now > d0 && now < d0 + span {
+            let gx = x(now)
+            if lamp { ctx.fill(Path(ellipseIn: CGRect(x: gx - 15, y: mid - 15, width: 30, height: 30)), with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.6), Palette.amber.opacity(0)]), center: CGPoint(x: gx, y: mid), startRadius: 2, endRadius: 15)) }
+            bead(CGRect(x: gx - 8, y: mid - 8, width: 16, height: 16), lamp ? Palette.amber : Palette.bead)
+        }
     }
 }
 
@@ -459,6 +481,7 @@ private struct TimelineRow: View {
 struct TimerScreen: View {
     @Environment(JournalStore.self) private var j
     @Environment(AppModel.self) private var app
+    @Environment(\.lamp) private var lamp
     @Environment(\.dismiss) private var dismiss
     let type: String
     @State private var picking = false
@@ -519,14 +542,17 @@ struct TimerScreen: View {
                         }
                     }
                     Spacer(minLength: 0)
-                    Duo(primary: app.companion, size: 70, mood: type == LogType.sleep && !paused ? .sleep : .open, look: CGPoint(x: 0, y: -0.6), poke: false)
+                    // at night Otto keeps watch with his lamp while Moss sleeps; by day the chosen one is in front
+                    Duo(primary: lamp ? .otto : app.companion, size: 70, mood: !lamp && type == LogType.sleep && !paused ? .sleep : .open,
+                        look: CGPoint(x: 0, y: -0.6), poke: true, night: lamp)
                 }
                 .padding(.horizontal, 24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background {
                     ZStack {
-                        Palette.background
-                        RadialGradient(colors: [c.opacity(0.28), c.opacity(0)], center: .top, startRadius: 0, endRadius: 520)
+                        if lamp { Palette.lampPage } else { Palette.background }
+                        let glow = lamp ? Palette.amber : c
+                        RadialGradient(colors: [glow.opacity(lamp ? 0.2 : 0.28), glow.opacity(0)], center: .top, startRadius: 0, endRadius: 520)
                     }
                     .ignoresSafeArea()
                 }

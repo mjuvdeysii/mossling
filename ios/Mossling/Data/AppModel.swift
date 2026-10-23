@@ -33,6 +33,8 @@ final class AppModel {
     var lock: Bool { didSet { d.set(lock, forKey: "lock") } }
     var shelf: String { didSet { d.set(shelf, forKey: "shelf") } }
     var journal: Bool { didSet { d.set(journal, forKey: "journal") } }
+    /// 夜灯: from 7 pm to 6 am the records and the timer turn into Otto's lamp — dim warm light on deep blue.
+    var nightLight: Bool { didSet { d.set(nightLight, forKey: "nightLight") } }
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
@@ -52,6 +54,7 @@ final class AppModel {
         lock = d.bool(forKey: "lock")
         shelf = d.string(forKey: "shelf") ?? ""
         journal = d.bool(forKey: "journal")
+        nightLight = (d.object(forKey: "nightLight") as? Bool) ?? true
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })

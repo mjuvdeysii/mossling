@@ -6,6 +6,7 @@ import SwiftUI
 /// month; turning it walks the child through the months and the page below follows.
 struct GrowthWheel: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.night) private var night
     @Binding var month: Int
     let baby: Int
     @State private var arrived = 0
@@ -23,12 +24,12 @@ struct GrowthWheel: View {
         let plays = app.content.plays(of: m)
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                Sky(hour: 12)
+                Sky(hour: night ? 22 : 12)
                 GrowingChild(month: m)
                     .frame(width: 150, height: 150)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
-                Duo(primary: app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived)
+                Duo(primary: night ? .otto : app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived, night: night)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {

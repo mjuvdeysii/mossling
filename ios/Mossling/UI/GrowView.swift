@@ -85,9 +85,7 @@ private struct MonthBody: View {
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     SectionTitle(title: "一起玩", detail: "做过 \(app.count(m, TickKind.did)) / \(plays.count)")
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(plays) { p in PlayTileLink(play: p, month: m) }
-                    }
+                    PlaysLeadGrid(plays: plays, month: m)
                 }
             }
 
@@ -104,51 +102,74 @@ private struct MonthBody: View {
     }
 }
 
-/// The parts of a month as tiles: a picture, a word, and how much is recorded; each opens its own page.
+/// The parts of a month, in two tiers (ios/DESIGN.md §3 · 版面): what is ticked off over the month — what to watch
+/// for, vaccines and check-ups — as two large tiles with their progress; what is read when needed — the six areas,
+/// notes, the day's rhythm, growth — as a compact row.
 struct MonthParts: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     let month: Int
     var body: some View {
         let mo = app.content.month(month), m = month
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(title: "这个月")
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: type.isAccessibilitySize ? 2 : 3), spacing: 10) {
-                    NavigationLink(value: Route.areas(m)) {
-                        MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 \($0.name.prefix(4))" }) { EmptyView() }
-                    }.buttonStyle(.toy)
-                    if !mo.observe.isEmpty {
-                        let total = mo.observe.reduce(0) { $0 + $1.items.count }
-                        NavigationLink(value: Route.observe(m)) {
-                            MonthTile(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", note: "\(app.count(m, TickKind.observed)) / \(total)") { Ring(done: app.count(m, TickKind.observed), total: total, color: Crayon.sky) }
-                        }.buttonStyle(.toy)
-                    }
-                    if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-                        let total = mo.vaccines.count + mo.checkups.count
-                        let done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-                        NavigationLink(value: Route.care(m)) {
-                            MonthTile(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", note: "\(done) / \(total)") { Ring(done: done, total: total, color: Crayon.pink) }
-                        }.buttonStyle(.toy)
-                    }
-                    if !mo.notes.isEmpty {
-                        NavigationLink(value: Route.notes(m)) {
-                            MonthTile(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", note: "\(mo.notes.count) 条") { EmptyView() }
-                        }.buttonStyle(.toy)
-                    }
-                    if !mo.who.isEmpty {
-                        NavigationLink(value: Route.rhythm(m)) {
-                            MonthTile(symbol: "sun.and.horizon.fill", color: Crayon.peach, title: "一天的节奏", note: "睡眠 活动") { EmptyView() }
-                        }.buttonStyle(.toy)
-                    }
-                    NavigationLink(value: JournalRoute.growth) {
-                        MonthTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO") { EmptyView() }
-                    }.buttonStyle(.toy)
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle(title: "这个月")
+            HStack(spacing: 12) {
+                if !mo.observe.isEmpty {
+                    let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
+                    NavigationLink(value: Route.observe(m)) { BigPart(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", done: done, total: total) }.buttonStyle(.toy)
+                }
+                if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
+                    let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
+                    NavigationLink(value: Route.care(m)) { BigPart(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", done: done, total: total) }.buttonStyle(.toy)
                 }
             }
+            let small = smallParts(mo, m)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: type.isAccessibilitySize ? 2 : max(1, small.count)), spacing: 8) {
+                ForEach(small, id: \.title) { p in
+                    let label = VStack(spacing: 6) {
+                        IconTile(symbol: p.symbol, color: p.color, size: 38)
+                        Text(p.title).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
+                    }
+                    .padding(.vertical, 10).padding(.horizontal, 4).frame(maxWidth: .infinity)
+                    .printCard(radius: 18)
+                    if let r = p.route { NavigationLink(value: r) { label }.buttonStyle(.toy) }
+                    else { NavigationLink(value: JournalRoute.growth) { label }.buttonStyle(.toy) }
+                }
+            }
+        }
+    }
+    /// A small part; `route` nil means the growth chart (a journal route).
+    private struct Small { let symbol: String; let color: Color; let title: String; let route: Route? }
+    private func smallParts(_ mo: Month, _ m: Int) -> [Small] {
+        var out = [Small(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: "六个方面", route: Route.areas(m))]
+        if !mo.notes.isEmpty { out.append(Small(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", route: Route.notes(m))) }
+        if !mo.who.isEmpty { out.append(Small(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", route: Route.rhythm(m))) }
+        out.append(Small(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", route: nil))
+        return out
     }
 }
 
-/// One part of the month as a tile: its icon large, its name, a short note, and a ring when there is something to tick.
+/// A large month part: its picture, its name and how far along the month is, as a ring with the count.
+private struct BigPart: View {
+    let symbol: String, color: Color, title: String, done: Int, total: Int
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top) {
+                IconTile(symbol: symbol, color: color, size: 46)
+                Spacer(minLength: 0)
+                Ring(done: done, total: total, color: color, size: 34)
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.headline).foregroundStyle(.primary)
+                Text("\(done) / \(total)").font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Crayon.ink(color))
+            }
+        }
+        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+        .background(color.opacity(0.12)).printCard(radius: 22)
+        .accessibilityElement(children: .combine)
+    }
+}
+
 struct MonthTile<Accessory: View>: View {
     let symbol: String, color: Color, title: String
     var note: String? = nil
@@ -176,9 +197,10 @@ struct PlayTileLink: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     let play: Play, month: Int
+    var form: PlayTile.Form = .cell
     var body: some View {
         let route = Route.play(play.code, month)
-        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count) }
+        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count, form: form) }
             .buttonStyle(.toy)
             .zoomSource(route)
             .contextMenu { PlayActions(play: play, month: month) }
@@ -307,38 +329,59 @@ struct RhythmView: View {
 
 /// A play in the month's grid: its first picture, its name, its age.
 struct PlayTile: View {
+    enum Form { case lead, cell, row }
     let play: Play
     let times: Int
+    var form: Form = .cell
     var body: some View {
         let key = Palette.areaKey(of: play)
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topTrailing) {
-                if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(4 / 3, contentMode: .fit) }
-                else { Palette.fill.aspectRatio(4 / 3, contentMode: .fit) }
-                if times > 0 {
-                    Text("×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
-                        .padding(.horizontal, 8).frame(height: 24)
-                        .background(Capsule().fill(LinearGradient(colors: [Palette.beadLight, Palette.bead], startPoint: .top, endPoint: .bottom)))
-                        .shadow(color: .black.opacity(0.15), radius: 2, y: 1)
-                        .padding(8)
-                        .accessibilityLabel("做过 \(times) 次")
+        let pic = ArtIndex.shared.steps(play.code).first
+        Group {
+            switch form {
+            case .row:
+                // compact: the tray of materials at the left, the words at the right
+                HStack(spacing: 12) {
+                    Figure(name: "tray_\(play.code.lowercased()).webp").frame(width: 92, height: 69)
+                    words(key, title: .subheadline)
+                    Spacer(minLength: 0)
+                    badge
                 }
-            }
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 4) {
-                    IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 18)
-                    Text(play.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+                .padding(10)
+                .background(Palette.area(key).opacity(0.1))
+            default:
+                VStack(alignment: .leading, spacing: 0) {
+                    ZStack(alignment: .topTrailing) {
+                        if let pic { ArtFill(name: pic).aspectRatio(form == .lead ? 16 / 10 : 4 / 3, contentMode: .fit) }
+                        else { Palette.fill.aspectRatio(4 / 3, contentMode: .fit) }
+                        badge.padding(8)
+                    }
+                    words(key, title: form == .lead ? .title3 : .subheadline).padding(form == .lead ? 16 : 12)
+                    Spacer(minLength: 0)
                 }
-                Text(play.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                Text(play.age).font(.caption).foregroundStyle(.secondary)
+                .background(Palette.area(key).opacity(form == .lead ? 0.16 : 0.08))
             }
-            .padding(12)
-            Spacer(minLength: 0)
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-        .background(Palette.area(key).opacity(0.1))
-        .printCard(radius: 22)
+        .frame(maxWidth: .infinity, maxHeight: form == .row ? nil : .infinity, alignment: .topLeading)
+        .printCard(radius: form == .lead ? 26 : 22)
         .accessibilityElement(children: .combine)
+    }
+    @ViewBuilder private var badge: some View {
+        if times > 0 {
+            Text("×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
+                .padding(.horizontal, 8).frame(height: 24)
+                .background(Capsule().fill(Palette.bead))
+                .accessibilityLabel("做过 \(times) 次")
+        }
+    }
+    private func words(_ key: String, title: Font) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: form == .lead ? 22 : 18)
+                Text(play.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+            }
+            Text(play.name).font(title.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+            Text(form == .lead ? "\(play.age) · \(play.steps.count) 步" : play.age).font(.caption).foregroundStyle(.secondary)
+        }
     }
 }
 

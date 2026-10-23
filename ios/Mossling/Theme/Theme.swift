@@ -126,10 +126,55 @@ struct IconTile: View {
     }
 }
 
+// MARK: day and night
+
+/// Moss keeps the day (play, the picture book); Otto keeps the night (care), his golden bead a small lamp. From 7 pm
+/// to 6 am, with 夜灯 on, the records and the timer are lit by that lamp: deep blue, a warm amber glow, no bright white —
+/// dim red and amber light disturbs a child's (and a parent's) night least (ios/DESIGN.md §1).
+enum Daylight {
+    static func isNight(_ d: Date = Date()) -> Bool { let h = Day.cal.component(.hour, from: d); return h >= 19 || h < 6 }
+}
+extension EnvironmentValues {
+    @Entry var lamp: Bool = false
+    /// Night (7 pm – 6 am): the sky on the home is the night sky and Otto's bead glows; the page itself stays as set.
+    @Entry var night: Bool = false
+}
+
+/// Lights a part of the app with Otto's lamp when `on`: dark appearance, amber tint, the lamp page and cards.
+struct LampScope: ViewModifier {
+    let on: Bool
+    func body(content: Self.Content) -> some View {
+        if on {
+            content.environment(\.lamp, true).environment(\.colorScheme, .dark)
+                .toolbarColorScheme(.dark, for: .navigationBar).tint(Palette.amber)
+        } else { content }
+    }
+}
+extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)) } }
+
+extension Palette {
+    static let lampPage = Color(hex: 0x0E1430)
+    static let lampCard = Color(hex: 0x19213F)
+    static let amber = Color(hex: 0xFFB547)
+    static let amberDeep = Color(hex: 0x9A5A00)
+}
+
 /// The page behind everything: plain paper. Colour belongs to the pictures and the materials, not the page
 /// (ios/DESIGN.md §3); hierarchy comes from layout and grouping.
 struct PageBackground: View {
-    var body: some View { Palette.background.ignoresSafeArea().accessibilityHidden(true) }
+    @Environment(\.lamp) private var lamp
+    var body: some View {
+        if lamp {
+            // night: deep blue, warmed from the top by Otto's lamp
+            ZStack {
+                Palette.lampPage
+                RadialGradient(colors: [Palette.amber.opacity(0.22), Palette.amber.opacity(0)], center: UnitPoint(x: 0.85, y: 0), startRadius: 0, endRadius: 420)
+            }
+            .ignoresSafeArea().accessibilityHidden(true)
+        } else {
+            Palette.background.ignoresSafeArea().accessibilityHidden(true)
+        }
+    }
 }
 
 extension View {
@@ -200,10 +245,11 @@ struct PrintCard: ViewModifier {
     var radius: CGFloat = 24
     var fill: Color = Palette.card
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     func body(content: Self.Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         content
-            .background(fill, in: shape)
+            .background(lamp ? Palette.lampCard : fill, in: shape)
             .clipShape(shape)
             .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
             .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)

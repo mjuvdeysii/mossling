@@ -56,19 +56,30 @@ struct YouView: View {
                     }
                 }
 
-                // settings
+                // settings: the switches in pairs; when they come out odd, 外观 takes a full row; 关于 always does
+                let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
                 LazyVGrid(columns: two, spacing: 12) {
                     SwitchTile(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
-                    if LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock {
+                    SwitchTile(title: "夜灯", detail: "晚 7 点到早 6 点，记录与计时用暖光", symbol: "moon.zzz.fill", color: Crayon.lilac, on: $app.nightLight)
+                    if face {
                         SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
+                        appearance
                     }
-                    Menu {
-                        Picker("外观", selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } }
-                    } label: { Tile(title: "外观", detail: app.theme.label, symbol: "circle.lefthalf.filled", color: Crayon.pebble) }
-                    .buttonStyle(.toy)
-                    NavigationLink(value: Route.about) { Tile(title: "关于", detail: "来源 条款 反馈", symbol: "info", color: Crayon.sky) }
-                        .buttonStyle(.toy)
                 }
+                if !face { appearance }
+                NavigationLink(value: Route.about) {
+                    HStack(spacing: 12) {
+                        IconTile(symbol: "info", color: Crayon.sky, size: 32)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text("关于芽芽月历").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                            Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    .padding(12).printCard(radius: 20)
+                }
+                .buttonStyle(.toy)
 
                 // data: one row of three
                 VStack(alignment: .leading, spacing: 8) {
@@ -107,6 +118,16 @@ struct YouView: View {
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
             Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
         } message: { Text("清除后无法恢复。") }
+    }
+}
+
+extension YouView {
+    var appearance: some View {
+        @Bindable var app = app
+        return Menu {
+            Picker("外观", selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } }
+        } label: { Tile(title: "外观", detail: app.theme.label, symbol: "circle.lefthalf.filled", color: Crayon.pebble) }
+        .buttonStyle(.toy)
     }
 }
 

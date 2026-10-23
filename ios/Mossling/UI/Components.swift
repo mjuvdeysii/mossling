@@ -276,3 +276,33 @@ struct Ring: View {
         .accessibilityElement().accessibilityLabel("已记下 \(done) / \(total)")
     }
 }
+
+// MARK: layout
+
+/// A section laid out with a lead (ios/DESIGN.md §3 · 版面): the first item is the lead, full width and larger; the
+/// rest follow in pairs; if one is left over it becomes a compact full-width row, so no row is ever half empty. At the
+/// largest text sizes everything stacks in one column.
+struct LeadGrid<Item: Identifiable, Lead: View, Cell: View, Row: View>: View {
+    let items: [Item]
+    @ViewBuilder let lead: (Item) -> Lead
+    @ViewBuilder let cell: (Item) -> Cell
+    @ViewBuilder let row: (Item) -> Row
+    @Environment(\.dynamicTypeSize) private var type
+    var body: some View {
+        VStack(spacing: 12) {
+            if let first = items.first { lead(first) }
+            let rest = Array(items.dropFirst())
+            if type.isAccessibilitySize {
+                ForEach(rest) { row($0) }
+            } else {
+                let paired = rest.count / 2 * 2
+                if paired > 0 {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        ForEach(rest.prefix(paired)) { cell($0) }
+                    }
+                }
+                if rest.count % 2 == 1, let last = rest.last { row(last) }
+            }
+        }
+    }
+}
