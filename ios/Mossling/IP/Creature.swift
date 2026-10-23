@@ -133,11 +133,11 @@ struct Creature: View {
         let rest = lid ?? (kind == .otto ? 0.34 : 0)
         let l = max(rest, still ? 0 : blinkValue(now))
         let face: Mood = patted ? .happy : mood
-        let wave = still ? 0 : sin(t * 9) * 16
+        let wave: Double = still ? 0 : sin(t * 9) * 16
         let swingK = still ? 0 : Self.bounce(now.timeIntervalSince(swingAt) * 0.45) * 26
         let e0 = lookValue(still ? .distantFuture : now), g = still ? .zero : glanceValue(now)
         let e = CGPoint(x: e0.x + g.x, y: e0.y + g.y)
-        let squeeze = patted && !still ? 0.04 * sin(min(1, now.timeIntervalSince(pattedAt) / 0.3) * .pi) : 0
+        let squeeze: Double = patted && !still ? 0.04 * sin(min(1.0, now.timeIntervalSince(pattedAt) / 0.3) * Double.pi) : 0
         if squeeze > 0 { ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -88) }
         let pose: Arms = patted ? .rest : arms
         if kind == .moss { drawMoss(&ctx, e, patted ? 1 : l, face, pose, wave, sway: (b - 0.5) * 6 + leaf) }
@@ -203,8 +203,8 @@ struct Creature: View {
     /// Small round arms, only when waving or cheering; `left`/`right` are the shoulders.
     private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
         func arm(_ from: CGPoint, _ deg: Double) {
-            let r = deg * .pi / 180, L: CGFloat = 13
-            var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + sin(r) * L, y: from.y - cos(r) * L))
+            let r = CGFloat(deg * .pi / 180), L: CGFloat = 13
+            var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + CGFloat(Foundation.sin(Double(r))) * L, y: from.y - CGFloat(Foundation.cos(Double(r))) * L))
             ctx.stroke(p, with: .color(c), style: StrokeStyle(lineWidth: 7, lineCap: .round))
         }
         switch pose {
