@@ -163,50 +163,33 @@ private struct Trail: View {
     }
 }
 
-/// One month as a page: the cover picture, then the month in order — points, plays, the six areas, what to look out
-/// for, vaccinations and check-ups, notes, the day's rhythm, topics.
+/// One month as a chapter: the cover picture, then the month in order — points, plays, the month's parts, topics.
 struct MonthView: View {
     @Environment(AppModel.self) private var app
     let month: Int
-    @State private var scrolled = false
 
     var body: some View {
-        let c = app.content, mo = c.month(month), m = month
+        let mo = app.content.month(month), m = month
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if let f = ArtIndex.shared.cover(m) { StretchyArt(name: f, height: 300) }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(m == 0 ? "出生" : "满 \(m) 个月").font(.largeTitle.weight(.bold))
-                    Text(mo.title).font(.title3).foregroundStyle(.secondary)
-                    if let b = app.birth { Text(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : "")).font(.subheadline).foregroundStyle(.secondary).padding(.top, 2) }
+                if let f = ArtIndex.shared.cover(m) {
+                    ArtView(name: f, label: "满 \(m) 个月：\(mo.title)", radius: 26).padding(.horizontal, 16).padding(.top, 4)
                 }
-                .padding(.horizontal, 20).padding(.top, 16)
-                .onScrollVisibilityChange(threshold: 0.1) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
-
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(mo.title).font(.title2.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                    if let b = app.birth {
+                        Label(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : ""), systemImage: "calendar")
+                            .font(.subheadline).foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 20).padding(.top, 14)
                 MonthBody(month: m).padding(.horizontal, 16).padding(.top, 8)
             }
             .padding(.bottom, 40)
         }
-        .ignoresSafeArea(edges: .top)
         .background(Palette.background)
         .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbar {
-            ToolbarItem(placement: .principal) { Text(m == 0 ? "出生" : "满 \(m) 个月").font(.headline).opacity(scrolled ? 1 : 0) }
-        }
-    }
-}
-
-/// A picture across the top of a page that stretches when pulled down.
-struct StretchyArt: View {
-    let name: String
-    var height: CGFloat = 300
-    var body: some View {
-        GeometryReader { g in
-            let y = g.frame(in: .scrollView).minY
-            ArtFill(name: name).frame(width: g.size.width, height: height + max(0, y)).offset(y: -max(0, y))
-        }
-        .frame(height: height)
+        .navigationBarTitleDisplayMode(.large)
     }
 }
 

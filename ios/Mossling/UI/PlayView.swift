@@ -15,7 +15,7 @@ struct PlayView: View {
         let key = Palette.areaKey(of: play)
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if let f = art.first { StretchyArt(name: f, height: 280) }
+                if let f = art.first { ArtView(name: f, label: "第一步的图示", radius: 26).padding(.horizontal, 16).padding(.top, 8) }
                 VStack(alignment: .leading, spacing: 6) {
                     Label(play.domains.joined(separator: "、"), systemImage: Palette.areaSymbol(key))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
@@ -59,7 +59,6 @@ struct PlayView: View {
                 .padding(.horizontal, 16).padding(.top, 20).padding(.bottom, 24)
             }
         }
-        .ignoresSafeArea(edges: .top)
         .background(Palette.background)
         .safeAreaBar(edge: .bottom) {
             HStack(spacing: 12) {
@@ -85,7 +84,9 @@ struct PlayView: View {
                 Menu { PlayActions(play: play, month: month) } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
             }
         }
-        .fullScreenCover(isPresented: $doing) { StepMode(play: play, month: month) }
+        .fullScreenCover(isPresented: $doing) {
+            StepMode(play: play, month: month, start: app.playing.flatMap { $0.play.code == play.code ? $0.step : nil } ?? 0)
+        }
     }
 }
 
@@ -96,6 +97,7 @@ struct StepMode: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduce
     let play: Play, month: Int
+    var start = 0
     @State private var i = 0
     @State private var forward = true
 
@@ -141,6 +143,7 @@ struct StepMode: View {
                     } else {
                         Button {
                             if !app.ticked(month, TickKind.did, play.code) { app.toggle(month, TickKind.did, play.code, play.name) }
+                            app.finishPlaying()
                             dismiss()
                         } label: { Label("完成", systemImage: "checkmark").frame(maxWidth: .infinity).padding(.vertical, 6) }
                             .buttonStyle(.glassProminent).tint(Palette.accent).controlSize(.large)
@@ -149,11 +152,42 @@ struct StepMode: View {
                 .padding(.horizontal, 20).padding(.vertical, 8)
             }
             .sensoryFeedback(.selection, trigger: i)
+            .onAppear { i = min(start, max(0, play.steps.count - 1)); app.play(play, month: month, at: i) }
+            .onChange(of: i) { _, k in app.play(play, month: month, at: k) }
         }
     }
 
     private func go(_ d: Int) {
         forward = d > 0
         withAnimation(.snappy) { i = max(0, min(play.steps.count - 1, i + d)) }
+    }
+}
+
+/// The play in progress, small, above the tab bar: its picture, its name and step; tap to go on, or put it away.
+struct PlayingAccessory: View {
+    @Environment(AppModel.self) private var app
+    let play: Play, step: Int
+    let resume: () -> Void
+    var body: some View {
+        let art = ArtIndex.shared.steps(play.code)
+        HStack(spacing: 12) {
+            Button(action: resume) {
+                HStack(spacing: 12) {
+                    if step < art.count { ArtFill(name: art[step]).frame(width: 34, height: 34).clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous)) }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(play.name).font(.footnote.weight(.semibold)).lineLimit(1)
+                        Text("第 \(step + 1) 步，共 \(play.steps.count) 步").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                    }
+                    Spacer(minLength: 0)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("继续：\(play.name)，第 \(step + 1) 步")
+            Button { resume() } label: { Image(systemName: "play.fill") }.accessibilityLabel("继续")
+            Button { withAnimation(.snappy) { app.finishPlaying() } } label: { Image(systemName: "xmark") }.accessibilityLabel("放下")
+        }
+        .padding(.horizontal, 14)
+        .tint(.primary)
     }
 }

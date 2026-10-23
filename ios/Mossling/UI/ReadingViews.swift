@@ -47,7 +47,7 @@ struct SearchView: View {
             }
         }
         .scrollContentBackground(.hidden).background(Palette.background)
-        .searchable(text: $q, prompt: "活动、月份、专题")
+        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "活动、月份、专题")
         .navigationTitle("搜索")
     }
 }

@@ -36,7 +36,7 @@ struct RootView: View {
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
     @Namespace private var zoomYou
-    @Namespace private var zoomSearch
+    @State private var resuming = false
 
     var body: some View {
         ZStack {
@@ -57,11 +57,13 @@ struct RootView: View {
         .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
 
-    /// A running feed or sleep rides above the tab bar on every tab (the accessory shows only while one runs).
+    /// Above the tab bar, what is going on: a feed or sleep being timed, or a play started and not yet finished. It
+    /// appears only while there is one, and opens it.
     @ViewBuilder private var tabs: some View {
         if #available(iOS 26.2, *) {
-            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
+            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty || app.playing != nil) {
                 if let t = journal.timers.first { TimerAccessory(timer: t) }
+                else if let p = app.playing { PlayingAccessory(play: p.play, step: p.step) { resuming = true } }
             }
         } else {
             tabView
@@ -73,7 +75,7 @@ struct RootView: View {
             Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
             }
-            Tab("旅程", systemImage: "point.bottomleft.forward.to.point.topright.scurvepath.fill", value: 1) {
+            Tab("地图", systemImage: "map.fill", value: 1) {
                 NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }.environment(\.zoomNS, zoomJourney)
             }
             if app.journal {
@@ -84,11 +86,10 @@ struct RootView: View {
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
             }
-            Tab(value: 4, role: .search) {
-                NavigationStack(path: $searchPath) { SearchView(path: $searchPath).routes(path: $searchPath) }.environment(\.zoomNS, zoomSearch)
-            }
         }
-        .tabBarMinimizeBehavior(.onScrollDown)
+        .fullScreenCover(isPresented: $resuming) {
+            if let p = app.playing { StepMode(play: p.play, month: p.month, start: p.step) }
+        }
     }
 
     private func unlock() {

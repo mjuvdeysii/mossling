@@ -33,6 +33,8 @@ final class AppModel {
     var lock: Bool { didSet { d.set(lock, forKey: "lock") } }
     var shelf: String { didSet { d.set(shelf, forKey: "shelf") } }
     var journal: Bool { didSet { d.set(journal, forKey: "journal") } }
+    /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
+    var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
 
     init(defaults: UserDefaults = .standard, content: Content? = nil, growth: Growth? = nil) {
@@ -50,6 +52,7 @@ final class AppModel {
         lock = d.bool(forKey: "lock")
         shelf = d.string(forKey: "shelf") ?? ""
         journal = d.bool(forKey: "journal")
+        session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
     }
@@ -78,6 +81,15 @@ final class AppModel {
     func another() { if let m = babyMonth { pick = "\(m):\(pickIndex + 1)" } }
     var skippedToday: Bool { skipDay == today.epochDay }
 
+    /// The play in progress, if any.
+    var playing: (play: Play, month: Int, step: Int)? {
+        let p = session.split(separator: "|")
+        guard p.count == 3, let pl = content.play(String(p[0])), let m = Int(p[1]), let st = Int(p[2]) else { return nil }
+        return (pl, m, min(st, pl.steps.count - 1))
+    }
+    func play(_ p: Play, month: Int, at step: Int) { session = "\(p.code)|\(month)|\(step)" }
+    func finishPlaying() { session = "" }
+
     func replaceTicks(_ l: [Tick]) { ticks = Dictionary(l.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a }) }
 
     /// What the widget shows, written whenever it changes.
@@ -90,8 +102,8 @@ final class AppModel {
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(skipDay)|\(today.epochDay)" }
 
     func clearAll() {
-        for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "nickname", "lock", "shelf", "journal", "ticks"] { d.removeObject(forKey: k) }
+        for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
-        birth = nil; sex = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; journal = false; lock = false; onboarded = false
+        birth = nil; sex = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
     }
 }

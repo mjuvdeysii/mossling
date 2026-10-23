@@ -158,7 +158,24 @@ struct SectionTitle: View {
     }
 }
 
+/// The picture-book print: a card laid on the page with a slightly offset, deeper copy beneath it, as the companions
+/// and the pictures are drawn. Used for the things one can pick up — plays, the shelf, the scene, stops on the map.
+struct PrintCard: ViewModifier {
+    var radius: CGFloat = 24
+    var fill: Color = Palette.card
+    @Environment(\.colorScheme) private var scheme
+    func body(content: Self.Content) -> some View {
+        content
+            .background(fill, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+            .background(RoundedRectangle(cornerRadius: radius, style: .continuous)
+                .fill(scheme == .dark ? Color.black.opacity(0.6) : Color(hex: 0x6B4A2B).opacity(0.13)).offset(x: 2.5, y: 3))
+    }
+}
+
 extension View {
+    func printCard(radius: CGFloat = 24, fill: Color = Palette.card) -> some View { modifier(PrintCard(radius: radius, fill: fill)) }
+
     /// A plain rounded card on the page.
     func card(_ color: Color = Palette.card, radius: CGFloat = 26, padding: CGFloat = 16) -> some View {
         self.padding(padding).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
