@@ -244,7 +244,7 @@ struct GrowingChild: View {
 struct Lively: ViewModifier {
     let giggle: Int
     @Environment(\.accessibilityReduceMotion) private var reduce
-    func body(content: Content) -> some View {
+    func body(content: Self.Content) -> some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
             let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
             content
