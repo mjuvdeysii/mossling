@@ -37,51 +37,43 @@ struct YouView: View {
                 }
                 .buttonStyle(.toy)
 
-                // the companion in front
-                LazyVGrid(columns: two, spacing: 12) {
-                    ForEach(Kind.allCases, id: \.self) { k in
-                        let on = app.companion == k
-                        Button { withAnimation(.snappy) { app.companion = k } } label: {
-                            HStack(spacing: 8) {
-                                Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.8 : -0.8, y: 0)).frame(width: 40, height: 40)
-                                Text(k.rawValue).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.6)
-                                Spacer(minLength: 0)
-                                Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
+                // the companions: a little stage, the chosen one in front; tap the other to bring it forward
+                Section2(title: "陪伴") { CompanionStage() }
+
+                // how the app looks: three swatches to tap, and the lamp coming on by itself at night
+                Section2(title: "外观") {
+                    VStack(spacing: 12) {
+                        HStack(spacing: 10) {
+                            ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
+                                Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
                             }
-                            .padding(10).printCard(radius: 20)
                         }
-                        .buttonStyle(.toy)
-                        .accessibilityLabel("\(k.rawValue) 站在前面").accessibilityAddTraits(on ? .isSelected : [])
+                        Toggle(isOn: $app.nightLight) {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("晚上自动开夜灯").font(.subheadline.weight(.semibold))
+                                Text("晚 7 点到早 6 点，整个应用换成夜灯").font(.caption).foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 10).printCard(radius: 18)
                     }
                 }
 
-                // settings: the switches in pairs; when they come out odd, 外观 takes a full row; 关于 always does
+                // features, in pairs
                 let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
-                LazyVGrid(columns: two, spacing: 12) {
-                    SwitchTile(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
-                    SwitchTile(title: "夜灯", detail: "晚 7 点到早 6 点，记录与计时用暖光", symbol: "moon.zzz.fill", color: Crayon.lilac, on: $app.nightLight)
-                    if face {
-                        SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
-                        appearance
-                    }
-                }
-                if !face { appearance }
-                NavigationLink(value: Route.about) {
-                    HStack(spacing: 12) {
-                        IconTile(symbol: "info", color: Crayon.sky, size: 32)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text("关于芽芽月历").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                            Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(.secondary)
+                Section2(title: "功能") {
+                    LazyVGrid(columns: two, spacing: 12) {
+                        SwitchTile(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
+                        if face {
+                            SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
+                        } else {
+                            NavigationLink(value: Route.about) { Tile(title: "关于", detail: "来源 · 条款 · 反馈", symbol: "info", color: Crayon.sky) }
+                                .buttonStyle(.toy)
                         }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                     }
-                    .padding(12).printCard(radius: 20)
                 }
-                .buttonStyle(.toy)
 
-                // data: one row of three
-                VStack(alignment: .leading, spacing: 8) {
+                // data
+                Section2(title: "数据") { VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Menu {
                             Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "芽芽月历记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
@@ -97,6 +89,22 @@ struct YouView: View {
                         Button("清除全部数据", role: .destructive) { clearing = true }.font(.caption.weight(.semibold))
                     }
                     .padding(.horizontal, 4)
+                } }
+
+                if face {
+                    NavigationLink(value: Route.about) {
+                        HStack(spacing: 12) {
+                            IconTile(symbol: "info", color: Crayon.sky, size: 32)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text("关于芽芽月历").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        }
+                        .padding(12).printCard(radius: 20)
+                    }
+                    .buttonStyle(.toy)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -120,13 +128,99 @@ struct YouView: View {
     }
 }
 
-extension YouView {
-    var appearance: some View {
-        @Bindable var app = app
-        return Menu {
-            Picker("外观", selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } }
-        } label: { Tile(title: "外观", detail: app.theme.label, symbol: "circle.lefthalf.filled", color: Crayon.pebble) }
+/// A titled group on the 我的 page: a small heading over its content.
+private struct Section2<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
+            content
+        }
+    }
+}
+
+/// The two companions on a little stage. The chosen one stands in front, larger; tap the other and it hops forward
+/// while the first steps back. Each has its job: Moss keeps the day and the play, Otto the night and the lamp.
+private struct CompanionStage: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.lamp) private var lamp
+    @State private var cheer = 0
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 0) {
+            ForEach(Kind.allCases, id: \.self) { k in
+                let on = app.companion == k
+                Button {
+                    guard !on else { cheer += 1; return }
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { app.companion = k }
+                    cheer += 1
+                } label: {
+                    VStack(spacing: 6) {
+                        Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.7 : -0.7, y: 0.1),
+                                 poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
+                            .frame(width: on ? 92 : 64, height: on ? 92 : 64)
+                            .frame(height: 96, alignment: .bottom)
+                        Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Color.secondary)
+                        Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel("\(k.rawValue)，\(k == .moss ? "白天陪玩" : "夜里点灯")").accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .background(alignment: .bottom) {
+            // the stage: a soft floor line under their feet, a spot of light under the one in front
+            Ellipse().fill(Palette.bead.opacity(lamp ? 0.22 : 0.16)).frame(width: 130, height: 18)
+                .offset(x: app.companion == .moss ? -80 : 80, y: -58)
+                .animation(.spring(response: 0.45, dampingFraction: 0.7), value: app.companion)
+        }
+        .printCard(radius: 24)
+        .sensoryFeedback(.impact(weight: .light), trigger: cheer)
+    }
+}
+
+/// One appearance to choose, drawn as a small page of it: paper by day, the lamp's blue with its amber light, or half
+/// and half for following the system.
+private struct Swatch: View {
+    let mode: ThemeMode
+    let on: Bool
+    let pick: () -> Void
+    var body: some View {
+        Button(action: pick) {
+            VStack(spacing: 6) {
+                ZStack {
+                    switch mode {
+                    case .light: RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(hex: 0xFBF7F0))
+                    case .dark: lampPage
+                    case .system:
+                        HStack(spacing: 0) { Color(hex: 0xFBF7F0); lampPage }
+                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    }
+                    // a card on the page
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(mode == .light ? Color.white : mode == .dark ? Palette.lampCard : Color.white.opacity(0.0))
+                        .frame(width: 40, height: 14).offset(y: 10)
+                    if mode != .light { Circle().fill(Palette.amber).frame(width: 7, height: 7).shadow(color: Palette.amber, radius: 4).offset(x: 22, y: -14) }
+                }
+                .frame(height: 64)
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.25), lineWidth: on ? 2.5 : 1))
+                Text(mode == .light ? "白天" : mode == .dark ? "夜灯" : "跟随系统").font(.caption.weight(on ? .bold : .medium))
+                    .foregroundStyle(on ? Color.primary : Color.secondary)
+            }
+            .frame(maxWidth: .infinity)
+        }
         .buttonStyle(.toy)
+        .accessibilityLabel(mode == .light ? "白天" : mode == .dark ? "夜灯" : "跟随系统")
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+    private var lampPage: some View {
+        ZStack {
+            Palette.lampPage
+            RadialGradient(colors: [Palette.amber.opacity(0.3), .clear], center: .topTrailing, startRadius: 0, endRadius: 60)
+        }
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 }
 

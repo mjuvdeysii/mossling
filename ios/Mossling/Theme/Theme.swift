@@ -36,9 +36,10 @@ enum Palette {
     /// The fill behind white text on prominent buttons, in both modes.
     static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
-    static let background = Color.dyn(0xFBF7F0, 0x14120F)
-    static let card = Color(uiColor: .secondarySystemGroupedBackground)
-    static let fill = Color.dyn(0xF2EBE0, 0x2A2723)
+    // dark is the lamp (build 160: one dark appearance, Otto's — deep blue, amber light), wherever it shows
+    static let background = Color.dyn(0xFBF7F0, 0x0E1430)
+    static let card = Color.dyn(0xFFFFFF, 0x19213F)
+    static let fill = Color.dyn(0xF2EBE0, 0x212A4C)
     static let text = Color.primary
     static let secondaryText = Color.secondary
     static let outline = Color(uiColor: .separator)
@@ -186,11 +187,35 @@ struct PageBackground: View {
             ZStack {
                 Palette.lampPage
                 RadialGradient(colors: [Palette.amber.opacity(0.22), Palette.amber.opacity(0)], center: UnitPoint(x: 0.85, y: 0), startRadius: 0, endRadius: 420)
+                Motes()
             }
             .ignoresSafeArea().accessibilityHidden(true)
         } else {
             Palette.background.ignoresSafeArea().accessibilityHidden(true)
         }
+    }
+}
+
+/// Specks of Otto's lamplight drifting slowly in the dark, as dust in a lamp's beam: a dozen, faint, near the lamp at
+/// the top. Ten frames a second is enough for something this slow; still under Reduce Motion.
+private struct Motes: View {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.1, paused: reduce)) { tl in
+            Canvas { ctx, size in
+                let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+                for i in 0..<12 {
+                    let s = Double(i) * 0.618
+                    let x = size.width * (0.35 + 0.65 * s.truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.21 + Double(i)) * 18
+                    let y = size.height * 0.42 * (0.1 + (s * 1.7).truncatingRemainder(dividingBy: 1)) + Foundation.cos(t * 0.17 + Double(i) * 2) * 14
+                    let a = 0.18 + 0.22 * (0.5 + 0.5 * Foundation.sin(t * 0.8 + Double(i) * 1.3))
+                    let r = 1.2 + Double(i % 3) * 0.7
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 3, y: y - r * 3, width: r * 6, height: r * 6)), with: .color(Palette.amber.opacity(a * 0.25)))
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Palette.amber.opacity(a)))
+                }
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 

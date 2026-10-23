@@ -33,6 +33,7 @@ struct RootView: View {
     @State private var journalPath = NavigationPath()
     @State private var searchPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
+    @Environment(\.colorScheme) private var scheme
     @State private var locked = true
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
@@ -70,10 +71,12 @@ struct RootView: View {
         // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
         // drawn by the system from the window's appearance, and stayed black on the lamp's blue when only the views
         // were dark (seen on a phone in light mode). Everywhere else, the chosen theme.
-        .preferredColorScheme(lampNow ? .dark : app.theme.scheme)
+        // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
+        // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
+        // system's own bars, pickers and sheets follow
+        .modifier(LampScope(on: scheme == .dark))
+        .preferredColorScheme(app.nightLight && night ? .dark : app.theme.scheme)
     }
-
-    private var lampNow: Bool { app.onboarded && app.nightLight && night && (tab == 2 || journal.focus != nil) }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
     @ViewBuilder private var tabs: some View {
@@ -90,12 +93,11 @@ struct RootView: View {
         TabView(selection: $tab) {
             Tab("本月", systemImage: "leaf.fill", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
-                    .environment(\.night, night)
+                    .environment(\.night, night || scheme == .dark)
             }
             if app.journal {
                 Tab("记录", systemImage: "list.bullet.clipboard.fill", value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
-                        .lamp(app.nightLight && night)
                 }
             }
             Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
@@ -104,7 +106,7 @@ struct RootView: View {
         }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
-            TimerScreen(type: w.id).lamp(app.nightLight && night).preferredColorScheme(app.nightLight && night ? .dark : nil)
+            TimerScreen(type: w.id).lampPresented()
         }
     }
 

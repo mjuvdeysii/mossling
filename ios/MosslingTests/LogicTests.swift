@@ -209,7 +209,8 @@ final class LogicTests: XCTestCase {
         let crayons: [(String, Color)] = [("teal", Crayon.teal), ("pink", Crayon.pink), ("sunflower", Crayon.sunflower), ("cherry", Crayon.cherry),
                                           ("sky", Crayon.sky), ("tangerine", Crayon.tangerine), ("lilac", Crayon.lilac), ("peach", Crayon.peach)]
         let paper = Color(hex: 0xFBF7F0), white = Color.white
-        let darkSurfaces: [(String, Color)] = [("dark page", Palette.background), ("lamp page", Palette.lampPage), ("lamp card", Palette.lampCard), ("grouped cell", Color(hex: 0x2C2C2E))]
+        let darkSurfaces: [(String, Color)] = [("dark page", Palette.background), ("lamp page", Palette.lampPage), ("lamp card", Palette.lampCard), ("grouped cell", Color(hex: 0x2C2C2E)),
+                                               ("dark card", Palette.card), ("dark fill", Palette.fill)]
         for (n, c) in crayons {
             XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), paper, .light), 4.5, "\(n) ink on paper")
             XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), white, .light), 4.5, "\(n) ink on a white card")

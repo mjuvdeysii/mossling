@@ -24,7 +24,7 @@ final class ScreenshotTests: XCTestCase {
         let host = UIHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
         let size = CGSize(width: 393, height: height)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
-        window.overrideUserInterfaceStyle = dark ? .dark : .light
+        window.overrideUserInterfaceStyle = dark || lamp ? .dark : .light   // the app darkens its window under the lamp
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.frame = window.bounds
@@ -141,9 +141,17 @@ final class ScreenshotTests: XCTestCase {
     func test30LampSheetsPresented() {
         let m = model(); m.journal = true
         for (name, type) in [("30_lamp_present_nurse", LogType.nurse), ("30_lamp_present_bottle", LogType.bottle)] {
-            let host = Color.clear.lamp(true).sheet(isPresented: .constant(true)) { AskSheet(type: type).lampPresented() }
+            let host = Color.clear.sheet(isPresented: .constant(true)) { AskSheet(type: type).lampPresented() }.lamp(true)
             shot(name, window: true, lamp: true, tabs(m, host))
         }
+    }
+    /// One dark appearance: the lamp everywhere (build 160).
+    func test31LampEverywhere() {
+        let m = model()
+        shot("31_lamp_home", height: 1600, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("31_lamp_you", height: 1500, lamp: true, tabs(m, YouView(path: .constant(NavigationPath())).lamp(true)))
+        shot("31_lamp_play", height: 1400, lamp: true, tabs(m, PlayView(play: m.content.play("A11")!, month: 6).lamp(true)))
+        shot("31_lamp_month", height: 1400, lamp: true, tabs(m, MonthView(month: 6).lamp(true)))
     }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
