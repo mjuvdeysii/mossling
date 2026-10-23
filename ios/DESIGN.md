@@ -116,6 +116,8 @@ Moss 与 Otto 以 App 图标为准（`tools/ios_icon.py`）：同样的轮廓、
 | A3 | 滚动内容中不使用 `glassEffect` | 代码检索 |
 | A4 | CI 构建与全部测试通过；浅色、深色、最大字号截图无溢出 | iOS 工作流与截图 |
 | A5 | content.json、WHO 数据、ios/Docs 无改动 | `git diff --stat` |
+| A6 | 夜灯与深色：每个颜色角色在其所有底色上达标（文字 4.5:1，大字与控件 3:1） | 单元测试 `testEveryColourRoleReadsByDayAndAtNight` |
+| A7 | 夜灯在真实条件下无黑字：系统为浅色、夜灯开启；从夜灯区域弹出的每个页面（表单、计时、时间选择）都重新点亮（`lampPresented()`） | 截图 27_*、28_*_lamp、30_lamp_present_* 在浅色系统下生成；`python3 tools/night_check.py <截图目录>` 全部 ok |
 
 ## 7. 验证记录
 

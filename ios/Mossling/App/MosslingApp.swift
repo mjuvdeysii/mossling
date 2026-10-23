@@ -98,7 +98,7 @@ struct RootView: View {
         }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
-            TimerScreen(type: w.id).lamp(app.nightLight && night)
+            TimerScreen(type: w.id).lamp(app.nightLight && night).preferredColorScheme(app.nightLight && night ? .dark : nil)
         }
     }
 

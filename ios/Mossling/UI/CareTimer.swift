@@ -101,7 +101,7 @@ struct TimerScreen: View {
                 .sensoryFeedback(.impact(weight: .medium), trigger: paused)
                 .sensoryFeedback(.selection, trigger: side)
                 .sheet(isPresented: $picking) {
-                    TimeSheet(title: "开始时间", initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }
+                    TimeSheet(title: "开始时间", initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }.lampPresented()
                 }
             } else {
                 Color.clear.onAppear { dismiss() }

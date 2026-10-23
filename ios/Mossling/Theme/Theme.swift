@@ -152,6 +152,19 @@ struct LampScope: ViewModifier {
 }
 extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)) } }
 
+/// For the root of every sheet or cover presented from a lit part of the app. A presentation takes its appearance from
+/// the system, not from the view that presented it: the environment's dark scheme does not reach it, so its text and
+/// the system controls in it (date pickers, segmented controls) came out black on the lamp's blue (reported on
+/// device, build 156). This lights the presentation itself — `preferredColorScheme` sets the sheet's own appearance,
+/// which UIKit-backed controls follow — and changes nothing by day.
+struct LampPresented: ViewModifier {
+    @Environment(\.lamp) private var lamp
+    func body(content: Self.Content) -> some View {
+        content.modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+    }
+}
+extension View { func lampPresented() -> some View { modifier(LampPresented()) } }
+
 extension Palette {
     static let lampPage = Color(hex: 0x0E1430)
     static let lampCard = Color(hex: 0x19213F)
