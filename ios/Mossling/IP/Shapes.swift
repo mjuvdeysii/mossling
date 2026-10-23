@@ -42,6 +42,8 @@ enum Kind: String, CaseIterable, Codable { case moss = "Moss", otto = "Otto"
     var tint: Color { self == .moss ? Palette.moss : Palette.rod }
 }
 enum Mood { case open, happy, wow, sleep }
+/// What the arms do: hidden at rest (as on the icon), one waving, or both up.
+enum Arms { case rest, wave, cheer }
 
 /// Geometry in a 100 × 100 box, shared with Android (ui/ip/Creatures.kt).
 enum Shapes {
@@ -55,6 +57,10 @@ enum Shapes {
     static let mossBody = SVGPath.parse("M22 82 C15 77 13 66 16 56 C19 45 28 36 41 34 C53 32 63 33 72 38 C82 44 88 55 87 67 C86 77 80 84 70 86 C56 88 33 89 22 82Z")
     static let mossTufts = SVGPath.parse("M24 52 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M64 44 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M70 72 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M28 72 c2 -2 5 -2 7 0 c-2 1.6 -5 1.6 -7 0Z")
     static let ottoStem = SVGPath.parse("M53 17 C54 12 57 8 61 6")
+    /// The icon's rod (tools/ios_icon.py bead.svg): from the top of the head, forward, the bead hanging at its end.
+    static let ottoRod = SVGPath.parse("M50 16.5 C45 4 30 1 21 8 L20 11.5")
+    /// Moss's flat darker underside, the counterpart of Otto's dip.
+    static let mossUnder = SVGPath.parse("M14 68 C30 76 70 76 88 66 C88 76 80 84 70 86 C56 88 33 89 22 82 C17 78 14 74 14 68Z")
     static let ottoBody = SVGPath.parse("M30 84 C25 74 24 58 26 44 C28 28 38 16 52 16 C65 17 74 28 75 44 C76 60 74 75 70 84 C60 88 40 88 30 84Z")
     static let ottoDip = SVGPath.parse("M25.2 64 C35 68 64 68 75.4 63 C75 71 73 78 70 84 C60 88 40 88 30 84 C27.6 78 26 71 25.2 64Z")
 }

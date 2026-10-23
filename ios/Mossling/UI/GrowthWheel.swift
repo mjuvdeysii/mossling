@@ -8,6 +8,7 @@ struct GrowthWheel: View {
     @Environment(AppModel.self) private var app
     @Binding var month: Int
     let baby: Int
+    @State private var arrived = 0
 
     var body: some View {
         let mo = app.content.month(month)
@@ -19,7 +20,7 @@ struct GrowthWheel: View {
                     .frame(width: 150, height: 150)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
-                Duo(primary: app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true)
+                Duo(primary: app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {
@@ -59,6 +60,8 @@ struct GrowthWheel: View {
         }
         .printCard(radius: 30)
         .animation(.spring(response: 0.45, dampingFraction: 0.75), value: month)
+        .onChange(of: month) { _, m in if m == baby { arrived += 1 } }
+        .sensoryFeedback(.success, trigger: arrived)
     }
 }
 

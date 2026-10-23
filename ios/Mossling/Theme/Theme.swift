@@ -31,7 +31,10 @@ enum Palette {
     static let beadLight = Color(hex: 0xEDCB6A)
     static let stone = Color(uiColor: .systemGray4)
 
-    static let accent = Color.dyn(0x2E8B3A, 0x66CC66)
+    /// Teal: links, tints and controls. Deep enough for text on paper (4.7:1) and for white on a filled button (5:1).
+    static let accent = Color.dyn(0x0B7D74, 0x4FD8CB)
+    /// The fill behind white text on prominent buttons, in both modes.
+    static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
     static let background = Color.dyn(0xFBF7F0, 0x14120F)
     static let card = Color(uiColor: .secondarySystemGroupedBackground)
@@ -40,18 +43,21 @@ enum Palette {
     static let secondaryText = Color.secondary
     static let outline = Color(uiColor: .separator)
     static let danger = Crayon.cherry
+    /// An area's colour deep enough for text.
+    static func areaInk(_ key: String) -> Color { Crayon.ink(area(key)) }
     static let caution = Crayon.tangerine
 
     /// The six areas of development, each with a system colour and an SF Symbol.
     static func area(_ key: String) -> Color {
+        // 语言 teal · 大运动 orange · 精细与认知 yellow · 社会情绪 pink · 生活与文化 blue · 照护与安全 red
         switch key.prefix(1) {
-        case "A": Crayon.sky; case "B": Crayon.tangerine; case "C": Crayon.lilac; case "D": Crayon.rose; case "E": Crayon.sunflower; default: Crayon.aqua
+        case "A": Crayon.teal; case "B": Crayon.tangerine; case "C": Crayon.sunflower; case "D": Crayon.pink; case "E": Crayon.sky; default: Crayon.cherry
         }
     }
     static func areaSymbol(_ key: String) -> String {
         switch key.prefix(1) {
         case "A": "bubble.left.and.bubble.right.fill"; case "B": "figure.walk"; case "C": "hand.raised.fingers.spread.fill"
-        case "D": "heart.fill"; case "E": "house.fill"; default: "cross.case.fill"
+        case "D": "face.smiling.inverse"; case "E": "house.fill"; default: "cross.case.fill"
         }
     }
     /// The area a play belongs to, from its first domain.
@@ -85,26 +91,38 @@ enum Typeface {
 
 // MARK: building blocks
 
-/// A category mark: a white SF Symbol on a small rounded tile with the pictures' soft volume — the colour lit from the
-/// upper left, a soft shadow beneath, no gloss. The one way a category is marked across the app.
+/// A category mark. Where the app has a drawing for it (tools/stickers.py — a small picture on a die-cut sticker,
+/// named after the symbol it replaces) the drawing is shown; otherwise the symbol on a coloured tile with the pictures'
+/// soft volume. The one way a category is marked across the app (ios/DESIGN.md §3: pictures, not symbols).
 struct IconTile: View {
     let symbol: String
     let color: Color
     var size: CGFloat = 30
     var round = false
     @ScaledMetric private var scale: CGFloat = 1
+
+    static func sticker(_ symbol: String) -> String? {
+        let n = "ic_" + symbol.replacingOccurrences(of: ".", with: "_") + ".webp"
+        return ArtIndex.shared.size[n] == nil ? nil : n
+    }
+
     var body: some View {
         let s = size * min(scale, 1.6)
-        let shape = RoundedRectangle(cornerRadius: round ? s / 2 : s * 0.3, style: .continuous)
-        Image(systemName: symbol)
-            .font(.system(size: s * 0.48, weight: .bold))
-            .foregroundStyle(Crayon.glyph(on: color))
-            .frame(width: s, height: s)
-            .background {
-                shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.22), color, color.mix(with: .black, by: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            }
-            .shadow(color: color.opacity(0.22), radius: s * 0.08, y: s * 0.05)
-            .accessibilityHidden(true)
+        if let n = Self.sticker(symbol) {
+            // the sticker's white edge makes it read smaller than a tile, so it is drawn a little larger
+            Figure(name: n).frame(width: s * 1.22, height: s * 1.22).frame(width: s, height: s).accessibilityHidden(true)
+        } else {
+            let shape = RoundedRectangle(cornerRadius: round ? s / 2 : s * 0.3, style: .continuous)
+            Image(systemName: symbol)
+                .font(.system(size: s * 0.48, weight: .bold))
+                .foregroundStyle(Crayon.glyph(on: color))
+                .frame(width: s, height: s)
+                .background {
+                    shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.22), color, color.mix(with: .black, by: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                }
+                .shadow(color: color.opacity(0.22), radius: s * 0.08, y: s * 0.05)
+                .accessibilityHidden(true)
+        }
     }
 }
 

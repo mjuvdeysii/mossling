@@ -19,7 +19,7 @@ struct TodayView: View {
             VStack(alignment: .leading, spacing: 22) {
                 if app.age == nil {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                        .buttonStyle(.borderedProminent).controlSize(.large)
+                        .buttonStyle(.borderedProminent).tint(Palette.accentFill).controlSize(.large)
                 }
                 if wheel {
                     GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
@@ -173,12 +173,17 @@ struct ShelfView: View {
                             ForEach([row * 2, row * 2 + 1], id: \.self) { k in slot(k, s) }
                         }
                         .padding(.horizontal, 12).padding(.top, 12)
-                        Plank().frame(height: 20).padding(.horizontal, 6)
                     }
                 }
             }
             .padding(.bottom, 12)
             .printCard(radius: 26)
+            .overlay(alignment: .top) {
+                // perched on the top of the shelf, between the title and 整理
+                Duo(primary: app.companion, size: 46, look: CGPoint(x: -0.7, y: 0.4))
+                    .offset(x: 34, y: -42)
+            }
+            .padding(.top, 10)
         }
     }
 }
@@ -196,7 +201,9 @@ extension ShelfView {
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
                         .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
                         .overlay(Image(systemName: "plus").font(.title3).foregroundStyle(.tertiary))
+                        .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 16)
                         .aspectRatio(4 / 3, contentMode: .fit)
+                        .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
                     Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
                 }
             }
@@ -227,19 +234,22 @@ private struct ShelfItem: View {
     let play: Play
     let times: Int
     var body: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 4) {
             ZStack(alignment: .topTrailing) {
-                if let f = ArtIndex.shared.steps(play.code).first { ArtFill(name: f).aspectRatio(4 / 3, contentMode: .fit) }
+                Figure(name: "tray_\(play.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
+                    .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
                 if times > 0 {
                     Text("×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                         .padding(.horizontal, 6).frame(height: 18)
-                        .background(Capsule().fill(LinearGradient(colors: [Palette.beadLight, Palette.bead], startPoint: .top, endPoint: .bottom)))
+                        .background(Capsule().fill(Palette.bead))
                         .padding(4)
                 }
             }
-            .printCard(radius: 14)
-            Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(3, reservesSpace: false).multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, alignment: .top)
+            HStack(spacing: 4) {
+                IconTile(symbol: Palette.areaSymbol(Palette.areaKey(of: play)), color: Palette.area(Palette.areaKey(of: play)), size: 16)
+                Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(3, reservesSpace: false).multilineTextAlignment(.leading)
+            }
+            .frame(maxWidth: .infinity, alignment: .topLeading).padding(.top, 10)
         }
         .accessibilityElement(children: .combine)
     }

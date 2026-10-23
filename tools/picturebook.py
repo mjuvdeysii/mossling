@@ -29,13 +29,15 @@ GROUND = 440
 PAPER = "#FBF7F0"
 SKIN = ["#F2CDA8", "#D9A57C"]           # adult, child (two warm tones so the two read apart)
 HAIR = {"adult": "#4A3428", "child": "#6B4A32"}
-ADULT_TOP, ADULT_LEG = "#E2728C", "#55607E"
-CHILD_TOP, CHILD_LEG = "#F2B526", "#5BA8E0"
-PEER_TOP, PEER_LEG = "#4DAF4E", "#8E6FDB"
-AREA = {  # the app's six areas (Theme.swift Palette.area): (ground, backdrop)
-    "A": ("#CFE4F6", "#E6F1FB"), "B": ("#FBD9B6", "#FDEBD9"), "C": ("#DDD3F5", "#EEE9FB"),
-    "D": ("#F8D0DE", "#FCE6EE"), "E": ("#F8E3A8", "#FCF1D2"), "F": ("#C4EAE4", "#E3F5F2"),
-}
+ADULT_TOP, ADULT_LEG = "#FF6F91", "#3E5A86"
+CHILD_TOP, CHILD_LEG = "#FFC23D", "#1FB5A6"
+PEER_TOP, PEER_LEG = "#4C9BE8", "#F2554B"
+# the app's six areas (Theme.swift Palette.area): teal, orange, yellow, pink, blue, red — as (ground, backdrop) tints
+AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E": "#4C9BE8", "F": "#F2554B"}
+def _tint(c, t):
+    a = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (255 - x) * t):02X}" for x in a)
+AREA = {k: (_tint(v, .62), _tint(v, .84)) for k, v in AREA_FILL.items()}
 INK = "#3B3330"
 
 def area_of(play):
@@ -279,36 +281,36 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
     out = []
     A = out.append
     if k == "block":
-        col = c or "#E84F4F"; z = 30 * s
+        col = c or "#F2554B"; z = 30 * s
         A(f'<rect x="{x - z:.1f}" y="{y - 2 * z:.1f}" width="{2 * z:.1f}" height="{2 * z:.1f}" rx="{z * .28:.1f}" fill="{g(col)}"/>')
         A(f'<circle cx="{x:.1f}" cy="{y - z:.1f}" r="{z * .42:.1f}" fill="{light(col, .45)}"/>')
     elif k == "blocks":  # a stack: list of colours, bottom first
-        cols = c or ["#3E9BE0", "#F2B526", "#E84F4F"]
+        cols = c or ["#4C9BE8", "#FFC23D", "#F2554B"]
         yy = y
         for i, col in enumerate(cols):
             z = (30 - i * 2) * s
             A(f'<rect x="{x - z + (i % 2) * 3:.1f}" y="{yy - 2 * z:.1f}" width="{2 * z:.1f}" height="{2 * z:.1f}" rx="{z * .28:.1f}" fill="{g(col)}"/>')
             yy -= 2 * z
     elif k == "tumble":  # fallen blocks
-        for i, (dx, col, r) in enumerate([(-44, "#3E9BE0", -18), (0, "#F2B526", 12), (46, "#E84F4F", 30)]):
+        for i, (dx, col, r) in enumerate([(-44, "#4C9BE8", -18), (0, "#FFC23D", 12), (46, "#F2554B", 30)]):
             z = 26 * s
             A(f'<rect x="{x + dx * s - z:.1f}" y="{y - 2 * z:.1f}" width="{2 * z:.1f}" height="{2 * z:.1f}" rx="{z * .28:.1f}" fill="{g(col)}" transform="rotate({r} {x + dx * s:.1f} {y - z:.1f})"/>')
     elif k == "ball":
-        col = c or "#E84F4F"; r = 34 * s
+        col = c or "#F2554B"; r = 34 * s
         A(f'<circle cx="{x:.1f}" cy="{y - r:.1f}" r="{r:.1f}" fill="{sv.rad(col)}"/>')
         A(f'<path d="M{x - r:.1f} {y - r:.1f} Q{x:.1f} {y - r * .4:.1f} {x + r:.1f} {y - r:.1f}" fill="none" stroke="#FFFFFF" stroke-width="{r * .18:.1f}" opacity=".85"/>')
         A(f'<path d="M{x:.1f} {y - 2 * r:.1f} Q{x - r * .5:.1f} {y - r:.1f} {x:.1f} {y:.1f}" fill="none" stroke="#FFFFFF" stroke-width="{r * .14:.1f}" opacity=".6"/>')
     elif k == "rattle":
-        col = c or "#8E6FDB"; r = 20 * s
-        A(f'<rect x="{x - 5 * s:.1f}" y="{y - 70 * s:.1f}" width="{10 * s:.1f}" height="{44 * s:.1f}" rx="{5 * s:.1f}" fill="{g("#F2B526")}" transform="rotate(-24 {x:.1f} {y - 40 * s:.1f})"/>')
+        col = c or "#9B7BEA"; r = 20 * s
+        A(f'<rect x="{x - 5 * s:.1f}" y="{y - 70 * s:.1f}" width="{10 * s:.1f}" height="{44 * s:.1f}" rx="{5 * s:.1f}" fill="{g("#FFC23D")}" transform="rotate(-24 {x:.1f} {y - 40 * s:.1f})"/>')
         A(f'<circle cx="{x + 14 * s:.1f}" cy="{y - 74 * s:.1f}" r="{r:.1f}" fill="{sv.rad(col)}"/>')
         A(f'<circle cx="{x + 8 * s:.1f}" cy="{y - 80 * s:.1f}" r="{r * .3:.1f}" fill="#FFFFFF" opacity=".55"/>')
     elif k == "cloth":
-        col = c or "#4DB8A8"
+        col = c or "#1FB5A6"
         A(f'<path d="M{x - 52 * s:.1f} {y:.1f} Q{x - 40 * s:.1f} {y - 50 * s:.1f} {x - 6 * s:.1f} {y - 44 * s:.1f} Q{x + 30 * s:.1f} {y - 56 * s:.1f} {x + 50 * s:.1f} {y:.1f} Z" fill="{g(col)}"/>')
         A(f'<path d="M{x - 30 * s:.1f} {y - 6 * s:.1f} Q{x - 20 * s:.1f} {y - 30 * s:.1f} {x - 4 * s:.1f} {y - 34 * s:.1f}" fill="none" stroke="{light(col, .4)}" stroke-width="{4 * s:.1f}" stroke-linecap="round"/>')
     elif k == "cloth2":  # a rough second fabric
-        col = c or "#F2B526"
+        col = c or "#FFC23D"
         A(f'<rect x="{x - 40 * s:.1f}" y="{y - 26 * s:.1f}" width="{80 * s:.1f}" height="{26 * s:.1f}" rx="{10 * s:.1f}" fill="{g(col)}"/>')
         for i in range(5): A(f'<circle cx="{x - 30 * s + i * 15 * s:.1f}" cy="{y - 13 * s:.1f}" r="{3 * s:.1f}" fill="{dark(col, .2)}"/>')
     elif k == "mirror":
@@ -317,25 +319,25 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         A(f'<ellipse cx="{x:.1f}" cy="{y - 110 * s:.1f}" rx="{46 * s:.1f}" ry="{62 * s:.1f}" fill="#DCEFF6"/>')
         A(f'<path d="M{x - 26 * s:.1f} {y - 140 * s:.1f} l{22 * s:.1f} {-22 * s:.1f} M{x - 30 * s:.1f} {y - 112 * s:.1f} l{36 * s:.1f} {-36 * s:.1f}" stroke="#FFFFFF" stroke-width="{6 * s:.1f}" stroke-linecap="round" opacity=".8"/>')
     elif k in ("book", "bookopen"):
-        col = c or "#3E9BE0"
+        col = c or "#4C9BE8"
         if k == "book":
             A(f'<rect x="{x - 30 * s:.1f}" y="{y - 40 * s:.1f}" width="{60 * s:.1f}" height="{40 * s:.1f}" rx="{6 * s:.1f}" fill="{g(col)}"/>')
             A(f'<circle cx="{x:.1f}" cy="{y - 20 * s:.1f}" r="{10 * s:.1f}" fill="#FFFFFF" opacity=".8"/>')
         else:
             A(f'<path d="M{x:.1f} {y - 8 * s:.1f} L{x - 62 * s:.1f} {y - 18 * s:.1f} L{x - 62 * s:.1f} {y - 66 * s:.1f} L{x:.1f} {y - 56 * s:.1f} Z" fill="#FFFDF7" stroke="{col}" stroke-width="{5 * s:.1f}" stroke-linejoin="round"/>')
             A(f'<path d="M{x:.1f} {y - 8 * s:.1f} L{x + 62 * s:.1f} {y - 18 * s:.1f} L{x + 62 * s:.1f} {y - 66 * s:.1f} L{x:.1f} {y - 56 * s:.1f} Z" fill="#FFFDF7" stroke="{col}" stroke-width="{5 * s:.1f}" stroke-linejoin="round"/>')
-            A(f'<circle cx="{x - 32 * s:.1f}" cy="{y - 38 * s:.1f}" r="{12 * s:.1f}" fill="#F2B526"/>')
-            A(f'<path d="M{x + 18 * s:.1f} {y - 26 * s:.1f} l{14 * s:.1f} {-24 * s:.1f} l{14 * s:.1f} {24 * s:.1f} z" fill="#4DAF4E"/>')
+            A(f'<circle cx="{x - 32 * s:.1f}" cy="{y - 38 * s:.1f}" r="{12 * s:.1f}" fill="#FFC23D"/>')
+            A(f'<path d="M{x + 18 * s:.1f} {y - 26 * s:.1f} l{14 * s:.1f} {-24 * s:.1f} l{14 * s:.1f} {24 * s:.1f} z" fill="#4DB86A"/>')
     elif k == "basket":
         col = c or "#C98A4B"
         A(f'<path d="M{x - 52 * s:.1f} {y - 44 * s:.1f} L{x + 52 * s:.1f} {y - 44 * s:.1f} L{x + 42 * s:.1f} {y:.1f} L{x - 42 * s:.1f} {y:.1f} Z" fill="{g(col)}"/>')
         for i in range(1, 4): A(f'<path d="M{x - 52 * s + i * 2.5 * s:.1f} {y - 44 * s + i * 11 * s:.1f} H{x + 52 * s - i * 2.5 * s:.1f}" stroke="{dark(col, .18)}" stroke-width="{2.5 * s:.1f}"/>')
     elif k == "cup":
-        col = c or "#2DB3A6"
+        col = c or "#1FB5A6"
         A(f'<path d="M{x - 22 * s:.1f} {y - 50 * s:.1f} L{x + 22 * s:.1f} {y - 50 * s:.1f} L{x + 17 * s:.1f} {y:.1f} L{x - 17 * s:.1f} {y:.1f} Z" fill="{g(col)}"/>')
         A(f'<path d="M{x + 20 * s:.1f} {y - 40 * s:.1f} q{16 * s:.1f} {4 * s:.1f} {2 * s:.1f} {24 * s:.1f}" fill="none" stroke="{col}" stroke-width="{6 * s:.1f}"/>')
     elif k == "drum":
-        col = c or "#E84F4F"
+        col = c or "#F2554B"
         A(f'<rect x="{x - 40 * s:.1f}" y="{y - 46 * s:.1f}" width="{80 * s:.1f}" height="{46 * s:.1f}" rx="{8 * s:.1f}" fill="{g(col)}"/>')
         A(f'<ellipse cx="{x:.1f}" cy="{y - 46 * s:.1f}" rx="{40 * s:.1f}" ry="{11 * s:.1f}" fill="#FFF3E0"/>')
         A(f'<path d="M{x - 40 * s:.1f} {y - 30 * s:.1f} l20 16 l20 -16 l20 16 l20 -16" fill="none" stroke="#FFFFFF" stroke-width="{4 * s:.1f}" opacity=".8"/>')
@@ -343,33 +345,33 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         A(f'<rect x="{x - 70 * s:.1f}" y="{y - 8 * s:.1f}" width="{140 * s:.1f}" height="{8 * s:.1f}" rx="2" fill="#FFFFFF" stroke="#E6DED0" stroke-width="2"/>')
         for i, col in enumerate(c or []): A(f'<path d="M{x - 50 * s + i * 30 * s:.1f} {y - 4 * s:.1f} q10 -6 22 0" stroke="{col}" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round"/>')
     elif k == "crayon":
-        col = c or "#3E9BE0"
+        col = c or "#4C9BE8"
         A(f'<g transform="rotate({rot or -60} {x:.1f} {y:.1f})"><rect x="{x - 6 * s:.1f}" y="{y - 46 * s:.1f}" width="{12 * s:.1f}" height="{40 * s:.1f}" rx="3" fill="{g(col)}"/>'
           f'<path d="M{x - 6 * s:.1f} {y - 6 * s:.1f} L{x:.1f} {y + 6 * s:.1f} L{x + 6 * s:.1f} {y - 6 * s:.1f} Z" fill="{dark(col, .15)}"/></g>')
     elif k == "doll":
-        A(f'<rect x="{x - 18 * s:.1f}" y="{y - 52 * s:.1f}" width="{36 * s:.1f}" height="{52 * s:.1f}" rx="{16 * s:.1f}" fill="{g(c or "#8E6FDB")}"/>')
+        A(f'<rect x="{x - 18 * s:.1f}" y="{y - 52 * s:.1f}" width="{36 * s:.1f}" height="{52 * s:.1f}" rx="{16 * s:.1f}" fill="{g(c or "#9B7BEA")}"/>')
         A(f'<circle cx="{x:.1f}" cy="{y - 66 * s:.1f}" r="{18 * s:.1f}" fill="{sv.rad("#F6D2B0")}"/>')
         A(f'<circle cx="{x - 6 * s:.1f}" cy="{y - 68 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/><circle cx="{x + 6 * s:.1f}" cy="{y - 68 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/>')
     elif k == "dollbed":  # a doll lying under a blanket
         A(f'<circle cx="{x - 44 * s:.1f}" cy="{y - 20 * s:.1f}" r="{17 * s:.1f}" fill="{sv.rad("#F6D2B0")}"/>')
         A(f'<path d="M{x - 52 * s:.1f} {y - 22 * s:.1f} q3 3 6 0 M{x - 42 * s:.1f} {y - 22 * s:.1f} q3 3 6 0" stroke="{INK}" stroke-width="2" fill="none"/>')
-        A(f'<rect x="{x - 30 * s:.1f}" y="{y - 34 * s:.1f}" width="{86 * s:.1f}" height="{34 * s:.1f}" rx="{14 * s:.1f}" fill="{g(c or "#5BA8E0")}"/>')
+        A(f'<rect x="{x - 30 * s:.1f}" y="{y - 34 * s:.1f}" width="{86 * s:.1f}" height="{34 * s:.1f}" rx="{14 * s:.1f}" fill="{g(c or "#4C9BE8")}"/>')
     elif k == "spoon":
         A(f'<g transform="rotate({rot or 30} {x:.1f} {y:.1f})"><rect x="{x - 3 * s:.1f}" y="{y - 40 * s:.1f}" width="{6 * s:.1f}" height="{34 * s:.1f}" rx="3" fill="#B9B2A8"/><ellipse cx="{x:.1f}" cy="{y - 46 * s:.1f}" rx="{8 * s:.1f}" ry="{11 * s:.1f}" fill="#CFC9C0"/></g>')
     elif k == "pot":
-        col = c or "#E84F4F"
+        col = c or "#F2554B"
         A(f'<rect x="{x - 38 * s:.1f}" y="{y - 40 * s:.1f}" width="{76 * s:.1f}" height="{40 * s:.1f}" rx="{10 * s:.1f}" fill="{g(col)}"/>')
         A(f'<rect x="{x - 44 * s:.1f}" y="{y - 46 * s:.1f}" width="{88 * s:.1f}" height="{10 * s:.1f}" rx="{5 * s:.1f}" fill="{dark(col, .1)}"/>')
         A(f'<rect x="{x + 38 * s:.1f}" y="{y - 36 * s:.1f}" width="{26 * s:.1f}" height="{8 * s:.1f}" rx="4" fill="{dark(col, .25)}"/>')
     elif k == "bowl":
-        col = c or "#2DB3A6"
+        col = c or "#1FB5A6"
         A(f'<path d="M{x - 34 * s:.1f} {y - 26 * s:.1f} Q{x:.1f} {y + 10 * s:.1f} {x + 34 * s:.1f} {y - 26 * s:.1f} Z" fill="{g(col)}"/>')
-        A(f'<circle cx="{x - 8 * s:.1f}" cy="{y - 28 * s:.1f}" r="{9 * s:.1f}" fill="#F2B526"/><circle cx="{x + 10 * s:.1f}" cy="{y - 30 * s:.1f}" r="{8 * s:.1f}" fill="#4DAF4E"/>')
+        A(f'<circle cx="{x - 8 * s:.1f}" cy="{y - 28 * s:.1f}" r="{9 * s:.1f}" fill="#FFC23D"/><circle cx="{x + 10 * s:.1f}" cy="{y - 30 * s:.1f}" r="{8 * s:.1f}" fill="#4DB86A"/>')
     elif k == "cushion":
-        col = c or "#8E6FDB"
+        col = c or "#9B7BEA"
         A(f'<rect x="{x - 54 * s:.1f}" y="{y - 30 * s:.1f}" width="{108 * s:.1f}" height="{30 * s:.1f}" rx="{15 * s:.1f}" fill="{g(col)}"/>')
     elif k == "car":
-        col = c or "#E84F4F"
+        col = c or "#F2554B"
         A(f'<path d="M{x - 46 * s:.1f} {y - 14 * s:.1f} V{y - 34 * s:.1f} Q{x - 46 * s:.1f} {y - 40 * s:.1f} {x - 38 * s:.1f} {y - 40 * s:.1f} H{x - 22 * s:.1f} L{x - 10 * s:.1f} {y - 58 * s:.1f} H{x + 22 * s:.1f} L{x + 34 * s:.1f} {y - 40 * s:.1f} H{x + 40 * s:.1f} Q{x + 46 * s:.1f} {y - 40 * s:.1f} {x + 46 * s:.1f} {y - 34 * s:.1f} V{y - 14 * s:.1f} Z" fill="{g(col)}"/>')
         A(f'<path d="M{x - 6 * s:.1f} {y - 52 * s:.1f} H{x + 18 * s:.1f} L{x + 26 * s:.1f} {y - 40 * s:.1f} H{x - 14 * s:.1f} Z" fill="#DCEFF6"/>')
         for dx in (-26, 26): A(f'<circle cx="{x + dx * s:.1f}" cy="{y - 12 * s:.1f}" r="{12 * s:.1f}" fill="#3B3330"/><circle cx="{x + dx * s:.1f}" cy="{y - 12 * s:.1f}" r="{5 * s:.1f}" fill="#B9B2A8"/>')
@@ -378,18 +380,18 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         for dx, dy, r in ((0, -170, 62), (-44, -130, 44), (44, -134, 46)):
             A(f'<circle cx="{x + dx * s:.1f}" cy="{y + dy * s:.1f}" r="{r * s:.1f}" fill="{sv.rad("#5DB35A")}"/>')
     elif k == "leaf":
-        col = c or "#F58A1F"
+        col = c or "#FF8A3D"
         A(f'<g transform="rotate({rot} {x:.1f} {y:.1f})"><path d="M{x:.1f} {y:.1f} C{x - 26 * s:.1f} {y - 20 * s:.1f} {x - 20 * s:.1f} {y - 56 * s:.1f} {x:.1f} {y - 66 * s:.1f} C{x + 20 * s:.1f} {y - 56 * s:.1f} {x + 26 * s:.1f} {y - 20 * s:.1f} {x:.1f} {y:.1f} Z" fill="{g(col)}"/>'
           f'<path d="M{x:.1f} {y:.1f} V{y - 58 * s:.1f}" stroke="{dark(col, .25)}" stroke-width="{3 * s:.1f}"/></g>')
     elif k == "flower":
-        A(f'<path d="M{x:.1f} {y:.1f} V{y - 40 * s:.1f}" stroke="#4DAF4E" stroke-width="{5 * s:.1f}"/>')
+        A(f'<path d="M{x:.1f} {y:.1f} V{y - 40 * s:.1f}" stroke="#4DB86A" stroke-width="{5 * s:.1f}"/>')
         for i in range(5):
-            a = i * 72; A(f'<circle cx="{x + math.sin(math.radians(a)) * 11 * s:.1f}" cy="{y - 48 * s - math.cos(math.radians(a)) * 11 * s:.1f}" r="{8 * s:.1f}" fill="{c or "#EE6F9A"}"/>')
-        A(f'<circle cx="{x:.1f}" cy="{y - 48 * s:.1f}" r="{6 * s:.1f}" fill="#F2B526"/>')
+            a = i * 72; A(f'<circle cx="{x + math.sin(math.radians(a)) * 11 * s:.1f}" cy="{y - 48 * s - math.cos(math.radians(a)) * 11 * s:.1f}" r="{8 * s:.1f}" fill="{c or "#FF6F91"}"/>')
+        A(f'<circle cx="{x:.1f}" cy="{y - 48 * s:.1f}" r="{6 * s:.1f}" fill="#FFC23D"/>')
     elif k == "bird":
-        col = c or "#3E9BE0"
+        col = c or "#4C9BE8"
         A(f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{18 * s:.1f}" ry="{13 * s:.1f}" fill="{sv.rad(col)}"/><circle cx="{x + 14 * s:.1f}" cy="{y - 10 * s:.1f}" r="{9 * s:.1f}" fill="{sv.rad(col)}"/>'
-          f'<path d="M{x + 22 * s:.1f} {y - 10 * s:.1f} l{8 * s:.1f} {3 * s:.1f} l{-8 * s:.1f} {3 * s:.1f}Z" fill="#F2B526"/><circle cx="{x + 16 * s:.1f}" cy="{y - 12 * s:.1f}" r="{2 * s:.1f}" fill="{INK}"/>'
+          f'<path d="M{x + 22 * s:.1f} {y - 10 * s:.1f} l{8 * s:.1f} {3 * s:.1f} l{-8 * s:.1f} {3 * s:.1f}Z" fill="#FFC23D"/><circle cx="{x + 16 * s:.1f}" cy="{y - 12 * s:.1f}" r="{2 * s:.1f}" fill="{INK}"/>'
           f'<path d="M{x - 6 * s:.1f} {y - 4 * s:.1f} q{-8 * s:.1f} {-16 * s:.1f} {-20 * s:.1f} {-10 * s:.1f}" fill="none" stroke="{dark(col, .2)}" stroke-width="{4 * s:.1f}" stroke-linecap="round"/>')
     elif k == "sun":
         A(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{30 * s:.1f}" fill="{sv.rad("#FFD45C")}"/>')
@@ -401,14 +403,14 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
     elif k == "thing":  # a real object with no card: c = apple / cup / ball / car / sock
         A(pict(c or "apple", x, y - 26 * s, s * 1.2))
     elif k == "sock":
-        col = c or "#EE6F9A"
+        col = c or "#FF6F91"
         A(f'<path d="M{x - 10 * s:.1f} {y - 56 * s:.1f} H{x + 10 * s:.1f} V{y - 16 * s:.1f} Q{x + 12 * s:.1f} {y:.1f} {x + 30 * s:.1f} {y - 2 * s:.1f} Q{x + 40 * s:.1f} {y - 8 * s:.1f} {x + 30 * s:.1f} {y - 18 * s:.1f} L{x + 14 * s:.1f} {y - 22 * s:.1f}" fill="none"/>')
         A(f'<path d="M{x - 10 * s:.1f} {y - 56 * s:.1f} H{x + 10 * s:.1f} V{y - 24 * s:.1f} Q{x + 10 * s:.1f} {y - 10 * s:.1f} {x + 24 * s:.1f} {y - 12 * s:.1f} Q{x + 34 * s:.1f} {y - 8 * s:.1f} {x + 26 * s:.1f} {y:.1f} H{x - 4 * s:.1f} Q{x - 10 * s:.1f} {y - 4 * s:.1f} {x - 10 * s:.1f} {y - 14 * s:.1f} Z" fill="{g(col)}"/>')
     elif k == "shirt":
-        col = c or "#3E9BE0"
+        col = c or "#4C9BE8"
         A(f'<path d="M{x - 30 * s:.1f} {y - 60 * s:.1f} L{x - 12 * s:.1f} {y - 66 * s:.1f} Q{x:.1f} {y - 58 * s:.1f} {x + 12 * s:.1f} {y - 66 * s:.1f} L{x + 30 * s:.1f} {y - 60 * s:.1f} L{x + 40 * s:.1f} {y - 42 * s:.1f} L{x + 26 * s:.1f} {y - 38 * s:.1f} V{y:.1f} H{x - 26 * s:.1f} V{y - 38 * s:.1f} L{x - 40 * s:.1f} {y - 42 * s:.1f} Z" fill="{g(col)}"/>')
     elif k == "box":  # a low storage box
-        col = c or "#5BA8E0"
+        col = c or "#4C9BE8"
         A(f'<rect x="{x - 50 * s:.1f}" y="{y - 40 * s:.1f}" width="{100 * s:.1f}" height="{40 * s:.1f}" rx="{8 * s:.1f}" fill="{g(col)}"/><rect x="{x - 50 * s:.1f}" y="{y - 40 * s:.1f}" width="{100 * s:.1f}" height="{8 * s:.1f}" rx="4" fill="{light(col, .3)}"/>')
     elif k == "photo":  # a family photo: c = number of people
         n = c or 3
@@ -416,14 +418,14 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         for i in range(n):
             px = x - (n - 1) * 12 * s + i * 24 * s; big = i < 2
             A(f'<circle cx="{px:.1f}" cy="{y - (44 if big else 34) * s:.1f}" r="{(8 if big else 6) * s:.1f}" fill="{SKIN[i % 2]}"/>'
-              f'<rect x="{px - (9 if big else 7) * s:.1f}" y="{y - (36 if big else 28) * s:.1f}" width="{(18 if big else 14) * s:.1f}" height="{(28 if big else 20) * s:.1f}" rx="{6 * s:.1f}" fill="{["#E2728C", "#55607E", "#F2B526", "#4DAF4E"][i % 4]}"/>')
+              f'<rect x="{px - (9 if big else 7) * s:.1f}" y="{y - (36 if big else 28) * s:.1f}" width="{(18 if big else 14) * s:.1f}" height="{(28 if big else 20) * s:.1f}" rx="{6 * s:.1f}" fill="{["#E2728C", "#55607E", "#FFC23D", "#4DB86A"][i % 4]}"/>')
     elif k == "phone":
         A(f'<rect x="{x - 18 * s:.1f}" y="{y - 64 * s:.1f}" width="{36 * s:.1f}" height="{64 * s:.1f}" rx="{8 * s:.1f}" fill="#3B3330"/><rect x="{x - 14 * s:.1f}" y="{y - 58 * s:.1f}" width="{28 * s:.1f}" height="{50 * s:.1f}" rx="4" fill="#E6F1FB"/>'
-          f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DAF4E"/>')
+          f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DB86A"/>')
     elif k == "notebook":
         A(f'<rect x="{x - 34 * s:.1f}" y="{y - 46 * s:.1f}" width="{68 * s:.1f}" height="{46 * s:.1f}" rx="{5 * s:.1f}" fill="#FFFFFF" stroke="#E6DED0" stroke-width="2"/>')
         for i in range(3): A(f'<path d="M{x - 24 * s:.1f} {y - 34 * s + i * 11 * s:.1f} h{(40 - i * 8) * s:.1f}" stroke="#B9B2A8" stroke-width="{3 * s:.1f}" stroke-linecap="round"/>')
-        A(f'<rect x="{x + 22 * s:.1f}" y="{y - 64 * s:.1f}" width="{7 * s:.1f}" height="{40 * s:.1f}" rx="3" fill="#F2B526" transform="rotate(30 {x + 25 * s:.1f} {y - 44 * s:.1f})"/>')
+        A(f'<rect x="{x + 22 * s:.1f}" y="{y - 64 * s:.1f}" width="{7 * s:.1f}" height="{40 * s:.1f}" rx="3" fill="#FFC23D" transform="rotate(30 {x + 25 * s:.1f} {y - 44 * s:.1f})"/>')
     elif k == "mat":  # a play mat on the floor
         col = c or "#BFE3D6"
         A(f'<rect x="{x - 150 * s:.1f}" y="{y - 6:.1f}" width="{300 * s:.1f}" height="{14:.1f}" rx="7" fill="{g(col)}"/>')
@@ -431,8 +433,8 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         A(f'<rect x="{x - 110 * s:.1f}" y="{y - 124:.1f}" width="{220 * s:.1f}" height="{18}" rx="8" fill="{g("#D6A774")}"/>')
         for dx in (-90, 90): A(f'<rect x="{x + dx * s - 8:.1f}" y="{y - 108:.1f}" width="16" height="108" rx="6" fill="{g("#B8854F")}"/>')
     elif k == "stroller":
-        A(f'<path d="M{x - 60:.1f} {y - 110:.1f} A60 60 0 0 1 {x + 40:.1f} {y - 150:.1f} L{x + 40:.1f} {y - 90:.1f} Z" fill="{g("#2DB3A6")}"/>'
-          f'<rect x="{x - 64:.1f}" y="{y - 96:.1f}" width="{120}" height="40" rx="18" fill="{g("#2DB3A6")}"/><path d="M{x + 56:.1f} {y - 80:.1f} L{x + 90:.1f} {y - 150:.1f}" stroke="#55607E" stroke-width="7" stroke-linecap="round"/>')
+        A(f'<path d="M{x - 60:.1f} {y - 110:.1f} A60 60 0 0 1 {x + 40:.1f} {y - 150:.1f} L{x + 40:.1f} {y - 90:.1f} Z" fill="{g("#1FB5A6")}"/>'
+          f'<rect x="{x - 64:.1f}" y="{y - 96:.1f}" width="{120}" height="40" rx="18" fill="{g("#1FB5A6")}"/><path d="M{x + 56:.1f} {y - 80:.1f} L{x + 90:.1f} {y - 150:.1f}" stroke="#55607E" stroke-width="7" stroke-linecap="round"/>')
         for dx in (-40, 36): A(f'<circle cx="{x + dx:.1f}" cy="{y - 20:.1f}" r="20" fill="#3B3330"/><circle cx="{x + dx:.1f}" cy="{y - 20:.1f}" r="7" fill="#B9B2A8"/>')
     elif k == "road":
         A(f'<rect x="0" y="{y - 4:.1f}" width="{W}" height="60" fill="#B9B2A8"/>')
@@ -440,9 +442,9 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
     elif k == "kerb":
         A(f'<rect x="0" y="{y - 10:.1f}" width="{W}" height="12" fill="#D9D4C7"/>')
     elif k == "lantern":
-        A(f'<path d="M{x:.1f} {y - 110 * s:.1f} V{y - 90 * s:.1f}" stroke="#B8854F" stroke-width="3"/><ellipse cx="{x:.1f}" cy="{y - 64 * s:.1f}" rx="{30 * s:.1f}" ry="{28 * s:.1f}" fill="{sv.rad("#E84F4F")}"/>'
-          f'<rect x="{x - 12 * s:.1f}" y="{y - 96 * s:.1f}" width="{24 * s:.1f}" height="{8 * s:.1f}" rx="3" fill="#F2B526"/><rect x="{x - 12 * s:.1f}" y="{y - 40 * s:.1f}" width="{24 * s:.1f}" height="{8 * s:.1f}" rx="3" fill="#F2B526"/>'
-          f'<path d="M{x:.1f} {y - 32 * s:.1f} v{18 * s:.1f}" stroke="#F2B526" stroke-width="3"/>')
+        A(f'<path d="M{x:.1f} {y - 110 * s:.1f} V{y - 90 * s:.1f}" stroke="#B8854F" stroke-width="3"/><ellipse cx="{x:.1f}" cy="{y - 64 * s:.1f}" rx="{30 * s:.1f}" ry="{28 * s:.1f}" fill="{sv.rad("#F2554B")}"/>'
+          f'<rect x="{x - 12 * s:.1f}" y="{y - 96 * s:.1f}" width="{24 * s:.1f}" height="{8 * s:.1f}" rx="3" fill="#FFC23D"/><rect x="{x - 12 * s:.1f}" y="{y - 40 * s:.1f}" width="{24 * s:.1f}" height="{8 * s:.1f}" rx="3" fill="#FFC23D"/>'
+          f'<path d="M{x:.1f} {y - 32 * s:.1f} v{18 * s:.1f}" stroke="#FFC23D" stroke-width="3"/>')
     elif k == "dumpling":
         s *= 1.6
         for dx in (-22, 22):
@@ -460,73 +462,73 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
             A(f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="{r:.1f}" fill="{SKIN[0 if big else 1]}" opacity=".85"/><circle cx="{fx - r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/><circle cx="{fx + r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/>'
               f'<path d="M{fx - r * .3:.1f} {fy + r * .3:.1f} q{r * .3:.1f} {r * .3:.1f} {r * .6:.1f} 0" stroke="{INK}" stroke-width="2" fill="none"/>')
     elif k == "speaker":
-        A(f'<rect x="{x - 26 * s:.1f}" y="{y - 70 * s:.1f}" width="{52 * s:.1f}" height="{70 * s:.1f}" rx="{10 * s:.1f}" fill="{g("#8E6FDB")}"/><circle cx="{x:.1f}" cy="{y - 30 * s:.1f}" r="{16 * s:.1f}" fill="{dark("#8E6FDB", .3)}"/><circle cx="{x:.1f}" cy="{y - 56 * s:.1f}" r="{7 * s:.1f}" fill="{dark("#8E6FDB", .3)}"/>')
+        A(f'<rect x="{x - 26 * s:.1f}" y="{y - 70 * s:.1f}" width="{52 * s:.1f}" height="{70 * s:.1f}" rx="{10 * s:.1f}" fill="{g("#9B7BEA")}"/><circle cx="{x:.1f}" cy="{y - 30 * s:.1f}" r="{16 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/><circle cx="{x:.1f}" cy="{y - 56 * s:.1f}" r="{7 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/>')
     sv.add("".join(out))
 
 def pict(kind, x, y, s):
     """A small picture of a thing, centred on (x, y): for cards, bubbles and real objects."""
     if kind == "apple":
-        return (f'<circle cx="{x:.1f}" cy="{y + 2 * s:.1f}" r="{18 * s:.1f}" fill="#E84F4F"/><path d="M{x:.1f} {y - 14 * s:.1f} q{4 * s:.1f} {-10 * s:.1f} {12 * s:.1f} {-10 * s:.1f}" stroke="#4DAF4E" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round"/>')
+        return (f'<circle cx="{x:.1f}" cy="{y + 2 * s:.1f}" r="{18 * s:.1f}" fill="#F2554B"/><path d="M{x:.1f} {y - 14 * s:.1f} q{4 * s:.1f} {-10 * s:.1f} {12 * s:.1f} {-10 * s:.1f}" stroke="#4DB86A" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round"/>')
     if kind == "cup":
-        return f'<path d="M{x - 14 * s:.1f} {y - 16 * s:.1f} H{x + 14 * s:.1f} L{x + 10 * s:.1f} {y + 18 * s:.1f} H{x - 10 * s:.1f} Z" fill="#2DB3A6"/>'
+        return f'<path d="M{x - 14 * s:.1f} {y - 16 * s:.1f} H{x + 14 * s:.1f} L{x + 10 * s:.1f} {y + 18 * s:.1f} H{x - 10 * s:.1f} Z" fill="#1FB5A6"/>'
     if kind == "ball":
-        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{17 * s:.1f}" fill="#F58A1F"/><path d="M{x - 17 * s:.1f} {y:.1f} Q{x:.1f} {y + 8 * s:.1f} {x + 17 * s:.1f} {y:.1f}" stroke="#FFFFFF" stroke-width="{3 * s:.1f}" fill="none"/>'
+        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{17 * s:.1f}" fill="#FF8A3D"/><path d="M{x - 17 * s:.1f} {y:.1f} Q{x:.1f} {y + 8 * s:.1f} {x + 17 * s:.1f} {y:.1f}" stroke="#FFFFFF" stroke-width="{3 * s:.1f}" fill="none"/>'
     if kind == "car":
-        return (f'<rect x="{x - 20 * s:.1f}" y="{y - 6 * s:.1f}" width="{40 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#3E9BE0"/><rect x="{x - 10 * s:.1f}" y="{y - 16 * s:.1f}" width="{20 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#3E9BE0"/>'
+        return (f'<rect x="{x - 20 * s:.1f}" y="{y - 6 * s:.1f}" width="{40 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#4C9BE8"/><rect x="{x - 10 * s:.1f}" y="{y - 16 * s:.1f}" width="{20 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#4C9BE8"/>'
                 f'<circle cx="{x - 11 * s:.1f}" cy="{y + 9 * s:.1f}" r="{5 * s:.1f}" fill="#3B3330"/><circle cx="{x + 11 * s:.1f}" cy="{y + 9 * s:.1f}" r="{5 * s:.1f}" fill="#3B3330"/>')
     if kind == "sun":
-        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{14 * s:.1f}" fill="#F2B526"/>' + "".join(f'<path d="M{x + math.cos(a) * 19 * s:.1f} {y + math.sin(a) * 19 * s:.1f} L{x + math.cos(a) * 26 * s:.1f} {y + math.sin(a) * 26 * s:.1f}" stroke="#F2B526" stroke-width="{3 * s:.1f}" stroke-linecap="round"/>' for a in [k * math.pi / 4 for k in range(8)])
+        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{14 * s:.1f}" fill="#FFC23D"/>' + "".join(f'<path d="M{x + math.cos(a) * 19 * s:.1f} {y + math.sin(a) * 19 * s:.1f} L{x + math.cos(a) * 26 * s:.1f} {y + math.sin(a) * 26 * s:.1f}" stroke="#FFC23D" stroke-width="{3 * s:.1f}" stroke-linecap="round"/>' for a in [k * math.pi / 4 for k in range(8)])
     if kind == "cat":
-        return (f'<circle cx="{x:.1f}" cy="{y + 2 * s:.1f}" r="{15 * s:.1f}" fill="#F58A1F"/><path d="M{x - 13 * s:.1f} {y - 6 * s:.1f} l{2 * s:.1f} {-14 * s:.1f} l{8 * s:.1f} {8 * s:.1f}Z M{x + 13 * s:.1f} {y - 6 * s:.1f} l{-2 * s:.1f} {-14 * s:.1f} l{-8 * s:.1f} {8 * s:.1f}Z" fill="#F58A1F"/>'
+        return (f'<circle cx="{x:.1f}" cy="{y + 2 * s:.1f}" r="{15 * s:.1f}" fill="#FF8A3D"/><path d="M{x - 13 * s:.1f} {y - 6 * s:.1f} l{2 * s:.1f} {-14 * s:.1f} l{8 * s:.1f} {8 * s:.1f}Z M{x + 13 * s:.1f} {y - 6 * s:.1f} l{-2 * s:.1f} {-14 * s:.1f} l{-8 * s:.1f} {8 * s:.1f}Z" fill="#FF8A3D"/>'
                 f'<circle cx="{x - 5 * s:.1f}" cy="{y:.1f}" r="{2 * s:.1f}" fill="{INK}"/><circle cx="{x + 5 * s:.1f}" cy="{y:.1f}" r="{2 * s:.1f}" fill="{INK}"/>')
     if kind == "sock":
-        return f'<path d="M{x - 6 * s:.1f} {y - 18 * s:.1f} h{12 * s:.1f} v{20 * s:.1f} q0 {8 * s:.1f} {10 * s:.1f} {8 * s:.1f} v{8 * s:.1f} h{-18 * s:.1f} q{-4 * s:.1f} 0 {-4 * s:.1f} {-6 * s:.1f}Z" fill="#EE6F9A"/>'
+        return f'<path d="M{x - 6 * s:.1f} {y - 18 * s:.1f} h{12 * s:.1f} v{20 * s:.1f} q0 {8 * s:.1f} {10 * s:.1f} {8 * s:.1f} v{8 * s:.1f} h{-18 * s:.1f} q{-4 * s:.1f} 0 {-4 * s:.1f} {-6 * s:.1f}Z" fill="#FF6F91"/>'
     if kind == "heart":
-        return f'<path d="M{x:.1f} {y + 12 * s:.1f} C{x - 26 * s:.1f} {y - 6 * s:.1f} {x - 10 * s:.1f} {y - 22 * s:.1f} {x:.1f} {y - 8 * s:.1f} C{x + 10 * s:.1f} {y - 22 * s:.1f} {x + 26 * s:.1f} {y - 6 * s:.1f} {x:.1f} {y + 12 * s:.1f} Z" fill="#EE6F9A"/>'
+        return f'<path d="M{x:.1f} {y + 12 * s:.1f} C{x - 26 * s:.1f} {y - 6 * s:.1f} {x - 10 * s:.1f} {y - 22 * s:.1f} {x:.1f} {y - 8 * s:.1f} C{x + 10 * s:.1f} {y - 22 * s:.1f} {x + 26 * s:.1f} {y - 6 * s:.1f} {x:.1f} {y + 12 * s:.1f} Z" fill="#FF6F91"/>'
     if kind == "note":
-        return f'<path d="M{x - 4 * s:.1f} {y + 10 * s:.1f} V{y - 16 * s:.1f} L{x + 12 * s:.1f} {y - 20 * s:.1f} V{y + 4 * s:.1f}" stroke="#8E6FDB" stroke-width="{4 * s:.1f}" fill="none"/><ellipse cx="{x - 9 * s:.1f}" cy="{y + 11 * s:.1f}" rx="{7 * s:.1f}" ry="{5 * s:.1f}" fill="#8E6FDB"/><ellipse cx="{x + 7 * s:.1f}" cy="{y + 5 * s:.1f}" rx="{7 * s:.1f}" ry="{5 * s:.1f}" fill="#8E6FDB"/>'
+        return f'<path d="M{x - 4 * s:.1f} {y + 10 * s:.1f} V{y - 16 * s:.1f} L{x + 12 * s:.1f} {y - 20 * s:.1f} V{y + 4 * s:.1f}" stroke="#9B7BEA" stroke-width="{4 * s:.1f}" fill="none"/><ellipse cx="{x - 9 * s:.1f}" cy="{y + 11 * s:.1f}" rx="{7 * s:.1f}" ry="{5 * s:.1f}" fill="#9B7BEA"/><ellipse cx="{x + 7 * s:.1f}" cy="{y + 5 * s:.1f}" rx="{7 * s:.1f}" ry="{5 * s:.1f}" fill="#9B7BEA"/>'
     if kind == "dots":
         return "".join(f'<circle cx="{x + dx * s:.1f}" cy="{y:.1f}" r="{4.5 * s:.1f}" fill="#8A7F76"/>' for dx in (-12, 0, 12))
     if kind == "q":
-        return f'<path d="M{x - 8 * s:.1f} {y - 8 * s:.1f} q0 {-10 * s:.1f} {9 * s:.1f} {-10 * s:.1f} q{9 * s:.1f} 0 {9 * s:.1f} {9 * s:.1f} q0 {7 * s:.1f} {-9 * s:.1f} {11 * s:.1f} v{4 * s:.1f}" stroke="#3E9BE0" stroke-width="{4.5 * s:.1f}" fill="none" stroke-linecap="round"/><circle cx="{x + 1 * s:.1f}" cy="{y + 16 * s:.1f}" r="{3 * s:.1f}" fill="#3E9BE0"/>'
+        return f'<path d="M{x - 8 * s:.1f} {y - 8 * s:.1f} q0 {-10 * s:.1f} {9 * s:.1f} {-10 * s:.1f} q{9 * s:.1f} 0 {9 * s:.1f} {9 * s:.1f} q0 {7 * s:.1f} {-9 * s:.1f} {11 * s:.1f} v{4 * s:.1f}" stroke="#4C9BE8" stroke-width="{4.5 * s:.1f}" fill="none" stroke-linecap="round"/><circle cx="{x + 1 * s:.1f}" cy="{y + 16 * s:.1f}" r="{3 * s:.1f}" fill="#4C9BE8"/>'
     if kind == "sad":
-        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{16 * s:.1f}" fill="#5BA8E0"/><circle cx="{x - 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="#FFFFFF"/><circle cx="{x + 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="#FFFFFF"/><path d="M{x - 7 * s:.1f} {y + 9 * s:.1f} q{7 * s:.1f} {-7 * s:.1f} {14 * s:.1f} 0" stroke="#FFFFFF" stroke-width="{2.6 * s:.1f}" fill="none" stroke-linecap="round"/>'
+        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{16 * s:.1f}" fill="#4C9BE8"/><circle cx="{x - 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="#FFFFFF"/><circle cx="{x + 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="#FFFFFF"/><path d="M{x - 7 * s:.1f} {y + 9 * s:.1f} q{7 * s:.1f} {-7 * s:.1f} {14 * s:.1f} 0" stroke="#FFFFFF" stroke-width="{2.6 * s:.1f}" fill="none" stroke-linecap="round"/>'
     if kind == "happy":
-        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{16 * s:.1f}" fill="#F2B526"/><circle cx="{x - 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/><circle cx="{x + 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/><path d="M{x - 7 * s:.1f} {y + 5 * s:.1f} q{7 * s:.1f} {7 * s:.1f} {14 * s:.1f} 0" stroke="{INK}" stroke-width="{2.6 * s:.1f}" fill="none" stroke-linecap="round"/>'
+        return f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{16 * s:.1f}" fill="#FFC23D"/><circle cx="{x - 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/><circle cx="{x + 6 * s:.1f}" cy="{y - 4 * s:.1f}" r="{2.4 * s:.1f}" fill="{INK}"/><path d="M{x - 7 * s:.1f} {y + 5 * s:.1f} q{7 * s:.1f} {7 * s:.1f} {14 * s:.1f} 0" stroke="{INK}" stroke-width="{2.6 * s:.1f}" fill="none" stroke-linecap="round"/>'
     if kind == "zh":  # the sound of one language
-        return f'<rect x="{x - 16 * s:.1f}" y="{y - 14 * s:.1f}" width="{32 * s:.1f}" height="{28 * s:.1f}" rx="{6 * s:.1f}" fill="#E84F4F"/><circle cx="{x:.1f}" cy="{y:.1f}" r="{6 * s:.1f}" fill="#F2B526"/>'
+        return f'<rect x="{x - 16 * s:.1f}" y="{y - 14 * s:.1f}" width="{32 * s:.1f}" height="{28 * s:.1f}" rx="{6 * s:.1f}" fill="#F2554B"/><circle cx="{x:.1f}" cy="{y:.1f}" r="{6 * s:.1f}" fill="#FFC23D"/>'
     if kind == "en":
-        return f'<rect x="{x - 16 * s:.1f}" y="{y - 14 * s:.1f}" width="{32 * s:.1f}" height="{28 * s:.1f}" rx="{6 * s:.1f}" fill="#3E9BE0"/><path d="M{x - 9 * s:.1f} {y:.1f} h{18 * s:.1f} M{x:.1f} {y - 8 * s:.1f} v{16 * s:.1f}" stroke="#FFFFFF" stroke-width="{3.6 * s:.1f}" stroke-linecap="round"/>'
+        return f'<rect x="{x - 16 * s:.1f}" y="{y - 14 * s:.1f}" width="{32 * s:.1f}" height="{28 * s:.1f}" rx="{6 * s:.1f}" fill="#4C9BE8"/><path d="M{x - 9 * s:.1f} {y:.1f} h{18 * s:.1f} M{x:.1f} {y - 8 * s:.1f} v{16 * s:.1f}" stroke="#FFFFFF" stroke-width="{3.6 * s:.1f}" stroke-linecap="round"/>'
     if kind == "moon":
-        return f'<path d="M{x + 6 * s:.1f} {y - 16 * s:.1f} A16 16 0 1 0 {x + 8 * s:.1f} {y + 14 * s:.1f} A12 12 0 1 1 {x + 6 * s:.1f} {y - 16 * s:.1f} Z" fill="#F2B526"/>'
+        return f'<path d="M{x + 6 * s:.1f} {y - 16 * s:.1f} A16 16 0 1 0 {x + 8 * s:.1f} {y + 14 * s:.1f} A12 12 0 1 1 {x + 6 * s:.1f} {y - 16 * s:.1f} Z" fill="#FFC23D"/>'
     if kind == "hand":
         return f'<circle cx="{x:.1f}" cy="{y + 4 * s:.1f}" r="{11 * s:.1f}" fill="{SKIN[0]}"/>' + "".join(f'<rect x="{x + dx * s - 3 * s:.1f}" y="{y - 16 * s:.1f}" width="{6 * s:.1f}" height="{16 * s:.1f}" rx="{3 * s:.1f}" fill="{SKIN[0]}"/>' for dx in (-8, -3, 2, 7))
     if kind == "scribble":
-        return "".join(f'<path d="M{x - 18 * s:.1f} {y + (i * 9 - 9) * s:.1f} q{9 * s:.1f} {-12 * s:.1f} {18 * s:.1f} 0 t{18 * s:.1f} 0" stroke="{c}" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round"/>' for i, c in enumerate(["#E84F4F", "#3E9BE0", "#4DAF4E"]))
+        return "".join(f'<path d="M{x - 18 * s:.1f} {y + (i * 9 - 9) * s:.1f} q{9 * s:.1f} {-12 * s:.1f} {18 * s:.1f} 0 t{18 * s:.1f} 0" stroke="{c}" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round"/>' for i, c in enumerate(["#F2554B", "#4C9BE8", "#4DB86A"]))
     if kind == "tower":
-        return "".join(f'<rect x="{x - 10 * s:.1f}" y="{y + 8 * s - i * 14 * s:.1f}" width="{20 * s:.1f}" height="{13 * s:.1f}" rx="{3 * s:.1f}" fill="{c}"/>' for i, c in enumerate(["#3E9BE0", "#F2B526", "#E84F4F"]))
+        return "".join(f'<rect x="{x - 10 * s:.1f}" y="{y + 8 * s - i * 14 * s:.1f}" width="{20 * s:.1f}" height="{13 * s:.1f}" rx="{3 * s:.1f}" fill="{c}"/>' for i, c in enumerate(["#4C9BE8", "#FFC23D", "#F2554B"]))
     if kind == "leaf":
-        return f'<path d="M{x:.1f} {y + 16 * s:.1f} C{x - 16 * s:.1f} {y + 4 * s:.1f} {x - 12 * s:.1f} {y - 14 * s:.1f} {x:.1f} {y - 18 * s:.1f} C{x + 12 * s:.1f} {y - 14 * s:.1f} {x + 16 * s:.1f} {y + 4 * s:.1f} {x:.1f} {y + 16 * s:.1f} Z" fill="#F58A1F"/>'
+        return f'<path d="M{x:.1f} {y + 16 * s:.1f} C{x - 16 * s:.1f} {y + 4 * s:.1f} {x - 12 * s:.1f} {y - 14 * s:.1f} {x:.1f} {y - 18 * s:.1f} C{x + 12 * s:.1f} {y - 14 * s:.1f} {x + 16 * s:.1f} {y + 4 * s:.1f} {x:.1f} {y + 16 * s:.1f} Z" fill="#FF8A3D"/>'
     if kind == "eye":
-        return f'<path d="M{x - 18 * s:.1f} {y:.1f} Q{x:.1f} {y - 16 * s:.1f} {x + 18 * s:.1f} {y:.1f} Q{x:.1f} {y + 16 * s:.1f} {x - 18 * s:.1f} {y:.1f} Z" fill="#FFFFFF" stroke="#3E9BE0" stroke-width="{3 * s:.1f}"/><circle cx="{x:.1f}" cy="{y:.1f}" r="{6 * s:.1f}" fill="#3E9BE0"/>'
+        return f'<path d="M{x - 18 * s:.1f} {y:.1f} Q{x:.1f} {y - 16 * s:.1f} {x + 18 * s:.1f} {y:.1f} Q{x:.1f} {y + 16 * s:.1f} {x - 18 * s:.1f} {y:.1f} Z" fill="#FFFFFF" stroke="#4C9BE8" stroke-width="{3 * s:.1f}"/><circle cx="{x:.1f}" cy="{y:.1f}" r="{6 * s:.1f}" fill="#4C9BE8"/>'
     if kind == "bird":
-        return f'<ellipse cx="{x:.1f}" cy="{y + 2 * s:.1f}" rx="{14 * s:.1f}" ry="{10 * s:.1f}" fill="#3E9BE0"/><circle cx="{x + 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{7 * s:.1f}" fill="#3E9BE0"/><path d="M{x + 16 * s:.1f} {y - 6 * s:.1f} l{6 * s:.1f} {2 * s:.1f} l{-6 * s:.1f} {2 * s:.1f}Z" fill="#F2B526"/>'
+        return f'<ellipse cx="{x:.1f}" cy="{y + 2 * s:.1f}" rx="{14 * s:.1f}" ry="{10 * s:.1f}" fill="#4C9BE8"/><circle cx="{x + 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{7 * s:.1f}" fill="#4C9BE8"/><path d="M{x + 16 * s:.1f} {y - 6 * s:.1f} l{6 * s:.1f} {2 * s:.1f} l{-6 * s:.1f} {2 * s:.1f}Z" fill="#FFC23D"/>'
     if kind == "shirt":
-        return f'<path d="M{x - 14 * s:.1f} {y - 14 * s:.1f} L{x - 5 * s:.1f} {y - 17 * s:.1f} Q{x:.1f} {y - 13 * s:.1f} {x + 5 * s:.1f} {y - 17 * s:.1f} L{x + 14 * s:.1f} {y - 14 * s:.1f} L{x + 19 * s:.1f} {y - 5 * s:.1f} L{x + 12 * s:.1f} {y - 3 * s:.1f} V{y + 15 * s:.1f} H{x - 12 * s:.1f} V{y - 3 * s:.1f} L{x - 19 * s:.1f} {y - 5 * s:.1f} Z" fill="#3E9BE0"/>'
+        return f'<path d="M{x - 14 * s:.1f} {y - 14 * s:.1f} L{x - 5 * s:.1f} {y - 17 * s:.1f} Q{x:.1f} {y - 13 * s:.1f} {x + 5 * s:.1f} {y - 17 * s:.1f} L{x + 14 * s:.1f} {y - 14 * s:.1f} L{x + 19 * s:.1f} {y - 5 * s:.1f} L{x + 12 * s:.1f} {y - 3 * s:.1f} V{y + 15 * s:.1f} H{x - 12 * s:.1f} V{y - 3 * s:.1f} L{x - 19 * s:.1f} {y - 5 * s:.1f} Z" fill="#4C9BE8"/>'
     if kind == "check":
-        return f'<path d="M{x - 10 * s:.1f} {y:.1f} l{7 * s:.1f} {7 * s:.1f} l{13 * s:.1f} {-14 * s:.1f}" stroke="#4DAF4E" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
+        return f'<path d="M{x - 10 * s:.1f} {y:.1f} l{7 * s:.1f} {7 * s:.1f} l{13 * s:.1f} {-14 * s:.1f}" stroke="#4DB86A" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
     if kind == "stop":
-        return f'<rect x="{x - 9 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#E84F4F"/><rect x="{x + 3 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#E84F4F"/>'
+        return f'<rect x="{x - 9 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/><rect x="{x + 3 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/>'
     if kind == "people":
-        return f'<circle cx="{x - 9 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[0]}"/><circle cx="{x + 9 * s:.1f}" cy="{y - 2 * s:.1f}" r="{5 * s:.1f}" fill="{SKIN[1]}"/><rect x="{x - 16 * s:.1f}" y="{y + 1 * s:.1f}" width="{14 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#E2728C"/><rect x="{x + 3 * s:.1f}" y="{y + 4 * s:.1f}" width="{12 * s:.1f}" height="{11 * s:.1f}" rx="{4 * s:.1f}" fill="#F2B526"/>'
+        return f'<circle cx="{x - 9 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[0]}"/><circle cx="{x + 9 * s:.1f}" cy="{y - 2 * s:.1f}" r="{5 * s:.1f}" fill="{SKIN[1]}"/><rect x="{x - 16 * s:.1f}" y="{y + 1 * s:.1f}" width="{14 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#E2728C"/><rect x="{x + 3 * s:.1f}" y="{y + 4 * s:.1f}" width="{12 * s:.1f}" height="{11 * s:.1f}" rx="{4 * s:.1f}" fill="#FFC23D"/>'
     if kind == "lantern":
-        return f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{16 * s:.1f}" ry="{14 * s:.1f}" fill="#E84F4F"/><rect x="{x - 6 * s:.1f}" y="{y - 18 * s:.1f}" width="{12 * s:.1f}" height="{5 * s:.1f}" fill="#F2B526"/>'
+        return f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{16 * s:.1f}" ry="{14 * s:.1f}" fill="#F2554B"/><rect x="{x - 6 * s:.1f}" y="{y - 18 * s:.1f}" width="{12 * s:.1f}" height="{5 * s:.1f}" fill="#FFC23D"/>'
     if kind == "bowl":
-        return f'<path d="M{x - 16 * s:.1f} {y - 4 * s:.1f} Q{x:.1f} {y + 18 * s:.1f} {x + 16 * s:.1f} {y - 4 * s:.1f} Z" fill="#2DB3A6"/><circle cx="{x - 4 * s:.1f}" cy="{y - 6 * s:.1f}" r="{5 * s:.1f}" fill="#F2B526"/>'
+        return f'<path d="M{x - 16 * s:.1f} {y - 4 * s:.1f} Q{x:.1f} {y + 18 * s:.1f} {x + 16 * s:.1f} {y - 4 * s:.1f} Z" fill="#1FB5A6"/><circle cx="{x - 4 * s:.1f}" cy="{y - 6 * s:.1f}" r="{5 * s:.1f}" fill="#FFC23D"/>'
     if kind == "drop":
-        return f'<path d="M{x:.1f} {y - 16 * s:.1f} Q{x + 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y + 12 * s:.1f} Q{x - 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y - 16 * s:.1f} Z" fill="#5BA8E0"/>'
+        return f'<path d="M{x:.1f} {y - 16 * s:.1f} Q{x + 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y + 12 * s:.1f} Q{x - 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y - 16 * s:.1f} Z" fill="#4C9BE8"/>'
     if kind == "bed":
-        return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#8E6FDB"/><circle cx="{x - 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[1]}"/>'
+        return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#9B7BEA"/><circle cx="{x - 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[1]}"/>'
     return ""
 
 # ---------- marks ----------
@@ -563,12 +565,12 @@ def mark(sv, m, ppl):
         a = pt(m["at"]); d = m.get("dir", 1)
         for i in range(3):
             r = 18 + i * 14
-            sv.add(f'<path d="M{a[0] + d * r * .5:.1f} {a[1] - r * .8:.1f} A{r} {r} 0 0 {1 if d > 0 else 0} {a[0] + d * r * .5:.1f} {a[1] + r * .8:.1f}" fill="none" stroke="{m.get("c", "#8E6FDB")}" stroke-width="5" stroke-linecap="round" opacity="{1 - i * .25:.2f}"/>')
+            sv.add(f'<path d="M{a[0] + d * r * .5:.1f} {a[1] - r * .8:.1f} A{r} {r} 0 0 {1 if d > 0 else 0} {a[0] + d * r * .5:.1f} {a[1] + r * .8:.1f}" fill="none" stroke="{m.get("c", "#9B7BEA")}" stroke-width="5" stroke-linecap="round" opacity="{1 - i * .25:.2f}"/>')
     elif k == "look":  # a dotted line of sight
         a, b = pt(m["a"]), pt(m["b"])
-        sv.add(f'<path d="M{a[0]:.1f} {a[1]:.1f} L{b[0]:.1f} {b[1]:.1f}" stroke="{m.get("c", "#3E9BE0")}" stroke-width="5" stroke-dasharray="1 13" stroke-linecap="round" fill="none"/>')
+        sv.add(f'<path d="M{a[0]:.1f} {a[1]:.1f} L{b[0]:.1f} {b[1]:.1f}" stroke="{m.get("c", "#4C9BE8")}" stroke-width="5" stroke-dasharray="1 13" stroke-linecap="round" fill="none"/>')
     elif k == "arrow":  # a motion arrow along a gentle curve
-        a, b = pt(m["a"]), pt(m["b"]); bend = m.get("bend", -40); c = m.get("c", "#F58A1F")
+        a, b = pt(m["a"]), pt(m["b"]); bend = m.get("bend", -40); c = m.get("c", "#FF8A3D")
         mx, my = (a[0] + b[0]) / 2, (a[1] + b[1]) / 2 + bend
         sv.add(f'<path d="M{a[0]:.1f} {a[1]:.1f} Q{mx:.1f} {my:.1f} {b[0]:.1f} {b[1]:.1f}" stroke="{c}" stroke-width="6" fill="none" stroke-linecap="round" stroke-dasharray="{m.get("dash", "0")}"/>')
         ang = math.atan2(b[1] - my, b[0] - mx)
@@ -583,27 +585,27 @@ def mark(sv, m, ppl):
         sv.add(f'<circle cx="{a[0]:.1f}" cy="{a[1] + 3:.1f}" r="{r:.1f}" fill="#5A3A20" opacity=".08"/><circle cx="{a[0]:.1f}" cy="{a[1]:.1f}" r="{r:.1f}" fill="#FFFFFF"/>')
         sy = m["sym"]
         if sy == "pause":
-            sv.add(f'<rect x="{a[0] - r * .36:.1f}" y="{a[1] - r * .42:.1f}" width="{r * .24:.1f}" height="{r * .84:.1f}" rx="3" fill="#8E6FDB"/><rect x="{a[0] + r * .12:.1f}" y="{a[1] - r * .42:.1f}" width="{r * .24:.1f}" height="{r * .84:.1f}" rx="3" fill="#8E6FDB"/>')
+            sv.add(f'<rect x="{a[0] - r * .36:.1f}" y="{a[1] - r * .42:.1f}" width="{r * .24:.1f}" height="{r * .84:.1f}" rx="3" fill="#9B7BEA"/><rect x="{a[0] + r * .12:.1f}" y="{a[1] - r * .42:.1f}" width="{r * .24:.1f}" height="{r * .84:.1f}" rx="3" fill="#9B7BEA"/>')
         elif sy == "repeat":
-            sv.add(f'<path d="M{a[0] - r * .5:.1f} {a[1]:.1f} A{r * .5:.1f} {r * .5:.1f} 0 1 1 {a[0]:.1f} {a[1] + r * .5:.1f}" stroke="#2DB3A6" stroke-width="{r * .16:.1f}" fill="none" stroke-linecap="round"/><path d="M{a[0] - r * .74:.1f} {a[1] - r * .16:.1f} L{a[0] - r * .5:.1f} {a[1] + r * .12:.1f} L{a[0] - r * .24:.1f} {a[1] - r * .16:.1f}" stroke="#2DB3A6" stroke-width="{r * .16:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+            sv.add(f'<path d="M{a[0] - r * .5:.1f} {a[1]:.1f} A{r * .5:.1f} {r * .5:.1f} 0 1 1 {a[0]:.1f} {a[1] + r * .5:.1f}" stroke="#1FB5A6" stroke-width="{r * .16:.1f}" fill="none" stroke-linecap="round"/><path d="M{a[0] - r * .74:.1f} {a[1] - r * .16:.1f} L{a[0] - r * .5:.1f} {a[1] + r * .12:.1f} L{a[0] - r * .24:.1f} {a[1] - r * .16:.1f}" stroke="#1FB5A6" stroke-width="{r * .16:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
         elif sy == "clock":
-            sv.add(f'<circle cx="{a[0]:.1f}" cy="{a[1]:.1f}" r="{r * .55:.1f}" fill="none" stroke="#F58A1F" stroke-width="{r * .13:.1f}"/><path d="M{a[0]:.1f} {a[1] - r * .32:.1f} V{a[1]:.1f} H{a[0] + r * .24:.1f}" stroke="#F58A1F" stroke-width="{r * .13:.1f}" fill="none" stroke-linecap="round"/>')
+            sv.add(f'<circle cx="{a[0]:.1f}" cy="{a[1]:.1f}" r="{r * .55:.1f}" fill="none" stroke="#FF8A3D" stroke-width="{r * .13:.1f}"/><path d="M{a[0]:.1f} {a[1] - r * .32:.1f} V{a[1]:.1f} H{a[0] + r * .24:.1f}" stroke="#FF8A3D" stroke-width="{r * .13:.1f}" fill="none" stroke-linecap="round"/>')
         elif sy == "grow":  # short, longer, longest
-            for i in range(3): sv.add(f'<rect x="{a[0] - r * .5 + i * r * .36:.1f}" y="{a[1] + r * .4 - (i + 1) * r * .26:.1f}" width="{r * .24:.1f}" height="{(i + 1) * r * .26:.1f}" rx="2" fill="#4DAF4E"/>')
+            for i in range(3): sv.add(f'<rect x="{a[0] - r * .5 + i * r * .36:.1f}" y="{a[1] + r * .4 - (i + 1) * r * .26:.1f}" width="{r * .24:.1f}" height="{(i + 1) * r * .26:.1f}" rx="2" fill="#4DB86A"/>')
         elif sy == "two":  # two choices
-            sv.add(f'<circle cx="{a[0] - r * .3:.1f}" cy="{a[1]:.1f}" r="{r * .24:.1f}" fill="#3E9BE0"/><circle cx="{a[0] + r * .3:.1f}" cy="{a[1]:.1f}" r="{r * .24:.1f}" fill="#EE6F9A"/>')
+            sv.add(f'<circle cx="{a[0] - r * .3:.1f}" cy="{a[1]:.1f}" r="{r * .24:.1f}" fill="#4C9BE8"/><circle cx="{a[0] + r * .3:.1f}" cy="{a[1]:.1f}" r="{r * .24:.1f}" fill="#FF6F91"/>')
         else:
             sv.add(pict(sy, a[0], a[1], r / 26 * .95))
     elif k == "sparkle":
         a = pt(m["at"])
         for dx, dy, r in ((0, 0, 9), (22, -16, 6), (-18, -22, 5)):
             x, y = a[0] + dx, a[1] + dy
-            sv.add(f'<path d="M{x:.1f} {y - r * 1.6:.1f} Q{x:.1f} {y:.1f} {x + r * 1.6:.1f} {y:.1f} Q{x:.1f} {y:.1f} {x:.1f} {y + r * 1.6:.1f} Q{x:.1f} {y:.1f} {x - r * 1.6:.1f} {y:.1f} Q{x:.1f} {y:.1f} {x:.1f} {y - r * 1.6:.1f} Z" fill="{m.get("c", "#F2B526")}"/>')
+            sv.add(f'<path d="M{x:.1f} {y - r * 1.6:.1f} Q{x:.1f} {y:.1f} {x + r * 1.6:.1f} {y:.1f} Q{x:.1f} {y:.1f} {x:.1f} {y + r * 1.6:.1f} Q{x:.1f} {y:.1f} {x - r * 1.6:.1f} {y:.1f} Q{x:.1f} {y:.1f} {x:.1f} {y - r * 1.6:.1f} Z" fill="{m.get("c", "#FFC23D")}"/>')
     elif k == "zz":
         a = pt(m["at"])
         for i, s in enumerate((1, .75, .55)):
             x, y = a[0] + i * 20, a[1] - i * 22
-            sv.add(f'<path d="M{x:.1f} {y:.1f} h{14 * s:.1f} l{-14 * s:.1f} {14 * s:.1f} h{14 * s:.1f}" stroke="#8E6FDB" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+            sv.add(f'<path d="M{x:.1f} {y:.1f} h{14 * s:.1f} l{-14 * s:.1f} {14 * s:.1f} h{14 * s:.1f}" stroke="#9B7BEA" stroke-width="{4 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
     elif k == "hands_cover":  # both adult hands over the face
         p = ppl[m.get("who", "adult")]; c = p.head(); r = p.d["head"]
         for dy in (-.25, .25):
@@ -708,15 +710,17 @@ def companions(sv, x, base, k, look=(-1, 0)):
         return e
     sv.shadow(x + 18 * k, base + 2, 60 * k, 9 * k)
     ox = x + 34 * k
+    # as on the app icon: flat colours, Otto's rod curving forward with the golden bead hanging from it
     sv.add(f'<g transform="translate({ox - 50 * k * .82:.1f} {base - 90 * k * .82:.1f}) scale({k * .82:.3f})">'
-           f'<path d="M53 17 C54 12 57 8 61 6" stroke="#1F3566" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="62" cy="5.8" r="3.2" fill="#D4A21C"/>'
-           f'{legs((38, 56))}<path d="{OTTO_BODY}" fill="{sv.rad("#2D4A8C")}"/>'
-           f'<path d="{OTTO_DIP}" fill="#1F3566" fill-opacity=".55"/>{eye(51, 44, 12.5, 11.5, 7.1, .34)}<circle cx="74" cy="70" r="6.2" fill="{sv.rad("#D4A21C")}"/></g>')
+           f'<path d="M50 16.5 C45 4 30 1 21 8 L20 11.5" stroke="#1F3566" stroke-width="2.4" fill="none" stroke-linecap="round"/><circle cx="20" cy="11.5" r="5" fill="#D4A21C"/>'
+           f'{legs((38, 56))}<path d="{OTTO_BODY}" fill="#2D4A8C"/>'
+           f'<path d="{OTTO_DIP}" fill="#1F3566" fill-opacity=".55"/>{eye(51, 44, 12.5, 11.5, 7.1, .34)}</g>')
     leaves = "".join(f'<path d="{m[0]}" fill="{c}"/>' for m, c in zip([MINT[1], MINT[0], MINT[3], MINT[2]], ["#7FCBA0", "#4FAE7F", "#A9E0C0", "#A9E0C0"]))
+    under = "M14 68 C30 76 70 76 88 66 C88 76 80 84 70 86 C56 88 33 89 22 82 C17 78 14 74 14 68Z"
     sv.add(f'<g transform="translate({x - 50 * k:.1f} {base - 90 * k:.1f}) scale({k:.3f})">'
            f'<path d="M49 36 C48 30 49.2 23 50 17.6" stroke="#3D5434" stroke-width="2.2" fill="none" stroke-linecap="round"/>{leaves}'
-           f'{legs((33, 59))}<path d="{MOSS_BODY}" fill="{sv.rad("#55704A")}"/>'
-           f'<path d="{MOSS_TUFTS}" fill="#88A06C" fill-opacity=".7"/>{eye(43, 55, 6.4, 7.4, 4.0)}{eye(58, 55, 6.4, 7.4, 4.0)}</g>')
+           f'{legs((33, 59))}<clipPath id="mossc"><path d="{MOSS_BODY}"/></clipPath><path d="{MOSS_BODY}" fill="#55704A"/>'
+           f'<path d="{under}" fill="#3D5434" fill-opacity=".55" clip-path="url(#mossc)"/>{eye(43, 55, 6.4, 7.4, 4.0)}{eye(58, 55, 6.4, 7.4, 4.0)}</g>')
 
 # ---------- covers ----------
 def child_pose_at(m):

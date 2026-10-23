@@ -325,7 +325,10 @@ struct PlayTile: View {
                 }
             }
             VStack(alignment: .leading, spacing: 3) {
-                Label(play.domains.first ?? "", systemImage: Palette.areaSymbol(key)).font(.caption.weight(.semibold)).foregroundStyle(Palette.area(key)).lineLimit(1)
+                HStack(spacing: 4) {
+                    IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 18)
+                    Text(play.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+                }
                 Text(play.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                 Text(play.age).font(.caption).foregroundStyle(.secondary)
             }

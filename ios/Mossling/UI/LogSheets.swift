@@ -103,7 +103,7 @@ struct AskSheet: View {
                 Button { j.start(LogType.sleep, at: at); dismiss() } label: {
                     Label("开始睡觉", systemImage: "moon.zzz.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
                 }
-                .buttonStyle(.borderedProminent).tint(c).controlSize(.large)
+                .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(c)).controlSize(.large)
             }
         case LogType.bottle:
             HStack(alignment: .firstTextBaseline) {
@@ -150,7 +150,7 @@ struct AskSheet: View {
 
     private func save(enabled: Bool = true, _ f: @escaping () -> Void) -> some View {
         Button { f(); dismiss() } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
-            .buttonStyle(.borderedProminent).tint(LogType.color(type)).controlSize(.large).disabled(!enabled)
+            .buttonStyle(.borderedProminent).tint(Crayon.buttonFill(LogType.color(type))).controlSize(.large).disabled(!enabled)
     }
 }
 

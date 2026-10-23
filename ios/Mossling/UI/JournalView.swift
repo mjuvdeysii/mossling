@@ -520,7 +520,7 @@ struct TimerScreen: View {
                         Button { j.stop(type); dismiss() } label: {
                             Label("结束并记下", systemImage: "stop.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 8)
                         }
-                        .buttonStyle(.glassProminent).tint(c).controlSize(.large)
+                        .buttonStyle(.glassProminent).tint(Crayon.buttonFill(c)).controlSize(.large)
                     }
                     .padding(.horizontal, 20).padding(.vertical, 8)
                 }

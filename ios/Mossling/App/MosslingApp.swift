@@ -102,7 +102,7 @@ private struct LockView: View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
             Text("芽芽月历已锁定").font(.title2.weight(.bold))
-            Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).controlSize(.large)
+            Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()
@@ -172,7 +172,7 @@ struct OnboardingView: View {
 
             VStack(spacing: 10) {
                 Button { askBirth = true } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                    .buttonStyle(.glassProminent).controlSize(.large)
+                    .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
                 Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
                 Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")

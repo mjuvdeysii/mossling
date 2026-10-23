@@ -20,7 +20,7 @@ struct PlayView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
-                        Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
+                        Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
                         Spacer()
                         Text(play.age).font(.subheadline).foregroundStyle(.secondary)
                     }
@@ -43,8 +43,7 @@ struct PlayView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text("\(i + 1)").font(Typeface.numerals(15, relativeTo: .headline, weight: .bold)).foregroundStyle(.white)
                                 .frame(width: 30, height: 30)
-                                .background(Circle().fill(LinearGradient(colors: [Palette.area(key).mix(with: .white, by: 0.25), Palette.area(key)], startPoint: .top, endPoint: .bottom)))
-                                .shadow(color: Palette.area(key).opacity(0.35), radius: 3, y: 2)
+                                .background(Circle().fill(Crayon.buttonFill(Palette.area(key))))
                                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
                             Text(s).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
@@ -65,12 +64,17 @@ struct PlayView: View {
         }
         .pageBackground()
         .safeAreaBar(edge: .bottom) {
-            Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
-                Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
-                    .font(.headline)
-                    .frame(maxWidth: .infinity).padding(.vertical, 6)
+            // the companions stand by the button; when it is pressed they cheer and golden beads fly up
+            HStack(alignment: .bottom, spacing: 8) {
+                Duo(primary: app.companion, size: 40, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer)
+                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
+                    Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity).padding(.vertical, 6)
+                }
+                .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+                .overlay { BeadBurst(trigger: cheer) }
             }
-            .buttonStyle(.glassProminent).tint(Palette.accent).controlSize(.large)
             .padding(.horizontal, 16).padding(.vertical, 8)
             .sensoryFeedback(.success, trigger: cheer)
         }
@@ -106,5 +110,37 @@ struct DoneCount: View {
                 .contentTransition(.numericText())
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Golden and rainbow beads that fly up out of a button and fall away, once each time `trigger` changes.
+struct BeadBurst: View {
+    let trigger: Int
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    private static let beads: [(dx: Double, up: Double, r: Double, c: Color)] = [
+        (-120, 150, 7, Palette.bead), (-80, 190, 6, Crayon.teal), (-40, 210, 8, Palette.bead), (0, 230, 6, Crayon.pink),
+        (40, 205, 7, Palette.bead), (80, 185, 6, Crayon.sunflower), (120, 150, 8, Crayon.cherry), (-100, 120, 5, Crayon.sky), (100, 125, 5, Palette.bead)]
+    var body: some View {
+        if reduce { EmptyView() } else {
+            Color.clear
+                .overlay {
+                    KeyframeAnimator(initialValue: 0.0, trigger: trigger) { t in
+                        ZStack {
+                            ForEach(Array(Self.beads.enumerated()), id: \.offset) { _, b in
+                                // a throw upward with gravity: y = up·(2t − t²)·…, fading at the end
+                                let y = -b.up * (2 * t - t * t * 1.4)
+                                Circle().fill(b.c).frame(width: b.r * 2, height: b.r * 2)
+                                    .offset(x: b.dx * t, y: y)
+                                    .opacity(t <= 0 || t >= 1 ? 0 : 1 - max(0, t - 0.7) / 0.3)
+                            }
+                        }
+                    } keyframes: { _ in
+                        LinearKeyframe(0.0, duration: 0.0)
+                        LinearKeyframe(1.0, duration: 1.1)
+                        LinearKeyframe(0.0, duration: 0.0)
+                    }
+                }
+                .allowsHitTesting(false)
+        }
     }
 }
