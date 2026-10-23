@@ -58,7 +58,7 @@ fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
             }
         }
         Spacer(Modifier.height(28.dp))
-        Text("芽芽月历", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
+        Text("摸索台灯", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
         Text("Mossling", fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
         Text("0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))

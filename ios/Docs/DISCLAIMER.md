@@ -1,6 +1,6 @@
 # 免责声明
 
-适用于 iOS 应用 芽芽月历（Mossling，Bundle ID：app.mossling）
+适用于 iOS 应用 摸索台灯（Mossling，Bundle ID：app.mossling）
 
 生效日期：2026 年 10 月 22 日
 

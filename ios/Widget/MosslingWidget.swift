@@ -43,7 +43,7 @@ struct TodayProvider: TimelineProvider {
 struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in TodayWidgetView(e: e).containerBackground(for: .widget) { Color(uiColor: .systemBackground) } }
-            .configurationDisplayName("芽芽月历")
+            .configurationDisplayName("摸索台灯")
             .description("月龄、今天的活动；打开记录后可以直接计时和记一笔。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
@@ -85,7 +85,7 @@ private struct TodayWidgetView: View {
                         Text("个月").font(.caption)
                         if a.days > 0 { Text("\(a.days)").font(serif(18)).foregroundStyle(Color.moss); Text("天").font(.caption) }
                     }
-                } else { Text("芽芽月历").font(.headline) }
+                } else { Text("摸索台灯").font(.headline) }
             }
             Spacer(minLength: 0)
             Image("Pair").resizable().scaledToFit().frame(width: 44)

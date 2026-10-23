@@ -76,8 +76,8 @@ struct YouView: View {
                 Section2(title: "数据") { VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 10) {
                         Menu {
-                            Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "芽芽月历记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
-                            Button("表格（CSV）", systemImage: "tablecells") { exportName = "芽芽月历记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
+                            Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "摸索台灯记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
+                            Button("表格（CSV）", systemImage: "tablecells") { exportName = "摸索台灯记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
                         } label: { DataKey(title: "导出", symbol: "square.and.arrow.up", color: Crayon.sky) }
                         Button { importing = true } label: { DataKey(title: "导入", symbol: "square.and.arrow.down", color: Crayon.lilac) }
                     }
@@ -96,7 +96,7 @@ struct YouView: View {
                         HStack(spacing: 12) {
                             IconTile(symbol: "info", color: Crayon.sky, size: 32)
                             VStack(alignment: .leading, spacing: 1) {
-                                Text("关于芽芽月历").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                Text("关于摸索台灯").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                                 Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer(minLength: 0)
@@ -119,7 +119,7 @@ struct YouView: View {
             guard case let .success(url) = r else { return }
             let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
             do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j); message = "已导入" }
-            catch { message = error is RecordFile.Failure ? "这不是芽芽月历导出的记录文件" : "没有导入成功，文件可能已损坏" }
+            catch { message = error is RecordFile.Failure ? "这不是摸索台灯导出的记录文件" : "没有导入成功，文件可能已损坏" }
         }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
@@ -329,7 +329,7 @@ struct AboutView: View {
             Section {
                 VStack(spacing: 6) {
                     Duo(primary: app.companion, size: 96)
-                    Text("芽芽月历").font(.title.weight(.bold)).padding(.top, 8)
+                    Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
                     Text("Mossling · 0–3 岁早教活动规划").font(.subheadline).foregroundStyle(.secondary)
                     Text("版本 \(v)（\(b)）").font(.footnote).foregroundStyle(.secondary).monospacedDigit()
                 }

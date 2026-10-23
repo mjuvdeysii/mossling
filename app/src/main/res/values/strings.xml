@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">芽芽月历</string>
+    <string name="app_name">摸索台灯</string>
     <string name="channel_timer">计时</string>
     <string name="widget_today">今天</string>
     <string name="widget_desc">月龄、上次喂奶和一键记录</string>

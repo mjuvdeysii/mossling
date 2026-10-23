@@ -143,7 +143,7 @@ fun YouScreen(ui: AppUi, a: YouActions, modifier: Modifier = Modifier) {
         item("about") {
             Group("关于") {
                 LinkRow(G.Journal, "内容来源", null) { a.about() }
-                Divide(); LinkRow(G.Idea, "关于芽芽月历", version.ifBlank { null }) { a.appAbout() }
+                Divide(); LinkRow(G.Idea, "关于摸索台灯", version.ifBlank { null }) { a.appAbout() }
             }
         }
     }

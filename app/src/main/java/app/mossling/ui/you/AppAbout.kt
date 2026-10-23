@@ -69,7 +69,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
         item {
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 app.mossling.ui.ip.Duo(app.mossling.ui.theme.LocalCompanion.current, size = 88.dp)
-                Text("芽芽月历", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
+                Text("摸索台灯", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
                 Text("Mossling · 0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium)
                 Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
                 Text("版本 $version · 构建 $build", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
@@ -86,7 +86,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                         Text("记录只保存在本机。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
                         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = {
-                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "芽芽月历异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
+                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "摸索台灯异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
                                 runCatching { ctx.startActivity(Intent.createChooser(send, "分享异常记录")) }
                             }, shape = RoundedCornerShape(16.dp)) { Text("分享记录") }
                             androidx.compose.material3.TextButton(onClick = { app.mossling.CrashLog.clear(ctx); crash = null }) { Text("删除") }
@@ -259,7 +259,7 @@ private fun UpdateCard(st: app.mossling.domain.Updater.State, u: app.mossling.do
                     is app.mossling.domain.Updater.State.Ready -> {
                         val canInstall = u?.canInstall() ?: false
                         Button(onClick = { runCatching { ctx.startActivity(if (canInstall) u!!.installIntent(st.file) else u!!.allowInstallIntent()) } },
-                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许芽芽月历安装更新") }
+                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许摸索台灯安装更新") }
                         Text(if (canInstall) "由系统安装器完成安装，记录不会丢失。" else "Android 需要你允许一次「安装未知应用」，之后回到这里点安装。",
                             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
                     }

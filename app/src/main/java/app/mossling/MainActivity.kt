@@ -44,7 +44,7 @@ class MainActivity : FragmentActivity() {
         val allowed = if (Build.VERSION.SDK_INT >= 30) BiometricManager.Authenticators.BIOMETRIC_WEAK or BiometricManager.Authenticators.DEVICE_CREDENTIAL
             else BiometricManager.Authenticators.BIOMETRIC_WEAK
         if (BiometricManager.from(this).canAuthenticate(allowed) != BiometricManager.BIOMETRIC_SUCCESS) { locked.value = false; return }
-        val info = BiometricPrompt.PromptInfo.Builder().setTitle("打开芽芽月历").setSubtitle("确认是你本人").setAllowedAuthenticators(allowed)
+        val info = BiometricPrompt.PromptInfo.Builder().setTitle("打开摸索台灯").setSubtitle("确认是你本人").setAllowedAuthenticators(allowed)
             .apply { if (Build.VERSION.SDK_INT < 30) setNegativeButtonText("取消") }.build()
         BiometricPrompt(this, ContextCompat.getMainExecutor(this), object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) { locked.value = false }

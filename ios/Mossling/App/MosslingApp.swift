@@ -124,7 +124,7 @@ private struct LockView: View {
     var body: some View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
-            Text("芽芽月历已锁定").font(.title2.weight(.bold))
+            Text("摸索台灯已锁定").font(.title2.weight(.bold))
             Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -187,7 +187,7 @@ struct OnboardingView: View {
             .ignoresSafeArea(edges: .top)
 
             VStack(spacing: 8) {
-                Text("芽芽月历").font(.largeTitle.weight(.bold))
+                Text("摸索台灯").font(.largeTitle.weight(.bold))
                 Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(.secondary)
             }
             .multilineTextAlignment(.center)

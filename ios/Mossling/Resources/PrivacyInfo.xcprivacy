@@ -2,7 +2,7 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- 芽芽月历 does not track, collects no data, and contacts no server (ios/Docs/PRIVACY.md). -->
+	<!-- 摸索台灯 does not track, collects no data, and contacts no server (ios/Docs/PRIVACY.md). -->
 	<key>NSPrivacyTracking</key>
 	<false/>
 	<key>NSPrivacyTrackingDomains</key>
