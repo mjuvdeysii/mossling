@@ -34,8 +34,8 @@ struct LogEntry: Codable, Identifiable, Hashable {
 
     var summary: String {
         switch type {
-        case LogType.nurse: return [side == "l" ? "左边" : side == "r" ? "右边" : nil, end.map { minutesOf(($0 - start) / 1000) }].compactMap { $0 }.joined(separator: " · ")
-        case LogType.sleep: return end.map { minutesOf(($0 - start) / 1000) } ?? "进行中"
+        case LogType.nurse: return [side == "l" ? "左边" : side == "r" ? "右边" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
+        case LogType.sleep: return end.map { _ in minutesOf(activeSeconds) } ?? "进行中"
         case LogType.bottle: return "\(amount ?? 0) 毫升"
         case LogType.diaper: return ["wet": "湿", "dirty": "便", "both": "湿和便"][detail ?? ""] ?? ""
         case LogType.temp: return amount.map { String(format: "%.1f °C", Double($0) / 10) } ?? ""
@@ -70,12 +70,14 @@ extension LogEntry {
 extension Array where Element == LogEntry {
     /// The number of feeds: a bottle is one feed; nursing on one side then the other, entry right after entry (within
     /// two minutes), is one feed.
-    func feedCount() -> Int {
+    /// Pass `from` to count only feeds that began at or after it (a day's feeds: a feed begun before midnight and
+    /// carried on after it belongs to the day before).
+    func feedCount(from: Double = -.infinity) -> Int {
         let nurses = filter { $0.type == LogType.nurse }.sorted { $0.start < $1.start }
-        var n = filter { $0.type == LogType.bottle }.count
+        var n = filter { $0.type == LogType.bottle && $0.start >= from }.count
         var lastEnd: Double?
         for e in nurses {
-            if let l = lastEnd, e.start - l <= 120_000 { } else { n += 1 }
+            if let l = lastEnd, e.start - l <= 120_000 { } else if e.start >= from { n += 1 }
             lastEnd = e.end ?? e.start
         }
         return n

@@ -137,4 +137,11 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(logs[0]["detail"] as? String, "paused:60000")
         XCTAssertEqual((logs[0]["end"] as? NSNumber)?.int64Value, Int64(t(19, 10, 8)))
     }
+
+    func testAFeedAcrossMidnightCountsOnTheDayItBegan() {
+        let logs = [LogEntry(type: LogType.nurse, start: t(18, 23, 55), end: t(19, 0, 5), side: "l"),
+                    LogEntry(type: LogType.nurse, start: t(19, 0, 5), end: t(19, 0, 12), side: "r")]
+        XCTAssertEqual(logs.feedCount(from: Day(y: 2026, m: 10, d: 19).date.timeIntervalSince1970 * 1000), 0)
+        XCTAssertEqual(logs.feedCount(from: Day(y: 2026, m: 10, d: 18).date.timeIntervalSince1970 * 1000), 1)
+    }
 }

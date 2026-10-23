@@ -241,7 +241,7 @@ private struct Totals: View {
     var body: some View {
         // counts are of what started on the day; sleep is the part of each sleep that falls on the day
         let own = logs.filter { !$0.carriedOver(into: day) }
-        let feeds = own.feedCount()
+        let feeds = logs.feedCount(from: day.date.timeIntervalSince1970 * 1000)
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let diapers = own.filter { $0.type == LogType.diaper }.count
@@ -319,12 +319,19 @@ private struct DayTimeline: View {
     var body: some View {
         let d0 = day.date.timeIntervalSince1970 * 1000
         let sorted = logs.sorted { max($0.start, d0) > max($1.start, d0) }
+        // the latest moment anything older had reached: a quiet stretch is measured from there, not from the entry
+        // just below (a long sleep can outlast a nappy changed during it)
+        let reached: [Double] = {
+            var out = Array(repeating: 0.0, count: sorted.count), m = -Double.infinity
+            for i in sorted.indices.reversed() { m = Swift.max(m, sorted[i].end ?? sorted[i].start); out[i] = m }
+            return out
+        }()
         TimelineView(.periodic(from: .now, by: 60)) { tl in
             VStack(spacing: 0) {
                 ForEach(Array(sorted.enumerated()), id: \.element.id) { i, e in
                     if i > 0 {
                         let newer = sorted[i - 1]
-                        let gap = (max(newer.start, d0) - (e.end ?? e.start)) / 1000
+                        let gap = (max(newer.start, d0) - reached[i]) / 1000
                         if gap >= 30 * 60 { GapRow(seconds: gap, timeWidth: timeWidth) }
                     }
                     TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth)

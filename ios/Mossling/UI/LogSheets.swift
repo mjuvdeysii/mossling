@@ -61,6 +61,9 @@ struct AskSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
         }
         .presentationDetents([.medium, .large])
+        // the start must stay before the end, however the two were set
+        .onChange(of: when) { _, w in if from >= w { from = w.addingTimeInterval(-15 * 60) } }
+        .onChange(of: finished) { _, _ in if from >= when { from = when.addingTimeInterval(-15 * 60) } }
         .onAppear { if let l = lastSide { side = l == "l" ? "r" : "l" }; if type == LogType.bottle, let a = j.logs.first(where: { $0.type == LogType.bottle })?.amount { ml = Double(a) } }
     }
 
@@ -91,11 +94,11 @@ struct AskSheet: View {
                 }
             }
             if finished {
-                save { j.add(LogEntry(type: LogType.nurse, start: ms(from), end: ms(when), side: side)) }
+                save(enabled: from < when) { j.add(LogEntry(type: LogType.nurse, start: ms(from), end: ms(when), side: side)) }
             }
         case LogType.sleep:
             if finished {
-                save { j.add(LogEntry(type: LogType.sleep, start: ms(from), end: ms(when))) }
+                save(enabled: from < when) { j.add(LogEntry(type: LogType.sleep, start: ms(from), end: ms(when))) }
             } else {
                 Button { j.start(LogType.sleep, at: at); dismiss() } label: {
                     Label("开始睡觉", systemImage: "moon.zzz.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
