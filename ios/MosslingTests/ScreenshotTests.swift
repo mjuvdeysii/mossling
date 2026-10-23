@@ -109,6 +109,7 @@ final class ScreenshotTests: XCTestCase {
     // night: Otto's lamp on the records and the timer; the home under the night sky
     func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
     func test27LampTimer() { let m = model(); shot("27_lamp_timer", dark: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test27LampAsk() { let m = model(); shot("27_lamp_ask", dark: true, tabs(m, AskSheet(type: LogType.sleep).lamp(true))) }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

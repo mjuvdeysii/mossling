@@ -177,4 +177,50 @@ final class LogicTests: XCTestCase {
         let old = #"{"type":"nurse","start":1000,"side":"l","pausedTotal":0}"#.data(using: .utf8)!
         XCTAssertEqual(try JSONDecoder().decode(RunningTimer.self, from: old).carried, 0)
     }
+
+    func testTheWheelRestsOnABeadEitherWay() {
+        let w = BeadSnap.item
+        // a slow release settles on the nearest bead, forwards or back
+        XCTAssertEqual(BeadSnap.resting(5 * w + 0.4 * w), 5 * w)
+        XCTAssertEqual(BeadSnap.resting(5 * w + 0.6 * w), 6 * w)
+        XCTAssertEqual(BeadSnap.resting(5 * w - 0.4 * w), 5 * w)
+        XCTAssertEqual(BeadSnap.resting(5 * w - 0.6 * w), 4 * w)
+        // a flick past either end rests on the end bead
+        XCTAssertEqual(BeadSnap.resting(-300), 0)
+        XCTAssertEqual(BeadSnap.resting(40 * w), 36 * w)
+        // the month read while turning is the bead under the ring
+        XCTAssertEqual(BeadSnap.month(at: 12 * w + 10), 12)
+        XCTAssertEqual(BeadSnap.month(at: 12 * w - 10), 12)
+    }
+
+    /// Night mode is where contrast breaks first (a bright fill under white text, a dark ink on the lamp page), so
+    /// every colour role is checked against every surface it is drawn on, in both appearances (WCAG 2.2: 4.5:1 for
+    /// text, 3:1 for large or bold text and controls).
+    func testEveryColourRoleReadsByDayAndAtNight() {
+        func lum(_ c: Color, _ scheme: ColorScheme) -> Double {
+            var env = EnvironmentValues(); env.colorScheme = scheme
+            let r = c.resolve(in: env)   // linear components
+            return 0.2126 * Double(r.linearRed) + 0.7152 * Double(r.linearGreen) + 0.0722 * Double(r.linearBlue)
+        }
+        func ratio(_ a: Color, _ b: Color, _ s: ColorScheme) -> Double {
+            let x = lum(a, s), y = lum(b, s); return (max(x, y) + 0.05) / (min(x, y) + 0.05)
+        }
+        let crayons: [(String, Color)] = [("teal", Crayon.teal), ("pink", Crayon.pink), ("sunflower", Crayon.sunflower), ("cherry", Crayon.cherry),
+                                          ("sky", Crayon.sky), ("tangerine", Crayon.tangerine), ("lilac", Crayon.lilac), ("peach", Crayon.peach)]
+        let paper = Color(hex: 0xFBF7F0), white = Color.white
+        let darkSurfaces: [(String, Color)] = [("dark page", Palette.background), ("lamp page", Palette.lampPage), ("lamp card", Palette.lampCard), ("grouped cell", Color(hex: 0x2C2C2E))]
+        for (n, c) in crayons {
+            XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), paper, .light), 4.5, "\(n) ink on paper")
+            XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), white, .light), 4.5, "\(n) ink on a white card")
+            for (sn, s) in darkSurfaces { XCTAssertGreaterThanOrEqual(ratio(Crayon.ink(c), s, .dark), 4.5, "\(n) ink on the \(sn)") }
+            for scheme in [ColorScheme.light, .dark] {
+                XCTAssertGreaterThanOrEqual(ratio(Crayon.buttonFill(c), white, scheme), 4.5, "white text on \(n) button fill")
+            }
+        }
+        for (sn, s) in darkSurfaces.dropFirst() { XCTAssertGreaterThanOrEqual(ratio(Palette.lampTint, s, .dark), 4.5, "lamp tint on the \(sn)") }
+        XCTAssertGreaterThanOrEqual(ratio(Palette.lampTint, white, .dark), 3, "white on the lamp tint (selected day, prominent button)")
+        XCTAssertGreaterThanOrEqual(ratio(Palette.accent, paper, .light), 4.5)
+        XCTAssertGreaterThanOrEqual(ratio(Palette.accent, Palette.background, .dark), 4.5)
+        XCTAssertGreaterThanOrEqual(ratio(Palette.accentFill, white, .dark), 4.5)
+    }
 }

@@ -81,22 +81,35 @@ struct GrowthWheel: View {
 /// The wheel of months: beads on a band that scrolls sideways and snaps to a month, curving away at both ends like a
 /// wheel seen from the front, a ring under the chosen month and a tick under the finger at every month. It reports
 /// the month under the ring as it turns (`preview`) and the month it settles on when the scroll comes to rest.
+///
+/// How it moves (build 150, after "往回不跟手、定位阻尼不够细腻"): the band is a plain system scroll view, so the finger
+/// drives it 1:1 both ways and a flick decelerates with the system's own physics. Two things that fought the finger
+/// are gone: the old `viewAligned` snapping aligned beads to the band's *leading* edge (with the centring padding
+/// that is half a bead off the ring, so every rest ended with a correction), and the month was written back into the
+/// scroll position while the finger was still on it (a quick drag could be pulled back to the bead it just left).
+/// Now the month is only *read* from the offset while turning; the wheel is moved by code only when it is at rest
+/// (a tap, or 回到本月). Where a flick comes to rest is decided once, at release: the system's predicted resting
+/// point rounded to the nearest bead (`BeadSnap`), so the deceleration itself lands on the bead with no second snap.
 private struct MonthDial: View {
     @Binding var preview: Int
     let baby: Int
     let settle: (Int) -> Void
-    @State private var pos: Int?
+    @State private var position: ScrollPosition
     @State private var start: Int
-    private let item: CGFloat = 46
+    @State private var phase: ScrollPhase = .idle
+    @State private var under: Int
+    private let item = BeadSnap.item
 
     init(preview: Binding<Int>, baby: Int, settle: @escaping (Int) -> Void) {
         _preview = preview; self.baby = baby; self.settle = settle
-        _pos = State(initialValue: preview.wrappedValue)
+        _position = State(initialValue: ScrollPosition(x: CGFloat(preview.wrappedValue) * BeadSnap.item))
         _start = State(initialValue: preview.wrappedValue)   // the first position only; never moves while turning
+        _under = State(initialValue: preview.wrappedValue)
     }
 
     var body: some View {
         GeometryReader { g in
+            let half = g.size.width / 2
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 0) {
                     ForEach(0...36, id: \.self) { m in
@@ -109,26 +122,33 @@ private struct MonthDial: View {
                         }
                         .frame(width: item)
                         .visualEffect { content, proxy in
-                            let mid = proxy.frame(in: .scrollView).midX
-                            let d = (mid - g.size.width / 2) / (g.size.width / 2)
+                            // d: −1 … 1 across the band. The bead under the ring swells a little as it arrives
+                            // (a continuous "pull" rather than a jump), the ends turn away like a wheel's rim.
+                            let d = (proxy.frame(in: .scrollView).midX - half) / half
+                            let near = max(0, 1 - abs(d) * half / item)   // 1 at the ring, 0 a bead away
                             return content
-                                .rotation3DEffect(.degrees(Double(d) * 32), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-                                .scaleEffect(1 - min(0.25, abs(d) * 0.25))
+                                .rotation3DEffect(.degrees(Double(d) * 30), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
+                                .scaleEffect(1 - min(0.25, abs(d) * 0.25) + near * 0.1)
                                 .opacity(1 - min(0.45, abs(d) * 0.45))
                         }
-                        .id(m)
-                        .onTapGesture { withAnimation(.snappy) { pos = m }; preview = m; settle(m) }
+                        .contentShape(Rectangle())
+                        .onTapGesture { go(to: m) }
                         .accessibilityLabel(m == 0 ? "出生" : "满 \(m) 个月")
                     }
                 }
-                .scrollTargetLayout()
-                .padding(.horizontal, (g.size.width - item) / 2)
+                .padding(.horizontal, half - item / 2)
             }
-            .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
-            .scrollPosition(id: $pos, anchor: .center)
-            .defaultScrollAnchor(UnitPoint(x: CGFloat(start) / 36, y: 0.5))
-            .onScrollPhaseChange { _, phase in
-                if phase == .idle, let p = pos { settle(p) }
+            .scrollPosition($position)
+            .scrollTargetBehavior(BeadSnap())
+            .defaultScrollAnchor(UnitPoint(x: CGFloat(start) / 36, y: 0.5), for: .initialOffset)
+            .onScrollGeometryChange(for: Int.self) { geo in
+                BeadSnap.month(at: geo.contentOffset.x)
+            } action: { _, m in
+                under = m
+            }
+            .onScrollPhaseChange { _, p in
+                phase = p
+                if p == .idle { settle(under) }
             }
             .background(alignment: .top) {
                 Circle().fill(Palette.bead.opacity(0.14))
@@ -138,9 +158,13 @@ private struct MonthDial: View {
             }
         }
         .frame(height: 64)
-        .onChange(of: pos) { _, p in if let p, p != preview { preview = p } }
-        .onChange(of: preview) { _, m in if pos != m { withAnimation(.snappy) { pos = m } } }
-        .sensoryFeedback(.selection, trigger: pos)
+        // read while turning; the stage follows the bead under the ring
+        .onChange(of: under) { _, m in if m != preview { preview = m } }
+        // written only at rest: a change from outside (回到本月, VoiceOver) turns the wheel to it
+        .onChange(of: preview) { _, m in
+            if phase == .idle, m != under { withAnimation(.smooth(duration: 0.45)) { position.scrollTo(x: CGFloat(m) * item) } }
+        }
+        .sensoryFeedback(.selection, trigger: under)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("月份")
         .accessibilityValue(preview == 0 ? "出生" : "满 \(preview) 个月")
@@ -151,6 +175,33 @@ private struct MonthDial: View {
             default: break
             }
         }
+    }
+
+    private func go(to m: Int) {
+        guard phase == .idle else { return }   // a tap that catches a turning wheel only stops it
+        preview = m
+        withAnimation(.smooth(duration: 0.45)) { position.scrollTo(x: CGFloat(m) * item) }
+        settle(m)
+    }
+}
+
+/// Where the wheel comes to rest. With the band padded by half its width less half a bead, bead `m` sits under the
+/// ring exactly when the content offset is `m × item`; the system's predicted resting offset is rounded to the
+/// nearest such offset, so a slow release settles on the nearest bead and a flick on the bead its momentum reaches.
+struct BeadSnap: ScrollTargetBehavior {
+    static let item: CGFloat = 46
+    static let last = 36
+
+    static func month(at offset: CGFloat) -> Int {
+        min(last, max(0, Int((offset / item).rounded())))
+    }
+
+    static func resting(_ predicted: CGFloat) -> CGFloat {
+        CGFloat(month(at: predicted)) * item
+    }
+
+    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
+        target.rect.origin.x = Self.resting(target.rect.minX)
     }
 }
 

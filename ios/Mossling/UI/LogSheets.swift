@@ -79,14 +79,14 @@ struct AskSheet: View {
                         if finished { side = k } else { j.start(LogType.nurse, side: k, at: at); dismiss() }
                     } label: {
                         VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
-                            .foregroundStyle(finished && on ? .white : c).frame(maxWidth: .infinity, minHeight: 104)
+                            .foregroundStyle(finished && on ? .white : Crayon.ink(c)).frame(maxWidth: .infinity, minHeight: 104)
                             .overlay(alignment: .topTrailing) {
                                 if lastSide == k {
                                     Text("上次").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
-                                        .background(Capsule().fill(.white.opacity(0.85))).foregroundStyle(c).padding(8)
+                                        .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(c)).padding(8)
                                 }
                             }
-                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
+                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(c).mix(with: c, by: 0.15), Crayon.buttonFill(c)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
                     }
                     .buttonStyle(.toy)
                     .accessibilityAddTraits(finished && on ? .isSelected : [])
@@ -119,7 +119,7 @@ struct AskSheet: View {
                 ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
                     Button { j.add(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {
                         VStack(spacing: 8) { Image(systemName: sym).font(.title2); Text(t).font(.subheadline.weight(.semibold)) }
-                            .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(c)
+                            .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(Crayon.ink(c))
                             .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
                     }
                     .buttonStyle(.plain)

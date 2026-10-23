@@ -144,9 +144,9 @@ private struct WeekStrip: View {
                         Text(String(d.weekday.suffix(1))).font(.caption2.weight(.semibold))
                         Text("\(d.d)").font(Typeface.numerals(17, relativeTo: .body, weight: .bold))
                     }
-                    .foregroundStyle(on ? Color.white : isToday ? Crayon.pink : Color.primary)
+                    .foregroundStyle(on ? Color.white : isToday ? Crayon.ink(Crayon.pink) : Color.primary)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.pink.mix(with: .white, by: 0.2), Crayon.pink], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(Crayon.pink).mix(with: Crayon.pink, by: 0.15), Crayon.buttonFill(Crayon.pink)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
                     .shadow(color: on ? Crayon.pink.opacity(0.35) : Color.black.opacity(0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
                 }
                 .buttonStyle(.toy)
@@ -316,7 +316,7 @@ private struct Totals: View {
     private func stamp(_ t: String, _ name: String, _ n: String, _ unit: String, _ sub: String) -> some View {
         let c = LogType.color(t)
         return VStack(alignment: .leading, spacing: 2) {
-            Label(name, systemImage: LogType.symbol(t)).font(.caption.weight(.semibold)).foregroundStyle(c)
+            Label(name, systemImage: LogType.symbol(t)).font(.caption.weight(.semibold)).foregroundStyle(Crayon.ink(c))
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
                 if !unit.isEmpty { Text(unit).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
@@ -500,7 +500,7 @@ struct TimerScreen: View {
                                 Text(clock(secs)).font(Typeface.numerals(54, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
                                     .contentTransition(.numericText()).foregroundStyle(paused ? Color.secondary : Color.primary)
                                 Text(paused ? "已暂停" : (secs >= 3600 ? "\(Int(secs) / 3600) 小时以上" : "进行中"))
-                                    .font(.subheadline.weight(.semibold)).foregroundStyle(c)
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                             }
                         }
                         .frame(maxWidth: 300).aspectRatio(1, contentMode: .fit)
@@ -527,11 +527,11 @@ struct TimerScreen: View {
                                             Text(done + now > 0 ? clock(done + now) : "—").font(Typeface.numerals(13, weight: .semibold)).monospacedDigit().opacity(0.85)
                                         }
                                     }
-                                    .foregroundStyle(on ? .white : c)
+                                    .foregroundStyle(on ? .white : Crayon.ink(c))
                                     .frame(maxWidth: .infinity, minHeight: 86)
                                     .background {
                                         RoundedRectangle(cornerRadius: 24, style: .continuous)
-                                            .fill(on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12)))
+                                            .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.buttonFill(c).mix(with: c, by: 0.15), Crayon.buttonFill(c)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.14)))
                                     }
                                     .shadow(color: on ? c.opacity(0.35) : .clear, radius: 8, y: 4)
                                 }

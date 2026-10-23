@@ -146,7 +146,7 @@ struct LampScope: ViewModifier {
     func body(content: Self.Content) -> some View {
         if on {
             content.environment(\.lamp, true).environment(\.colorScheme, .dark)
-                .toolbarColorScheme(.dark, for: .navigationBar).tint(Palette.amber)
+                .toolbarColorScheme(.dark, for: .navigationBar, .tabBar).tint(Palette.lampTint)
         } else { content }
     }
 }
@@ -157,6 +157,10 @@ extension Palette {
     static let lampCard = Color(hex: 0x19213F)
     static let amber = Color(hex: 0xFFB547)
     static let amberDeep = Color(hex: 0x9A5A00)
+    /// The lamp's tint for controls. The glow (`amber`) is light only — under white text, as system controls draw a
+    /// selected day or a prominent button, it gives 1.8:1. This deeper amber keeps ≥ 3:1 under white (large and bold
+    /// text, controls) and ≥ 4.6:1 as text on every lamp surface (page 6.0, card 5.2, grouped cell 4.6).
+    static let lampTint = Color(hex: 0xCF8420)
 }
 
 /// The page behind everything: plain paper. Colour belongs to the pictures and the materials, not the page
@@ -194,7 +198,7 @@ struct Card<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
-                Label(title, systemImage: symbol).font(.subheadline.weight(.semibold)).foregroundStyle(color)
+                Label(title, systemImage: symbol).font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(color))
                     .labelStyle(.titleAndIcon)
                 Spacer(minLength: 8)
                 if let detail { Text(detail).font(.footnote).foregroundStyle(.secondary).monospacedDigit() }
