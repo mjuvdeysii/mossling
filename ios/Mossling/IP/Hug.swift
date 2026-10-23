@@ -6,6 +6,7 @@ import SwiftUI
 struct HuggedAvatar: View {
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.lamp) private var lamp
     var size: CGFloat = 72
     @State private var hugging = false
     @State private var hugs = 0
@@ -21,7 +22,7 @@ struct HuggedAvatar: View {
                 .scaleEffect(1.3, anchor: .bottom)   // the figures carry a margin; fill the frame with the child
                 .offset(y: size * 0.06)
                 .frame(width: size, height: size)
-                .background(Crayon.sunflower.opacity(0.2), in: Circle())
+                .background(Crayon.sunflower.opacity(lamp ? 0.32 : 0.2), in: Circle())
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: 3))
                 .clipShape(Circle())
                 .scaleEffect(hugging ? 0.95 : 1, anchor: .trailing)

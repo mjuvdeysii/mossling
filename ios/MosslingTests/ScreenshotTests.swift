@@ -21,7 +21,7 @@ final class ScreenshotTests: XCTestCase {
     private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, window whole: Bool = false, lamp: Bool = false, _ view: V) {
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
         // lamp: the phone in light mode with the lamp on — the app darkens its window then (RootView), so do the same
-        let host = UIHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
+        let host = UIHostingController(rootView: view.environment(\.colorScheme, dark || lamp ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
         let size = CGSize(width: 393, height: height)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.overrideUserInterfaceStyle = dark || lamp ? .dark : .light   // the app darkens its window under the lamp

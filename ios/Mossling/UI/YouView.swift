@@ -172,7 +172,9 @@ private struct CompanionStage: View {
         }
         .background(alignment: .bottom) {
             // the stage: a soft floor line under their feet, a spot of light under the one in front
-            Ellipse().fill(Palette.bead.opacity(lamp ? 0.22 : 0.16)).frame(width: 130, height: 18)
+            // by day a soft gold floor; under the lamp a pool of amber light (a flat fill read as a hole on the blue)
+            Ellipse().fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(lamp ? 0.4 : 0.22), .clear], center: .center, startRadius: 0, endRadius: 70))
+                .frame(width: 150, height: 22)
                 .offset(x: app.companion == .moss ? -80 : 80, y: -58)
                 .animation(.spring(response: 0.45, dampingFraction: 0.7), value: app.companion)
         }
