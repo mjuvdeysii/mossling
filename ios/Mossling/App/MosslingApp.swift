@@ -73,7 +73,7 @@ struct RootView: View {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday).environment(\.hue, .peach)
             }
             if app.journal {
-                Tab("手帐", systemImage: "book.closed.fill", value: 2) {
+                Tab("记录", systemImage: "list.bullet.clipboard.fill", value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal).environment(\.hue, .pink)
                 }
             }

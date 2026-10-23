@@ -114,9 +114,9 @@ struct MonthParts: View {
         let mo = app.content.month(month), m = month
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: "这个月")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
                     NavigationLink(value: Route.areas(m)) {
-                        MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 · \($0.name)" }) { EmptyView() }
+                        MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 \($0.name.prefix(4))" }) { EmptyView() }
                     }.buttonStyle(.toy)
                     if !mo.observe.isEmpty {
                         let total = mo.observe.reduce(0) { $0 + $1.items.count }
@@ -138,11 +138,11 @@ struct MonthParts: View {
                     }
                     if !mo.who.isEmpty {
                         NavigationLink(value: Route.rhythm(m)) {
-                            MonthTile(symbol: "sun.and.horizon.fill", color: Crayon.peach, title: "一天的节奏", note: "睡眠 · 活动 · 屏幕") { EmptyView() }
+                            MonthTile(symbol: "sun.and.horizon.fill", color: Crayon.peach, title: "一天的节奏", note: "睡眠 活动") { EmptyView() }
                         }.buttonStyle(.toy)
                     }
                     NavigationLink(value: JournalRoute.growth) {
-                        MonthTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO 标准") { EmptyView() }
+                        MonthTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO") { EmptyView() }
                     }.buttonStyle(.toy)
                 }
             }
@@ -155,20 +155,19 @@ struct MonthTile<Accessory: View>: View {
     var note: String? = nil
     @ViewBuilder let accessory: Accessory
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top) {
-                IconTile(symbol: symbol, color: color, size: 42)
-                Spacer()
-                accessory
+        VStack(alignment: .leading, spacing: 8) {
+            ZStack(alignment: .topTrailing) {
+                IconTile(symbol: symbol, color: color, size: 36).frame(maxWidth: .infinity, alignment: .leading)
+                accessory.scaleEffect(0.8)
             }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title).font(.headline).foregroundStyle(.primary)
-                Text(note ?? " ").font(.footnote).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
+                Text(note ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
             }
         }
-        .padding(14)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 22)
+        .printCard(radius: 20)
         .accessibilityElement(children: .combine)
     }
 }

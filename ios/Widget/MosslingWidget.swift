@@ -43,7 +43,7 @@ struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in TodayWidgetView(e: e).containerBackground(for: .widget) { Color(uiColor: .systemBackground) } }
             .configurationDisplayName("芽芽月历")
-            .description("月龄、今天的活动；打开手帐后可以直接计时和记一笔。")
+            .description("月龄、今天的活动；打开记录后可以直接计时和记一笔。")
             .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }

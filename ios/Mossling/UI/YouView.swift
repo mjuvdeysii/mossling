@@ -1,11 +1,12 @@
 import SwiftUI
 import LocalAuthentication
 
-/// Me: the child, the companion in front, features, appearance, and about. Nothing here repeats Today or Grow.
+/// Me: the child in one compact line (set once, edited in a sheet), the companion in front, and the settings and the
+/// data as tiles in a grid. Nothing here repeats the home or the records.
 struct YouView: View {
     @Environment(AppModel.self) private var app
     @Binding var path: NavigationPath
-    @State private var askBirth = false
+    @State private var editing = false
     @State private var clearing = false
     @Environment(JournalStore.self) private var j
     @State private var exporting: DataFile?
@@ -13,76 +14,79 @@ struct YouView: View {
     @State private var importing = false
     @State private var message: String?
 
+    private let two = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
+
     var body: some View {
         @Bindable var app = app
-        List {
-            Section {
-                HStack(spacing: 16) {
-                    Creature(kind: app.companion, mood: .happy).frame(width: 64, height: 64)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title2.weight(.bold))
-                        Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "未填写出生日期")
-                            .font(.subheadline).foregroundStyle(.secondary)
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                // the child, compact; tapping opens the sheet
+                Button { editing = true } label: {
+                    HStack(spacing: 12) {
+                        Creature(kind: app.companion, mood: .happy).frame(width: 46, height: 46)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.headline).foregroundStyle(.primary)
+                            Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
+                                .font(.footnote).foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                     }
+                    .padding(12).printCard(radius: 22)
                 }
-                .padding(.vertical, 6)
-                LabeledContent("小名") {
-                    TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) }))
-                        .multilineTextAlignment(.trailing)
-                }
-                Button { askBirth = true } label: { LabeledContent("出生日期", value: app.birth.map { "\($0.y)年\($0.md)" } ?? "填写") }.tint(.primary)
-                Picker("性别", selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
-                    Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
-                }
-            } footer: { Text("性别只用于选择 WHO 生长曲线。") }
+                .buttonStyle(.toy)
 
-            Section {
-                HStack(spacing: 12) {
+                // the companion in front
+                LazyVGrid(columns: two, spacing: 12) {
                     ForEach(Kind.allCases, id: \.self) { k in
                         let on = app.companion == k
                         Button { withAnimation(.snappy) { app.companion = k } } label: {
-                            VStack(spacing: 6) {
-                                Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.8 : -0.8, y: 0)).frame(width: 88, height: 88)
-                                Text(k.rawValue).font(.headline)
-                                Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title3)
-                                    .foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
+                            HStack(spacing: 8) {
+                                Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.8 : -0.8, y: 0)).frame(width: 40, height: 40)
+                                Text(k.rawValue).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                Spacer(minLength: 0)
+                                Image(systemName: on ? "checkmark.circle.fill" : "circle").foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
                             }
-                            .frame(maxWidth: .infinity).padding(.vertical, 8)
+                            .padding(10).printCard(radius: 20)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(on ? .isSelected : [])
+                        .buttonStyle(.toy)
+                        .accessibilityLabel("\(k.rawValue) 站在前面").accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
-            } header: { Text("站在前面的伙伴") }
 
-            Section {
-                Toggle(isOn: $app.journal) { Label { Text("手帐") } icon: { IconTile(symbol: "book.closed.fill", color: Crayon.tangerine) } }
-                if LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock {
-                    Toggle(isOn: $app.lock) { Label { Text("面容 ID 锁定") } icon: { IconTile(symbol: "faceid", color: Crayon.leaf) } }
+                // settings
+                LazyVGrid(columns: two, spacing: 12) {
+                    SwitchTile(title: "记录", detail: "喂养 睡眠 尿布 体温", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
+                    if LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock {
+                        SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
+                    }
+                    Menu {
+                        Picker("外观", selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } }
+                    } label: { Tile(title: "外观", detail: app.theme.label, symbol: "circle.lefthalf.filled", color: Crayon.pebble) }
+                    .buttonStyle(.toy)
+                    NavigationLink(value: Route.about) { Tile(title: "关于", detail: "来源 条款 反馈", symbol: "info", color: Crayon.sky) }
+                        .buttonStyle(.toy)
                 }
-                Picker(selection: $app.theme) { ForEach(ThemeMode.allCases, id: \.self) { Text($0.label).tag($0) } } label: {
-                    Label { Text("外观") } icon: { IconTile(symbol: "circle.lefthalf.filled", color: Crayon.pebble) }
-                }
-            } footer: { Text("手帐记录喂养、睡眠、尿布与体温。") }
 
-            Section {
-                Button { exportName = "芽芽月历记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) } label: {
-                    Label { Text("导出记录文件") } icon: { IconTile(symbol: "square.and.arrow.up", color: Crayon.sky) }
+                // data: one row of three
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
+                        Menu {
+                            Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "芽芽月历记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
+                            Button("表格（CSV）", systemImage: "tablecells") { exportName = "芽芽月历记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
+                        } label: { DataKey(title: "导出", symbol: "square.and.arrow.up", color: Crayon.sky) }
+                        Button { importing = true } label: { DataKey(title: "导入", symbol: "square.and.arrow.down", color: Crayon.lilac) }
+                        Button { clearing = true } label: { DataKey(title: "清除", symbol: "trash.fill", color: Crayon.cherry) }
+                    }
+                    .buttonStyle(.toy)
+                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
                 }
-                Button { exportName = "芽芽月历记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) } label: {
-                    Label { Text("导出表格（CSV）") } icon: { IconTile(symbol: "tablecells", color: Crayon.aqua) }
-                }
-                Button { importing = true } label: { Label { Text("导入记录文件") } icon: { IconTile(symbol: "square.and.arrow.down", color: Crayon.lilac) } }
-                Button(role: .destructive) { clearing = true } label: { Label { Text("清除全部数据") } icon: { IconTile(symbol: "trash.fill", color: Crayon.cherry) } }
-            } header: { Text("记录") } footer: { Text("记录文件与安卓版通用；所有记录只保存在这台手机上。") }
-            .tint(.primary)
-
-            Section {
-                NavigationLink(value: Route.about) { Label { Text("关于芽芽月历") } icon: { IconTile(symbol: "info", color: Crayon.pebble) } }
             }
+            .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .scrollContentBackground(.hidden).pageBackground()
+        .pageBackground()
         .navigationTitle("我的")
+        .sheet(isPresented: $editing) { ProfileSheet() }
         .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting, contentType: exportName.hasSuffix(".csv") ? .commaSeparatedText : .json, defaultFilename: exportName) { r in
             if case .success = r { message = "已导出" }
         }
@@ -93,10 +97,73 @@ struct YouView: View {
             catch { message = error is RecordFile.Failure ? "这不是芽芽月历导出的记录文件" : "没有导入成功，文件可能已损坏" }
         }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
-        .sheet(isPresented: $askBirth) { BirthSheet() }
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
             Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
         } message: { Text("清除后无法恢复。") }
+    }
+}
+
+/// A square-ish settings tile: icon, title, a word of state.
+private struct Tile: View {
+    let title: String, detail: String, symbol: String, color: Color
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            IconTile(symbol: symbol, color: color, size: 32)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+            }
+        }
+        .padding(12).frame(maxWidth: .infinity, alignment: .leading).printCard(radius: 20)
+    }
+}
+
+/// A tile with a switch in its corner.
+private struct SwitchTile: View {
+    let title: String, detail: String, symbol: String, color: Color
+    @Binding var on: Bool
+    var body: some View {
+        Tile(title: title, detail: detail, symbol: symbol, color: color)
+            .overlay(alignment: .topTrailing) { Toggle(title, isOn: $on).labelsHidden().scaleEffect(0.8).padding(8) }
+            .accessibilityElement(children: .combine)
+    }
+}
+
+/// A small data key: icon over a word.
+private struct DataKey: View {
+    let title: String, symbol: String, color: Color
+    var body: some View {
+        VStack(spacing: 6) {
+            IconTile(symbol: symbol, color: color, size: 30, round: true)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.primary)
+        }
+        .frame(maxWidth: .infinity).padding(.vertical, 10).printCard(radius: 18)
+    }
+}
+
+/// The child: name, date of birth, sex — set once, edited here.
+struct ProfileSheet: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
+    @State private var hasBirth = false
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) }))
+                    DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
+                        .onChange(of: date) { _, _ in hasBirth = true }
+                    Picker("性别", selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
+                        Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
+                    }
+                } footer: { Text("性别只用于选择 WHO 生长曲线。") }
+            }
+            .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
+            .onAppear { if let b = app.birth { date = b.date } }
+        }
+        .presentationDetents([.medium])
     }
 }
 

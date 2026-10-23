@@ -1,165 +1,96 @@
 import SwiftUI
 
-/// The home: this month of the child's life. The scene with the companions and the age (tap it to go to any other
-/// month), this week's shelf, the parts of the month to look at and tick, the other plays of the month, what comes
-/// next for vaccinations and check-ups, and the topics. From 36 months, the road that goes on.
+/// The home: the child's months as a growth map — the stage and wheel at the top, set to this month — and under it
+/// the chosen month: this week's shelf (this month only), the plays, the month's parts in small tiles, and the topics.
+/// Most of the page is the plays, the heart of the book.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
-    @State private var picking = false
+    @State private var chosen: Int?
 
     var body: some View {
+        let baby = app.babyMonth ?? 0
+        let m = chosen ?? baby
         ScrollView {
             VStack(alignment: .leading, spacing: 22) {
-                Button { if app.age == nil { askBirth = true } else { picking = true } } label: { SceneCard(askBirth: $askBirth) }
-                    .buttonStyle(.toy)
-                    .accessibilityHint("选择其他月份")
-                if let age = app.age {
-                    let m = age.bookMonth
-                    if age.months >= 36 { StoryGoesOn(primary: app.companion) }
-                    ShelfView(month: m) { arranging = true }
-                    MonthParts(month: m)
-                    MorePlays(month: m) { arranging = true }
-                    NextCare(month: m)
+                if app.age == nil {
+                    Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glassProminent).controlSize(.large)
                 }
+                GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
+                if m >= 36 { StoryGoesOn(primary: app.companion) }
+                if m == baby && app.age != nil { ShelfView(month: m) { arranging = true } }
+                PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
+                MonthParts(month: m)
                 Topics()
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle(app.nickname.isEmpty ? "本月" : app.nickname)
-        .navigationSubtitle(app.age.map { a in "满 \(a.bookMonth) 个月 · " + app.content.month(a.bookMonth).title } ?? "\(app.today.md) \(app.today.weekday)")
+        .navigationTitle(app.nickname.isEmpty ? "芽芽月历" : app.nickname)
+        .navigationSubtitle(app.age.map { a in a.days > 0 ? "\(a.months) 个月 \(a.days) 天" : "满 \(a.months) 个月" } ?? "\(app.today.md) \(app.today.weekday)")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                Button("月份", systemImage: "circle.grid.3x3.fill") { picking = true }.accessibilityLabel("选择月份")
+            if chosen != nil {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("回到本月", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { chosen = nil } }
+                }
             }
             ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel("搜索") }
         }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
-        .sheet(isPresented: $picking) { MonthPicker { m in path.append(Route.month(m)) } }
+        .onChange(of: app.babyMonth) { _, _ in chosen = nil }
     }
 }
 
-/// The month's other plays, not on the shelf: small rows with the picture, how many times, and a place on the shelf.
-private struct MorePlays: View {
+/// The month's plays as picture cards, two by two; this month's shelf is shown above, so its plays are not repeated.
+private struct PlaysGrid: View {
     @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
     let month: Int
-    let arrange: () -> Void
+    let hideShelf: Bool
     var body: some View {
-        let shelf = app.weekShelf(month).plays.map(\.code)
-        let rest = app.content.plays(of: month).filter { !shelf.contains($0.code) }
-        if !rest.isEmpty {
-            Box(title: "这个月还能玩", detail: "\(rest.count) 个") {
-                ForEach(Array(rest.enumerated()), id: \.element.id) { i, p in
-                    MorePlayRow(play: p, month: month, onShelf: shelf, last: i == rest.count - 1, arrange: arrange)
+        let shelf = hideShelf ? app.weekShelf(month).plays.map(\.code) : []
+        let plays = app.content.plays(of: month).filter { !shelf.contains($0.code) }
+        if !plays.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的教具", detail: "\(plays.count) 个")
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                    ForEach(plays) { p in PlayTileLink(play: p, month: month) }
                 }
             }
         }
     }
 }
 
-private struct MorePlayRow: View {
-    @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
-    let play: Play, month: Int, onShelf: [String], last: Bool
-    let arrange: () -> Void
-    var body: some View {
-        let k = Palette.areaKey(of: play), n = app.record(play, j).count
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                NavigationLink(value: Route.play(play.code, month)) {
-                    HStack(spacing: 12) {
-                        if let f = ArtIndex.shared.steps(play.code).first {
-                            ArtFill(name: f).frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                        }
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(play.name).font(.body.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
-                            HStack(spacing: 6) {
-                                Image(systemName: Palette.areaSymbol(k)).foregroundStyle(Palette.area(k))
-                                Text(n > 0 ? "做过 \(n) 次" : play.age).foregroundStyle(.secondary)
-                            }
-                            .font(.caption)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.toy)
-                .contextMenu { PlayActions(play: play, month: month) }
-                Button {
-                    withAnimation(.snappy) { if onShelf.count < Shelf.max { app.setShelf(onShelf + [play.code]) } else { arrange() } }
-                } label: {
-                    Image(systemName: "plus").font(.headline).foregroundStyle(Palette.accent).frame(width: 36, height: 36)
-                        .background(Circle().fill(Palette.accent.opacity(0.12)))
-                }
-                .buttonStyle(.toy)
-                .accessibilityLabel("放上本周的架子")
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-            if !last { Divider().padding(.leading, 82) }
-        }
-    }
-}
-
-/// The topics, as a short list.
+/// The topics, as tiles.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         let t = app.content.topics
-        Box(title: "专题") {
-            ForEach(Array(t.enumerated()), id: \.offset) { i, x in
-                NavigationLink(value: Route.topic(x.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: x.title, last: i == t.count - 1, opens: true) }.buttonStyle(.toy)
-            }
-        }
-    }
-}
-
-/// The scene: the companions on their hill under today's sky, and the child's age written on it.
-private struct SceneCard: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.colorScheme) private var scheme
-    @Binding var askBirth: Bool
-    private var hour: Int { Day.cal.component(.hour, from: Date()) }
-
-    var body: some View {
-        let ink = Sky.ink(hour, scheme)
-        ZStack(alignment: .topLeading) {
-            Sky(hour: hour)
-            VStack(alignment: .leading, spacing: 2) {
-                if let age = app.age {
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text("\(age.months)").font(Typeface.numerals(56, relativeTo: .largeTitle, weight: .bold))
-                        Text("个月").font(.title3.weight(.semibold))
-                        if age.days > 0 {
-                            Text("\(age.days)").font(Typeface.numerals(30, relativeTo: .title, weight: .bold)).padding(.leading, 4)
-                            Text("天").font(.title3.weight(.semibold))
+        let marks: [(String, Color)] = [("moon.zzz.fill", Crayon.lilac), ("bed.double.fill", Crayon.sky), ("fork.knife", Crayon.leaf), ("mouth.fill", Crayon.pink), ("cross.case.fill", Crayon.cherry)]
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle(title: "专题")
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(Array(t.enumerated()), id: \.offset) { i, x in
+                    let mk = marks[i % marks.count]
+                    NavigationLink(value: Route.topic(x.id)) {
+                        HStack(spacing: 10) {
+                            IconTile(symbol: mk.0, color: mk.1, size: 34)
+                            Text(x.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
+                            Spacer(minLength: 0)
                         }
+                        .padding(12).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                        .printCard(radius: 20)
                     }
-                    .accessibilityElement(children: .ignore)
-                    .accessibilityLabel(age.days > 0 ? "\(age.months) 个月 \(age.days) 天" : "满 \(age.months) 个月")
-                    Text(verbatim: age.months < 36 ? "再过 \(age.toNext) 天满 \(age.months + 1) 个月" : "第 \(age.lived) 天")
-                        .font(.subheadline.weight(.medium)).opacity(0.75).monospacedDigit()
-                } else {
-                    Text("你好").font(.largeTitle.weight(.bold))
-                    Button { askBirth = true } label: { Text("填写出生日期").padding(.horizontal, 4) }
-                        .buttonStyle(.glassProminent).controlSize(.large).padding(.top, 8)
+                    .buttonStyle(.toy)
                 }
             }
-            .foregroundStyle(ink)
-            .padding(18)
-            Duo(primary: app.companion, size: 112, mood: isNight ? .sleep : .open, look: CGPoint(x: -0.7, y: 0.1))
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                .padding(.trailing, 6).padding(.bottom, 4)
         }
-        .frame(height: 236)
-        .printCard(radius: 30)
     }
-    private var isNight: Bool { let h = hour; return h >= 22 || h < 6 }
 }
 
 /// This week's shelf: a wooden shelf with the week's materials standing on it, and empty places to fill.
@@ -197,15 +128,34 @@ struct ShelfView: View {
                     }
                 }
                 .padding(.horizontal, 12).padding(.top, 14)
-                // the wooden board
-                RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(hex: 0xC99B63))
-                    .frame(height: 12)
-                    .background(RoundedRectangle(cornerRadius: 5, style: .continuous).fill(Color(hex: 0x8F6A3E)).offset(x: 2, y: 2.5))
-                    .padding(.horizontal, 4)
+                Plank().frame(height: 22).padding(.horizontal, 6)
             }
-            .padding(.bottom, 10)
-            .printCard(radius: 26, fill: Color.dyn(0xF5E9D6, 0x2B241C))
+            .padding(.bottom, 12)
+            .background(alignment: .bottom) {
+                // a frosted back panel behind the shelf, like a glass cabinet
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(LinearGradient(colors: [Crayon.peach.opacity(0.18), Crayon.pink.opacity(0.12)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                    .padding(.horizontal, 10).padding(.top, 8).padding(.bottom, 22)
+            }
+            .printCard(radius: 26)
         }
+    }
+}
+
+/// A wooden plank seen a little from above: a lit top face, a darker front edge, a soft shadow beneath.
+private struct Plank: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(LinearGradient(colors: [Color(hex: 0xF3D3A6), Color(hex: 0xE2B47E)], startPoint: .top, endPoint: .bottom))
+                .frame(height: 9)
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(LinearGradient(colors: [Color(hex: 0xC98F5E), Color(hex: 0xA9733F)], startPoint: .top, endPoint: .bottom))
+                .frame(height: 11)
+                .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.35)).frame(height: 1) }
+        }
+        .shadow(color: Color(hex: 0x6B4A2B).opacity(0.25), radius: 6, y: 5)
+        .accessibilityHidden(true)
     }
 }
 
@@ -243,32 +193,6 @@ struct ShelfEditor: View {
                 .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
-    }
-}
-
-/// The next vaccination or check-up not yet recorded; shown when the app is opened, never as a reminder.
-private struct NextCare: View {
-    @Environment(AppModel.self) private var app
-    let month: Int
-    var body: some View {
-        let c = app.content
-        if let birth = app.birth, let next = (month...36).first(where: { k in
-            let mo = c.month(k)
-            return mo.vaccines.indices.contains { !app.ticked(k, TickKind.vaccine, "\($0)") } || mo.checkups.indices.contains { !app.ticked(k, TickKind.checkup, "\($0)") }
-        }), next > month {
-            let mo = c.month(next)
-            let items = mo.vaccines.enumerated().filter { !app.ticked(next, TickKind.vaccine, "\($0.offset)") }.map(\.element)
-                + mo.checkups.enumerated().filter { !app.ticked(next, TickKind.checkup, "\($0.offset)") }.map(\.element)
-            NavigationLink(value: Route.care(next)) {
-                Card(title: "接种与儿保", symbol: "syringe.fill", color: Crayon.sky, detail: next == month ? "满 \(next) 个月" : birth.plus(months: next).md, opens: true) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(items.first ?? "").font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                        if items.count > 1 { Text("另有 \(items.count - 1) 项").font(.subheadline).foregroundStyle(.secondary) }
-                    }
-                }
-            }
-            .buttonStyle(.toy)
-        }
     }
 }
 

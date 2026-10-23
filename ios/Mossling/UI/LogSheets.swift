@@ -1,37 +1,55 @@
 import SwiftUI
 
-/// The sheet that follows a log button: when (now, a few minutes ago, or an exact time), then what — one tap for most.
+/// The page that follows a record button, made for each kind: a feed or a sleep is started now (then timed on its own
+/// screen) or added afterwards with its exact start and end; a bottle, a nappy, a temperature, food or a note at an
+/// exact time (now unless changed), then one tap.
 struct AskSheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
     let type: String
-    @State private var ago = 0
-    @State private var exact: Date?
-    @State private var choosing = false
+    @State private var when = Date()
+    @State private var from = Date().addingTimeInterval(-15 * 60)
     @State private var ml = 120.0
     @State private var temp = 368
     @State private var text = ""
     @State private var finished = false
     @State private var side = "l"
-    @State private var minutes = 15
     @FocusState private var typing: Bool
 
-    private var at: Date { exact ?? Date().addingTimeInterval(-Double(ago) * 60) }
+    private var at: Date { when }
+    private var timed: Bool { type == LogType.nurse || type == LogType.sleep }
 
     var body: some View {
         let c = LogType.color(type)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
-                    if type == LogType.nurse {
-                        Picker("方式", selection: $finished) { Text("现在开始计时").tag(false); Text("补记，已经喂完").tag(true) }
+                    if timed {
+                        Picker("方式", selection: $finished) { Text("现在开始").tag(false); Text("补记").tag(true) }
                             .pickerStyle(.segmented)
                     }
-                    VStack(alignment: .leading, spacing: 10) {
-                        Text(type == LogType.nurse ? (finished ? "什么时候喂完" : "开始时间") : "时间").font(.headline)
-                        FlowChips(items: [(0, "现在"), (5, "5 分钟前"), (15, "15 分钟前"), (30, "半小时前"), (60, "1 小时前")], selected: exact == nil ? ago : nil, tint: c) { ago = $0; exact = nil }
-                        Button { choosing = true } label: { Label(exact.map { whenLabel($0) } ?? "选择时间", systemImage: "clock").monospacedDigit() }
-                            .buttonStyle(.bordered).tint(exact == nil ? .secondary : c)
+                    if timed && finished {
+                        VStack(spacing: 0) {
+                            DatePicker("开始", selection: $from, in: ...when, displayedComponents: [.date, .hourAndMinute])
+                                .padding(.horizontal, 16).padding(.vertical, 10)
+                            Divider().padding(.leading, 16)
+                            DatePicker("结束", selection: $when, in: from...Date(), displayedComponents: [.date, .hourAndMinute])
+                                .padding(.horizontal, 16).padding(.vertical, 10)
+                        }
+                        .printCard(radius: 20)
+                        HStack(alignment: .firstTextBaseline) {
+                            Text("时长").font(.subheadline).foregroundStyle(.secondary)
+                            Spacer()
+                            Text(durationValue(when.timeIntervalSince(from))).font(Typeface.numerals(28, weight: .bold)).monospacedDigit()
+                        }
+                    } else if !timed {
+                        DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .printCard(radius: 20)
+                    } else {
+                        DatePicker("开始于", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .printCard(radius: 20)
                     }
                     content
                 }
@@ -39,7 +57,6 @@ struct AskSheet: View {
             }
             .navigationTitle(LogType.name(type)).navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
-            .sheet(isPresented: $choosing) { TimeSheet(title: type == LogType.nurse ? "开始时间" : "时间", initial: at) { exact = $0 } }
         }
         .presentationDetents([.medium, .large])
         .onAppear { if type == LogType.bottle, let a = j.logs.first(where: { $0.type == LogType.bottle })?.amount { ml = Double(a) } }
@@ -60,20 +77,21 @@ struct AskSheet: View {
                             .foregroundStyle(finished && on ? .white : c).frame(maxWidth: .infinity, minHeight: 104)
                             .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.toy)
                     .accessibilityAddTraits(finished && on ? .isSelected : [])
                 }
             }
             if finished {
-                Text("喂了多久").font(.headline)
-                HStack(alignment: .firstTextBaseline) {
-                    ValueText(parts: [("\(minutes)", "分钟")], size: 40)
-                    Spacer()
-                    Stepper("时长", value: $minutes, in: 1...120).labelsHidden()
+                save { j.add(LogEntry(type: LogType.nurse, start: ms(from), end: ms(when), side: side)) }
+            }
+        case LogType.sleep:
+            if finished {
+                save { j.add(LogEntry(type: LogType.sleep, start: ms(from), end: ms(when))) }
+            } else {
+                Button { j.start(LogType.sleep, at: at); dismiss() } label: {
+                    Label("开始睡觉", systemImage: "moon.zzz.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
                 }
-                FlowChips(items: [5, 10, 15, 20, 30].map { ($0, "\($0) 分") }, selected: minutes, tint: c) { minutes = $0 }
-                Text("\(hm(at.addingTimeInterval(-Double(minutes) * 60)))–\(hm(at))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                save { j.add(LogEntry(type: LogType.nurse, start: ms(at) - Double(minutes) * 60_000, end: ms(at), side: side)) }
+                .buttonStyle(.glassProminent).tint(c).controlSize(.large)
             }
         case LogType.bottle:
             HStack(alignment: .firstTextBaseline) {

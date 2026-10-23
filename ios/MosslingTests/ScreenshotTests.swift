@@ -43,7 +43,8 @@ final class ScreenshotTests: XCTestCase {
         var b = JournalFile.Body()
         b.logs = [LogEntry(type: LogType.bottle, start: self.at(19, 40), amount: 120), LogEntry(type: LogType.diaper, start: self.at(18, 5), detail: "wet"),
                   LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"), LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
-                  LogEntry(type: LogType.bath, start: self.at(10, 20)), LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "米粉")]
+                  LogEntry(type: LogType.bath, start: self.at(10, 20)), LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "米粉"),
+                  LogEntry(type: LogType.sleep, start: self.at(0, 0) - 2 * 3_600_000, end: self.at(6, 30))]
         b.measures = [Measure(at: self.at(9, 0) - 200 * 86_400_000, weightG: 3300, lengthMm: 500, headMm: 340), Measure(at: self.at(9, 0) - 140 * 86_400_000, weightG: 5400, lengthMm: 580, headMm: 385),
                       Measure(at: self.at(9, 0) - 80 * 86_400_000, weightG: 6600, lengthMm: 625, headMm: 410), Measure(at: self.at(9, 0) - 10 * 86_400_000, weightG: 7400, lengthMm: 655, headMm: 425)]
         b.timers = [RunningTimer(type: LogType.nurse, start: ms(Date()) - 12 * 60_000, side: "l")]
@@ -58,8 +59,11 @@ final class ScreenshotTests: XCTestCase {
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
-    func test05Months() { let m = model(); shot("05_months", height: 1300, MonthPicker { _ in }.environment(m).tint(Palette.accent).fontDesign(.rounded)) }
-    func test05MonthsDark() { let m = model(companion: .otto); shot("05_months_dark", dark: true, height: 1300, MonthPicker { _ in }.environment(m).tint(Palette.accent).fontDesign(.rounded)) }
+    private func wheel(_ m: AppModel, _ month: Int) -> some View {
+        GrowthWheel(month: .constant(month), baby: 6).padding(16).frame(maxHeight: .infinity, alignment: .top).background(Palette.background).environment(m).tint(Palette.accent).fontDesign(.rounded)
+    }
+    func test05Wheel() { let m = model(); shot("05_wheel", height: 1300, VStack(spacing: 0) { wheel(m, 1).frame(height: 430); wheel(m, 13).frame(height: 430); wheel(m, 30).frame(height: 430) }) }
+    func test05WheelDark() { let m = model(companion: .otto); shot("05_wheel_dark", dark: true, height: 480, wheel(m, 9)) }
     func test06Play() { let m = model(); shot("06_play", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
     func test07Month() { let m = model(); shot("07_month", height: 2600, tabs(m, MonthView(month: 6))) }
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }

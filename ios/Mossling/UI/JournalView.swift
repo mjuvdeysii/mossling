@@ -25,7 +25,7 @@ struct JournalView: View {
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("手帐")
+        .navigationTitle("记录")
         .navigationSubtitle(day == app.today ? "今天 · \(day.md)" : "\(day.md) · \(day.weekday)")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -52,7 +52,6 @@ struct JournalView: View {
     private func tap(_ t: String) {
         if t == LogType.growth { measuring = Measure(at: Date().timeIntervalSince1970 * 1000); return }
         if j.timers.contains(where: { $0.type == t }) { j.focus = t; return }
-        if t == LogType.sleep { j.start(t); return }
         if t == LogType.bath { j.add(LogEntry(type: t, start: JournalFile.now())); return }
         ask = t
     }
@@ -178,18 +177,7 @@ private struct DayPage: View {
             if logs.isEmpty {
                 Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
             } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(logs.enumerated()), id: \.element.id) { i, e in
-                        if i > 0 { Divider().padding(.leading, 100) }
-                        EntryRow(entry: e, day: day)
-                            .contentShape(Rectangle())
-                            .onTapGesture { edit(e) }
-                            .contextMenu {
-                                Button("修改", systemImage: "pencil") { edit(e) }
-                                Button("删除", systemImage: "trash", role: .destructive) { delete(e) }
-                            }
-                    }
-                }
+                DayTimeline(day: day, today: today, logs: logs, edit: edit, delete: delete)
             }
         }
         .padding(18)
@@ -317,27 +305,102 @@ extension LogEntry {
     }
 }
 
-/// One entry, in the journal's columns: the time in a fixed column, the sticker, the kind with its details below,
-/// the value right-aligned.
-private struct EntryRow: View {
+/// The day's entries on a time line, newest at the top: the clock time in the left column with how long ago under it
+/// (today), a rail in the kind's colour — a feed or a sleep drawn as a bar as long as it lasted, everything else as a
+/// bead — and, where the day was quiet for a while, the gap written on the rail.
+private struct DayTimeline: View {
+    let day: Day, today: Day
+    let logs: [LogEntry]
+    let edit: (LogEntry) -> Void
+    let delete: (LogEntry) -> Void
+    @ScaledMetric private var timeWidth: CGFloat = 54
+
+    var body: some View {
+        let d0 = day.date.timeIntervalSince1970 * 1000
+        let sorted = logs.sorted { max($0.start, d0) > max($1.start, d0) }
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
+            VStack(spacing: 0) {
+                ForEach(Array(sorted.enumerated()), id: \.element.id) { i, e in
+                    if i > 0 {
+                        let newer = sorted[i - 1]
+                        let gap = (max(newer.start, d0) - (e.end ?? e.start)) / 1000
+                        if gap >= 30 * 60 { GapRow(seconds: gap, timeWidth: timeWidth) }
+                    }
+                    TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth)
+                        .contentShape(Rectangle())
+                        .onTapGesture { edit(e) }
+                        .contextMenu {
+                            Button("修改", systemImage: "pencil") { edit(e) }
+                            Button("删除", systemImage: "trash", role: .destructive) { delete(e) }
+                        }
+                }
+            }
+        }
+    }
+}
+
+/// A quiet stretch between two entries, written on a dashed rail.
+private struct GapRow: View {
+    let seconds: Double
+    let timeWidth: CGFloat
+    var body: some View {
+        HStack(spacing: 12) {
+            Color.clear.frame(width: timeWidth, height: 1)
+            Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
+                .frame(width: 28, height: 28)
+            Text("相隔 " + durationValue(seconds)).font(.caption.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+    private struct Line: Shape { func path(in r: CGRect) -> Path { var p = Path(); p.move(to: CGPoint(x: r.midX, y: r.minY)); p.addLine(to: CGPoint(x: r.midX, y: r.maxY)); return p } }
+}
+
+/// One entry on the time line.
+private struct TimelineRow: View {
     let entry: LogEntry
     let day: Day
-    @ScaledMetric private var timeWidth: CGFloat = 50
+    let isToday: Bool
+    let now: Date
+    let timeWidth: CGFloat
+
     var body: some View {
+        let c = LogType.color(entry.type)
+        let span = entry.end != nil ? entry.seconds(on: day) : 0
+        // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
+        let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         let meta = entry.meta(on: day)
-        HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
-                .frame(width: timeWidth, alignment: .leading)
-            IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 26, round: true)
-                .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-            VStack(alignment: .leading, spacing: 2) {
-                Text(LogType.name(entry.type)).font(.body)
-                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(.secondary).monospacedDigit().lineLimit(1) }
+        HStack(alignment: .top, spacing: 12) {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                if let e = entry.endDate, bar > 24 {
+                    Spacer(minLength: 0)
+                    Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(.secondary)
+                } else if isToday {
+                    Text(agoShort(entry.endDate ?? entry.startDate, now)).font(.caption2).foregroundStyle(.secondary)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).foregroundStyle(.primary).fixedSize()
+            .frame(width: timeWidth, height: bar > 24 ? 24 + bar : nil, alignment: .topLeading)
+            VStack(spacing: 0) {
+                IconTile(symbol: LogType.symbol(entry.type), color: c, size: 28, round: true)
+                if entry.end != nil {
+                    Capsule().fill(LinearGradient(colors: [c.mix(with: .white, by: 0.3), c], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: 8, height: max(6, bar)).padding(.top, -4)
+                        .overlay(Capsule().fill(.white.opacity(0.45)).frame(width: 2).padding(.vertical, 3).offset(x: -1.5))
+                }
+            }
+            .frame(width: 28)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(alignment: .firstTextBaseline) {
+                    Text(LogType.name(entry.type)).font(.body)
+                    Spacer(minLength: 8)
+                    Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
+                }
+                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(.secondary).monospacedDigit().lineLimit(2) }
+            }
+            .padding(.top, 3)
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }
 }
