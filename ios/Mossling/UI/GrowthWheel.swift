@@ -144,7 +144,7 @@ struct GrowingChild: View {
         let a = Self.starts[st], b = Self.starts[st + 1]
         let grow = 0.94 + 0.06 * Double(month - a) / Double(max(1, b - a - 1))
         ZStack {
-            Figure(name: "child_\(st)")
+            Figure(name: "child_\(st).webp")
                 .id(st)
                 .transition(reduce ? .opacity : .scale(scale: 0.8, anchor: .bottom).combined(with: .opacity))
         }
