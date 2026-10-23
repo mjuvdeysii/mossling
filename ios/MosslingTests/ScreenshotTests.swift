@@ -18,9 +18,10 @@ final class ScreenshotTests: XCTestCase {
         return m
     }
 
-    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, window whole: Bool = false, _ view: V) {
+    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, window whole: Bool = false, lamp: Bool = false, _ view: V) {
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
-        let host = UIHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light))
+        // lamp: the phone in light mode with the lamp on — the app darkens its window then (RootView), so do the same
+        let host = UIHostingController(rootView: view.environment(\.colorScheme, dark ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
         let size = CGSize(width: 393, height: height)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.overrideUserInterfaceStyle = dark ? .dark : .light
@@ -32,7 +33,11 @@ final class ScreenshotTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(1.2))
         let img = UIGraphicsImageRenderer(size: size, format: { let f = UIGraphicsImageRendererFormat(); f.scale = 3; return f }()).image { _ in
             // the whole window includes a presented sheet, as on the phone
-            if whole { window.drawHierarchy(in: window.bounds, afterScreenUpdates: true) } else { host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
+            if whole, let sheet = host.presentedViewController?.view {
+                // the presented page, where it sits on the screen, over the page under it
+                host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)
+                sheet.drawHierarchy(in: sheet.convert(sheet.bounds, to: nil), afterScreenUpdates: true)
+            } else { host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
         }
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? img.pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios_\(name).png"))
@@ -108,9 +113,9 @@ final class ScreenshotTests: XCTestCase {
     // records on: the Now card (a feed is running in the test journal)
     func test26HomeNow() { let m = model(); m.journal = true; shot("26_home_now", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     // night: Otto's lamp on the records and the timer; the home under the night sky
-    func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
-    func test27LampTimer() { let m = model(); shot("27_lamp_timer", TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
-    func test27LampAsk() { let m = model(); shot("27_lamp_ask", tabs(m, AskSheet(type: LogType.sleep).lamp(true))) }
+    func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", lamp: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
+    func test27LampTimer() { let m = model(); shot("27_lamp_timer", lamp: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test27LampAsk() { let m = model(); shot("27_lamp_ask", lamp: true, tabs(m, AskSheet(type: LogType.sleep).lamp(true))) }
     func test28TimerPausedAndSleep() {
         // mid-feed on the right after 8 minutes on the left, paused; and a sleep with a 3-minute wake
         var b = JournalFile.Body(); let n = ms(Date())
@@ -120,7 +125,7 @@ final class ScreenshotTests: XCTestCase {
         let j = JournalStore(preview: b), m = model()
         shot("28_timer_paused", TimerScreen(type: LogType.nurse).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
         shot("28_timer_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
-        shot("28_timer_sleep_lamp", TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+        shot("28_timer_sleep_lamp", lamp: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
     }
     func test29PlayAlong() {
         let m = model()
@@ -137,7 +142,7 @@ final class ScreenshotTests: XCTestCase {
         let m = model(); m.journal = true
         for (name, type) in [("30_lamp_present_nurse", LogType.nurse), ("30_lamp_present_bottle", LogType.bottle)] {
             let host = Color.clear.lamp(true).sheet(isPresented: .constant(true)) { AskSheet(type: type).lampPresented() }
-            shot(name, window: true, tabs(m, host))
+            shot(name, window: true, lamp: true, tabs(m, host))
         }
     }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }

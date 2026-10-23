@@ -15,7 +15,6 @@ struct MosslingApp: App {
                 .environment(\.girlArt, app.drawsGirl)
                 .environment(app)
                 .environment(journal)
-                .preferredColorScheme(app.theme.scheme)
                 .tint(Palette.accent)
                 .fontDesign(.rounded)
         }
@@ -67,7 +66,14 @@ struct RootView: View {
             }
         }
         .onChange(of: app.publishKey) { _, _ in app.publish() }
+        // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
+        // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
+        // drawn by the system from the window's appearance, and stayed black on the lamp's blue when only the views
+        // were dark (seen on a phone in light mode). Everywhere else, the chosen theme.
+        .preferredColorScheme(lampNow ? .dark : app.theme.scheme)
     }
+
+    private var lampNow: Bool { app.onboarded && app.nightLight && night && (tab == 2 || journal.focus != nil) }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
     @ViewBuilder private var tabs: some View {
