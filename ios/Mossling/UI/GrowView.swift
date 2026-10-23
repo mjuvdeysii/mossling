@@ -1,165 +1,28 @@
 import SwiftUI
 
-/// The journey: 0 to 36 months as one string of golden beads running down the page, a bead per month. Months already
-/// lived are gold, the child's month is larger with the two companions beside it, the months ahead are open rings.
-/// Past the last bead the string runs on. Each bead opens its month.
-struct JourneyView: View {
-    @Environment(AppModel.self) private var app
-    @Binding var path: NavigationPath
-    private let stages: [Int: String] = [0: "0–3 个月", 3: "3–6 个月", 6: "6–9 个月", 9: "9–12 个月", 12: "1 岁 · 12–18 个月", 18: "18–24 个月", 24: "2 岁 · 24–30 个月", 30: "30–36 个月"]
-
-    var body: some View {
-        ScrollViewReader { proxy in
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: 0) {
-                    ForEach(0...36, id: \.self) { m in
-                        if let s = stages[m] {
-                            HStack(spacing: 8) {
-                                Circle().fill(stageColor(m)).frame(width: 10, height: 10)
-                                Text(s).font(.title3.weight(.bold))
-                            }
-                            .padding(.leading, 20).padding(.top, m == 0 ? 8 : 26).padding(.bottom, 4)
-                            .accessibilityElement(children: .combine).accessibilityAddTraits(.isHeader)
-                        }
-                        NavigationLink(value: Route.month(m)) { Station(month: m, first: m == 0) }
-                            .buttonStyle(.plain).zoomSource(Route.month(m)).id(m)
-                    }
-                    Trail().frame(height: 90)
-                    StoryGoesOn(primary: app.companion).padding(.horizontal, 16).padding(.top, 4)
-                }
-                .padding(.bottom, 40)
-            }
-            .background(Palette.background)
-            .navigationTitle("旅程")
-            .navigationSubtitle("一个月一站 · 0–36 个月")
-            .toolbar {
-                if let b = app.babyMonth {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button("满 \(b) 个月", systemImage: "location.fill") { withAnimation(.snappy) { proxy.scrollTo(b, anchor: .center) } }
-                    }
-                }
-            }
-            .onAppear { if let b = app.babyMonth { proxy.scrollTo(b, anchor: .center) } }
-        }
-    }
+/// The three lands of the map, a year each, with their colours.
+enum Land: Int, CaseIterable {
+    case meadow, forest, river
+    static func of(_ m: Int) -> Land { m < 12 ? .meadow : m < 24 ? .forest : .river }
+    var name: String { switch self { case .meadow: "草地"; case .forest: "森林小丘"; case .river: "小河村庄" } }
+    var years: String { switch self { case .meadow: "0–1 岁"; case .forest: "1–2 岁"; case .river: "2–3 岁" } }
+    var ground: Color { switch self { case .meadow: .dyn(0xE3F1CF, 0x1F2B1C); case .forest: .dyn(0xD5E8C0, 0x1B2719); case .river: .dyn(0xE6EFD9, 0x1E2620) } }
+    var crayon: Color { switch self { case .meadow: Crayon.leaf; case .forest: Crayon.tangerine; case .river: Crayon.sky } }
+    var symbol: String { switch self { case .meadow: "leaf.fill"; case .forest: "tree.fill"; case .river: "house.fill" } }
 }
 
-/// Each stretch of months has its own crayon; the beads of lived months take it, like a bead stair.
-func stageColor(_ m: Int) -> Color {
-    let i = [0, 3, 6, 9, 12, 18, 24, 30].lastIndex { $0 <= m } ?? 0
-    return Crayon.rainbow[i % Crayon.rainbow.count]
-}
-
-/// Where the bead of month m sits across the page: a gentle wave near the leading edge.
-private func beadX(_ m: Int) -> CGFloat { 44 + 16 * CGFloat(sin(Double(m) * 0.85)) }
-
-private struct Station: View {
-    @Environment(AppModel.self) private var app
-    let month: Int
-    var first = false
-
-    var body: some View {
-        let mo = app.content.month(month)
-        let baby = app.babyMonth
-        let here = baby == month, past = (baby ?? -1) > month
-        let care = !mo.vaccines.isEmpty || !mo.checkups.isEmpty
-        let careDone = care && mo.vaccines.indices.allSatisfy { app.ticked(month, TickKind.vaccine, "\($0)") } && mo.checkups.indices.allSatisfy { app.ticked(month, TickKind.checkup, "\($0)") }
-        HStack(alignment: .center, spacing: 0) {
-            Color.clear.frame(width: 92)
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(month == 0 ? "出生" : "满 \(month) 个月").font(here ? .headline : .body.weight(.semibold))
-                    if let b = app.birth { Text(b.plus(months: month).md).font(.footnote).foregroundStyle(.secondary).monospacedDigit() }
-                }
-                Text(mo.title).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading).lineLimit(2)
-                if care {
-                    HStack(spacing: 8) {
-                        if !mo.vaccines.isEmpty { Image(systemName: "syringe.fill").foregroundStyle(Crayon.sky) }
-                        if !mo.checkups.isEmpty { Image(systemName: "stethoscope").foregroundStyle(Crayon.aqua) }
-                        if careDone { Image(systemName: "checkmark.circle.fill").foregroundStyle(Palette.accent) }
-                    }
-                    .font(.caption).padding(.top, 2)
-                    .accessibilityElement().accessibilityLabel(careDone ? "接种与儿保已记下" : "有接种或儿保")
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            if here {
-                Duo(primary: app.companion, size: 54, look: CGPoint(x: -0.9, y: 0.3)).padding(.trailing, 12)
-            } else {
-                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary).padding(.trailing, 20)
-            }
-        }
-        .padding(.vertical, here ? 18 : 12)
-        .frame(minHeight: here ? 104 : 78)
-        .background(alignment: .leading) { StringAndBead(month: month, here: here, past: past, first: first) }
-        .background {
-            if here { RoundedRectangle(cornerRadius: 26, style: .continuous).fill(Palette.card).padding(.horizontal, 12) }
-        }
-        .contentShape(Rectangle())
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel((month == 0 ? "出生" : "满 \(month) 个月") + "，\(mo.title)" + (here ? "，宝宝在这里" : ""))
-    }
-}
-
-/// The string through this month's row and the bead on it.
-private struct StringAndBead: View {
-    let month: Int, here: Bool, past: Bool, first: Bool
-    var body: some View {
-        Canvas { ctx, size in
-            let x0 = (beadX(month - 1) + beadX(month)) / 2, x = beadX(month), x1 = (beadX(month) + beadX(month + 1)) / 2
-            let y = size.height / 2
-            var s = Path()
-            s.move(to: CGPoint(x: first ? x : x0, y: first ? y : 0))
-            if !first { s.addQuadCurve(to: CGPoint(x: x, y: y), control: CGPoint(x: x0, y: y * 0.6)) }
-            s.addQuadCurve(to: CGPoint(x: x1, y: size.height), control: CGPoint(x: x1, y: y + (size.height - y) * 0.4))
-            ctx.stroke(s, with: .color(stageColor(month).opacity(0.45)), style: StrokeStyle(lineWidth: 2.5, lineCap: .round))
-        }
-        .frame(width: 100)
-        .overlay(alignment: .topLeading) {
-            GeometryReader { g in
-                Bead(month: month, here: here, past: past).position(x: beadX(month), y: g.size.height / 2)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// A golden bead: polished when the month has been lived, larger for the child's month, an open ring for months ahead.
+/// A stepping stone with the month on it: coloured for months lived, gold for the child's month, white ahead.
 struct Bead: View {
     let month: Int, here: Bool, past: Bool
     var body: some View {
-        let d: CGFloat = here ? 44 : 32
-        ZStack {
-            let c = stageColor(month)
-            if here {
-                Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x8A6206)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: d * 0.75))
-            } else if past {
-                Circle().fill(c.gradient)
-            } else {
-                Circle().fill(Palette.card)
-                Circle().strokeBorder(c.opacity(0.7), lineWidth: 2.5)
-            }
-            if here || past { Ellipse().fill(.white.opacity(0.7)).frame(width: d * 0.26, height: d * 0.16).offset(x: -d * 0.18, y: -d * 0.24) }
-            Text("\(month)").font(Typeface.numerals(here ? 18 : 13, relativeTo: .footnote, weight: .bold))
-                .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Crayon.glyph(on: c) : Color.secondary)
-        }
-        .frame(width: d, height: d)
-        .shadow(color: here ? Palette.bead.opacity(0.5) : .clear, radius: 8)
-    }
-}
-
-/// Past the last bead the string goes on, fading.
-private struct Trail: View {
-    var body: some View {
-        Canvas { ctx, size in
-            for i in 0..<5 {
-                let m = 37 + i
-                let y = 10 + CGFloat(i) * 18
-                let r: CGFloat = 5 - CGFloat(i) * 0.7
-                ctx.fill(Path(ellipseIn: CGRect(x: beadX(m) - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Crayon.rainbow[i].opacity(0.7 - Double(i) * 0.12)))
-            }
-        }
-        .accessibilityHidden(true)
+        let d: CGFloat = here ? 46 : 36
+        let c = Land.of(month).crayon
+        Text("\(month)").font(Typeface.numerals(here ? 18 : 14, relativeTo: .footnote, weight: .bold))
+            .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Crayon.glyph(on: c) : Color.secondary)
+            .frame(width: d, height: d)
+            .background(Circle().fill(here ? Palette.bead : past ? c : Palette.card))
+            .overlay { if !here && !past { Circle().strokeBorder(c.opacity(0.6), style: StrokeStyle(lineWidth: 2, dash: [4, 3])) } }
+            .background(Circle().fill(Color.black.opacity(0.16)).offset(x: 2, y: 2.5))
     }
 }
 
@@ -422,8 +285,7 @@ struct PlayTile: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Palette.area(key).opacity(0.1))
-        .background(Palette.card)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .printCard(radius: 22)
         .accessibilityElement(children: .combine)
     }
 }

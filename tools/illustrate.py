@@ -8,8 +8,9 @@ Faces are left out on purpose: posture, gaze lines and hands say what happens.
 Output: app/src/main/assets/art/play_<code>_<n>.webp (one per step), cover_<mm>.webp (one per month), index.json.
 Usage: python3 tools/illustrate.py [--ios] [--sheet out.png]
 
---ios draws the iOS set (ios/Art/art): no Material shapes — circles, capsules and rounded rectangles — and every
-solid colour lit softly from above, so objects read like the dimensional, glassy pictograms of Apple's own platform.
+--ios draws the iOS set (ios/Art/art) in the app's picture-book print: no Material shapes — circles, capsules and
+rounded rectangles — flat warm crayon colours on warm paper, and every shape laid over a slightly offset, darker copy
+of itself, as Moss and Otto are drawn. The month covers have the two companions in them.
 """
 import io, json, math, os, re, sys
 import cairosvg
@@ -39,8 +40,12 @@ def family(domains):
     if any(k in d for k in ["语言", "表达", "共读"]): return "Words"
     return "Together"
 
-if IOS:  # a cooler, cleaner paper for the iOS set
-    P.update(chalk="#F4F6F2", paper="#FFFFFF", linen="#E9EDE6")
+if IOS:  # warm paper and the crayon box
+    P.update(chalk="#FBF6EE", paper="#FFFDF8", linen="#F1E6D3", stone="#E3D5BE", ink="#2E2418", ink2="#5A4A38",
+             moss="#5DAE5B", mossD="#3F7A34", sprout="#A9D18E", rod="#3E7BD0", rodL="#6FA3E6", bead="#F2B526", beadL="#FFD978",
+             wood="#D6A46A", woodD="#A9773F", red="#EF5B4C", pink="#F4A9B8", pinkL="#FBD7DF", sky="#BFE3F7", water="#7FC1E8")
+    FIELD.update({"Words": ("#DCEBFB", "#BFD9F5", "cookie"), "Hands": ("#FDE6CC", "#F9CFA2", "pill"), "Mind": ("#FFF1BF", "#FBE08A", "clover"),
+                  "Together": ("#FCDDE6", "#F7BFD0", "flower"), "Senses": ("#D3F0E9", "#AEE3D7", "burst"), "Life": ("#F1E5D3", "#E5CFAE", "arch")})
 
 # ---------- expressive shapes ----------
 def polar(cx, cy, r, n, amp, k=180, phase=0.0):
@@ -66,12 +71,12 @@ def shape(kind, cx, cy, r):
 
 # ---------- drawing primitives ----------
 class S:
-    def __init__(self): self.parts = []
+    def __init__(self): self.parts = []; self.bg = ""
     def add(self, s): self.parts.append(s); return self
     def svg(self, w=W, h=H):
         body = "".join(self.parts)
-        if IOS: body = glassy(body)
-        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + body + "</svg>"
+        if IOS: body = printed(body)
+        return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" width="{w}" height="{h}">' + self.bg + body + "</svg>"
 
 def _mix(hexc, t, to):
     c = [int(hexc[i:i + 2], 16) for i in (0, 2, 4)]
@@ -85,6 +90,13 @@ def glassy(body):
         f'<stop offset=".55" stop-color="#{c}"/><stop offset="1" stop-color="#{_mix(c, .12, 0)}"/></linearGradient>' for c in cols)
     body = re.sub(r'fill="#([0-9A-Fa-f]{6})"', lambda m: f'fill="url(#g{m.group(1)})"', body)
     return f"<defs>{defs}</defs>" + body
+
+def printed(body):
+    """The picture-book print: the whole drawing laid over an offset, darker copy of itself (all colours made one warm
+    brown, faint), like a cut-paper picture lifted a little off the page."""
+    shade = re.sub(r'(fill|stroke)="#[0-9A-Fa-f]{6}"', r'\1="#6B4A2B"', body)
+    shade = re.sub(r'fill="url\(#[^)]*\)"', 'fill="#6B4A2B"', shade)
+    return f'<g transform="translate(5 6)" opacity=".16">{shade}</g>' + body
 
 def peg(s, x, base, h, body, head="#E8C9A0", lean=0.0, r=None, sit=False):
     """A wooden peg person standing on y=base: rounded body, round head, no face. Returns head centre and shoulder."""
@@ -250,7 +262,7 @@ def backdrop(s, setting, base, fam):
 def frame(fam, step_index, seed=0):
     tint, deep, kind = FIELD[fam]
     s = S()
-    s.add(f'<rect width="{W}" height="{H}" fill="{P["chalk"]}"/>')
+    s.bg = f'<rect width="{W}" height="{H}" fill="{P["chalk"]}"/>'
     # the expressive field, placed differently on each step so a sequence feels alive but never noisy
     spots = [(420, 250, 250), (300, 240, 240), (380, 230, 265), (460, 260, 240), (340, 250, 250)]
     cx, cy, r = spots[(step_index + seed) % len(spots)]
@@ -259,6 +271,34 @@ def frame(fam, step_index, seed=0):
     return s
 
 ADULT = P["moss"]; ADULT2 = P["rod"]; CHILD = P["bead"]; CHILD2 = P["red"]
+if IOS: ADULT = "#EE9677"; CHILD = P["bead"]; CHILD2 = P["rod"]
+
+# ---------- the companions (the same drawings as in the app) ----------
+MINT = json.load(open(os.path.join(ROOT, "tools", "mint.json")))
+MOSS_BODY = "M22 82 C15 77 13 66 16 56 C19 45 28 36 41 34 C53 32 63 33 72 38 C82 44 88 55 87 67 C86 77 80 84 70 86 C56 88 33 89 22 82Z"
+MOSS_TUFTS = "M24 52 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M64 44 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M70 72 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M28 72 c2 -2 5 -2 7 0 c-2 1.6 -5 1.6 -7 0Z"
+OTTO_BODY = "M30 84 C25 74 24 58 26 44 C28 28 38 16 52 16 C65 17 74 28 75 44 C76 60 74 75 70 84 C60 88 40 88 30 84Z"
+OTTO_DIP = "M25.2 64 C35 68 64 68 75.4 63 C75 71 73 78 70 84 C60 88 40 88 30 84 C27.6 78 26 71 25.2 64Z"
+
+def companions(s, x, base, k, look=(-1, 0)):
+    """Otto a step behind, Moss in front, feet on `base`; both look the way of `look`."""
+    lx, ly = look
+    def legs(xs): return "".join(f'<rect x="{a}" y="80" width="6.5" height="10" rx="3.2" fill="#1C1D19"/>' for a in xs)
+    def eye(cx, cy, rx, ry, pr, lid=0):
+        px, py = cx + lx * (rx - pr - .4), cy + ly * (ry - pr - .4)
+        e = f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#FBF9F3"/><circle cx="{px:.1f}" cy="{py:.1f}" r="{pr}" fill="#1C1D19"/>'
+        if lid: e += f'<path d="M{cx - rx - .5},{cy - ry - .5} H{cx + rx + .5} V{cy - ry + ry * 2 * lid} H{cx - rx - .5}Z" fill="#2D4A8C"/>'
+        return e
+    ox = x + 34 * k
+    s.add(f'<g transform="translate({ox - 50 * k * .82:.1f} {base - 90 * k * .82:.1f}) scale({k * .82:.3f})">'
+          f'<path d="M53 17 C54 12 57 8 61 6" stroke="#1F3566" stroke-width="2.2" fill="none" stroke-linecap="round"/><circle cx="62" cy="5.8" r="3.2" fill="#D4A21C"/>'
+          f'{legs((38, 56))}<path d="{OTTO_BODY}" fill="#1F3566" transform="translate(1.4 1.2)"/><path d="{OTTO_BODY}" fill="#2D4A8C"/>'
+          f'<path d="{OTTO_DIP}" fill="#1F3566" fill-opacity=".55"/>{eye(51, 44, 12.5, 11.5, 7.1, .34)}<circle cx="74" cy="70" r="6.2" fill="#D4A21C"/></g>')
+    leaves = "".join(f'<path d="{m[0]}" fill="{c}"/>' for m, c in zip([MINT[1], MINT[0], MINT[3], MINT[2]], ["#7FCBA0", "#4FAE7F", "#A9E0C0", "#A9E0C0"]))
+    s.add(f'<g transform="translate({x - 50 * k:.1f} {base - 90 * k:.1f}) scale({k:.3f})">'
+          f'<path d="M49 36 C48 30 49.2 23 50 17.6" stroke="#3D5434" stroke-width="2.2" fill="none" stroke-linecap="round"/>{leaves}'
+          f'{legs((33, 59))}<path d="{MOSS_BODY}" fill="#3D5434" transform="translate(1.4 1.2)"/><path d="{MOSS_BODY}" fill="#55704A"/>'
+          f'<path d="{MOSS_TUFTS}" fill="#88A06C" fill-opacity=".7"/>{eye(43, 55, 6.4, 7.4, 4.0)}{eye(58, 55, 6.4, 7.4, 4.0)}</g>')
 
 def stage_pose(age_from):
     if age_from < 3: return "lie"
@@ -380,13 +420,14 @@ def cover(m, mo):
     fam = family(feature["domains"]) if feature else "Words"
     tint, deep, kind = FIELD[fam]
     s = S(); w, h = 840, 450
-    s.add(f'<rect width="{w}" height="{h}" fill="{P["chalk"]}"/>')
+    s.bg = f'<rect width="{w}" height="{h}" fill="{P["chalk"]}"/>'
     s.add(f'<path d="{shape(kind, 560, 210, 220)}" fill="{tint}"/>')
     s.add(f'<path d="{shape("cookie", 150, 110, 70)}" fill="{deep}" opacity=".7"/>')
     # a bead chain of the months walked so far, along the top
     for k in range(37):
         x = 40 + k * 21; on = k < m; here = k == m
-        s.add(f'<circle cx="{x}" cy="40" r="{9 if here else 6}" fill="{P["bead"] if on else (P["moss"] if here else P["stone"])}"/>')
+        land = ["#5DAE5B", "#F58A1F", "#3E9BE0"][min(2, k // 12)] if IOS else P["bead"]
+        s.add(f'<circle cx="{x}" cy="40" r="{9 if here else 6}" fill="{(P["bead"] if here else land) if IOS and (on or here) else (P["bead"] if on else (P["moss"] if here else P["stone"]))}"/>')
     base = 380
     s.add(f'<rect x="80" y="{base - 6}" width="680" height="48" rx="20" fill="{P["linen"]}"/>')
     pose = stage_pose(m)
@@ -396,9 +437,10 @@ def cover(m, mo):
     baby(s, pose, 540, base, CHILD)
     thing = PLAY.get(mo.get("feature") or "", (None, None))[1]
     if thing and thing not in ("tree",): obj(s, thing, 400, base, 0.9)
-    elif m >= 18: obj(s, "tower", 690, base, 0.9)
+    elif m >= 18 and not IOS: obj(s, "tower", 690, base, 0.9)
     else: obj(s, "rattle", 400, base)
     s.add('</g>')
+    if IOS: companions(s, 705, base + 8, 1.55, look=(-0.9, 0.1))
     return s.svg(w, h)
 
 def render(svg, path, width):
