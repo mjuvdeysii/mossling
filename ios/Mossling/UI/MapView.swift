@@ -47,33 +47,46 @@ private struct Ground: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        Canvas { ctx, size in
-            let w = size.width, h = size.height, dark = scheme == .dark
-            func printed(_ p: Path, _ fill: Color, _ deep: Color) { ctx.fill(p.offsetBy(dx: 1.6, dy: 2), with: .color(deep)); ctx.fill(p, with: .color(fill)) }
+        Canvas { ctx, size in paint(&ctx, size) }
+            .accessibilityHidden(true)
+    }
+
+    private func printed(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, _ deep: Color) {
+        ctx.fill(p.offsetBy(dx: 1.6, dy: 2), with: .color(deep)); ctx.fill(p, with: .color(fill))
+    }
+
+    private func paint(_ ctx: inout GraphicsContext, _ size: CGSize) {
+            let w: CGFloat = size.width, h: CGFloat = size.height
+            let dark: Bool = scheme == .dark
             // things in the land, kept to the edges and away from the path
             var rng = SplitMix(seed: UInt64(seed * 7919 + 13))
             let away: CGFloat = mid < 0.5 ? 0.08 : 0.92
             for k in 0..<3 {
-                let x = w * (k == 0 ? away : rng.next(0.04...0.96))
-                let y = h * rng.next(0.15...0.9)
-                if abs(x / w - mid) < 0.22 || abs(x / w - (1 - mid)) < 0.18 && k > 0 { continue }
+                let fx: CGFloat = k == 0 ? away : rng.next(0.04...0.96)
+                let x: CGFloat = w * fx
+                let y: CGFloat = h * rng.next(0.15...0.9)
+                let nearPath: Bool = abs(fx - mid) < 0.22
+                let nearSign: Bool = k > 0 && abs(fx - (1 - mid)) < 0.18
+                if nearPath || nearSign { continue }
                 switch land {
                 case .meadow:
-                    let petals = [Crayon.cherry, Crayon.sunflower, Crayon.rose, Crayon.sky][Int(rng.next(0...3.99))]
-                    for a in stride(from: 0.0, to: 360.0, by: 72) {
-                        let r = a * .pi / 180
-                        ctx.fill(Path(ellipseIn: CGRect(x: x + cos(r) * 4 - 3, y: y + sin(r) * 4 - 3, width: 6, height: 6)), with: .color(petals.opacity(dark ? 0.7 : 0.9)))
+                    let pick: Int = Int(rng.next(0...3.99))
+                    let petals: Color = [Crayon.cherry, Crayon.sunflower, Crayon.rose, Crayon.sky][pick]
+                    for a in stride(from: CGFloat(0), to: 360, by: 72) {
+                        let r: CGFloat = a * .pi / 180
+                        let px: CGFloat = x + cos(r) * 4 - 3, py: CGFloat = y + sin(r) * 4 - 3
+                        ctx.fill(Path(ellipseIn: CGRect(x: px, y: py, width: 6, height: 6)), with: .color(petals.opacity(dark ? 0.7 : 0.9)))
                     }
                     ctx.fill(Path(ellipseIn: CGRect(x: x - 2, y: y - 2, width: 4, height: 4)), with: .color(Color(hex: 0xFFE9A6)))
                 case .forest:
-                    printed(Path(roundedRect: CGRect(x: x - 2.5, y: y, width: 5, height: 12), cornerRadius: 2), Color(hex: 0xA77B47), Color(hex: 0x7A5730))
+                    printed(&ctx, Path(roundedRect: CGRect(x: x - 2.5, y: y, width: 5, height: 12), cornerRadius: 2), Color(hex: 0xA77B47), Color(hex: 0x7A5730))
                     var crown = Path(ellipseIn: CGRect(x: x - 13, y: y - 22, width: 26, height: 26))
                     crown.addEllipse(in: CGRect(x: x - 17, y: y - 12, width: 34, height: 20))
-                    printed(crown, dark ? Color(hex: 0x3F6B44) : Color(hex: 0x7DB26A), dark ? Color(hex: 0x2B4A30) : Color(hex: 0x5C8F4C))
+                    printed(&ctx, crown, dark ? Color(hex: 0x3F6B44) : Color(hex: 0x7DB26A), dark ? Color(hex: 0x2B4A30) : Color(hex: 0x5C8F4C))
                 case .river:
                     var roof = Path(); roof.move(to: CGPoint(x: x - 14, y: y - 8)); roof.addLine(to: CGPoint(x: x, y: y - 20)); roof.addLine(to: CGPoint(x: x + 14, y: y - 8)); roof.closeSubpath()
-                    printed(Path(roundedRect: CGRect(x: x - 11, y: y - 9, width: 22, height: 18), cornerRadius: 2), dark ? Color(hex: 0xC9B79A) : Color(hex: 0xFFF4E2), Color(hex: 0xC9A97A))
-                    printed(roof, Crayon.cherry.opacity(0.9), Color(hex: 0x9C3A2E))
+                    printed(&ctx, Path(roundedRect: CGRect(x: x - 11, y: y - 9, width: 22, height: 18), cornerRadius: 2), dark ? Color(hex: 0xC9B79A) : Color(hex: 0xFFF4E2), Color(hex: 0xC9A97A))
+                    printed(&ctx, roof, Crayon.cherry.opacity(0.9), Color(hex: 0x9C3A2E))
                     ctx.fill(Path(roundedRect: CGRect(x: x - 3, y: y - 1, width: 6, height: 10), cornerRadius: 1), with: .color(Color(hex: 0x8F6A3E)))
                 }
             }
@@ -92,8 +105,6 @@ private struct Ground: View {
             ctx.stroke(road.offsetBy(dx: 0, dy: 2.5), with: .color(dark ? Color(hex: 0x4A3F30) : Color(hex: 0xD9B983)), style: StrokeStyle(lineWidth: 22, lineCap: .round))
             ctx.stroke(road, with: .color(dark ? Color(hex: 0x6B5B45) : Color(hex: 0xF4E1B8)), style: StrokeStyle(lineWidth: 22, lineCap: .round))
             ctx.stroke(road, with: .color(dark ? Color.white.opacity(0.25) : Color.white.opacity(0.8)), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [6, 9]))
-        }
-        .accessibilityHidden(true)
     }
 }
 
