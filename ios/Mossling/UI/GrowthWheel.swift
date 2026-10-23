@@ -161,7 +161,8 @@ struct Figure: View {
     @State private var img: UIImage?
     var body: some View {
         GeometryReader { g in
-            ZStack { if let img { Image(uiImage: img).resizable().scaledToFit() } }
+            // Color.clear keeps the view non-empty so its task runs before the image exists
+            ZStack { Color.clear; if let img { Image(uiImage: img).resizable().scaledToFit() } }
                 .frame(width: g.size.width, height: g.size.height)
                 .task(id: name) {
                     let px = Int(max(g.size.width, g.size.height) * scale), n = name
