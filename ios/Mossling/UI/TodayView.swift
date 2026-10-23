@@ -180,10 +180,10 @@ struct ShelfView: View {
             .printCard(radius: 26)
             .overlay(alignment: .top) {
                 // perched on the top of the shelf, between the title and 整理
-                Duo(primary: app.companion, size: 46, look: CGPoint(x: -0.7, y: 0.4))
-                    .offset(x: 34, y: -42)
+                Duo(primary: app.companion, size: 58, look: CGPoint(x: -0.7, y: 0.4))
+                    .offset(x: 40, y: -52)
             }
-            .padding(.top, 10)
+            .padding(.top, 18)
         }
     }
 }
@@ -204,7 +204,7 @@ extension ShelfView {
                         .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 16)
                         .aspectRatio(4 / 3, contentMode: .fit)
                         .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
-                    Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
+                    Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, minHeight: 30, alignment: .top).padding(.top, 10)
                 }
             }
             .buttonStyle(.toy).accessibilityLabel("放一件教具")

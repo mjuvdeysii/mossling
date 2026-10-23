@@ -21,6 +21,7 @@ struct Creature: View {
     var arms: Arms = .rest
 
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.colorScheme) private var scheme
     @State private var blinkAt = Date.distantPast
     @State private var doubleBlink = false
     @State private var hopAt = Date.distantPast
@@ -165,6 +166,8 @@ struct Creature: View {
     }
     /// The icon's body: one flat colour, and the underside in a flat deeper colour (as Otto's dip on the icon).
     private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, under: Path, _ deep: Color) {
+        // on the dark page a thin lighter rim keeps the silhouette (navy Otto would sink into black); no gloss
+        if scheme == .dark { ctx.stroke(p, with: .color(fill.mix(with: .white, by: 0.35)), lineWidth: 2.4) }
         ctx.fill(p, with: .color(fill))
         var c = ctx; c.clip(to: p)
         c.fill(under, with: .color(deep.opacity(0.55)))
@@ -186,6 +189,8 @@ struct Creature: View {
         c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.55, y: py - pr * 0.6, width: pr * 0.4, height: pr * 0.4)), with: .color(.white.opacity(0.9)))
         if face == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.2, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
         if lid > 0 { c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: (ry * 2 + 1.2) * lid)), with: .color(skin)) }
+        // the anti-aliased edge of the white would leave a pale ring under the lid: cover it with the skin
+        if lid > 0 { ctx.stroke(Path(ellipseIn: r.insetBy(dx: -0.4, dy: -0.4)), with: .color(skin), lineWidth: 1.2) }
     }
     private func cheeks(_ ctx: inout GraphicsContext, _ pts: [CGPoint], _ face: Mood) {
         guard face == .happy || face == .wow else { return }

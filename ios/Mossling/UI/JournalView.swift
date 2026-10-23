@@ -182,15 +182,47 @@ private struct DayPage: View {
             }
             Totals(logs: logs, day: day)
             DayRibbon(day: day, logs: logs, timers: timers)
-            if logs.isEmpty {
-                Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
-            } else {
+            if day == today { ForEach(timers, id: \.type) { t in RunningRow(timer: t) } }
+            if logs.isEmpty && (day != today || timers.isEmpty) {
+                VStack(spacing: 8) {
+                    Duo(primary: app.companion, size: 56, mood: .sleep)
+                    Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 12)
+            } else if !logs.isEmpty {
                 DayTimeline(day: day, today: today, logs: logs, edit: edit, delete: delete)
             }
         }
         .padding(18)
         .background { DotPaper() }
         .printCard(radius: 26)
+    }
+}
+
+/// A feed or sleep still running, at the top of today's line: its start, how long so far; a tap opens its timer.
+private struct RunningRow: View {
+    @Environment(JournalStore.self) private var j
+    let timer: RunningTimer
+    var body: some View {
+        let c = LogType.color(timer.type)
+        Button { j.focus = timer.type } label: {
+            TimelineView(.periodic(from: .now, by: 30)) { tl in
+                HStack(spacing: 12) {
+                    Text(hm(Date(timeIntervalSince1970: timer.start / 1000))).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                    IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
+                    Text(LogType.name(timer.type)).font(.body)
+                    Spacer(minLength: 8)
+                    Text((timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.elapsed(tl.date.timeIntervalSince1970 * 1000)))
+                        .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
+                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 12).padding(.vertical, 10)
+                .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel("\(LogType.name(timer.type))进行中，打开计时")
     }
 }
 

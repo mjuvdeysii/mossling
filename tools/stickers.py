@@ -247,10 +247,12 @@ def _(sv):
 def _(sv):
     sv.add(f'<rect x="50" y="74" width="140" height="96" rx="14" fill="#FFF" stroke="#EDE5D8" stroke-width="3"/><path d="M54 80 l66 50 l66 -50" stroke="#EDE5D8" stroke-width="6" fill="none" stroke-linejoin="round"/>')
     sv.add(pb.pict("heart", 120, 140, 1.6))
-@icon("exclamationmark_triangle_fill", RED)               # 安全 / 需要留意: a soft warning cone
+@icon("exclamationmark_triangle_fill", ORANGE)            # 安全 / 需要留意: a shield that keeps a heart safe
 def _(sv):
-    sv.add(f'<path d="M120 50 l62 112 h-124z" fill="{G(sv, ORANGE)}" stroke="{ORANGE}" stroke-width="10" stroke-linejoin="round"/>')
-    sv.add(f'<path d="M84 128 h72" stroke="#FFF" stroke-width="12" stroke-linecap="round"/><rect x="46" y="166" width="148" height="18" rx="8" fill="#B8550C"/>')
+    sv.add(f'<path d="M120 46 L182 70 C182 132 160 172 120 196 C80 172 58 132 58 70 Z" fill="{G(sv, ORANGE)}"/>')
+    sv.add(f'<path d="M120 62 L168 80 C168 128 152 158 120 178 C88 158 72 128 72 80 Z" fill="#FFF" opacity=".9"/>')
+    sv.add(pb.pict("heart", 120, 118, 2.2))
+
 @icon("tray_full_fill", CARAMEL)                          # 准备: a wooden tray with things on it
 def _(sv):
     pb.obj(sv, "block", 86, 150, .8, RED); pb.obj(sv, "ball", 136, 150, .75, TEAL); pb.obj(sv, "cup", 176, 150, .7, YELLOW)

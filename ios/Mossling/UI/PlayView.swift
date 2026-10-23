@@ -43,7 +43,7 @@ struct PlayView: View {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             Text("\(i + 1)").font(Typeface.numerals(15, relativeTo: .headline, weight: .bold)).foregroundStyle(.white)
                                 .frame(width: 30, height: 30)
-                                .background(Circle().fill(Crayon.buttonFill(Palette.area(key))))
+                                .background(Circle().fill(Palette.accentFill))
                                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 6 }
                             Text(s).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
@@ -66,7 +66,7 @@ struct PlayView: View {
         .safeAreaBar(edge: .bottom) {
             // the companions stand by the button; when it is pressed they cheer and golden beads fly up
             HStack(alignment: .bottom, spacing: 8) {
-                Duo(primary: app.companion, size: 40, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer)
+                Duo(primary: app.companion, size: 46, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer).padding(.top, 14)
                 Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
                     Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
                         .font(.headline)

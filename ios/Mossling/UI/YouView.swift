@@ -23,7 +23,9 @@ struct YouView: View {
                 // the child, compact; tapping opens the sheet
                 Button { editing = true } label: {
                     HStack(spacing: 12) {
-                        Creature(kind: app.companion, mood: .happy).frame(width: 46, height: 46)
+                        // the child from the picture book, at the child's own stage
+                        Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp").frame(width: 46, height: 46)
+                            .background(Crayon.sunflower.opacity(0.18), in: Circle())
                         VStack(alignment: .leading, spacing: 1) {
                             Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.headline).foregroundStyle(.primary)
                             Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
