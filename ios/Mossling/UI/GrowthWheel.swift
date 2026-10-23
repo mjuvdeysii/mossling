@@ -10,6 +10,7 @@ struct GrowthWheel: View {
     @Binding var month: Int
     let baby: Int
     @State private var arrived = 0
+    @State private var giggles = 0
     /// What the wheel shows while it turns. The page below follows only when the wheel comes to rest, so turning
     /// it stays under the finger (re-laying out the whole page at every bead made it stutter).
     @State private var preview: Int
@@ -25,11 +26,15 @@ struct GrowthWheel: View {
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
                 Sky(hour: night ? 22 : 12)
-                GrowingChild(month: m)
+                // tap the child: a giggle, and the companions cheer with it
+                GrowingChild(month: m, giggle: giggles)
                     .frame(width: 150, height: 150)
+                    .contentShape(Rectangle())
+                    .onTapGesture { giggles += 1 }
+                    .accessibilityAddTraits(.isButton).accessibilityLabel("宝宝")
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
-                Duo(primary: night ? .otto : app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived, night: night)
+                Duo(primary: night ? .otto : app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {
@@ -75,6 +80,7 @@ struct GrowthWheel: View {
         // a change from outside (回到本月) moves the wheel too
         .onChange(of: month) { _, v in if preview != v { preview = v } }
         .sensoryFeedback(.success, trigger: arrived)
+        .sensoryFeedback(.impact(weight: .light), trigger: giggles)
     }
 }
 
@@ -210,6 +216,8 @@ struct BeadSnap: ScrollTargetBehavior {
 /// Between stages one gives way to the next with a spring; within a stage the child grows a little each month.
 struct GrowingChild: View {
     let month: Int
+    /// Change it to make the child giggle (a little jump).
+    var giggle = 0
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     static func stage(_ m: Int) -> Int { m < 3 ? 0 : m < 6 ? 1 : m < 9 ? 2 : m < 12 ? 3 : m < 18 ? 4 : m < 24 ? 5 : 6 }
@@ -226,7 +234,29 @@ struct GrowingChild: View {
         }
         .scaleEffect(grow, anchor: .bottom)
         .animation(reduce ? nil : .spring(response: 0.5, dampingFraction: 0.62), value: month)
+        .modifier(Lively(giggle: giggle))
         .accessibilityHidden(true)
+    }
+}
+
+/// The child is alive: a slow sway from the feet and a breath, and a little jump of a giggle when `giggle` changes.
+/// Still under Reduce Motion.
+struct Lively: ViewModifier {
+    let giggle: Int
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    func body(content: Content) -> some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
+            let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+            content
+                .rotationEffect(.degrees(Foundation.sin(t * 1.6) * 2.4), anchor: .bottom)
+                .scaleEffect(x: 1, y: 1 + 0.014 * Foundation.sin(t * 2.3), anchor: .bottom)
+        }
+        .keyframeAnimator(initialValue: 0.0, trigger: giggle) { v, h in
+            v.offset(y: reduce ? 0 : -h).rotationEffect(.degrees(reduce ? 0 : h * 0.4), anchor: .bottom)
+        } keyframes: { _ in
+            SpringKeyframe(16, duration: 0.16, spring: .snappy)
+            SpringKeyframe(0, duration: 0.55, spring: .bouncy)
+        }
     }
 }
 
@@ -234,14 +264,16 @@ struct GrowingChild: View {
 struct Figure: View {
     let name: String
     @Environment(\.displayScale) private var scale
+    @Environment(\.girlArt) private var girl
     @State private var img: UIImage?
     var body: some View {
+        let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
             // Color.clear keeps the view non-empty so its task runs before the image exists
             ZStack { Color.clear; if let img { Image(uiImage: img).resizable().scaledToFit() } }
                 .frame(width: g.size.width, height: g.size.height)
-                .task(id: name) {
-                    let px = Int(max(g.size.width, g.size.height) * scale), n = name
+                .task(id: shown) {
+                    let px = Int(max(g.size.width, g.size.height) * scale), n = shown
                     img = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 }
         }

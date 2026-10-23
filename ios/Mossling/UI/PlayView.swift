@@ -10,6 +10,7 @@ struct PlayView: View {
     let month: Int
     @State private var scrolled = false
     @State private var cheer = 0
+    @State private var along = false
 
     var body: some View {
         let rec = app.record(play, j)
@@ -64,19 +65,29 @@ struct PlayView: View {
         }
         .pageBackground()
         .safeAreaBar(edge: .bottom) {
-            // the companions stand by the button; when it is pressed they cheer and golden beads fly up
+            // the companions stand by; the main button plays along step by step (and records it at the end); the round
+            // one beside it records a time done without the app, and the beads fly up out of it
+            let resume = app.playing.flatMap { $0.play.code == play.code ? $0.step : nil }
             HStack(alignment: .bottom, spacing: 8) {
                 Duo(primary: app.companion, size: 46, look: CGPoint(x: 0.6, y: -0.2), cheer: cheer).padding(.top, 14)
-                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
-                    Label(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark")
+                Button { along = true } label: {
+                    Label(resume.map { "接着做 · 第 \($0 + 1) 步" } ?? "跟着做", systemImage: "play.fill")
                         .font(.headline)
                         .frame(maxWidth: .infinity).padding(.vertical, 6)
                 }
                 .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
+                    Image(systemName: "checkmark").font(.title3.weight(.bold)).frame(width: 30, height: 34)
+                }
+                .buttonStyle(.glass).buttonBorderShape(.circle).controlSize(.large)
+                .accessibilityLabel(rec.count == 0 ? "做过了，记一次" : "又做了一次，记一次")
                 .overlay { BeadBurst(trigger: cheer) }
             }
             .padding(.horizontal, 16).padding(.vertical, 8)
             .sensoryFeedback(.success, trigger: cheer)
+        }
+        .fullScreenCover(isPresented: $along) {
+            PlayAlong(play: play, month: month, from: app.playing.flatMap { $0.play.code == play.code ? $0.step : nil } ?? 0)
         }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)

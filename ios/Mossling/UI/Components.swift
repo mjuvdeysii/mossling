@@ -24,15 +24,26 @@ final class ArtCache {
     }
 }
 
+extension ArtIndex {
+    /// The girl's version of a picture with the child in it, when there is one.
+    static func variant(_ name: String, girl: Bool) -> String {
+        guard girl, name.hasSuffix(".webp") else { return name }
+        let g = String(name.dropLast(5)) + "_g.webp"
+        return shared.size[g] == nil ? name : g
+    }
+}
+
 /// One illustration at its own proportions: a quiet placeholder while it decodes, then a short fade.
 struct ArtView: View {
     let name: String
     var label: String = ""
     var radius: CGFloat = 18
     @Environment(\.displayScale) private var scale
+    @Environment(\.girlArt) private var girl
     @State private var img: UIImage?
 
     var body: some View {
+        let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
             ZStack {
                 Palette.fill
@@ -40,9 +51,9 @@ struct ArtView: View {
                 NightDim()
             }
             .frame(width: g.size.width, height: g.size.height)
-            .task(id: name) {
+            .task(id: shown) {
                 let px = Int(g.size.width * scale)
-                let n = name
+                let n = shown
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.18)) { img = i }
             }
@@ -200,17 +211,19 @@ struct ArtFill: View {
     let name: String
     var label: String = ""
     @Environment(\.displayScale) private var scale
+    @Environment(\.girlArt) private var girl
     @State private var img: UIImage?
     var body: some View {
+        let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
             ZStack {
                 Palette.fill
                 if let img { Image(uiImage: img).resizable().scaledToFill().frame(width: g.size.width, height: g.size.height).clipped().transition(.opacity) }
                 NightDim()
             }
-            .task(id: name) {
+            .task(id: shown) {
                 let px = Int(max(g.size.width, g.size.height) * scale)
-                let n = name
+                let n = shown
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.18)) { img = i }
             }
@@ -236,6 +249,8 @@ func minutesText(_ s: TimeInterval) -> String { let m = Int(max(0, s) / 60); ret
 extension EnvironmentValues {
     /// The namespace of the navigation stack a view is in, for zoom transitions from a card to its page.
     @Entry var zoomNS: Namespace.ID? = nil
+    /// The child in the pictures is drawn as a girl (the `_g` pictures).
+    @Entry var girlArt: Bool = false
 }
 
 /// Marks a card as the place its page zooms out of (and back into, when one swipes back or drags the page down).

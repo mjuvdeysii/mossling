@@ -189,12 +189,33 @@ struct ProfileSheet: View {
                         Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
                     }
                 } footer: { Text("性别只用于选择 WHO 生长曲线。") }
+                Section {
+                    HStack(spacing: 12) {
+                        ForEach(["boy", "girl"], id: \.self) { k in
+                            let on = app.drawsGirl == (k == "girl")
+                            Button { withAnimation(.snappy) { app.look = k } } label: {
+                                VStack(spacing: 6) {
+                                    Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
+                                        .environment(\.girlArt, k == "girl")
+                                        .frame(height: 84)
+                                    Text(k == "girl" ? "女宝" : "男宝").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 10)
+                                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(on ? Palette.accent.opacity(0.12) : Palette.fill))
+                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(on ? Palette.accent : .clear, lineWidth: 2))
+                            }
+                            .buttonStyle(.toy)
+                            .accessibilityLabel(k == "girl" ? "女宝" : "男宝").accessibilityAddTraits(on ? .isSelected : [])
+                        }
+                    }
+                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
+                } header: { Text("图里的宝宝") } footer: { Text("只改变插画里宝宝的样子，与伙伴无关；没选时跟随性别。") }
             }
             .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
             .onAppear { if let b = app.birth { date = b.date } }
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.large])
     }
 }
 

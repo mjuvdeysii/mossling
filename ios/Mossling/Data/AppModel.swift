@@ -29,6 +29,9 @@ final class AppModel {
     var skipDay: Int { didSet { d.set(skipDay, forKey: "skipDay") } }
     var pick: String { didSet { d.set(pick, forKey: "pick") } }
     var sex: String? { didSet { d.set(sex, forKey: "sex") } }
+    /// How the child is drawn in the pictures: "boy" or "girl"; until chosen, it follows `sex`. Independent of the
+    /// companion.
+    var look: String? { didSet { d.set(look, forKey: "look") } }
     var nickname: String { didSet { d.set(nickname, forKey: "nickname") } }
     var lock: Bool { didSet { d.set(lock, forKey: "lock") } }
     var shelf: String { didSet { d.set(shelf, forKey: "shelf") } }
@@ -50,6 +53,7 @@ final class AppModel {
         skipDay = (d.object(forKey: "skipDay") as? Int) ?? -1
         pick = d.string(forKey: "pick") ?? ""
         sex = d.string(forKey: "sex")
+        look = d.string(forKey: "look")
         nickname = d.string(forKey: "nickname") ?? ""
         lock = d.bool(forKey: "lock")
         shelf = d.string(forKey: "shelf") ?? ""
@@ -63,6 +67,7 @@ final class AppModel {
     var age: Age? { birth.map { Age.on(birth: $0, today: today) } }
     var babyMonth: Int? { age?.bookMonth }
     var girl: Bool { sex == "girl" }
+    var drawsGirl: Bool { (look ?? (sex == "girl" ? "girl" : "boy")) == "girl" }
 
     func ticked(_ m: Int, _ kind: String, _ id: String) -> Bool { ticks[tickKey(m, kind, id)] != nil }
     func toggle(_ m: Int, _ kind: String, _ id: String, _ label: String) {
@@ -105,8 +110,8 @@ final class AppModel {
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(skipDay)|\(today.epochDay)" }
 
     func clearAll() {
-        for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
+        for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
-        birth = nil; sex = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
     }
 }

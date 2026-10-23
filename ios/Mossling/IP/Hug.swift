@@ -18,6 +18,7 @@ struct HuggedAvatar: View {
         let shoulder = kind == .moss ? CGPoint(x: 0.21, y: 0.62) : CGPoint(x: 0.31, y: 0.6)
         ZStack(alignment: .topLeading) {
             Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
+                .modifier(Lively(giggle: hugs))
                 .scaleEffect(1.3, anchor: .bottom)   // the figures carry a margin; fill the frame with the child
                 .offset(y: size * 0.06)
                 .frame(width: size, height: size)
@@ -69,6 +70,7 @@ struct HuggedAvatar: View {
         .onChange(of: kind) { _, _ in
             Task { try? await Task.sleep(for: .milliseconds(350)); hug() }   // it comes over first, then hugs
         }
+        .onChange(of: app.drawsGirl) { _, _ in hug() }   // a new look for the baby: a hug to welcome it
         .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: hugs)
         .accessibilityElement()
         .accessibilityLabel("\(kind.rawValue) 抱着宝宝")

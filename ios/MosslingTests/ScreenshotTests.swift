@@ -121,6 +121,15 @@ final class ScreenshotTests: XCTestCase {
         shot("28_timer_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
         shot("28_timer_sleep_lamp", dark: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
     }
+    func test29PlayAlong() {
+        let m = model()
+        shot("29_play_along", tabs(m, PlayAlong(play: m.content.play("A35")!, month: 9, from: 1)))
+        shot("29_play_along_girl", tabs(m, PlayAlong(play: m.content.play("A35")!, month: 9, from: 1)).environment(\.girlArt, true))
+        m.look = "girl"
+        shot("29_profile_girl", height: 1300, tabs(m, ProfileSheet()).environment(\.girlArt, true))
+        shot("29_you_girl", height: 900, tabs(m, YouView(path: .constant(NavigationPath()))).environment(\.girlArt, true))
+        shot("29_home_girl", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath()))).environment(\.girlArt, true))
+    }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 }

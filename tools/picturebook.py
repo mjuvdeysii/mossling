@@ -31,6 +31,10 @@ SKIN = ["#F2CDA8", "#D9A57C"]           # adult, child (two warm tones so the tw
 HAIR = {"adult": "#4A3428", "child": "#6B4A32"}
 ADULT_TOP, ADULT_LEG = "#FF6F91", "#3E5A86"
 CHILD_TOP, CHILD_LEG = "#FFC23D", "#1FB5A6"
+# the girl (--girl): the same child, drawn as a girl — a lilac top, a red bow, and pigtails once there is hair for them
+GIRL = "--girl" in sys.argv
+GIRL_TOP, BOW = "#B39CF4", "#F2554B"
+SUFFIX = "_g" if GIRL else ""
 PEER_TOP, PEER_LEG = "#4C9BE8", "#F2554B"
 # the app's six areas (Theme.swift Palette.area): teal, orange, yellow, pink, blue, red — as (ground, backdrop) tints
 AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E": "#4C9BE8", "F": "#F2554B"}
@@ -132,8 +136,10 @@ POSES = {
 
 class Person:
     def __init__(s, kind, pose, x, face=1, age=30, top=None, leg=None, expr="smile", look=None, hands=(None, None),
-                 hair=None, at=None, tilt=0):
+                 hair=None, at=None, tilt=0, girl=False):
         s.kind, s.pose, s.f, s.age, s.expr, s.look, s.tilt = kind, pose, face, age, expr, look, tilt
+        s.girl = girl
+        if girl and top is None: top = GIRL_TOP
         s.d = dims(kind, age)
         s.top = top or (ADULT_TOP if kind == "adult" else CHILD_TOP)
         s.leg = leg or (ADULT_LEG if kind == "adult" else CHILD_LEG)
@@ -236,6 +242,11 @@ class Person:
         if s.kind == "child" and s.age < 12:  # a onesie: the same colour down to the hips
             sv.add(f'<circle cx="{a[0]:.1f}" cy="{a[1]:.1f}" r="{w * .5:.1f}" fill="{sv.rad(s.leg)}"/>')
 
+    def bow(s, sv, x, y, k):
+        sv.add(f'<path d="M{x:.1f} {y:.1f} L{x - k * 1.2:.1f} {y - k * .75:.1f} Q{x - k * 1.4:.1f} {y:.1f} {x - k * 1.2:.1f} {y + k * .75:.1f} Z '
+               f'M{x:.1f} {y:.1f} L{x + k * 1.2:.1f} {y - k * .75:.1f} Q{x + k * 1.4:.1f} {y:.1f} {x + k * 1.2:.1f} {y + k * .75:.1f} Z" fill="{BOW}" stroke="{dark(BOW, .25)}" stroke-width="1" stroke-linejoin="round"/>')
+        sv.add(f'<circle cx="{x:.1f}" cy="{y:.1f}" r="{k * .38:.1f}" fill="{dark(BOW, .15)}"/>')
+
     def draw_head(s, sv, neck=True):
         d, f = s.d, s.f
         c = s.headc; r = d["head"]
@@ -259,6 +270,14 @@ class Person:
                    f'fill="{sv.lin(hair, 120)}" transform="{"" if f > 0 else f"translate({2 * c[0]:.1f} 0) scale(-1 1)"}"/>')
         elif s.hair == "tuft":
             sv.add(f'<path d="M{c[0]:.1f} {c[1] - r:.1f} q{f * 6:.1f} -10 {f * 12:.1f} -4" fill="none" stroke="{hair}" stroke-width="3" stroke-linecap="round"/>')
+        if s.girl and s.hair == "bob":
+            # two small pigtails at the back, each tied with a bow
+            for k, (dx, dy) in enumerate(((-1.0, -.3), (-.55, -.86))):
+                px, py = c[0] + f * r * dx, c[1] + r * dy
+                sv.add(f'<ellipse cx="{px - f * r * .14:.1f}" cy="{py + r * .06:.1f}" rx="{r * .2:.1f}" ry="{r * .28:.1f}" fill="{sv.lin(hair, 120)}" transform="rotate({-f * (30 + 30 * k):.0f} {px:.1f} {py:.1f})"/>')
+                s.bow(sv, px, py, r * (.2 if k == 0 else .18))
+        elif s.girl:
+            s.bow(sv, c[0] - f * r * .3, c[1] - r * .9, r * .22)
         # ear
         sv.add(f'<circle cx="{c[0] - f * r * .18:.1f}" cy="{c[1] + r * .08:.1f}" r="{r * .16:.1f}" fill="{dark(s.skin, .08)}"/>')
         # the face looks toward the face direction, eyes toward what is looked at
@@ -676,7 +695,7 @@ def scene(spec, area, sv=None):
             leg = q.get("leg") or (PEER_LEG if who == "peer" else "#4A4C43" if who == "adult2" else None)
             built[who] = Person(kind, q["pose"], q["x"], face=q.get("f", 1 if kind == "adult" else -1), age=q.get("age", 30),
                                 top=top, leg=leg, expr=q.get("e", "smile"), look=look, hands=hands, hair=q.get("hair"),
-                                at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0))
+                                at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0), girl=GIRL and who == "child")
     # back objects (scenery), shadows, people and front objects
     for o in spec.get("objs", []):
         if o.get("back"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
@@ -792,13 +811,13 @@ def figures(index):
         sv = SVG(300, 300)
         at = (x, 286)
         c = Person("child", pose, x, face=-1, age=age, expr="wow" if pose == "lieback" else "smile", at=at,
-                   hands=[(x - 60, 200), None] if pose in ("stand", "walk") else [None, None])
+                   hands=[(x - 60, 200), None] if pose in ("stand", "walk") else [None, None], girl=GIRL)
         sv.add(f'<g transform="translate(150 286) scale({k}) translate(-150 -286)">')
         lying = pose in ("prone", "lieback")
         sv.shadow(c.hip[0] - (c.d["torso"] * .45 * c.f if lying else 0), 290, 60, 7)
         c.draw(sv); sv.add('</g>')
         im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=600))).convert("RGBA")
-        n = f"child_{i}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
+        n = f"child_{i}{SUFFIX}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
         index["size"][n] = [600, 600]
 
 def main():
@@ -815,16 +834,16 @@ def main():
         for i, t in enumerate(p["steps"]):
             spec = scenes.get(p["code"], [None] * len(p["steps"]))
             if i >= len(spec) or spec[i] is None: missing.append(f'{p["code"]}.{i + 1}'); continue
-            n = f"play_{p['code'].lower()}_{i + 1}.webp"
+            n = f"play_{p['code'].lower()}_{i + 1}{SUFFIX}.webp"
             index["size"][n] = list(render(scene(spec[i], area).svg(), os.path.join(OUT, n))); names.append(n)
-        index["plays"][p["code"]] = names
+        if not GIRL: index["plays"][p["code"]] = names   # the girl's pictures share the names, with _g
     if not only:
         for mo in C["months"]:
             spec, area = cover_spec(mo["month"], mo, scenes)
-            n = "cover_%02d.webp" % mo["month"]
+            n = "cover_%02d%s.webp" % (mo["month"], SUFFIX)
             sv = scene(spec, area); sv.w, sv.h = W, H
             index["size"][n] = list(render(sv.svg(), os.path.join(OUT, n)))
-            index["covers"][str(mo["month"])] = n
+            if not GIRL: index["covers"][str(mo["month"])] = n
     if not only: figures(index)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
     if missing: print("no scene for", ", ".join(missing))

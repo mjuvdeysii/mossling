@@ -12,6 +12,7 @@ struct MosslingApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .environment(\.girlArt, app.drawsGirl)
                 .environment(app)
                 .environment(journal)
                 .preferredColorScheme(app.theme.scheme)
