@@ -14,7 +14,7 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                StickerSheet(running: Set(j.timers.map(\.type)), last: { j.last($0) }, tap: tap)
+                StickerSheet(timers: j.timers, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) })
                 HStack(spacing: 12) {
@@ -83,7 +83,7 @@ func agoShort(_ then: Date, _ now: Date = Date()) -> String {
 /// The sheet of stickers: one round sticker per kind, stuck on with a print shadow; tap to record. How long ago the
 /// last one was sits under each, always in the same short form.
 private struct StickerSheet: View {
-    let running: Set<String>
+    let timers: [RunningTimer]
     let last: (String) -> Date?
     let tap: (String) -> Void
     var body: some View {
@@ -92,7 +92,9 @@ private struct StickerSheet: View {
                 ForEach(0..<2, id: \.self) { r in
                     GridRow {
                         ForEach(LogType.buttons[(r * 5)..<min(LogType.buttons.count, r * 5 + 5)], id: \.self) { t in
-                            Sticker(type: t, running: running.contains(t), since: last(t).map { agoShort($0, tl.date) }) { tap(t) }
+                            let run = timers.first { $0.type == t }
+                            Sticker(type: t, running: run != nil,
+                                    since: run.map { "进行中 " + durationValue($0.elapsed(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
                         }
                     }
                 }
@@ -113,16 +115,16 @@ private struct Sticker: View {
         let c = LogType.color(type)
         Button(action: action) {
             VStack(spacing: 4) {
-                IconTile(symbol: running ? "stop.fill" : LogType.symbol(type), color: c, size: 48, round: true)
+                IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
-                Text(running ? "结束" : LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Text(running ? "进行中" : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                Text(LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+                Text(running ? (since ?? "进行中") : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)
         .sensoryFeedback(.impact(weight: .light), trigger: running)
-        .accessibilityLabel(running ? "\(LogType.name(type))进行中，结束" : LogType.name(type))
+        .accessibilityLabel(running ? "\(LogType.name(type))进行中，打开计时" : LogType.name(type))
         .accessibilityValue(since ?? "")
         .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
     }

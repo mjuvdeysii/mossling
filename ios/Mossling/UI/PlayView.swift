@@ -70,7 +70,7 @@ struct PlayView: View {
                     .font(.headline)
                     .frame(maxWidth: .infinity).padding(.vertical, 6)
             }
-            .buttonStyle(.glassProminent).tint(Palette.area(key)).controlSize(.large)
+            .buttonStyle(.glassProminent).tint(Palette.accent).controlSize(.large)
             .padding(.horizontal, 16).padding(.vertical, 8)
             .sensoryFeedback(.success, trigger: cheer)
         }

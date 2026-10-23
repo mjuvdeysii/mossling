@@ -56,7 +56,7 @@ struct YouView: View {
 
                 // settings
                 LazyVGrid(columns: two, spacing: 12) {
-                    SwitchTile(title: "记录", detail: "喂养 睡眠 尿布 体温", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
+                    SwitchTile(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
                     if LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock {
                         SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
                     }
@@ -76,10 +76,15 @@ struct YouView: View {
                             Button("表格（CSV）", systemImage: "tablecells") { exportName = "芽芽月历记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
                         } label: { DataKey(title: "导出", symbol: "square.and.arrow.up", color: Crayon.sky) }
                         Button { importing = true } label: { DataKey(title: "导入", symbol: "square.and.arrow.down", color: Crayon.lilac) }
-                        Button { clearing = true } label: { DataKey(title: "清除", symbol: "trash.fill", color: Crayon.cherry) }
                     }
                     .buttonStyle(.toy)
-                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary).padding(.horizontal, 4)
+                    HStack {
+                        Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary)
+                        Spacer()
+                        // destructive and rare: a quiet text button, behind a confirmation
+                        Button("清除全部数据", role: .destructive) { clearing = true }.font(.caption.weight(.semibold))
+                    }
+                    .padding(.horizontal, 4)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)

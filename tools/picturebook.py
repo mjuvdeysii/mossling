@@ -764,6 +764,24 @@ def rig_sheet(out):
     for k, im in enumerate(ims): sheet.paste(im, ((k % cols) * 480, (k // cols) * 360))
     sheet.save(out)
 
+# the child alone, at each stage, on a transparent ground: for the growth wheel, so the child there is the same child
+# one scale for all, so the child grows from figure to figure
+FIGURES = [("lieback", 1, 196, 1.12), ("prone", 4, 190, 1.12), ("sit", 7, 160, 1.12), ("crawl", 10, 176, 1.12),
+           ("stand", 14, 166, 1.12), ("walk", 22, 158, 1.12), ("run", 30, 150, 1.12)]
+def figures(index):
+    for i, (pose, age, x, k) in enumerate(FIGURES):
+        sv = SVG(300, 300)
+        at = (x, 286)
+        c = Person("child", pose, x, face=-1, age=age, expr="wow" if pose == "lieback" else "smile", at=at,
+                   hands=[(x - 60, 200), None] if pose in ("stand", "walk") else [None, None])
+        sv.add(f'<g transform="translate(150 286) scale({k}) translate(-150 -286)">')
+        lying = pose in ("prone", "lieback")
+        sv.shadow(c.hip[0] - (c.d["torso"] * .45 * c.f if lying else 0), 290, 60, 7)
+        c.draw(sv); sv.add('</g>')
+        im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=600))).convert("RGBA")
+        n = f"child_{i}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
+        index["size"][n] = [600, 600]
+
 def main():
     if "--rig" in sys.argv: return rig_sheet(sys.argv[sys.argv.index("--rig") + 1])
     scenes = json.load(open(SCENES))
@@ -788,6 +806,7 @@ def main():
             sv = scene(spec, area); sv.w, sv.h = W, H
             index["size"][n] = list(render(sv.svg(), os.path.join(OUT, n)))
             index["covers"][str(mo["month"])] = n
+    if not only: figures(index)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
     if missing: print("no scene for", ", ".join(missing))
     if "--sheet" in sys.argv:

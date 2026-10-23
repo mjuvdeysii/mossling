@@ -65,6 +65,7 @@ struct TodayView: View {
 /// growth wheel in place.
 private struct MonthCard: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int, baby: Int
     let open: () -> Void
     var body: some View {
@@ -82,7 +83,7 @@ private struct MonthCard: View {
                         if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
                         if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
                     }
-                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
                 }
                 .foregroundStyle(.primary)
                 Spacer(minLength: 0)
@@ -100,6 +101,7 @@ private struct MonthCard: View {
 /// The month's plays as picture cards, two by two; this month's shelf is shown above, so its plays are not repeated.
 private struct PlaysGrid: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int
     let hideShelf: Bool
     var body: some View {
@@ -108,7 +110,8 @@ private struct PlaysGrid: View {
         if !plays.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的教具", detail: "\(plays.count) 个")
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                let one = plays.count == 1 || type.isAccessibilitySize
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: one ? 1 : 2), spacing: 12) {
                     ForEach(plays) { p in PlayTileLink(play: p, month: month) }
                 }
             }
@@ -122,18 +125,19 @@ let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.k
 /// The topics, as tiles.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
         let t = app.content.topics
         let marks = topicMarks
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题")
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12), count: type.isAccessibilitySize ? 1 : 2), spacing: 12) {
                 ForEach(Array(t.enumerated()), id: \.offset) { i, x in
                     let mk = marks[i % marks.count]
                     NavigationLink(value: Route.topic(x.id)) {
                         HStack(spacing: 10) {
                             IconTile(symbol: mk.0, color: mk.1, size: 34)
-                            Text(x.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
+                            Text(x.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                             Spacer(minLength: 0)
                         }
                         .padding(12).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
@@ -165,7 +169,7 @@ struct ShelfView: View {
             VStack(spacing: 6) {
                 ForEach(0..<(Shelf.max + 1) / 2, id: \.self) { row in
                     VStack(spacing: 0) {
-                        HStack(alignment: .bottom, spacing: 12) {
+                        HStack(alignment: .top, spacing: 12) {
                             ForEach([row * 2, row * 2 + 1], id: \.self) { k in slot(k, s) }
                         }
                         .padding(.horizontal, 12).padding(.top, 12)
@@ -234,8 +238,8 @@ private struct ShelfItem: View {
                 }
             }
             .printCard(radius: 14)
-            Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
-                .frame(maxWidth: .infinity, minHeight: 30, alignment: .top)
+            Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(3, reservesSpace: false).multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity, alignment: .top)
         }
         .accessibilityElement(children: .combine)
     }

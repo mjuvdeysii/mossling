@@ -37,6 +37,7 @@ struct ArtView: View {
             ZStack {
                 Palette.fill
                 if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+                NightDim()
             }
             .frame(width: g.size.width, height: g.size.height)
             .task(id: name) {
@@ -189,6 +190,12 @@ struct BlocksView: View {
 }
 
 /// A picture that fills its frame (cropped to it), for headers and tiles.
+/// In dark mode the pictures' paper is toned down so it does not glare during night feeds.
+struct NightDim: View {
+    @Environment(\.colorScheme) private var scheme
+    var body: some View { if scheme == .dark { Color(hex: 0x1A140E).opacity(0.22).allowsHitTesting(false) } }
+}
+
 struct ArtFill: View {
     let name: String
     var label: String = ""
@@ -199,6 +206,7 @@ struct ArtFill: View {
             ZStack {
                 Palette.fill
                 if let img { Image(uiImage: img).resizable().scaledToFill().frame(width: g.size.width, height: g.size.height).clipped().transition(.opacity) }
+                NightDim()
             }
             .task(id: name) {
                 let px = Int(max(g.size.width, g.size.height) * scale)

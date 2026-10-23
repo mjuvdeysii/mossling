@@ -16,7 +16,7 @@ struct GrowthWheel: View {
             ZStack(alignment: .topLeading) {
                 Sky(hour: 12)
                 GrowingChild(month: month)
-                    .frame(width: 130, height: 130)
+                    .frame(width: 150, height: 150)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
                 Duo(primary: app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true)
@@ -129,84 +129,44 @@ private struct MonthDial: View {
     }
 }
 
-/// The child, growing: a round wooden-toy child in candy colours whose pose follows the month. Every part is a view,
-/// so between months SwiftUI moves each part to its new place and the child seems to grow.
+/// The child, growing: the picture book's own child (tools/picturebook.py draws it at seven stages — lying, lifting
+/// the head, sitting, crawling, standing, walking, running), so the child on the wheel is the child in the pictures.
+/// Between stages one gives way to the next with a spring; within a stage the child grows a little each month.
 struct GrowingChild: View {
     let month: Int
     @Environment(\.accessibilityReduceMotion) private var reduce
 
-    private struct Pose {
-        var head: CGPoint, headR: CGFloat
-        var body: CGPoint, bodySize: CGSize, bodyTurn: Double
-        var legs: CGPoint, legsSize: CGSize, legsTurn: Double
-        var arm: CGPoint, armSize: CGSize, armTurn: Double
-    }
-
-    private var pose: Pose {
-        switch month {
-        case ..<3:   // lying on the back
-            return Pose(head: CGPoint(x: 30, y: 100), headR: 15, body: CGPoint(x: 68, y: 104), bodySize: CGSize(width: 56, height: 26), bodyTurn: 0,
-                        legs: CGPoint(x: 100, y: 100), legsSize: CGSize(width: 22, height: 14), legsTurn: -20, arm: CGPoint(x: 56, y: 92), armSize: CGSize(width: 10, height: 20), armTurn: 30)
-        case ..<6:   // on the tummy, head up
-            return Pose(head: CGPoint(x: 34, y: 82), headR: 15, body: CGPoint(x: 72, y: 106), bodySize: CGSize(width: 58, height: 24), bodyTurn: -6,
-                        legs: CGPoint(x: 104, y: 110), legsSize: CGSize(width: 20, height: 12), legsTurn: 0, arm: CGPoint(x: 44, y: 104), armSize: CGSize(width: 10, height: 22), armTurn: 0)
-        case ..<9:   // sitting
-            return Pose(head: CGPoint(x: 62, y: 56), headR: 17, body: CGPoint(x: 62, y: 90), bodySize: CGSize(width: 36, height: 44), bodyTurn: 0,
-                        legs: CGPoint(x: 78, y: 112), legsSize: CGSize(width: 36, height: 14), legsTurn: 0, arm: CGPoint(x: 80, y: 92), armSize: CGSize(width: 10, height: 26), armTurn: -40)
-        case ..<12:  // crawling
-            return Pose(head: CGPoint(x: 34, y: 74), headR: 16, body: CGPoint(x: 70, y: 86), bodySize: CGSize(width: 54, height: 28), bodyTurn: -8,
-                        legs: CGPoint(x: 92, y: 106), legsSize: CGSize(width: 12, height: 26), legsTurn: 10, arm: CGPoint(x: 46, y: 104), armSize: CGSize(width: 11, height: 28), armTurn: -6)
-        case ..<18:  // standing
-            return Pose(head: CGPoint(x: 64, y: 44), headR: 17, body: CGPoint(x: 64, y: 80), bodySize: CGSize(width: 34, height: 46), bodyTurn: 0,
-                        legs: CGPoint(x: 64, y: 110), legsSize: CGSize(width: 24, height: 22), legsTurn: 0, arm: CGPoint(x: 84, y: 76), armSize: CGSize(width: 10, height: 28), armTurn: -20)
-        case ..<24:  // walking
-            return Pose(head: CGPoint(x: 66, y: 38), headR: 17, body: CGPoint(x: 64, y: 76), bodySize: CGSize(width: 34, height: 50), bodyTurn: 6,
-                        legs: CGPoint(x: 62, y: 110), legsSize: CGSize(width: 30, height: 22), legsTurn: 12, arm: CGPoint(x: 84, y: 70), armSize: CGSize(width: 10, height: 30), armTurn: -50)
-        default:     // running and jumping
-            return Pose(head: CGPoint(x: 68, y: 30), headR: 18, body: CGPoint(x: 64, y: 70), bodySize: CGSize(width: 36, height: 56), bodyTurn: 10,
-                        legs: CGPoint(x: 60, y: 108), legsSize: CGSize(width: 34, height: 24), legsTurn: 22, arm: CGPoint(x: 88, y: 60), armSize: CGSize(width: 10, height: 32), armTurn: -80)
-        }
-    }
+    static func stage(_ m: Int) -> Int { m < 3 ? 0 : m < 6 ? 1 : m < 9 ? 2 : m < 12 ? 3 : m < 18 ? 4 : m < 24 ? 5 : 6 }
+    private static let starts = [0, 3, 6, 9, 12, 18, 24, 37]
 
     var body: some View {
-        let p = pose
-        // the same child as in the pictures (tools/picturebook.py): warm skin, sunflower top, sky-blue legs
-        let skin = Color(hex: 0xD9A57C), suit = Color(hex: 0xF2B526), legs = Color(hex: 0x5BA8E0)
-        GeometryReader { g in
-            let k = min(g.size.width, g.size.height) / 130
-            ZStack(alignment: .topLeading) {
-                Ellipse().fill(Color.black.opacity(0.1)).frame(width: 70 * k, height: 8 * k).position(x: 64 * k, y: 122 * k)
-                part(p.legs, p.legsSize, p.legsTurn, k, legs)
-                part(p.body, p.bodySize, p.bodyTurn, k, suit)
-                part(p.arm, p.armSize, p.armTurn, k, suit.mix(with: .white, by: 0.1))
-                Circle()
-                    .fill(RadialGradient(colors: [skin.mix(with: .white, by: 0.55), skin, skin.mix(with: .black, by: 0.18)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: p.headR * k * 1.4))
-                    .frame(width: p.headR * 2 * k, height: p.headR * 2 * k)
-                    .overlay {
-                        // a face looking left, toward the adult in the pictures: two eyes and a smile
-                        let r = p.headR * k
-                        ZStack {
-                            Circle().fill(Color(hex: 0x3B3330)).frame(width: r * 0.22, height: r * 0.26).offset(x: -r * 0.5, y: -r * 0.12)
-                            Circle().fill(Color(hex: 0x3B3330)).frame(width: r * 0.2, height: r * 0.24).offset(x: -r * 0.08, y: -r * 0.12)
-                            Ellipse().fill(Color(hex: 0xF08A8A).opacity(0.45)).frame(width: r * 0.3, height: r * 0.18).offset(x: -r * 0.62, y: r * 0.2)
-                            Capsule().fill(Color(hex: 0x3B3330)).frame(width: r * 0.3, height: r * 0.08).offset(x: -r * 0.3, y: r * 0.32)
-                        }
-                    }
-                    .position(x: p.head.x * k, y: p.head.y * k)
-                    .shadow(color: .black.opacity(0.12), radius: 3 * k, y: 2 * k)
-            }
+        let st = Self.stage(month)
+        let a = Self.starts[st], b = Self.starts[st + 1]
+        let grow = 0.94 + 0.06 * Double(month - a) / Double(max(1, b - a - 1))
+        ZStack {
+            Figure(name: "child_\(st)")
+                .id(st)
+                .transition(reduce ? .opacity : .scale(scale: 0.8, anchor: .bottom).combined(with: .opacity))
         }
-        .animation(reduce ? nil : .spring(response: 0.55, dampingFraction: 0.62), value: month)
+        .scaleEffect(grow, anchor: .bottom)
+        .animation(reduce ? nil : .spring(response: 0.5, dampingFraction: 0.62), value: month)
         .accessibilityHidden(true)
     }
+}
 
-    private func part(_ c: CGPoint, _ s: CGSize, _ turn: Double, _ k: CGFloat, _ color: Color) -> some View {
-        Capsule()
-            .fill(LinearGradient(colors: [color.mix(with: .black, by: 0.06), color.mix(with: .white, by: 0.42), color, color.mix(with: .black, by: 0.2)],
-                                 startPoint: .leading, endPoint: .trailing))
-            .frame(width: s.width * k, height: s.height * k)
-            .rotationEffect(.degrees(turn))
-            .shadow(color: .black.opacity(0.1), radius: 3 * k, y: 2 * k)
-            .position(x: c.x * k, y: c.y * k)
+/// A picture with a transparent ground (a figure), fitted into its frame.
+struct Figure: View {
+    let name: String
+    @Environment(\.displayScale) private var scale
+    @State private var img: UIImage?
+    var body: some View {
+        GeometryReader { g in
+            ZStack { if let img { Image(uiImage: img).resizable().scaledToFit() } }
+                .frame(width: g.size.width, height: g.size.height)
+                .task(id: name) {
+                    let px = Int(max(g.size.width, g.size.height) * scale), n = name
+                    img = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
+                }
+        }
     }
 }

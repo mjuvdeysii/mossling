@@ -20,19 +20,17 @@ struct Bead: View {
         let c = here ? Palette.bead : Land.of(month).crayon
         ZStack {
             if here || past {
-                Circle().fill(RadialGradient(colors: [c.mix(with: .white, by: 0.45), c, c.mix(with: .black, by: 0.28)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
+                Circle().fill(RadialGradient(colors: [c.mix(with: .white, by: 0.22), c, c.mix(with: .black, by: 0.14)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
             } else {
                 Circle().fill(RadialGradient(colors: [.white.opacity(0.95), c.mix(with: .white, by: 0.7).opacity(0.9)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
                 Circle().strokeBorder(c.opacity(0.45), lineWidth: 1.5)
             }
-            Ellipse().fill(LinearGradient(colors: [.white.opacity(0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom))
-                .frame(width: d * 0.46, height: d * 0.26).offset(x: -d * 0.12, y: -d * 0.24)
             Text("\(month)").font(Typeface.numerals(here ? 19 : 15, relativeTo: .footnote, weight: .bold))
                 .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Color.white : c.mix(with: .black, by: 0.35))
                 .shadow(color: .black.opacity(past ? 0.25 : 0), radius: 0.5, y: 0.6)
         }
         .frame(width: d, height: d)
-        .shadow(color: c.opacity(0.4), radius: here ? 8 : 4, y: here ? 5 : 3)
+        .shadow(color: c.opacity(0.22), radius: here ? 5 : 3, y: here ? 3 : 2)
     }
 }
 
@@ -109,12 +107,13 @@ private struct MonthBody: View {
 /// The parts of a month as tiles: a picture, a word, and how much is recorded; each opens its own page.
 struct MonthParts: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int
     var body: some View {
         let mo = app.content.month(month), m = month
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: "这个月")
-                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: 3), spacing: 10) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10), count: type.isAccessibilitySize ? 2 : 3), spacing: 10) {
                     NavigationLink(value: Route.areas(m)) {
                         MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 \($0.name.prefix(4))" }) { EmptyView() }
                     }.buttonStyle(.toy)
@@ -161,8 +160,8 @@ struct MonthTile<Accessory: View>: View {
                 accessory.scaleEffect(0.8)
             }
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
-                Text(note ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(1).monospacedDigit()
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).minimumScaleFactor(0.8)
+                Text(note ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(2).monospacedDigit()
             }
         }
         .padding(11)
@@ -327,7 +326,7 @@ struct PlayTile: View {
             }
             VStack(alignment: .leading, spacing: 3) {
                 Label(play.domains.first ?? "", systemImage: Palette.areaSymbol(key)).font(.caption.weight(.semibold)).foregroundStyle(Palette.area(key)).lineLimit(1)
-                Text(play.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading).lineLimit(3)
+                Text(play.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                 Text(play.age).font(.caption).foregroundStyle(.secondary)
             }
             .padding(12)
