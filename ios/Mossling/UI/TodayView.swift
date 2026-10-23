@@ -116,7 +116,7 @@ private struct PlayHero: View {
             .buttonStyle(.plain)
             HStack(spacing: 10) {
                 Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
-                    Label(app.record(play, j).count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark").padding(.horizontal, 4)
+                    Label("做过了", systemImage: "checkmark").fixedSize().padding(.horizontal, 4)
                 }
                 .buttonStyle(.glassProminent).controlSize(.large)
                 .sensoryFeedback(.success, trigger: cheer)

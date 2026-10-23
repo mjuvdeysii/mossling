@@ -349,7 +349,8 @@ struct TimerCard: View {
                 Button { j.togglePause(timer.type) } label: { Image(systemName: paused ? "play.fill" : "pause.fill").frame(width: 24, height: 24) }
                     .buttonStyle(.glass).controlSize(.large).accessibilityLabel(paused ? "继续" : "暂停")
                 if timer.type == LogType.nurse {
-                    Button { j.switchSide(timer.type) } label: { Label("换侧", systemImage: "arrow.left.arrow.right").fixedSize() }.buttonStyle(.glass).controlSize(.large)
+                    Button { j.switchSide(timer.type) } label: { Image(systemName: "arrow.left.arrow.right").frame(width: 24, height: 24) }
+                        .buttonStyle(.glass).controlSize(.large).accessibilityLabel(timer.side == "r" ? "换到左侧" : "换到右侧")
                 }
                 Spacer(minLength: 0)
                 Menu {
