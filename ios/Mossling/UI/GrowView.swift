@@ -99,39 +99,39 @@ private struct MonthBody: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                     NavigationLink(value: Route.areas(m)) {
                         MonthTile(symbol: "circle.hexagongrid.fill", color: Crayon.lilac, title: "六个方面", note: mo.domains.first { $0.key == mo.focus }.map { "重点 · \($0.name)" }) { EmptyView() }
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.toy)
                     if !mo.observe.isEmpty {
                         let total = mo.observe.reduce(0) { $0 + $1.items.count }
                         NavigationLink(value: Route.observe(m)) {
                             MonthTile(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", note: "\(app.count(m, TickKind.observed)) / \(total)") { Ring(done: app.count(m, TickKind.observed), total: total, color: Crayon.sky) }
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.toy)
                     }
                     if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
                         let total = mo.vaccines.count + mo.checkups.count
                         let done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
                         NavigationLink(value: Route.care(m)) {
                             MonthTile(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", note: "\(done) / \(total)") { Ring(done: done, total: total, color: Crayon.pink) }
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.toy)
                     }
                     if !mo.notes.isEmpty {
                         NavigationLink(value: Route.notes(m)) {
                             MonthTile(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", note: "\(mo.notes.count) 条") { EmptyView() }
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.toy)
                     }
                     if !mo.who.isEmpty {
                         NavigationLink(value: Route.rhythm(m)) {
                             MonthTile(symbol: "sun.and.horizon.fill", color: Crayon.peach, title: "一天的节奏", note: "睡眠 · 活动 · 屏幕") { EmptyView() }
-                        }.buttonStyle(.plain)
+                        }.buttonStyle(.toy)
                     }
                     NavigationLink(value: JournalRoute.growth) {
                         MonthTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO 标准") { EmptyView() }
-                    }.buttonStyle(.plain)
+                    }.buttonStyle(.toy)
                 }
             }
 
             Box(title: "专题") {
                 ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
-                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.plain)
+                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
                 }
             }
 
@@ -172,7 +172,7 @@ struct PlayTileLink: View {
     var body: some View {
         let route = Route.play(play.code, month)
         NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count) }
-            .buttonStyle(.plain)
+            .buttonStyle(.toy)
             .zoomSource(route)
             .contextMenu { PlayActions(play: play, month: month) }
     }

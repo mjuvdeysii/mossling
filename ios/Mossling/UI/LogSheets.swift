@@ -11,6 +11,9 @@ struct AskSheet: View {
     @State private var ml = 120.0
     @State private var temp = 368
     @State private var text = ""
+    @State private var finished = false
+    @State private var side = "l"
+    @State private var minutes = 15
     @FocusState private var typing: Bool
 
     private var at: Date { exact ?? Date().addingTimeInterval(-Double(ago) * 60) }
@@ -21,7 +24,7 @@ struct AskSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(type == LogType.nurse ? "开始时间" : "时间").font(.headline)
+                        Text(type == LogType.nurse ? (finished ? "什么时候喂完" : "开始时间") : "时间").font(.headline)
                         FlowChips(items: [(0, "现在"), (5, "5 分钟前"), (15, "15 分钟前"), (30, "半小时前"), (60, "1 小时前")], selected: exact == nil ? ago : nil, tint: c) { ago = $0; exact = nil }
                         Button { choosing = true } label: { Label(exact.map { whenLabel($0) } ?? "选择时间", systemImage: "clock").monospacedDigit() }
                             .buttonStyle(.bordered).tint(exact == nil ? .secondary : c)
@@ -42,16 +45,33 @@ struct AskSheet: View {
         let c = LogType.color(type)
         switch type {
         case LogType.nurse:
-            Text("从哪一侧开始").font(.headline)
+            Picker("方式", selection: $finished) { Text("现在开始计时").tag(false); Text("补记，已经喂完").tag(true) }
+                .pickerStyle(.segmented)
+            Text(finished ? "哪一侧" : "从哪一侧开始").font(.headline)
             HStack(spacing: 14) {
                 ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, t in
-                    Button { j.start(LogType.nurse, side: k, at: at); dismiss() } label: {
+                    let on = !finished || side == k
+                    Button {
+                        if finished { side = k } else { j.start(LogType.nurse, side: k, at: at); dismiss() }
+                    } label: {
                         VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
-                            .foregroundStyle(c).frame(maxWidth: .infinity, minHeight: 110)
-                            .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
+                            .foregroundStyle(finished && on ? .white : c).frame(maxWidth: .infinity, minHeight: 104)
+                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(finished && on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
                     }
                     .buttonStyle(.plain)
+                    .accessibilityAddTraits(finished && on ? .isSelected : [])
                 }
+            }
+            if finished {
+                Text("喂了多久").font(.headline)
+                HStack(alignment: .firstTextBaseline) {
+                    ValueText(parts: [("\(minutes)", "分钟")], size: 40)
+                    Spacer()
+                    Stepper("时长", value: $minutes, in: 1...120).labelsHidden()
+                }
+                FlowChips(items: [5, 10, 15, 20, 30].map { ($0, "\($0) 分") }, selected: minutes, tint: c) { minutes = $0 }
+                Text("\(hm(at.addingTimeInterval(-Double(minutes) * 60)))–\(hm(at))").font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
+                save { j.add(LogEntry(type: LogType.nurse, start: ms(at) - Double(minutes) * 60_000, end: ms(at), side: side)) }
             }
         case LogType.bottle:
             HStack(alignment: .firstTextBaseline) {

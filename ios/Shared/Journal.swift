@@ -44,6 +44,17 @@ struct LogEntry: Codable, Identifiable, Hashable {
     }
 }
 
+extension LogEntry {
+    /// The part of the entry that falls on a day, in seconds (a sleep across midnight counts on each day for its part).
+    func seconds(on day: Day) -> Double {
+        guard let e = end else { return 0 }
+        let a = day.date.timeIntervalSince1970 * 1000, b = day.plus(days: 1).date.timeIntervalSince1970 * 1000
+        return max(0, min(e, b) - max(start, a)) / 1000
+    }
+    /// Whether it began on the day before the given day.
+    func carriedOver(into day: Day) -> Bool { start < day.date.timeIntervalSince1970 * 1000 }
+}
+
 func minutesOf(_ s: Double) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
 
 /// A timer that is running (at most one per kind). Survives the app being closed.

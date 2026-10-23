@@ -65,6 +65,8 @@ final class ScreenshotTests: XCTestCase {
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }
     func test21Search() { let m = model(); shot("21_search", tabs(m, SearchView(path: .constant(NavigationPath())))) }
     func test22Shelf() { let m = model(); shot("22_shelf_editor", ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test23Timer() { let m = model(); shot("23_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test24AskNurse() { let m = model(); shot("24_ask_nurse", tabs(m, AskSheet(type: LogType.nurse))) }
     func test07Care() { let m = model(); shot("07_care", tabs(m, CareView(month: 6))) }
     func test07Areas() { let m = model(); shot("07_areas", height: 1400, tabs(m, AreasView(month: 6))) }
     func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }

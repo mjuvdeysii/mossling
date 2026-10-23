@@ -113,7 +113,7 @@ private struct PlayHero: View {
                     .padding(.horizontal, 16).padding(.top, 14)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.toy)
             HStack(spacing: 10) {
                 Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
                     Label("做过了", systemImage: "checkmark").fixedSize().padding(.horizontal, 4)
@@ -160,7 +160,7 @@ struct ShelfView: View {
                         if k < s.plays.count {
                             let p = s.plays[k], route = Route.play(p.code, month)
                             NavigationLink(value: route) { ShelfItem(play: p, times: app.record(p, j).count) }
-                                .buttonStyle(.plain).zoomSource(route)
+                                .buttonStyle(.toy).zoomSource(route)
                                 .contextMenu { PlayActions(play: p, month: month) }
                         } else {
                             Button(action: arrange) {
@@ -169,7 +169,7 @@ struct ShelfView: View {
                                     .overlay(Image(systemName: "plus").font(.title3).foregroundStyle(.tertiary))
                                     .aspectRatio(0.72, contentMode: .fit)
                             }
-                            .buttonStyle(.plain).accessibilityLabel("放一件教具")
+                            .buttonStyle(.toy).accessibilityLabel("放一件教具")
                         }
                     }
                 }
@@ -244,7 +244,7 @@ private struct NextCare: View {
                     }
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.toy)
         }
     }
 }

@@ -239,3 +239,14 @@ extension View {
         self.padding(padding).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }
+
+/// Pressing a card is like pressing a wooden toy: it gives a little and springs back, with a light tap.
+struct ToyPress: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1)
+            .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, new in new }
+    }
+}
+extension ButtonStyle where Self == ToyPress { static var toy: ToyPress { ToyPress() } }

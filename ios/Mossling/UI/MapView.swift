@@ -14,7 +14,7 @@ struct JourneyView: View {
                     ForEach(0...36, id: \.self) { m in
                         if m % 12 == 0 { LandGate(land: Land.of(m), first: m == 0) }
                         NavigationLink(value: Route.month(m)) { Stop(month: m) }
-                            .buttonStyle(.plain).zoomSource(Route.month(m)).id(m)
+                            .buttonStyle(.toy).zoomSource(Route.month(m)).id(m)
                     }
                     Horizon(primary: app.companion)
                 }
@@ -82,16 +82,28 @@ private struct Ground: View {
         ball(&ctx, CGRect(x: x - 4 * k, y: y - 14 * k, width: 19 * k, height: 19 * k), leaf.mix(with: .black, by: 0.04))
         ball(&ctx, CGRect(x: x - 11 * k, y: y - 28 * k, width: 22 * k, height: 22 * k), leaf)
     }
+    /// A little wooden toy house: a pastel body, a crisp roof with eaves, a chimney, a lit window with its cross, a door.
     private func house(_ ctx: inout GraphicsContext, _ x: CGFloat, _ y: CGFloat, _ dark: Bool, roof: Color) {
-        softShadow(&ctx, x, y + 10, 34)
-        let wall = CGRect(x: x - 12, y: y - 8, width: 24, height: 18)
-        ctx.fill(Path(roundedRect: wall, cornerRadius: 3), with: .linearGradient(Gradient(colors: [Color(hex: 0xFFFBF2), Color(hex: 0xEADCC4)]), startPoint: CGPoint(x: wall.minX, y: wall.minY), endPoint: CGPoint(x: wall.maxX, y: wall.maxY)))
+        softShadow(&ctx, x, y + 11, 36)
+        let wallColor = roof.mix(with: .white, by: dark ? 0.55 : 0.78)
+        let wall = CGRect(x: x - 12, y: y - 8, width: 24, height: 19)
+        ctx.fill(Path(roundedRect: wall, cornerRadius: 2.5), with: .linearGradient(Gradient(colors: [wallColor, wallColor.mix(with: .black, by: 0.08)]), startPoint: CGPoint(x: wall.minX, y: wall.minY), endPoint: CGPoint(x: wall.maxX, y: wall.maxY)))
+        // chimney behind the roof
+        ctx.fill(Path(roundedRect: CGRect(x: x + 5, y: y - 21, width: 5, height: 9), cornerRadius: 1), with: .color(Color(hex: 0xB97A55)))
         var r = Path()
-        r.move(to: CGPoint(x: x - 16, y: y - 6)); r.addQuadCurve(to: CGPoint(x: x, y: y - 22), control: CGPoint(x: x - 9, y: y - 16))
-        r.addQuadCurve(to: CGPoint(x: x + 16, y: y - 6), control: CGPoint(x: x + 9, y: y - 16)); r.closeSubpath()
-        ctx.fill(r, with: .linearGradient(Gradient(colors: [roof.mix(with: .white, by: 0.25), roof.mix(with: .black, by: 0.15)]), startPoint: CGPoint(x: x - 10, y: y - 22), endPoint: CGPoint(x: x + 12, y: y - 4)))
-        ctx.fill(Path(roundedRect: CGRect(x: x - 7, y: y - 3, width: 6, height: 6), cornerRadius: 1.5), with: .color(Color(hex: 0xFFD978)))
-        ctx.fill(Path(roundedRect: CGRect(x: x + 2, y: y - 1, width: 6, height: 11), cornerRadius: 2), with: .color(Color(hex: 0xA97A48)))
+        r.move(to: CGPoint(x: x - 16, y: y - 7)); r.addLine(to: CGPoint(x: x, y: y - 21)); r.addLine(to: CGPoint(x: x + 16, y: y - 7)); r.closeSubpath()
+        ctx.fill(r, with: .linearGradient(Gradient(colors: [roof.mix(with: .white, by: 0.2), roof, roof.mix(with: .black, by: 0.2)]), startPoint: CGPoint(x: x - 12, y: y - 20), endPoint: CGPoint(x: x + 14, y: y - 6)))
+        var eave = Path(); eave.move(to: CGPoint(x: x - 16, y: y - 7)); eave.addLine(to: CGPoint(x: x + 16, y: y - 7))
+        ctx.stroke(eave, with: .color(roof.mix(with: .black, by: 0.3)), style: StrokeStyle(lineWidth: 1.6, lineCap: .round))
+        let win = CGRect(x: x - 8.5, y: y - 3, width: 7, height: 7)
+        ctx.fill(Path(roundedRect: win, cornerRadius: 1.5), with: .color(Color(hex: 0xFFE08A)))
+        var cross = Path(); cross.move(to: CGPoint(x: win.midX, y: win.minY)); cross.addLine(to: CGPoint(x: win.midX, y: win.maxY))
+        cross.move(to: CGPoint(x: win.minX, y: win.midY)); cross.addLine(to: CGPoint(x: win.maxX, y: win.midY))
+        ctx.stroke(cross, with: .color(.white.opacity(0.9)), lineWidth: 0.9)
+        ctx.stroke(Path(roundedRect: win, cornerRadius: 1.5), with: .color(.white), lineWidth: 1)
+        var door = Path(roundedRect: CGRect(x: x + 2.5, y: y + 0.5, width: 6.5, height: 10.5), cornerRadii: RectangleCornerRadii(topLeading: 3.2, bottomLeading: 0, bottomTrailing: 0, topTrailing: 3.2))
+        door = door.offsetBy(dx: 0, dy: 0)
+        ctx.fill(door, with: .linearGradient(Gradient(colors: [roof.mix(with: .black, by: 0.05), roof.mix(with: .black, by: 0.3)]), startPoint: CGPoint(x: x + 3, y: y), endPoint: CGPoint(x: x + 9, y: y + 11)))
     }
 
     private func paint(_ ctx: inout GraphicsContext, _ size: CGSize) {

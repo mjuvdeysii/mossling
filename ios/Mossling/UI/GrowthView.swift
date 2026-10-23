@@ -165,9 +165,9 @@ struct StatsView: View {
         let days = (0..<7).reversed().map { app.today.plus(days: -$0) }
         let rows = days.map { d -> (Day, Int, Double, Int) in
             let l = j.logs(on: d)
-            return (d, l.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.count,
-                    l.filter { $0.type == LogType.sleep && $0.end != nil }.reduce(0.0) { $0 + ($1.end! - $1.start) } / 3_600_000,
-                    l.filter { $0.type == LogType.diaper }.count)
+            return (d, l.filter { ($0.type == LogType.nurse || $0.type == LogType.bottle) && !$0.carriedOver(into: d) }.count,
+                    l.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) } / 3600,
+                    l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count)
         }
         ScrollView {
             VStack(spacing: 14) {

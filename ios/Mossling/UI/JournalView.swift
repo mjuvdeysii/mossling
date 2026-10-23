@@ -14,13 +14,12 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                ForEach(j.timers, id: \.type) { TimerCard(timer: $0) }
                 StickerSheet(running: Set(j.timers.map(\.type)), last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) })
                 HStack(spacing: 12) {
-                    NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) }.buttonStyle(.plain)
-                    NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) }.buttonStyle(.plain)
+                    NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) }.buttonStyle(.toy)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -52,7 +51,7 @@ struct JournalView: View {
 
     private func tap(_ t: String) {
         if t == LogType.growth { measuring = Measure(at: Date().timeIntervalSince1970 * 1000); return }
-        if j.timers.contains(where: { $0.type == t }) { j.stop(t); return }
+        if j.timers.contains(where: { $0.type == t }) { j.focus = t; return }
         if t == LogType.sleep { j.start(t); return }
         if t == LogType.bath { j.add(LogEntry(type: t, start: JournalFile.now())); return }
         ask = t
@@ -119,7 +118,7 @@ private struct Sticker: View {
             }
             .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.toy)
         .sensoryFeedback(.impact(weight: .light), trigger: running)
         .accessibilityLabel(running ? "\(LogType.name(type))进行中，结束" : LogType.name(type))
         .accessibilityValue(since ?? "")
@@ -145,7 +144,7 @@ private struct WeekStrip: View {
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.pink.mix(with: .white, by: 0.2), Crayon.pink], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
                     .shadow(color: on ? Crayon.pink.opacity(0.35) : Color.black.opacity(0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.toy)
                 .accessibilityLabel("\(d.md) \(d.weekday)")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
@@ -174,7 +173,7 @@ private struct DayPage: View {
                 Spacer()
                 Creature(kind: app.companion, mood: logs.isEmpty ? .open : .happy, alive: false).frame(width: 48, height: 48)
             }
-            Totals(logs: logs)
+            Totals(logs: logs, day: day)
             DayRibbon(day: day, logs: logs, timers: timers)
             if logs.isEmpty {
                 Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .center).padding(.vertical, 12)
@@ -182,7 +181,7 @@ private struct DayPage: View {
                 VStack(spacing: 0) {
                     ForEach(Array(logs.enumerated()), id: \.element.id) { i, e in
                         if i > 0 { Divider().padding(.leading, 100) }
-                        EntryRow(entry: e)
+                        EntryRow(entry: e, day: day)
                             .contentShape(Rectangle())
                             .onTapGesture { edit(e) }
                             .contextMenu {
@@ -250,11 +249,14 @@ private struct DotPaper: View {
 /// The day's three totals, as stamps of equal width.
 private struct Totals: View {
     let logs: [LogEntry]
+    let day: Day
     var body: some View {
-        let feeds = logs.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.count
-        let ml = logs.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
-        let sleep = logs.filter { $0.type == LogType.sleep && $0.end != nil }.reduce(0.0) { $0 + ($1.end! - $1.start) } / 1000
-        let diapers = logs.filter { $0.type == LogType.diaper }.count
+        // counts are of what started on the day; sleep is the part of each sleep that falls on the day
+        let own = logs.filter { !$0.carriedOver(into: day) }
+        let feeds = own.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.count
+        let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
+        let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
+        let diapers = own.filter { $0.type == LogType.diaper }.count
         HStack(spacing: 10) {
             stamp(LogType.nurse, "喂奶", "\(feeds)", "次", ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
             stamp(LogType.sleep, "睡眠", durationValue(sleep), "", " ")
@@ -286,22 +288,31 @@ func durationValue(_ seconds: Double) -> String {
 }
 
 extension LogEntry {
-    /// The value, right-aligned in its column: an amount, a length of time, a temperature, the kind of nappy.
-    var value: String {
+    /// The value, right-aligned in its column: an amount, a length of time (the part on this day), a temperature, the
+    /// kind of nappy.
+    func value(on day: Day) -> String {
         switch type {
-        case LogType.nurse, LogType.sleep: return end.map { durationValue(($0 - start) / 1000) } ?? "进行中"
+        case LogType.nurse, LogType.sleep: return end == nil ? "进行中" : durationValue(seconds(on: day))
         case LogType.bottle: return "\(amount ?? 0) 毫升"
         case LogType.temp: return amount.map { String(format: "%.1f °C", Double($0) / 10) } ?? ""
         case LogType.diaper: return ["wet": "湿", "dirty": "便", "both": "湿 + 便"][detail ?? ""] ?? ""
         default: return ""
         }
     }
-    /// The details, on the second line: the side, the time span, what was eaten or noted.
-    var meta: String {
+    /// The details, on the second line, without repeating the start time shown in the first column: the side, when it
+    /// ended (or began, if the day before), the whole length when it crosses midnight, what was eaten or noted.
+    func meta(on day: Day) -> String {
         var bits: [String] = []
         if type == LogType.nurse, let s = side { bits.append(s == "l" ? "左侧" : "右侧") }
-        if let e = endDate { bits.append("\(hm(startDate))–\(hm(e))") }
-        if [LogType.solid, LogType.medicine, LogType.note, LogType.play].contains(type), let d = detail, !d.isEmpty { bits.append(d) }
+        if let e = endDate {
+            let endsLater = Day(e) > day
+            if carriedOver(into: day) { bits.append("接昨天 \(hm(startDate)) · 到 \(hm(e))") }
+            else { bits.append("到 " + (endsLater ? "次日 " : "") + hm(e)) }
+            if carriedOver(into: day) || endsLater { bits.append("共 " + durationValue((end! - start) / 1000)) }
+        }
+        if [LogType.solid, LogType.medicine, LogType.note, LogType.play].contains(type), let d = detail, !d.isEmpty {
+            bits.append(type == LogType.play ? String(d.drop { $0 != " " }.dropFirst()) : d)
+        }
         return bits.joined(separator: " · ")
     }
 }
@@ -310,81 +321,190 @@ extension LogEntry {
 /// the value right-aligned.
 private struct EntryRow: View {
     let entry: LogEntry
+    let day: Day
     @ScaledMetric private var timeWidth: CGFloat = 50
     var body: some View {
+        let meta = entry.meta(on: day)
         HStack(alignment: .firstTextBaseline, spacing: 12) {
-            Text(hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+            Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                 .frame(width: timeWidth, alignment: .leading)
             IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 26, round: true)
                 .alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
             VStack(alignment: .leading, spacing: 2) {
                 Text(LogType.name(entry.type)).font(.body)
-                if !entry.meta.isEmpty { Text(entry.meta).font(.footnote).foregroundStyle(.secondary).monospacedDigit().lineLimit(1) }
+                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(.secondary).monospacedDigit().lineLimit(1) }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            Text(entry.value).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).foregroundStyle(.primary).fixedSize()
+            Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).foregroundStyle(.primary).fixedSize()
         }
         .padding(.vertical, 10)
         .accessibilityElement(children: .combine)
     }
 }
 
-/// A feed or a sleep in progress: the time running large, end, pause, change side; the start time and less common
-/// actions in a menu.
-struct TimerCard: View {
+/// A feed or a sleep in progress, on its own screen: a dial like a toy clock — sixty beads round the edge, filling
+/// minute by minute — with the time running in the middle; for a feed, the two sides as two big buttons; pause and
+/// end; when it began, which can be moved earlier. The companions keep watch (asleep, for a sleep).
+struct TimerScreen: View {
     @Environment(JournalStore.self) private var j
-    let timer: RunningTimer
+    @Environment(AppModel.self) private var app
+    @Environment(\.dismiss) private var dismiss
+    let type: String
     @State private var picking = false
+
     var body: some View {
-        let c = LogType.color(timer.type), paused = timer.pausedAt != nil
-        Card(title: LogType.name(timer.type) + (timer.side == "l" ? " · 左边" : timer.side == "r" ? " · 右边" : ""), symbol: LogType.symbol(timer.type), color: c,
-             detail: (paused ? "已暂停 · " : "") + whenLabel(Date(timeIntervalSince1970: timer.start / 1000)) + " 开始") {
-            TimelineView(.periodic(from: .now, by: 1)) { tl in
-                Text(clock(timer.elapsed(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(52, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
-                    .foregroundStyle(paused ? Color.secondary : Color.primary)
-                    .contentTransition(.numericText())
-            }
-            HStack(spacing: 10) {
-                Button { j.stop(timer.type) } label: { Label("结束", systemImage: "stop.fill").fixedSize() }.buttonStyle(.glassProminent).tint(c).controlSize(.large)
-                Button { j.togglePause(timer.type) } label: { Image(systemName: paused ? "play.fill" : "pause.fill").frame(width: 24, height: 24) }
-                    .buttonStyle(.glass).controlSize(.large).accessibilityLabel(paused ? "继续" : "暂停")
-                if timer.type == LogType.nurse {
-                    Button { j.switchSide(timer.type) } label: { Image(systemName: "arrow.left.arrow.right").frame(width: 24, height: 24) }
-                        .buttonStyle(.glass).controlSize(.large).accessibilityLabel(timer.side == "r" ? "换到左侧" : "换到右侧")
+        let c = LogType.color(type)
+        NavigationStack {
+            if let t = j.timers.first(where: { $0.type == type }) {
+                let paused = t.pausedAt != nil
+                VStack(spacing: 22) {
+                    TimelineView(.periodic(from: .now, by: 1)) { tl in
+                        let secs = t.elapsed(tl.date.timeIntervalSince1970 * 1000)
+                        ZStack {
+                            Dial(seconds: secs, color: c)
+                            VStack(spacing: 4) {
+                                Text(clock(secs)).font(Typeface.numerals(54, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
+                                    .contentTransition(.numericText()).foregroundStyle(paused ? Color.secondary : Color.primary)
+                                Text(paused ? "已暂停" : (secs >= 3600 ? "\(Int(secs) / 3600) 小时以上" : "进行中"))
+                                    .font(.subheadline.weight(.semibold)).foregroundStyle(c)
+                            }
+                        }
+                        .frame(maxWidth: 300).aspectRatio(1, contentMode: .fit)
+                        .accessibilityElement(children: .combine)
+                    }
+                    .padding(.top, 8)
+
+                    Button { picking = true } label: {
+                        Label("开始于 " + whenLabel(Date(timeIntervalSince1970: t.start / 1000)), systemImage: "clock").monospacedDigit()
+                    }
+                    .buttonStyle(.glass)
+
+                    if type == LogType.nurse {
+                        HStack(spacing: 14) {
+                            ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, name in
+                                let on = (t.side ?? "l") == k
+                                Button { if !on { withAnimation(.snappy) { j.switchSide(type) } } } label: {
+                                    VStack(spacing: 2) {
+                                        Text(big).font(Typeface.numerals(30, weight: .bold))
+                                        Text(name).font(.caption.weight(.semibold))
+                                    }
+                                    .foregroundStyle(on ? .white : c)
+                                    .frame(maxWidth: .infinity, minHeight: 74)
+                                    .background {
+                                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                                            .fill(on ? AnyShapeStyle(LinearGradient(colors: [c.mix(with: .white, by: 0.25), c], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12)))
+                                    }
+                                    .shadow(color: on ? c.opacity(0.35) : .clear, radius: 8, y: 4)
+                                }
+                                .buttonStyle(.toy)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                                .sensoryFeedback(.selection, trigger: on)
+                            }
+                        }
+                    }
+                    Spacer(minLength: 0)
+                    Duo(primary: app.companion, size: 70, mood: type == LogType.sleep && !paused ? .sleep : .open, look: CGPoint(x: 0, y: -0.6), poke: false)
                 }
-                Spacer(minLength: 0)
-                Menu {
-                    Button("开始时间…", systemImage: "clock") { picking = true }
-                    Button("提前 5 分钟", systemImage: "gobackward.5") { j.shift(timer.type, to: Date(timeIntervalSince1970: timer.start / 1000 - 300)) }
-                    Button("提前 15 分钟", systemImage: "gobackward.15") { j.shift(timer.type, to: Date(timeIntervalSince1970: timer.start / 1000 - 900)) }
-                    Divider()
-                    Button("不记这一次", systemImage: "xmark", role: .destructive) { j.discard(timer.type) }
-                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
-                    .buttonStyle(.glass).controlSize(.large).accessibilityLabel("更多")
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    ZStack {
+                        Palette.background
+                        RadialGradient(colors: [c.opacity(0.28), c.opacity(0)], center: .top, startRadius: 0, endRadius: 520)
+                    }
+                    .ignoresSafeArea()
+                }
+                .navigationTitle(LogType.name(type))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button("收起", systemImage: "chevron.down") { dismiss() } }
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Menu {
+                            Button("提前 5 分钟", systemImage: "gobackward.5") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300)) }
+                            Button("提前 15 分钟", systemImage: "gobackward.15") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900)) }
+                            Divider()
+                            Button("不记这一次", systemImage: "xmark", role: .destructive) { j.discard(type); dismiss() }
+                        } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
+                    }
+                }
+                .safeAreaBar(edge: .bottom) {
+                    HStack(spacing: 14) {
+                        Button { withAnimation(.snappy) { j.togglePause(type) } } label: {
+                            Image(systemName: paused ? "play.fill" : "pause.fill").font(.title2).frame(width: 44, height: 44)
+                        }
+                        .buttonStyle(.glass).controlSize(.large).accessibilityLabel(paused ? "继续" : "暂停")
+                        Button { j.stop(type); dismiss() } label: {
+                            Label("结束并记下", systemImage: "stop.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 8)
+                        }
+                        .buttonStyle(.glassProminent).tint(c).controlSize(.large)
+                    }
+                    .padding(.horizontal, 20).padding(.vertical, 8)
+                }
+                .sheet(isPresented: $picking) {
+                    TimeSheet(title: "开始时间", initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }
+                }
+            } else {
+                Color.clear.onAppear { dismiss() }
             }
-        }
-        .sheet(isPresented: $picking) {
-            TimeSheet(title: "开始时间", initial: Date(timeIntervalSince1970: timer.start / 1000)) { j.shift(timer.type, to: $0) }
         }
     }
 }
 
-/// The running timer, small, above the tab bar on every tab.
+/// The dial: sixty beads round a circle, one per minute; those already passed this hour are full and coloured, the
+/// current one glows; whole hours show as a gold bead at the top.
+private struct Dial: View {
+    let seconds: Double
+    let color: Color
+    var body: some View {
+        Canvas { ctx, size in
+            let r = min(size.width, size.height) / 2 - 12
+            let c = CGPoint(x: size.width / 2, y: size.height / 2)
+            let minutes = Int(seconds / 60), inHour = minutes % 60, hours = minutes / 60
+            for i in 0..<60 {
+                let a = Double(i) / 60 * 2 * .pi - .pi / 2
+                let p = CGPoint(x: c.x + cos(a) * r, y: c.y + sin(a) * r)
+                let done = i < inHour, now = i == inHour
+                let d: CGFloat = i % 5 == 0 ? 11 : 8
+                let rect = CGRect(x: p.x - d / 2, y: p.y - d / 2, width: d, height: d)
+                if done || now {
+                    ctx.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [color.mix(with: .white, by: 0.45), color]), center: CGPoint(x: rect.minX + d * 0.35, y: rect.minY + d * 0.3), startRadius: 0, endRadius: d))
+                    if now { ctx.stroke(Path(ellipseIn: rect.insetBy(dx: -3, dy: -3)), with: .color(color.opacity(0.4)), lineWidth: 2) }
+                } else {
+                    ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.14)))
+                }
+            }
+            for h in 0..<min(hours, 6) {
+                let x = c.x - CGFloat(min(hours, 6) - 1) * 9 + CGFloat(h) * 18
+                let rect = CGRect(x: x - 7, y: c.y - r * 0.62 - 7, width: 14, height: 14)
+                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(Gradient(colors: [Palette.beadLight, Palette.bead]), center: CGPoint(x: rect.minX + 5, y: rect.minY + 4), startRadius: 0, endRadius: 12))
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The running timer, small, above the tab bar on every tab; tap to open it.
 struct TimerAccessory: View {
     @Environment(JournalStore.self) private var j
     let timer: RunningTimer
     var body: some View {
         let c = LogType.color(timer.type)
         HStack(spacing: 12) {
-            Image(systemName: LogType.symbol(timer.type)).foregroundStyle(.white).font(.footnote.weight(.semibold))
-                .frame(width: 30, height: 30).background(c.gradient, in: Circle())
-            VStack(alignment: .leading, spacing: 0) {
-                Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左" : timer.side == "r" ? " · 右" : "")).font(.footnote.weight(.semibold))
-                TimelineView(.periodic(from: .now, by: 1)) { tl in
-                    Text(clock(timer.elapsed(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
+            Button { j.focus = timer.type } label: {
+                HStack(spacing: 12) {
+                    IconTile(symbol: LogType.symbol(timer.type), color: c, size: 30, round: true)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
+                        TimelineView(.periodic(from: .now, by: 1)) { tl in
+                            Text(clock(timer.elapsed(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
+                .contentShape(Rectangle())
             }
-            Spacer(minLength: 0)
+            .buttonStyle(.toy)
+            .accessibilityLabel("打开\(LogType.name(timer.type))计时")
             Button { j.togglePause(timer.type) } label: { Image(systemName: timer.pausedAt == nil ? "pause.fill" : "play.fill") }
                 .accessibilityLabel(timer.pausedAt == nil ? "暂停" : "继续")
             Button { j.stop(timer.type) } label: { Image(systemName: "stop.fill") }.accessibilityLabel("结束")

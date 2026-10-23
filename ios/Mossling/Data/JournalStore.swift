@@ -9,6 +9,8 @@ final class JournalStore {
     private(set) var logs: [LogEntry] = []
     private(set) var timers: [RunningTimer] = []
     private(set) var measures: [Measure] = []
+    /// The timer shown full screen, if any: set when a feed or sleep starts, or when the running one is opened.
+    var focus: String?
 
     init(preview: JournalFile.Body? = nil) { apply(preview ?? JournalFile.read()) }
 
@@ -23,7 +25,7 @@ final class JournalStore {
     }
     private func edit(_ f: (inout JournalFile.Body) -> Void) { var b = JournalFile.read(); f(&b); JournalFile.write(b); changed(b) }
 
-    func start(_ type: String, side: String? = nil, at: Date = Date()) { changed(JournalFile.start(type, side: side, at: at.timeIntervalSince1970 * 1000)) }
+    func start(_ type: String, side: String? = nil, at: Date = Date()) { changed(JournalFile.start(type, side: side, at: at.timeIntervalSince1970 * 1000)); focus = type }
     func togglePause(_ type: String) { changed(JournalFile.togglePause(type)) }
     func switchSide(_ type: String) { changed(JournalFile.switchSide(type)) }
     func shift(_ type: String, to: Date) { changed(JournalFile.shift(type, to: to.timeIntervalSince1970 * 1000)) }
@@ -38,8 +40,10 @@ final class JournalStore {
     func replaceAll(_ body: JournalFile.Body) { JournalFile.write(body); changed(body) }
 
     func last(_ type: String) -> Date? { logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate } }
+    /// The entries of a day: those that start on it, and those that run into it from the day before (a night's sleep
+    /// belongs to both days, each counting its own part).
     func logs(on day: Day) -> [LogEntry] {
         let a = day.date.timeIntervalSince1970 * 1000, b = day.plus(days: 1).date.timeIntervalSince1970 * 1000
-        return logs.filter { $0.start >= a && $0.start < b }
+        return logs.filter { e in (e.start >= a && e.start < b) || (e.start < a && (e.end ?? e.start) > a) }
     }
 }
