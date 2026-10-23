@@ -50,6 +50,9 @@ targets:
       - path: Widget
       - path: Shared
       - path: Mossling/Domain/Age.swift
+      - path: Art/widget
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: app.mossling.widget

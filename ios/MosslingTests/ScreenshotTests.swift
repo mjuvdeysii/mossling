@@ -154,4 +154,40 @@ final class ScreenshotTests: XCTestCase {
     }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
+
+    /// The widget and the Live Activity faces (ios/Shared/WidgetFaces.swift) at their Home Screen and Lock Screen
+    /// sizes: idle and with a feed running, by day and under the lamp.
+    func test32Widgets() {
+        let day = Day(y: 2026, m: 10, d: 19)
+        let now = day.date.addingTimeInterval(20 * 3600)
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会")
+        var idle = JournalFile.Body()
+        idle.logs = [LogEntry(type: LogType.nurse, start: ms(now) - 140 * 60_000, end: ms(now) - 120 * 60_000, side: "l"),
+                     LogEntry(type: LogType.sleep, start: ms(now) - 300 * 60_000, end: ms(now) - 200 * 60_000),
+                     LogEntry(type: LogType.diaper, start: ms(now) - 45 * 60_000, detail: "wet")]
+        var feeding = idle
+        feeding.timers = [RunningTimer(type: LogType.nurse, start: ms(now) - 9 * 60_000, side: "r", pausedAt: ms(now) - 60_000)]
+        func tile(_ w: CGFloat, _ h: CGFloat, _ v: some View) -> some View {
+            v.padding(16).frame(width: w, height: h).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        }
+        let state = TimerAttributes.ContentState(start: now.addingTimeInterval(-9 * 60), pausedAt: now.addingTimeInterval(-60), side: "r")
+        for dark in [false, true] {
+            let page = VStack(spacing: 18) {
+                HStack(spacing: 18) {
+                    tile(170, 170, TodayFace(date: now, snap: snap, body: idle, size: .small))
+                    tile(170, 170, TodayFace(date: now, snap: snap, body: feeding, size: .small))
+                }
+                tile(360, 170, TodayFace(date: now, snap: snap, body: idle, size: .medium))
+                tile(360, 170, TodayFace(date: now, snap: snap, body: feeding, size: .medium))
+                TimerFace(type: LogType.nurse, s: state).frame(width: 360).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                TimerFace(type: LogType.sleep, s: TimerAttributes.ContentState(start: now.addingTimeInterval(-50 * 60), pausedAt: now, side: nil))
+                    .frame(width: 360).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            }
+            .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background(dark ? Color(white: 0.08) : Color(red: 0.80, green: 0.86, blue: 0.92))
+            .fontDesign(.rounded)
+            shot(dark ? "32_widgets_dark" : "32_widgets", dark: dark, height: 1060, page)
+        }
+    }
 }
