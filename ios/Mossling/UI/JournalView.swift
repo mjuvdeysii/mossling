@@ -94,7 +94,7 @@ private struct StickerSheet: View {
                         ForEach(LogType.buttons[(r * 5)..<min(LogType.buttons.count, r * 5 + 5)], id: \.self) { t in
                             let run = timers.first { $0.type == t }
                             Sticker(type: t, running: run != nil,
-                                    since: run.map { "进行中 " + durationValue($0.elapsed(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
+                                    since: run.map { "进行中 " + durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
                         }
                     }
                 }
@@ -212,7 +212,7 @@ private struct RunningRow: View {
                     IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
                     Text(LogType.name(timer.type)).font(.body)
                     Spacer(minLength: 8)
-                    Text((timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.elapsed(tl.date.timeIntervalSince1970 * 1000)))
+                    Text((timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000)))
                         .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                 }
@@ -470,7 +470,7 @@ struct TimerScreen: View {
                 let paused = t.pausedAt != nil
                 VStack(spacing: 22) {
                     TimelineView(.periodic(from: .now, by: 1)) { tl in
-                        let secs = t.elapsed(tl.date.timeIntervalSince1970 * 1000)
+                        let secs = t.total(tl.date.timeIntervalSince1970 * 1000)   // the whole feed, across side changes
                         ZStack {
                             Dial(seconds: secs, color: c)
                             VStack(spacing: 4) {
@@ -618,7 +618,7 @@ struct TimerAccessory: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Text(clock(timer.elapsed(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
+                            Text(clock(timer.total(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
                         }
                     }
                     Spacer(minLength: 0)

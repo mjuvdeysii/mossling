@@ -13,7 +13,8 @@ struct MosslingWidgets: WidgetBundle {
 
 private extension Color {
     init(hex: UInt32) { self.init(.sRGB, red: Double((hex >> 16) & 0xFF) / 255, green: Double((hex >> 8) & 0xFF) / 255, blue: Double(hex & 0xFF) / 255) }
-    static let moss = Color(UIColor { $0.userInterfaceStyle == .dark ? UIColor(red: 0x30 / 255, green: 0xD1 / 255, blue: 0x58 / 255, alpha: 1) : UIColor(red: 0x24 / 255, green: 0x8A / 255, blue: 0x3D / 255, alpha: 1) })
+    /// The brand teal, deep enough for text (4.7:1 on white; the light value on dark).
+    static let moss = Crayon.ink(Crayon.teal)
 }
 private func serif(_ s: CGFloat) -> Font { .system(size: s, weight: .semibold, design: .rounded).monospacedDigit() }
 
@@ -130,9 +131,9 @@ private struct TodayWidgetView: View {
     private func timerLine(_ t: RunningTimer) -> some View {
         let c = LogType.color(t.type)
         return HStack(spacing: 6) {
-            Image(systemName: LogType.symbol(t.type)).foregroundStyle(c)
-            if t.pausedAt != nil { Text(minutesOf(t.elapsed(t.pausedAt!) )).font(.footnote.weight(.semibold)) }
-            else { Text(Date(timeIntervalSince1970: (t.start + t.pausedTotal) / 1000), style: .timer).font(serif(18)).monospacedDigit() }
+            Image(systemName: LogType.symbol(t.type)).foregroundStyle(Crayon.ink(c))
+            if let p = t.pausedAt { Text(minutesOf(t.total(p))).font(.footnote.weight(.semibold)) }
+            else { Text(t.countsFrom, style: .timer).font(serif(18)).monospacedDigit() }
         }
     }
 
@@ -145,8 +146,8 @@ private struct TodayWidgetView: View {
                 if !running, let d = last(type) { Text(agoText(d)).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.center) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .foregroundStyle(running ? .white : c)
-            .background(running ? c : c.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .foregroundStyle(running ? .white : Crayon.ink(c))
+            .background(running ? Crayon.buttonFill(c) : c.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -159,8 +160,8 @@ private struct TodayWidgetView: View {
                 Text("尿布").font(.caption2.weight(.semibold))
                 if let d = last(LogType.diaper) { Text(agoText(d)).font(.system(size: 9)).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.center) }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity).foregroundStyle(c)
-            .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .frame(maxWidth: .infinity, maxHeight: .infinity).foregroundStyle(Crayon.ink(c))
+            .background(c.opacity(0.16), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -172,7 +173,7 @@ struct TimerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimerAttributes.self) { ctx in
             LockScreenTimer(type: ctx.attributes.type, s: ctx.state)
-                .activityBackgroundTint(Color(uiColor: .systemBackground)).activitySystemActionForegroundColor(LogType.color(ctx.attributes.type))
+                .activityBackgroundTint(Color(uiColor: .systemBackground)).activitySystemActionForegroundColor(Crayon.ink(LogType.color(ctx.attributes.type)))
         } dynamicIsland: { ctx in
             let c = LogType.color(ctx.attributes.type)
             return DynamicIsland {
@@ -206,7 +207,7 @@ private struct LockScreenTimer: View {
         let c = LogType.color(type)
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Label(LogType.name(type) + side(s.side) + (s.pausedAt != nil ? " · 暂停中" : ""), systemImage: LogType.symbol(type)).font(.headline).foregroundStyle(c)
+                Label(LogType.name(type) + side(s.side) + (s.pausedAt != nil ? " · 暂停中" : ""), systemImage: LogType.symbol(type)).font(.headline).foregroundStyle(Crayon.ink(c))
                 Spacer()
                 Image("Pair").resizable().scaledToFit().frame(height: 30)
             }
@@ -224,10 +225,10 @@ private struct TimerButtons: View {
     var body: some View {
         let c = LogType.color(type)
         HStack(spacing: 8) {
-            Button(intent: TimerIntent(type: type, action: "stop")) { Text("结束").frame(maxWidth: .infinity) }.tint(c)
-            Button(intent: TimerIntent(type: type, action: "pause")) { Text(s.pausedAt == nil ? "暂停" : "继续").frame(maxWidth: .infinity) }.tint(light ? .white : .gray)
+            Button(intent: TimerIntent(type: type, action: "stop")) { Text("结束").frame(maxWidth: .infinity) }.tint(Crayon.buttonFill(c))
+            Button(intent: TimerIntent(type: type, action: "pause")) { Text(s.pausedAt == nil ? "暂停" : "继续").frame(maxWidth: .infinity) }.tint(light ? .white.opacity(0.28) : Color(white: 0.42))
             if type == LogType.nurse {
-                Button(intent: TimerIntent(type: type, action: "side")) { Text(s.side == "r" ? "换左边" : "换右边").frame(maxWidth: .infinity) }.tint(light ? .white : .gray)
+                Button(intent: TimerIntent(type: type, action: "side")) { Text(s.side == "r" ? "换左边" : "换右边").frame(maxWidth: .infinity) }.tint(light ? .white.opacity(0.28) : Color(white: 0.42))
             }
         }
         .buttonStyle(.borderedProminent)

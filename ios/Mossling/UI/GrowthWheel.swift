@@ -9,14 +9,22 @@ struct GrowthWheel: View {
     @Binding var month: Int
     let baby: Int
     @State private var arrived = 0
+    /// What the wheel shows while it turns. The page below follows only when the wheel comes to rest, so turning
+    /// it stays under the finger (re-laying out the whole page at every bead made it stutter).
+    @State private var preview: Int
+
+    init(month: Binding<Int>, baby: Int) {
+        _month = month; self.baby = baby; _preview = State(initialValue: month.wrappedValue)
+    }
 
     var body: some View {
-        let mo = app.content.month(month)
-        let plays = app.content.plays(of: month)
+        let m = preview
+        let mo = app.content.month(m)
+        let plays = app.content.plays(of: m)
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
                 Sky(hour: 12)
-                GrowingChild(month: month)
+                GrowingChild(month: m)
                     .frame(width: 150, height: 150)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
@@ -25,11 +33,11 @@ struct GrowthWheel: View {
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(month == 0 ? 34 : 46, relativeTo: .largeTitle, weight: .bold))
-                            .contentTransition(.numericText(value: Double(month)))
-                        if month > 0 { Text("个月").font(.headline) }
+                        Text(m == 0 ? "出生" : "\(m)").font(Typeface.numerals(m == 0 ? 34 : 46, relativeTo: .largeTitle, weight: .bold))
+                            .contentTransition(.numericText(value: Double(m)))
+                        if m > 0 { Text("个月").font(.headline) }
                     }
-                    Text(month == baby ? "宝宝在这里" : month < baby ? "走过的一站" : (app.birth.map { $0.plus(months: month).md + " 到这一站" } ?? "以后的一站"))
+                    Text(m == baby ? "宝宝在这里" : m < baby ? "走过的一站" : (app.birth.map { $0.plus(months: m).md + " 到这一站" } ?? "以后的一站"))
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 8).padding(.vertical, 3)
                         .background(Capsule().fill(.white.opacity(0.7)))
@@ -42,6 +50,7 @@ struct GrowthWheel: View {
             }
             .frame(height: 210)
             .clipped()
+            .animation(.spring(response: 0.45, dampingFraction: 0.75), value: m)   // the stage only, never the dial
 
             VStack(alignment: .leading, spacing: 10) {
                 Text(mo.title).font(.headline).lineLimit(2).fixedSize(horizontal: false, vertical: true)
@@ -54,29 +63,35 @@ struct GrowthWheel: View {
                     Text("\(plays.count) 个教具").font(.footnote).foregroundStyle(.secondary).padding(.leading, 4)
                     Spacer(minLength: 0)
                 }
-                MonthDial(month: $month, baby: baby)
+                MonthDial(preview: $preview, baby: baby) { settled in
+                    if settled != month { month = settled }
+                    if settled == baby { arrived += 1 }
+                }
             }
             .padding(.horizontal, 16).padding(.top, 12).padding(.bottom, 12)
         }
         .printCard(radius: 30)
-        .animation(.spring(response: 0.45, dampingFraction: 0.75), value: month)
-        .onChange(of: month) { _, m in if m == baby { arrived += 1 } }
+        // a change from outside (回到本月) moves the wheel too
+        .onChange(of: month) { _, v in if preview != v { preview = v } }
         .sensoryFeedback(.success, trigger: arrived)
     }
 }
 
 /// The wheel of months: beads on a band that scrolls sideways and snaps to a month, curving away at both ends like a
-/// wheel seen from the front, with a glass lens over the chosen month and a tick under the finger at every month.
+/// wheel seen from the front, a ring under the chosen month and a tick under the finger at every month. It reports
+/// the month under the ring as it turns (`preview`) and the month it settles on when the scroll comes to rest.
 private struct MonthDial: View {
-    @Binding var month: Int
+    @Binding var preview: Int
     let baby: Int
+    let settle: (Int) -> Void
     @State private var pos: Int?
+    @State private var start: Int
     private let item: CGFloat = 46
 
-    init(month: Binding<Int>, baby: Int) {
-        _month = month
-        self.baby = baby
-        _pos = State(initialValue: month.wrappedValue)   // centred on the chosen month from the first frame
+    init(preview: Binding<Int>, baby: Int, settle: @escaping (Int) -> Void) {
+        _preview = preview; self.baby = baby; self.settle = settle
+        _pos = State(initialValue: preview.wrappedValue)
+        _start = State(initialValue: preview.wrappedValue)   // the first position only; never moves while turning
     }
 
     var body: some View {
@@ -101,18 +116,20 @@ private struct MonthDial: View {
                                 .opacity(1 - min(0.45, abs(d) * 0.45))
                         }
                         .id(m)
-                        .onTapGesture { withAnimation(.snappy) { pos = m } }
+                        .onTapGesture { withAnimation(.snappy) { pos = m }; preview = m; settle(m) }
                         .accessibilityLabel(m == 0 ? "出生" : "满 \(m) 个月")
                     }
                 }
                 .scrollTargetLayout()
                 .padding(.horizontal, (g.size.width - item) / 2)
             }
-            .scrollTargetBehavior(.viewAligned)
+            .scrollTargetBehavior(.viewAligned(limitBehavior: .never))
             .scrollPosition(id: $pos, anchor: .center)
-            .defaultScrollAnchor(UnitPoint(x: CGFloat(month) / 36, y: 0.5))
+            .defaultScrollAnchor(UnitPoint(x: CGFloat(start) / 36, y: 0.5))
+            .onScrollPhaseChange { _, phase in
+                if phase == .idle, let p = pos { settle(p) }
+            }
             .background(alignment: .top) {
-                // a ring of gold under the chosen month (content layer: no glass)
                 Circle().fill(Palette.bead.opacity(0.14))
                     .overlay(Circle().strokeBorder(Palette.bead.opacity(0.55), lineWidth: 2))
                     .frame(width: 46, height: 46).offset(y: -3)
@@ -120,14 +137,18 @@ private struct MonthDial: View {
             }
         }
         .frame(height: 64)
-                .onChange(of: pos) { _, p in if let p, p != month { month = p } }
-        .onChange(of: month) { _, m in if pos != m { withAnimation(.snappy) { pos = m } } }
+        .onChange(of: pos) { _, p in if let p, p != preview { preview = p } }
+        .onChange(of: preview) { _, m in if pos != m { withAnimation(.snappy) { pos = m } } }
         .sensoryFeedback(.selection, trigger: pos)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("月份")
-        .accessibilityValue(month == 0 ? "出生" : "满 \(month) 个月")
+        .accessibilityValue(preview == 0 ? "出生" : "满 \(preview) 个月")
         .accessibilityAdjustableAction { d in
-            switch d { case .increment: month = min(36, month + 1); case .decrement: month = max(0, month - 1); default: break }
+            switch d {
+            case .increment: preview = min(36, preview + 1); settle(preview)
+            case .decrement: preview = max(0, preview - 1); settle(preview)
+            default: break
+            }
         }
     }
 }

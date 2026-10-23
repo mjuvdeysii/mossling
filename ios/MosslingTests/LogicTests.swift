@@ -159,4 +159,22 @@ final class LogicTests: XCTestCase {
         for k in ["A", "B", "C", "D", "E", "F"] { XCTAssertNotNil(IconTile.sticker(Palette.areaSymbol(k)), k) }
         for t in LogType.buttons { XCTAssertNotNil(IconTile.sticker(LogType.symbol(t)), t) }
     }
+
+    func testChangingSidesNeverLooksLikeAReset() {
+        // reported: changing sides from the widget set the clock back to 0:00 — every clock must show the whole feed
+        var b = JournalFile.Body()
+        b.timers = [RunningTimer(type: LogType.nurse, start: t(19, 10, 0), side: "l", pausedTotal: 60_000)]
+        let before = b.timers[0].total(t(19, 10, 8))                      // 8 min less a 1-min pause = 7 min
+        b = JournalFile.switchingSide(b, LogType.nurse, now: t(19, 10, 8))
+        let after = b.timers[0].total(t(19, 10, 8))
+        XCTAssertEqual(before, 420, accuracy: 0.5)
+        XCTAssertEqual(after, before, accuracy: 0.5, "the clock jumped when the side changed")
+        XCTAssertEqual(b.timers[0].total(t(19, 10, 10)), 540, accuracy: 0.5)   // and keeps counting the whole feed
+        XCTAssertEqual(b.timers[0].elapsed(t(19, 10, 10)), 120, accuracy: 0.5) // while the side counts from its change
+        // a Live Activity counting up from countsFrom shows the same total
+        XCTAssertEqual(Date(timeIntervalSince1970: t(19, 10, 10) / 1000).timeIntervalSince(b.timers[0].countsFrom), 540, accuracy: 0.5)
+        // a file written before `carried` existed still reads
+        let old = #"{"type":"nurse","start":1000,"side":"l","pausedTotal":0}"#.data(using: .utf8)!
+        XCTAssertEqual(try JSONDecoder().decode(RunningTimer.self, from: old).carried, 0)
+    }
 }

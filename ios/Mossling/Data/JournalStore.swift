@@ -14,12 +14,17 @@ final class JournalStore {
 
     init(preview: JournalFile.Body? = nil) { apply(preview ?? JournalFile.read()) }
 
-    func reload() { apply(JournalFile.read()) }
+    func reload() { apply(JournalFile.read()); seen = Self.stamp() }
+    /// Reloads only if the file changed since the app last read or wrote it — the Live Activity buttons and the widget
+    /// write the file from another process while the app may be open.
+    func refreshIfChanged() { let s = Self.stamp(); if s != seen { reload() } }
+    private var seen: Date? = nil
+    private static func stamp() -> Date? { (try? FileManager.default.attributesOfItem(atPath: JournalFile.url.path))?[.modificationDate] as? Date }
     private func apply(_ b: JournalFile.Body) {
         logs = b.logs.sorted { $0.start > $1.start }; timers = b.timers; measures = b.measures.sorted { $0.at < $1.at }
     }
     private func changed(_ b: JournalFile.Body) {
-        apply(b)
+        apply(b); seen = Self.stamp()
         Task { await LiveTimers.sync() }
         WidgetCenter.shared.reloadAllTimelines()
     }

@@ -16,7 +16,7 @@ enum LiveTimers {
         }
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         for t in timers {
-            let state = TimerAttributes.ContentState(start: Date(timeIntervalSince1970: (t.start + t.pausedTotal) / 1000),
+            let state = TimerAttributes.ContentState(start: t.countsFrom,
                                                      pausedAt: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) }, side: t.side)
             if let a = running.first(where: { $0.attributes.type == t.type }) {
                 await a.update(ActivityContent(state: state, staleDate: nil))

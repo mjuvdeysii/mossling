@@ -53,6 +53,11 @@ struct RootView: View {
             if p == .background { locked = true }
         }
         .task { if app.lock { unlock() }; app.publish() }
+        // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
+        .task(id: phase) {
+            guard phase == .active else { return }
+            while !Task.isCancelled { journal.refreshIfChanged(); try? await Task.sleep(for: .seconds(2)) }
+        }
         .onChange(of: app.publishKey) { _, _ in app.publish() }
     }
 

@@ -103,7 +103,27 @@ struct RunningTimer: Codable, Hashable {
     var side: String? = nil
     var pausedAt: Double? = nil
     var pausedTotal: Double = 0
+    /// Time already fed on earlier sides of this same feed (ms). Changing sides starts a new side, not a new feed:
+    /// every clock shows the whole feed, so a side change never looks like a reset.
+    var carried: Double = 0
+    /// This side so far, in seconds.
     func elapsed(_ now: Double) -> Double { ((pausedAt ?? now) - start - pausedTotal) / 1000 }
+    /// The whole feed (or sleep) so far, in seconds.
+    func total(_ now: Double) -> Double { elapsed(now) + carried / 1000 }
+    /// The moment a clock counting the whole feed would have started at (for timers that count up from a date).
+    var countsFrom: Date { Date(timeIntervalSince1970: (start + pausedTotal - carried) / 1000) }
+
+    enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried }
+    init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0) {
+        self.type = type; self.start = start; self.side = side; self.pausedAt = pausedAt; self.pausedTotal = pausedTotal; self.carried = carried
+    }
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        type = try c.decode(String.self, forKey: .type); start = try c.decode(Double.self, forKey: .start)
+        side = try c.decodeIfPresent(String.self, forKey: .side); pausedAt = try c.decodeIfPresent(Double.self, forKey: .pausedAt)
+        pausedTotal = try c.decodeIfPresent(Double.self, forKey: .pausedTotal) ?? 0
+        carried = try c.decodeIfPresent(Double.self, forKey: .carried) ?? 0   // files written before this field
+    }
 }
 
 struct Measure: Codable, Identifiable, Hashable {
@@ -168,7 +188,7 @@ enum JournalFile {
         if t.elapsed(n) < 30 { b.timers[i].side = other; return b }
         let paused = t.pausedTotal + (t.pausedAt.map { n - $0 } ?? 0)
         b.logs.append(LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: paused > 0 ? "paused:\(Int(paused))" : nil))
-        b.timers[i] = RunningTimer(type: type, start: n, side: other)
+        b.timers[i] = RunningTimer(type: type, start: n, side: other, carried: t.carried + t.elapsed(n) * 1000)
         return b
     }
     @discardableResult static func shift(_ type: String, to start: Double) -> Body {
