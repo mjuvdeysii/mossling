@@ -23,6 +23,10 @@ struct AskSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
+                    if type == LogType.nurse {
+                        Picker("方式", selection: $finished) { Text("现在开始计时").tag(false); Text("补记，已经喂完").tag(true) }
+                            .pickerStyle(.segmented)
+                    }
                     VStack(alignment: .leading, spacing: 10) {
                         Text(type == LogType.nurse ? (finished ? "什么时候喂完" : "开始时间") : "时间").font(.headline)
                         FlowChips(items: [(0, "现在"), (5, "5 分钟前"), (15, "15 分钟前"), (30, "半小时前"), (60, "1 小时前")], selected: exact == nil ? ago : nil, tint: c) { ago = $0; exact = nil }
@@ -45,8 +49,6 @@ struct AskSheet: View {
         let c = LogType.color(type)
         switch type {
         case LogType.nurse:
-            Picker("方式", selection: $finished) { Text("现在开始计时").tag(false); Text("补记，已经喂完").tag(true) }
-                .pickerStyle(.segmented)
             Text(finished ? "哪一侧" : "从哪一侧开始").font(.headline)
             HStack(spacing: 14) {
                 ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, t in

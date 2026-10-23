@@ -465,14 +465,14 @@ private struct Dial: View {
         for i in 0..<60 {
             let a: CGFloat = CGFloat(i) / 60 * 2 * .pi - .pi / 2
             let px: CGFloat = c.x + cos(a) * r, py: CGFloat = c.y + sin(a) * r
-            let d: CGFloat = i % 5 == 0 ? 11 : 8
+            let d: CGFloat = (i % 5 == 0 ? 11 : 8) + (i <= inHour ? 3 : 0)
             let rect = CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)
             if i <= inHour {
                 let hi = CGPoint(x: rect.minX + d * 0.35, y: rect.minY + d * 0.3)
                 ctx.fill(Path(ellipseIn: rect), with: .radialGradient(lit, center: hi, startRadius: 0, endRadius: d))
                 if i == inHour { ctx.stroke(Path(ellipseIn: rect.insetBy(dx: -3, dy: -3)), with: .color(color.opacity(0.4)), lineWidth: 2) }
             } else {
-                ctx.fill(Path(ellipseIn: rect), with: .color(color.opacity(0.14)))
+                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1.5, dy: 1.5)), with: .color(color.opacity(0.12)))
             }
         }
         let shown: Int = min(hours, 6)
