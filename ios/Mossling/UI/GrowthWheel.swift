@@ -79,7 +79,7 @@ private struct MonthDial: View {
     var body: some View {
         GeometryReader { g in
             ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 0) {
+                HStack(spacing: 0) {
                     ForEach(0...36, id: \.self) { m in
                         VStack(spacing: 4) {
                             Bead(month: m, here: m == baby, past: m < baby)
@@ -103,10 +103,11 @@ private struct MonthDial: View {
                     }
                 }
                 .scrollTargetLayout()
+                .padding(.horizontal, (g.size.width - item) / 2)
             }
-            .contentMargins(.horizontal, (g.size.width - item) / 2, for: .scrollContent)
             .scrollTargetBehavior(.viewAligned)
             .scrollPosition(id: $pos, anchor: .center)
+            .defaultScrollAnchor(UnitPoint(x: CGFloat(month) / 36, y: 0.5))
             .background(alignment: .top) {
                 // the lens over the chosen month
                 Capsule().fill(.clear)
