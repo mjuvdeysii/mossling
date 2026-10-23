@@ -93,7 +93,25 @@ private struct MonthBody: View {
                 }
             }
 
-            // the rest of the month as tiles: a picture, a word, and how much is recorded; each opens its own page
+            MonthParts(month: m)
+
+            Box(title: "专题") {
+                ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
+                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
+                }
+            }
+
+            if m == 36 { StoryGoesOn(primary: app.companion) }
+        }
+    }
+}
+
+/// The parts of a month as tiles: a picture, a word, and how much is recorded; each opens its own page.
+struct MonthParts: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month), m = month
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: "这个月")
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
@@ -128,15 +146,6 @@ private struct MonthBody: View {
                     }.buttonStyle(.toy)
                 }
             }
-
-            Box(title: "专题") {
-                ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
-                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
-                }
-            }
-
-            if m == 36 { StoryGoesOn(primary: app.companion) }
-        }
     }
 }
 

@@ -55,11 +55,11 @@ final class ScreenshotTests: XCTestCase {
     }
 
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
-    func test02Today() { let m = model(); shot("02_today", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
+    func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
-    func test05Journey() { let m = model(); shot("05_journey", height: 1600, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
-    func test05JourneyDark() { let m = model(companion: .otto); shot("05_journey_dark", dark: true, tabs(m, JourneyView(path: .constant(NavigationPath())))) }
+    func test05Months() { let m = model(); shot("05_months", height: 1300, MonthPicker { _ in }.environment(m).tint(Palette.accent).fontDesign(.rounded)) }
+    func test05MonthsDark() { let m = model(companion: .otto); shot("05_months_dark", dark: true, height: 1300, MonthPicker { _ in }.environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test06Play() { let m = model(); shot("06_play", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
     func test07Month() { let m = model(); shot("07_month", height: 2600, tabs(m, MonthView(month: 6))) }
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }

@@ -1,51 +1,121 @@
 import SwiftUI
 
-/// Today, as a page of the book: the scene with the two companions and the child's age, today's play, this week's
-/// shelf, and the next vaccination or check-up; from 36 months, the road that goes on.
+/// The home: this month of the child's life. The scene with the companions and the age (tap it to go to any other
+/// month), this week's shelf, the parts of the month to look at and tick, the other plays of the month, what comes
+/// next for vaccinations and check-ups, and the topics. From 36 months, the road that goes on.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
+    @State private var picking = false
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                SceneCard(askBirth: $askBirth)
+            VStack(alignment: .leading, spacing: 22) {
+                Button { if app.age == nil { askBirth = true } else { picking = true } } label: { SceneCard(askBirth: $askBirth) }
+                    .buttonStyle(.toy)
+                    .accessibilityHint("选择其他月份")
                 if let age = app.age {
                     let m = age.bookMonth
                     if age.months >= 36 { StoryGoesOn(primary: app.companion) }
-                    let plays = app.todaysPlays(m)
-                    if !plays.isEmpty {
-                        VStack(alignment: .leading, spacing: 10) {
-                            SectionTitle(title: "今天的教具")
-                            if app.skippedToday {
-                                HStack {
-                                    Text("今天不安排活动。").font(.body).foregroundStyle(.secondary)
-                                    Spacer()
-                                    Button("恢复") { withAnimation(.snappy) { app.skipDay = -1 } }.buttonStyle(.glass)
-                                }
-                                .padding(16).printCard()
-                            } else {
-                                PlayHero(play: plays[app.pickIndex % plays.count], month: m, count: plays.count)
-                            }
-                        }
-                    }
                     ShelfView(month: m) { arranging = true }
+                    MonthParts(month: m)
+                    MorePlays(month: m) { arranging = true }
                     NextCare(month: m)
                 }
+                Topics()
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("今天")
-        .navigationSubtitle([app.nickname.isEmpty ? nil : app.nickname, "\(app.today.md) \(app.today.weekday)"].compactMap { $0 }.joined(separator: " · "))
+        .navigationTitle(app.nickname.isEmpty ? "本月" : app.nickname)
+        .navigationSubtitle(app.age.map { a in "满 \(a.bookMonth) 个月 · " + app.content.month(a.bookMonth).title } ?? "\(app.today.md) \(app.today.weekday)")
         .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button("月份", systemImage: "circle.grid.3x3.fill") { picking = true }.accessibilityLabel("选择月份")
+            }
             ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel("搜索") }
         }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
+        .sheet(isPresented: $picking) { MonthPicker { m in path.append(Route.month(m)) } }
+    }
+}
+
+/// The month's other plays, not on the shelf: small rows with the picture, how many times, and a place on the shelf.
+private struct MorePlays: View {
+    @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
+    let month: Int
+    let arrange: () -> Void
+    var body: some View {
+        let shelf = app.weekShelf(month).plays.map(\.code)
+        let rest = app.content.plays(of: month).filter { !shelf.contains($0.code) }
+        if !rest.isEmpty {
+            Box(title: "这个月还能玩", detail: "\(rest.count) 个") {
+                ForEach(Array(rest.enumerated()), id: \.element.id) { i, p in
+                    MorePlayRow(play: p, month: month, onShelf: shelf, last: i == rest.count - 1, arrange: arrange)
+                }
+            }
+        }
+    }
+}
+
+private struct MorePlayRow: View {
+    @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
+    let play: Play, month: Int, onShelf: [String], last: Bool
+    let arrange: () -> Void
+    var body: some View {
+        let k = Palette.areaKey(of: play), n = app.record(play, j).count
+        VStack(spacing: 0) {
+            HStack(spacing: 12) {
+                NavigationLink(value: Route.play(play.code, month)) {
+                    HStack(spacing: 12) {
+                        if let f = ArtIndex.shared.steps(play.code).first {
+                            ArtFill(name: f).frame(width: 56, height: 56).clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(play.name).font(.body.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
+                            HStack(spacing: 6) {
+                                Image(systemName: Palette.areaSymbol(k)).foregroundStyle(Palette.area(k))
+                                Text(n > 0 ? "做过 \(n) 次" : play.age).foregroundStyle(.secondary)
+                            }
+                            .font(.caption)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.toy)
+                .contextMenu { PlayActions(play: play, month: month) }
+                Button {
+                    withAnimation(.snappy) { if onShelf.count < Shelf.max { app.setShelf(onShelf + [play.code]) } else { arrange() } }
+                } label: {
+                    Image(systemName: "plus").font(.headline).foregroundStyle(Palette.accent).frame(width: 36, height: 36)
+                        .background(Circle().fill(Palette.accent.opacity(0.12)))
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel("放上本周的架子")
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            if !last { Divider().padding(.leading, 82) }
+        }
+    }
+}
+
+/// The topics, as a short list.
+private struct Topics: View {
+    @Environment(AppModel.self) private var app
+    var body: some View {
+        let t = app.content.topics
+        Box(title: "专题") {
+            ForEach(Array(t.enumerated()), id: \.offset) { i, x in
+                NavigationLink(value: Route.topic(x.id)) { BoxRow(symbol: "book.pages.fill", color: Crayon.caramel, title: x.title, last: i == t.count - 1, opens: true) }.buttonStyle(.toy)
+            }
+        }
     }
 }
 
@@ -90,53 +160,6 @@ private struct SceneCard: View {
         .printCard(radius: 30)
     }
     private var isNight: Bool { let h = hour; return h >= 22 || h < 6 }
-}
-
-/// Today's play as a material card: the first step's picture, the name, the area and age, and what to do with it.
-private struct PlayHero: View {
-    @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
-    let play: Play, month: Int, count: Int
-    @State private var cheer = 0
-    var body: some View {
-        let key = Palette.areaKey(of: play)
-        let route = Route.play(play.code, month)
-        VStack(alignment: .leading, spacing: 0) {
-            NavigationLink(value: route) {
-                VStack(alignment: .leading, spacing: 0) {
-                    if let f = ArtIndex.shared.steps(play.code).first { ArtView(name: f, label: "第一步的图示", radius: 0) }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Label(play.domains.joined(separator: "、"), systemImage: Palette.areaSymbol(key)).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.area(key))
-                        Text(play.name).font(.title2.weight(.bold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                        DoneCount(record: app.record(play, j), cheer: cheer)
-                    }
-                    .padding(.horizontal, 16).padding(.top, 14)
-                }
-            }
-            .buttonStyle(.toy)
-            HStack(spacing: 10) {
-                Button { withAnimation(.snappy) { app.didPlay(play, month: month, j); cheer += 1 } } label: {
-                    Label("做过了", systemImage: "checkmark").fixedSize().padding(.horizontal, 4)
-                }
-                .buttonStyle(.glassProminent).controlSize(.large)
-                .sensoryFeedback(.success, trigger: cheer)
-                if count > 1 {
-                    Button("换一个") { withAnimation(.snappy) { app.another() } }.buttonStyle(.glass).controlSize(.large)
-                }
-                Spacer(minLength: 0)
-                Menu {
-                    PlayActions(play: play, month: month)
-                    Divider()
-                    Button("今天不安排活动", systemImage: "moon.zzz") { withAnimation(.snappy) { app.skipDay = app.today.epochDay } }
-                } label: { Image(systemName: "ellipsis").frame(width: 24, height: 24) }
-                    .buttonStyle(.glass).controlSize(.large).accessibilityLabel("更多")
-            }
-            .padding(16)
-        }
-        .printCard(radius: 26)
-        .zoomSource(route)
-        .contextMenu { PlayActions(play: play, month: month) }
-    }
 }
 
 /// This week's shelf: a wooden shelf with the week's materials standing on it, and empty places to fill.
@@ -232,7 +255,7 @@ private struct NextCare: View {
         if let birth = app.birth, let next = (month...36).first(where: { k in
             let mo = c.month(k)
             return mo.vaccines.indices.contains { !app.ticked(k, TickKind.vaccine, "\($0)") } || mo.checkups.indices.contains { !app.ticked(k, TickKind.checkup, "\($0)") }
-        }) {
+        }), next > month {
             let mo = c.month(next)
             let items = mo.vaccines.enumerated().filter { !app.ticked(next, TickKind.vaccine, "\($0.offset)") }.map(\.element)
                 + mo.checkups.enumerated().filter { !app.ticked(next, TickKind.checkup, "\($0.offset)") }.map(\.element)

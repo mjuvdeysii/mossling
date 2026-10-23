@@ -69,11 +69,8 @@ struct RootView: View {
 
     private var tabView: some View {
         TabView(selection: $tab) {
-            Tab("今天", systemImage: "sun.horizon.fill", value: 0) {
+            Tab("本月", systemImage: "leaf.fill", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday).environment(\.hue, .peach)
-            }
-            Tab("地图", systemImage: "map.fill", value: 1) {
-                NavigationStack(path: $growPath) { JourneyView(path: $growPath).routes(path: $growPath) }.environment(\.zoomNS, zoomJourney).environment(\.hue, .mint)
             }
             if app.journal {
                 Tab("手帐", systemImage: "book.closed.fill", value: 2) {
