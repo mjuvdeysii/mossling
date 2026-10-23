@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// The baby's picture with the chosen companion beside it, an arm round the frame. Choose the other companion and it
+/// The baby's picture with the chosen companion cuddled up beside it, a hand on the frame. Choose the other companion and it
 /// comes over and takes the hug; tap the picture and the companion hugs the baby tighter — eyes closed, a squeeze, a
 /// heart — with a soft haptic. The companion keeps the baby company, so it is drawn holding the baby's picture.
 struct HuggedAvatar: View {
@@ -15,7 +15,6 @@ struct HuggedAvatar: View {
         let c = size * 0.74
         // the companion's box: its body overlaps the frame's right edge
         let box = CGRect(x: size * 0.6, y: size - c * 0.86, width: c, height: c)
-        let shoulder = kind == .moss ? CGPoint(x: 0.21, y: 0.62) : CGPoint(x: 0.31, y: 0.6)
         ZStack(alignment: .topLeading) {
             Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
                 .modifier(Lively(giggle: hugs))
@@ -26,29 +25,23 @@ struct HuggedAvatar: View {
                 .overlay(Circle().strokeBorder(Color.white.opacity(0.9), lineWidth: 3))
                 .clipShape(Circle())
                 .scaleEffect(hugging ? 0.95 : 1, anchor: .trailing)
+                .rotationEffect(.degrees(hugging ? 5 : 0), anchor: .bottomTrailing)   // the frame leans into the cuddle
 
             Creature(kind: kind, mood: hugging ? .happy : .open, look: CGPoint(x: -0.9, y: 0.35), lid: hugging ? 1 : nil,
-                     lean: hugging ? -12 : -6, poke: false, arms: .rest)
+                     lean: hugging ? -16 : -6, poke: false, arms: .rest)
                 .frame(width: c, height: c)
                 .offset(x: box.minX, y: box.minY)
                 .id(kind)
                 .transition(reduce ? AnyTransition.opacity : AnyTransition.asymmetric(insertion: AnyTransition.offset(x: size * 0.8).combined(with: AnyTransition.opacity), removal: AnyTransition.opacity))
 
-            // the arm round the frame, in front of it: from the shoulder across the frame's lower edge
-            Canvas { ctx, _ in
-                let from = CGPoint(x: box.minX + shoulder.x * c, y: box.minY + shoulder.y * c)
-                // draped round the frame: up along its right edge, the hand resting on the rim (never over the child)
-                let to = CGPoint(x: size * (hugging ? 0.84 : 0.9), y: size * (hugging ? 0.3 : 0.36))
-                var p = Path(); p.move(to: from)
-                p.addQuadCurve(to: to, control: CGPoint(x: size * 1.04, y: size * 0.66))
-                let arm = kind == .moss ? Palette.mossDeep : Palette.rodDeep
-                ctx.stroke(p, with: .color(.white.opacity(0.9)), style: StrokeStyle(lineWidth: c * 0.075 + 3, lineCap: .round))   // a paper edge so it reads over the picture
-                ctx.stroke(p, with: .color(arm), style: StrokeStyle(lineWidth: c * 0.075, lineCap: .round))
-            }
-            .frame(width: size * 1.4, height: size * 1.1)
-            .allowsHitTesting(false)
-            .id("arm-\(kind)")
-            .transition(AnyTransition.opacity)
+            // its hand on the frame's edge, as a cuddle: a round mitt resting on the rim, pressed in for a squeeze
+            Circle().fill(kind == .moss ? Palette.mossDeep : Palette.rodDeep)
+                .overlay(Circle().strokeBorder(.white.opacity(0.9), lineWidth: 2))
+                .frame(width: c * 0.2, height: c * 0.2)
+                .offset(x: size * (hugging ? 0.84 : 0.88) - c * 0.1, y: size * (hugging ? 0.56 : 0.6) - c * 0.1)
+                .allowsHitTesting(false)
+                .id("hand-\(kind)")
+                .transition(AnyTransition.opacity)
 
             // a heart between the two, for each hug
             Figure(name: "ic_heart_fill.webp")
