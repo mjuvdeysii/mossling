@@ -198,7 +198,7 @@ struct PageBackground: View {
             // night: deep blue, warmed from the top by Otto's lamp
             ZStack {
                 Palette.lampPage
-                RadialGradient(colors: [Palette.amber.opacity(0.22), Palette.amber.opacity(0)], center: UnitPoint(x: 0.85, y: 0), startRadius: 0, endRadius: 420)
+                LampGlow()
                 Grain(dark: true)
                 Motes()
             }
@@ -225,13 +225,19 @@ struct PageBackground: View {
 /// a second, slowly enough to be felt more than watched. Still under Reduce Motion.
 struct DayAir: View {
     var tone: Color
+    /// Only a few drifting things, fainter (drawn over the content).
+    var sparse = false
+    /// Size of everything, for small previews (the theme swatches).
+    var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.1, paused: reduce)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduce)) { tl in
             Canvas { ctx, size in
                 let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-                sun(&ctx, size, t)
-                meadow(&ctx, size, t)
+                if !sparse {
+                    sun(&ctx, size, t)
+                    meadow(&ctx, size, t)
+                }
                 drift(&ctx, size, t)
             }
         }
@@ -240,95 +246,101 @@ struct DayAir: View {
 
     private func sun(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
         let o = CGPoint(x: size.width * 0.96, y: -size.height * 0.02)
-        ctx.fill(Path(ellipseIn: CGRect(x: o.x - 260, y: o.y - 260, width: 520, height: 520)),
-                 with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE9A8).opacity(0.55), Color(hex: 0xFFE9A8).opacity(0)]), center: o, startRadius: 0, endRadius: 260))
+        let R = 320 * scale
+        ctx.fill(Path(ellipseIn: CGRect(x: o.x - R, y: o.y - R, width: 2 * R, height: 2 * R)),
+                 with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE39A).opacity(0.75), Color(hex: 0xFFE9A8).opacity(0.25), Color(hex: 0xFFE9A8).opacity(0)]), center: o, startRadius: 0, endRadius: R))
         // three beams fanning down to the left, each breathing on its own slow cycle
         for i in 0..<3 {
             let a = (128.0 + Double(i) * 13 + Foundation.sin(t * 0.05 + Double(i)) * 2) * .pi / 180
-            let len = size.height * 0.9, w = 46.0 + Double(i) * 18
+            let len = size.height * 0.95, w = (54.0 + Double(i) * 22) * scale
             let dir = CGPoint(x: Foundation.cos(a), y: Foundation.sin(a)), nrm = CGPoint(x: -dir.y, y: dir.x)
             var p = Path()
             p.move(to: CGPoint(x: o.x + nrm.x * 6, y: o.y + nrm.y * 6))
             p.addLine(to: CGPoint(x: o.x + dir.x * len + nrm.x * w, y: o.y + dir.y * len + nrm.y * w))
             p.addLine(to: CGPoint(x: o.x + dir.x * len - nrm.x * w, y: o.y + dir.y * len - nrm.y * w))
             p.addLine(to: CGPoint(x: o.x - nrm.x * 6, y: o.y - nrm.y * 6))
-            let k = 0.07 + 0.04 * (0.5 + 0.5 * Foundation.sin(t * 0.35 + Double(i) * 2.1))
+            let k = 0.11 + 0.07 * (0.5 + 0.5 * Foundation.sin(t * 0.5 + Double(i) * 2.1))
             ctx.fill(p, with: .linearGradient(Gradient(colors: [Color(hex: 0xFFF3C4).opacity(k), Color(hex: 0xFFF3C4).opacity(0)]), startPoint: o,
                                              endPoint: CGPoint(x: o.x + dir.x * len, y: o.y + dir.y * len)))
         }
     }
 
     private func meadow(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
-        let w = size.width, h = size.height, base = h - 40
+        let w = size.width, h = size.height, base = h - 44 * scale
         // two soft hills
         var back = Path()
         back.move(to: CGPoint(x: 0, y: base - 10))
-        back.addCurve(to: CGPoint(x: w, y: base - 26), control1: CGPoint(x: w * 0.3, y: base - 58), control2: CGPoint(x: w * 0.62, y: base + 6))
+        back.addCurve(to: CGPoint(x: w, y: base - 26 * scale), control1: CGPoint(x: w * 0.3, y: base - 62 * scale), control2: CGPoint(x: w * 0.62, y: base + 6 * scale))
         back.addLine(to: CGPoint(x: w, y: h)); back.addLine(to: CGPoint(x: 0, y: h)); back.closeSubpath()
-        ctx.fill(back, with: .color(Color(hex: 0xBFE3B4).opacity(0.32)))
+        ctx.fill(back, with: .color(Color(hex: 0xBFE3B4).opacity(0.45)))
         var front = Path()
-        front.move(to: CGPoint(x: 0, y: base + 14))
-        front.addCurve(to: CGPoint(x: w, y: base + 4), control1: CGPoint(x: w * 0.4, y: base - 20), control2: CGPoint(x: w * 0.7, y: base + 30))
+        front.move(to: CGPoint(x: 0, y: base + 14 * scale))
+        front.addCurve(to: CGPoint(x: w, y: base + 4 * scale), control1: CGPoint(x: w * 0.4, y: base - 22 * scale), control2: CGPoint(x: w * 0.7, y: base + 30 * scale))
         front.addLine(to: CGPoint(x: w, y: h)); front.addLine(to: CGPoint(x: 0, y: h)); front.closeSubpath()
-        ctx.fill(front, with: .color(Color(hex: 0x9FD39A).opacity(0.3)))
+        ctx.fill(front, with: .color(Color(hex: 0x9FD39A).opacity(0.42)))
         // flowers on the hill, swaying from the stem
         let petals = [Color(hex: 0xFF8FAA), Color(hex: 0xFFD36B), Color(hex: 0xB39CF4), tone]
         for i in 0..<6 {
             let x = w * (0.08 + 0.17 * Double(i)) + Double(i % 2) * 9
-            let y = base + 12 - Foundation.sin(Double(i) * 1.7) * 8
-            let sway = Foundation.sin(t * 0.9 + Double(i) * 1.3) * 4
-            let top = CGPoint(x: x + sway, y: y - 18 - Double(i % 3) * 4)
+            let y = base + (12 - Foundation.sin(Double(i) * 1.7) * 8) * scale
+            let sway = Foundation.sin(t * 1.4 + Double(i) * 1.3) * 6 * scale
+            let top = CGPoint(x: x + sway, y: y - (26 + Double(i % 3) * 6) * scale)
             var stem = Path(); stem.move(to: CGPoint(x: x, y: y)); stem.addQuadCurve(to: top, control: CGPoint(x: x + sway * 0.2, y: y - 9))
-            ctx.stroke(stem, with: .color(Color(hex: 0x6ABF6E).opacity(0.45)), lineWidth: 1.4)
-            let c = petals[i % petals.count].opacity(0.55)
+            ctx.stroke(stem, with: .color(Color(hex: 0x6ABF6E).opacity(0.6)), lineWidth: 1.8 * scale)
+            let c = petals[i % petals.count].opacity(0.72)
+            let pr = 5.4 * scale, pd = 8.0 * scale
             for k in 0..<5 {
-                let a = Double(k) / 5 * 2 * .pi + t * 0.1
-                ctx.fill(Path(ellipseIn: CGRect(x: top.x + Foundation.cos(a) * 3.6 - 2.6, y: top.y + Foundation.sin(a) * 3.6 - 2.6, width: 5.2, height: 5.2)), with: .color(c))
+                let a = Double(k) / 5 * 2 * .pi + t * 0.15
+                ctx.fill(Path(ellipseIn: CGRect(x: top.x + Foundation.cos(a) * pr - pd / 2, y: top.y + Foundation.sin(a) * pr - pd / 2, width: pd, height: pd)), with: .color(c))
             }
-            ctx.fill(Path(ellipseIn: CGRect(x: top.x - 1.8, y: top.y - 1.8, width: 3.6, height: 3.6)), with: .color(Color(hex: 0xFFC23D).opacity(0.7)))
+            ctx.fill(Path(ellipseIn: CGRect(x: top.x - 2.6 * scale, y: top.y - 2.6 * scale, width: 5.2 * scale, height: 5.2 * scale)), with: .color(Color(hex: 0xFFC23D).opacity(0.85)))
         }
         // a wooden ring stacker and a ball resting in the grass on the right
-        let sx = w * 0.84, sy = base + 6
-        ctx.fill(Path(roundedRect: CGRect(x: sx - 16, y: sy - 4, width: 32, height: 6), cornerRadius: 3), with: .color(Color(hex: 0xD9A56C).opacity(0.4)))
-        ctx.fill(Path(roundedRect: CGRect(x: sx - 1.5, y: sy - 34, width: 3, height: 30), cornerRadius: 1.5), with: .color(Color(hex: 0xC98F5E).opacity(0.4)))
+        let q = 1.35 * scale, sx = w * 0.84, sy = base + 6 * scale
+        ctx.fill(Path(roundedRect: CGRect(x: sx - 16 * q, y: sy - 4 * q, width: 32 * q, height: 6 * q), cornerRadius: 3 * q), with: .color(Color(hex: 0xD9A56C).opacity(0.55)))
+        ctx.fill(Path(roundedRect: CGRect(x: sx - 1.5 * q, y: sy - 34 * q, width: 3 * q, height: 30 * q), cornerRadius: 1.5 * q), with: .color(Color(hex: 0xC98F5E).opacity(0.55)))
         for (k, c) in [Color(hex: 0x4C9BE8), Color(hex: 0x1FB5A6), Color(hex: 0xFFC23D), Color(hex: 0xFF6F91)].enumerated() {
-            let rw = 26.0 - Double(k) * 5
-            ctx.fill(Path(roundedRect: CGRect(x: sx - rw / 2, y: sy - 10 - Double(k) * 6.5, width: rw, height: 6.5), cornerRadius: 3.2), with: .color(c.opacity(0.32)))
+            let rw = (26.0 - Double(k) * 5) * q
+            ctx.fill(Path(roundedRect: CGRect(x: sx - rw / 2, y: sy - (10 + Double(k) * 6.5) * q, width: rw, height: 6.5 * q), cornerRadius: 3.2 * q), with: .color(c.opacity(0.48)))
         }
-        ctx.fill(Path(ellipseIn: CGRect(x: sx - 44, y: sy - 12, width: 14, height: 14)), with: .color(Color(hex: 0xF2554B).opacity(0.3)))
+        ctx.fill(Path(ellipseIn: CGRect(x: sx - 46 * q, y: sy - 12 * q, width: 14 * q, height: 14 * q)), with: .color(Color(hex: 0xF2554B).opacity(0.45)))
     }
 
     private func drift(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
         let w = size.width, h = size.height
-        for i in 0..<16 {
-            let s = Double(i) * 0.618
-            let period = 26.0 + Double(i % 5) * 7
+        let n = sparse ? 6 : 18, z = 1.7 * scale, fade = sparse ? 0.6 : 1.0
+        for i in 0..<n {
+            let s = Double(i) * 0.618 + (sparse ? 0.27 : 0)
+            let period = 15.0 + Double(i % 5) * 4.5
             let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 across the page
             let x = -30 + (w + 60) * f
             let y0 = h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1))
-            let y = y0 + f * 70 + Foundation.sin(t * 0.6 + Double(i) * 2.3) * 14
-            let a = min(1, f * 6) * min(1, (1 - f) * 6)                           // fade in and out at the edges
+            let y = y0 + f * 90 + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 18 * scale
+            let a = min(1, f * 6) * min(1, (1 - f) * 6) * fade                     // fade in and out at the edges
             let p = CGPoint(x: x, y: y)
             switch i % 4 {
             case 0:   // a dandelion seed: a fluff of fine rays on a short stalk
-                let r = 6.0
-                for k in 0..<7 {
-                    let q = Double(k) / 7 * .pi + .pi + Foundation.sin(t * 0.4 + Double(i)) * 0.2
+                let r = 6.0 * z
+                for k in 0..<9 {
+                    let q = Double(k) / 9 * .pi + .pi + Foundation.sin(t * 0.6 + Double(i)) * 0.2
                     var ray = Path(); ray.move(to: p); ray.addLine(to: CGPoint(x: p.x + Foundation.cos(q) * r, y: p.y + Foundation.sin(q) * r))
-                    ctx.stroke(ray, with: .color(Color.white.opacity(0.75 * a)), lineWidth: 0.8)
+                    ctx.stroke(ray, with: .color(Color.white.opacity(0.9 * a)), lineWidth: 1)
+                    ctx.fill(Path(ellipseIn: CGRect(x: p.x + Foundation.cos(q) * r - 1, y: p.y + Foundation.sin(q) * r - 1, width: 2, height: 2)), with: .color(Color.white.opacity(0.9 * a)))
                 }
-                var stalk = Path(); stalk.move(to: p); stalk.addLine(to: CGPoint(x: p.x, y: p.y + 6))
-                ctx.stroke(stalk, with: .color(Color(hex: 0xC9B48A).opacity(0.6 * a)), lineWidth: 0.8)
+                var stalk = Path(); stalk.move(to: p); stalk.addLine(to: CGPoint(x: p.x, y: p.y + 7 * z))
+                ctx.stroke(stalk, with: .color(Color(hex: 0xB8A070).opacity(0.75 * a)), lineWidth: 1)
             case 1:   // a petal in the tab's colour, turning
-                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(t * 0.5 + Double(i)))
-                g.fill(Path(ellipseIn: CGRect(x: -4, y: -2.2, width: 8, height: 4.4)), with: .color(tone.opacity(0.42 * a)))
+                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(t * 0.9 + Double(i))); g.scaleBy(x: z, y: z * (0.7 + 0.3 * Foundation.sin(t * 1.3 + Double(i))))
+                g.fill(Path(ellipseIn: CGRect(x: -4.5, y: -2.4, width: 9, height: 4.8)), with: .color(tone.opacity(0.62 * a)))
             case 2:   // a small leaf
-                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(Foundation.sin(t * 0.7 + Double(i)) * 0.9))
+                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(Foundation.sin(t * 1.1 + Double(i)) * 1.1)); g.scaleBy(x: z, y: z)
                 var leaf = Path(); leaf.move(to: CGPoint(x: -5, y: 0)); leaf.addQuadCurve(to: CGPoint(x: 5, y: 0), control: CGPoint(x: 0, y: -4)); leaf.addQuadCurve(to: CGPoint(x: -5, y: 0), control: CGPoint(x: 0, y: 4))
-                g.fill(leaf, with: .color(Color(hex: 0x6ABF6E).opacity(0.38 * a)))
+                g.fill(leaf, with: .color(Color(hex: 0x6ABF6E).opacity(0.55 * a)))
+                var vein = Path(); vein.move(to: CGPoint(x: -4, y: 0)); vein.addLine(to: CGPoint(x: 4, y: 0))
+                g.stroke(vein, with: .color(Color(hex: 0x3F8F4A).opacity(0.4 * a)), lineWidth: 0.6)
             default:  // a speck of pollen catching the light
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)), with: .color(Color(hex: 0xFFD36B).opacity(0.12 * a)))
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.4, y: p.y - 1.4, width: 2.8, height: 2.8)), with: .color(Color(hex: 0xFFC23D).opacity(0.55 * a)))
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 6 * z, y: p.y - 6 * z, width: 12 * z, height: 12 * z)), with: .color(Color(hex: 0xFFD36B).opacity(0.18 * a)))
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.8 * z, y: p.y - 1.8 * z, width: 3.6 * z, height: 3.6 * z)), with: .color(Color(hex: 0xFFC23D).opacity(0.7 * a)))
             }
         }
     }
@@ -373,24 +385,63 @@ struct Grain: View {
 
 /// Specks of Otto's lamplight drifting slowly in the dark, as dust in a lamp's beam: a dozen, faint, near the lamp at
 /// the top. Ten frames a second is enough for something this slow; still under Reduce Motion.
-private struct Motes: View {
+struct Motes: View {
+    /// Fewer and fainter, for drifting over the content itself.
+    var sparse = false
+    var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
-        TimelineView(.animation(minimumInterval: 0.1, paused: reduce)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduce)) { tl in
             Canvas { ctx, size in
                 let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-                for i in 0..<12 {
-                    let s = Double(i) * 0.618
-                    let x = size.width * (0.35 + 0.65 * s.truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.21 + Double(i)) * 18
-                    let y = size.height * 0.42 * (0.1 + (s * 1.7).truncatingRemainder(dividingBy: 1)) + Foundation.cos(t * 0.17 + Double(i) * 2) * 14
-                    let a = 0.18 + 0.22 * (0.5 + 0.5 * Foundation.sin(t * 0.8 + Double(i) * 1.3))
-                    let r = 1.2 + Double(i % 3) * 0.7
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 3, y: y - r * 3, width: r * 6, height: r * 6)), with: .color(Palette.amber.opacity(a * 0.25)))
+                let n = sparse ? 6 : 22
+                for i in 0..<n {
+                    let s = Double(i) * 0.618 + (sparse ? 0.31 : 0)
+                    // they rise slowly through the lamp's light, swaying, and come round again
+                    let period = 34.0 + Double(i % 4) * 9
+                    let f = (t / period + s).truncatingRemainder(dividingBy: 1)
+                    let x = size.width * (0.08 + 0.9 * (s * 1.3).truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.35 + Double(i)) * 26 * scale
+                    let y = size.height * (1.02 - f * 1.05)
+                    let edge = min(1, f * 6) * min(1, (1 - f) * 6)
+                    let a = (0.3 + 0.4 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge * (sparse ? 0.55 : 1)
+                    let r = (1.6 + Double(i % 4) * 0.9) * scale
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 4, y: y - r * 4, width: r * 8, height: r * 8)), with: .color(Palette.amber.opacity(a * 0.22)))
                     ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Palette.amber.opacity(a)))
                 }
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// Otto's lamp: a warm pool of amber from the top right that slowly brightens and dims like a flame behind paper,
+/// and a fainter second pool low on the left, so the whole page is lit, not just its corner.
+struct LampGlow: View {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 10, paused: reduce)) { tl in
+            let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+            let k = 0.88 + 0.12 * Foundation.sin(t * 0.7) + 0.04 * Foundation.sin(t * 2.3)
+            ZStack {
+                RadialGradient(colors: [Palette.amber.opacity(0.42 * k), Palette.amber.opacity(0.12 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.88, y: 0.02), startRadius: 0, endRadius: 560)
+                RadialGradient(colors: [Palette.amber.opacity(0.14 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.05, y: 0.92), startRadius: 0, endRadius: 420)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
+/// A few of the page's drifting things over the content itself — seeds and petals by day, motes of lamplight at
+/// night — so the air moves across the whole screen, not only between the cards. Sparse and faint; nothing to tap.
+struct AmbientDrift: View {
+    @Environment(\.lamp) private var lamp
+    var body: some View {
+        Group {
+            if lamp { Motes(sparse: true) } else { DayAir(tone: Crayon.sunflower, sparse: true) }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 }
 

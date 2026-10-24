@@ -54,22 +54,25 @@ struct YouView: View {
                 .printCard(radius: 28)
 
                 // how the app looks: three swatches to tap, and the lamp coming on by itself at night
+                // how the app looks: 日光 or 夜灯 as small living windows, and the lamp coming on by itself at night
                 Section2(title: "外观") {
-                    VStack(spacing: 14) {
-                        HStack(spacing: 10) {
+                    VStack(spacing: 10) {
+                        HStack(spacing: 8) {
                             ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
                                 Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
                             }
                         }
                         Divider()
                         Toggle(isOn: $app.nightLight) {
-                            VStack(alignment: .leading, spacing: 1) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "moon.stars.fill").font(.footnote).foregroundStyle(Palette.lampTint)
                                 Text("晚上自动开夜灯").font(.subheadline.weight(.semibold))
-                                Text("晚 7 点到早 6 点，整个应用换成夜灯").font(.caption).foregroundStyle(.secondary)
+                                Text("19:00–6:00").font(.caption).foregroundStyle(.secondary).monospacedDigit()
                             }
                         }
+                        .tint(Palette.accent)
                     }
-                    .padding(14).printCard(radius: 22)
+                    .padding(12).printCard(radius: 22)
                 }
 
                 // features, in pairs
@@ -199,8 +202,8 @@ private struct CompanionStage: View {
     }
 }
 
-/// One appearance to choose, drawn as a small page of it: paper by day, the lamp's blue with its amber light, or half
-/// and half for following the system.
+/// One appearance to choose, as a small living window of it: 日光 with its sunlight, seeds and grassy hill moving,
+/// 夜灯 with the lamp's glow breathing and motes rising, 自动 half of each. The chosen one is ringed and ticked.
 private struct Swatch: View {
     let mode: ThemeMode
     let on: Bool
@@ -208,37 +211,37 @@ private struct Swatch: View {
     var body: some View {
         Button(action: pick) {
             VStack(spacing: 6) {
-                ZStack {
-                    switch mode {
-                    case .light: RoundedRectangle(cornerRadius: 14, style: .continuous).fill(Color(hex: 0xFBF7F0))
-                    case .dark: lampPage
-                    case .system:
-                        HStack(spacing: 0) { Color(hex: 0xFBF7F0); lampPage }
-                            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                preview
+                    .frame(height: 54)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
+                    .overlay(alignment: .topTrailing) {
+                        if on { Image(systemName: "checkmark.circle.fill").font(.footnote).foregroundStyle(.white, Palette.accentFill).padding(5) }
                     }
-                    // a card on the page
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .fill(mode == .light ? Color.white : mode == .dark ? Palette.lampCard : Color.white.opacity(0.0))
-                        .frame(width: 40, height: 14).offset(y: 10)
-                    if mode != .light { Circle().fill(Palette.amber).frame(width: 7, height: 7).shadow(color: Palette.amber, radius: 4).offset(x: 22, y: -14) }
+                HStack(spacing: 4) {
+                    Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
+                        .font(.caption2).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Color.secondary)
+                    Text(mode.label).font(.caption.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Color.secondary)
                 }
-                .frame(height: 64)
-                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.25), lineWidth: on ? 2.5 : 1))
-                Text(mode == .light ? "白天" : mode == .dark ? "夜灯" : "跟随系统").font(.caption.weight(on ? .bold : .medium))
-                    .foregroundStyle(on ? Color.primary : Color.secondary)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)
-        .accessibilityLabel(mode == .light ? "白天" : mode == .dark ? "夜灯" : "跟随系统")
+        .accessibilityLabel(mode.label)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
-    private var lampPage: some View {
-        ZStack {
-            Palette.lampPage
-            RadialGradient(colors: [Palette.amber.opacity(0.3), .clear], center: .topTrailing, startRadius: 0, endRadius: 60)
+    @ViewBuilder private var preview: some View {
+        switch mode {
+        case .light: day
+        case .dark: night
+        case .system: HStack(spacing: 0) { day; night }
         }
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+    private var day: some View {
+        ZStack { Color(hex: 0xFBF7F0); DayAir(tone: Crayon.sunflower, scale: 0.45) }
+    }
+    private var night: some View {
+        ZStack { Palette.lampPage; LampGlow(); Motes(scale: 0.7) }
     }
 }
 

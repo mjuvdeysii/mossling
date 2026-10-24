@@ -33,7 +33,7 @@ struct AskSheet: View {
             }
             .navigationBarTitleDisplayMode(.inline)   // the name is on the stage
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
-            .background(lamp ? Palette.lampPage : Palette.background)
+            .background { PageBackground(tone: LogType.color(type)) }
         }
         .presentationDetents([.fraction(0.72), .large])
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }

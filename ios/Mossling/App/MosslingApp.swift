@@ -74,6 +74,8 @@ struct RootView: View {
         // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
         // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
         // system's own bars, pickers and sheets follow
+        // the air moves over everything, not only behind the cards: a few seeds and petals by day, motes at night
+        .overlay { if app.onboarded { AmbientDrift() } }
         .toasts()
         // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
         .onOpenURL { url in open(url) }

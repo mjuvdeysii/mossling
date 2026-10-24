@@ -10,7 +10,7 @@ struct Tick: Codable, Hashable {
 }
 
 enum ThemeMode: String, CaseIterable { case system, light, dark
-    var label: String { switch self { case .system: "跟随系统"; case .light: "白天"; case .dark: "夜灯" } }
+    var label: String { switch self { case .system: "自动"; case .light: "日光"; case .dark: "夜灯" } }
     var scheme: ColorScheme? { switch self { case .system: nil; case .light: .light; case .dark: .dark } }
 }
 

@@ -33,12 +33,12 @@ struct TimerScreen: View {
                 if let t = j.timers.first(where: { $0.type == type }) { running(t, c) } else { ready(c) }
             }
             .background {
+                // the same air as every page — sunlight and seeds by day, the lamp and its motes at night — tinted by
+                // the kind being timed
                 ZStack {
-                    if lamp { Palette.lampPage } else { Palette.background }
-                    let glow = lamp ? Palette.amber : c
-                    RadialGradient(colors: [glow.opacity(lamp ? 0.2 : 0.26), glow.opacity(0)], center: .top, startRadius: 0, endRadius: 520)
+                    PageBackground(tone: c)
+                    if !lamp { RadialGradient(colors: [c.opacity(0.2), c.opacity(0)], center: .top, startRadius: 0, endRadius: 520).ignoresSafeArea() }
                 }
-                .ignoresSafeArea()
             }
             .navigationTitle(LogType.name(type))
             .navigationBarTitleDisplayMode(.inline)
