@@ -354,9 +354,7 @@ private struct SidePad: View {
                         .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(color)).padding(10)
                 }
             }
-            .phaseAnimator(state == .running && !reduce ? [false, true] : [false]) { v, up in
-                v.scaleEffect(up ? 1.015 : 1)
-            } animation: { _ in .easeInOut(duration: 1.6) }
+            .modifier(Breathe(on: state == .running && !reduce, amount: 1.015, period: 1.6))
             .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
         }
         .buttonStyle(.toy)
@@ -412,9 +410,7 @@ private struct SleepPad: View {
                 Circle().fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
                               : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
             }
-            .phaseAnimator(!paused && !reduce ? [false, true] : [false]) { v, up in
-                v.scaleEffect(up ? 1.02 : 1)
-            } animation: { _ in .easeInOut(duration: 2.1) }   // slow, like a sleeping breath
+            .modifier(Breathe(on: !paused && !reduce, amount: 1.02, period: 2.1))   // slow, like a sleeping breath
             .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
             .frame(maxWidth: .infinity)
         }
@@ -476,5 +472,23 @@ struct Dial: View {
     var body: some View {
         Canvas { ctx, size in paint(&ctx, size) }
         .accessibilityHidden(true)
+    }
+}
+
+/// A slow breath: the pad grows a little and back, forever, while on. Only the scale is animated — the clock inside
+/// changes every second in its own, unanimated update (a phase animator animated those too, and the numbers smeared).
+struct Breathe: ViewModifier {
+    let on: Bool
+    let amount: CGFloat
+    let period: Double
+    @State private var up = false
+    func body(content: Self.Content) -> some View {
+        content
+            .scaleEffect(on && up ? amount : 1)
+            .onAppear { if on { withAnimation(.easeInOut(duration: period).repeatForever(autoreverses: true)) { up = true } } }
+            .onChange(of: on) { _, v in
+                if v { withAnimation(.easeInOut(duration: period).repeatForever(autoreverses: true)) { up = true } }
+                else { withAnimation(.easeOut(duration: 0.3)) { up = false } }
+            }
     }
 }
