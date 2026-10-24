@@ -203,7 +203,7 @@ struct OnboardingView: View {
 
             VStack(spacing: 8) {
                 Text("摸索台灯").font(.largeTitle.weight(.bold))
-                Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(.secondary)
+                Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(Palette.secondaryText)
             }
             .multilineTextAlignment(.center)
             .padding(.top, 8)
@@ -214,7 +214,7 @@ struct OnboardingView: View {
                 Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
                 Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")
-                    .font(.caption).foregroundStyle(.secondary).multilineTextAlignment(.center).padding(.top, 6)
+                    .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).padding(.top, 6)
                 HStack(spacing: 16) {
                     ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
                         Button(t) { doc = f }.font(.caption.weight(.semibold))

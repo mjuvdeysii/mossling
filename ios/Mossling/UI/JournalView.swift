@@ -122,7 +122,7 @@ private struct Sticker: View {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
                 Text(LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
+                Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -190,7 +190,7 @@ private struct DayPage: View {
                 Text("\(day.d)").font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .bold))
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(day.m)月 \(day.weekday)").font(.headline)
-                    Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(.secondary)
+                    Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer()
                 if lamp { Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.3), glow: true).frame(width: 52, height: 52) }
@@ -205,7 +205,7 @@ private struct DayPage: View {
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 VStack(spacing: 8) {
                     Duo(primary: lamp ? .otto : app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
-                    Text("这一页还空着").font(.subheadline).foregroundStyle(.secondary)
+                    Text("这一页还空着").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
             } else if !logs.isEmpty {
@@ -355,7 +355,7 @@ private struct DayRibbon: View {
             VStack(spacing: 6) {
                 Canvas { ctx, size in paint(&ctx, size, d0: d0, span: span, now: now) }
                     .frame(height: 30)
-                HStack { ForEach(["0:00", "6:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(.secondary).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
+                HStack { ForEach(["0:00", "6:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
             }
         }
         .accessibilityElement().accessibilityLabel("这一天的串珠：\(logs.count) 颗")
@@ -465,11 +465,11 @@ private struct Totals: View {
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
                     Ticking(text: p.0, tint: Crayon.ink(c)).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
-                    Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                 }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
-            Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(size.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.8)
+            Text(sub).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(size.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(10)
@@ -598,7 +598,7 @@ private struct GapRow: View {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
                 .frame(width: 28, height: 28)
-            Text("相隔 " + durationValue(seconds)).font(.caption.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
+            Text("相隔 " + durationValue(seconds)).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -627,9 +627,9 @@ private struct TimelineRow: View {
                 Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                 if let e = entry.endDate, bar > 24 {
                     Spacer(minLength: 0)
-                    Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(.secondary)
+                    Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(Palette.secondaryText)
                 } else if isToday {
-                    Text(agoShort(entry.endDate ?? entry.startDate, now)).font(.caption2).foregroundStyle(.secondary)
+                    Text(agoShort(entry.endDate ?? entry.startDate, now)).font(.caption2).foregroundStyle(Palette.secondaryText)
                 }
             }
             .frame(width: timeWidth, height: bar > 24 ? 24 + bar : nil, alignment: .topLeading)
@@ -648,7 +648,7 @@ private struct TimelineRow: View {
                     Spacer(minLength: 8)
                     Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
                 }
-                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(.secondary).monospacedDigit().lineLimit(2) }
+                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit().lineLimit(2) }
             }
             .padding(.top, 3)
         }
@@ -671,7 +671,7 @@ struct TimerAccessory: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Ticking(text: clock(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
+                            Ticking(text: clock(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Palette.secondaryText)
                         }
                     }
                     Spacer(minLength: 0)

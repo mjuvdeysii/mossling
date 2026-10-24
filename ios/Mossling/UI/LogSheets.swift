@@ -71,7 +71,7 @@ struct AskSheet: View {
             FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
             save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
         case LogType.diaper:
-            Text("点一下即记下").font(.subheadline).foregroundStyle(.secondary)
+            Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 12) {
                 ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
                     Button { j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {

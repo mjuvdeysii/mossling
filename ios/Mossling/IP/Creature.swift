@@ -350,7 +350,7 @@ struct StoryGoesOn: View {
             }
             .frame(height: 96)
             Text("故事仍在继续").font(.title2.weight(.bold)).padding(.top, 10)
-            Text("36 个月以后，路还很长，每一天都有新的样子。").font(.subheadline).foregroundStyle(.secondary)
+            Text("36 个月以后，路还很长，每一天都有新的样子。").font(.subheadline).foregroundStyle(Palette.secondaryText)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

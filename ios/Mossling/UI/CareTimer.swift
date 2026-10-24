@@ -82,7 +82,7 @@ struct TimerScreen: View {
 
                 // when it began: now unless said otherwise — set before starting, shown on the button
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("开始时间").font(.subheadline.weight(.semibold)).foregroundStyle(.secondary)
+                    Text("开始时间").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     WrapLayout(spacing: 8) {
                         ForEach([0, 5, 10, 15, 30], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
@@ -265,7 +265,7 @@ private struct Notice: View {
             IconTile(symbol: LogType.symbol(type), color: c, size: 30, round: true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(text).font(.subheadline.weight(.semibold))
-                Text(detail).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
             }
             Spacer(minLength: 6)
             Button(action, action: tap).buttonStyle(.bordered).tint(Crayon.ink(c)).font(.subheadline.weight(.semibold))
@@ -432,9 +432,9 @@ private struct Stat: View {
     var tint: Color? = nil
     var body: some View {
         VStack(spacing: 2) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             Ticking(text: value, tint: tint).font(Typeface.numerals(strong ? 26 : 20, relativeTo: .title2, weight: .bold))
-                .foregroundStyle(strong ? Color.primary : Color.secondary)
+                .foregroundStyle(strong ? Color.primary : Palette.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

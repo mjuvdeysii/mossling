@@ -46,7 +46,8 @@ final class AppModel {
         d = defaults
         self.content = content ?? (try! Content.load())
         self.growth = growth ?? (try! Growth.load())
-        birth = (d.object(forKey: "birth") as? Int).map { Day(epochDay: $0) }
+        // a number, or text from the launch arguments (the accessibility audit starts the app with -birth <day>)
+        birth = ((d.object(forKey: "birth") as? Int) ?? d.string(forKey: "birth").flatMap { Int($0) }).map { Day(epochDay: $0) }
         companion = Kind(rawValue: d.string(forKey: "companion") ?? "") ?? .moss
         theme = ThemeMode(rawValue: d.string(forKey: "theme") ?? "") ?? .system
         onboarded = d.bool(forKey: "onboarded")

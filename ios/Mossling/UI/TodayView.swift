@@ -114,7 +114,7 @@ private struct NowCard: View {
     private func words(_ a: String, _ b: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(a).font(.headline).foregroundStyle(.primary)
-            Text(b).font(.subheadline).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+            Text(b).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
         }
     }
     private func card<C: View>(tint: Color, @ViewBuilder _ c: () -> C) -> some View {
@@ -147,9 +147,9 @@ private struct MonthCard: View {
                         Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(30, relativeTo: .title, weight: .bold))
                         if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
                         if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text("天").font(.subheadline.weight(.semibold)) }
-                        if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
+                        if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
                     }
-                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
+                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
                     // the way through this month to the next: a bead on a string, and how many days are left
                     if month == baby, let a = app.age, a.days + a.toNext > 0 {
                         let k = Double(a.days) / Double(a.days + a.toNext)
@@ -166,7 +166,7 @@ private struct MonthCard: View {
                                 .frame(maxHeight: .infinity)
                             }
                             .frame(height: 10)
-                            Text("\(a.toNext) 天后满 \(month + 1) 个月").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit().fixedSize()
+                            Text("\(a.toNext) 天后满 \(month + 1) 个月").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize()
                         }
                         .padding(.top, 2)
                         .accessibilityElement(children: .ignore)
@@ -238,7 +238,7 @@ private struct Topics: View {
                         IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 56)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(x.t.title).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                            Text(x.t.sourceTitle).font(.caption).foregroundStyle(.secondary).lineLimit(2).multilineTextAlignment(.leading)
+                            Text(x.t.sourceTitle).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
                         }
                         Spacer(minLength: 0)
                     }

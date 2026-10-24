@@ -30,7 +30,7 @@ struct PlayView: View {
                         IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
                         Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
                         Spacer()
-                        Text(play.age).font(.subheadline).foregroundStyle(.secondary)
+                        Text(play.age).font(.subheadline).foregroundStyle(Palette.secondaryText)
                     }
                     Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
                     // how many times, and — for a time played without following the steps here — a small 记一次
@@ -69,7 +69,7 @@ struct PlayView: View {
                         Duo(primary: app.companion, size: 56, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
                         VStack(alignment: .leading, spacing: 3) {
                             Text("做完了").font(.headline)
-                            Text("记下了第 \(rec.count) 次" + (rec.count >= 3 ? "，越来越熟练" : "")).font(.subheadline).foregroundStyle(.secondary)
+                            Text("记下了第 \(rec.count) 次" + (rec.count >= 3 ? "，越来越熟练" : "")).font(.subheadline).foregroundStyle(Palette.secondaryText)
                         }
                         Spacer(minLength: 0)
                     }
@@ -142,9 +142,9 @@ struct Fold<Content: View>: View {
                 HStack(spacing: 12) {
                     IconTile(symbol: symbol, color: color, size: 30)
                     Text(title).font(.headline).foregroundStyle(.primary)
-                    Text(summary).font(.subheadline).foregroundStyle(.secondary).lineLimit(1)
+                    Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(1)
                     Spacer(minLength: 0)
-                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.secondary)
+                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
                         .rotationEffect(.degrees(open ? 180 : 0))
                 }
                 .padding(.horizontal, 16).padding(.vertical, 12)
@@ -203,7 +203,7 @@ private struct StepCard: View {
                             ArtView(name: art, radius: 10).frame(width: 76).opacity(done ? 0.6 : 1)
                         }
                         badge
-                        Text(text).font(.subheadline.weight(.medium)).foregroundStyle(done ? Color.secondary : Color.primary)
+                        Text(text).font(.subheadline.weight(.medium)).foregroundStyle(done ? Palette.secondaryText : Color.primary)
                             .lineLimit(2).multilineTextAlignment(.leading)
                         Spacer(minLength: 0)
                     }
@@ -250,7 +250,7 @@ struct DoneCount: View {
             }
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
             Ticking(text: record.count == 0 ? "还没做过" : "做过 \(record.count) 次" + (record.last.map { " · 上次 \(Day($0).md)" } ?? ""), tint: Palette.bead)
-                .font(.subheadline.weight(.semibold)).foregroundStyle(record.count == 0 ? Color.secondary : Color.primary)
+                .font(.subheadline.weight(.semibold)).foregroundStyle(record.count == 0 ? Palette.secondaryText : Color.primary)
                 .monospacedDigit()
                 .contentTransition(.numericText())
         }

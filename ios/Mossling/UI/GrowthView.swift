@@ -33,14 +33,14 @@ struct GrowthView: View {
                 chartCard
                 Box(title: "每一次测量", detail: j.measures.isEmpty ? nil : "\(j.measures.count) 次") {
                     let all = j.measures
-                    if all.isEmpty { Text("还没有测量记录").font(.subheadline).foregroundStyle(.secondary).padding(16) }
+                    if all.isEmpty { Text("还没有测量记录").font(.subheadline).foregroundStyle(Palette.secondaryText).padding(16) }
                     ForEach(Array(all.reversed().enumerated()), id: \.element.id) { i, m in
                         Button { editing = m } label: { row(m, last: i == all.count - 1) }.buttonStyle(.plain)
                             .contextMenu { Button("删除", systemImage: "trash", role: .destructive) { j.deleteMeasure(m) } }
                     }
                 }
                 Text("数据来源：世界卫生组织（WHO）儿童生长标准（2006）。百分位表示在同龄同性别儿童中的位置，不是评分；生长情况以儿童保健医生的评估为准。")
-                    .font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                    .font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -71,10 +71,10 @@ struct GrowthView: View {
             if let l = lastM, let v = value(l, ind) {
                 VStack(alignment: .leading, spacing: 2) {
                     ValueText(parts: [(ind.fmt(v), ind.unit)], size: 34)
-                    if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(.secondary) }
+                    if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
                 }
             } else {
-                Text("还没有\(ind.short)记录").font(.subheadline).foregroundStyle(.secondary)
+                Text("还没有\(ind.short)记录").font(.subheadline).foregroundStyle(Palette.secondaryText)
             }
             Chart {
                 // the bands, as thin slices (a tenth of a month each)
@@ -138,13 +138,13 @@ struct GrowthView: View {
             HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "\(d.y)年\(d.md)").font(.body)
-                    if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.subheadline).foregroundStyle(.secondary) }
+                    if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.subheadline).foregroundStyle(Palette.secondaryText) }
                 }
                 Spacer(minLength: 8)
                 VStack(alignment: .trailing, spacing: 2) {
                     ForEach(Indicator.allCases) { x in
                         if let v = value(m, x) {
-                            HStack(spacing: 3) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(.secondary) }
+                            HStack(spacing: 3) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
                                 .foregroundStyle(x == ind ? x.tint : .primary)
                         }
                     }
@@ -185,7 +185,7 @@ struct StatsView: View {
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
         return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("有记录的日子平均").font(.footnote).foregroundStyle(.secondary)
+                Text("有记录的日子平均").font(.footnote).foregroundStyle(Palette.secondaryText)
                 // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
                 if unit == "小时" { Text(durationValue(avg * 3600)).font(Typeface.numerals(26, relativeTo: .title2, weight: .bold)) }
                 else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 30) }

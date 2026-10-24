@@ -223,6 +223,11 @@ final class LogicTests: XCTestCase {
         for (sn, s) in darkSurfaces.dropFirst() { XCTAssertGreaterThanOrEqual(ratio(Palette.lampTint, s, .dark), 4.5, "lamp tint on the \(sn)") }
         XCTAssertGreaterThanOrEqual(ratio(Palette.lampTint, white, .dark), 3, "white on the lamp tint (selected day, prominent button)")
         XCTAssertGreaterThanOrEqual(ratio(Palette.accent, paper, .light), 4.5)
+        // secondary text on paper, a white card, the fill, and the faintly tinted cards (lilac, peach, sunflower washes)
+        for (sn, s) in [("paper", paper), ("white", white), ("fill", Color(hex: 0xF2EBE0)), ("lilac card", Color(hex: 0xF1ECF8)), ("peach card", Color(hex: 0xFCEBDD))] {
+            XCTAssertGreaterThanOrEqual(ratio(Palette.secondaryText, s, .light), 4.5, "secondary text on \(sn)")
+        }
+        for (sn, s) in darkSurfaces.dropFirst() { XCTAssertGreaterThanOrEqual(ratio(Palette.secondaryText, s, .dark), 4.5, "secondary text on the \(sn)") }
         XCTAssertGreaterThanOrEqual(ratio(Palette.accent, Palette.background, .dark), 4.5)
         XCTAssertGreaterThanOrEqual(ratio(Palette.accentFill, white, .dark), 4.5)
     }

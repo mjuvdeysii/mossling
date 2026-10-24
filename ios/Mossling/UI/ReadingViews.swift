@@ -8,7 +8,7 @@ struct TopicView: View {
             VStack(alignment: .leading, spacing: 16) {
                 BlocksView(blocks: topic.blocks)
                 if !topic.sourceTitle.isEmpty {
-                    Label(topic.sourceTitle, systemImage: "books.vertical").font(.footnote).foregroundStyle(.secondary).padding(.top, 8)
+                    Label(topic.sourceTitle, systemImage: "books.vertical").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.top, 8)
                 }
             }
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 40)
@@ -33,11 +33,11 @@ struct SearchView: View {
             if !plays.isEmpty {
                 Section("活动") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
                     let k = Palette.areaKey(of: p)
-                    Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(.secondary) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) } } } }
+                    Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) } } } }
             }
             if !months.isEmpty {
                 Section("月份") { ForEach(months, id: \.month) { m in NavigationLink(value: Route.month(m.month)) {
-                    Label { VStack(alignment: .leading, spacing: 2) { Text(m.month == 0 ? "出生" : "满 \(m.month) 个月"); Text(m.title).font(.subheadline).foregroundStyle(.secondary) } } icon: { Bead(month: m.month, here: false, past: true).scaleEffect(0.9) } } } }
+                    Label { VStack(alignment: .leading, spacing: 2) { Text(m.month == 0 ? "出生" : "满 \(m.month) 个月"); Text(m.title).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { Bead(month: m.month, here: false, past: true).scaleEffect(0.9) } } } }
             }
             if !topics.isEmpty {
                 Section("专题") { ForEach(topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
@@ -86,6 +86,6 @@ struct PlanView: View {
     }
     private func playLabel(_ p: Play) -> some View {
         let k = Palette.areaKey(of: p)
-        return Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(.secondary) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) }
+        return Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) }
     }
 }

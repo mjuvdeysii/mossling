@@ -66,7 +66,7 @@ struct GrowthWheel: View {
                         let k = Palette.areaKey(of: p)
                         IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k), size: 26)
                     }
-                    Text("\(plays.count) 个教具").font(.footnote).foregroundStyle(.secondary).padding(.leading, 4)
+                    Text("\(plays.count) 个教具").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                     Spacer(minLength: 0)
                 }
                 MonthDial(preview: $preview, baby: baby) { settled in
@@ -124,7 +124,7 @@ private struct MonthDial: View {
                                 .scaleEffect(m == baby ? 0.72 : 0.86)
                                 .frame(width: item, height: 40)
                             Text(m % 12 == 0 ? (m == 0 ? "出生" : "\(m / 12) 岁") : " ")
-                                .font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                                .font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                         }
                         .frame(width: item)
                         .visualEffect { content, proxy in

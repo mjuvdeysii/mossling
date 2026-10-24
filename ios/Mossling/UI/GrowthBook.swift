@@ -106,7 +106,7 @@ private struct BookTotals: View {
     private func item(_ n: String, _ unit: String) -> some View {
         VStack(spacing: 1) {
             Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.accent)
-            Text(unit).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+            Text(unit).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
         }
         .frame(maxWidth: .infinity)
     }
@@ -132,7 +132,7 @@ private struct BookPageView: View {
                                     .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(Palette.bead))
                             }
                         }
-                        Text(mo.title).font(.subheadline).foregroundStyle(.secondary).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
+                        Text(mo.title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
                         Text(range).font(.caption).foregroundStyle(.tertiary).monospacedDigit()
                     }
                     Spacer(minLength: 0)
@@ -172,7 +172,7 @@ private struct BookPageView: View {
 
             if page.empty {
                 Text(current ? "这个月的记录会出现在这里：玩过的教具、测量和照护。" : "这一站没有留下记录。")
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.footnote).foregroundStyle(Palette.secondaryText)
             }
         }
         .padding(16)
@@ -232,10 +232,10 @@ private struct FactChip: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(fact.value).font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(.primary)
-                    Text(fact.unit).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                    Text(fact.unit).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                 }
                 .lineLimit(1).fixedSize()
-                Text(fact.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+                Text(fact.label).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
         }
@@ -293,7 +293,7 @@ struct GrowthBookCard: View {
                 .frame(width: 92, height: 72)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("成长册").font(.headline).foregroundStyle(.primary)
-                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 个月 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(.secondary)
+                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 个月 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)

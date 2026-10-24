@@ -50,7 +50,7 @@ struct MonthView: View {
                     Text(mo.title).font(.title2.weight(.bold)).fixedSize(horizontal: false, vertical: true)
                     if let b = app.birth {
                         Label(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : ""), systemImage: "calendar")
-                            .font(.subheadline).foregroundStyle(.secondary)
+                            .font(.subheadline).foregroundStyle(Palette.secondaryText)
                     }
                 }
                 .padding(.horizontal, 20).padding(.top, 14)
@@ -124,11 +124,11 @@ struct MonthParts: View {
                 }
             }
             let small = smallParts(mo, m)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: type.isAccessibilitySize ? 2 : max(1, small.count)), spacing: 8) {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: type >= .xxLarge ? 2 : max(1, small.count)), spacing: 8) {
                 ForEach(small, id: \.title) { p in
                     let label = VStack(spacing: 6) {
                         IconTile(symbol: p.symbol, color: p.color, size: 38)
-                        Text(p.title).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center)
+                        Text(p.title).font(.caption.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     }
                     .padding(.vertical, 10).padding(.horizontal, 4).frame(maxWidth: .infinity)
                     .printCard(radius: 18)
@@ -182,7 +182,7 @@ struct MonthTile<Accessory: View>: View {
             }
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).minimumScaleFactor(0.8)
-                Text(note ?? " ").font(.caption2).foregroundStyle(.secondary).lineLimit(2).monospacedDigit()
+                Text(note ?? " ").font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(2).monospacedDigit()
             }
         }
         .padding(11)
@@ -270,7 +270,7 @@ struct CareView: View {
                         }
                     }
                 }
-                Text("具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                Text("具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -317,7 +317,7 @@ struct RhythmView: View {
                         : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Crayon.tangerine, "活动") : ("clock.fill", Crayon.aqua, "节奏")
                     Card(title: name, symbol: sym, color: col) { Text(t).font(.body).fixedSize(horizontal: false, vertical: true) }
                 }
-                Text("依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                Text("依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -380,7 +380,7 @@ struct PlayTile: View {
                 Text(play.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
             }
             Text(play.name).font(title.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-            Text(form == .lead ? "\(play.age) · \(play.steps.count) 步" : play.age).font(.caption).foregroundStyle(.secondary)
+            Text(form == .lead ? "\(play.age) · \(play.steps.count) 步" : play.age).font(.caption).foregroundStyle(Palette.secondaryText)
         }
     }
 }
@@ -402,7 +402,7 @@ struct ObserveView: View {
                         }
                     }
                 }
-                Text("每个孩子有自己的节奏。没看到的项目不代表落后；如有疑虑，请咨询儿童保健医生。").font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16)
+                Text("每个孩子有自己的节奏。没看到的项目不代表落后；如有疑虑，请咨询儿童保健医生。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }

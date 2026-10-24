@@ -86,7 +86,7 @@ struct Box<Content: View>: View {
             VStack(alignment: .leading, spacing: 0) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .printCard(radius: 26)
-            if let footer { Text(footer).font(.footnote).foregroundStyle(.secondary).padding(.horizontal, 16) }
+            if let footer { Text(footer).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16) }
         }
     }
 }
@@ -107,7 +107,7 @@ struct BoxRow<Trailing: View>: View {
                 if let symbol { IconTile(symbol: symbol, color: color) }
                 VStack(alignment: .leading, spacing: 3) {
                     Text(title).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                    if let text, !text.isEmpty { Text(rich(text)).font(.subheadline).foregroundStyle(.secondary).multilineTextAlignment(.leading) }
+                    if let text, !text.isEmpty { Text(rich(text)).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 trailing
@@ -141,7 +141,7 @@ struct CheckRow: View {
                         .contentTransition(.symbolEffect(.replace))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(text).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                        if let tag { Text(tag).font(.footnote).foregroundStyle(.secondary) }
+                        if let tag { Text(tag).font(.footnote).foregroundStyle(Palette.secondaryText) }
                     }
                     Spacer(minLength: 0)
                 }
@@ -182,7 +182,7 @@ struct BlocksView: View {
                                 ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { i, cell in
                                     Divider().padding(.leading, 16)
                                     VStack(alignment: .leading, spacing: 2) {
-                                        if i + 1 < head.count { Text(head[i + 1]).font(.footnote).foregroundStyle(.secondary) }
+                                        if i + 1 < head.count { Text(head[i + 1]).font(.footnote).foregroundStyle(Palette.secondaryText) }
                                         Text(rich(cell)).font(.body)
                                     }
                                     .padding(.horizontal, 16).padding(.vertical, 10)

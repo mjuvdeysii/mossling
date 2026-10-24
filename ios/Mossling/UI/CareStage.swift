@@ -178,13 +178,13 @@ struct LastLine: View {
                 HStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                         Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
                             .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
                     }
                     Spacer(minLength: 6)
                     VStack(alignment: .trailing, spacing: 0) {
-                        Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                         Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
                             .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
                     }
@@ -193,7 +193,7 @@ struct LastLine: View {
                 .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .accessibilityElement(children: .combine)
             } else {
-                Text("还没有" + LogType.name(type) + "的记录").font(.footnote).foregroundStyle(.secondary)
+                Text("还没有" + LogType.name(type) + "的记录").font(.footnote).foregroundStyle(Palette.secondaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 14).padding(.vertical, 10)
                     .background(LogType.color(type).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))

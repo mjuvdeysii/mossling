@@ -20,7 +20,7 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private var lines: [String] = [], unlabeled: [String] = []
 
-    private func audit(_ app: XCUIApplication, _ place: String) {
+    private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
@@ -29,7 +29,10 @@ final class AccessibilityAuditTests: XCTestCase {
                 if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { self.unlabeled.append("[\(place)] \(who)") }
                 return true   // recorded, reviewed from the list
             }
-        } catch { lines.append("[\(place)] audit failed: \(error)") }
+        } catch {
+            // the audit gives up when the page does not settle in time; once more after a pause
+            if again { sleep(3); audit(app, place, again: false) } else { lines.append("[\(place)] audit failed: \((error as NSError).localizedDescription)") }
+        }
     }
 
     private static func name(_ t: XCUIAccessibilityAuditType) -> String {

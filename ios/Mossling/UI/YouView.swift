@@ -37,7 +37,7 @@ struct YouView: View {
                                     .foregroundStyle(Palette.accent)
                                 }
                                 Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
-                                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
+                                    .font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -69,7 +69,7 @@ struct YouView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "moon.stars.fill").font(.footnote).foregroundStyle(Palette.lampTint)
                                 Text("晚上自动开夜灯").font(.subheadline.weight(.semibold))
-                                Text("19:00–6:00").font(.caption).foregroundStyle(.secondary).monospacedDigit()
+                                Text("19:00–6:00").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                             }
                         }
                         .tint(Palette.accent)
@@ -109,7 +109,7 @@ struct YouView: View {
                     }
                     .buttonStyle(.toy)
                     .printCard(radius: 22)
-                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary).padding(.leading, 4)
+                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                 }
 
                 if face {
@@ -118,7 +118,7 @@ struct YouView: View {
                             IconTile(symbol: "info", color: Crayon.sky, size: 32)
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("关于摸索台灯").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(.secondary)
+                                Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(Palette.secondaryText)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -155,7 +155,7 @@ private struct Section2<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(.secondary).padding(.leading, 4)
+            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
             content
         }
     }
@@ -181,8 +181,8 @@ private struct CompanionStage: View {
                                  poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
                             .frame(width: on ? 76 : 52, height: on ? 76 : 52)
                             .frame(height: 80, alignment: .bottom)
-                        Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Color.secondary)
-                        Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(.secondary)
+                        Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
+                        Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, minHeight: 124)
                     .padding(.vertical, 8)
@@ -222,8 +222,8 @@ private struct Swatch: View {
                     }
                 HStack(spacing: 4) {
                     Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
-                        .font(.caption2).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Color.secondary)
-                    Text(mode.label).font(.caption.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Color.secondary)
+                        .font(.caption2).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
+                    Text(mode.label).font(.caption.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -255,7 +255,7 @@ private struct Tile: View {
             IconTile(symbol: symbol, color: color, size: 32)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text(detail).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(1)
             }
         }
         .padding(12).frame(maxWidth: .infinity, alignment: .leading).printCard(radius: 20)
@@ -281,7 +281,7 @@ private struct DataRow: View {
             IconTile(symbol: symbol, color: color, size: 30, round: true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text(detail).font(.caption).foregroundStyle(.secondary)
+                Text(detail).font(.caption).foregroundStyle(Palette.secondaryText)
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -355,8 +355,8 @@ struct AboutView: View {
                 VStack(spacing: 6) {
                     Duo(primary: app.companion, size: 96)
                     Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
-                    Text("Mossling · 0–3 岁早教活动规划").font(.subheadline).foregroundStyle(.secondary)
-                    Text("版本 \(v)（\(b)）").font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+                    Text("Mossling · 0–3 岁早教活动规划").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text("版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
                 .listRowBackground(Color.clear)
@@ -408,16 +408,16 @@ struct DocView: View {
     @ViewBuilder private func docLine(_ l: String) -> some View {
         if l.hasPrefix("# ") { Text(l.dropFirst(2)).font(.largeTitle.weight(.bold)).padding(.bottom, 8) }
         else if l.hasPrefix("## ") { Text(l.dropFirst(3)).font(.title3.weight(.bold)).padding(.top, 18) }
-        else if l.hasPrefix("- ") { HStack(alignment: .firstTextBaseline, spacing: 8) { Text("•").foregroundStyle(.secondary); Text(rich(String(l.dropFirst(2)))).font(.body) } }
+        else if l.hasPrefix("- ") { HStack(alignment: .firstTextBaseline, spacing: 8) { Text("•").foregroundStyle(Palette.secondaryText); Text(rich(String(l.dropFirst(2)))).font(.body) } }
         else if let r = l.range(of: #"^\d+\. "#, options: .regularExpression) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) { Text(l[r].trimmingCharacters(in: .whitespaces)).font(.body.monospacedDigit()).foregroundStyle(.secondary).frame(width: 24, alignment: .leading); Text(rich(String(l[r.upperBound...]))).font(.body) }
+            HStack(alignment: .firstTextBaseline, spacing: 8) { Text(l[r].trimmingCharacters(in: .whitespaces)).font(.body.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(width: 24, alignment: .leading); Text(rich(String(l[r.upperBound...]))).font(.body) }
         }
         else if l.hasPrefix("|") {
             let cells = l.trimmingCharacters(in: CharacterSet(charactersIn: "|")).components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
             if !cells.allSatisfy({ $0.hasPrefix("---") }) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(rich(cells.first ?? "")).font(.headline)
-                    ForEach(Array(cells.dropFirst().enumerated()), id: \.offset) { _, c in Text(rich(c)).font(.subheadline).foregroundStyle(.secondary) }
+                    ForEach(Array(cells.dropFirst().enumerated()), id: \.offset) { _, c in Text(rich(c)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
                 }
                 .card(Palette.card, radius: 18, padding: 14)
             }
@@ -436,7 +436,7 @@ struct SourcesView: View {
             Section {
                 ForEach(Array(app.content.sources.enumerated()), id: \.offset) { i, s in
                     VStack(alignment: .leading, spacing: 3) {
-                        HStack(alignment: .firstTextBaseline) { Text("\(i + 1)").font(.footnote.monospacedDigit()).foregroundStyle(.secondary).frame(minWidth: 20, alignment: .leading); Text(s.org).font(.headline) }
+                        HStack(alignment: .firstTextBaseline) { Text("\(i + 1)").font(.footnote.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(minWidth: 20, alignment: .leading); Text(s.org).font(.headline) }
                         Text(s.title).font(.subheadline)
                         Text([s.date, s.checked].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "；")).font(.caption).foregroundStyle(Palette.secondaryText)
                         if let u = s.url, let url = URL(string: u), !u.isEmpty { Link(u, destination: url).font(.caption).lineLimit(2) }
@@ -444,7 +444,7 @@ struct SourcesView: View {
                     .padding(.vertical, 2)
                 }
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline) { Text("\(app.content.sources.count + 1)").font(.footnote.monospacedDigit()).foregroundStyle(.secondary).frame(minWidth: 20, alignment: .leading); Text("World Health Organization").font(.headline) }
+                    HStack(alignment: .firstTextBaseline) { Text("\(app.content.sources.count + 1)").font(.footnote.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(minWidth: 20, alignment: .leading); Text("World Health Organization").font(.headline) }
                     Text("WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准").font(.subheadline)
                     Text("2006").font(.caption).foregroundStyle(Palette.secondaryText)
                 }

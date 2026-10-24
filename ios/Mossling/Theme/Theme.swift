@@ -41,7 +41,10 @@ enum Palette {
     static let card = Color.dyn(0xFFFFFF, 0x19213F)
     static let fill = Color.dyn(0xF2EBE0, 0x212A4C)
     static let text = Color.primary
-    static let secondaryText = Color.secondary
+    /// Secondary text. The system's secondary label is 60 % of the primary, about 3.4:1 on white and under 3:1 on the
+    /// tinted cards — below WCAG's 4.5:1 for the small captions that carry it here (the accessibility audit flagged
+    /// them). A solid grey instead: 6.3:1 on white, ≥ 5.3:1 on every tinted card; by lamplight ≥ 6.8:1.
+    static let secondaryText = Color.dyn(0x5E5F66, 0xAEB4CC)
     static let outline = Color(uiColor: .separator)
     static let danger = Crayon.cherry
     /// An area's colour deep enough for text.
@@ -85,8 +88,16 @@ enum Typeface {
         default: .body }
         return UIFontMetrics(forTextStyle: ui).scaledValue(for: size)
     }
+    /// The text styles at their default (Large) sizes.
+    private static let styleSizes: [(Font.TextStyle, CGFloat)] = [(.largeTitle, 34), (.title, 28), (.title2, 22), (.title3, 20), (.headline, 17), (.body, 17),
+                                                                  (.callout, 16), (.subheadline, 15), (.footnote, 13), (.caption, 12), (.caption2, 11)]
     static func numerals(_ size: CGFloat, relativeTo style: Font.TextStyle = .body, weight: Font.Weight = .semibold) -> Font {
-        .system(size: scaled(size, style), weight: weight, design: .rounded).monospacedDigit()
+        // a size that is a text style's own is that text style — fully Dynamic Type, as the accessibility audit and
+        // VoiceOver's large content expect; display sizes in between scale with the given style
+        if let match = styleSizes.first(where: { $0.0 == style && $0.1 == size }) ?? styleSizes.first(where: { $0.1 == size }) {
+            return .system(match.0, design: .rounded, weight: weight).monospacedDigit()
+        }
+        return .system(size: scaled(size, style), weight: weight, design: .rounded).monospacedDigit()
     }
 }
 
@@ -448,7 +459,7 @@ struct Card<Content: View>: View {
                 Label(title, systemImage: symbol).font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(color))
                     .labelStyle(.titleAndIcon)
                 Spacer(minLength: 8)
-                if let detail { Text(detail).font(.footnote).foregroundStyle(.secondary).monospacedDigit() }
+                if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit() }
                 if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
             }
             content
@@ -468,7 +479,7 @@ struct ValueText: View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
                 Ticking(text: p.0).font(Typeface.numerals(size, relativeTo: .title, weight: .bold))
-                Text(p.1).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.trailing, i < parts.count - 1 ? 4 : 0)
+                Text(p.1).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.trailing, i < parts.count - 1 ? 4 : 0)
             }
         }
         .lineLimit(1).minimumScaleFactor(0.7)
@@ -483,7 +494,7 @@ struct SectionTitle: View {
         HStack(alignment: .firstTextBaseline) {
             Text(title).font(.title3.weight(.bold))
             Spacer()
-            if let detail { Text(detail).font(.footnote).foregroundStyle(.secondary) }
+            if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
         }
         .padding(.horizontal, 4).padding(.top, 20)
         .accessibilityAddTraits(.isHeader)
