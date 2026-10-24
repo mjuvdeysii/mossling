@@ -122,6 +122,12 @@ jobs:
           xcodebuild -exportArchive -archivePath build/Mossling.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export "${AUTH[@]}" 2>&1 | tee export.log | grep -E "error:|Upload|\*\* " || true
           grep -q "EXPORT SUCCEEDED" export.log
           echo "::notice title=TestFlight::build $BUILD uploaded; it appears in TestFlight after Apple finishes processing (usually 10–30 minutes)"
+      - name: Certificate for the App filing (备案 public key and SHA-1)
+        if: env.ASC_KEY_ID != ''
+        continue-on-error: true
+        run: |
+          python3 -m pip install --quiet --break-system-packages pyjwt cryptography 2>/dev/null || python3 -m pip install --quiet pyjwt cryptography
+          python3 tools/asc_certs.py
       - name: Report errors
         if: failure()
         working-directory: ios

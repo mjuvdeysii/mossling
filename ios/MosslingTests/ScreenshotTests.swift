@@ -18,11 +18,11 @@ final class ScreenshotTests: XCTestCase {
         return m
     }
 
-    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, window whole: Bool = false, lamp: Bool = false, _ view: V) {
+    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, width: CGFloat = 393, window whole: Bool = false, lamp: Bool = false, _ view: V) {
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
         // lamp: the phone in light mode with the lamp on — the app darkens its window then (RootView), so do the same
         let host = UIHostingController(rootView: view.environment(\.colorScheme, dark || lamp ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
-        let size = CGSize(width: 393, height: height)
+        let size = CGSize(width: width, height: height)
         let window = UIWindow(frame: CGRect(origin: .zero, size: size))
         window.overrideUserInterfaceStyle = dark || lamp ? .dark : .light   // the app darkens its window under the lamp
         window.rootViewController = host
@@ -129,6 +129,17 @@ final class ScreenshotTests: XCTestCase {
         }
         .padding(.horizontal, 12).padding(.vertical, 40).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(Palette.background)
         shot("34_afterimage", height: 560, page)
+    }
+    /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
+    /// asks for. The five screens a parent meets first.
+    func test35StoreScreens() {
+        let m = model(); m.journal = true
+        let big: (String, AnyView) -> Void = { name, v in self.shot("store_" + name, height: 956, width: 440, v) }
+        big("1_home", AnyView(tabs(m, TodayView(path: .constant(NavigationPath())))))
+        big("2_play", AnyView(tabs(m, PlayView(play: m.content.play("A11")!, month: 6))))
+        big("3_wheel", AnyView(wheel(m, 13).frame(maxHeight: .infinity, alignment: .top)))
+        big("4_journal", AnyView(tabs(m, JournalView(path: .constant(NavigationPath())))))
+        big("5_timer", AnyView(TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)))
     }
     /// A clock that looks forgotten is asked about; a one-tap record is said back with 撤销.
     func test33ChecksAndToast() {
