@@ -26,7 +26,7 @@ struct GrowthBookView: View {
         }
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle("成长册")
-        .navigationSubtitle(app.birth.map { "从 \($0.y)年\($0.md) 开始" } ?? "")
+        .navigationSubtitle(app.birth.map { "从 " + String($0.y) + "年" + $0.md + " 开始" } ?? "")
     }
 }
 
@@ -151,7 +151,7 @@ private struct BookPageView: View {
 
             let facts = self.facts
             if !facts.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 150 : 98), spacing: 8)], alignment: .leading, spacing: 8) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 220 : 140), spacing: 8)], alignment: .leading, spacing: 8) {
                     ForEach(facts, id: \.label) { f in FactChip(fact: f) }
                 }
                 if page.days > 0 {
@@ -228,12 +228,13 @@ private struct FactChip: View {
     let fact: Fact
     var body: some View {
         HStack(spacing: 8) {
-            IconTile(symbol: fact.symbol, color: fact.color, size: 26)
+            IconTile(symbol: fact.symbol, color: fact.color, size: 30)
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(fact.value).font(Typeface.numerals(16, relativeTo: .headline, weight: .bold)).foregroundStyle(.primary)
+                    Text(fact.value).font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(.primary)
                     Text(fact.unit).font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
                 }
+                .lineLimit(1).fixedSize()
                 Text(fact.label).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
             }
             Spacer(minLength: 0)
