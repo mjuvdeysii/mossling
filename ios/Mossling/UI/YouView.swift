@@ -53,7 +53,9 @@ struct YouView: View {
                 .background(LinearGradient(colors: [Crayon.lilac.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
                 .printCard(radius: 28)
 
-                // how the app looks: three swatches to tap, and the lamp coming on by itself at night
+                // the growth book: a page for every month lived, from what is already recorded
+                if app.birth != nil { GrowthBookCard() }
+
                 // how the app looks: 日光 or 夜灯 as small living windows, and the lamp coming on by itself at night
                 Section2(title: "外观") {
                     VStack(spacing: 10) {

@@ -192,6 +192,24 @@ final class ScreenshotTests: XCTestCase {
     /// One kind alone: tap 喂奶 and the day shows only feeds, with how many and the usual gap between them.
     func test15JournalOnlyFeeds() { let m = model(); m.journal = true; shot("15_journal_feeds", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()), only: "feed"))) }
     func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath())))) }
+    /// 成长册: a page for every month lived — plays as pictures with how many times, the month's measurement, care
+    /// averages and notes — newest first; and its door in 我的.
+    func test36GrowthBook() {
+        let m = model(); m.journal = true
+        let day = 86_400_000.0, n = at(10, 0)
+        var b = JournalFile.Body()
+        b.logs = [LogEntry(type: LogType.play, start: n - 1 * day, detail: "A11 双手物品传递机会"), LogEntry(type: LogType.play, start: n - 3 * day, detail: "A11 双手物品传递机会"),
+                  LogEntry(type: LogType.note, start: n - 2 * day, detail: "第一次自己坐稳了一会儿，看着镜子笑。"),
+                  LogEntry(type: LogType.sleep, start: n - 1 * day - 8 * 3_600_000, end: n - 1 * day - 2 * 3_600_000),
+                  LogEntry(type: LogType.nurse, start: n - 1 * day, end: n - 1 * day + 600_000, side: "l"), LogEntry(type: LogType.nurse, start: n - 1 * day + 660_000, end: n - 1 * day + 1_200_000, side: "r"),
+                  LogEntry(type: LogType.bottle, start: n - 1 * day + 4 * 3_600_000, amount: 120), LogEntry(type: LogType.diaper, start: n - 1 * day + 3_600_000, detail: "wet"),
+                  LogEntry(type: LogType.play, start: n - 40 * day, detail: "A08 安全触感体验"), LogEntry(type: LogType.play, start: n - 75 * day, detail: "A03 清醒趴玩")]
+        b.logs.sort { $0.start > $1.start }
+        b.measures = [Measure(at: n - 140 * day, weightG: 5400, lengthMm: 580, headMm: 385), Measure(at: n - 10 * day, weightG: 7400, lengthMm: 655, headMm: 425)]
+        let j = JournalStore(preview: b)
+        shot("36_growth_book", height: 2600, NavigationStack { GrowthBookView() }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+        shot("36_growth_book_dark", dark: true, height: 1400, NavigationStack { GrowthBookView() }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+    }
     func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }
     func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
     func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }

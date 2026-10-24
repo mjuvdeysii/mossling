@@ -137,25 +137,49 @@ private struct MonthCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     Sky(hour: night ? 22 : 12)
-                    GrowingChild(month: month).frame(width: 58, height: 58).offset(y: 4)
+                    GrowingChild(month: month).frame(width: 68, height: 68).offset(y: 5)
                 }
-                .frame(width: 76, height: 76)
-                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                VStack(alignment: .leading, spacing: 3) {
+                .frame(width: 88, height: 88)
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.6), lineWidth: 1.5))
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(30, relativeTo: .title, weight: .bold))
                         if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
-                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)); Text("天").font(.subheadline.weight(.semibold)) }
+                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text("天").font(.subheadline.weight(.semibold)) }
                         if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
                     }
                     Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
+                    // the way through this month to the next: a bead on a string, and how many days are left
+                    if month == baby, let a = app.age, a.days + a.toNext > 0 {
+                        let k = Double(a.days) / Double(a.days + a.toNext)
+                        HStack(spacing: 8) {
+                            GeometryReader { g in
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Palette.outline.opacity(0.5)).frame(height: 4)
+                                    Capsule().fill(LinearGradient(colors: [Crayon.sunflower, Palette.accentFill], startPoint: .leading, endPoint: .trailing))
+                                        .frame(width: max(8, g.size.width * k), height: 4)
+                                    Circle().fill(Palette.bead).frame(width: 10, height: 10)
+                                        .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
+                                        .offset(x: max(0, g.size.width * k - 5))
+                                }
+                                .frame(maxHeight: .infinity)
+                            }
+                            .frame(height: 10)
+                            Text("\(a.toNext) 天后满 \(month + 1) 个月").font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit().fixedSize()
+                        }
+                        .padding(.top, 2)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel("\(a.toNext) 天后满 \(month + 1) 个月")
+                    }
                 }
                 .foregroundStyle(.primary)
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
             }
             .padding(10).padding(.trailing, 6)
-            .printCard(radius: 24)
+            .background(LinearGradient(colors: [Crayon.sunflower.opacity(night ? 0.06 : 0.12), Crayon.sky.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .printCard(radius: 26)
         }
         .buttonStyle(.toy)
         .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
