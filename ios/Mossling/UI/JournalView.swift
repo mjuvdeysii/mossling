@@ -120,7 +120,7 @@ private struct Sticker: View {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
                 Text(LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Text(running ? (since ?? "进行中") : since ?? "—").font(.caption2).foregroundStyle(.secondary).monospacedDigit().lineLimit(1).minimumScaleFactor(0.7)
+                Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -219,7 +219,7 @@ private struct RunningRow: View {
                     IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
                     Text(LogType.name(timer.type)).font(.body).fixedSize()
                     Spacer(minLength: 8)
-                    Text((timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000)))
+                    Ticking(text: (timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c))
                         .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
                     Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                 }
@@ -336,7 +336,7 @@ private struct Totals: View {
             // numbers large, units small: "8 小时 5 分" fits a third of the width
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
-                    Text(p.0).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
+                    Ticking(text: p.0, tint: Crayon.ink(c)).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
                     Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
                 }
             }
@@ -535,7 +535,7 @@ struct TimerAccessory: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Text(clock(timer.total(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
+                            Ticking(text: clock(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(.secondary)
                         }
                     }
                     Spacer(minLength: 0)

@@ -367,7 +367,7 @@ struct PlayTile: View {
     }
     @ViewBuilder private var badge: some View {
         if times > 0 {
-            Text("×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
+            Ticking(text: "×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                 .padding(.horizontal, 8).frame(height: 24)
                 .background(Capsule().fill(Palette.bead))
                 .accessibilityLabel("做过 \(times) 次")

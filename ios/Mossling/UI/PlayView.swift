@@ -249,7 +249,7 @@ struct DoneCount: View {
                 }
             }
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
-            Text(record.count == 0 ? "还没做过" : "做过 \(record.count) 次" + (record.last.map { " · 上次 \(Day($0).md)" } ?? ""))
+            Ticking(text: record.count == 0 ? "还没做过" : "做过 \(record.count) 次" + (record.last.map { " · 上次 \(Day($0).md)" } ?? ""), tint: Palette.bead)
                 .font(.subheadline.weight(.semibold)).foregroundStyle(record.count == 0 ? Color.secondary : Color.primary)
                 .monospacedDigit()
                 .contentTransition(.numericText())

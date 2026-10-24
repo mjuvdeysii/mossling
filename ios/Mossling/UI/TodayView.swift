@@ -333,7 +333,7 @@ private struct ShelfItem: View {
                 Figure(name: "tray_\(play.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
                     .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
                 if times > 0 {
-                    Text("×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
+                    Ticking(text: "×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                         .padding(.horizontal, 6).frame(height: 18)
                         .background(Capsule().fill(Palette.bead))
                         .padding(4)

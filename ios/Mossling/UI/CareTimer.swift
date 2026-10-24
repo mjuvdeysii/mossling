@@ -184,7 +184,7 @@ struct TimerScreen: View {
                             }
                             .buttonStyle(.toy).accessibilityHint("改开始时间")
                         } else {
-                            Stat(title: "合计", value: clock(t.total(now)), strong: true)
+                            Stat(title: "合计", value: clock(t.total(now)), strong: true, tint: Crayon.ink(c))
                         }
                         Divider().frame(height: 34)
                         Stat(title: "暂停", value: t.paused(now) >= 1 ? clock(t.paused(now)) : "—", strong: false)
@@ -322,8 +322,12 @@ private struct SidePad: View {
                     .opacity(state == .other || isReady ? 0.55 : 1)
                 VStack(spacing: 2) {
                     Text(side == "l" ? "L" : "R").font(Typeface.numerals(30, weight: .heavy))
-                    Text(isReady ? (side == "l" ? "左侧" : "右侧") : seconds >= 1 ? clock(seconds) : "—").font(Typeface.numerals(20, relativeTo: .title3, weight: .bold)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Group {
+                        if isReady { Text(side == "l" ? "左侧" : "右侧") }
+                        else { Ticking(text: seconds >= 1 ? clock(seconds) : "—") }   // 余影: each second leaves an afterimage
+                    }
+                    .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
+                    .lineLimit(1).minimumScaleFactor(0.6)
                     HStack(spacing: 4) {
                         Image(systemName: isReady ? "play.fill" : on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
                         Text(hint).lineLimit(1).minimumScaleFactor(0.7)
@@ -392,8 +396,11 @@ private struct SleepPad: View {
                 Dial(seconds: seconds, color: paused && !ready ? color : .white).padding(10)
                 VStack(spacing: 6) {
                     IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
-                    Text(ready ? "开始睡觉" : clock(seconds)).font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold)).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.6)
+                    Group {
+                        if ready { Text("开始睡觉") } else { Ticking(text: clock(seconds)) }
+                    }
+                    .font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold))
+                    .lineLimit(1).minimumScaleFactor(0.6)
                     HStack(spacing: 4) {
                         Image(systemName: paused ? "play.fill" : "pause.fill")
                         Text(ready ? "点按开始计时" : paused ? "点按继续" : "点按暂停").lineLimit(1)
@@ -424,10 +431,11 @@ private struct Stat: View {
     let title: String
     let value: String
     let strong: Bool
+    var tint: Color? = nil
     var body: some View {
         VStack(spacing: 2) {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
-            Text(value).font(Typeface.numerals(strong ? 26 : 20, relativeTo: .title2, weight: .bold)).monospacedDigit()
+            Ticking(text: value, tint: tint).font(Typeface.numerals(strong ? 26 : 20, relativeTo: .title2, weight: .bold))
                 .foregroundStyle(strong ? Color.primary : Color.secondary)
         }
         .frame(maxWidth: .infinity)

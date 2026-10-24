@@ -305,7 +305,7 @@ struct ValueText: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline, spacing: 3) {
             ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
-                Text(p.0).font(Typeface.numerals(size, relativeTo: .title, weight: .bold))
+                Ticking(text: p.0).font(Typeface.numerals(size, relativeTo: .title, weight: .bold))
                 Text(p.1).font(.subheadline.weight(.semibold)).foregroundStyle(.secondary).padding(.trailing, i < parts.count - 1 ? 4 : 0)
             }
         }

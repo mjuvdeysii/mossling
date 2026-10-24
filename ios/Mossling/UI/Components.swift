@@ -331,3 +331,69 @@ struct LeadGrid<Item: Identifiable, Lead: View, Cell: View, Row: View>: View {
         }
     }
 }
+
+// MARK: 余影 — afterimages
+
+/// A value that changes leaves a soft afterimage of what it was: each character that changes lifts away, blurring
+/// and fading in the kind's colour, while the new one settles in sharp. The more significant the place (minutes over
+/// seconds, hours over minutes), the further and larger its afterimage, so a minute turning over is felt more than a
+/// second. Every live clock and every count that a tap changes uses it (ios/DESIGN.md §3, 余影). With Reduce Motion
+/// the value simply changes.
+struct Ticking: View {
+    let text: String
+    /// The afterimage's colour; nil keeps the text's own.
+    var tint: Color? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    var body: some View {
+        let chars = Array(text)
+        // places counted from the right among digits: 0 for the last digit, 1 for the one before, …
+        let place: [Int] = {
+            var out = Array(repeating: 0, count: chars.count), k = 0
+            for i in chars.indices.reversed() { out[i] = k; if chars[i].isNumber { k += 1 } }
+            return out
+        }()
+        HStack(spacing: 0) {
+            ForEach(chars.indices, id: \.self) { i in
+                let c = String(chars[i])
+                ZStack {
+                    Text(c)
+                        .id("\(i)·\(c)")
+                        .transition(reduce ? .identity : .afterimage(place: place[i], tint: tint))
+                }
+            }
+        }
+        .monospacedDigit()
+        .animation(reduce ? nil : .easeOut(duration: 0.9), value: text)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(text)
+    }
+}
+
+extension AnyTransition {
+    /// The new character settles in quickly; the old one lingers, lifts and blurs away.
+    static func afterimage(place: Int, tint: Color?) -> AnyTransition {
+        let p = CGFloat(min(place, 4))
+        return .asymmetric(
+            insertion: .modifier(active: Afterimage(fade: 1, rise: -2, blur: 1.5, scale: 0.96, tint: nil), identity: Afterimage.none).animation(.easeOut(duration: 0.24)),
+            removal: .modifier(active: Afterimage(fade: 1, rise: 7 + 3 * p, blur: 3.5 + p, scale: 1.04 + 0.035 * p, tint: tint), identity: Afterimage(fade: 0.45, rise: 0, blur: 0, scale: 1, tint: tint))
+                .animation(.easeOut(duration: 0.85 + 0.12 * Double(p)))
+        )
+    }
+}
+
+/// One frame of an afterimage: how far faded (0 sharp … 1 gone), lifted, blurred and grown.
+struct Afterimage: ViewModifier {
+    var fade: CGFloat, rise: CGFloat, blur: CGFloat, scale: CGFloat
+    var tint: Color?
+    static let none = Afterimage(fade: 0, rise: 0, blur: 0, scale: 1, tint: nil)
+    func body(content: Self.Content) -> some View {
+        Group {
+            if let tint { content.foregroundStyle(tint) } else { content }
+        }
+        .scaleEffect(scale)
+        .blur(radius: blur)
+        .offset(y: -rise)
+        .opacity(1 - fade)
+    }
+}
