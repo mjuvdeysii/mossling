@@ -25,7 +25,7 @@ struct JournalView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .pageBackground()
+        .pageBackground(tone: Crayon.pink)
         .navigationTitle("记录")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -264,9 +264,9 @@ private struct DayRibbon: View {
         }
         func bead(_ r: CGRect, _ c: Color) {
             let p = Path(roundedRect: r, cornerRadius: r.height / 2)
+            // flat beads, as the month's beads: colour and a soft darker rim, no gloss
             ctx.fill(p, with: .color(c))
-            ctx.fill(Path(roundedRect: r.insetBy(dx: 1.5, dy: 1.5).offsetBy(dx: 0, dy: -r.height * 0.18).insetBy(dx: r.width * 0.12, dy: r.height * 0.22),
-                          cornerRadius: r.height / 3), with: .color(.white.opacity(0.28)))
+            ctx.stroke(p, with: .color(c.mix(with: .black, by: 0.12)), lineWidth: 1)
         }
         let spans = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
         for (t, a, b) in spans where b > d0 && a < d0 + span {

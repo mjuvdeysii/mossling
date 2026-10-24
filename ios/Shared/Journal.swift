@@ -254,6 +254,21 @@ enum JournalFile {
         b.logs.append(LogEntry(type: type, start: t.start, end: max(t.start + 60_000, end), side: t.side, detail: paused > 0 ? "paused:\(Int(paused))" : nil))
         return b
     }
+    /// For a timer: how it stands against the one before — a feed against the start of the previous feed (breast or
+    /// bottle, its first side), a sleep against the last waking — as a short line, or nil when there is none.
+    static func note(for t: RunningTimer, in logs: [LogEntry]) -> String? {
+        let begun = t.start - t.carried - t.carriedPause
+        if t.type == LogType.nurse {
+            let feeds = logs.filter { ($0.type == LogType.nurse || $0.type == LogType.bottle) && $0.start < begun }.sorted { $0.start < $1.start }
+            guard var i = feeds.indices.last else { return nil }
+            while i > 0, feeds[i].type == LogType.nurse, feeds[i - 1].type == LogType.nurse, let pe = feeds[i - 1].end, feeds[i].start - pe <= 120_000 { i -= 1 }
+            return "距上一顿 " + minutesOf((begun - feeds[i].start) / 1000)
+        }
+        if t.type == LogType.sleep, let e = logs.filter({ $0.type == LogType.sleep && ($0.end ?? .infinity) <= begun }).compactMap(\.end).max() {
+            return "醒了 " + minutesOf((begun - e) / 1000) + " 后入睡"
+        }
+        return nil
+    }
     @discardableResult static func discard(_ type: String) -> Body { var b = read(); b.timers.removeAll { $0.type == type }; write(b); return b }
     @discardableResult static func add(_ e: LogEntry) -> Body { var b = read(); b.logs.append(e); write(b); return b }
 }
@@ -265,6 +280,8 @@ struct TimerAttributes: ActivityAttributes {
         var start: Date        // the start, moved later by any pause, so a running timer can count from it
         var pausedAt: Date?
         var side: String?
+        /// A line about the one before ("距上一顿 3 小时 20 分"), written by the app when it starts or updates the activity.
+        var note: String? = nil
     }
     var type: String
 }

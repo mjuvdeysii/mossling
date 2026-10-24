@@ -20,42 +20,56 @@ struct YouView: View {
         @Bindable var app = app
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                // the child, compact; tapping opens the sheet
-                Button { editing = true } label: {
-                    HStack(spacing: 12) {
-                        // the child from the picture book, at the child's own stage, in the chosen companion's arms
-                        HuggedAvatar(size: 62)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.headline).foregroundStyle(.primary)
-                            Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
-                                .font(.footnote).foregroundStyle(.secondary)
+                // the child and the companion, one card: who the app is for, and who keeps it company
+                VStack(spacing: 0) {
+                    Button { editing = true } label: {
+                        HStack(spacing: 16) {
+                            // the child from the picture book, at the child's own stage, in the chosen companion's arms
+                            HuggedAvatar(size: 86)
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title2.weight(.bold)).foregroundStyle(.primary)
+                                if let a = app.age {
+                                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                                        Ticking(text: "\(a.months)").font(Typeface.numerals(22, relativeTo: .title3, weight: .bold))
+                                        Text("个月").font(.footnote.weight(.semibold))
+                                        if a.days > 0 { Ticking(text: "\(a.days)").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).padding(.leading, 3); Text("天").font(.footnote.weight(.semibold)) }
+                                    }
+                                    .foregroundStyle(Palette.accent)
+                                }
+                                Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
+                                    .font(.caption).foregroundStyle(.secondary)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                        .padding(16)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 10).printCard(radius: 24)
+                    .buttonStyle(.toy)
+                    Divider().padding(.horizontal, 16)
+                    // the companions: the chosen one in front; tap the other to bring it forward
+                    CompanionStage()
                 }
-                .buttonStyle(.toy)
-
-                // the companions: a little stage, the chosen one in front; tap the other to bring it forward
-                Section2(title: "陪伴") { CompanionStage() }
+                .background(LinearGradient(colors: [Crayon.lilac.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                .printCard(radius: 28)
 
                 // how the app looks: three swatches to tap, and the lamp coming on by itself at night
                 Section2(title: "外观") {
-                    VStack(spacing: 12) {
+                    VStack(spacing: 14) {
                         HStack(spacing: 10) {
                             ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
                                 Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
                             }
                         }
+                        Divider()
                         Toggle(isOn: $app.nightLight) {
                             VStack(alignment: .leading, spacing: 1) {
                                 Text("晚上自动开夜灯").font(.subheadline.weight(.semibold))
                                 Text("晚 7 点到早 6 点，整个应用换成夜灯").font(.caption).foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 10).printCard(radius: 18)
                     }
+                    .padding(14).printCard(radius: 22)
                 }
 
                 // features, in pairs
@@ -73,23 +87,25 @@ struct YouView: View {
                 }
 
                 // data
-                Section2(title: "数据") { VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 10) {
+                // data: one card of rows, as Settings lists them; the destructive one last, in red, behind a confirmation
+                Section2(title: "数据") {
+                    VStack(spacing: 0) {
                         Menu {
                             Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "摸索台灯记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
                             Button("表格（CSV）", systemImage: "tablecells") { exportName = "摸索台灯记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
-                        } label: { DataKey(title: "导出", symbol: "square.and.arrow.up", color: Crayon.sky) }
-                        Button { importing = true } label: { DataKey(title: "导入", symbol: "square.and.arrow.down", color: Crayon.lilac) }
+                        } label: { DataRow(title: "导出记录", detail: "记录文件或表格", symbol: "square.and.arrow.up", color: Crayon.sky) }
+                        Divider().padding(.leading, 58)
+                        Button { importing = true } label: { DataRow(title: "导入记录", detail: "从摸索台灯导出的记录文件", symbol: "square.and.arrow.down", color: Crayon.lilac) }
+                        Divider().padding(.leading, 58)
+                        Button(role: .destructive) { clearing = true } label: {
+                            HStack { Text("清除全部数据").font(.subheadline.weight(.semibold)); Spacer() }
+                                .foregroundStyle(Palette.danger).padding(.horizontal, 16).padding(.vertical, 14).contentShape(Rectangle())
+                        }
                     }
                     .buttonStyle(.toy)
-                    HStack {
-                        Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary)
-                        Spacer()
-                        // destructive and rare: a quiet text button, behind a confirmation
-                        Button("清除全部数据", role: .destructive) { clearing = true }.font(.caption.weight(.semibold))
-                    }
-                    .padding(.horizontal, 4)
-                } }
+                    .printCard(radius: 22)
+                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(.secondary).padding(.leading, 4)
+                }
 
                 if face {
                     NavigationLink(value: Route.about) {
@@ -109,7 +125,7 @@ struct YouView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
-        .pageBackground()
+        .pageBackground(tone: Crayon.lilac)
         .navigationTitle("我的")
         .sheet(isPresented: $editing) { ProfileSheet() }
         .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting, contentType: exportName.hasSuffix(".csv") ? .commaSeparatedText : .json, defaultFilename: exportName) { r in
@@ -158,13 +174,13 @@ private struct CompanionStage: View {
                     VStack(spacing: 6) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.7 : -0.7, y: 0.1),
                                  poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: on ? 92 : 64, height: on ? 92 : 64)
-                            .frame(height: 96, alignment: .bottom)
+                            .frame(width: on ? 76 : 52, height: on ? 76 : 52)
+                            .frame(height: 80, alignment: .bottom)
                         Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Color.secondary)
                         Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(.secondary)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 150)
-                    .padding(.vertical, 12)
+                    .frame(maxWidth: .infinity, minHeight: 124)
+                    .padding(.vertical, 8)
                     .contentShape(Rectangle())   // the whole half of the stage is the button, not just the drawing
                 }
                 .buttonStyle(.toy)
@@ -176,10 +192,9 @@ private struct CompanionStage: View {
             // by day a soft gold floor; under the lamp a pool of amber light (a flat fill read as a hole on the blue)
             Ellipse().fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(lamp ? 0.4 : 0.22), .clear], center: .center, startRadius: 0, endRadius: 70))
                 .frame(width: 150, height: 22)
-                .offset(x: app.companion == .moss ? -80 : 80, y: -58)
+                .offset(x: app.companion == .moss ? -80 : 80, y: -50)
                 .animation(.spring(response: 0.45, dampingFraction: 0.7), value: app.companion)
         }
-        .printCard(radius: 24)
         .sensoryFeedback(.impact(weight: .light), trigger: cheer)
     }
 }
@@ -253,15 +268,20 @@ private struct SwitchTile: View {
     }
 }
 
-/// A small data key: icon over a word.
-private struct DataKey: View {
-    let title: String, symbol: String, color: Color
+/// One row of the data card: its sticker, what it does, a word on what it takes.
+private struct DataRow: View {
+    let title: String, detail: String, symbol: String, color: Color
     var body: some View {
-        VStack(spacing: 6) {
+        HStack(spacing: 12) {
             IconTile(symbol: symbol, color: color, size: 30, round: true)
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text(detail).font(.caption).foregroundStyle(.secondary)
+            }
+            Spacer(minLength: 0)
+            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
-        .frame(maxWidth: .infinity).padding(.vertical, 10).printCard(radius: 18)
+        .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
     }
 }
 

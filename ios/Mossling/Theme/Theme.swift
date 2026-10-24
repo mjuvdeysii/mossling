@@ -190,6 +190,9 @@ extension Palette {
 /// (ios/DESIGN.md §3); hierarchy comes from layout and grouping.
 struct PageBackground: View {
     @Environment(\.lamp) private var lamp
+    /// A faint wash of the tab's colour from the top (今天 sunflower, 记录 pink, 我的 lilac): the page stays paper,
+    /// but each place has its own light, like a room lit by a different window.
+    var tone: Color? = nil
     var body: some View {
         if lamp {
             // night: deep blue, warmed from the top by Otto's lamp
@@ -201,7 +204,15 @@ struct PageBackground: View {
             }
             .ignoresSafeArea().accessibilityHidden(true)
         } else {
-            ZStack { Palette.background; Grain(dark: false) }.ignoresSafeArea().accessibilityHidden(true)
+            ZStack {
+                Palette.background
+                if let tone {
+                    LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
+                    RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
+                }
+                Grain(dark: false)
+            }
+            .ignoresSafeArea().accessibilityHidden(true)
         }
     }
 }
@@ -268,7 +279,7 @@ private struct Motes: View {
 
 extension View {
     /// The page's background: paper.
-    func pageBackground() -> some View { background { PageBackground() } }
+    func pageBackground(tone: Color? = nil) -> some View { background { PageBackground(tone: tone) } }
 }
 
 /// A summary card, as in Health: a coloured label line (symbol, title, an optional detail and a chevron when it opens

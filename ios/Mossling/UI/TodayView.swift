@@ -45,7 +45,7 @@ struct TodayView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
-        .pageBackground()
+        .pageBackground(tone: Crayon.sunflower)
         .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {

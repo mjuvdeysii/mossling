@@ -9,7 +9,7 @@ import ActivityKit
 enum LiveTimers {
     static func sync() async {
         #if canImport(ActivityKit)
-        let timers = JournalFile.read().timers
+        let body = JournalFile.read(), timers = body.timers
         let running = Activity<TimerAttributes>.activities
         for a in running where !timers.contains(where: { $0.type == a.attributes.type }) {
             await a.end(nil, dismissalPolicy: .immediate)
@@ -17,7 +17,8 @@ enum LiveTimers {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         for t in timers {
             let state = TimerAttributes.ContentState(start: t.countsFrom,
-                                                     pausedAt: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) }, side: t.side)
+                                                     pausedAt: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) }, side: t.side,
+                                                     note: JournalFile.note(for: t, in: body.logs))
             if let a = running.first(where: { $0.attributes.type == t.type }) {
                 await a.update(ActivityContent(state: state, staleDate: nil))
             } else {

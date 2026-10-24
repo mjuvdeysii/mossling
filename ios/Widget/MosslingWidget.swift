@@ -63,8 +63,7 @@ private struct TodayWidgetView: View {
 struct TimerLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: TimerAttributes.self) { ctx in
-            TimerFace(type: ctx.attributes.type, s: ctx.state)
-                .activityBackgroundTint(WidgetInk.paper).activitySystemActionForegroundColor(Crayon.ink(LogType.color(ctx.attributes.type)))
+            LockScreenTimer(type: ctx.attributes.type, s: ctx.state)
                 .widgetURL(WidgetLinks.care(ctx.attributes.type))
         } dynamicIsland: { ctx in
             let c = LogType.color(ctx.attributes.type)
@@ -86,5 +85,20 @@ struct TimerLiveActivity: Widget {
             }
             .widgetURL(WidgetLinks.care(ctx.attributes.type))
         }
+    }
+}
+
+/// The Lock Screen face with a background in fixed colours for the appearance (paper by day, the lamp's blue at
+/// night): a colour that adapts by itself was drawn as an odd gold on a phone's Lock Screen.
+private struct LockScreenTimer: View {
+    let type: String
+    let s: TimerAttributes.ContentState
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let dark = scheme == .dark
+        TimerFace(type: type, s: s)
+            .environment(\.colorScheme, scheme)
+            .activityBackgroundTint(dark ? Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255) : Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255))
+            .activitySystemActionForegroundColor(Crayon.ink(LogType.color(type)))
     }
 }

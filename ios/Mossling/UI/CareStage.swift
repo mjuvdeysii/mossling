@@ -27,8 +27,6 @@ struct CareStage: View {
                 VStack(alignment: .leading, spacing: 6) {
                     IconTile(symbol: LogType.symbol(type), color: c, size: 46, round: true)
                     Text(LogType.name(type)).font(.title2.weight(.bold))
-                    Text(last).font(.footnote.weight(.medium)).foregroundStyle(.secondary).monospacedDigit()
-                        .lineLimit(2).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(18)
                 Spacer(minLength: 0)
@@ -135,5 +133,73 @@ private struct Drift: View {
         p.addQuadCurve(to: CGPoint(x: c.x - w, y: c.y), control: c)
         p.addQuadCurve(to: CGPoint(x: c.x, y: c.y - w), control: c)
         return p
+    }
+}
+
+/// When this kind was last recorded, and how long ago — on every record page, so the parent sees at a glance when
+/// the last feed (or sleep, or nappy) was before recording the next. A feed counts from the start of the last feed,
+/// breast or bottle, as feeding intervals are counted; a sleep from when the baby woke. The "ago" ticks once a minute
+/// with the afterimage. Running timers are not "last".
+struct LastLine: View {
+    let type: String
+    /// The start of a feed being timed now: the interval is then measured to it, not to now.
+    var until: Double? = nil
+    var compact = false
+    @Environment(JournalStore.self) private var j
+
+    struct Fact { let label: String; let at: Date; let note: String? }
+
+    static func fact(_ type: String, in logs: [LogEntry], before: Double = .infinity) -> Fact? {
+        let older = logs.filter { $0.start < before }
+        switch type {
+        case LogType.nurse, LogType.bottle:
+            let feeds = older.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.sorted { $0.start < $1.start }
+            guard var i = feeds.indices.last else { return nil }
+            // walk back over the sides of the same feed to its first side
+            while i > 0, feeds[i].type == LogType.nurse, feeds[i - 1].type == LogType.nurse, let pe = feeds[i - 1].end, feeds[i].start - pe <= 120_000 { i -= 1 }
+            let f = feeds[i]
+            let note = f.type == LogType.bottle ? "瓶喂 \(f.amount ?? 0) 毫升" : f.side.map { $0 == "l" ? "亲喂 · 先左侧" : "亲喂 · 先右侧" }
+            return Fact(label: "上次喂奶", at: f.startDate, note: note)
+        case LogType.sleep:
+            guard let s = older.filter({ $0.type == LogType.sleep && $0.end != nil }).max(by: { $0.start < $1.start }), let e = s.endDate else { return nil }
+            return Fact(label: "上次醒来", at: e, note: "睡了 " + durationValue(s.activeSeconds))
+        default:
+            guard let e = older.filter({ $0.type == type }).max(by: { $0.start < $1.start }) else { return nil }
+            return Fact(label: "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
+        }
+    }
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 30)) { tl in
+            if let f = Self.fact(type, in: j.logs, before: until ?? .infinity) {
+                let to = until.map { Date(timeIntervalSince1970: $0 / 1000) } ?? tl.date
+                let gap = to.timeIntervalSince(f.at)
+                let c = LogType.color(type)
+                HStack(spacing: 10) {
+                    Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 6) {
+                            Text(f.label).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
+                            Text(whenLabel(f.at)).font(.footnote.weight(.semibold)).monospacedDigit()
+                        }
+                        if !compact, let n = f.note { Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                    }
+                    Spacer(minLength: 6)
+                    VStack(alignment: .trailing, spacing: 0) {
+                        Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(.secondary)
+                        Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
+                            .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 10)
+                .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .accessibilityElement(children: .combine)
+            } else {
+                Text("还没有" + LogType.name(type) + "的记录").font(.footnote).foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14).padding(.vertical, 10)
+                    .background(LogType.color(type).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            }
+        }
     }
 }

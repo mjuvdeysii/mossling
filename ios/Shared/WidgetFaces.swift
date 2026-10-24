@@ -211,6 +211,7 @@ struct TimerFace: View {
                     Text(LogType.name(type) + TimerFace.side(s.side) + (s.pausedAt != nil ? " · 暂停中" : ""))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                     TimerFace.elapsed(s).font(WidgetInk.numerals(34)).foregroundStyle(.primary)
+                    if let n = s.note { Text(n).font(.caption.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit() }
                 }
                 Spacer(minLength: 0)
                 ArtImage(name: WidgetArt.pair).frame(width: 42, height: 42).padding(6).background(Circle().fill(WidgetInk.card))

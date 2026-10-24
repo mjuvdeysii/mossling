@@ -234,7 +234,7 @@ final class ScreenshotTests: XCTestCase {
             v.padding(16).frame(width: w, height: h).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
         }
-        let state = TimerAttributes.ContentState(start: now.addingTimeInterval(-9 * 60), pausedAt: now.addingTimeInterval(-60), side: "r")
+        let state = TimerAttributes.ContentState(start: now.addingTimeInterval(-9 * 60), pausedAt: now.addingTimeInterval(-60), side: "r", note: "距上一顿 2 小时 20 分")
         for dark in [false, true] {
             let page = VStack(spacing: 18) {
                 HStack(spacing: 18) {

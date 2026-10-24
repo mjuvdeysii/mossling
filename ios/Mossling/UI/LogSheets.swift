@@ -23,6 +23,7 @@ struct AskSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     CareStage(type: type)
+                    LastLine(type: type)
                     DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                         .padding(.horizontal, 16).padding(.vertical, 10)
                         .printCard(radius: 20)

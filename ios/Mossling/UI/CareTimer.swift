@@ -59,11 +59,8 @@ struct TimerScreen: View {
             VStack(spacing: 18) {
                 Duo(primary: lamp ? .otto : app.companion, size: 62, mood: .open, look: CGPoint(x: 0, y: 0.5), poke: true, night: lamp)
                     .frame(maxWidth: .infinity).padding(.top, 4)
-                VStack(spacing: 4) {
-                    Text(type == LogType.nurse ? "从哪一侧开始" : "宝宝要睡了").font(.title3.weight(.bold))
-                    Text(lastLine).font(.subheadline).foregroundStyle(.secondary).monospacedDigit()
-                }
-                .multilineTextAlignment(.center)
+                Text(type == LogType.nurse ? "从哪一侧开始" : "宝宝要睡了").font(.title3.weight(.bold))
+                LastLine(type: type)
 
                 // something else still running: say so here, so two clocks never run unnoticed
                 if let o = j.timers.first(where: { $0.type == other }) {
@@ -158,6 +155,7 @@ struct TimerScreen: View {
                         poke: true, cheer: hop, night: lamp)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 4)
+                    LastLine(type: type, until: t.start - t.carried - t.carriedPause, compact: true)
 
                     if type == LogType.nurse {
                         HStack(spacing: 12) {
