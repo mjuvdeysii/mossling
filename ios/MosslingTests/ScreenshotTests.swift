@@ -133,13 +133,28 @@ final class ScreenshotTests: XCTestCase {
     /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
     /// asks for. The five screens a parent meets first.
     func test35StoreScreens() {
-        let m = model(); m.journal = true
+        // a day as it is when the screenshots are taken: today, a baby of six and a half months, records of the last hours
+        let m = model(birth: Day.today.plus(days: -200)); m.today = .today; m.journal = true
+        let n = ms(Date()), h = 3_600_000.0
+        var b = JournalFile.Body()
+        b.logs = [LogEntry(type: LogType.sleep, start: n - 10.5 * h, end: n - 4 * h),
+                  LogEntry(type: LogType.diaper, start: n - 3.9 * h, detail: "wet"),
+                  LogEntry(type: LogType.nurse, start: n - 3.7 * h, end: n - 3.45 * h, side: "l"),
+                  LogEntry(type: LogType.nurse, start: n - 3.45 * h, end: n - 3.3 * h, side: "r"),
+                  LogEntry(type: LogType.solid, start: n - 2 * h, detail: "米粉"),
+                  LogEntry(type: LogType.diaper, start: n - 1.2 * h, detail: "dirty"),
+                  LogEntry(type: LogType.bottle, start: n - 0.6 * h, amount: 120, detail: "breastmilk")]
+        let quiet = JournalStore(preview: b)
+        var b2 = b; b2.timers = [RunningTimer(type: LogType.nurse, start: n - 9 * 60_000, side: "r")]
+        let feeding = JournalStore(preview: b2)
         let big: (String, AnyView) -> Void = { name, v in self.shot("store_" + name, height: 956, width: 440, v) }
-        big("1_home", AnyView(tabs(m, TodayView(path: .constant(NavigationPath())))))
-        big("2_play", AnyView(tabs(m, PlayView(play: m.content.play("A11")!, month: 6))))
-        big("3_wheel", AnyView(wheel(m, 13).frame(maxHeight: .infinity, alignment: .top)))
-        big("4_journal", AnyView(tabs(m, JournalView(path: .constant(NavigationPath())))))
-        big("5_timer", AnyView(TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)))
+        let month = m.babyMonth ?? 6
+        func on<V: View>(_ j: JournalStore, _ v: V) -> AnyView { AnyView(NavigationStack { v }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded)) }
+        big("1_home", on(quiet, TodayView(path: .constant(NavigationPath()))))
+        big("2_play", on(quiet, PlayView(play: m.content.play("A11")!, month: month)))
+        big("3_month", on(quiet, MonthView(month: month)))
+        big("4_journal", on(quiet, JournalView(path: .constant(NavigationPath()))))
+        big("5_timer", AnyView(TimerScreen(type: LogType.nurse).environment(m).environment(feeding).tint(Palette.accent).fontDesign(.rounded)))
     }
     /// A clock that looks forgotten is asked about; a one-tap record is said back with 撤销.
     func test33ChecksAndToast() {
