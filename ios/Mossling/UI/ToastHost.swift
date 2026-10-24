@@ -3,12 +3,8 @@ import SwiftUI
 /// What was just recorded or started, said back at the top of the screen for a few seconds: the kind's sticker, one
 /// line ("已记下 尿布 · 湿 · 14:05"), and 撤销. A one-tap record never happens silently.
 struct ToastHost: ViewModifier {
-    @Environment(JournalStore.self) private var j
-
     func body(content: Content) -> some View {
-        content
-            .overlay(alignment: .top) { ToastSlot() }
-            .sensoryFeedback(trigger: j.toast?.id) { _, new in new == nil ? nil : .success }
+        content.overlay(alignment: .top) { ToastSlot() }
     }
 }
 
@@ -46,6 +42,7 @@ private struct ToastBar: View {
         .padding(.horizontal, 16).padding(.top, 6)
         .onTapGesture { j.toast = nil }
         .task(id: toast.id) {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             UIAccessibility.post(notification: .announcement, argument: toast.text)
             try? await Task.sleep(for: .seconds(toast.restore == nil ? 2 : 5))
             if j.toast?.id == toast.id { j.toast = nil }
