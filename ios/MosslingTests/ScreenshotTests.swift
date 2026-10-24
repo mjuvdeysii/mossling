@@ -189,6 +189,8 @@ final class ScreenshotTests: XCTestCase {
     func test12Characters() { shot("12_characters", height: 1100, characters) }
     func test12CharactersDark() { shot("12_characters_dark", dark: true, height: 1100, characters) }
     func test13Doc() { let m = model(); shot("13_terms", height: 1400, tabs(m, DocView(name: "TERMS"))) }
+    /// One kind alone: tap 喂奶 and the day shows only feeds, with how many and the usual gap between them.
+    func test15JournalOnlyFeeds() { let m = model(); m.journal = true; shot("15_journal_feeds", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()), only: "feed"))) }
     func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath())))) }
     func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }
     func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }

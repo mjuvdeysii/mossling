@@ -211,8 +211,125 @@ struct PageBackground: View {
                     RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
                 }
                 Grain(dark: false)
+                DayAir(tone: tone ?? Crayon.sunflower)
             }
             .ignoresSafeArea().accessibilityHidden(true)
+        }
+    }
+}
+
+/// The day's counterpart of the lamp's drifting motes: a garden morning behind the paper. Sunlight comes in from the
+/// top right in a few soft beams that slowly breathe; dandelion seeds, petals in the tab's colour, small leaves and
+/// specks of pollen drift across on the air; at the foot of the page a low hill of grass where a few flowers sway, a
+/// wooden ring stacker and a ball resting in it. Everything is faint — the paper stays paper — and moves at ten frames
+/// a second, slowly enough to be felt more than watched. Still under Reduce Motion.
+struct DayAir: View {
+    var tone: Color
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 0.1, paused: reduce)) { tl in
+            Canvas { ctx, size in
+                let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+                sun(&ctx, size, t)
+                meadow(&ctx, size, t)
+                drift(&ctx, size, t)
+            }
+        }
+        .allowsHitTesting(false)
+    }
+
+    private func sun(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
+        let o = CGPoint(x: size.width * 0.96, y: -size.height * 0.02)
+        ctx.fill(Path(ellipseIn: CGRect(x: o.x - 260, y: o.y - 260, width: 520, height: 520)),
+                 with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE9A8).opacity(0.55), Color(hex: 0xFFE9A8).opacity(0)]), center: o, startRadius: 0, endRadius: 260))
+        // three beams fanning down to the left, each breathing on its own slow cycle
+        for i in 0..<3 {
+            let a = (128.0 + Double(i) * 13 + Foundation.sin(t * 0.05 + Double(i)) * 2) * .pi / 180
+            let len = size.height * 0.9, w = 46.0 + Double(i) * 18
+            let dir = CGPoint(x: Foundation.cos(a), y: Foundation.sin(a)), nrm = CGPoint(x: -dir.y, y: dir.x)
+            var p = Path()
+            p.move(to: CGPoint(x: o.x + nrm.x * 6, y: o.y + nrm.y * 6))
+            p.addLine(to: CGPoint(x: o.x + dir.x * len + nrm.x * w, y: o.y + dir.y * len + nrm.y * w))
+            p.addLine(to: CGPoint(x: o.x + dir.x * len - nrm.x * w, y: o.y + dir.y * len - nrm.y * w))
+            p.addLine(to: CGPoint(x: o.x - nrm.x * 6, y: o.y - nrm.y * 6))
+            let k = 0.07 + 0.04 * (0.5 + 0.5 * Foundation.sin(t * 0.35 + Double(i) * 2.1))
+            ctx.fill(p, with: .linearGradient(Gradient(colors: [Color(hex: 0xFFF3C4).opacity(k), Color(hex: 0xFFF3C4).opacity(0)]), startPoint: o,
+                                             endPoint: CGPoint(x: o.x + dir.x * len, y: o.y + dir.y * len)))
+        }
+    }
+
+    private func meadow(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height, base = h - 40
+        // two soft hills
+        var back = Path()
+        back.move(to: CGPoint(x: 0, y: base - 10))
+        back.addCurve(to: CGPoint(x: w, y: base - 26), control1: CGPoint(x: w * 0.3, y: base - 58), control2: CGPoint(x: w * 0.62, y: base + 6))
+        back.addLine(to: CGPoint(x: w, y: h)); back.addLine(to: CGPoint(x: 0, y: h)); back.closeSubpath()
+        ctx.fill(back, with: .color(Color(hex: 0xBFE3B4).opacity(0.32)))
+        var front = Path()
+        front.move(to: CGPoint(x: 0, y: base + 14))
+        front.addCurve(to: CGPoint(x: w, y: base + 4), control1: CGPoint(x: w * 0.4, y: base - 20), control2: CGPoint(x: w * 0.7, y: base + 30))
+        front.addLine(to: CGPoint(x: w, y: h)); front.addLine(to: CGPoint(x: 0, y: h)); front.closeSubpath()
+        ctx.fill(front, with: .color(Color(hex: 0x9FD39A).opacity(0.3)))
+        // flowers on the hill, swaying from the stem
+        let petals = [Color(hex: 0xFF8FAA), Color(hex: 0xFFD36B), Color(hex: 0xB39CF4), tone]
+        for i in 0..<6 {
+            let x = w * (0.08 + 0.17 * Double(i)) + Double(i % 2) * 9
+            let y = base + 12 - Foundation.sin(Double(i) * 1.7) * 8
+            let sway = Foundation.sin(t * 0.9 + Double(i) * 1.3) * 4
+            let top = CGPoint(x: x + sway, y: y - 18 - Double(i % 3) * 4)
+            var stem = Path(); stem.move(to: CGPoint(x: x, y: y)); stem.addQuadCurve(to: top, control: CGPoint(x: x + sway * 0.2, y: y - 9))
+            ctx.stroke(stem, with: .color(Color(hex: 0x6ABF6E).opacity(0.45)), lineWidth: 1.4)
+            let c = petals[i % petals.count].opacity(0.55)
+            for k in 0..<5 {
+                let a = Double(k) / 5 * 2 * .pi + t * 0.1
+                ctx.fill(Path(ellipseIn: CGRect(x: top.x + Foundation.cos(a) * 3.6 - 2.6, y: top.y + Foundation.sin(a) * 3.6 - 2.6, width: 5.2, height: 5.2)), with: .color(c))
+            }
+            ctx.fill(Path(ellipseIn: CGRect(x: top.x - 1.8, y: top.y - 1.8, width: 3.6, height: 3.6)), with: .color(Color(hex: 0xFFC23D).opacity(0.7)))
+        }
+        // a wooden ring stacker and a ball resting in the grass on the right
+        let sx = w * 0.84, sy = base + 6
+        ctx.fill(Path(roundedRect: CGRect(x: sx - 16, y: sy - 4, width: 32, height: 6), cornerRadius: 3), with: .color(Color(hex: 0xD9A56C).opacity(0.4)))
+        ctx.fill(Path(roundedRect: CGRect(x: sx - 1.5, y: sy - 34, width: 3, height: 30), cornerRadius: 1.5), with: .color(Color(hex: 0xC98F5E).opacity(0.4)))
+        for (k, c) in [Color(hex: 0x4C9BE8), Color(hex: 0x1FB5A6), Color(hex: 0xFFC23D), Color(hex: 0xFF6F91)].enumerated() {
+            let rw = 26.0 - Double(k) * 5
+            ctx.fill(Path(roundedRect: CGRect(x: sx - rw / 2, y: sy - 10 - Double(k) * 6.5, width: rw, height: 6.5), cornerRadius: 3.2), with: .color(c.opacity(0.32)))
+        }
+        ctx.fill(Path(ellipseIn: CGRect(x: sx - 44, y: sy - 12, width: 14, height: 14)), with: .color(Color(hex: 0xF2554B).opacity(0.3)))
+    }
+
+    private func drift(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
+        let w = size.width, h = size.height
+        for i in 0..<16 {
+            let s = Double(i) * 0.618
+            let period = 26.0 + Double(i % 5) * 7
+            let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 across the page
+            let x = -30 + (w + 60) * f
+            let y0 = h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1))
+            let y = y0 + f * 70 + Foundation.sin(t * 0.6 + Double(i) * 2.3) * 14
+            let a = min(1, f * 6) * min(1, (1 - f) * 6)                           // fade in and out at the edges
+            let p = CGPoint(x: x, y: y)
+            switch i % 4 {
+            case 0:   // a dandelion seed: a fluff of fine rays on a short stalk
+                let r = 6.0
+                for k in 0..<7 {
+                    let q = Double(k) / 7 * .pi + .pi + Foundation.sin(t * 0.4 + Double(i)) * 0.2
+                    var ray = Path(); ray.move(to: p); ray.addLine(to: CGPoint(x: p.x + Foundation.cos(q) * r, y: p.y + Foundation.sin(q) * r))
+                    ctx.stroke(ray, with: .color(Color.white.opacity(0.75 * a)), lineWidth: 0.8)
+                }
+                var stalk = Path(); stalk.move(to: p); stalk.addLine(to: CGPoint(x: p.x, y: p.y + 6))
+                ctx.stroke(stalk, with: .color(Color(hex: 0xC9B48A).opacity(0.6 * a)), lineWidth: 0.8)
+            case 1:   // a petal in the tab's colour, turning
+                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(t * 0.5 + Double(i)))
+                g.fill(Path(ellipseIn: CGRect(x: -4, y: -2.2, width: 8, height: 4.4)), with: .color(tone.opacity(0.42 * a)))
+            case 2:   // a small leaf
+                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(Foundation.sin(t * 0.7 + Double(i)) * 0.9))
+                var leaf = Path(); leaf.move(to: CGPoint(x: -5, y: 0)); leaf.addQuadCurve(to: CGPoint(x: 5, y: 0), control: CGPoint(x: 0, y: -4)); leaf.addQuadCurve(to: CGPoint(x: -5, y: 0), control: CGPoint(x: 0, y: 4))
+                g.fill(leaf, with: .color(Color(hex: 0x6ABF6E).opacity(0.38 * a)))
+            default:  // a speck of pollen catching the light
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 4, width: 8, height: 8)), with: .color(Color(hex: 0xFFD36B).opacity(0.12 * a)))
+                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.4, y: p.y - 1.4, width: 2.8, height: 2.8)), with: .color(Color(hex: 0xFFC23D).opacity(0.55 * a)))
+            }
         }
     }
 }

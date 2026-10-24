@@ -6,6 +6,8 @@ struct JournalView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
+    /// A kind to show alone when the page opens (screenshots); the page's own chips change it.
+    var only: String? = nil
     @State private var day: Day = .today
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
@@ -16,7 +18,7 @@ struct JournalView: View {
             VStack(alignment: .leading, spacing: 18) {
                 StickerSheet(timers: j.timers, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
-                DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) })
+                DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only)
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
                     NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) }.buttonStyle(.toy)
@@ -174,8 +176,15 @@ private struct DayPage: View {
     let timers: [RunningTimer]
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
+    /// One kind to look at alone ("feed" = breast and bottle together), or nil for the whole day.
+    @State private var only: String?
+    init(day: Day, today: Day, logs: [LogEntry], timers: [RunningTimer], edit: @escaping (LogEntry) -> Void, delete: @escaping (LogEntry) -> Void, only: String? = nil) {
+        self.day = day; self.today = today; self.logs = logs; self.timers = timers; self.edit = edit; self.delete = delete
+        _only = State(initialValue: only)
+    }
 
     var body: some View {
+        let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
         VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 12) {
                 Text("\(day.d)").font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .bold))
@@ -187,9 +196,12 @@ private struct DayPage: View {
                 if lamp { Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.3), glow: true).frame(width: 52, height: 52) }
                 else { Creature(kind: app.companion, mood: logs.isEmpty ? .open : .happy, alive: false).frame(width: 48, height: 48) }
             }
-            Totals(logs: logs, day: day)
-            DayRibbon(day: day, logs: logs, timers: timers)
-            if day == today { ForEach(timers, id: \.type) { t in RunningRow(timer: t) } }
+            // every number on the page is a way in: tap a total (or one of the other kinds) to see only that kind
+            Totals(logs: logs, day: day, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
+            OtherKinds(logs: logs, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
+            if let k = only { FocusLine(kind: k, logs: shown, all: j.logs, day: day) { withAnimation(.snappy) { only = nil } } }
+            DayRibbon(day: day, logs: logs, timers: timers, only: only)
+            if day == today { ForEach(timers.filter { t in only.map { JournalKinds.matches(t.type, $0) } ?? true }, id: \.type) { t in RunningRow(timer: t) } }
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 VStack(spacing: 8) {
                     Duo(primary: lamp ? .otto : app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
@@ -197,12 +209,110 @@ private struct DayPage: View {
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 12)
             } else if !logs.isEmpty {
-                DayTimeline(day: day, today: today, logs: logs, all: j.logs, edit: edit, delete: delete)
+                DayTimeline(day: day, today: today, logs: shown, all: j.logs, edit: edit, delete: delete, gaps: only == nil)
             }
         }
         .padding(18)
         .background { DotPaper() }
         .printCard(radius: 26)
+        .sensoryFeedback(.selection, trigger: only)
+        .onChange(of: day) { _, _ in only = nil }
+    }
+}
+
+/// The kinds a day can be looked at by: feeds (breast and bottle), sleep, nappies, and each other kind by itself.
+enum JournalKinds {
+    static func matches(_ type: String, _ key: String) -> Bool {
+        key == "feed" ? (type == LogType.nurse || type == LogType.bottle) : type == key
+    }
+    static func name(_ key: String) -> String { key == "feed" ? "喂奶" : LogType.name(key) }
+    static func type(_ key: String) -> String { key == "feed" ? LogType.nurse : key }
+}
+
+/// The other kinds recorded on the day, as small chips with their counts; tap one to see only it.
+private struct OtherKinds: View {
+    let logs: [LogEntry]
+    let only: String?
+    let pick: (String) -> Void
+    var body: some View {
+        let kinds = [LogType.solid, LogType.bath, LogType.temp, LogType.medicine, LogType.play, LogType.note].filter { t in logs.contains { $0.type == t } }
+        if !kinds.isEmpty {
+            WrapLayout(spacing: 8) {
+                ForEach(kinds, id: \.self) { t in
+                    let c = LogType.color(t), on = only == t, n = logs.filter { $0.type == t }.count
+                    Button { pick(t) } label: {
+                        HStack(spacing: 6) {
+                            IconTile(symbol: LogType.symbol(t), color: c, size: 20, round: true)
+                            Text(LogType.name(t)).font(.footnote.weight(.semibold))
+                            Ticking(text: "\(n)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                        }
+                        .padding(.leading, 6).padding(.trailing, 10).padding(.vertical, 5)
+                        .background(Capsule().fill(c.opacity(on ? 0.26 : 0.1)))
+                        .overlay(Capsule().strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 1.5))
+                        .opacity(only == nil || on ? 1 : 0.5)
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel("\(LogType.name(t)) \(n) 次")
+                    .accessibilityHint(on ? "显示全部" : "只看这一类")
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+        }
+    }
+}
+
+/// While one kind is shown alone: what it adds up to that day, said in one line, and a way back to everything.
+private struct FocusLine: View {
+    let kind: String
+    let logs: [LogEntry]
+    let all: [LogEntry]
+    let day: Day
+    let clear: () -> Void
+    var body: some View {
+        let c = LogType.color(JournalKinds.type(kind))
+        HStack(spacing: 10) {
+            Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(Crayon.ink(c))
+            Text(summary).font(.footnote.weight(.semibold)).foregroundStyle(.primary).monospacedDigit()
+                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 6)
+            Button("全部", action: clear).font(.footnote.weight(.bold)).buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Crayon.ink(c))
+        }
+        .padding(.horizontal, 12).padding(.vertical, 8)
+        .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .transition(.opacity.combined(with: .move(edge: .top)))
+    }
+    /// Facts only, from the day's records: how many, and for feeds the usual gap between them; for sleep how many
+    /// times and how long in all.
+    private var summary: String {
+        let d0 = day.date.timeIntervalSince1970 * 1000
+        switch kind {
+        case "feed":
+            let starts = feedStarts().filter { $0 >= d0 }
+            var s = "只看喂奶 · \(logs.feedCount(from: d0)) 次"
+            if starts.count >= 2 {
+                let gaps = zip(starts.dropFirst(), starts).map { ($0 - $1) / 1000 }
+                s += " · 平均间隔 " + durationValue(gaps.reduce(0, +) / Double(gaps.count))
+            }
+            return s
+        case LogType.sleep:
+            let total = logs.reduce(0.0) { $0 + $1.seconds(on: day) }
+            return "只看睡眠 · \(logs.count) 段 · 共 " + durationValue(total)
+        case LogType.diaper:
+            let wet = logs.filter { $0.detail == "wet" || $0.detail == "both" }.count, dirty = logs.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+            return "只看尿布 · \(logs.count) 片 · 湿 \(wet) · 便 \(dirty)"
+        default:
+            return "只看" + LogType.name(kind) + " · \(logs.count) 次"
+        }
+    }
+    /// The start of each feed of the day (the second side of a breast feed is the same feed).
+    private func feedStarts() -> [Double] {
+        let feeds = logs.sorted { $0.start < $1.start }
+        var out: [Double] = [], lastEnd: Double?
+        for e in feeds {
+            if e.type == LogType.nurse, let l = lastEnd, e.start - l <= 120_000 { lastEnd = e.end ?? e.start; continue }
+            out.append(e.start); lastEnd = e.end ?? e.start
+        }
+        return out
     }
 }
 
@@ -236,6 +346,7 @@ private struct RunningRow: View {
 /// The day from midnight to midnight: feeds and sleeps as bars of their length, everything else as a dot.
 private struct DayRibbon: View {
     let day: Day, logs: [LogEntry], timers: [RunningTimer]
+    var only: String? = nil
     @Environment(\.lamp) private var lamp
     var body: some View {
         let d0 = day.date.timeIntervalSince1970 * 1000, span = 86_400_000.0
@@ -253,6 +364,8 @@ private struct DayRibbon: View {
     /// The day as a string of beads, like the Montessori bead chains: a cord from midnight to midnight, a bead for
     /// each entry in its colour, a long bead for each feed or sleep as long as it lasted, and the golden bead — Otto's —
     /// where the day has got to.
+    /// The bead's colour: its kind's, or faded back when another kind is being looked at alone.
+    private func shade(_ t: String) -> Color { only.map { JournalKinds.matches(t, $0) } ?? true ? LogType.color(t) : LogType.color(t).opacity(0.16) }
     private func paint(_ ctx: inout GraphicsContext, _ size: CGSize, d0: Double, span: Double, now: Double) {
         let w: CGFloat = size.width, mid: CGFloat = size.height / 2
         func x(_ t: Double) -> CGFloat { CGFloat(max(0, min(1, (t - d0) / span))) * w }
@@ -271,10 +384,10 @@ private struct DayRibbon: View {
         let spans = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
         for (t, a, b) in spans where b > d0 && a < d0 + span {
             let h: CGFloat = t == LogType.sleep ? 18 : 14
-            bead(CGRect(x: x(a), y: mid - h / 2, width: max(h, x(b) - x(a)), height: h), LogType.color(t))
+            bead(CGRect(x: x(a), y: mid - h / 2, width: max(h, x(b) - x(a)), height: h), shade(t))
         }
         for e in logs where e.end == nil {
-            bead(CGRect(x: x(e.start) - 6, y: mid - 6, width: 12, height: 12), LogType.color(e.type))
+            bead(CGRect(x: x(e.start) - 6, y: mid - 6, width: 12, height: 12), shade(e.type))
         }
         if now > d0 && now < d0 + span {
             let gx = x(now)
@@ -305,6 +418,8 @@ private struct DotPaper: View {
 private struct Totals: View {
     let logs: [LogEntry]
     let day: Day
+    var only: String? = nil
+    var pick: (String) -> Void = { _ in }
     @Environment(\.dynamicTypeSize) private var size
     var body: some View {
         // counts are of what started on the day; sleep is the part of each sleep that falls on the day
@@ -319,12 +434,25 @@ private struct Totals: View {
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
-            stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
-            stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? "最长一觉 " + durationValue(longest) : " ")
+            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], ml > 0 ? "瓶喂 \(ml) 毫升" : " "))
+            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? "最长一觉 " + durationValue(longest) : " "))
             // what a doctor asks: how many wet, how many dirty
-            stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)")
+            tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)"))
         }
         .fixedSize(horizontal: false, vertical: true)
+    }
+    /// A total as a button: tap to see only that kind on the day's string and line; the chosen one is ringed, the
+    /// others step back.
+    private func tap<V: View>(_ key: String, _ v: V) -> some View {
+        let on = only == key, c = LogType.color(JournalKinds.type(key))
+        return Button { pick(key) } label: {
+            v.overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 2))
+                .opacity(only == nil || on ? 1 : 0.45)
+                .scaleEffect(on ? 1.02 : 1)
+        }
+        .buttonStyle(.toy)
+        .accessibilityHint(on ? "显示全部" : "只看这一类")
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
     private func stamp(_ t: String, _ name: String, _ parts: [(String, String)], _ sub: String) -> some View {
         let c = LogType.color(t)
@@ -403,6 +531,8 @@ private struct DayTimeline: View {
     var all: [LogEntry] = []
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
+    /// Quiet stretches are written only on the whole day; one kind alone shows its own intervals instead.
+    var gaps = true
     @ScaledMetric private var timeWidth: CGFloat = 54
 
     var body: some View {
@@ -423,9 +553,10 @@ private struct DayTimeline: View {
                         // between two feeds the row itself says how long since the last one
                         let newer = sorted[i - 1]
                         let gap = (max(newer.start, d0) - reached[i]) / 1000
-                        if gap >= 3 * 3600 { GapRow(seconds: gap, timeWidth: timeWidth) }
+                        if gaps && gap >= 3 * 3600 { GapRow(seconds: gap, timeWidth: timeWidth) }
                     }
                     TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth, since: feedInterval(e))
+                        .transition(.opacity.combined(with: .move(edge: .leading)))
                         .contentShape(Rectangle())
                         .onTapGesture { edit(e) }
                         .contextMenu {
