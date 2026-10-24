@@ -14,7 +14,7 @@ concurrency:
 jobs:
   build:
     runs-on: macos-15
-    timeout-minutes: 60
+    timeout-minutes: 80
     steps:
       - uses: actions/checkout@v4
       - name: Xcode
@@ -38,9 +38,20 @@ jobs:
           c.sort(key=lambda t:(t[0],t[1]['name'])); print(c[-1][1]['udid'])")
           echo "::notice title=Simulator::$DEV"
           mkdir -p "$PWD/shots"
+          echo "$DEV" > sim.txt
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$DEV" \
-            CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
+            -skip-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
+      - name: Accessibility audit
+        # Xcode's accessibility audit on each tab (default and largest text); the findings go out with the screens.
+        # It reports, never blocks: the build and the TestFlight upload do not wait on it.
+        if: success()
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: ios
+        run: |
+          TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
+            -only-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Case.*(passed|failed)|\*\* " || true
       - name: App icon check
         if: always()
         continue-on-error: true

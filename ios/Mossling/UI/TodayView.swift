@@ -280,7 +280,11 @@ struct ShelfView: View {
             HStack(alignment: .firstTextBaseline) {
                 Text("本周的架子").font(.title3.weight(.bold))
                 Spacer()
-                Button(s.stale ? "换上新的一周" : "整理", action: arrange).font(.subheadline.weight(.semibold))
+                Button(action: arrange) {
+                    // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
+                    Text(s.stale ? "换上新的一周" : "整理").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                }
+                .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
             .padding(.horizontal, 4).padding(.top, 2)
             // a two-level shelf, two materials on each level: the week's plays are the largest pictures on the page

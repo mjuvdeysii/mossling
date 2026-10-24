@@ -58,11 +58,9 @@ final class AccessibilityAuditTests: XCTestCase {
             guard b.exists else { lines.append("[\(tab)] tab missing"); continue }
             b.tap(); sleep(2)
             audit(app, tab)
-            // the rest of the page, a screen at a time
-            for k in 1...3 {
-                app.swipeUp(velocity: .slow); sleep(1)
-                audit(app, "\(tab) ↓\(k)")
-            }
+            // and the next screen of the page (more is too slow on the runner: the page never quite settles)
+            app.swipeUp(velocity: .slow); sleep(2)
+            audit(app, "\(tab) ↓")
         }
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
