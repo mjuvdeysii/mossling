@@ -123,11 +123,24 @@ jobs:
           grep -q "EXPORT SUCCEEDED" export.log
           echo "::notice title=TestFlight::build $BUILD uploaded; it appears in TestFlight after Apple finishes processing (usually 10–30 minutes)"
       - name: Certificate for the App filing (备案 public key and SHA-1)
+        # The account's distribution certificate is cloud-managed and cannot be downloaded, so the facts are read
+        # from the certificate that actually signs the app: the archive is exported once more to a local .ipa and
+        # the leaf certificate is taken from the app's signature.
         if: env.ASC_KEY_ID != ''
         continue-on-error: true
+        working-directory: ios
         run: |
-          python3 -m pip install --quiet --break-system-packages pyjwt cryptography 2>/dev/null || python3 -m pip install --quiet pyjwt cryptography
-          python3 tools/asc_certs.py
+          sed 's#<string>upload</string>#<string>export</string>#' ExportOptions.plist > ExportLocal.plist
+          AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
+          xcodebuild -exportArchive -archivePath build/Mossling.xcarchive -exportOptionsPlist ExportLocal.plist -exportPath build/local "${AUTH[@]}" > export-local.log 2>&1 || { tail -5 export-local.log; exit 0; }
+          mkdir -p build/ipa && unzip -q -o build/local/*.ipa -d build/ipa
+          cd build/ipa && codesign -d --extract-certificates=cert Payload/*.app 2>/dev/null
+          SHA1=$(openssl x509 -inform der -in cert0 -noout -fingerprint -sha1 | cut -d= -f2)
+          MOD=$(openssl x509 -inform der -in cert0 -noout -modulus | cut -d= -f2)
+          SUBJ=$(openssl x509 -inform der -in cert0 -noout -subject -enddate | tr '\n' ' ')
+          echo "::notice title=备案证书::$SUBJ"
+          echo "::notice title=备案 SHA-1::$SHA1"
+          echo "::notice title=备案 公钥（RSA 模数，十六进制）::$MOD"
       - name: Report errors
         if: failure()
         working-directory: ios
