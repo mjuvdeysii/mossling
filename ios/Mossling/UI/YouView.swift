@@ -241,7 +241,7 @@ private struct Swatch: View {
         ZStack { Color(hex: 0xFBF7F0); DayAir(tone: Crayon.sunflower, scale: 0.45) }
     }
     private var night: some View {
-        ZStack { Palette.lampPage; LampGlow(); Motes(scale: 0.7) }
+        ZStack { Palette.lampPage; LampGlow(scale: 0.16); Motes(scale: 0.45) }
     }
 }
 

@@ -417,14 +417,16 @@ struct Motes: View {
 /// Otto's lamp: a warm pool of amber from the top right that slowly brightens and dims like a flame behind paper,
 /// and a fainter second pool low on the left, so the whole page is lit, not just its corner.
 struct LampGlow: View {
+    /// The reach of the light, for small previews.
+    var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 10, paused: reduce)) { tl in
             let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
             let k = 0.88 + 0.12 * Foundation.sin(t * 0.7) + 0.04 * Foundation.sin(t * 2.3)
             ZStack {
-                RadialGradient(colors: [Palette.amber.opacity(0.42 * k), Palette.amber.opacity(0.12 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.88, y: 0.02), startRadius: 0, endRadius: 560)
-                RadialGradient(colors: [Palette.amber.opacity(0.14 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.05, y: 0.92), startRadius: 0, endRadius: 420)
+                RadialGradient(colors: [Palette.amber.opacity(0.42 * k), Palette.amber.opacity(0.12 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.88, y: 0.02), startRadius: 0, endRadius: 560 * scale)
+                RadialGradient(colors: [Palette.amber.opacity(0.14 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.05, y: 0.92), startRadius: 0, endRadius: 420 * scale)
             }
         }
         .allowsHitTesting(false)
