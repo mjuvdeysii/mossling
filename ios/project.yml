@@ -8,6 +8,8 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     MARKETING_VERSION: "1.0.0"
+    # the App filing number (工信部 App 备案), shown in 关于 once set; empty until the filing is done
+    MOSSLING_ICP: ""
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""
     TARGETED_DEVICE_FAMILY: "1"

@@ -239,7 +239,7 @@ struct TimerFace: View {
                 Spacer(minLength: 0)
                 ArtImage(name: WidgetArt.pair).frame(width: 42, height: 42).padding(6).background(Circle().fill(WidgetInk.card))
             }
-            TimerControls(type: type, s: s, light: false)
+            TimerControls(type: type, s: s, light: true)
         }
         .padding(16)
     }

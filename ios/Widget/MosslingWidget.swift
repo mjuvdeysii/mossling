@@ -88,17 +88,19 @@ struct TimerLiveActivity: Widget {
     }
 }
 
-/// The Lock Screen face with a background in fixed colours for the appearance (paper by day, the lamp's blue at
-/// night): a colour that adapts by itself was drawn as an odd gold on a phone's Lock Screen.
+/// The Lock Screen face: always under Otto's lamp — the lamp's deep blue, white numbers, the kind's colour — in
+/// every appearance. A light face showed as gold on phones at night (a warm night filter over paper, and the system
+/// sometimes drawing the light background under dark text), so it is never light. Dimmed further when the screen is
+/// always on.
 private struct LockScreenTimer: View {
     let type: String
     let s: TimerAttributes.ContentState
-    @Environment(\.colorScheme) private var scheme
+    @Environment(\.isLuminanceReduced) private var dim
     var body: some View {
-        let dark = scheme == .dark
         TimerFace(type: type, s: s)
-            .environment(\.colorScheme, scheme)
-            .activityBackgroundTint(dark ? Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255) : Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255))
-            .activitySystemActionForegroundColor(Crayon.ink(LogType.color(type)))
+            .environment(\.colorScheme, .dark)
+            .opacity(dim ? 0.85 : 1)
+            .activityBackgroundTint(Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255).opacity(dim ? 0.92 : 1))
+            .activitySystemActionForegroundColor(.white)
     }
 }

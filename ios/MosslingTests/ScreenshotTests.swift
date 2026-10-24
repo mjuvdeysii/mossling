@@ -243,9 +243,11 @@ final class ScreenshotTests: XCTestCase {
                 }
                 tile(360, 170, TodayFace(date: now, snap: snap, body: idle, size: .medium))
                 tile(360, 170, TodayFace(date: now, snap: snap, body: feeding, size: .medium))
-                TimerFace(type: LogType.nurse, s: state).frame(width: 360).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
-                TimerFace(type: LogType.sleep, s: TimerAttributes.ContentState(start: now.addingTimeInterval(-50 * 60), pausedAt: now, side: nil))
-                    .frame(width: 360).background(WidgetInk.paper).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                // the Lock Screen face is always under the lamp
+                let lamp = Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255)
+                TimerFace(type: LogType.nurse, s: state).environment(\.colorScheme, .dark).frame(width: 360).background(lamp).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                TimerFace(type: LogType.sleep, s: TimerAttributes.ContentState(start: now.addingTimeInterval(-50 * 60), pausedAt: now, side: nil, note: "醒了 1 小时 35 分后入睡"))
+                    .environment(\.colorScheme, .dark).frame(width: 360).background(lamp).clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
             }
             .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(dark ? Color(white: 0.08) : Color(red: 0.80, green: 0.86, blue: 0.92))

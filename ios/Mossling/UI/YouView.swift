@@ -368,7 +368,14 @@ struct AboutView: View {
                 Link(destination: URL(string: "https://github.com/mjuvdeysii/mossling/issues")!) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
                     .tint(.primary)
             } footer: {
-                Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。").padding(.top, 8)
+                VStack(spacing: 6) {
+                    Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。")
+                    // the App filing number, shown where the filing rules ask (设置 / 关于), once there is one
+                    if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
+                        Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!).font(.footnote.weight(.semibold))
+                    }
+                }
+                .padding(.top, 8)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()

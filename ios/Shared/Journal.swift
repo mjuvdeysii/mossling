@@ -266,7 +266,7 @@ enum JournalFile {
             return "距上一顿 " + minutesOf((begun - feeds[i].start) / 1000)
         }
         if t.type == LogType.sleep, let e = logs.filter({ $0.type == LogType.sleep && ($0.end ?? .infinity) <= begun }).compactMap(\.end).max() {
-            return "醒了 " + minutesOf((begun - e) / 1000) + " 后入睡"
+            return "醒了 " + minutesOf((begun - e) / 1000) + "后入睡"
         }
         return nil
     }
