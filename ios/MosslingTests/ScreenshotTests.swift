@@ -91,6 +91,45 @@ final class ScreenshotTests: XCTestCase {
         shot("24_ready_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
         shot("24_ready_sleep_lamp", lamp: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
     }
+    /// 余影, frozen: a second passing (12:04 → 12:05) and a minute turning over (12:59 → 13:00), at four moments of
+    /// the afterimage, on the feed's pad colour and on paper.
+    func test34Afterimage() {
+        func frame(_ old: String, _ new: String, _ t: CGFloat, ink: Color, tint: Color) -> some View {
+            let o = Array(old), n = Array(new)
+            return HStack(spacing: 0) {
+                ForEach(n.indices, id: \.self) { i in
+                    let place = n[(i + 1)...].filter(\.isNumber).count
+                    let p = CGFloat(min(place, 4))
+                    ZStack {
+                        if i < o.count, o[i] != n[i] {
+                            Text(String(o[i])).modifier(Afterimage(fade: 0.45 + 0.55 * t, rise: (7 + 3 * p) * t, blur: (3.5 + p) * t, scale: 1 + (0.04 + 0.035 * p) * t, tint: tint))
+                        }
+                        Text(String(n[i])).foregroundStyle(ink)
+                    }
+                }
+            }
+            .font(Typeface.numerals(26, weight: .bold)).monospacedDigit()
+        }
+        let pink = Crayon.pink
+        let page = VStack(spacing: 22) {
+            ForEach([("12:04", "12:05"), ("12:59", "13:00")], id: \.0) { a, b in
+                HStack(spacing: 8) {
+                    ForEach([0.0, 0.3, 0.6, 0.9], id: \.self) { t in
+                        frame(a, b, t, ink: .white, tint: .white).padding(.vertical, 18).frame(maxWidth: .infinity)
+                            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Crayon.fill(pink, false)))
+                    }
+                }
+                HStack(spacing: 8) {
+                    ForEach([0.0, 0.3, 0.6, 0.9], id: \.self) { t in
+                        frame(a, b, t, ink: .primary, tint: Crayon.ink(pink)).padding(.vertical, 18).frame(maxWidth: .infinity)
+                            .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(Palette.card))
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 12).padding(.vertical, 40).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top).background(Palette.background)
+        shot("34_afterimage", height: 560, page)
+    }
     /// A clock that looks forgotten is asked about; a one-tap record is said back with 撤销.
     func test33ChecksAndToast() {
         var b = JournalFile.Body(); let n = ms(Date())
