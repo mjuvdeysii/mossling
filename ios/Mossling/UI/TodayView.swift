@@ -76,13 +76,16 @@ private struct NowCard: View {
         TimelineView(.periodic(from: .now, by: 60)) { tl in
             let now = tl.date.timeIntervalSince1970 * 1000
             if let sleep = j.timers.first(where: { $0.type == LogType.sleep }) {
-                card(tint: Crayon.lilac) {
-                    Duo(primary: .otto, size: 44, mood: .sleep, night: true)
-                    words("宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)))
-                    Spacer(minLength: 0)
-                    Button { withAnimation(.snappy) { j.stop(LogType.sleep) } } label: { Text("醒了").font(.subheadline.weight(.semibold)).padding(.horizontal, 6) }
-                        .buttonStyle(.borderedProminent).tint(Crayon.fill(Crayon.lilac, lamp))
+                // waking is recorded on the sleep's own page (one place to start and end a timer)
+                Button { j.focus = LogType.sleep } label: {
+                    card(tint: Crayon.lilac) {
+                        Duo(primary: .otto, size: 44, mood: .sleep, night: true)
+                        words(sleep.pausedAt != nil ? "睡眠 · 已暂停" : "宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下")
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                    }
                 }
+                .buttonStyle(.toy)
             } else if let feed = j.timers.first(where: { $0.type == LogType.nurse }) {
                 Button { j.focus = LogType.nurse } label: {
                     card(tint: Crayon.pink) {

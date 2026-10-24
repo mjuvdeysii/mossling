@@ -74,6 +74,9 @@ struct RootView: View {
         // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
         // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
         // system's own bars, pickers and sheets follow
+        .toasts()
+        // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
+        .onOpenURL { url in open(url) }
         .modifier(LampScope(on: scheme == .dark))
         .preferredColorScheme(app.nightLight && night ? .dark : app.theme.scheme)
     }
@@ -107,6 +110,17 @@ struct RootView: View {
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
             TimerScreen(type: w.id).lampPresented()
+        }
+    }
+
+    private func open(_ url: URL) {
+        guard url.scheme == "mossling", let type = url.pathComponents.dropFirst().first else { return }
+        guard app.journal else { tab = 3; return }
+        tab = 2
+        switch url.host() {
+        case "care" where LogType.timed.contains(type): journal.focus = type
+        case "log": journal.focus = nil; journal.ask = type
+        default: break
         }
     }
 

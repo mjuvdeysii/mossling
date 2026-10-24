@@ -137,6 +137,7 @@ struct TodayFace: View {
             if let t = body_.timers.first { running(t) } else { play }
         }
         .foregroundStyle(.primary)
+        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) })
     }
 
     private var medium: some View {
@@ -172,22 +173,28 @@ struct TodayFace: View {
         .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
     }
 
+    /// Each card opens its page in the app — a feed or a sleep starts only there, where it is seen (nothing starts
+    /// from the Home Screen by accident); a running one opens its clock to pause, change side or end.
     private func timerButton(_ type: String) -> some View {
         let t = body_.timers.first { $0.type == type }
-        // running: the card is the clock (how long so far) and ends it
+        // running: the card is the clock (how long so far)
         let sub: Text? = t.map { t in t.pausedAt.map { Text(minutesOf(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoText($0)) }
-        return Button(intent: TimerIntent(type: type, action: t != nil ? "stop" : "start")) {
-            card(type, title: t != nil ? (type == LogType.sleep ? "醒了" : "结束") : LogType.name(type), sub: sub, on: t != nil)
+        return Link(destination: WidgetLinks.care(type)) {
+            card(type, title: LogType.name(type), sub: sub, on: t != nil)
         }
-        .buttonStyle(.plain)
     }
 
+    /// A nappy: opens the nappy page (wet, dirty or both), where one tap records it.
     private var nappy: some View {
-        Button(intent: QuickLogIntent(type: LogType.diaper, detail: "wet")) {
+        Link(destination: WidgetLinks.log(LogType.diaper)) {
             card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map { Text(agoText($0)) }, on: false)
         }
-        .buttonStyle(.plain)
     }
+}
+
+enum WidgetLinks {
+    static func care(_ type: String) -> URL { URL(string: "mossling://care/\(type)")! }
+    static func log(_ type: String) -> URL { URL(string: "mossling://log/\(type)")! }
 }
 
 // MARK: Live Activity on the Lock Screen

@@ -168,6 +168,19 @@ enum JournalFile {
 
     struct Body: Codable { var logs: [LogEntry] = []; var timers: [RunningTimer] = []; var measures: [Measure] = [] }
 
+    /// Builds signed before the app group was set up kept the journal in the app's own Documents folder. Once the
+    /// group exists, move it there (once), so nothing recorded earlier is lost and the widget sees it too.
+    static func migrateIntoGroup() {
+        guard let g = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group) else { return }
+        let docs = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        for name in ["journal.json", "snapshot.json"] {
+            let old = docs.appendingPathComponent(name), new = g.appendingPathComponent(name)
+            guard FileManager.default.fileExists(atPath: old.path) else { continue }
+            if !FileManager.default.fileExists(atPath: new.path) { try? FileManager.default.copyItem(at: old, to: new) }
+            try? FileManager.default.moveItem(at: old, to: docs.appendingPathComponent(name + ".moved"))
+        }
+    }
+
     static func read() -> Body { (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Body.self, from: $0) } ?? Body() }
     static func write(_ b: Body) { try? JSONEncoder().encode(b).write(to: url, options: .atomic) }
     static func snapshot() -> Snapshot? { (try? Data(contentsOf: snapshotURL)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) } }
@@ -230,9 +243,9 @@ enum JournalFile {
         var b = b0
         guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
         let t = b.timers.remove(at: i)
-        // ended while paused: the entry ends where the pause began, so only the earlier pauses are taken off
+        // the end is now, or a time chosen afterwards; ended while paused, the entry ends where the pause began
         let paused = t.pausedTotal
-        let end = t.pausedAt ?? n
+        let end = min(t.pausedAt ?? n, n)
         b.logs.append(LogEntry(type: type, start: t.start, end: max(t.start + 60_000, end), side: t.side, detail: paused > 0 ? "paused:\(Int(paused))" : nil))
         return b
     }

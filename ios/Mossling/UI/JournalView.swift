@@ -7,7 +7,6 @@ struct JournalView: View {
     @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
     @State private var day: Day = .today
-    @State private var ask: String?
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
 
@@ -32,7 +31,7 @@ struct JournalView: View {
                 Button("补记", systemImage: "plus") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
             }
         }
-        .sheet(item: Binding(get: { ask.map { Wrap(id: $0) } }, set: { ask = $0?.id })) { w in AskSheet(type: w.id).lampPresented() }
+        .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id).lampPresented() }
         .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }).lampPresented() }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
         .onChange(of: app.today) { _, t in day = t }
@@ -51,9 +50,11 @@ struct JournalView: View {
 
     private func tap(_ t: String) {
         if t == LogType.growth { measuring = Measure(at: Date().timeIntervalSince1970 * 1000); return }
-        if j.timers.contains(where: { $0.type == t }) { j.focus = t; return }
-        if t == LogType.bath { j.add(LogEntry(type: t, start: JournalFile.now())); return }
-        ask = t
+        // a feed or a sleep has its own page: it opens, and starts only from there
+        if LogType.timed.contains(t) { j.focus = t; return }
+        // a bath is one tap: recorded now, said back with 撤销
+        if t == LogType.bath { j.record(LogEntry(type: t, start: JournalFile.now())); return }
+        j.ask = t
     }
     private func defaultTime() -> Double { day == app.today ? JournalFile.now() : day.date.addingTimeInterval(12 * 3600).timeIntervalSince1970 * 1000 }
 }
@@ -125,6 +126,7 @@ private struct Sticker: View {
         .buttonStyle(.toy)
         .sensoryFeedback(.impact(weight: .light), trigger: running)
         .accessibilityLabel(running ? "\(LogType.name(type))进行中，打开计时" : LogType.name(type))
+        .accessibilityHint(running ? "" : LogType.timed.contains(type) ? "打开计时页" : type == LogType.bath ? "点按即记下一次" : "")
         .accessibilityValue(since ?? "")
         .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
     }

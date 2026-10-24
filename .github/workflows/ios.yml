@@ -101,6 +101,13 @@ jobs:
             -archivePath build/Mossling.xcarchive DEVELOPMENT_TEAM="$TEAM" CURRENT_PROJECT_VERSION=$BUILD \
             CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO 2>&1 | tee archive.log | grep -E "error:|\*\* " || true
           grep -q "ARCHIVE SUCCEEDED" archive.log
+          # The archive is unsigned, so it carries no entitlements of its own; export signs with what the binaries
+          # declare. Sign them ad hoc (no certificate) with their entitlements — the widget first, then the app — so the
+          # app group reaches the exported build, and print what each one now declares.
+          APPDIR=build/Mossling.xcarchive/Products/Applications/Mossling.app
+          for x in "$APPDIR"/PlugIns/*.appex; do codesign -f -s - --entitlements Widget/Widget.entitlements "$x"; done
+          codesign -f -s - --entitlements Mossling/Resources/Mossling.entitlements "$APPDIR"
+          for x in "$APPDIR" "$APPDIR"/PlugIns/*.appex; do echo "::notice title=Entitlements $(basename "$x")::$(codesign -d --entitlements - --xml "$x" 2>/dev/null | tr -d '\n\t' | sed 's/.*<dict>//;s/<\/dict>.*//')"; done
           cat > ExportOptions.plist <<PLIST
           <?xml version="1.0" encoding="UTF-8"?>
           <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

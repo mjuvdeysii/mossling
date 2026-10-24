@@ -39,7 +39,7 @@ struct TodayWidget: Widget {
             TodayWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
         }
         .configurationDisplayName("摸索台灯")
-        .description("月龄与今天的活动；开启记录后可直接计时和记一笔。")
+        .description("月龄与今天的活动；开启记录后，点按即可打开喂奶、睡眠和尿布的记录页。")
         .supportedFamilies([.systemSmall, .systemMedium, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -65,6 +65,7 @@ struct TimerLiveActivity: Widget {
         ActivityConfiguration(for: TimerAttributes.self) { ctx in
             TimerFace(type: ctx.attributes.type, s: ctx.state)
                 .activityBackgroundTint(WidgetInk.paper).activitySystemActionForegroundColor(Crayon.ink(LogType.color(ctx.attributes.type)))
+                .widgetURL(WidgetLinks.care(ctx.attributes.type))
         } dynamicIsland: { ctx in
             let c = LogType.color(ctx.attributes.type)
             return DynamicIsland {
@@ -83,6 +84,7 @@ struct TimerLiveActivity: Widget {
             } minimal: {
                 ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
             }
+            .widgetURL(WidgetLinks.care(ctx.attributes.type))
         }
     }
 }

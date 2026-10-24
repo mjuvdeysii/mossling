@@ -1,27 +1,21 @@
 import SwiftUI
 
-/// The page that follows a record button, made for each kind: a feed or a sleep is started now (then timed on its own
-/// screen) or added afterwards with its exact start and end; a bottle, a nappy, a temperature, food or a note at an
-/// exact time (now unless changed), then one tap.
+/// The page that follows a record button, made for each kind: a bottle, a nappy, a temperature, food or a note at an
+/// exact time (now unless changed), then one tap — said back at the top with 撤销. (A feed or a sleep has its own
+/// page, TimerScreen.)
 struct AskSheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
     let type: String
     @State private var when = Date()
-    @State private var from = Date().addingTimeInterval(-15 * 60)
     @State private var ml = 120.0
     @State private var temp = 368
     @State private var text = ""
-    @State private var finished = false
-    @State private var side = "l"
     @State private var milk = "formula"
     @FocusState private var typing: Bool
 
     private var at: Date { when }
-    /// The side the last feed ended on (the next feed usually starts on the other).
-    private var lastSide: String? { j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side }
-    private var timed: Bool { type == LogType.nurse || type == LogType.sleep }
 
     var body: some View {
         let c = LogType.color(type)
@@ -29,33 +23,9 @@ struct AskSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
                     CareStage(type: type)
-                    if timed {
-                        Picker("方式", selection: $finished) { Text("现在开始").tag(false); Text("补记").tag(true) }
-                            .pickerStyle(.segmented)
-                    }
-                    if timed && finished {
-                        VStack(spacing: 0) {
-                            DatePicker("开始", selection: $from, in: ...when, displayedComponents: [.date, .hourAndMinute])
-                                .padding(.horizontal, 16).padding(.vertical, 10)
-                            Divider().padding(.leading, 16)
-                            DatePicker("结束", selection: $when, in: from...Date(), displayedComponents: [.date, .hourAndMinute])
-                                .padding(.horizontal, 16).padding(.vertical, 10)
-                        }
+                    DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                        .padding(.horizontal, 16).padding(.vertical, 10)
                         .printCard(radius: 20)
-                        HStack(alignment: .firstTextBaseline) {
-                            Text("时长").font(.subheadline).foregroundStyle(.secondary)
-                            Spacer()
-                            Text(durationValue(when.timeIntervalSince(from))).font(Typeface.numerals(28, weight: .bold)).monospacedDigit()
-                        }
-                    } else if !timed {
-                        DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                            .padding(.horizontal, 16).padding(.vertical, 10)
-                            .printCard(radius: 20)
-                    } else {
-                        DatePicker("开始于", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                            .padding(.horizontal, 16).padding(.vertical, 10)
-                            .printCard(radius: 20)
-                    }
                     content
                 }
                 .padding(20)
@@ -65,51 +35,12 @@ struct AskSheet: View {
             .background(lamp ? Palette.lampPage : Palette.background)
         }
         .presentationDetents([.fraction(0.72), .large])
-        // the start must stay before the end, however the two were set
-        .onChange(of: when) { _, w in if from >= w { from = w.addingTimeInterval(-15 * 60) } }
-        .onChange(of: finished) { _, _ in if from >= when { from = when.addingTimeInterval(-15 * 60) } }
-        .onAppear { if let l = lastSide { side = l == "l" ? "r" : "l" }; if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
+        .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
     }
 
     @ViewBuilder private var content: some View {
         let c = LogType.color(type)
         switch type {
-        case LogType.nurse:
-            Text(finished ? "哪一侧" : "从哪一侧开始").font(.headline)
-            HStack(spacing: 14) {
-                ForEach([("l", "L", "左侧"), ("r", "R", "右侧")], id: \.0) { k, big, t in
-                    // the side to start on is the one not used last time: drawn as the main button
-                    let on = side == k
-                    Button {
-                        if finished { side = k } else { j.start(LogType.nurse, side: k, at: at); dismiss() }
-                    } label: {
-                        VStack(spacing: 4) { Text(big).font(Typeface.numerals(40, weight: .bold)); Text(t).font(.subheadline.weight(.semibold)) }
-                            .foregroundStyle(on ? .white : Crayon.ink(c)).frame(maxWidth: .infinity, minHeight: 104)
-                            .overlay(alignment: .topTrailing) {
-                                if lastSide == k {
-                                    Text("上次").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
-                                        .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(c)).padding(8)
-                                }
-                            }
-                            .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(c, lamp).mix(with: c, by: lamp ? 0.06 : 0.15), Crayon.fill(c, lamp)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(c.opacity(0.12))))
-                    }
-                    .buttonStyle(.toy)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                    .accessibilityValue(lastSide == k ? "上次喂的一侧" : "")
-                }
-            }
-            if finished {
-                save(enabled: from < when) { j.add(LogEntry(type: LogType.nurse, start: ms(from), end: ms(when), side: side)) }
-            }
-        case LogType.sleep:
-            if finished {
-                save(enabled: from < when) { j.add(LogEntry(type: LogType.sleep, start: ms(from), end: ms(when))) }
-            } else {
-                Button { j.start(LogType.sleep, at: at); dismiss() } label: {
-                    Label("开始睡觉", systemImage: "moon.zzz.fill").font(.headline).frame(maxWidth: .infinity).padding(.vertical, 6)
-                }
-                .buttonStyle(.borderedProminent).tint(Crayon.fill(c, lamp)).controlSize(.large)
-            }
         case LogType.bottle:
             // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
             HStack(spacing: 12) {
@@ -137,11 +68,12 @@ struct AskSheet: View {
                 Stepper("奶量", value: $ml, in: 10...300, step: 10).labelsHidden()
             }
             FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
-            save { j.add(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
+            save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
         case LogType.diaper:
+            Text("点一下即记下").font(.subheadline).foregroundStyle(.secondary)
             HStack(spacing: 12) {
                 ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
-                    Button { j.add(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {
+                    Button { j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {
                         VStack(spacing: 8) { Image(systemName: sym).font(.title2); Text(t).font(.subheadline.weight(.semibold)) }
                             .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(Crayon.ink(c))
                             .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -155,7 +87,7 @@ struct AskSheet: View {
                 Spacer()
                 Stepper("体温", value: $temp, in: 340...425).labelsHidden()
             }
-            save { j.add(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
+            save { j.record(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
         default:
             let (title, hint, chips): (String, String, [String]) = type == LogType.solid ? ("吃了什么", "食物和大概的量", ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
                 : type == LogType.medicine ? ("用了什么药", "药名与剂量，按医嘱或说明书", ["维生素 D", "维生素 AD"]) : ("备注", "发生了什么", [])
@@ -167,7 +99,7 @@ struct AskSheet: View {
             }
             save(enabled: !text.trimmingCharacters(in: .whitespaces).isEmpty || type == LogType.solid) {
                 typing = false
-                j.add(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
+                j.record(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
             }
         }
     }
@@ -261,7 +193,7 @@ struct EntrySheet: View {
             .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if isNew { j.add(entry) } else { j.update(entry) }; dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if isNew { j.record(entry) } else { j.update(entry) }; dismiss() } }
             }
         }
     }

@@ -22,6 +22,8 @@
 	<key>UIRequiresFullScreen</key><true/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array><string>UIInterfaceOrientationPortrait</string></array>
+	<key>CFBundleURLTypes</key>
+	<array><dict><key>CFBundleURLName</key><string>app.mossling</string><key>CFBundleURLSchemes</key><array><string>mossling</string></array></dict></array>
 	<key>CFBundleLocalizations</key><array><string>zh-Hans</string></array>
 </dict>
 </plist>

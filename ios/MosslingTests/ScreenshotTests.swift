@@ -77,7 +77,31 @@ final class ScreenshotTests: XCTestCase {
     func test21Search() { let m = model(); shot("21_search", tabs(m, SearchView(path: .constant(NavigationPath())))) }
     func test22Shelf() { let m = model(); shot("22_shelf_editor", ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
     func test23Timer() { let m = model(); shot("23_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
-    func test24AskNurse() { let m = model(); shot("24_ask_nurse", tabs(m, AskSheet(type: LogType.nurse))) }
+    /// Tapping 亲喂 or 睡觉 opens the page not yet running: pick a side (the one not fed last time is suggested) and when
+    /// it began; another clock still running is said here.
+    func test24ReadyPages() {
+        var b = JournalFile.Body(); let n = ms(Date())
+        b.logs = [LogEntry(type: LogType.nurse, start: n - 150 * 60_000, end: n - 130 * 60_000, side: "l")]
+        let quiet = JournalStore(preview: b)
+        var b2 = b; b2.timers = [RunningTimer(type: LogType.sleep, start: n - 80 * 60_000)]
+        let sleeping = JournalStore(preview: b2)
+        let m = model()
+        shot("24_ready_nurse", TimerScreen(type: LogType.nurse).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+        shot("24_ready_nurse_while_sleep", TimerScreen(type: LogType.nurse).environment(m).environment(sleeping).tint(Palette.accent).fontDesign(.rounded))
+        shot("24_ready_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+        shot("24_ready_sleep_lamp", lamp: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+    }
+    /// A clock that looks forgotten is asked about; a one-tap record is said back with 撤销.
+    func test33ChecksAndToast() {
+        var b = JournalFile.Body(); let n = ms(Date())
+        b.timers = [RunningTimer(type: LogType.nurse, start: n - 75 * 60_000, side: "l")]
+        let long = JournalStore(preview: b), m = model()
+        shot("33_check_long_feed", TimerScreen(type: LogType.nurse).environment(m).environment(long).tint(Palette.accent).fontDesign(.rounded))
+        let j = JournalStore(preview: JournalFile.Body())
+        j.toast = Toast(type: LogType.diaper, text: "已记下 尿布 · 湿 · 14:05", restore: JournalFile.Body())
+        m.journal = true
+        shot("33_toast", height: 700, tabs(m, JournalView(path: .constant(NavigationPath()))).environment(j).toasts().environment(j))
+    }
     func test07Care() { let m = model(); shot("07_care", tabs(m, CareView(month: 6))) }
     func test07Areas() { let m = model(); shot("07_areas", height: 1400, tabs(m, AreasView(month: 6))) }
     func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }
@@ -115,7 +139,7 @@ final class ScreenshotTests: XCTestCase {
     // night: Otto's lamp on the records and the timer; the home under the night sky
     func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", height: 1500, lamp: true, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
     func test27LampTimer() { let m = model(); shot("27_lamp_timer", lamp: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
-    func test27LampAsk() { let m = model(); shot("27_lamp_ask", lamp: true, tabs(m, AskSheet(type: LogType.sleep).lamp(true))) }
+    func test27LampAsk() { let m = model(); shot("27_lamp_ask", lamp: true, tabs(m, AskSheet(type: LogType.diaper).lamp(true))) }
     func test28TimerPausedAndSleep() {
         // mid-feed on the right after 8 minutes on the left, paused; and a sleep with a 3-minute wake
         var b = JournalFile.Body(); let n = ms(Date())
@@ -139,7 +163,7 @@ final class ScreenshotTests: XCTestCase {
     /// sheet from the records (build 156 showed black text and black date pickers there on a phone).
     func test30LampSheetsPresented() {
         let m = model(); m.journal = true
-        for (name, type) in [("30_lamp_present_nurse", LogType.nurse), ("30_lamp_present_bottle", LogType.bottle)] {
+        for (name, type) in [("30_lamp_present_diaper", LogType.diaper), ("30_lamp_present_bottle", LogType.bottle)] {
             let host = Color.clear.sheet(isPresented: .constant(true)) { AskSheet(type: type).lampPresented() }.lamp(true)
             shot(name, window: true, lamp: true, tabs(m, host))
         }
