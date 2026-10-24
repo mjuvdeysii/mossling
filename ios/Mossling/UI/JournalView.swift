@@ -68,7 +68,7 @@ func ago(_ then: Date, _ now: Date = Date()) -> String {
     let m = Int(now.timeIntervalSince(then) / 60)
     if m < 2 { return "刚刚" }
     if m < 60 { return "\(m) 分钟前" }
-    if m < 600 && m % 60 != 0 { return "\(m / 60) 时 \(m % 60) 分前" }
+    if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
     if m < 48 * 60 { return "\(m / 60) 小时前" }
     return "\(m / 1440) 天前"
 }
@@ -319,23 +319,26 @@ private struct Totals: View {
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
-            stamp(LogType.nurse, "喂奶", "\(feeds)", "次", ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
-            stamp(LogType.sleep, "睡眠", durationValue(sleep), "", longest >= 60 ? "最长一觉 " + durationValue(longest) : " ")
+            stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
+            stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? "最长一觉 " + durationValue(longest) : " ")
             // what a doctor asks: how many wet, how many dirty
-            stamp(LogType.diaper, "尿布", "\(nappies.count)", "片", nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)")
+            stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)")
         }
         .fixedSize(horizontal: false, vertical: true)
     }
-    private func stamp(_ t: String, _ name: String, _ n: String, _ unit: String, _ sub: String) -> some View {
+    private func stamp(_ t: String, _ name: String, _ parts: [(String, String)], _ sub: String) -> some View {
         let c = LogType.color(t)
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
                 IconTile(symbol: LogType.symbol(t), color: c, size: 18, round: true)
                 Text(name).font(.caption.weight(.semibold)).foregroundStyle(Crayon.ink(c))
             }
+            // numbers large, units small: "8 小时 5 分" fits a third of the width
             HStack(alignment: .firstTextBaseline, spacing: 2) {
-                Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
-                if !unit.isEmpty { Text(unit).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
+                ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
+                    Text(p.0).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
+                    Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
             Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(size.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.8)
@@ -345,6 +348,13 @@ private struct Totals: View {
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(c.opacity(0.12)))   // a solid chip: dashes mean an empty slot
         .accessibilityElement(children: .combine)
     }
+}
+
+/// A length of time as number–unit pairs, for a large number with a small unit: [("8", "小时"), ("5", "分")].
+func durationParts(_ seconds: Double) -> [(String, String)] {
+    let m = Int((max(0, seconds) / 60).rounded())
+    if m < 60 { return [("\(m)", "分钟")] }
+    return m % 60 == 0 ? [("\(m / 60)", "小时")] : [("\(m / 60)", "小时"), ("\(m % 60)", "分")]
 }
 
 /// A length of time, rounded to the minute, in the one form used everywhere (minutesOf).

@@ -264,7 +264,7 @@ private fun TimerPlate(t: RunningTimer, now: () -> Long, a: TodayActions) {
     Surface(onClick = a.openJournal, shape = RoundedCornerShape(28.dp), color = k.tint, contentColor = Color.White, modifier = Modifier.fillMaxWidth()) {
         Row(Modifier.padding(20.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
-                Text(k.name + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" } + if (t.pausedAt != null) " · 暂停中" else "", style = MaterialTheme.typography.labelLarge)
+                Text(k.name + when (t.side) { "l" -> " · 左侧"; "r" -> " · 右侧"; else -> "" } + if (t.pausedAt != null) " · 暂停中" else "", style = MaterialTheme.typography.labelLarge)
                 Text(clock(Timers.elapsed(t, tick)), style = MaterialTheme.typography.displaySmall)
             }
             OutlinedButton(onClick = { a.pause(t.type) }, modifier = Modifier.height(48.dp)) { Text(if (t.pausedAt == null) "暂停" else "继续", color = Color.White) }

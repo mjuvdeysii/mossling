@@ -59,7 +59,7 @@ fun TimerCard(t: RunningTimer, a: TimerActions, modifier: Modifier = Modifier, n
             var picking by remember { mutableStateOf(false) }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Glyph(k.glyph, size = 22.dp, color = Color.White, filled = true)
-                Text("  " + k.name + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" } + if (paused) " · 暂停中" else "",
+                Text("  " + k.name + when (t.side) { "l" -> " · 左侧"; "r" -> " · 右侧"; else -> "" } + if (paused) " · 暂停中" else "",
                     style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
             }
             // the start, exact to the minute; tap to set it precisely
@@ -71,7 +71,7 @@ fun TimerCard(t: RunningTimer, a: TimerActions, modifier: Modifier = Modifier, n
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Button(onClick = { a.stop(t.type) }, colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = k.tint), modifier = Modifier.heightIn(min = 48.dp)) { Text("结束并记下") }
                 OutlinedButton(onClick = { a.pause(t.type) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (paused) "继续" else "暂停", color = Color.White) }
-                if (t.type == LogType.Nurse) OutlinedButton(onClick = { a.switchSide(t.type) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (t.side == "r") "换到左边" else "换到右边", color = Color.White) }
+                if (t.type == LogType.Nurse) OutlinedButton(onClick = { a.switchSide(t.type) }, modifier = Modifier.heightIn(min = 48.dp)) { Text(if (t.side == "r") "换到左侧" else "换到右侧", color = Color.White) }
             }
             Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("提前", style = MaterialTheme.typography.labelMedium)

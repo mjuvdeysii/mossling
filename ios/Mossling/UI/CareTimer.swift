@@ -44,7 +44,6 @@ struct TimerScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toasts()
         }
-        .animation(.snappy, value: j.timers.map(\.type))
     }
 
     // MARK: before starting
@@ -69,7 +68,7 @@ struct TimerScreen: View {
                 // something else still running: say so here, so two clocks never run unnoticed
                 if let o = j.timers.first(where: { $0.type == other }) {
                     TimelineView(.periodic(from: .now, by: 30)) { tl in
-                        Notice(type: other, text: LogType.name(other) + "还在计时 · " + durationValue(o.total(ms(tl.date))),
+                        Notice(type: other, text: LogType.name(other) + "还在计时", detail: "已经 " + durationValue(o.total(ms(tl.date))),
                                action: other == LogType.sleep ? "先记醒了" : "先记喂完") { withAnimation(.snappy) { j.stop(other) } }
                     }
                 }
@@ -129,7 +128,7 @@ struct TimerScreen: View {
     }
 
     private var lastLine: String {
-        guard let d = j.last(type) else { return "还没有记录，点按下方开始计时" }
+        guard let d = j.last(type) else { return "还没有记录" }
         var s = "上次" + (type == LogType.sleep ? "醒来 " : "喂完 ") + ago(d)
         if type == LogType.nurse, let side = lastNurseSide { s += side == "l" ? " · 左侧" : " · 右侧" }
         return s
@@ -245,14 +244,14 @@ struct TimerScreen: View {
         let key = "\(t.type)-\(Int(t.start))"
         if let p = t.pausedAt, now - p > 20 * 60_000, !acked.contains(key + "p") {
             return (key + "p", "已经暂停了 " + durationValue((now - p) / 1000) + "。" + (type == LogType.sleep ? "宝宝已经醒了吗？" : "这一顿喂完了吗？"),
-                    type == LogType.sleep ? "还在睡" : "还没喂完", type == LogType.sleep ? "醒了，选时间" : "喂完了，选时间")
+                    type == LogType.sleep ? "还在睡" : "还没喂完", type == LogType.sleep ? "选醒来时间" : "选结束时间")
         }
         let total = t.total(now)
         if type == LogType.nurse, total > 3600, !acked.contains(key) {
-            return (key, "这次亲喂已经计时 " + durationValue(total) + "，还在喂吗？", "还在喂", "已经喂完，选时间")
+            return (key, "这次亲喂已经计时 " + durationValue(total) + "，还在喂吗？", "还在喂", "选结束时间")
         }
         if type == LogType.sleep, total > 12 * 3600, !acked.contains(key) {
-            return (key, "已经睡了 " + durationValue(total) + "，是不是忘了记醒来？", "还在睡", "已经醒了，选时间")
+            return (key, "已经睡了 " + durationValue(total) + "，是不是忘了记醒来？", "还在睡", "选醒来时间")
         }
         return nil
     }
@@ -260,13 +259,16 @@ struct TimerScreen: View {
 
 /// Another timer still running, said on the page about to start one.
 private struct Notice: View {
-    let type: String, text: String, action: String
+    let type: String, text: String, detail: String, action: String
     let tap: () -> Void
     var body: some View {
         let c = LogType.color(type)
         HStack(spacing: 10) {
             IconTile(symbol: LogType.symbol(type), color: c, size: 30, round: true)
-            Text(text).font(.subheadline.weight(.semibold)).monospacedDigit()
+            VStack(alignment: .leading, spacing: 1) {
+                Text(text).font(.subheadline.weight(.semibold))
+                Text(detail).font(.footnote).foregroundStyle(.secondary).monospacedDigit()
+            }
             Spacer(minLength: 6)
             Button(action, action: tap).buttonStyle(.bordered).tint(Crayon.ink(c)).font(.subheadline.weight(.semibold))
         }

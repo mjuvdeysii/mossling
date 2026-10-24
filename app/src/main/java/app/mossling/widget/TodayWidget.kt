@@ -118,7 +118,7 @@ class TodayWidget : GlanceAppWidget() {
         val white = ColorProvider(day = Color.White, night = Color.White)
         fun send(action: String) = actionSendBroadcast(Intent(context, TimerActionReceiver::class.java).setAction(action).putExtra("type", t.type))
         Column(GlanceModifier.fillMaxWidth().background(tint).cornerRadius(20.dp).padding(12.dp)) {
-            Text((if (t.type == LogType.Sleep) "睡觉" else "亲喂") + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" } + if (t.pausedAt != null) " · 暂停中" else "",
+            Text((if (t.type == LogType.Sleep) "睡觉" else "亲喂") + when (t.side) { "l" -> " · 左侧"; "r" -> " · 右侧"; else -> "" } + if (t.pausedAt != null) " · 暂停中" else "",
                 style = TextStyle(fontSize = 13.sp, color = white))
             val rv = RemoteViews(context.packageName, R.layout.widget_chrono).apply {
                 val elapsed = Timers.elapsed(t, System.currentTimeMillis())

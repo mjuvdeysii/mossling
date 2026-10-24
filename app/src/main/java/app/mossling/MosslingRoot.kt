@@ -174,11 +174,11 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
     val lastOf = remember(month30, ui.timers) { month30.groupBy { it.type }.mapValues { (_, v) -> v.maxOf { it.end ?: it.start } } }
     fun log(type: String) {
         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-        if (ui.timers.any { it.type == type }) { vm.stopTimer(type) { it?.let(::added) }; return }
+        // a running feed or sleep is ended on its timer card (with its own 结束), never by tapping its button again
+        if (ui.timers.any { it.type == type }) { go(JournalRoute); say(logKind(type).name + "正在计时，可在计时卡片上暂停或结束"); return }
         when (askFor(type)) {
             Ask.Measure -> measuring = app.mossling.data.Measure(at = System.currentTimeMillis())
             Ask.None -> when (type) {
-                LogType.Sleep -> { if (!asked) { asked = true; askNotifications() }; vm.startTimer(type) }
                 LogType.Note -> vm.addLog(LogEntry(type = type, start = System.currentTimeMillis(), detail = "")) { editing = it }
                 else -> vm.addLog(LogEntry(type = type, start = System.currentTimeMillis())) { added(it) }
             }
@@ -333,7 +333,13 @@ private fun Shell(vm: AppViewModel, open: MutableStateFlow<String?>, askNotifica
         lastAmount = month30.lastOrNull { it.type == LogType.Bottle }?.amount,
         onTemp = { c10, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, amount = c10)) { added(it) } },
         onText = { text, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, detail = text.ifBlank { null })) { added(it) } },
-        onSide = { side, at -> val t = ask.second; ask = Ask.None to ""; if (!asked) { asked = true; askNotifications() }; vm.startTimer(t, side, at) },
+        onSide = { side, at ->
+            val t = ask.second; ask = Ask.None to ""; if (!asked) { asked = true; askNotifications() }
+            val s = side.ifEmpty { null }; vm.startTimer(t, s, at)
+            // said back, so a start never goes unnoticed; 撤销 takes it back
+            val ago = ((System.currentTimeMillis() - at) / 60_000).toInt()
+            undoable(logKind(t).name + "开始计时" + when (s) { "l" -> " · 左侧"; "r" -> " · 右侧"; else -> "" } + if (ago >= 1) " · 从 $ago 分钟前算起" else "") { vm.discardTimer(t) }
+        },
         onAmount = { ml, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, amount = ml)) { added(it) } },
         onDiaper = { d, at -> val t = ask.second; ask = Ask.None to ""; vm.addLog(LogEntry(type = t, start = at, detail = d)) { added(it) } },
     )

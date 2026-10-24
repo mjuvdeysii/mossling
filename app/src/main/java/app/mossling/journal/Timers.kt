@@ -56,8 +56,9 @@ class Timers(private val context: Context, private val dao: RecordDao) {
         val t = dao.timer(type) ?: return@withLock null
         if (dao.dropTimer(type) == 0) return@withLock null
         cancel(type)
-        val paused = t.pausedTotal + (t.pausedAt?.let { now - it } ?: 0L)
-        val end = (t.pausedAt ?: now)
+        // ended while paused: the entry ends where the pause began, so only the earlier pauses are taken off
+        val paused = t.pausedTotal
+        val end = minOf(t.pausedAt ?: now, now)
         val e = LogEntry(type = type, start = t.start, end = end, side = t.side, detail = if (paused > 0) "paused:$paused" else null)
         e.copy(id = dao.putLog(e)).also { app.mossling.widget.TodayWidget.refresh(context) }
     }
@@ -82,7 +83,7 @@ class Timers(private val context: Context, private val dao: RecordDao) {
         channel()
         val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).putExtra("open", "journal").addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         fun action(a: String) = PendingIntent.getBroadcast(context, (t.type + a).hashCode(), Intent(context, TimerActionReceiver::class.java).setAction(a).putExtra("type", t.type), PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        val title = when (t.type) { LogType.Nurse -> "亲喂" + when (t.side) { "l" -> " · 左边"; "r" -> " · 右边"; else -> "" }; LogType.Sleep -> "睡觉"; else -> "计时" }
+        val title = when (t.type) { LogType.Nurse -> "亲喂" + when (t.side) { "l" -> " · 左侧"; "r" -> " · 右侧"; else -> "" }; LogType.Sleep -> "睡觉"; else -> "计时" }
         val b = NotificationCompat.Builder(context, CHANNEL)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(title)

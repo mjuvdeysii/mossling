@@ -82,7 +82,7 @@ fun logKind(type: String) = if (type == LogType.Play) PlayKind else LogKinds.fir
 enum class Ask { None, Side, Amount, Diaper, Temp, Text, Measure }
 
 fun askFor(type: String) = when (type) {
-    LogType.Nurse -> Ask.Side; LogType.Bottle -> Ask.Amount; LogType.Diaper -> Ask.Diaper; LogType.Temp -> Ask.Temp
+    LogType.Nurse, LogType.Sleep -> Ask.Side; LogType.Bottle -> Ask.Amount; LogType.Diaper -> Ask.Diaper; LogType.Temp -> Ask.Temp
     LogType.Solid, LogType.Medicine, LogType.Note -> Ask.Text; GROWTH -> Ask.Measure; else -> Ask.None
 }
 
@@ -114,11 +114,15 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
             }
             if (choosing) TimeDialog(if (ask == Ask.Side) "开始时间" else "时间", exact ?: at(), { exact = it }, { choosing = false })
             when (ask) {
-                Ask.Side -> {
-                    Text("从哪边开始", style = MaterialTheme.typography.headlineSmall)
+                Ask.Side -> if (type == LogType.Sleep) {
+                    // a sleep starts only from here, after saying when — never from a single tap elsewhere
+                    Button(onClick = { onSide("", at()) }, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(20.dp)) { Text("开始睡觉计时", style = MaterialTheme.typography.titleMedium) }
+                    Spacer(Modifier.height(8.dp))
+                } else {
+                    Text("从哪一侧开始", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(20.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        listOf("l" to "左边", "r" to "右边").forEach { (k, t) ->
+                        listOf("l" to "左侧", "r" to "右侧").forEach { (k, t) ->
                             Surface(onClick = { onSide(k, at()) }, shape = CircleShape, color = Color(0xFFB8382B).copy(alpha = 0.12f), modifier = Modifier.weight(1f).aspectRatio(1f)) {
                                 Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
                                     Text(if (k == "l") "L" else "R", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Color(0xFFB8382B))
@@ -195,7 +199,7 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
 }
 
 fun describe(e: LogEntry): String = when (e.type) {
-    LogType.Nurse -> listOfNotNull(when (e.side) { "l" -> "左边"; "r" -> "右边"; else -> null }, e.end?.let { app.mossling.ui.components.minutes(it - e.start) }).joinToString(" · ")
+    LogType.Nurse -> listOfNotNull(when (e.side) { "l" -> "左侧"; "r" -> "右侧"; else -> null }, e.end?.let { app.mossling.ui.components.minutes(it - e.start) }).joinToString(" · ")
     LogType.Sleep -> e.end?.let { app.mossling.ui.components.minutes(it - e.start) } ?: "进行中"
     LogType.Bottle -> "${e.amount ?: 0} 毫升"
     LogType.Diaper -> when (e.detail) { "wet" -> "湿"; "dirty" -> "便"; "both" -> "湿和便"; else -> "" }
@@ -253,7 +257,7 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
                     Text("${ml.roundToInt()} 毫升", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
                     Slider(ml, { ml = (it / 10).roundToInt() * 10f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 10f..300f)
                 }
-                LogType.Nurse -> Choice(listOf("l" to "左边", "r" to "右边"), cur.side) { cur = cur.copy(side = it) }
+                LogType.Nurse -> Choice(listOf("l" to "左侧", "r" to "右侧"), cur.side) { cur = cur.copy(side = it) }
                 LogType.Diaper -> Choice(listOf("wet" to "湿", "dirty" to "便", "both" to "都有"), cur.detail) { cur = cur.copy(detail = it) }
                 LogType.Temp -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
                     val c = cur.amount ?: 368
