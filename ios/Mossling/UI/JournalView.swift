@@ -215,8 +215,8 @@ private struct DayPage: View {
         .padding(18)
         .background { DotPaper() }
         .printCard(radius: 26)
+        // the chosen kind stays when the day changes: flip through the week and compare feeds day by day
         .sensoryFeedback(.selection, trigger: only)
-        .onChange(of: day) { _, _ in only = nil }
     }
 }
 
