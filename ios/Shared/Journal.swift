@@ -100,7 +100,12 @@ extension Array where Element == LogEntry {
     }
 }
 
-func minutesOf(_ s: Double) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
+/// One way to write a length of time everywhere (app, widget, Live Activity): "18 分钟", "1 小时 5 分", "2 小时".
+func minutesOf(_ s: Double) -> String {
+    let m = Int((max(0, s) / 60).rounded(.down))
+    if m < 60 { return "\(m) 分钟" }
+    return m % 60 == 0 ? "\(m / 60) 小时" : "\(m / 60) 小时 \(m % 60) 分"
+}
 
 /// A timer that is running (at most one per kind). Survives the app being closed.
 struct RunningTimer: Codable, Hashable {

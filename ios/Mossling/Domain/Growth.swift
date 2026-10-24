@@ -7,7 +7,7 @@ enum Indicator: String, CaseIterable, Identifiable {
     var label: String { switch self { case .weight: "体重"; case .length: "身长 / 身高"; case .head: "头围" } }
     var short: String { switch self { case .weight: "体重"; case .length: "身长"; case .head: "头围" } }
     var unit: String { self == .weight ? "千克" : "厘米" }
-    var unitShort: String { self == .weight ? "kg" : "cm" }
+    var unitShort: String { self == .weight ? "千克" : "厘米" }
     func fmt(_ v: Double) -> String { String(format: self == .weight ? "%.2f" : "%.1f", v) }
 }
 

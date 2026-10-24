@@ -206,7 +206,7 @@ struct EntrySheet: View {
             }
             Stepper(value: Binding(get: { entry.amount ?? 120 }, set: { entry.amount = $0 }), in: 10...300, step: 10) { LabeledContent("奶量", value: "\(entry.amount ?? 120) 毫升") }
         case LogType.nurse:
-            Picker("哪边", selection: Binding(get: { entry.side ?? "l" }, set: { entry.side = $0 })) { Text("左边").tag("l"); Text("右边").tag("r") }.pickerStyle(.segmented)
+            Picker("哪边", selection: Binding(get: { entry.side ?? "l" }, set: { entry.side = $0 })) { Text("左侧").tag("l"); Text("右侧").tag("r") }.pickerStyle(.segmented)
         case LogType.diaper:
             Picker("尿布", selection: Binding(get: { entry.detail ?? "wet" }, set: { entry.detail = $0 })) { Text("湿").tag("wet"); Text("便").tag("dirty"); Text("都有").tag("both") }.pickerStyle(.segmented)
         case LogType.temp:

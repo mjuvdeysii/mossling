@@ -9,6 +9,7 @@ struct JournalView: View {
     @State private var day: Day = .today
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
+    @Environment(\.dynamicTypeSize) private var size
 
     var body: some View {
         ScrollView {
@@ -16,7 +17,8 @@ struct JournalView: View {
                 StickerSheet(timers: j.timers, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) })
-                HStack(spacing: 12) {
+                let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+                pair {
                     NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) }.buttonStyle(.toy)
                     NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) }.buttonStyle(.toy)
                 }
@@ -25,7 +27,6 @@ struct JournalView: View {
         }
         .pageBackground()
         .navigationTitle("记录")
-        .navigationSubtitle(day == app.today ? "今天 · \(day.md)" : "\(day.md) · \(day.weekday)")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("补记", systemImage: "plus") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
@@ -95,7 +96,7 @@ private struct StickerSheet: View {
                         ForEach(LogType.buttons[(r * 5)..<min(LogType.buttons.count, r * 5 + 5)], id: \.self) { t in
                             let run = timers.first { $0.type == t }
                             Sticker(type: t, running: run != nil,
-                                    since: run.map { "进行中 " + durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
+                                    since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
                         }
                     }
                 }
@@ -216,7 +217,7 @@ private struct RunningRow: View {
                 HStack(spacing: 12) {
                     Text(hm(Date(timeIntervalSince1970: timer.start / 1000))).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                     IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
-                    Text(LogType.name(timer.type)).font(.body)
+                    Text(LogType.name(timer.type)).font(.body).fixedSize()
                     Spacer(minLength: 8)
                     Text((timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000)))
                         .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
@@ -304,6 +305,7 @@ private struct DotPaper: View {
 private struct Totals: View {
     let logs: [LogEntry]
     let day: Day
+    @Environment(\.dynamicTypeSize) private var size
     var body: some View {
         // counts are of what started on the day; sleep is the part of each sleep that falls on the day
         let own = logs.filter { !$0.carriedOver(into: day) }
@@ -313,13 +315,16 @@ private struct Totals: View {
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
         let dirty = nappies.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map(\.activeSeconds).max() ?? 0
-        HStack(spacing: 10) {
+        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map { $0.seconds(on: day) }.max() ?? 0
+        // three across; at the largest text sizes, one under the other so nothing breaks a word
+        let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
+        layout {
             stamp(LogType.nurse, "喂奶", "\(feeds)", "次", ml > 0 ? "瓶喂 \(ml) 毫升" : " ")
             stamp(LogType.sleep, "睡眠", durationValue(sleep), "", longest >= 60 ? "最长一觉 " + durationValue(longest) : " ")
             // what a doctor asks: how many wet, how many dirty
             stamp(LogType.diaper, "尿布", "\(nappies.count)", "片", nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)")
         }
+        .fixedSize(horizontal: false, vertical: true)
     }
     private func stamp(_ t: String, _ name: String, _ n: String, _ unit: String, _ sub: String) -> some View {
         let c = LogType.color(t)
@@ -333,20 +338,17 @@ private struct Totals: View {
                 if !unit.isEmpty { Text(unit).font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
-            Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.8)
+            Text(sub).font(.caption2).foregroundStyle(.secondary).lineLimit(size.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.8)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(c.opacity(0.12)))   // a solid chip: dashes mean an empty slot
         .accessibilityElement(children: .combine)
     }
 }
 
-/// "18 分", "1 时 05 分": one form for every length of time.
-func durationValue(_ seconds: Double) -> String {
-    let m = Int((max(0, seconds) / 60).rounded())
-    return m >= 60 ? String(format: "%d 时 %02d 分", m / 60, m % 60) : "\(m) 分"
-}
+/// A length of time, rounded to the minute, in the one form used everywhere (minutesOf).
+func durationValue(_ seconds: Double) -> String { minutesOf((max(0, seconds) / 60).rounded() * 60) }
 
 extension LogEntry {
     /// The value, right-aligned in its column: an amount, a length of time (the part on this day), a temperature, the
@@ -362,14 +364,14 @@ extension LogEntry {
     }
     /// The details, on the second line, without repeating the start time shown in the first column: the side, when it
     /// ended (or began, if the day before), the whole length when it crosses midnight, what was eaten or noted.
-    func meta(on day: Day) -> String {
+    func meta(on day: Day, endShown: Bool = false) -> String {
         var bits: [String] = []
         if type == LogType.nurse, let s = side { bits.append(s == "l" ? "左侧" : "右侧") }
         if let m = milk { bits.append(m) }
         if let e = endDate {
             let endsLater = Day(e) > day
             if carriedOver(into: day) { bits.append("接昨天 \(hm(startDate)) · 到 \(hm(e))") }
-            else { bits.append("到 " + (endsLater ? "次日 " : "") + hm(e)) }
+            else if !endShown || endsLater { bits.append("到 " + (endsLater ? "次日 " : "") + hm(e)) }
             if carriedOver(into: day) || endsLater { bits.append("共 " + durationValue(activeSeconds)) }
             if pausedSeconds >= 60 { bits.append("暂停 " + durationValue(pausedSeconds)) }
         }
@@ -473,7 +475,7 @@ private struct TimelineRow: View {
         let span = entry.end != nil ? entry.seconds(on: day) : 0
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
-        let meta = [entry.meta(on: day), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        let meta = [entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))

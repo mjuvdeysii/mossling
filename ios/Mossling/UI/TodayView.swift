@@ -47,7 +47,7 @@ struct TodayView: View {
         }
         .pageBackground()
         .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
-        .navigationSubtitle(app.age.map { a in a.days > 0 ? "\(a.months) 个月 \(a.days) 天" : "满 \(a.months) 个月" } ?? "\(app.today.md) \(app.today.weekday)")
+        .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
             if chosen != nil {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -145,6 +145,7 @@ private struct MonthCard: View {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
                         if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
+                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)); Text("天").font(.subheadline.weight(.semibold)) }
                         if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(.secondary) }
                     }
                     Text(app.content.month(month).title).font(.subheadline).foregroundStyle(.secondary).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
@@ -245,6 +246,7 @@ private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: Strin
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
+    @Environment(\.dynamicTypeSize) private var size
     @Environment(JournalStore.self) private var j
     let month: Int
     let arrange: () -> Void
@@ -259,13 +261,13 @@ struct ShelfView: View {
             .padding(.horizontal, 4).padding(.top, 2)
             // a two-level shelf, two materials on each level: the week's plays are the largest pictures on the page
             VStack(spacing: 6) {
-                ForEach(0..<(Shelf.max + 1) / 2, id: \.self) { row in
-                    VStack(spacing: 0) {
-                        HStack(alignment: .top, spacing: 12) {
-                            ForEach([row * 2, row * 2 + 1], id: \.self) { k in slot(k, s) }
-                        }
-                        .padding(.horizontal, 12).padding(.top, 12)
+                // two on each level; at the largest text sizes one per level, so names wrap whole
+                let per = size.isAccessibilitySize ? 1 : 2
+                ForEach(0..<(Shelf.max + per - 1) / per, id: \.self) { row in
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach((row * per)..<(row * per + per), id: \.self) { k in slot(k, s) }
                     }
+                    .padding(.horizontal, 12).padding(.top, 12)
                 }
             }
             .padding(.bottom, 12)

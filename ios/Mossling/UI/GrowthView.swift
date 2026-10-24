@@ -186,12 +186,22 @@ struct StatsView: View {
         return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
                 Text("有记录的日子平均").font(.footnote).foregroundStyle(.secondary)
-                ValueText(parts: [(String(format: unit == "小时" ? "%.1f" : "%.0f", avg), unit)], size: 30)
+                // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
+                if unit == "小时" { Text(durationValue(avg * 3600)).font(Typeface.numerals(26, relativeTo: .title2, weight: .bold)) }
+                else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 30) }
             }
             Chart(data, id: \.0) { d in
                 BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1)).foregroundStyle(LogType.color(type).gradient).cornerRadius(5)
             }
-            .chartYAxis { AxisMarks(position: .trailing) }
+            .chartYAxis {
+                // counts in whole numbers only (no "0.5 次")
+                AxisMarks(position: .trailing) { v in
+                    AxisGridLine()
+                    if let d = v.as(Double.self), unit == "小时" || d == d.rounded() {
+                        AxisValueLabel { Text(unit == "小时" ? String(format: "%g", d) : "\(Int(d))") }
+                    }
+                }
+            }
             .frame(height: 150)
         }
     }
