@@ -389,9 +389,9 @@ struct Afterimage: ViewModifier {
     var tint: Color?
     static let none = Afterimage(fade: 0, rise: 0, blur: 0, scale: 1, tint: nil)
     func body(content: Self.Content) -> some View {
-        Group {
-            if let tint { content.foregroundStyle(tint) } else { content }
-        }
+        // one structure in every state (switching between a tinted and an untinted branch mid-transition left the
+        // text dimmed); the ghost keeps the text's own colour
+        content
         .scaleEffect(scale)
         .blur(radius: blur)
         .offset(y: -rise)
