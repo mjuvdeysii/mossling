@@ -64,7 +64,10 @@ struct TodayFace: View {
     private func last(_ t: String) -> Date? { body_.logs.filter { $0.type == t }.max { $0.start < $1.start }.map { Date(timeIntervalSince1970: ($0.end ?? $0.start) / 1000) } }
     private func agoText(_ d: Date) -> String {
         let m = Int(date.timeIntervalSince(d) / 60)
-        return m < 2 ? "刚刚" : m < 60 ? "\(m) 分钟前" : m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
+        if m < 2 { return "刚刚" }
+        if m < 60 { return "\(m) 分钟前" }
+        if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
+        return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
     }
     private var journal: Bool { snap?.journal == true }
 
@@ -134,10 +137,30 @@ struct TodayFace: View {
         VStack(alignment: .leading, spacing: 0) {
             head
             Spacer(minLength: 4)
-            if let t = body_.timers.first { running(t) } else { play }
+            if let t = body_.timers.first { running(t) }
+            else if journal { since }
+            else { play }
         }
         .foregroundStyle(.primary)
         .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) })
+    }
+
+    /// With records on, the small widget answers the question asked most at night: how long since the last feed, and
+    /// since the baby woke — each with its sticker.
+    private var since: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            ForEach([LogType.nurse, LogType.sleep], id: \.self) { t in
+                let d = t == LogType.nurse ? [last(LogType.nurse), last(LogType.bottle)].compactMap { $0 }.max() : last(t)
+                HStack(spacing: 6) {
+                    ArtImage(name: WidgetArt.sticker(t)).frame(width: 24, height: 24)
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(t == LogType.nurse ? "上次喂奶" : "上次醒来").font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
+                        Text(d.map(agoText) ?? "—").font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
+                            .foregroundStyle(Crayon.ink(LogType.color(t))).lineLimit(1).minimumScaleFactor(0.8)
+                    }
+                }
+            }
+        }
     }
 
     private var medium: some View {
