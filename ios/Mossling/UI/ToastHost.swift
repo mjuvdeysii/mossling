@@ -3,7 +3,7 @@ import SwiftUI
 /// What was just recorded or started, said back at the top of the screen for a few seconds: the kind's sticker, one
 /// line ("已记下 尿布 · 湿 · 14:05"), and 撤销. A one-tap record never happens silently.
 struct ToastHost: ViewModifier {
-    func body(content: Content) -> some View {
+    func body(content: Self.Content) -> some View {
         content.overlay(alignment: .top) { ToastSlot() }
     }
 }
