@@ -178,11 +178,9 @@ struct LastLine: View {
                 HStack(spacing: 10) {
                     Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                     VStack(alignment: .leading, spacing: 1) {
-                        HStack(spacing: 6) {
-                            Text(f.label).font(.footnote.weight(.semibold)).foregroundStyle(.secondary)
-                            Text(whenLabel(f.at)).font(.footnote.weight(.semibold)).monospacedDigit()
-                        }
-                        if !compact, let n = f.note { Text(n).font(.caption).foregroundStyle(.secondary).lineLimit(1) }
+                        Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
+                            .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
                     }
                     Spacer(minLength: 6)
                     VStack(alignment: .trailing, spacing: 0) {

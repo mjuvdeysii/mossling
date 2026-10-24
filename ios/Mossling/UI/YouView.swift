@@ -37,7 +37,7 @@ struct YouView: View {
                                     .foregroundStyle(Palette.accent)
                                 }
                                 Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
-                                    .font(.caption).foregroundStyle(.secondary)
+                                    .font(.caption).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.75)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)

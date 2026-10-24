@@ -104,6 +104,7 @@ extension Array where Element == LogEntry {
 func minutesOf(_ s: Double) -> String {
     let m = Int((max(0, s) / 60).rounded(.down))
     if m < 60 { return "\(m) 分钟" }
+    if m >= 48 * 60 { let h = m / 60; return h % 24 == 0 ? "\(h / 24) 天" : "\(h / 24) 天 \(h % 24) 小时" }
     return m % 60 == 0 ? "\(m / 60) 小时" : "\(m / 60) 小时 \(m % 60) 分"
 }
 
