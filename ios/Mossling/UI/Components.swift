@@ -376,7 +376,8 @@ extension AnyTransition {
         let p = CGFloat(min(place, 4))
         return .asymmetric(
             insertion: .modifier(active: Afterimage(fade: 1, rise: -2, blur: 1.5, scale: 0.96, tint: nil), identity: Afterimage.none).animation(.easeOut(duration: 0.24)),
-            removal: .modifier(active: Afterimage(fade: 1, rise: 7 + 3 * p, blur: 3.5 + p, scale: 1.04 + 0.035 * p, tint: tint), identity: Afterimage(fade: 0.45, rise: 0, blur: 0, scale: 1, tint: tint))
+            // the removal starts from the character exactly as it was (a removal caught at rest must look like the text)
+            removal: .modifier(active: Afterimage(fade: 1, rise: 7 + 3 * p, blur: 3.5 + p, scale: 1.04 + 0.035 * p, tint: tint), identity: Afterimage.none)
                 .animation(.easeOut(duration: 0.85 + 0.12 * Double(p)))
         )
     }
