@@ -273,7 +273,7 @@ private struct FocusLine: View {
         HStack(spacing: 10) {
             Image(systemName: "line.3.horizontal.decrease.circle.fill").foregroundStyle(Crayon.ink(c))
             Text(summary).font(.footnote.weight(.semibold)).foregroundStyle(.primary).monospacedDigit()
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .lineLimit(1).minimumScaleFactor(0.75)
             Spacer(minLength: 6)
             Button("全部", action: clear).font(.footnote.weight(.bold)).buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Crayon.ink(c))
         }
@@ -379,7 +379,7 @@ private struct DayRibbon: View {
             let p = Path(roundedRect: r, cornerRadius: r.height / 2)
             // flat beads, as the month's beads: colour and a soft darker rim, no gloss
             ctx.fill(p, with: .color(c))
-            ctx.stroke(p, with: .color(c.mix(with: .black, by: 0.12)), lineWidth: 1)
+            ctx.stroke(p, with: .color(c.opacity(0.55)), lineWidth: 1)   // a faded bead fades its rim too
         }
         let spans = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
         for (t, a, b) in spans where b > d0 && a < d0 + span {
