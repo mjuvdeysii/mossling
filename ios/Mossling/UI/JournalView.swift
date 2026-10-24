@@ -559,6 +559,10 @@ private struct DayTimeline: View {
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                         .contentShape(Rectangle())
                         .onTapGesture { edit(e) }
+                        // VoiceOver: the row is a button that opens the editor; deleting is one of its actions
+                        .accessibilityAddTraits(.isButton)
+                        .accessibilityHint("修改这条记录")
+                        .accessibilityAction(named: "删除") { delete(e) }
                         .contextMenu {
                             Button("修改", systemImage: "pencil") { edit(e) }
                             Button("删除", systemImage: "trash", role: .destructive) { delete(e) }

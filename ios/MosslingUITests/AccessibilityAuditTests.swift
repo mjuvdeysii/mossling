@@ -18,13 +18,15 @@ final class AccessibilityAuditTests: XCTestCase {
         return app
     }
 
-    private func audit(_ app: XCUIApplication, _ place: String, into lines: inout [String], unlabeled: inout [String]) {
+    private var lines: [String] = [], unlabeled: [String] = []
+
+    private func audit(_ app: XCUIApplication, _ place: String) {
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
                 let who = e.map { "\($0.elementType.rawValue) “\($0.label)” id=\($0.identifier) \(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))×\(Int($0.frame.height))" } ?? "—"
-                lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who)")
-                if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { unlabeled.append("[\(place)] \(who)") }
+                self.lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who)")
+                if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { self.unlabeled.append("[\(place)] \(who)") }
                 return true   // recorded, reviewed from the list
             }
         } catch { lines.append("[\(place)] audit failed: \(error)") }
@@ -45,18 +47,18 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private func run(_ size: String?, file: String) {
         let app = launch(size)
-        var lines: [String] = [], unlabeled: [String] = []
+        lines = []; unlabeled = []
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
         for tab in ["本月", "记录", "我的"] {
             let b = bar.buttons[tab]
             guard b.exists else { lines.append("[\(tab)] tab missing"); continue }
             b.tap(); sleep(2)
-            audit(app, tab, into: &lines, unlabeled: &unlabeled)
+            audit(app, tab)
             // the rest of the page, a screen at a time
             for k in 1...3 {
                 app.swipeUp(velocity: .slow); sleep(1)
-                audit(app, "\(tab) ↓\(k)", into: &lines, unlabeled: &unlabeled)
+                audit(app, "\(tab) ↓\(k)")
             }
         }
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
