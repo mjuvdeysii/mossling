@@ -190,6 +190,9 @@ extension Palette {
 /// (ios/DESIGN.md §3); hierarchy comes from layout and grouping.
 struct PageBackground: View {
     @Environment(\.lamp) private var lamp
+    /// Reduce Transparency: the page becomes plain and opaque — no drifting seeds, motes or grain behind the cards;
+    /// only the solid paper (or the lamp's blue) and the still wash of light remain.
+    @Environment(\.accessibilityReduceTransparency) private var solid
     /// A faint wash of the tab's colour from the top (今天 sunflower, 记录 pink, 我的 lilac): the page stays paper,
     /// but each place has its own light, like a room lit by a different window.
     var tone: Color? = nil
@@ -199,8 +202,7 @@ struct PageBackground: View {
             ZStack {
                 Palette.lampPage
                 LampGlow()
-                Grain(dark: true)
-                Motes()
+                if !solid { Grain(dark: true); Motes() }
             }
             .ignoresSafeArea().accessibilityHidden(true)
         } else {
@@ -210,8 +212,7 @@ struct PageBackground: View {
                     LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
                     RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
                 }
-                Grain(dark: false)
-                DayAir(tone: tone ?? Crayon.sunflower)
+                if !solid { Grain(dark: false); DayAir(tone: tone ?? Crayon.sunflower) }
             }
             .ignoresSafeArea().accessibilityHidden(true)
         }
