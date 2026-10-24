@@ -302,23 +302,18 @@ struct DayAir: View {
         ctx.fill(Path(ellipseIn: CGRect(x: sx - 46 * q, y: sy - 12 * q, width: 14 * q, height: 14 * q)), with: .color(Color(hex: 0xF2554B).opacity(0.45)))
     }
 
-    /// The drifting things keep to the page's edges — a band under the sun at the top, where the status bar and the
-    /// title are, and a band just above the meadow — and never cross the middle, where the cards are read. A small
-    /// preview (the theme swatches) has no reading to protect, so there they use the whole window.
+    /// The drifting things cross the whole page, behind the cards (the page's background, never over the content).
     private func drift(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
         let w = size.width, h = size.height
-        let preview = scale < 1
-        let n = preview ? 12 : 10, z = 1.5 * scale
+        let n = 18, z = 1.7 * scale
         for i in 0..<n {
             let s = Double(i) * 0.618
-            let period = 17.0 + Double(i % 5) * 4.5
+            let period = 15.0 + Double(i % 5) * 4.5
             let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 across the page
             let x = -30 + (w + 60) * f
-            let r = (s * 1.37).truncatingRemainder(dividingBy: 1)
-            let top = i % 5 < 3                                                   // three in five under the sun
-            let y0 = preview ? h * (0.08 + 0.7 * r) : (top ? h * (0.012 + 0.07 * r) : h - 150 * scale + 46 * r * scale)
-            let y = y0 + f * (preview ? 40 : 14) * scale + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 7 * scale
-            let a = min(1, f * 6) * min(1, (1 - f) * 6) * (preview ? 1 : 0.7)       // fade in and out at the edges
+            let y0 = h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1))
+            let y = y0 + f * 90 + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 18 * scale
+            let a = min(1, f * 6) * min(1, (1 - f) * 6)                           // fade in and out at the edges
             let p = CGPoint(x: x, y: y)
             switch i % 4 {
             case 0:   // a dandelion seed: a fluff of fine rays on a short stalk
@@ -394,19 +389,15 @@ struct Motes: View {
         TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduce)) { tl in
             Canvas { ctx, size in
                 let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-                // On a page they rise only through the lamp's own light at the top right and fade before the middle of
-                // the page, where the cards are read; a small preview has the whole window.
-                let preview = scale < 1
-                let n = preview ? 16 : 14
-                for i in 0..<n {
+                for i in 0..<22 {
                     let s = Double(i) * 0.618
-                    let period = 30.0 + Double(i % 4) * 8
+                    // they rise slowly through the lamp's light, swaying, and come round again (behind the cards)
+                    let period = 34.0 + Double(i % 4) * 9
                     let f = (t / period + s).truncatingRemainder(dividingBy: 1)
-                    let u = (s * 1.3).truncatingRemainder(dividingBy: 1)
-                    let x = size.width * (preview ? 0.08 + 0.9 * u : 0.36 + 0.62 * u) + Foundation.sin(t * 0.35 + Double(i)) * 16 * scale
-                    let y = preview ? size.height * (1.02 - f * 1.05) : size.height * (0.30 - f * 0.31)
-                    let edge = min(1, f * 4) * min(1, (1 - f) * 6)
-                    let a = (0.3 + 0.4 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge * (preview ? 1 : 0.8)
+                    let x = size.width * (0.08 + 0.9 * (s * 1.3).truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.35 + Double(i)) * 26 * scale
+                    let y = size.height * (1.02 - f * 1.05)
+                    let edge = min(1, f * 6) * min(1, (1 - f) * 6)
+                    let a = (0.3 + 0.4 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge
                     let r = (1.6 + Double(i % 4) * 0.9) * scale
                     ctx.fill(Path(ellipseIn: CGRect(x: x - r * 4, y: y - r * 4, width: r * 8, height: r * 8)), with: .color(Palette.amber.opacity(a * 0.22)))
                     ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Palette.amber.opacity(a)))
