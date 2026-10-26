@@ -760,7 +760,7 @@ def mark(sv, m, ppl):
             sv.add(f'<ellipse cx="{c[0] + p.f * r * .62:.1f}" cy="{c[1] + dy * r:.1f}" rx="{r * .42:.1f}" ry="{r * .3:.1f}" fill="{sv.rad(p.skin)}"/>')
 
 # ---------- a scene ----------
-def scene(spec, area, sv=None):
+def scene(spec, area, sv=None, watch=None):
     sv = sv or SVG()
     ground, back = AREA[area]
     setting = spec.get("set", "floor")
@@ -838,7 +838,48 @@ def scene(spec, area, sv=None):
     for m in spec.get("marks", []): mark(sv, m, built)
     if spec.get("companions"): companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))
     sv.add('</g>')
+    if watch: watchers(sv, *watch)
     return sv
+
+# ---------- Moss and Otto in every step (docs/IP.md: the two are always there, watching, never doing it for them) ----------
+def watch_box(x, base, k):
+    """The space the two take with Moss's feet at (x, base): Moss in front, Otto a step behind to the right."""
+    return (x - 38 * k, base - 80 * k, x + 58 * k, base + 6)
+
+def busy(img, box, area):
+    """How much of `box` already has something drawn in it (anything but paper, floor and backdrop tints)."""
+    ground, back = AREA[area]
+    keep = [tuple(int(c[i:i + 2], 16) for i in (1, 3, 5)) for c in (PAPER, ground, back, "#E6F2F8", "#CFE6B8", "#B9DA9C")]
+    sx, sy = img.width / W, img.height / H
+    b = (max(0, box[0]), max(0, box[1]), min(W, box[2]), min(H, box[3]))
+    if b[2] - b[0] < 40 or b != (box[0], box[1], box[2], box[3]): return 1.0   # off the picture
+    crop = img.crop((int(b[0] * sx), int(b[1] * sy), int(b[2] * sx), int(b[3] * sy))).convert("RGB").resize((48, 40))
+    px = list(crop.get_flattened_data()) if hasattr(crop, "get_flattened_data") else list(crop.getdata())
+    return sum(1 for p in px if min(sum(abs(a - b) for a, b in zip(p, k)) for k in keep) > 36) / len(px)
+
+def place_watchers(img, spec, area, prev=None):
+    """A free place on the floor, as near the action as it can be without touching anything: the largest size first.
+    Within one play they keep their place from step to step when it is still free (no jumping about)."""
+    ch = spec.get("child", {})
+    ax = ch["at"][0] if "at" in ch else ch.get("x", 400)
+    cx0, z = spec.get("cx", 380), spec.get("zoom", 1.32)
+    ax = cx0 + (ax - cx0) * z   # where the child is on the page (the scene is drawn zoomed about the floor)
+    if prev and busy(img, watch_box(prev[0], prev[1], prev[2]), area) < 0.02: return prev[0], prev[1], prev[2], ax
+    for k in (1.15, 1.0, 0.86):
+        best = None
+        for base in (GROUND + 30, GROUND + 52, H - 14):
+            for x in range(int(40 * k), int(W - 60 * k), 12):
+                if busy(img, watch_box(x, base, k), area) < 0.02:
+                    d = abs(x - ax) + (base - GROUND) * 0.6
+                    if best is None or d < best[0]: best = (d, x, base)
+        if best: return best[1], best[2], k, ax
+    return None
+
+def watchers(sv, where, i, n):
+    x, base, k, ax = where
+    # they look into the picture, at the action; at the last step, the play done, they smile
+    look = (0.9 if ax > x else -0.9, -0.5)
+    companions(sv, x, base, k, look=look, happy=(i == n - 1))
 
 def render(svg, path, width=1440):
     png = cairosvg.svg2png(bytestring=svg.encode(), output_width=width)
@@ -853,11 +894,15 @@ MOSS_TUFTS = "M24 52 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M64 44 c3 -3 7 -3 9 0 c-3 2
 OTTO_BODY = "M30 84 C25 74 24 58 26 44 C28 28 38 16 52 16 C65 17 74 28 75 44 C76 60 74 75 70 84 C60 88 40 88 30 84Z"
 OTTO_DIP = "M25.2 64 C35 68 64 68 75.4 63 C75 71 73 78 70 84 C60 88 40 88 30 84 C27.6 78 26 71 25.2 64Z"
 
-def companions(sv, x, base, k, look=(-1, 0)):
-    """Otto a step behind, Moss in front, feet on `base`; both look the way of `look`."""
+def companions(sv, x, base, k, look=(-1, 0), happy=False):
+    """Otto a step behind, Moss in front, feet on `base`; both look the way of `look`. `happy`: eyes closed in a smile,
+    pink cheeks (the end of a play, docs/IP.md: a reply only to what really happened — the play done)."""
     lx, ly = look
     def legs(xs): return "".join(f'<rect x="{a}" y="80" width="6.5" height="10" rx="3.2" fill="#1C1D19"/>' for a in xs)
     def eye(cx, cy, rx, ry, pr, lid=0):
+        if happy:
+            return (f'<path d="M{cx - rx * .9:.1f},{cy + 1:.1f} Q{cx:.1f},{cy - ry * .95:.1f} {cx + rx * .9:.1f},{cy + 1:.1f}" stroke="#1C1D19" stroke-width="{max(1.8, ry * .34):.1f}" fill="none" stroke-linecap="round"/>'
+                    f'<ellipse cx="{cx + (rx * .2 if rx > 10 else 0):.1f}" cy="{cy + ry * 1.25:.1f}" rx="{min(4.5, rx * .55):.1f}" ry="2.6" fill="#F49AB0" fill-opacity=".8"/>')
         px, py = cx + lx * (rx - pr - .4), cy + ly * (ry - pr - .4)
         e = f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#FBF9F3"/><circle cx="{px:.1f}" cy="{py:.1f}" r="{pr}" fill="#1C1D19"/><circle cx="{px - pr * .35:.1f}" cy="{py - pr * .35:.1f}" r="{pr * .3:.1f}" fill="#FFFFFF"/>'
         if lid: e += f'<path d="M{cx - rx - .5},{cy - ry - .5} H{cx + rx + .5} V{cy - ry + ry * 2 * lid} H{cx - rx - .5}Z" fill="#2D4A8C"/>'
@@ -947,15 +992,22 @@ def main():
     os.makedirs(OUT, exist_ok=True)
     ipath = os.path.join(OUT, "index.json")
     index = json.load(open(ipath)) if os.path.exists(ipath) else {"plays": {}, "covers": {}, "size": {}}
-    missing = []
+    missing, skipped = [], []
     for p in C["activities"]:
         if only and p["code"] not in only: continue
-        area = area_of(p); names = []
+        area = area_of(p); names = []; prev = None
         for i, t in enumerate(p["steps"]):
             spec = scenes.get(p["code"], [None] * len(p["steps"]))
             if i >= len(spec) or spec[i] is None: missing.append(f'{p["code"]}.{i + 1}'); continue
             n = f"play_{p['code'].lower()}_{i + 1}{SUFFIX}.webp"
-            index["size"][n] = list(render(scene(spec[i], area).svg(), os.path.join(OUT, n))); names.append(n)
+            path = os.path.join(OUT, n)
+            # the two watch from a free place on the floor near the action; with no free place, they sit this one out
+            base = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=scene(spec[i], area).svg().encode(), output_width=360)))
+            where = None if spec[i].get("companions") else place_watchers(base, spec[i], area, prev)
+            prev = where
+            w = (where, i, len(p["steps"])) if where else None
+            if w is None: skipped.append(f'{p["code"]}.{i + 1}')
+            index["size"][n] = list(render(scene(spec[i], area, watch=w).svg(), path)); names.append(n)
         if not GIRL: index["plays"][p["code"]] = names   # the girl's pictures share the names, with _g
     if not only:
         for mo in C["months"]:
@@ -967,6 +1019,7 @@ def main():
     if not only: figures(index)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
     if missing: print("no scene for", ", ".join(missing))
+    if skipped: print(f"companions left out (no free corner) in {len(skipped)}:", ", ".join(skipped))
     if "--sheet" in sys.argv:
         out = sys.argv[sys.argv.index("--sheet") + 1]
         codes = [c for c in index["plays"] if not only or c in only]

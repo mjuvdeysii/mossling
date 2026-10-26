@@ -71,7 +71,7 @@ struct LampScene: View {
             var moon = Path(ellipseIn: CGRect(x: win.minX + win.width * 0.58, y: win.minY + win.height * 0.12, width: 12, height: 12))
             moon = moon.subtracting(Path(ellipseIn: CGRect(x: win.minX + win.width * 0.58 + 4, y: win.minY + win.height * 0.12 - 3, width: 12, height: 12)))
             ctx.fill(moon, with: .color(Color(hex: 0xFFF1C4)))
-            for (x, y) in [(0.2, 0.62), (0.32, 0.3), (0.78, 0.74)] {
+            for (x, y) in [(0.2, 0.62), (0.32, 0.3), (0.78, 0.74)] as [(CGFloat, CGFloat)] {
                 ctx.fill(Path(ellipseIn: CGRect(x: win.minX + win.width * x, y: win.minY + win.height * y, width: 2, height: 2)), with: .color(.white.opacity(0.7)))
             }
             // the table: a top face and a front edge, with grain
@@ -80,7 +80,7 @@ struct LampScene: View {
             let front = CGRect(x: -10, y: deskY + 16, width: w + 20, height: h - deskY - 16)
             ctx.fill(Path(front), with: .linearGradient(Gradient(colors: [Color(hex: 0x9C6B3C), Color(hex: 0x7A522D)]), startPoint: CGPoint(x: 0, y: deskY + 16), endPoint: CGPoint(x: 0, y: h)))
             ctx.fill(Path(CGRect(x: -10, y: deskY + 15, width: w + 20, height: 1.5)), with: .color(Color(hex: 0xE2BC86).opacity(0.7)))
-            for (y, x0, x1) in [(0.3, 0.05, 0.4), (0.55, 0.3, 0.85), (0.78, 0.1, 0.6)] {
+            for (y, x0, x1) in [(0.3, 0.05, 0.4), (0.55, 0.3, 0.85), (0.78, 0.1, 0.6)] as [(CGFloat, CGFloat, CGFloat)] {
                 var gr = Path(); let gy = deskY + 16 + (h - deskY - 16) * y
                 gr.move(to: CGPoint(x: w * x0, y: gy)); gr.addQuadCurve(to: CGPoint(x: w * x1, y: gy + 2), control: CGPoint(x: w * (x0 + x1) / 2, y: gy - 3))
                 ctx.stroke(gr, with: .color(Color(hex: 0x6A4526).opacity(0.5)), lineWidth: 1)

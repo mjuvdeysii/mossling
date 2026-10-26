@@ -67,6 +67,13 @@ final class ScreenshotTests: XCTestCase {
         let m = model(companion: .otto, birth: nil); m.onboarded = false
         shot("01_onboarding_shot_c", settle: 6.5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
+    /// 摸索台灯的故事: the name told (docs/IP.md).
+    func test37Story() { let m = model(); shot("37_story", height: 1900, settle: 6, tabs(m, StoryView())) }
+    func test01OnboardingOpening() {
+        // the opening, mid-way: the lamp on, Moss reaching for the rings
+        let m = model(birth: nil); m.onboarded = false
+        shot("01_onboarding_opening", settle: 2.9, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
+    }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }

@@ -19,16 +19,12 @@ struct TodayView: View {
         let baby = app.babyMonth ?? 0
         let m = chosen ?? baby
         ScrollView {
-            VStack(alignment: .leading, spacing: 22) {
+            // the order of the page: who the child is now (the month), what is happening now (records, when on), what to
+            // play this week (the shelf, the heart), the month's other plays, the month's parts, the topics, the story
+            VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
                         .buttonStyle(.borderedProminent).tint(Palette.accentFill).controlSize(.large)
-                }
-                if app.journal && app.age != nil { NowCard(month: baby) }
-                if app.age != nil {
-                    TipView(recordsTip) { action in
-                        if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
-                    }
                 }
                 if wheel {
                     GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
@@ -44,6 +40,12 @@ struct TodayView: View {
                     MonthCard(month: m, baby: baby) { withAnimation(.snappy) { wheel = true } }
                         .transition(.opacity)
                 }
+                if app.journal && app.age != nil { NowCard(month: baby) }
+                if app.age != nil {
+                    TipView(recordsTip) { action in
+                        if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
+                    }
+                }
                 if m >= 36 { StoryGoesOn(primary: app.companion) }
                 if m == baby && app.age != nil {
                     TipView(shelfTip)
@@ -52,6 +54,7 @@ struct TodayView: View {
                 PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
                 MonthParts(month: m)
                 Topics()
+                HomeFooter()
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -237,60 +240,75 @@ private struct PlaysGrid: View {
 /// The topics' marks: all five are care topics, so one colour (the care area's), told apart by their symbols.
 let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.knife", "mouth.fill", "cross.case.fill"].map { ($0, Palette.area("F")) }
 
-/// The topics, as tiles.
+/// The topics, as one card of rows: a mark, the title, where it comes from, a chevron.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: "专题")
-            LeadGrid(items: items) { x in
-                link(x) {
-                    HStack(spacing: 14) {
-                        IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 56)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text(x.t.title).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                            Text(x.t.sourceTitle).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
+            SectionTitle(title: "专题", detail: "照护参考")
+            VStack(spacing: 0) {
+                ForEach(items) { x in
+                    if x.i > 0 { Divider().padding(.leading, 60) }
+                    NavigationLink(value: Route.topic(x.t.id)) {
+                        HStack(spacing: 12) {
+                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 34)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                                Text(x.t.sourceTitle).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
+                            }
+                            Spacer(minLength: 0)
+                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
-                        Spacer(minLength: 0)
+                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .contentShape(Rectangle())
                     }
-                    .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-                    .background(Palette.area("F").opacity(0.1)).printCard(radius: 22)
+                    .buttonStyle(.toy)
                 }
-            } cell: { x in
-                link(x) { tile(x).frame(minHeight: 64).printCard(radius: 20) }
-            } row: { x in
-                link(x) { tile(x).printCard(radius: 20) }
             }
+            .printCard(radius: 22)
         }
     }
-    private func link<L: View>(_ x: TopicItem, @ViewBuilder _ label: () -> L) -> some View {
-        NavigationLink(value: Route.topic(x.t.id)) { label() }.buttonStyle(.toy)
-    }
-    private func tile(_ x: TopicItem) -> some View {
-        HStack(spacing: 10) {
-            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 34)
-            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-            Spacer(minLength: 0)
+}
+
+/// The end of the page: the two of them and the line the app is named for, a way into its story.
+private struct HomeFooter: View {
+    @Environment(AppModel.self) private var app
+    var body: some View {
+        NavigationLink(value: Route.story) {
+            VStack(spacing: 6) {
+                Duo(primary: app.companion, size: 40, poke: false)
+                Text("孩子摸索，大人点灯").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            }
+            .frame(maxWidth: .infinity).padding(.top, 24).padding(.bottom, 8)
         }
-        .padding(12).frame(maxWidth: .infinity, alignment: .leading)
+        .buttonStyle(.toy)
+        .accessibilityLabel("摸索台灯的故事")
     }
 }
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
-/// This week's shelf: a wooden shelf with the week's materials standing on it, and empty places to fill.
+/// This week's shelf — the heart of the app when nothing is recorded (docs/IP.md §3). Built like the low open shelf of
+/// a Montessori room: a wooden cabinet (top board, two side posts, a warm back panel), two shelves, and on each shelf two
+/// trays, each with its material, standing on the board. Under each tray a paper tag hangs from the shelf's edge with the
+/// play's name and its area, and a gold bead for every time it was played this way (up to five, then a number) — a
+/// count, never a score. Moss and Otto sit on top of the cabinet; at night Otto's lamp throws a warm pool of light down
+/// over the trays. Empty places are dashed trays: 放一件.
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var size
     @Environment(JournalStore.self) private var j
     let month: Int
     let arrange: () -> Void
     var body: some View {
         let s = app.weekShelf(month)
+        let per = size.isAccessibilitySize ? 1 : 2
+        let dark = scheme == .dark
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline) {
-                Text("本周的架子").font(.title3.weight(.bold))
+                Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
                 Spacer()
                 Button(action: arrange) {
                     // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
@@ -298,94 +316,165 @@ struct ShelfView: View {
                 }
                 .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
-            .padding(.horizontal, 4).padding(.top, 2)
-            // a two-level shelf, two materials on each level: the week's plays are the largest pictures on the page
-            VStack(spacing: 6) {
-                // two on each level; at the largest text sizes one per level, so names wrap whole
-                let per = size.isAccessibilitySize ? 1 : 2
+            .padding(.horizontal, 4).padding(.top, 20)
+            Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。" : "这一周，孩子可以摸索这几件。点开一件，跟着图一起玩。")
+                .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
+                .fixedSize(horizontal: false, vertical: true)
+            VStack(spacing: 0) {
+                ShelfBoard(dark: dark).frame(height: 14)   // the top of the cabinet
                 ForEach(0..<(Shelf.max + per - 1) / per, id: \.self) { row in
-                    HStack(alignment: .top, spacing: 12) {
-                        ForEach((row * per)..<(row * per + per), id: \.self) { k in slot(k, s) }
+                    let ks = Array((row * per)..<(row * per + per))
+                    VStack(spacing: 0) {
+                        HStack(alignment: .bottom, spacing: 14) { ForEach(ks, id: \.self) { k in tray(k, s) } }
+                            .padding(.horizontal, 22).padding(.top, 16)
+                        ShelfBoard(dark: dark).frame(height: 16)
+                        HStack(alignment: .top, spacing: 14) { ForEach(ks, id: \.self) { k in tag(k, s) } }
+                            .padding(.horizontal, 22).padding(.top, 2).padding(.bottom, 12)
                     }
-                    .padding(.horizontal, 12).padding(.top, 12)
                 }
             }
-            .padding(.bottom, 12)
-            .printCard(radius: 26)
-            .overlay(alignment: .top) {
-                // perched on the top of the shelf, between the title and 整理
-                Duo(primary: app.companion, size: 58, look: CGPoint(x: -0.7, y: 0.4), night: night, reacts: true)
-                    .offset(x: 40, y: -52)
+            .background { ShelfBack(dark: dark) }
+            .overlay { if night { LampPool() } }
+            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+            .shadow(color: Color(hex: 0x6B4A2B).opacity(dark ? 0 : 0.18), radius: 10, y: 6)
+            .overlay(alignment: .topTrailing) {
+                // the two of them, sitting on top of the cabinet
+                Duo(primary: app.companion, size: 54, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true)
+                    .offset(x: -18, y: -48)
             }
-            .padding(.top, 18)
+            .padding(.top, 34)
         }
     }
-}
 
-extension ShelfView {
-    @ViewBuilder func slot(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
+    private func route(_ p: Play) -> Route { Route.play(p.code, month) }
+
+    @ViewBuilder private func tray(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
         if k < s.plays.count {
-            let p = s.plays[k], route = Route.play(p.code, month)
-            NavigationLink(value: route) { ShelfItem(play: p, times: app.record(p, j).count) }
-                .buttonStyle(.toy).zoomSource(route)
-                .contextMenu { PlayActions(play: p, month: month) }
-        } else {
+            let p = s.plays[k], times = app.record(p, j).count
+            NavigationLink(value: route(p)) {
+                Figure(name: "tray_\(p.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.toy).zoomSource(route(p))
+            .contextMenu { PlayActions(play: p, month: month) }
+            .accessibilityLabel(p.name + (times > 0 ? "，玩过 \(times) 次" : "，还没玩过"))
+            .accessibilityHint(p.domains.first ?? "")
+        } else if k < Shelf.max {
             Button(action: arrange) {
-                VStack(spacing: 6) {
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
-                        .overlay(Image(systemName: "plus").font(.title3).foregroundStyle(.tertiary))
-                        .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 16)
-                        .aspectRatio(4 / 3, contentMode: .fit)
-                        .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
-                    Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(.tertiary).frame(maxWidth: .infinity, minHeight: 30, alignment: .top).padding(.top, 10)
-                }
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(Color(hex: 0xB98A5A).opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
+                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.18)))
+                    .overlay(Image(systemName: "plus").font(.title3.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440)))
+                    .aspectRatio(4 / 3, contentMode: .fit).padding(.horizontal, 10).padding(.bottom, 2)
+                    .frame(maxWidth: .infinity)
             }
             .buttonStyle(.toy).accessibilityLabel("放一件教具")
-        }
+        } else { Color.clear.frame(maxWidth: .infinity) }
+    }
+
+    @ViewBuilder private func tag(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
+        if k < s.plays.count {
+            let p = s.plays[k], times = app.record(p, j).count, key = Palette.areaKey(of: p)
+            NavigationLink(value: route(p)) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
+                        Text(p.name).font(.footnote.weight(.semibold)).foregroundStyle(Color(hex: 0x3A2C1E))
+                            .lineLimit(3, reservesSpace: false).multilineTextAlignment(.leading)
+                    }
+                    BeadCount(times: times)
+                }
+                .padding(.horizontal, 9).padding(.vertical, 7)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(PaperTag())
+            }
+            .buttonStyle(.toy)
+            .accessibilityHidden(true)   // the tray above says the same, once
+        } else if k < Shelf.max {
+            Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440))
+                .frame(maxWidth: .infinity).padding(.top, 6).accessibilityHidden(true)
+        } else { Color.clear.frame(maxWidth: .infinity) }
     }
 }
 
-/// A wooden plank seen a little from above: a lit top face, a darker front edge, a soft shadow beneath.
-private struct Plank: View {
+/// Times played, as gold beads on a short string (Montessori's golden bead): up to five, then the number.
+private struct BeadCount: View {
+    let times: Int
     var body: some View {
-        VStack(spacing: 0) {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: 0xF3D3A6), Color(hex: 0xE2B47E)], startPoint: .top, endPoint: .bottom))
-                .frame(height: 9)
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .fill(LinearGradient(colors: [Color(hex: 0xC98F5E), Color(hex: 0xA9733F)], startPoint: .top, endPoint: .bottom))
-                .frame(height: 11)
-                .overlay(alignment: .top) { Rectangle().fill(.white.opacity(0.35)).frame(height: 1) }
+        HStack(spacing: 3) {
+            if times == 0 {
+                Text("还没玩过").font(.caption2).foregroundStyle(Color(hex: 0x7A6650))
+            } else {
+                ForEach(0..<min(times, 5), id: \.self) { _ in
+                    Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
+                        .frame(width: 9, height: 9)
+                }
+                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Color(hex: 0x7A5A10)).padding(.leading, 2)
+            }
         }
-        .shadow(color: Color(hex: 0x6B4A2B).opacity(0.25), radius: 6, y: 5)
         .accessibilityHidden(true)
     }
 }
 
-/// One material on the shelf: its picture on a small card, its name below.
-private struct ShelfItem: View {
-    let play: Play
-    let times: Int
+/// A paper tag hanging from the shelf edge: cream paper, a little string hole, a soft fold shadow.
+private struct PaperTag: View {
     var body: some View {
-        VStack(spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-                Figure(name: "tray_\(play.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
-                    .background(alignment: .bottom) { Plank().frame(height: 18).padding(.horizontal, -10).offset(y: 6) }
-                if times > 0 {
-                    Ticking(text: "×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
-                        .padding(.horizontal, 6).frame(height: 18)
-                        .background(Capsule().fill(Palette.bead))
-                        .padding(4)
-                }
+        RoundedRectangle(cornerRadius: 9, style: .continuous)
+            .fill(Color(hex: 0xFFF8EA))
+            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(hex: 0xE5D2B2), lineWidth: 1))
+            .overlay(alignment: .top) {
+                // the string it hangs from
+                Capsule().fill(Color(hex: 0xC49A6C)).frame(width: 1.5, height: 7).offset(y: -6)
             }
-            HStack(spacing: 4) {
-                IconTile(symbol: Palette.areaSymbol(Palette.areaKey(of: play)), color: Palette.area(Palette.areaKey(of: play)), size: 16)
-                Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(3, reservesSpace: false).multilineTextAlignment(.leading)
+            .shadow(color: Color(hex: 0x6B4A2B).opacity(0.12), radius: 2, y: 1.5)
+    }
+}
+
+/// One shelf board seen a little from above: a lit top face, a front edge with a fine highlight, wood grain.
+private struct ShelfBoard: View {
+    let dark: Bool
+    var body: some View {
+        Canvas { ctx, size in
+            let top = size.height * 0.42
+            ctx.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: top)),
+                     with: .linearGradient(Gradient(colors: dark ? [Color(hex: 0x8A6A4E), Color(hex: 0x76583F)] : [Color(hex: 0xF3D3A6), Color(hex: 0xE2B47E)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: top)))
+            ctx.fill(Path(CGRect(x: 0, y: top, width: size.width, height: size.height - top)),
+                     with: .linearGradient(Gradient(colors: dark ? [Color(hex: 0x6A4E37), Color(hex: 0x553E2B)] : [Color(hex: 0xC98F5E), Color(hex: 0xA9733F)]), startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: size.height)))
+            ctx.fill(Path(CGRect(x: 0, y: top, width: size.width, height: 1)), with: .color(.white.opacity(dark ? 0.15 : 0.4)))
+            for (x0, x1, y) in [(0.06, 0.34, 0.6), (0.44, 0.8, 0.75), (0.62, 0.95, 0.58)] as [(CGFloat, CGFloat, CGFloat)] {
+                var g = Path(); let gy = size.height * y
+                g.move(to: CGPoint(x: size.width * x0, y: gy)); g.addQuadCurve(to: CGPoint(x: size.width * x1, y: gy + 1), control: CGPoint(x: size.width * (x0 + x1) / 2, y: gy - 1.5))
+                ctx.stroke(g, with: .color(Color(hex: 0x6A4526).opacity(0.25)), lineWidth: 0.8)
             }
-            .frame(maxWidth: .infinity, alignment: .topLeading).padding(.top, 10)
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityHidden(true)
+    }
+}
+
+/// The cabinet behind the trays: a warm back panel, darker towards the bottom of each shelf, and two side posts.
+private struct ShelfBack: View {
+    let dark: Bool
+    var body: some View {
+        ZStack {
+            LinearGradient(colors: dark ? [Color(hex: 0x3E3346), Color(hex: 0x332A3A)] : [Color(hex: 0xFBEBD2), Color(hex: 0xF2DCBA)], startPoint: .top, endPoint: .bottom)
+            HStack {
+                post; Spacer(); post
+            }
+        }
+        .accessibilityHidden(true)
+    }
+    private var post: some View {
+        LinearGradient(colors: dark ? [Color(hex: 0x7A5C43), Color(hex: 0x5E4532)] : [Color(hex: 0xE8BF8A), Color(hex: 0xC99560)], startPoint: .leading, endPoint: .trailing)
+            .frame(width: 10)
+    }
+}
+
+/// At night, Otto's lamp on top of the cabinet throws a warm pool down over the trays (a drawing of light only).
+private struct LampPool: View {
+    var body: some View {
+        RadialGradient(colors: [Palette.amber.opacity(0.28), Palette.amber.opacity(0)], center: UnitPoint(x: 0.82, y: 0), startRadius: 0, endRadius: 320)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
     }
 }
 

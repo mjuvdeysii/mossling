@@ -111,40 +111,46 @@ struct MonthParts: View {
     let month: Int
     var body: some View {
         let mo = app.content.month(month), m = month
+        let parts = parts(mo, m)
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "这个月")
-            HStack(spacing: 12) {
-                if !mo.observe.isEmpty {
-                    let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
-                    NavigationLink(value: Route.observe(m)) { BigPart(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", done: done, total: total) }.buttonStyle(.toy)
-                }
-                if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-                    let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-                    NavigationLink(value: Route.care(m)) { BigPart(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", done: done, total: total) }.buttonStyle(.toy)
-                }
-            }
-            let small = smallParts(mo, m)
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: type >= .xxLarge ? 2 : max(1, small.count)), spacing: 8) {
-                ForEach(small, id: \.title) { p in
-                    let label = VStack(spacing: 6) {
-                        IconTile(symbol: p.symbol, color: p.color, size: 38)
-                        Text(p.title).font(.caption.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+            // one kind of tile, two to a row (one at the largest text sizes): the same shape for every part
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 10) {
+                ForEach(parts, id: \.title) { p in
+                    let label = HStack(spacing: 10) {
+                        IconTile(symbol: p.symbol, color: p.color, size: 36)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                            Text(p.note).font(.caption).foregroundStyle(p.total > 0 ? Crayon.ink(p.color) : Palette.secondaryText).monospacedDigit()
+                        }
+                        Spacer(minLength: 0)
+                        if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 24) }
                     }
-                    .padding(.vertical, 10).padding(.horizontal, 4).frame(maxWidth: .infinity)
-                    .printCard(radius: 18)
+                    .padding(12).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+                    .printCard(radius: 20)
+                    .accessibilityElement(children: .combine)
                     if let r = p.route { NavigationLink(value: r) { label }.buttonStyle(.toy) }
                     else { NavigationLink(value: JournalRoute.growth) { label }.buttonStyle(.toy) }
                 }
             }
         }
     }
-    /// A small part; `route` nil means the growth chart (a journal route).
-    private struct Small { let symbol: String; let color: Color; let title: String; let route: Route? }
-    private func smallParts(_ mo: Month, _ m: Int) -> [Small] {
-        var out = [Small(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: "六个方面", route: Route.areas(m))]
-        if !mo.notes.isEmpty { out.append(Small(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", route: Route.notes(m))) }
-        if !mo.who.isEmpty { out.append(Small(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", route: Route.rhythm(m))) }
-        out.append(Small(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", route: nil))
+    /// A part of the month; `route` nil means the growth chart (a journal route).
+    private struct Part { let symbol: String; let color: Color; let title: String; let note: String; var done = 0; var total = 0; let route: Route? }
+    private func parts(_ mo: Month, _ m: Int) -> [Part] {
+        var out: [Part] = []
+        if !mo.observe.isEmpty {
+            let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
+            out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", note: "\(done) / \(total)", done: done, total: total, route: Route.observe(m)))
+        }
+        if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
+            let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
+            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", note: "\(done) / \(total)", done: done, total: total, route: Route.care(m)))
+        }
+        out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: "六个方面", note: "这个月的样子", route: Route.areas(m)))
+        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", note: "\(mo.notes.count) 条", route: Route.notes(m))) }
+        if !mo.who.isEmpty { out.append(Part(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", note: "睡、玩、吃", route: Route.rhythm(m))) }
+        out.append(Part(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO 标准", route: nil))
         return out
     }
 }

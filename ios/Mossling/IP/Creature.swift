@@ -252,6 +252,9 @@ struct Creature: View {
         leg(&ctx, 33); leg(&ctx, 59)
         armsDraw(&ctx, pose, left: CGPoint(x: 19, y: 62), right: CGPoint(x: 83, y: 60), Palette.mossDeep, wave)
         body(&ctx, Shapes.mossBody, Palette.moss, under: Shapes.mossUnder, Palette.mossDeep)
+        // the moss itself: a few lighter tufts on the back, so he reads as a little mossy stone, not a green blob
+        var tufts = ctx; tufts.clip(to: Shapes.mossBody)
+        tufts.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.7)))
         cheeks(&ctx, [CGPoint(x: 35, y: 64), CGPoint(x: 66, y: 64)], face)
         eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss, face)
         eye(&ctx, 58, 55, 6.4, 7.4, look, lid, Palette.moss, face)
@@ -264,6 +267,11 @@ struct Creature: View {
         var rod = ctx
         rod.translateBy(x: 50, y: 16.5); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -50, y: -16.5)
         rod.stroke(Shapes.ottoRod, with: .color(Palette.rodDeep), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
+        // the lamp is always a lamp: a faint warm halo round the bead by day, a full glow at night (a drawing only)
+        if !glow {
+            rod.fill(Path(ellipseIn: CGRect(x: 11, y: 2.5, width: 18, height: 18)),
+                     with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.32), Palette.amber.opacity(0)]), center: CGPoint(x: 20, y: 11.5), startRadius: 3, endRadius: 9))
+        }
         if glow {
             let pulse = still ? 1 : 0.85 + 0.15 * sin(Date().timeIntervalSinceReferenceDate * 2)
             rod.fill(Path(ellipseIn: CGRect(x: 20 - 14 * pulse, y: 11.5 - 14 * pulse, width: 28 * pulse, height: 28 * pulse)),
