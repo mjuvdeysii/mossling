@@ -399,6 +399,6 @@ struct Afterimage: ViewModifier {
         .blur(radius: blur)
         .offset(y: -rise)
         // the glyph is gone by a little under half the way, before the new one starts to show
-        .opacity(max(0, 1 - fade * 2.2))
+        .opacity(Double(max(CGFloat(0), 1 - fade * 2.2)))
     }
 }
