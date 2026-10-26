@@ -181,6 +181,14 @@ final class LogicTests: XCTestCase {
 
     /// The bead chain: every month has its own place, a touch on a bead picks that bead, and the years wind (the end of
     /// one year sits right above the start of the next).
+    func testShortPhrasesNeverBreak() {
+        let u = unbroken("共 8 小时 30 分")
+        XCTAssertFalse(u.contains(" "))
+        XCTAssertEqual(u.replacingOccurrences(of: "\u{2060}", with: "").replacingOccurrences(of: "\u{00A0}", with: " "), "共 8 小时 30 分")
+        let long = String(repeating: "很长的备注", count: 5)
+        XCTAssertEqual(unbroken(long), long)
+    }
+
     func testTheBeadChainWinds() {
         let w: CGFloat = 329
         var seen = Set<String>()

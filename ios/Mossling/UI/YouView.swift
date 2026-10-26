@@ -34,8 +34,12 @@ struct YouView: View {
                                     .fixedSize()   // "6 个月 17 天" stays one line: a unit never breaks off its number
                                     .foregroundStyle(Palette.accent)
                                 }
-                                Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")
-                                    .font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                                // the date and the day count each keep to one piece: "第 201 天" never breaks off its number
+                                ViewThatFits(in: .horizontal) {
+                                    HStack(spacing: 4) { birthLine; lived(dot: true) }
+                                    VStack(alignment: .leading, spacing: 1) { birthLine; lived(dot: false) }
+                                }
+                                .font(.caption).foregroundStyle(Palette.secondaryText)
                             }
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -131,6 +135,11 @@ struct YouView: View {
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
             Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
         } message: { Text("清除后无法恢复。") }
+    }
+
+    private var birthLine: some View { Text(app.birth.map { "\($0.y)年\($0.md)出生" } ?? "填写出生日期").fixedSize() }
+    @ViewBuilder private func lived(dot: Bool) -> some View {
+        if let a = app.age { Text((dot ? "· " : "") + "第 \(a.lived) 天").monospacedDigit().fixedSize() }
     }
 }
 

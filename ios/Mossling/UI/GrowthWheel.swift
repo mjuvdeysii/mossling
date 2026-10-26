@@ -34,7 +34,7 @@ struct GrowthWheel: View {
                     .accessibilityAddTraits(.isButton).accessibilityLabel("宝宝")
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
-                Duo(primary: app.companion, size: 74, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night)
+                Duo(primary: app.companion, size: 64, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {

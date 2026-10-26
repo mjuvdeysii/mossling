@@ -269,6 +269,14 @@ struct Duo: View {
         return size * frame(primary.other) / frame(primary) * 0.78
     }
     static func feet(_ k: Kind) -> CGFloat { (k == .moss ? Sprites.mossFeet : Sprites.ottoFeet) / 100 }
+    /// How far across its own square each one reaches, leaves and lamp rod included (measured on the sprites, every
+    /// state, with a little room for breathing and leaning).
+    static func reach(_ k: Kind) -> (left: CGFloat, right: CGFloat) { k == .moss ? (0.10, 0.90) : (0.22, 0.76) }
+    /// Where the one behind stands: just clear of the one in front, never overlapping it (the pair stand side by side,
+    /// the one behind a little further back).
+    static func apart(_ primary: Kind, _ size: CGFloat) -> CGFloat {
+        size * reach(primary).right - behind(primary, size) * reach(primary.other).left + size * 0.04
+    }
 
     var body: some View {
         let small = Self.behind(primary, size)
@@ -281,13 +289,13 @@ struct Duo: View {
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
                      arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
                 .frame(width: small, height: small)
-                .offset(x: size * 0.5, y: -lift)
+                .offset(x: Self.apart(primary, size), y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
                      label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
                 .frame(width: size, height: size)
         }
-        .frame(width: size * 0.5 + small, height: max(size, small + lift), alignment: .bottomLeading)
+        .frame(width: Self.apart(primary, size) + small, height: max(size, small + lift), alignment: .bottomLeading)
         .accessibilityElement(children: label == nil ? .ignore : .combine)
         .accessibilityLabel(label ?? "")
         .accessibilityHidden(label == nil)

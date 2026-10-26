@@ -316,17 +316,21 @@ struct DayAir: View {
         ctx.fill(Path(ellipseIn: CGRect(x: sx - 46 * q, y: sy - 12 * q, width: 14 * q, height: 14 * q)), with: .color(Color(hex: 0xF2554B).opacity(0.45)))
     }
 
-    /// The drifting things cross the whole page, behind the cards (the page's background, never over the content).
+    /// The drifting things float slowly down the page's two margins only — the strips beside the content where no
+    /// word or card ever stands — so a seed or a petal never passes behind a title (no glyph is ever crossed).
+    /// In the small previews (scale < 1) the whole width is free, as there is no text there.
     private func drift(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
         let w = size.width, h = size.height
-        let n = 18, z = 1.7 * scale
+        let preview = scale < 1
+        let n = preview ? 18 : 10, z = (preview ? 1.7 : 1.15) * scale
         for i in 0..<n {
             let s = Double(i) * 0.618
-            let period = 15.0 + Double(i % 5) * 4.5
-            let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 across the page
-            let x = -30 + (w + 60) * f
-            let y0 = h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1))
-            let y = y0 + f * 90 + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 18 * scale
+            let period = (preview ? 15.0 : 26.0) + Double(i % 5) * 4.5
+            let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 along its path
+            let gutter = 8.0, side = i % 2 == 0
+            let x = preview ? -30 + (w + 60) * f : (side ? gutter : w - gutter) + Foundation.sin(t * 0.7 + Double(i) * 1.9) * 3
+            let y0 = preview ? h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1)) : -20
+            let y = preview ? y0 + f * 90 + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 18 * scale : y0 + (h * 0.8 + 20) * f
             let a = min(1, f * 6) * min(1, (1 - f) * 6)                           // fade in and out at the edges
             let p = CGPoint(x: x, y: y)
             switch i % 4 {

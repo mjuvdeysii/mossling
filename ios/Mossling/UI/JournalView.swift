@@ -501,7 +501,7 @@ private struct Totals: View {
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
         // breastfeeding as time on the breast that day (pauses left out), not only how many times
         let nursed = logs.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: day) }
-        let feedLine = [nursed >= 60 ? "亲喂 " + durationValue(nursed) : nil, ml > 0 ? "瓶喂 \(ml) 毫升" : nil].compactMap { $0 }.joined(separator: " · ")
+        let feedLine = [nursed >= 60 ? "亲喂 " + durationValue(nursed) : nil, ml > 0 ? "瓶喂 \(ml) 毫升" : nil].compactMap { $0 }
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
@@ -510,10 +510,10 @@ private struct Totals: View {
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
-            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], feedLine.isEmpty ? " " : feedLine))
-            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? "最长一觉 " + durationValue(longest) : " "))
+            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], feedLine))
+            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? ["最长一觉", durationValue(longest)] : [], " "))
             // what a doctor asks: how many wet, how many dirty
-            tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)"))
+            tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? [] : ["湿 \(wet)", "便 \(dirty)"]))
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -530,7 +530,7 @@ private struct Totals: View {
         .accessibilityHint(on ? "显示全部" : "只看这一类")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
-    private func stamp(_ t: String, _ name: String, _ parts: [(String, String)], _ sub: String) -> some View {
+    private func stamp(_ t: String, _ name: String, _ parts: [(String, String)], _ sub: [String], _ sep: String = " · ") -> some View {
         let c = LogType.color(t)
         return VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 5) {
@@ -545,13 +545,25 @@ private struct Totals: View {
                 }
             }
             .lineLimit(1).minimumScaleFactor(0.7)
-            Text(sub).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(size.isAccessibilitySize ? nil : 1).minimumScaleFactor(0.8)
+            // the details in full: on one line when they fit, otherwise one piece per line — never cut off with "…"
+            ViewThatFits(in: .horizontal) {
+                Text(sub.isEmpty ? " " : sub.joined(separator: sep)).fixedSize()
+                VStack(alignment: .leading, spacing: 0) { ForEach(sub, id: \.self) { Text($0).lineLimit(1).minimumScaleFactor(0.85) } }
+            }
+            .font(.caption2).foregroundStyle(Palette.secondaryText)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(10)
         .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(c.opacity(0.12)))   // a solid chip: dashes mean an empty slot
         .accessibilityElement(children: .combine)
     }
+}
+
+/// A short phrase that must not break across lines ("共 8 小时 30 分", "到 06:30"): its spaces become no-break spaces
+/// and its characters are joined with word joiners. A long free text (a note) is left to wrap as usual.
+func unbroken(_ s: String) -> String {
+    guard s.count <= 14 else { return s }
+    return s.map { $0 == " " ? "\u{00A0}" : String($0) }.joined(separator: "\u{2060}")
 }
 
 /// A length of time as number–unit pairs, for a large number with a small unit: [("8", "小时"), ("5", "分")].
@@ -697,7 +709,9 @@ private struct TimelineRow: View {
         let span = entry.end != nil ? entry.seconds(on: day) : 0
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
-        let meta = [entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: " · ")
+        // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
+        let meta = [entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }
+            .joined(separator: " · ").components(separatedBy: " · ").map(unbroken).joined(separator: " · ")
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
@@ -724,7 +738,7 @@ private struct TimelineRow: View {
                     Spacer(minLength: 8)
                     Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
                 }
-                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit().lineLimit(2) }
+                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize(horizontal: false, vertical: true) }
             }
             .padding(.top, 3)
         }
