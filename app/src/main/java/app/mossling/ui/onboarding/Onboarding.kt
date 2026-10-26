@@ -59,7 +59,7 @@ fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
         }
         Spacer(Modifier.height(28.dp))
         Text("摸索台灯", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
-        Text("Mossling", fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("Moss & Otto", fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Text("孩子摸索，大人点灯。", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
         Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.weight(1f))

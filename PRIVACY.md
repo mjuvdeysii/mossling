@@ -1,6 +1,6 @@
 # 隐私政策
 
-适用于安卓应用 摸索台灯（Mossling，应用 ID：app.mossling）
+适用于安卓应用 摸索台灯（Moss & Otto，应用 ID：app.mossling）
 
 生效日期：2026 年 10 月 22 日
 

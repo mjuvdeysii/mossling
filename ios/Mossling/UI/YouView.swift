@@ -343,7 +343,7 @@ struct AboutView: View {
                     Duo(primary: app.companion, size: 96)
                     Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
                     Text("孩子摸索，大人点灯").font(.headline).foregroundStyle(Palette.accent)
-                    Text("Mossling · 版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    Text("Moss & Otto · 版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
                 .listRowBackground(Color.clear)

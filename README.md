@@ -1,4 +1,4 @@
-# 摸索台灯 Mossling
+# 摸索台灯 Moss & Otto
 
 <p align="center"><img src="docs/images/ios/1_opening.jpg" width="300" alt="摸索台灯：Otto 的灯亮起，Moss 在灯下摸索"></p>
 

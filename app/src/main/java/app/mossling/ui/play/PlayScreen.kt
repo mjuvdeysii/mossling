@@ -128,7 +128,7 @@ private fun share(ctx: android.content.Context, p: Play) {
         if (p.safety.isNotBlank()) append("安全：").append(p.safety).append('\n')
         p.steps.forEachIndexed { i, s -> append(i + 1).append(". ").append(s).append('\n') }
         if (p.observe.isNotBlank()) append("看什么：").append(p.observe).append('\n')
-        append("— 来自 摸索台灯 Mossling")
+        append("— 来自 摸索台灯 Moss & Otto")
     }
     val send = android.content.Intent(android.content.Intent.ACTION_SEND).setType("text/plain").putExtra(android.content.Intent.EXTRA_TEXT, text)
     runCatching { ctx.startActivity(android.content.Intent.createChooser(send, "分享 ${p.name}")) }

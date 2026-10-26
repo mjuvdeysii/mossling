@@ -175,7 +175,7 @@ enum RecordFile {
             let running: [String] = j.timers.map { (t: RunningTimer) -> String in "\(LogType.name(t.type))，\(date(t.start)) \(time(t.start)) 开始" }
             o += "\n正在计时：\(running.joined(separator: "；"))\n"
         }
-        o += "\n—— 来自 摸索台灯 Mossling。应用内容仅供家庭养育参考，不能替代医生的诊断和建议。\n"
+        o += "\n—— 来自 摸索台灯 Moss & Otto。应用内容仅供家庭养育参考，不能替代医生的诊断和建议。\n"
         return Data(o.utf8)
     }
 

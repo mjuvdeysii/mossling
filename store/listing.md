@@ -1,4 +1,4 @@
-# Google Play 商店信息 · 摸索台灯 Mossling
+# Google Play 商店信息 · 摸索台灯 Moss & Otto
 
 ## 应用名称（≤ 30 字符）
 摸索台灯 · 孩子摸索，大人点灯

@@ -71,7 +71,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
                 app.mossling.ui.ip.Duo(app.mossling.ui.theme.LocalCompanion.current, size = 88.dp)
                 Text("摸索台灯", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
                 Text("孩子摸索，大人点灯", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                Text("Mossling · 陪 0–3 岁的孩子一起玩、一起长大", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                Text("Moss & Otto · 陪 0–3 岁的孩子一起玩、一起长大", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
                 Text("版本 $version · 构建 $build", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
