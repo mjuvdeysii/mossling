@@ -313,6 +313,70 @@ def _():
     for x, s, col, hair in ((-0.2, 1.0, "#F07BA0", "#4A3428"), (0.25, 0.75, YELLOW, "#6B4A32")):
         cap((x, 0, 0.12), (x, 0, 0.12 + 0.4 * s), 0.18 * s, col); sph((x, 0, 0.72 * s + 0.12), 0.18 * s, SKIN)
         sph((x, 0.05, 0.78 * s + 0.12), (0.17 * s, 0.15 * s, 0.1 * s), hair); face((x, 0, 0.72 * s + 0.12), 0.18 * s)
+# the rest of the marks the app shows in tiles (journal links, the data page, settings, the growth book's facts)
+@icon("chart_bar_fill", LILAC)                            # 最近七天: three soft bars, rising
+def _():
+    for i, (h, c) in enumerate(((0.38, "#C9B6F5"), (0.62, LILAC), (0.86, "#7A5BD6"))):
+        rbox((-0.36 + i * 0.36, 0, h / 2 + 0.02), (0.26, 0.26, h), c, 0.3)
+@icon("square_and_arrow_down_on_square_fill", LILAC)      # 导入备份: a parcel on a tray, an arrow coming in
+def _():
+    rbox((0, 0, 0.06), (1.0, 0.7, 0.08), "#D9AE76", 0.3)
+    rbox((0, 0, 0.34), (0.6, 0.5, 0.46), "#D9A86C", 0.15); rbox((0, -0.26, 0.34), (0.1, 0.02, 0.48), "#B8854F", 0.3)
+    cap((0.0, -0.3, 1.12), (0.0, -0.3, 0.8), 0.06, LILAC); cyl((0.0, -0.3, 0.72), 0.14, 0.18, LILAC, r2=0.0, rot=(math.pi, 0, 0))
+@icon("lamp_desk_fill", YELLOW)                           # 摸索台灯的故事: Otto's lamp, its bead lit
+def _():
+    cyl((0.25, 0, 0.05), 0.28, 0.1, "#3E5A86", bevel=0.45)
+    tube("rod", [(0.25, 0, 0.08), (0.25, 0, 0.6), (0.12, 0, 0.92), (-0.12, 0, 0.92), (-0.25, 0, 0.78)], 0.05, v("#3E5A86"))
+    sph((-0.25, 0, 0.6), 0.16, glow("#FFC94D", 1.6))
+@icon("leaf_fill", GREEN)                                 # 看他长大 / 草地: a mint sprig
+def _():
+    leafpair((0, 0, 0.0), 0.95)
+    for sx in (-1, 1):
+        l = sph((sx * 0.2, 0, 0.42), (0.2, 0.04, 0.11), GREEN if sx > 0 else "#7FD49A"); l.rotation_euler = (0, math.radians(25 * sx), 0)
+@icon("tree_fill", GREEN)                                 # 树林: a round tree
+def _():
+    cap((0, 0, 0.0), (0, 0, 0.45), 0.09, "#A0703F")
+    for x, z, s in ((0, 0.72, 0.36), (-0.25, 0.55, 0.24), (0.26, 0.56, 0.25)): sph((x, 0, z), s, GREEN if s > 0.3 else "#62C47C")
+@icon("externaldrive_fill", BLUE)                         # 备份: a soft box with a light
+def _():
+    rbox((0, 0, 0.3), (1.0, 0.6, 0.42), "#E9EEF5", 0.3)
+    rbox((0, -0.3, 0.3), (0.86, 0.02, 0.24), "#C8D3E3", 0.4); sph((0.32, -0.32, 0.3), 0.05, glow("#3CC9A0", 1.4))
+@icon("exclamationmark_shield_fill", ORANGE)              # 免责声明: a shield with a soft note
+def _():
+    rbox((0, 0, 0.66), (0.72, 0.16, 0.56), ORANGE, 0.4)
+    o = cyl((0, 0, 0.32), 0.36, 0.4, ORANGE, r2=0.03, rot=(math.pi, 0, 0), bevel=0.3); o.scale = (1, 0.22, 1)
+    cap((0, -0.1, 0.8), (0, -0.1, 0.56), 0.055, "#FFFFFF"); sph((0, -0.1, 0.42), 0.055, "#FFFFFF")
+@icon("scalemass_fill", GREEN)                            # 体重: a baby scale
+def _():
+    rbox((0, 0, 0.18), (0.95, 0.6, 0.3), "#FFFFFF", 0.35)
+    cyl((0, -0.31, 0.2), 0.16, 0.02, "#DCEFF6", rot=(math.radians(90), 0, 0)); cap((0, -0.33, 0.2), (0.08, -0.33, 0.28), 0.015, RED)
+    s = sph((0, 0.05, 0.42), (0.42, 0.28, 0.1), "#BDE6C8")
+@icon("tablecells_fill", TEAL)                            # 表格: a grid of soft tiles
+def _():
+    for r in range(3):
+        for c in range(3): rbox((-0.3 + c * 0.3, 0, 0.18 + r * 0.3), (0.26, 0.16, 0.26), TEAL if r == 2 else "#BFEDE8", 0.3)
+@icon("square_grid_2x2_fill", YELLOW)                     # 一起玩: four blocks
+def _():
+    for i, (x, z, c) in enumerate(((-0.22, 0.2, RED), (0.22, 0.2, BLUE), (-0.22, 0.62, YELLOW), (0.22, 0.62, GREEN))):
+        rbox((x, 0, z), (0.4, 0.4, 0.4), c, 0.22, (0, 0, math.radians(8 * (1 if i % 2 else -1))))
+@icon("stethoscope", RED)                                 # 就诊摘要: a stethoscope
+def _():
+    pts = [(math.cos(math.radians(a)) * 0.34, 0, 0.62 + math.sin(math.radians(a)) * 0.34) for a in range(200, 341, 10)]
+    tube("st", [(-0.3, 0, 1.0)] + pts + [(0.3, 0, 1.0)], 0.04, v("#3E5A86"))
+    tube("st2", [(0, 0, 0.28), (0.1, 0, 0.18), (0.25, 0, 0.14)], 0.035, v("#3E5A86"))
+    cyl((0.33, 0, 0.14), 0.13, 0.08, "#CFC9C0", rot=(math.radians(90), 0, 0))
+    for sx in (-1, 1): sph((sx * 0.3, 0, 1.02), 0.06, RED)
+@icon("circle_dashed", PINK)                              # 头围: a soft tape loop
+def _():
+    tor((0, 0, 0.5), 0.36, 0.07, "#FFF3B0", (math.radians(90), 0, 0))
+    for i in range(10):
+        a = math.radians(i * 36); rbox((math.cos(a) * 0.36, -0.07, 0.5 + math.sin(a) * 0.36), (0.02, 0.01, 0.06), "#8A5A00", 0.3, (0, -a, 0))
+@icon("clock_fill", LILAC)                                # 时间: a round alarm clock
+def _():
+    cyl((0, 0, 0.5), 0.4, 0.22, LILAC, rot=(math.radians(90), 0, 0), bevel=0.4)
+    cyl((0, -0.12, 0.5), 0.32, 0.02, "#FFFFFF", rot=(math.radians(90), 0, 0))
+    cap((0, -0.14, 0.5), (0, -0.14, 0.72), 0.03, INKC); cap((0, -0.14, 0.5), (0.15, -0.14, 0.5), 0.03, INKC)
+    for sx in (-1, 1): sph((sx * 0.28, 0, 0.9), 0.1, YELLOW); cap((sx * 0.25, 0, 0.1), (sx * 0.3, 0, 0.0), 0.04, LILAC)
 
 def main():
     only = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None

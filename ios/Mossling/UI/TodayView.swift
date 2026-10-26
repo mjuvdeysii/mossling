@@ -293,11 +293,11 @@ private struct HomeFooter: View {
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
 /// This week's shelf — the heart of the app when nothing is recorded (docs/IP.md §3). Built like the low open shelf of
-/// a Montessori room: a wooden cabinet (top board, two side posts, a warm back panel), two shelves, and on each shelf two
-/// trays, each with its material, standing on the board. Under each tray a paper tag hangs from the shelf's edge with the
-/// play's name and its area, and a gold bead for every time it was played this way (up to five, then a number) — a
-/// count, never a score. Moss and Otto sit on top of the cabinet; at night Otto's lamp throws a warm pool of light down
-/// over the trays. Empty places are dashed trays: 放一件.
+/// a Montessori room, but compact: one compartment per material, each a wooden board with the tray standing on it and,
+/// beside it, what the parent needs to begin — the area, the name, how many steps and the first one, and the gold beads
+/// for every time it was played (a count, never a score). The least-played one carries 「先玩这件」. A single dashed
+/// place invites one more while the shelf has room. Moss and Otto sit on top of the cabinet; at night Otto's lamp throws
+/// a warm pool of light down over the trays.
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
@@ -308,11 +308,19 @@ struct ShelfView: View {
     let arrange: () -> Void
     var body: some View {
         let s = app.weekShelf(month)
-        let per = size.isAccessibilitySize ? 1 : 2
         let dark = scheme == .dark
-        VStack(alignment: .leading, spacing: 10) {
+        let since = app.today.monday.date
+        let played = s.plays.filter { (app.record($0, j).last ?? .distantPast) >= since }.count
+        let first = s.plays.min { app.record($0, j).count < app.record($1, j).count }?.code
+        let left = Shelf.candidates(app.content, month).filter { c in !s.plays.contains { $0.code == c.code } }.count
+        VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
                 Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
+                if !s.plays.isEmpty && !s.stale {
+                    Text("玩过 \(played) / \(s.plays.count)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .semibold))
+                        .foregroundStyle(Palette.accent).padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(Palette.accent.opacity(0.12))).fixedSize()
+                }
                 Spacer()
                 Button(action: arrange) {
                     // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
@@ -321,20 +329,21 @@ struct ShelfView: View {
                 .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
             .padding(.horizontal, 4).padding(.top, 20)
-            Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。" : "这一周，孩子可以摸索这几件。点开一件，跟着图一起玩。")
+            Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。"
+                 : s.plays.isEmpty ? "架子还空着。点「整理」，从这个月的 \(left) 件里挑三四件放上来。"
+                 : "从标着「先玩这件」的开始；点开一件，跟着图一步步玩。每周三四件，孩子想重复就重复。")
                 .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
                 .fixedSize(horizontal: false, vertical: true)
             VStack(spacing: 0) {
-                ShelfBoard(dark: dark).frame(height: 14)   // the top of the cabinet
-                ForEach(0..<(Shelf.max + per - 1) / per, id: \.self) { row in
-                    let ks = Array((row * per)..<(row * per + per))
-                    VStack(spacing: 0) {
-                        HStack(alignment: .bottom, spacing: 14) { ForEach(ks, id: \.self) { k in tray(k, s) } }
-                            .padding(.horizontal, 22).padding(.top, 16)
-                        ShelfBoard(dark: dark).frame(height: 16)
-                        HStack(alignment: .top, spacing: 14) { ForEach(ks, id: \.self) { k in tag(k, s) } }
-                            .padding(.horizontal, 22).padding(.top, 2).padding(.bottom, 12)
-                    }
+                ShelfBoard(dark: dark).frame(height: 12)   // the top of the cabinet
+                ForEach(s.plays) { p in
+                    compartment(p, first: p.code == first && s.plays.count > 1, dark: dark)
+                    ShelfBoard(dark: dark).frame(height: 12)
+                }
+                if s.plays.count < Shelf.max {
+                    Button(action: arrange) { empty(room: Shelf.max - s.plays.count, left: left, dark: dark) }
+                        .buttonStyle(.toy).accessibilityLabel("放一件教具").accessibilityHint("这个月还有 \(left) 件可选")
+                    ShelfBoard(dark: dark).frame(height: 12)
                 }
             }
             .background { ShelfBack(dark: dark) }
@@ -351,86 +360,88 @@ struct ShelfView: View {
     }
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
+    private func ink(_ dark: Bool) -> Color { dark ? Color(hex: 0xF3E6D6) : Color(hex: 0x3A2C1E) }
+    private func soft(_ dark: Bool) -> Color { dark ? Color(hex: 0xCBB9A5) : Color(hex: 0x7A6650) }
 
-    @ViewBuilder private func tray(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
-        if k < s.plays.count {
-            let p = s.plays[k], times = app.record(p, j).count
-            NavigationLink(value: route(p)) {
+    /// One compartment: the tray on its board, and beside it what to know before starting.
+    private func compartment(_ p: Play, first: Bool, dark: Bool) -> some View {
+        let times = app.record(p, j).count, key = Palette.areaKey(of: p)
+        let big = size.isAccessibilitySize
+        let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+        return NavigationLink(value: route(p)) {
+            layout {
                 Figure(name: "tray_\(p.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
-                    .frame(maxWidth: .infinity)
+                    .frame(width: big ? 200 : 118)
+                    .zoomSource(route(p))
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 5) {
+                        IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
+                        Text(p.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+                        if first {
+                            Text("先玩这件").font(.caption2.weight(.bold)).foregroundStyle(.white)
+                                .padding(.horizontal, 6).padding(.vertical, 2)
+                                .background(Capsule().fill(Palette.accent)).fixedSize()
+                        }
+                    }
+                    Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))
+                        .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    if let step = p.steps.first {
+                        Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(soft(dark))
+                            .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    }
+                    BeadCount(times: times, dark: dark).padding(.top, 1)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(soft(dark).opacity(0.7))
+                    .opacity(big ? 0 : 1)
             }
-            .buttonStyle(.toy).zoomSource(route(p))
-            .contextMenu { PlayActions(play: p, month: month) }
-            .accessibilityLabel(p.name + (times > 0 ? "，玩过 \(times) 次" : "，还没玩过"))
-            .accessibilityHint(p.domains.first ?? "")
-        } else if k < Shelf.max {
-            Button(action: arrange) {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(Color(hex: 0xB98A5A).opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
-                    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(0.18)))
-                    .overlay(Image(systemName: "plus").font(.title3.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440)))
-                    .aspectRatio(4 / 3, contentMode: .fit).padding(.horizontal, 10).padding(.bottom, 2)
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.toy).accessibilityLabel("放一件教具")
-        } else { Color.clear.frame(maxWidth: .infinity) }
+            .padding(.leading, 18).padding(.trailing, 20).padding(.top, 8).padding(.bottom, 4)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.toy)
+        .contextMenu { PlayActions(play: p, month: month) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(p.name + (first ? "，先玩这件" : "") + (times > 0 ? "，玩过 \(times) 次" : "，还没玩过"))
+        .accessibilityHint((p.domains.first ?? "") + "，\(p.steps.count) 步")
     }
 
-    @ViewBuilder private func tag(_ k: Int, _ s: (plays: [Play], stale: Bool)) -> some View {
-        if k < s.plays.count {
-            let p = s.plays[k], times = app.record(p, j).count, key = Palette.areaKey(of: p)
-            NavigationLink(value: route(p)) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
-                        Text(p.name).font(.footnote.weight(.semibold)).foregroundStyle(Color(hex: 0x3A2C1E))
-                            .lineLimit(3, reservesSpace: false).multilineTextAlignment(.leading)
-                    }
-                    BeadCount(times: times)
-                }
-                .padding(.horizontal, 9).padding(.vertical, 7)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(PaperTag())
+    /// The one free place on the shelf: a dashed tray and how much room is left.
+    private func empty(room: Int, left: Int, dark: Bool) -> some View {
+        HStack(spacing: 12) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color(hex: 0xB98A5A).opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
+                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(dark ? 0.05 : 0.25)))
+                .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440)))
+                .frame(width: 118, height: 56)
+            VStack(alignment: .leading, spacing: 2) {
+                Text("放一件").font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))
+                Text("还能放 \(room) 件 · 这个月有 \(left) 件可选").font(.caption).foregroundStyle(soft(dark))
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .buttonStyle(.toy)
-            .accessibilityHidden(true)   // the tray above says the same, once
-        } else if k < Shelf.max {
-            Text("放一件").font(.caption.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440))
-                .frame(maxWidth: .infinity).padding(.top, 6).accessibilityHidden(true)
-        } else { Color.clear.frame(maxWidth: .infinity) }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 18).padding(.trailing, 20).padding(.vertical, 10)
+        .contentShape(Rectangle())
     }
 }
 
 /// Times played, as gold beads on a short string (Montessori's golden bead): up to five, then the number.
 private struct BeadCount: View {
     let times: Int
+    var dark = false
     var body: some View {
         HStack(spacing: 3) {
             if times == 0 {
-                Text("还没玩过").font(.caption2).foregroundStyle(Color(hex: 0x7A6650))
+                Text("还没玩过").font(.caption2).foregroundStyle(dark ? Color(hex: 0xCBB9A5) : Color(hex: 0x7A6650))
             } else {
                 ForEach(0..<min(times, 5), id: \.self) { _ in
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
                         .frame(width: 9, height: 9)
                 }
-                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Color(hex: 0x7A5A10)).padding(.leading, 2)
+                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(dark ? Palette.beadLight : Color(hex: 0x7A5A10)).padding(.leading, 2)
             }
         }
         .accessibilityHidden(true)
-    }
-}
-
-/// A paper tag hanging from the shelf edge: cream paper, a little string hole, a soft fold shadow.
-private struct PaperTag: View {
-    var body: some View {
-        RoundedRectangle(cornerRadius: 9, style: .continuous)
-            .fill(Color(hex: 0xFFF8EA))
-            .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(Color(hex: 0xE5D2B2), lineWidth: 1))
-            .overlay(alignment: .top) {
-                // the string it hangs from
-                Capsule().fill(Color(hex: 0xC49A6C)).frame(width: 1.5, height: 7).offset(y: -6)
-            }
-            .shadow(color: Color(hex: 0x6B4A2B).opacity(0.12), radius: 2, y: 1.5)
     }
 }
 

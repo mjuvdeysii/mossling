@@ -114,7 +114,9 @@ struct IconTile: View {
     @ScaledMetric private var scale: CGFloat = 1
 
     static func sticker(_ symbol: String) -> String? {
-        let n = "ic_" + symbol.replacingOccurrences(of: ".", with: "_") + ".webp"
+        // a few marks share one object (export and import in one row are still the parcel going out)
+        let alias = ["square.and.arrow.up.on.square": "square.and.arrow.up", "list.bullet.clipboard": "list.bullet.clipboard.fill"]
+        let n = "ic_" + (alias[symbol] ?? symbol).replacingOccurrences(of: ".", with: "_") + ".webp"
         return ArtIndex.shared.size[n] == nil ? nil : n
     }
 

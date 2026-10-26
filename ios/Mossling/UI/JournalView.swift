@@ -23,8 +23,8 @@ struct JournalView: View {
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only)
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
-                    NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) }.buttonStyle(.toy)
-                    NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).count }) } }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -43,14 +43,20 @@ struct JournalView: View {
         .onAppear { day = app.today }
     }
 
-    private func tile(_ t: String, _ sym: String, _ c: Color) -> some View {
-        HStack(spacing: 10) {
-            IconTile(symbol: sym, color: c)
-            Text(t).font(.body.weight(.semibold)).foregroundStyle(.primary)
-            Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+    /// A way into a deeper page that already shows a glimpse of it: the week's bars, the last measurement.
+    private func tile<P: View>(_ t: String, _ sym: String, _ c: Color, @ViewBuilder preview: () -> P) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                IconTile(symbol: sym, color: c, size: 34)
+                Text(t).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            }
+            preview().frame(maxWidth: .infinity, minHeight: 40, alignment: .bottomLeading)
         }
-        .padding(14).printCard(radius: 20)
+        .padding(14)
+        .background(LinearGradient(colors: [c.opacity(0.12), .clear], startPoint: .top, endPoint: .bottom))
+        .printCard(radius: 22)
     }
 
     private func tap(_ t: String) {
@@ -65,6 +71,48 @@ struct JournalView: View {
 }
 
 enum JournalRoute: Hashable { case stats, growth }
+
+/// Seven small soft bars, one per day ending today: how many things were recorded. Today's bar is the full colour.
+private struct WeekBars: View {
+    let today: Day
+    let count: (Day) -> Int
+    var body: some View {
+        let days = (0...6).reversed().map { today.plus(days: -$0) }
+        let n = days.map(count), top = max(n.max() ?? 0, 1)
+        HStack(alignment: .bottom, spacing: 4) {
+            ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                VStack(spacing: 3) {
+                    Capsule().fill(i == 6 ? Crayon.lilac : Crayon.lilac.opacity(0.35))
+                        .frame(height: max(5, 30 * CGFloat(n[i]) / CGFloat(top)))
+                    Text(String(d.weekday.suffix(1))).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .accessibilityElement().accessibilityLabel("最近七天共记录 \(n.reduce(0, +)) 次")
+    }
+}
+
+/// The last measurement, or a line saying there is none yet.
+private struct LastMeasure: View {
+    let m: Measure?
+    var body: some View {
+        if let m, let w = m.weightG {
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) {
+                    Text(String(format: "%.1f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
+                    Text("千克").font(.caption.weight(.semibold))
+                    if let l = m.lengthMm { Text("· \(l / 10) 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
+                }
+                .fixedSize()
+                let d = Date(timeIntervalSince1970: m.at / 1000)
+                Text("最近一次 " + d.formatted(.dateTime.month(.defaultDigits).day()) ).font(.caption2).foregroundStyle(Palette.secondaryText)
+            }
+        } else {
+            Text("还没有量过，点进去记下第一次").font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 struct Wrap: Identifiable { let id: String }
 
 /// "刚刚", "25 分钟前", "1 小时 20 分前".
