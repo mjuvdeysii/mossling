@@ -227,6 +227,11 @@ struct Creature: View {
     }
 }
 
+extension Kind {
+    /// How large a frame this one needs beside the other to stand on the same scale (Moss = 1).
+    var scale: CGFloat { self == .moss ? 1 : Sprites.ottoFrame / Sprites.mossFrame }
+}
+
 /// Moss and Otto together: the chosen one in front, the other a step behind and smaller. Now and then (every quarter
 /// minute or so — mostly still) the one behind leans in, the one in front turns to it, and both brighten.
 ///
@@ -256,8 +261,19 @@ struct Duo: View {
     @State private var cheering = false
     @State private var observing = false
 
+    /// The one behind, on the same scale as the one in front and a step smaller: whichever is chosen, the main one
+    /// reads as the main one (Moss is broad and low, Otto tall and narrow, so a fixed fraction of the frame made a main
+    /// Moss dwarf Otto and a main Otto look no bigger than Moss).
+    static func behind(_ primary: Kind, _ size: CGFloat) -> CGFloat {
+        let frame: (Kind) -> CGFloat = { $0 == .moss ? Sprites.mossFrame : Sprites.ottoFrame }
+        return size * frame(primary.other) / frame(primary) * 0.78
+    }
+    static func feet(_ k: Kind) -> CGFloat { (k == .moss ? Sprites.mossFeet : Sprites.ottoFeet) / 100 }
+
     var body: some View {
-        let small = size * 0.72
+        let small = Self.behind(primary, size)
+        // feet on one floor line, the one behind a little further back (higher)
+        let lift = size * (1 - Self.feet(primary)) - small * (1 - Self.feet(primary.other)) + size * 0.03
         let asleep = mood == .sleep
         ZStack(alignment: .bottomLeading) {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
@@ -265,13 +281,13 @@ struct Duo: View {
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
                      arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
                 .frame(width: small, height: small)
-                .offset(x: size - small * 0.38, y: -2)
+                .offset(x: size * 0.5, y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
                      label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
                 .frame(width: size, height: size)
         }
-        .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)
+        .frame(width: size * 0.5 + small, height: max(size, small + lift), alignment: .bottomLeading)
         .accessibilityElement(children: label == nil ? .ignore : .combine)
         .accessibilityLabel(label ?? "")
         .accessibilityHidden(label == nil)

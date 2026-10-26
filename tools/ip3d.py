@@ -206,7 +206,7 @@ def shaped_sphere(name, f, material, seg=64):
     o.data.materials.append(material); return o
 
 # Moss: a pebble 1.24 wide, 1.0 deep, its top at 0.74; the bottom flattened where it rests
-MOSS = dict(rx=0.62, ry=0.52, rz=0.46, cz=0.27)
+MOSS = dict(rx=0.57, ry=0.5, rz=0.5, cz=0.4)
 def moss_surface_y(x, z):
     m = MOSS; k = 1 - (x / m["rx"]) ** 2 - ((z - m["cz"]) / m["rz"]) ** 2
     return -m["ry"] * math.sqrt(max(0.0, k))
@@ -217,8 +217,10 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
     root = bpy.data.objects.new("Moss", None); bpy.context.collection.objects.link(root)
     # the icon's pebble: higher on the right, the left shoulder lower and rounder, the base flattened where it rests
     def f(a, b, c):
-        z = (c if c > 0 else c * 0.55) * m["rz"]
-        if c > 0: z *= 1 + 0.22 * a
+        # a round, full pebble: no peak, no wedge — only a breath higher on the right (the icon's DNA), so the body
+        # never reads as an arrow pointing somewhere
+        z = (c if c > 0 else c * 0.72) * m["rz"]
+        if c > 0: z *= 1 + 0.05 * a
         return (a * m["rx"], b * m["ry"], m["cz"] + z)
     body = shaped_sphere("moss_body", f, M["moss"])
     feet = [sphere(f"moss_foot{i}", (s * 0.22, -0.12, 0.045), (0.08, 0.1, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
@@ -226,12 +228,12 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
     # the mint sprig: always real mint leaves (serrated, veined), never a generic sprout
     sprig_parts = sprig(top, M["mint"], M["mintPale"], perk)
     parts = [body, *feet, *sprig_parts]
-    ez, ex = m["cz"] + 0.2, 0.125
+    ez, ex = m["cz"] + 0.2, 0.135
     for s in (-1, 1):
         sy = moss_surface_y(s * ex, ez)
         if happy or shut:
             dz = {"down": -0.03, "flat": -0.006}.get(shut, 0.045)
-            parts.append(tube(f"moss_shut{s}", [(s * ex - 0.07, sy - 0.005, ez - 0.01), (s * ex, sy - 0.02, ez + dz), (s * ex + 0.07, sy - 0.005, ez - 0.01)], 0.013, M["pupil"]))
+            parts.append(tube(f"moss_shut{s}", [(s * ex - 0.075, sy - 0.0, ez - 0.01), (s * ex, sy - 0.022, ez + dz * 1.2), (s * ex + 0.075, sy - 0.0, ez - 0.01)], 0.016, M["pupil"]))
         else:
             parts += eye(f"moss_eye{s}", (s * ex, sy + 0.025, ez), er, look, scale=(0.87, 0.5, 1.0), lid=lid, skin=M["moss"], pupil=pupil)
     if "--cheeks" in ARGS:
@@ -415,12 +417,18 @@ def render(path, w, h):
 # raised orthographic camera; the bead's position is written alongside, for the app's glow at night.
 OTTO_TIRED = dict(slouch=0.8, droop=0.6, bags=True)
 STATES = {
+    # Moss is a small child: wide awake, big pupils, leaves up, always half a move into something
     "moss": {
-        "idle": dict(lid=0.45, look=(0, 0), pupil=0.5), "left": dict(lid=0.45, look=(-0.9, 0), pupil=0.5),
-        "right": dict(lid=0.45, look=(0.9, 0), pupil=0.5), "up": dict(lid=0.4, look=(0.1, 0.85), pupil=0.5),
-        "down": dict(lid=0.5, look=(0, -0.8), pupil=0.5), "blink": dict(shut="flat"),
-        "wide": dict(lid=0.0, look=(0, 0.2), pupil=0.46, perk=0.6), "glee": dict(shut="up", perk=1.0),
-        "sleep": dict(shut="down", perk=-0.3), "hop": dict(lid=0.45, look=(0, 0.2), pupil=0.5, perk=1.0),
+        "idle": dict(lid=0.08, look=(0.15, 0.1), er=0.12, pupil=0.56, perk=0.6, lean=-3),
+        "left": dict(lid=0.05, look=(-0.95, 0.15), er=0.12, pupil=0.56, perk=0.8, lean=8),
+        "right": dict(lid=0.05, look=(0.95, 0.15), er=0.12, pupil=0.56, perk=0.8, lean=-8),
+        "up": dict(lid=0.0, look=(0.1, 0.95), er=0.12, pupil=0.52, perk=1.0),
+        "down": dict(lid=0.15, look=(0, -0.5), er=0.12, pupil=0.56, perk=0.4, lean=-4),
+        "blink": dict(shut="flat", perk=0.6, lean=-3),
+        "wide": dict(lid=0.0, look=(0, 0.2), er=0.135, pupil=0.44, perk=1.0),
+        "glee": dict(shut="up", perk=1.0, lean=-5),
+        "sleep": dict(shut="down", perk=-0.3),
+        "hop": dict(lid=0.0, look=(0.1, 0.4), er=0.12, pupil=0.5, perk=1.0, lean=-6),
     },
     "otto": {
         "idle": dict(lid=0.6, look=(0, -0.1), **OTTO_TIRED), "left": dict(lid=0.6, look=(-0.85, -0.15), **OTTO_TIRED),
@@ -430,7 +438,7 @@ STATES = {
         "sleep": dict(shut="down", slouch=1.2, droop=1.0, bags=True), "yawn": dict(shut="flat", yawn=True, slouch=1.0, droop=0.9, bags=True),
     },
 }
-FRAME = {"moss": (1.5, 0.52), "otto": (1.9, 0.74)}   # orthographic width, centre height (the ground sits ~8% up)
+FRAME = {"moss": (1.62, 0.6), "otto": (1.9, 0.74)}   # orthographic width, centre height (the ground sits ~8% up)
 
 def sprite_lights():
     world = bpy.data.worlds.new("w"); bpy.context.scene.world = world; world.use_nodes = True

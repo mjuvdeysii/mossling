@@ -30,6 +30,9 @@ def main(src):
              "import CoreGraphics", "", "enum Sprites {",
              f"    static let mossFeet: CGFloat = {feet(os.path.join(src, 'moss_idle.png')):.1f}",
              f"    static let ottoFeet: CGFloat = {feet(os.path.join(src, 'otto_idle.png')):.1f}",
+             "    /// The width of each render's square in world units: both are drawn on one scale, so sizes compare truly.",
+             f"    static let mossFrame: CGFloat = {meta['frame']['moss'][0]}",
+             f"    static let ottoFrame: CGFloat = {meta['frame']['otto'][0]}",
              "    static let bead: [String: CGPoint] = ["]
     lines += [f'        "{k}": CGPoint(x: {v[0]}, y: {v[1]}),' for k, v in sorted(beads.items())]
     lines += ["    ]", "}", ""]

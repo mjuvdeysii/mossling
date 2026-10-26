@@ -2,8 +2,11 @@
 import CoreGraphics
 
 enum Sprites {
-    static let mossFeet: CGFloat = 85.9
+    static let mossFeet: CGFloat = 89.1
     static let ottoFeet: CGFloat = 89.1
+    /// The width of each render's square in world units: both are drawn on one scale, so sizes compare truly.
+    static let mossFrame: CGFloat = 1.62
+    static let ottoFrame: CGFloat = 1.9
     static let bead: [String: CGPoint] = [
         "blink": CGPoint(x: 0.2874, y: 0.3371),
         "down": CGPoint(x: 0.2874, y: 0.3371),

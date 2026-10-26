@@ -1,8 +1,18 @@
 {
   "images": [
     {
-      "filename": "TabJournal.svg",
-      "idiom": "universal"
+      "idiom": "universal",
+      "scale": "1x"
+    },
+    {
+      "filename": "TabJournal@2x.png",
+      "idiom": "universal",
+      "scale": "2x"
+    },
+    {
+      "filename": "TabJournal@3x.png",
+      "idiom": "universal",
+      "scale": "3x"
     }
   ],
   "info": {
@@ -10,7 +20,6 @@
     "version": 1
   },
   "properties": {
-    "template-rendering-intent": "template",
-    "preserves-vector-representation": true
+    "template-rendering-intent": "original"
   }
 }

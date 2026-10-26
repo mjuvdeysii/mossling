@@ -164,8 +164,8 @@ private struct CompanionStage: View {
                     VStack(spacing: 6) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.7 : -0.7, y: 0.1),
                                  poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: on ? 76 : 52, height: on ? 76 : 52)
-                            .frame(height: 80, alignment: .bottom)
+                            .frame(width: (on ? 76 : 54) * k.scale, height: (on ? 76 : 54) * k.scale)
+                            .frame(height: 92, alignment: .bottom)
                         Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
                         Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     }
@@ -425,7 +425,7 @@ struct StoryView: View {
 
     private func pair(_ word: String, _ who: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 64, height: 64).accessibilityHidden(true)
+            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 60 * k.scale, height: 60 * k.scale).frame(width: 72, height: 72, alignment: .bottom).accessibilityHidden(true)
             VStack(alignment: .leading, spacing: 4) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     Text(word).font(.title2.weight(.bold)).foregroundStyle(c)

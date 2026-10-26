@@ -32,7 +32,7 @@ struct LampScene: View {
         GeometryReader { g in
             let w = g.size.width, h = g.size.height
             let deskY = h * 0.72
-            let ms = min(w * 0.36, h * 0.46), os = ms * 0.96
+            let ms = min(w * 0.34, h * 0.42), os = ms * Kind.otto.scale
             let mossX = w * 0.30, ottoX = w * 0.72, toyX = w * 0.505
             // the figures stand with their feet on the table top (the feet line of each render, Sprites.swift)
             let mossTop = deskY - ms * Sprites.mossFeet / 100, ottoTop = deskY - os * Sprites.ottoFeet / 100
