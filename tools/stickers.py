@@ -1,4 +1,7 @@
-"""The app's icons, drawn: every category mark is a small picture on a die-cut sticker — a blob of its colour with a
+"""Superseded for the category marks by tools/stickers3d.py (soft-vinyl badges, same file names); kept for the
+shelf trays' layout table and as the reference for what each mark shows.
+
+The app's icons, drawn: every category mark is a small picture on a die-cut sticker — a blob of its colour with a
 white edge, the object drawn in the picture book's style (tools/picturebook.py) — instead of a symbol (ios/DESIGN.md §3).
 
 Each sticker is named after the SF Symbol it replaces (ic_<symbol with dots as underscores>.webp), so the app swaps
