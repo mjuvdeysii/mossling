@@ -867,7 +867,8 @@ def place_watchers(img, spec, area, prev=None):
     if prev and busy(img, watch_box(prev[0], prev[1], prev[2]), area) < 0.02: return prev[0], prev[1], prev[2], ax
     for k in (1.15, 1.0, 0.86):
         best = None
-        for base in (GROUND + 30, GROUND + 52, H - 14):
+        # feet on the floor and high enough to stay in the 16:10 crop of the lead card (y 45–495 of 540)
+        for base in (GROUND + 22, GROUND + 38):
             for x in range(int(40 * k), int(W - 60 * k), 12):
                 if busy(img, watch_box(x, base, k), area) < 0.02:
                     d = abs(x - ax) + (base - GROUND) * 0.6

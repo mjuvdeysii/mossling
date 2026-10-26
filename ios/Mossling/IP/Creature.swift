@@ -254,7 +254,7 @@ struct Creature: View {
         body(&ctx, Shapes.mossBody, Palette.moss, under: Shapes.mossUnder, Palette.mossDeep)
         // the moss itself: a few lighter tufts on the back, so he reads as a little mossy stone, not a green blob
         var tufts = ctx; tufts.clip(to: Shapes.mossBody)
-        tufts.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.7)))
+        tufts.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.42)))
         cheeks(&ctx, [CGPoint(x: 35, y: 64), CGPoint(x: 66, y: 64)], face)
         eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss, face)
         eye(&ctx, 58, 55, 6.4, 7.4, look, lid, Palette.moss, face)
