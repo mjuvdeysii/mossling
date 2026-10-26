@@ -190,7 +190,7 @@ private struct BookPageView: View {
     private func photo(_ m: Int) -> some View {
         Group {
             if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, label: "满 \(m) 个月", radius: 6) }
-            else { ZStack { Sky(hour: 12); GrowingChild(month: m).padding(10) }.aspectRatio(4 / 3, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 6)) }
+            else { ZStack { StagePlate(); GrowingChild(month: m).padding(10) }.aspectRatio(4 / 3, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 6)) }
         }
         .frame(width: type.isAccessibilitySize ? 96 : 112)
         .padding(5)

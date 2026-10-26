@@ -25,7 +25,7 @@ struct GrowthWheel: View {
         let plays = app.content.plays(of: m)
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
-                Sky(hour: night ? 22 : 12)
+                StagePlate(night: night)
                 // tap the child: a giggle, and the companions cheer with it
                 GrowingChild(month: m, giggle: giggles)
                     .frame(width: 150, height: 150)

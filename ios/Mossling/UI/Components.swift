@@ -361,8 +361,10 @@ struct Ticking: View {
                         .id("\(i)·\(c)")
                         .transition(reduce ? .identity : .afterimage(place: place[i], tint: tint))
                 }
+                .fixedSize()   // a character never shrinks or clips (one Text per character: squeezed, each would truncate)
             }
         }
+        .fixedSize()
         .monospacedDigit()
         .animation(reduce ? nil : .easeOut(duration: 0.9), value: text)
         .accessibilityElement(children: .ignore)

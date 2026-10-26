@@ -150,16 +150,20 @@ private struct MonthCard: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 14) {
-                ZStack {
-                    Sky(hour: night ? 22 : 12)
-                    GrowingChild(month: month).frame(width: 68, height: 68).offset(y: 5)
+                // the child at this age, as in the pictures, standing in a small pool of light of the year's colour
+                ZStack(alignment: .bottom) {
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(LinearGradient(colors: [Land.of(month).crayon.opacity(night ? 0.22 : 0.16), Land.of(month).crayon.opacity(night ? 0.10 : 0.06)], startPoint: .top, endPoint: .bottom))
+                    Circle().fill(RadialGradient(colors: [Color(hex: 0xFFE39A).opacity(night ? 0.25 : 0.6), .clear], center: .center, startRadius: 0, endRadius: 40))
+                        .frame(width: 80, height: 80).offset(x: 26, y: -58)
+                    Ellipse().fill(Land.of(month).crayon.opacity(0.22)).frame(width: 78, height: 14).offset(y: -9)
+                    GrowingChild(month: month).frame(width: 104, height: 104).offset(y: 6)
                 }
-                .frame(width: 88, height: 88)
-                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(.white.opacity(0.6), lineWidth: 1.5))
+                .frame(width: 104, height: 112)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(30, relativeTo: .title, weight: .bold))
+                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
                         if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
                         if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text("天").font(.subheadline.weight(.semibold)) }
                         if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }

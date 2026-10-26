@@ -26,11 +26,14 @@ struct PlayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 10) {
+                    // the area and, under it, the age it suits — its own line, wrapping, never cut at the edge
+                    HStack(alignment: .center, spacing: 10) {
                         IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
-                        Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
-                        Spacer()
-                        Text(play.age).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
+                            Text(play.age).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
                     }
                     Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
                     // how many times, and — for a time played without following the steps here — a small 记一次
@@ -235,14 +238,15 @@ private struct StepCard: View {
     }
 }
 
-/// How many times, as beads on a string — one gold bead per time, up to ten — and when last.
+/// How many times, as beads on a string — one gold bead per time, up to five — the count, and when last (its own
+/// line, so nothing is ever squeezed).
 struct DoneCount: View {
     let record: PlayRecord
     var cheer = 0
     var body: some View {
         HStack(spacing: 10) {
             HStack(spacing: -3) {
-                ForEach(0..<max(1, min(record.count, 10)), id: \.self) { _ in
+                ForEach(0..<max(1, min(record.count, 5)), id: \.self) { _ in
                     Circle()
                         .fill(record.count == 0 ? AnyShapeStyle(Palette.fill) : AnyShapeStyle(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11)))
                         .frame(width: 16, height: 16)
@@ -250,10 +254,21 @@ struct DoneCount: View {
                 }
             }
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
-            Ticking(text: record.count == 0 ? "还没做过" : "做过 \(record.count) 次" + (record.last.map { " · 上次 \(Day($0).md)" } ?? ""), tint: Palette.bead)
-                .font(.subheadline.weight(.semibold)).foregroundStyle(record.count == 0 ? Palette.secondaryText : Color.primary)
-                .monospacedDigit()
-                .contentTransition(.numericText())
+            VStack(alignment: .leading, spacing: 1) {
+                if record.count == 0 {
+                    Text("还没做过").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                } else {
+                    HStack(spacing: 0) {
+                        Text("做过 ")
+                        Ticking(text: "\(record.count)", tint: Palette.bead)
+                        Text(" 次")
+                    }
+                    .font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary).fixedSize()
+                    if let last = record.last {
+                        Text("上次 \(Day(last).md)").font(.caption).foregroundStyle(Palette.secondaryText)
+                    }
+                }
+            }
         }
         .accessibilityElement(children: .combine)
     }

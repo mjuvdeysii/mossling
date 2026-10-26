@@ -508,19 +508,37 @@ struct PrintCard: ViewModifier {
     var fill: Color = Palette.card
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    /// The card as a piece of the same soft vinyl as Moss and Otto: an even matte colour, lit from above (a breath
+    /// lighter at the top, a soft lit edge along the top rim, the faintest shade toward the bottom), sitting on the
+    /// page with a small contact shadow and a wide soft one — no gloss, no hard border. In a scroll view the card
+    /// eases back a little as it leaves the screen, so the page reads in layers.
     func body(content: Self.Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        let dark = lamp || scheme == .dark
+        let base = lamp ? Palette.lampCard : fill
         content
             .background {
                 ZStack {
-                    lamp ? Palette.lampCard : fill
-                    Grain(dark: lamp || scheme == .dark, strength: 0.6)
+                    base
+                    LinearGradient(colors: [.white.opacity(dark ? 0.04 : 0.55), .white.opacity(0), Color(hex: 0x7A5230).opacity(dark ? 0 : 0.035)],
+                                   startPoint: .top, endPoint: .bottom)
+                        .blendMode(dark ? .normal : .softLight)
+                    Grain(dark: dark, strength: 0.6)
                 }
                 .clipShape(shape)
             }
             .clipShape(shape)
-            .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
-            .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)
+            .overlay {
+                // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece
+                shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.12 : 0.95), .white.opacity(dark ? 0.03 : 0.25), .white.opacity(0)],
+                                                  startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
+            }
+            .shadow(color: dark ? .clear : Color(hex: 0x7A5230).opacity(0.07), radius: 1.5, y: 1)
+            .shadow(color: dark ? .black.opacity(0.25) : Color(hex: 0x7A5230).opacity(0.10), radius: 16, y: 8)
+            .scrollTransition(.interactive, axis: .vertical) { c, phase in
+                c.scaleEffect(phase.isIdentity ? 1 : 0.975, anchor: phase.value < 0 ? .bottom : .top)
+                    .opacity(phase.isIdentity ? 1 : 0.88)
+            }
     }
 }
 

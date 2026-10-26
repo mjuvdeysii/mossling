@@ -82,3 +82,27 @@ struct Sky: View {
         .accessibilityHidden(true)
     }
 }
+
+/// The growth map's stage as the characters' world: a soft vinyl meadow under the sun, or under the moon and stars at
+/// night (tools/plates3d.py), filling its frame. The drawn Sky stays as the fallback while it decodes.
+struct StagePlate: View {
+    var night = false
+    @Environment(\.displayScale) private var scale
+    @State private var img: UIImage?
+    var body: some View {
+        GeometryReader { g in
+            ZStack {
+                if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+                else { Sky(hour: night ? 22 : 12) }
+            }
+            .frame(width: g.size.width, height: g.size.height)
+            .clipped()
+            .task(id: night) {
+                let px = Int(max(g.size.width, g.size.height) * scale), n = night ? "stage_night.webp" : "stage_day.webp"
+                let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
+                withAnimation(.easeOut(duration: 0.25)) { img = i }
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
