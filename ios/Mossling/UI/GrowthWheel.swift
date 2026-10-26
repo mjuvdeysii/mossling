@@ -135,13 +135,14 @@ struct BeadPath: View {
                     .allowsHitTesting(false)
                 // the chosen month: a ring that glides along the chain, and its number above it
                 let c = Self.point(preview, width: w)
+                // the month's number sits inside the ring (never above it, where the year marks and the companion are)
                 ZStack {
-                    Circle().strokeBorder(Color.primary.opacity(0.75), lineWidth: 2.5).frame(width: 30, height: 30)
                     if preview != baby {
-                        Text("\(preview)").font(Typeface.numerals(12, relativeTo: .caption2, weight: .bold))
-                            .foregroundStyle(.primary).padding(.horizontal, 5).padding(.vertical, 1)
-                            .background(Capsule().fill(Palette.card)).offset(y: -24)
+                        Circle().fill(Palette.card).frame(width: 28, height: 28)
+                        Text("\(preview)").font(Typeface.numerals(13, relativeTo: .caption2, weight: .bold))
+                            .foregroundStyle(.primary).minimumScaleFactor(0.7).lineLimit(1).frame(width: 24)
                     }
+                    Circle().strokeBorder(Color.primary.opacity(0.75), lineWidth: 2.5).frame(width: 30, height: 30)
                 }
                 .position(c)
                 .animation(reduce ? nil : .spring(response: dragging ? 0.18 : 0.38, dampingFraction: 0.78), value: preview)

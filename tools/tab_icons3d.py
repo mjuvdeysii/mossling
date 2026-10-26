@@ -48,15 +48,15 @@ def month(px):
 def journal(px):
     scene()
     # Otto's rod, arching over to the left, and the lit bead hanging from it
-    tube("rod", [(0.16, -0.0, -0.3), (0.16, 0.0, 0.05), (0.06, 0.0, 0.25), (-0.1, 0.0, 0.24), (-0.16, 0.0, 0.14)], 0.022, M["ottoDeep"])
+    tube("rod", [(0.15, -0.0, -0.3), (0.15, 0.0, 0.04), (0.06, 0.0, 0.23), (-0.08, 0.0, 0.23), (-0.14, 0.0, 0.15)], 0.036, M["ottoDeep"])
     M["bead"].node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 0.9
-    sphere("bead", (-0.16, -0.0, 0.07), (0.075, 0.075, 0.075), M["bead"])
-    cam(-0.02, 0.0, 0.66)
+    sphere("bead", (-0.14, -0.0, 0.04), (0.11, 0.11, 0.11), M["bead"])
+    cam(0.0, -0.02, 0.62)
     p = render("TabJournal", px)
     # the halo: a warm glow round the bead, under the render (the lamp is always a lamp)
     im = Image.open(p).convert("RGBA"); W = im.width
     g = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(g)
-    bx, by = W * (0.5 + (-0.16 + 0.02) / 0.66), W * (0.5 - 0.07 / 0.66)
+    bx, by = W * (0.5 + (-0.14) / 0.62), W * (0.5 - (0.04 + 0.02) / 0.62)
     for i in range(12, 0, -1):
         r = W * 0.022 * i
         d.ellipse((bx - r, by - r, bx + r, by + r), fill=(255, 190, 80, int(10 + 8 * (12 - i))))

@@ -5,9 +5,9 @@ import SwiftUI
 /// move (Moss hops, leaves up; Otto yawns). The view picks the state of the moment and moves the whole figure: it
 /// breathes, blinks, glances, hops; a contact shadow stays on the floor; Otto's bead throws a little light.
 ///
-/// Personalities (docs/IP.md): Moss is a small child — always charged, quick glances, a faster breath, a hop at any
-/// excuse — with a deadpan face. Otto is a tired grown-up — heavy lids, slow breath, a glance only now and then, and
-/// sometimes a long yawn — and still always holds the light. Neither smiles much; that is the joke.
+/// Personalities (docs/IP.md): Moss is a small child — wide awake, curious, always half a move into something: quick
+/// glances, a faster breath, a hop at any excuse. Otto is a tired grown-up — heavy lids, slow breath, a glance only now
+/// and then, sometimes a long yawn — and still always holds the light.
 ///
 /// `look` is where the eyes point (each axis −1…1, y down); `lid` ≥ 0.8 shuts the eyes. A tap makes it hop; a long
 /// press is a pat — eyes close happily, a soft tap of haptics. Five quick taps on Moss send mint leaves drifting up.

@@ -101,7 +101,9 @@ def person3d(p, depth):
     sp = 0.16 * (1.0 if p.kind == "adult" else 0.7)          # half the body's depth: near limbs in front, far behind
     if p.pose == "bundle":
         c = W3(p.bundle_c, depth); Lb = L(d["torso"] * 1.9); w = L(d["tw"] * 1.25)
-        o = sphere("bundle", c, (Lb / 2, w * 0.6, w / 2), vinyl("#BFE3F0")); o.rotation_euler = (0, -math.radians(p.bundle_a), 0)
+        # a swaddled baby: a soft blanket roll in a clear blue, a fold across it
+        o = sphere("bundle", c, (Lb / 2, w * 0.62, w * 0.52), vinyl("#7FB9DA", 0.8)); o.rotation_euler = (0, -math.radians(p.bundle_a), 0)
+        fo = sphere("fold", (c[0] - Lb * 0.05, c[1] - w * 0.1, c[2]), (Lb * 0.1, w * 0.58, w * 0.5), vinyl("#A8D3EA", 0.8)); fo.rotation_euler = o.rotation_euler
     else:
         for k, (knee, foot) in enumerate(p.legs):
             dd = depth + (sp if k == 1 else -sp)
@@ -328,9 +330,23 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     back, front = layers(spec, area)
     if not spec.get("companions"):
         play = interplay(spec, people, objs, step, nsteps)
-        # the drawn marks (arrows, badges, speech) are never covered: their layer is a no-go mask
-        marks = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=pb.W))).getchannel("A")
-        where = stand(play, prev, marks)
+        # the step as the picture book draws it (people, things, marks): where something is, they are not
+        # (a play mat, a road are floor: they may sit on them)
+        keep_obj, keep_sh = pb.obj, pb.SVG.shadow
+        pb.obj = lambda sv, k, *a_, **kw: None if k in ("mat", "road", "kerb") else _obj(sv, k, *a_, **kw)
+        pb.SVG.shadow = lambda *a_, **kw: None      # soft floor shadows are not things
+        try: occupied = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=pb.scene(spec, area).svg().encode(), output_width=pb.W))).convert("RGB")
+        finally: pb.obj, pb.SVG.shadow = keep_obj, keep_sh
+        where = stand(play, prev, occupied, area)
+        # the layout pass: a step can set its own staging for the two (scenes.json "duo": x, base, k, oside, depth, act)
+        o = spec.get("duo")
+        if o == "off": where = None
+        elif o:
+            w = list(where or (play["child"][0], pb.GROUND + 30, 0.9, -1, -2.2))
+            for i, key in enumerate(("x", "base", "k", "oside", "depth")):
+                if key in o: w[i] = o[key]
+            where = tuple(w)
+            if "act" in o: play["act"] = o["act"]
         bead = companions3d(where, play) if where else None
     bpy.ops.object.camera_add(location=(pb.W / 2 / U, -30, (pb.GROUND - pb.H / 2) / U)); c = bpy.context.object
     c.rotation_euler = (math.radians(90), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = pb.W / U
@@ -397,6 +413,11 @@ def bbox(p):
     pp = [page(q) for q in pts]; r = p.d["head"] * VIEW["z"]
     return (min(x for x, _ in pp) - r * 0.6, min(y for _, y in pp) - r, max(x for x, _ in pp) + r * 0.6, max(y for _, y in pp) + 8)
 
+def furn(o):
+    s = o["s"]; h = 124 if o["k"] == "table" else 82 * s; w = (110 if o["k"] == "table" else 40) * s
+    l, t = page((o["x"] - w, o["y"] - h)); r, b = page((o["x"] + w, o["y"]))
+    return (l, t, r, b)
+
 def interplay(spec, people, objs, i, n):
     """What the two do in this step, and where: read from the step itself. The focus is the thing being played with —
     what the child holds, else the material nearest the child, else the child's hands."""
@@ -417,7 +438,6 @@ def interplay(spec, people, objs, i, n):
     if i == n - 1: act = "glee"
     elif held and held[0]["k"] not in FLAT: act = "balance"
     elif arrow: act = "follow"
-    elif thing is not None: act = "lean"
     elif speaks: act = "listen"
     else: act = "watch"
     table = next((o for o in objs if o["k"] == "table"), None)
@@ -429,48 +449,32 @@ def interplay(spec, people, objs, i, n):
                 child=page(child.head()) if child else focus,
                 speaker=page(adult.head()) if adult else focus,
                 bodies=[bbox(p) for p in people],
+                furniture=[furn(o) for o in objs if o["k"] in ("stool", "table")],
                 avoid=[page(p.head()) for p in people] + ([page(child.hand(0)), page(child.hand(1))] if child else []))
 
-def stand(play, prev, marks=None):
-    """Where the two are: in the play, just behind it — Moss right behind the thing the child is playing with, peeking
-    at it at the child's eye level; Otto a step further back on the grown-up's side, his lamp held out over the play
-    like a desk lamp over a table. Further back means a little higher on the page and a little smaller, so they never
-    cover the child, the grown-up or the thing; they are partly hidden by them, as anyone behind a table is."""
-    fx = play["focus"][0]; cx = play["child"][0]; ax = play["speaker"][0]
-    mid = (fx * 2 + cx) / 3
-    oside = -1 if ax < cx else 1                 # Otto on the grown-up's side
-    def marked(b):
-        if marks is None: return 0
-        c = marks.crop((int(max(0, b[0])), int(max(0, b[1])), int(min(pb.W, b[2])), int(min(pb.H, b[3]))))
-        h = c.histogram(); return sum(h[40:]) / max(1, c.width * c.height)
-    faces = play["avoid"][: len(play["avoid"]) - 2] if len(play["avoid"]) > 2 else play["avoid"]
-    def fits(x, base, k, os_, depth=0):
+def stand(play, prev, occupied, area):
+    """Where the two are: like family sitting with them — close to the child, on the floor in front, turned to the
+    play, always whole and always the same size. Nothing of theirs covers anyone, the thing being played with or a
+    mark, and nothing covers them (`occupied` is the step drawn in 2D: people, things and marks). Within a play they
+    keep their place while it stays free, so they don't jump about from step to step."""
+    cx = play["child"][0]; fx = play["focus"][0]
+    def free(x, base, k, os_):
         b = companion_box(x, base, k, os_)
-        if depth < 0 and any(b[0] < q[2] - 8 and b[2] > q[0] + 8 and b[1] < q[3] - 8 and b[3] > q[1] + 8 for q in play["bodies"]): return False
-        if b[0] < 6 or b[2] > pb.W - 6: return False
-        if any(b[0] - 4 < px < b[2] + 4 and b[1] - 30 < py < b[3] for px, py in faces): return False
-        return marked(b) < 0.004
-    under = lambda x, base: play.get("table") and play["table"][0] - 60 < x < play["table"][1] + 60 and base > play["table"][2] + 20
-    if prev and not under(prev[0], prev[1]) and fits(*prev): return prev
-    # at a table, they are on it: the lamp on the table, as at home (the world of the app is a low table and a lamp)
-    if play.get("table"):
-        tx0, tx1, ty = play["table"]
-        for k in (0.66, 0.56, 0.48, 0.42):
-            for x in sorted(range(int(tx0 + 40 * k), int(tx1 - 40 * k), 8), key=lambda v: abs(v - (fx + cx) / 2)):
-                for o in (oside, -oside):
-                    b = companion_box(x, ty, k, o)
-                    if b[0] < tx0 - 30 or b[2] > tx1 + 30: continue
-                    if fits(x, ty, k, o): return (x, ty, k, o, 0.9)
-    # first choice: in the play, just behind the thing; then a little either way; then beside the child
-    tries = [(mid + d, pb.GROUND - 26, k, o, 0.95) for k in (0.9, 0.8) for d in (0, 24, -24, 48, -48, 72, -72, 96, -96) for o in (oside, -oside)]
-    away = 1 if cx >= ax else -1
-    # else in front, beside the child on the far side (nearer the camera than everyone)
-    tries += [(cx + away * d, pb.GROUND + 28, k, o, -2.2) for k in (0.95, 0.82) for d in (80, 100, 124, 150) for o in (away, -away)]
-    # last: anywhere along the front of the floor, nearest the child first
-    tries += sorted([(x, pb.GROUND + 34, k, o, -2.2) for k in (0.82, 0.7, 0.6, 0.52) for x in range(40, pb.W - 40, 10) for o in (-1, 1)], key=lambda t: abs(t[0] - cx) + (0.82 - t[2]) * 200)
-    for t in tries:
-        if under(t[0], t[1]) or (play.get("table") and t[4] > 0 and play["table"][0] - 90 < t[0] < play["table"][1] + 90): continue   # never under or behind a table's legs
-        if fits(*t): return t
+        if b[0] < 8 or b[2] > pb.W - 8 or b[1] < 50: return False
+        return pb.busy(occupied, (b[0] - 6, b[1] - 6, b[2] + 6, b[3]), area) < 0.03
+    if prev and free(*prev[:4]): return prev
+    best = None
+    for k in (0.86, 0.76, 0.66):
+        # on the floor in front of the play, or just behind it (further back = higher on the page); never hidden,
+        # because the whole place must be free in the drawing
+        for base, depth in ((pb.GROUND + 30, -2.2), (pb.GROUND + 16, -2.2), (pb.GROUND + 44, -2.2), (pb.GROUND - 14, 0.95), (pb.GROUND - 30, 0.95)):
+            for x in range(40, pb.W - 40, 6):
+                t = 1 if fx > x else -1
+                for os_ in (-t, t):          # Otto behind Moss, away from the play when there is room
+                    if not free(x, base, k, os_): continue
+                    score = abs(x - cx) + (0 if os_ == -t else 25) + (0.86 - k) * 400 + abs(pb.GROUND + 30 - base) * 0.4
+                    if best is None or score < best[0]: best = (score, (x, base, k, os_, depth))
+        if best: return best[1]
     return None
 
 def companions3d(where, play):
@@ -498,7 +502,7 @@ def companions3d(where, play):
     if act == "balance":
         # the same thing as the child holds, small, balanced on the leaves
         o = dict(play["held"]); o["s"] = o.get("s", 1) * 0.5; o.setdefault("c", None)
-        top_px = base - (0.4 + 0.5 + 0.3) * sc * U
+        top_px = base - 1.12 * sc * U
         rx = VIEW["cx"] + (x - VIEW["cx"]) / VIEW["z"]; ry = pb.GROUND + (top_px - pb.GROUND) / VIEW["z"]
         o["x"], o["y"] = rx, ry; prop3d(o, depth)
     # Otto: tired, but the lamp goes where the child is looking
@@ -530,8 +534,8 @@ def lamplight(img, bead, focus, land=None):
     bx, by = bead[0] * sc, bead[1] * sc; fx, fy = focus[0] * sc, focus[1] * sc
     floor = (land if land else pb.GROUND + 10) * sc
     w = 70 * sc
-    d.polygon([(bx - 3 * sc, by), (bx + 3 * sc, by), (fx + w, floor), (fx - w, floor)], fill=(255, 226, 150, 70))
-    d.ellipse((fx - w * 1.2, floor - 18 * sc, fx + w * 1.2, floor + 18 * sc), fill=(255, 244, 205, 150))
+    d.polygon([(bx - 3 * sc, by), (bx + 3 * sc, by), (fx + w, floor), (fx - w, floor)], fill=(255, 226, 150, 46))
+    d.ellipse((fx - w * 1.2, floor - 18 * sc, fx + w * 1.2, floor + 18 * sc), fill=(255, 244, 205, 110))
     g = g.filter(ImageFilter.GaussianBlur(14 * sc))
     halo = Image.new("RGBA", img.size, (0, 0, 0, 0)); h = ImageDraw.Draw(halo)
     for i in range(10, 0, -1):
