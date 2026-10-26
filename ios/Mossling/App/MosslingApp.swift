@@ -109,16 +109,16 @@ struct RootView: View {
 
     private var tabView: some View {
         TabView(selection: $tab) {
-            Tab("本月", systemImage: "leaf.fill", value: 0) {
+            Tab("本月", image: "TabMonth", value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
                     .environment(\.night, night || scheme == .dark)
             }
             if app.journal {
-                Tab("记录", systemImage: "list.bullet.clipboard.fill", value: 2) {
+                Tab("记录", image: "TabJournal", value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
                 }
             }
-            Tab("我的", systemImage: "person.crop.circle.fill", value: 3) {
+            Tab("我的", image: "TabMe", value: 3) {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
             }
         }

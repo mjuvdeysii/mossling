@@ -97,18 +97,52 @@ def sphere(name, loc, scale, material, seg=48):
 def parent(children, root):
     for c in children: c.parent = root
 
-def leaf(name, at, rot, length, material):
-    """A mint leaf: a flattened, pointed ellipsoid."""
-    bpy.ops.mesh.primitive_uv_sphere_add(segments=32, ring_count=16, location=(0, 0, 0))
-    o = bpy.context.object; o.name = name
-    for v in o.data.vertices:
-        x, y, z = v.co
-        taper = 1 - 0.55 * max(0, x)          # pointed at the tip
-        v.co = Vector((x * length / 2 + length / 2, y * 0.62 * length / 2 * taper, z * 0.09 * length))
-        v.co.z += 0.18 * length * (v.co.x / length) ** 2   # a gentle upward curl
-    for poly in o.data.polygons: poly.use_smooth = True
+def leaf(name, at, rot, length, material, width=0.55):
+    """A real mint leaf (Mentha): ovate with a pointed tip and a short stalk, a serrated edge (about seven teeth a side),
+    a sunken midrib with lateral veins standing out between them, the blade cupped and crinkled, the tip curling up.
+    Built along +x from its stalk, then solidified and smoothed."""
+    nu, nv = 14, 48
+    L, W = length, length * width / 2
+    verts, faces = [], []
+    for j in range(nv + 1):
+        t = j / nv
+        w = W * math.sin(math.pi * min(1.0, t ** 0.78)) * (1 - 0.22 * t)
+        if t < 0.07: w *= t / 0.07 * 0.35 + 0.05          # the stalk
+        saw = ((t * 7.5) % 1.0)
+        w *= 1 + 0.085 * (saw if t > 0.1 else 0) - 0.04
+        for i in range(nu + 1):
+            u = i / nu * 2 - 1
+            x, y = t * L, u * w
+            z = -0.022 * L * math.exp(-(u / 0.13) ** 2)                                   # midrib groove
+            z += 0.007 * L * max(0.0, math.cos(2 * math.pi * (t * 5.5 - abs(u) * 0.55))) ** 6 * (1 - abs(u) ** 3)  # veins
+            z += 0.006 * L * math.sin(u * 8 + t * 15)                                      # crinkle
+            z += 0.07 * L * u * u + 0.2 * L * t * t                                        # cupped, tip curling up
+            verts.append((x, y, z))
+    for j in range(nv):
+        for i in range(nu):
+            a0 = j * (nu + 1) + i
+            faces.append((a0, a0 + 1, a0 + nu + 2, a0 + nu + 1))
+    me = bpy.data.meshes.new(name); me.from_pydata(verts, [], faces)
+    o = bpy.data.objects.new(name, me); bpy.context.collection.objects.link(o)
+    sol = o.modifiers.new("thick", "SOLIDIFY"); sol.thickness = 0.006 * L / 0.3
+    smooth(o, 1)
     o.location = at; o.rotation_euler = rot
     o.data.materials.append(material); return o
+
+def sprig(top, material_big, material_small, perk=0.0):
+    """Moss's mint sprig, as on the icon: a stem, two big leaves at a node (left and right), and at the tip two small
+    young leaves turned a quarter (mint leaves grow in opposite pairs, each pair crossing the one below)."""
+    up_big = math.radians(28 + 18 * perk); up_small = math.radians(55 + 15 * perk)
+    stem = tube("moss_stem", [(0, -0.02, top - 0.04), (0.008, -0.025, top + 0.08), (0.0, -0.02, top + 0.17)], 0.013, M["mintDeep"])
+    n1 = (0.0, -0.022, top + 0.075); n2 = (0.0, -0.02, top + 0.165)
+    # each blade turned to face the viewer (mint holds its leaves out flat to the light), so the outline, the teeth and
+    # the veins read from the front; the young pair at the tip rises in a V, as on the icon
+    roll = 1.05
+    return [stem,
+            leaf("moss_leafL", n1, Euler((-roll, -up_big, math.radians(185))), 0.33, material_big, width=0.62),
+            leaf("moss_leafR", n1, Euler((roll, -up_big, math.radians(-5))), 0.35, material_big, width=0.62),
+            leaf("moss_leafF", n2, Euler((-roll, -up_small, math.radians(160))), 0.14, material_small, width=0.6),
+            leaf("moss_leafB", n2, Euler((roll, -up_small, math.radians(20))), 0.13, material_small, width=0.6)]
 
 def tube(name, points, radius, material):
     cd = bpy.data.curves.new(name, "CURVE"); cd.dimensions = "3D"; cd.bevel_depth = radius; cd.bevel_resolution = 6
@@ -121,7 +155,7 @@ def tube(name, points, radius, material):
 M = {}
 def materials():
     M["moss"] = rubber("moss", "#55704A")
-    M["mint"] = rubber("mint", "#7FCBA0", rough=0.5, sss=0.2)
+    M["mint"] = rubber("mint", "#5FA77A", rough=0.5, sss=0.25)
     M["mintPale"] = rubber("mintPale", "#A9E0C0", rough=0.5, sss=0.2)
     M["mintDeep"] = mat("mintDeep", "#3D6B44", rough=0.6)
     M["otto"] = rubber("otto", "#203872")
@@ -177,7 +211,8 @@ def moss_surface_y(x, z):
     m = MOSS; k = 1 - (x / m["rx"]) ** 2 - ((z - m["cz"]) / m["rz"]) ** 2
     return -m["ry"] * math.sqrt(max(0.0, k))
 
-def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105, pupil=0.62):
+def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105, pupil=0.62, hop=0.0, perk=0.0):
+    """Moss, the child: energy. `hop` lifts and stretches the body mid-jump; `perk` stands the leaves up."""
     m = MOSS
     root = bpy.data.objects.new("Moss", None); bpy.context.collection.objects.link(root)
     # the icon's pebble: higher on the right, the left shoulder lower and rounder, the base flattened where it rests
@@ -188,13 +223,9 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
     body = shaped_sphere("moss_body", f, M["moss"])
     feet = [sphere(f"moss_foot{i}", (s * 0.22, -0.12, 0.045), (0.08, 0.1, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
     top = m["cz"] + m["rz"]
-    stem = tube("moss_stem", [(0, -0.02, top - 0.04), (0.01, -0.03, top + 0.07), (0.0, -0.02, top + 0.15)], 0.014, M["mintDeep"])
-    # as on the icon: two big leaves and two small pale ones on a thin stem
-    leaves = [leaf("moss_leafL", (0.0, -0.02, top + 0.14), Euler((0.25, -0.45, math.radians(165))), 0.27, M["mint"]),
-              leaf("moss_leafR", (0.0, -0.02, top + 0.14), Euler((-0.2, -0.4, math.radians(15))), 0.31, M["mint"]),
-              leaf("moss_leafS1", (0.0, -0.02, top + 0.15), Euler((0.1, -1.1, math.radians(120))), 0.13, M["mintPale"]),
-              leaf("moss_leafS2", (0.0, -0.02, top + 0.15), Euler((0.0, -1.2, math.radians(60))), 0.12, M["mintPale"])]
-    parts = [body, *feet, stem, *leaves]
+    # the mint sprig: always real mint leaves (serrated, veined), never a generic sprout
+    sprig_parts = sprig(top, M["mint"], M["mintPale"], perk)
+    parts = [body, *feet, *sprig_parts]
     ez, ex = m["cz"] + 0.2, 0.125
     for s in (-1, 1):
         sy = moss_surface_y(s * ex, ez)
@@ -207,7 +238,8 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
             cz = m["cz"] + 0.04; cx = s * 0.3
             parts.append(sphere(f"moss_cheek{s}", (cx, moss_surface_y(cx, cz) + 0.012, cz), (0.075, 0.015, 0.045), M["cheek"]))
     parent(parts, root)
-    root.location = (x, 0, 0); root.rotation_euler = (0, math.radians(lean), 0)
+    root.location = (x, 0, hop); root.rotation_euler = (0, math.radians(lean), 0)
+    if hop > 0: root.scale = (1 - hop * 0.35, 1 - hop * 0.35, 1 + hop * 0.7)   # stretched in the air
     return root
 
 # Otto: a tall dome 0.84 wide, its top at 1.26, the bottom rounded onto the table
@@ -221,7 +253,9 @@ def otto_surface_y(x, z):
     r = otto_radius(z) * 0.97   # the subdivided surface sits a little inside the profile
     return -0.9 * math.sqrt(max(0.0, r * r - x * x))
 
-def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False):
+def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False, slouch=0.0, droop=0.0, bags=False, yawn=False):
+    """Otto, the adult: a tired, unhurried calm. `slouch` lets the body settle forward and sag a little; `droop` lowers the
+    lamp on its rod; `bags` adds the soft shadow under the eye; `yawn` opens a small mouth."""
     o = OTTO
     root = bpy.data.objects.new("Otto", None); bpy.context.collection.objects.link(root)
     # turned like a wooden toy: a profile spun round its axis — a broad soft base, nearly straight sides that lean in a
@@ -242,11 +276,16 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
         parts.append(sphere("otto_cheek", (0.24, otto_surface_y(0.24, ez - 0.14) + 0.01, ez - 0.14), (0.065, 0.015, 0.04), M["cheek"]))
     else:
         parts += eye("otto_eye", (0.0, otto_surface_y(0, ez) + 0.06, ez), 0.21, look, scale=(1.05, 0.5, 0.95), lid=lid, skin=M["otto"], pupil=0.57)
+        if bags:
+            # tiredness: a soft, slightly darker fold under the eye
+            parts.append(sphere("otto_bag", (0.0, otto_surface_y(0, ez - 0.2) + 0.035, ez - 0.2), (0.17, 0.03, 0.035), M["ottoDeep"]))
+    if yawn:
+        parts.append(sphere("otto_yawn", (0.02, otto_surface_y(0, 0.47) + 0.02, 0.47), (0.055, 0.02, 0.075), M["pupil"]))
     # the antenna: from the top of the head, arching forward, the lamp bead at its end
     top = (0.0, 0.0, 1.13)
     # the icon's rod: up from the crown, arching forward and to the left, the bead hanging at its end
-    bx, by, bz = -0.36, -0.22, top[2] + 0.12
-    parts.append(tube("otto_antenna", [top, (-0.02, -0.03, top[2] + 0.2), (-0.2, -0.12, top[2] + 0.28), (bx, by, bz + 0.07)], 0.015, M["ottoDeep"]))
+    bx, by, bz = -0.36 - 0.06 * droop, -0.22 - 0.08 * droop, top[2] + 0.12 - 0.22 * droop
+    parts.append(tube("otto_antenna", [top, (-0.02, -0.03, top[2] + 0.2 - 0.05 * droop), (-0.2 - 0.04 * droop, -0.12 - 0.05 * droop, top[2] + 0.28 - 0.1 * droop), (bx, by, bz + 0.07)], 0.015, M["ottoDeep"]))
     parts.append(sphere("otto_bead", (bx, by, bz), (0.07, 0.07, 0.07), M["bead"]))
     # (the glow round the bead is added in 2D, over the render)
     M["bead"].node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 1.6 * glow
@@ -255,7 +294,8 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
         lamp.data.energy = 25 * glow; lamp.data.color = hexcol("#FFC66E")[:3]; lamp.data.shadow_soft_size = 0.07
         parts.append(lamp)
     parent(parts, root)
-    root.location = (x, 0.2, 0); root.rotation_euler = (0, math.radians(lean), 0)
+    root.location = (x, 0.2, 0); root.rotation_euler = (math.radians(4 * slouch), math.radians(lean), 0)
+    if slouch: root.scale = (1 + 0.025 * slouch, 1 + 0.025 * slouch, 1 - 0.04 * slouch)
     return root
 
 # ---------- set ----------
@@ -306,22 +346,24 @@ def studio(color="#E8E1D5"):
     area((1.5, 2.8, 2.8), (math.radians(-55), 0, math.radians(150)), 380, 1.5, "#FFFFFF")     # rim
 
 def board3d(out):
-    """Gate 1 again, in matte vinyl: one Otto, three Moss personalities, the same set and light."""
+    """Gate 1, round 3: Otto tired and unhurried (an adult at the end of a long day), Moss full of a child's energy."""
     from PIL import Image
-    variants = [("v1", dict(look=(0.45, 0.7), lid=0.0)), ("v2", dict(look=(0.9, 0.0), lid=0.28, lean=5)), ("v3", dict(look=(0.0, 0.15), lid=0.42, pupil=0.5))]
+    # cold humour for both: whatever the body does, the face stays deadpan — half-lidded, level, unimpressed
+    pairs = [
+        ("p1", dict(look=(0.0, 0.05), lid=0.45, pupil=0.5, hop=0.12, perk=1.0), dict(look=(-0.8, -0.3), lid=0.6, slouch=1.0, droop=0.7, bags=True)),
+        ("p2", dict(look=(0.9, 0.1), lid=0.45, pupil=0.5, lean=8, perk=0.8), dict(look=(0.0, -0.1), lid=0.8, slouch=1.2, droop=1.0, bags=True, yawn=True)),
+        ("p3", dict(look=(0.0, 0.0), lid=0.5, pupil=0.48, perk=0.6), dict(look=(0.0, -0.05), lid=0.62, slouch=0.9, droop=0.6, bags=True)),
+    ]
     tiles = []
-    for name, kw in variants:
+    only = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
+    for name, mk, ok in pairs:
+        if only and name not in only: continue
         reset(); materials(); studio()
-        build_moss(x=-0.58, **kw)
-        build_otto(x=0.62, look=(-0.7, -0.15), lid=0.34, glow=0.6, lean=-2)
+        build_moss(x=-0.58, **mk)
+        build_otto(x=0.62, glow=0.6, lean=-2, **ok)
         camera(target=(0.05, 0, 0.62), dist=5.9, height=1.0, lens=70, fstop=5.6)
         path = out.replace(".png", f"_{name}.png")
         render(path, arg("--w", 900), arg("--h", 560)); tiles.append(path)
-    ims = [Image.open(t).convert("RGB") for t in tiles]
-    w, h = ims[0].size
-    sheet = Image.new("RGB", (w, h * len(ims) + 10 * (len(ims) - 1)), "#FFFFFF")
-    for i, im in enumerate(ims): sheet.paste(im, (0, i * (h + 10)))
-    sheet.save(out)
 
 def ring_stacker(loc, k=1.0):
     """The Montessori ring stacker, in wood and lacquer: a base, a rod and three rings."""

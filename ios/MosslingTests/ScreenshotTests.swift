@@ -67,6 +67,17 @@ final class ScreenshotTests: XCTestCase {
         let m = model(companion: .otto, birth: nil); m.onboarded = false
         shot("01_onboarding_shot_c", settle: 6.5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
+    /// The tab bar with the app's own icons: a mint sprig with a bud, Otto's lamp with its halo, Moss.
+    func test38TabBar() {
+        let m = model(); m.journal = true
+        let v = TabView(selection: .constant(0)) {
+            Tab("本月", image: "TabMonth", value: 0) { Palette.background }
+            Tab("记录", image: "TabJournal", value: 2) { Palette.background }
+            Tab("我的", image: "TabMe", value: 3) { Palette.background }
+        }
+        shot("38_tabbar", height: 300, v.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        shot("38_tabbar_dark", dark: true, height: 300, v.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
     /// 摸索台灯的故事: the name told (docs/IP.md).
     func test37Story() { let m = model(); shot("37_story", height: 1900, settle: 6, tabs(m, StoryView())) }
     func test01OnboardingOpening() {
