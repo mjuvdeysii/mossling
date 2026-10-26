@@ -120,7 +120,8 @@ def hair_cap(c, r, f, hexc, kind):
 
 def person3d(p, depth):
     d, f = p.d, p.f
-    skin = vinyl(p.skin, 0.55); top = vinyl(p.top); leg = vinyl(p.leg)
+    skin = vinyl(p.skin, 0.55); leg = vinyl(p.leg)
+    top = vinyl("#9A7BE8" if p.top == pb.GIRL_TOP else p.top)   # the girl's lilac, a step deeper so the light does not wash it out
     sp = 0.16 * (1.0 if p.kind == "adult" else 0.7)          # half the body's depth: near limbs in front, far behind
     if p.pose == "bundle":
         c = W3(p.bundle_c, depth); Lb = L(d["torso"] * 1.9); w = L(d["tw"] * 1.25)
@@ -163,6 +164,14 @@ def person3d(p, depth):
         return (c[0] + x * r * out, c[1] + y * r * out, c[2] + dz * r * out)
     if p.hair in ("bun", "bob", "short"): hair_cap(c, r, f, pb.HAIR["adult" if p.kind == "adult" else "child"], p.kind)
     if p.hair == "bun": sphere("bun", (c[0] - f * r * 0.7, c[1] + r * 0.2, c[2] + r * 0.65), (r * 0.42,) * 3, vinyl(pb.HAIR["adult"], 0.7))
+    if getattr(p, "girl", False) and p.kind == "child":
+        # two little pigtails at the back, each with a bow, as in the picture book
+        hc = pb.HAIR["child"]
+        for k2, (dx, dz) in enumerate(((-0.95, 0.35), (-0.55, 0.8))):
+            pt = (c[0] + f * r * dx, c[1] - r * 0.05, c[2] + r * dz)
+            sphere(f"tail{k2}", pt, (r * 0.22, r * 0.22, r * 0.3), vinyl(hc, 0.7))
+            for sx in (-1, 1):
+                sphere(f"bow{k2}{sx}", (pt[0] + sx * r * 0.13, pt[1] - r * 0.12, pt[2] + r * 0.12), (r * 0.13, r * 0.06, r * 0.09), vinyl(pb.BOW, 0.5))
     if p.hair == "tuft": tube("tuft", [(c[0], c[1], c[2] + r * 0.95), (c[0] + f * r * 0.2, c[1], c[2] + r * 1.25), (c[0] + f * r * 0.42, c[1], c[2] + r * 1.12)], r * 0.07, vinyl(pb.HAIR["child"]))
     sleep = p.expr in ("sleep", "calm")
     for k, dx in enumerate((-0.32, 0.22)):
@@ -406,7 +415,7 @@ def P3(px, py, depth): return (px / U, depth, (pb.GROUND - py) / U)
 
 def companion_box(x, base, k, oside=-1):
     """Moss at x; Otto half a step behind him, `oside` × 82k to the side (±1 beside, ±0.5 tucked in behind)."""
-    reach = (abs(oside) * 82 + 42) * k
+    reach = (abs(oside) * 82 + 50) * k
     return (x - reach, base - 120 * k, x + 50 * k, base + 6) if oside < 0 else (x - 50 * k, base - 120 * k, x + reach, base + 6)
 
 def place(img, spec, area, prev, focus, keep=()):
@@ -493,7 +502,7 @@ def stand(play, prev, occupied, area, marks=None):
         if marks is not None:
             m = marks.crop((int(max(0, b[0] - 10)), int(max(0, b[1] - 10)), int(min(pb.W, b[2] + 10)), int(min(pb.H, b[3] + 4))))
             if m.getbbox() and sum(m.histogram()[24:]) > 0: return False
-        return pb.busy(occupied, (b[0] - 14, b[1] - 10, b[2] + 14, b[3]), area) < 0.015
+        return pb.busy(occupied, (b[0] - 22, b[1] - 12, b[2] + 22, b[3]), area) < 0.015
     if prev and free(*prev[:4]): return prev
     best = None
     for k in (0.86, 0.76, 0.66):
