@@ -46,12 +46,17 @@ def capture(spec, area):
     return last, list(OBJS)
 
 def layers(spec, area, watch=None):
-    """The 2D layers: the backdrop with the contact shadows (under the 3D), and the marks (over it)."""
+    """The 2D layers: the backdrop with the scenery and the contact shadows (under the 3D), and the flat props and the
+    marks (over it)."""
     keep = pb.Person.draw, pb.obj, pb.mark
-    pb.Person.draw = lambda s, sv: None; pb.obj = lambda *a, **k: None; pb.mark = lambda *a, **k: None
+    def only(kinds):
+        def f(sv, k, *a, **kw):
+            if k in kinds: _obj(sv, k, *a, **kw)
+        return f
+    pb.Person.draw = lambda s, sv: None; pb.obj = only(SCENERY); pb.mark = lambda *a, **k: None
     try: back = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj, pb.mark = keep
-    pb.Person.draw = lambda s, sv: None; pb.obj = lambda *a, **k: None
+    pb.Person.draw = lambda s, sv: None; pb.obj = only(FLAT)
     sh = pb.SVG.shadow; pb.SVG.shadow = lambda *a, **k: None
     try: front = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj = keep[0], keep[1]; pb.SVG.shadow = sh
@@ -77,6 +82,13 @@ def ink(): return MATS.setdefault("ink", mat("ink", "#2A2522", rough=0.4, coat=0
 def capsule(name, a, b, r, m):
     return tube(name, [a, ((a[0] + b[0]) / 2, (a[1] + b[1]) / 2, (a[2] + b[2]) / 2), b], r, m)
 
+def limb(name, pts, r, m):
+    """A toy's limb: straight segments with a round joint at each bend (an articulated vinyl figure), not a hose."""
+    for i, (a, b) in enumerate(zip(pts, pts[1:])):
+        capsule(f"{name}_{i}", a, b, r, m)
+    for i, p in enumerate(pts):   # round joints and round ends
+        sphere(f"{name}_j{i}", p, (r * 1.0,) * 3, m, seg=32)
+
 def hair_cap(c, r, f, hexc, kind):
     """Hair as a smooth cast cap: a sphere a touch larger than the head, set back and up, so it covers the crown and the
     back and leaves the face clear with a clean curved hairline (no cut edges)."""
@@ -94,7 +106,7 @@ def person3d(p, depth):
         for k, (knee, foot) in enumerate(p.legs):
             dd = depth + (sp if k == 1 else -sp)
             m = leg if k == 0 else vinyl(pb.dark(p.leg, .08))
-            tube(f"leg{k}", [W3(p.hip, dd * 0.5 + depth * 0.5), W3(knee, dd), W3(foot, dd)], L(d["lw"]) / 2, m)
+            limb(f"leg{k}", [W3(p.hip, dd * 0.5 + depth * 0.5), W3(knee, dd), W3(foot, dd)], L(d["lw"]) / 2, m)
             if not (p.kind == "child" and p.age < 10):
                 fx = W3(foot, dd); sphere(f"foot{k}", (fx[0] + f * L(d["lw"]) * 0.35, fx[1], fx[2] - L(d["lw"]) * 0.1),
                                           (L(d["lw"]) * 0.62, L(d["lw"]) * 0.5, L(d["lw"]) * 0.36), vinyl(pb.dark(p.leg, .3)))
@@ -111,7 +123,7 @@ def person3d(p, depth):
         for k, (shp, el, hd) in enumerate(p.arms):
             dd = depth + (sp * 1.1 if k == 1 else -sp * 1.1)
             m = top if k == 0 else vinyl(pb.dark(p.top, .08))
-            tube(f"arm{k}", [W3(shp, depth + (dd - depth) * 0.6), W3(el, dd), W3(hd, dd)], L(d["aw"]) / 2, m)
+            limb(f"arm{k}", [W3(shp, depth + (dd - depth) * 0.6), W3(el, dd), W3(hd, dd)], L(d["aw"]) / 2, m)
             sphere(f"hand{k}", W3(hd, dd), (L(d["hand"]),) * 3, skin)
         capsule("neck", W3(p.sh, depth), W3(p.headc, depth), L(d["head"]) * 0.28, skin)
     # the head: a round vinyl head, painted dot eyes on the side it faces, turned a little toward us
@@ -146,30 +158,135 @@ def person3d(p, depth):
         tube("mouth", [(mo[0] - r * 0.12, mo[1], mo[2] + r * 0.03), (mo[0], mo[1] - r * 0.02, mo[2] - r * 0.05), (mo[0] + r * 0.12, mo[1], mo[2] + r * 0.03)], r * 0.028, ink())
     if p.kind == "adult": sphere("nose", on_face(-0.02, -0.08, 1.02), (r * 0.08, r * 0.08, r * 0.09), skin)
 
+# Props: the things a family has at home, as rounded vinyl toys. Flat paper things (cards, books, photos, a phone)
+# and the outdoor scenery stay as the picture book draws them — flat in life, flat here — laid in the 2D layers.
+FLAT = {"card", "thing", "paper", "photo", "phone", "notebook", "book", "bookopen", "mirrorfaces", "mirror", "leaf",
+        "crayon", "lantern", "dumpling", "sock", "shirt", "cloth", "cloth2", "speaker"}
+SCENERY = {"tree", "sun", "cloud", "bird", "flower", "road", "kerb", "stroller"}
+
+def rbox(name, centre, size, col, bevel=0.3, rough=0.6, rot=(0, 0, 0)):
+    bpy.ops.mesh.primitive_cube_add(size=1, location=centre); b = bpy.context.object; b.name = name
+    b.scale = size; b.rotation_euler = rot
+    m = b.modifiers.new("b", "BEVEL"); m.width = min(size) * bevel; m.segments = 5; m.limit_method = "NONE"
+    b.data.materials.append(vinyl(col, rough)); return b
+
+def cyl(name, base, r, h, col, r2=None, rough=0.6, axis="Z", bevel=0.25):
+    if r2 is None: bpy.ops.mesh.primitive_cylinder_add(vertices=48, radius=r, depth=h, location=base)
+    else: bpy.ops.mesh.primitive_cone_add(vertices=48, radius1=r, radius2=r2, depth=h, location=base)
+    o = bpy.context.object; o.name = name
+    if axis == "Y": o.rotation_euler = (math.radians(90), 0, 0)
+    m = o.modifiers.new("b", "BEVEL"); m.width = min(r, h) * bevel; m.segments = 4; m.limit_method = "NONE"
+    for poly in o.data.polygons: poly.use_smooth = True
+    o.data.materials.append(vinyl(col, rough)); return o
+
+def torus(name, at, R, r, col, rot=(0, 0, 0)):
+    bpy.ops.mesh.primitive_torus_add(major_radius=R, minor_radius=r, location=at, rotation=rot)
+    t = bpy.context.object; t.name = name
+    for poly in t.data.polygons: poly.use_smooth = True
+    t.data.materials.append(vinyl(col)); return t
+
 def prop3d(o, depth):
     k, s, c = o["k"], o["s"], o["c"]
-    base = W3((o["x"], o["y"]), depth)
+    if k in FLAT or k in SCENERY: return
+    X, _, Z = W3((o["x"], o["y"]), depth)
+    l = lambda v: L(v * s)
+    D = depth
     if k == "block":
-        h = L(30 * s)
-        bpy.ops.mesh.primitive_cube_add(size=2 * h, location=(base[0], depth, base[2] + h)); b = bpy.context.object
-        bv = b.modifiers.new("b", "BEVEL"); bv.width = h * 0.28; bv.segments = 5
-        b.rotation_euler = (0, math.radians(o.get("rot", 0)), math.radians(-24))
-        b.data.materials.append(vinyl(c or "#F2554B", 0.5))
-        # the carved shape on its face, as on the 2D blocks: a cream disc set into the front
-        d = sphere("carve", (0, -h * 1.0, 0), (h * 0.42, h * 0.08, h * 0.42), vinyl("#FFF3E0", 0.5)); d.parent = b
+        h = l(30)
+        b = rbox("block", (X, D, Z + h), (2 * h, 2 * h, 2 * h), c or "#F2554B", 0.14, 0.5, (0, math.radians(o.get("rot", 0)), math.radians(-24)))
+        d = sphere("carve", (0, -0.5, 0), (0.21, 0.04, 0.21), vinyl("#FFF3E0", 0.5)); d.parent = b
+    elif k in ("blocks", "tumble"):
+        cols = (c if isinstance(c, list) else None) or ["#4C9BE8", "#FFC23D", "#F2554B"]
+        zz = Z
+        for i, col in enumerate(cols):
+            h = l(30 - i * 2) if k == "blocks" else l(26)
+            if k == "blocks":
+                rbox(f"blk{i}", (X + l(3) * (i % 2), D, zz + h), (2 * h, 2 * h, 2 * h), col, 0.14, 0.5, (0, 0, math.radians(-20 + i * 14))); zz += 2 * h
+            else:
+                dx, r = [(-44, -18), (0, 12), (46, 30)][i]
+                rbox(f"blk{i}", (X + l(dx), D, Z + h), (2 * h, 2 * h, 2 * h), col, 0.14, 0.5, (0, math.radians(r), math.radians(-20)))
     elif k == "ball":
-        r = L(34 * s)
-        sphere("ball", (base[0], depth, base[2] + r), (r, r, r), vinyl(c or "#F2554B", 0.55), seg=48)
-        # a cloth ball's two cream panels, as bands round it
+        r = l(34)
+        sphere("ball", (X, D, Z + r), (r, r, r), vinyl(c or "#F2554B", 0.55), seg=48)
         for rz in (62, -62):
-            bpy.ops.mesh.primitive_torus_add(major_radius=r * 0.985, minor_radius=r * 0.11, location=(base[0], depth, base[2] + r), rotation=(math.radians(90), 0, math.radians(rz)))
-            t = bpy.context.object; t.scale = (1, 1, 0.5); t.data.materials.append(vinyl("#FFF3E0", 0.6))
-            for poly in t.data.polygons: poly.use_smooth = True
+            t = torus("band", (X, D, Z + r), r * 0.985, r * 0.11, "#FFF3E0", (math.radians(90), 0, math.radians(rz))); t.scale = (1, 1, 0.5)
     elif k == "mat":
-        w = L(300 * s); t = L(20)
-        bpy.ops.mesh.primitive_cube_add(size=1, location=(base[0], depth + 0.9, base[2] - t * 0.1)); m = bpy.context.object
-        m.scale = (w, 2.6, t); bv = m.modifiers.new("b", "BEVEL"); bv.width = t * 0.45; bv.segments = 4
-        m.data.materials.append(vinyl(c or "#BFE3D6", 0.8))
+        w = l(300); t = L(20)
+        rbox("mat", (X, D + 0.9, Z - t * 0.1), (w, 2.6, t), c or "#BFE3D6", 0.45, 0.8)
+    elif k == "table":
+        rbox("top", (X, D, Z + L(115)), (l(220), 1.5, L(18)), "#D6A774", 0.35, 0.55)
+        for dx in (-90, 90):
+            for dy in (-0.55, 0.55): cyl("leg", (X + l(dx), D + dy, Z + L(54)), L(8), L(108), "#B8854F")
+    elif k == "stool":
+        rbox("seat", (X, D, Z + l(74)), (l(80), 0.8, l(16)), "#D6A774", 0.4, 0.55)
+        for dx in (-28, 28): cyl("leg", (X + l(dx), D, Z + l(35)), L(6), l(70), "#B8854F")
+    elif k == "basket":
+        col = c or "#C98A4B"
+        cyl("basket", (X, D, Z + l(22)), l(52), l(44), col, r2=l(42), rough=0.8)
+        bk = bpy.context.object; bk.rotation_euler = (math.radians(180), 0, 0)   # wider at the top
+        for i in range(1, 4): torus("weave", (X, D, Z + l(44 - i * 11)), l(42 + i * 2.6), l(2.2), pb.dark(col, .15))
+        torus("rim", (X, D, Z + l(45)), l(53), l(4.5), pb.dark(col, .06))
+    elif k == "cup":
+        col = c or "#1FB5A6"
+        o2 = cyl("cup", (X, D, Z + l(25)), l(17), l(50), col, r2=l(22), rough=0.5)
+        torus("handle", (X + l(22), D, Z + l(28)), l(11), l(3.2), pb.dark(col, .1), (math.radians(90), 0, 0))
+    elif k == "drum":
+        col = c or "#F2554B"
+        cyl("drum", (X, D, Z + l(23)), l(40), l(46), col, rough=0.55)
+        for zz in (2, 44): torus("rim", (X, D, Z + l(zz)), l(40), l(4), "#FFC23D")
+        cyl("skin", (X, D, Z + l(46.5)), l(37), l(1.5), "#FFF3E0", rough=0.7)
+    elif k == "cushion":
+        rbox("cushion", (X, D, Z + l(15)), (l(108), 0.9, l(30)), c or "#9B7BEA", 0.48, 0.75)
+    elif k == "box":
+        col = c or "#4C9BE8"
+        b = rbox("box", (X, D, Z + l(20)), (l(100), 0.9, l(40)), col, 0.15, 0.55)
+        rbox("hole", (X, D - 0.45, Z + l(22)), (l(28), 0.05, l(8)), pb.dark(col, .45), 0.45, 0.8)
+    elif k == "car":
+        col = c or "#F2554B"
+        rbox("body", (X, D, Z + l(27)), (l(92), l(46), l(26)), col, 0.3, 0.5)
+        rbox("cab", (X + l(6), D, Z + l(46)), (l(40), l(40), l(22)), col, 0.35, 0.5)
+        rbox("glass", (X + l(6), D - l(20.5), Z + l(47)), (l(30), l(1), l(13)), "#DCEFF6", 0.3, 0.2)
+        for dx in (-26, 26):
+            for dy in (-1, 1): cyl("wheel", (X + l(dx), D + dy * l(22), Z + l(12)), l(12), l(9), "#3B3330", axis="Y")
+    elif k == "bowl":
+        col = c or "#1FB5A6"
+        b = sphere("bowl", (X, D, Z + l(26)), (l(34), l(34), l(30)), vinyl(col, 0.5))
+        import bmesh
+        bm = bmesh.new(); bm.from_mesh(b.data)
+        bmesh.ops.delete(bm, geom=[v for v in bm.verts if v.co.z > 0.0], context="VERTS"); bm.to_mesh(b.data); bm.free()
+        sol = b.modifiers.new("t", "SOLIDIFY"); sol.thickness = 0.08
+        sphere("fruit", (X - l(8), D, Z + l(24)), (l(9),) * 3, vinyl("#FFC23D")); sphere("fruit2", (X + l(10), D - l(4), Z + l(22)), (l(8),) * 3, vinyl("#4DB86A"))
+    elif k == "plate":
+        cyl("plate", (X, D, Z + l(3)), l(44), l(5), "#FFFFFF", r2=l(36), rough=0.4)
+        bpy.context.object.rotation_euler = (math.radians(180), 0, 0)
+    elif k == "pot":
+        col = c or "#F2554B"
+        cyl("pot", (X, D, Z + l(20)), l(38), l(40), col, rough=0.5)
+        torus("rim", (X, D, Z + l(41)), l(40), l(4), pb.dark(col, .1))
+        rbox("handle", (X + l(50), D, Z + l(32)), (l(26), l(8), l(8)), pb.dark(col, .25), 0.45)
+    elif k == "spoon":
+        a = math.radians(-(o.get("rot") or 30))
+        tip = (X + math.sin(-a) * l(40), D, Z + math.cos(a) * l(40))
+        capsule("spoon", (X, D, Z + l(4)), tip, l(3), vinyl("#B9B2A8", 0.4))
+        sphere("bowl", (X + math.sin(-a) * l(46), D, Z + math.cos(a) * l(46)), (l(8), l(5), l(11)), vinyl("#CFC9C0", 0.4)).rotation_euler = (0, a, 0)
+    elif k == "rattle":
+        col = c or "#9B7BEA"
+        capsule("handle", (X, D, Z + l(8)), (X + l(12), D, Z + l(52)), l(5), vinyl("#E2B57A"))
+        for i, rc in enumerate(["#FFC23D", "#1FB5A6", "#FF6F91"]):
+            t = l(14 + i * 13); torus("ring", (X + t * 0.27, D, Z + t), l(6.5), l(2.5), rc, (0, math.radians(-15), 0))
+        sphere("head", (X + l(14), D, Z + l(74)), (l(20),) * 3, vinyl(col, 0.5))
+    elif k == "doll":
+        col = c or "#9B7BEA"
+        cyl("dress", (X, D, Z + l(25)), l(22), l(50), col, r2=l(14), rough=0.7)
+        sk = vinyl("#F6D2B0", 0.55); r = l(18)
+        sphere("dhead", (X, D, Z + l(66)), (r, r, r), sk)
+        sphere("dhair", (X, D + r * 0.15, Z + l(70)), (r * 1.02,) * 3, vinyl("#8B5A3C", 0.7))
+        for dx in (-0.33, 0.33): sphere("deye", (X + dx * r, D - r * 0.93, Z + l(66)), (r * 0.09, r * 0.05, r * 0.12), ink())
+        for sx in (-1, 1): capsule("darm", (X + sx * l(14), D, Z + l(44)), (X + sx * l(24), D, Z + l(26)), l(6), vinyl(pb.dark(col, .1)))
+    elif k == "dollbed":
+        r = l(17)
+        sphere("dhead", (X - l(44), D, Z + l(20)), (r, r, r), vinyl("#F6D2B0", 0.55))
+        rbox("blanket", (X + l(13), D, Z + l(17)), (l(86), 0.7, l(34)), c or "#4C9BE8", 0.45, 0.75)
     else:
         print("no 3D model yet for", k)
 
@@ -193,11 +310,19 @@ def render_step(spec, area, out, size, prev=None, sprites_dir=None, last=False):
     for who, p in zip(whos, people):
         n = order.index(who) if who in order else 0
         person3d(p, -0.55 * n)
-    for o in objs:
-        dep = 0.4 if o["k"] in ("mat",) else -0.55 * len(whos) + 0.25
-        if o["k"] not in ("mat",):
-            # a held thing sits with the hand that holds it; a thing on the floor between the two
-            dep = -0.6
+    # where each prop goes in depth, in the order picturebook.scene draws them: scenery at the back, things on the
+    # floor behind the people (the picture book draws them first), things in front and things held in front of them
+    so = spec.get("objs", [])
+    flags = [("back", o) for o in so if o.get("back")] + [("floor", o) for o in so if not o.get("back") and not o.get("front") and not o.get("on")]
+    for o in so:
+        if o.get("front"): flags.append(("front", o))
+        if o.get("on"): flags.append(("on", o))
+    j = 0
+    for i, o in enumerate(objs):
+        if o["k"] == "mirror" and i > 0 and objs[i - 1]["k"] == "mirrorfaces": continue   # drawn inside mirrorfaces
+        kind = flags[j][0] if j < len(flags) else "floor"; j += 1
+        dep = {"back": 1.5, "floor": 0.45, "front": -0.55 * len(whos) - 0.4, "on": -0.55 * len(whos) + 0.1}[kind]
+        if o["k"] == "mat": dep = 0.4
         prop3d(o, dep)
     bpy.ops.object.camera_add(location=(pb.W / 2 / U, -30, (pb.GROUND - pb.H / 2) / U)); c = bpy.context.object
     c.rotation_euler = (math.radians(90), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = pb.W / U
@@ -229,12 +354,17 @@ def watchers(img, where, d, happy):
     img.alpha_composite(o, (int(ox * sc - os_ / 2), int((base - 8 * k) * sc - feet_o * os_)))
     img.alpha_composite(m, (int(x * sc - ms / 2), int(base * sc - feet_m * ms)))
 
-if __name__ == "__main__":
-    out = ARGS[0]; os.makedirs(out, exist_ok=True)
-    code = arg("--play", "A11")
+def one(code, out):
     spec = json.load(open(pb.SCENES))[code]
     play = next(p for p in pb.C["activities"] if p["code"] == code)
     area = pb.area_of(play)
     prev = None
+    steps = [int(x) - 1 for x in arg("--steps", "").split(",") if x] or range(len(spec))
     for i, st in enumerate(spec):
+        if i not in steps: continue
         prev = render_step(st, area, os.path.join(out, f"{code}_{i + 1}.jpg"), arg("--size", 1440), prev, arg("--sprites", ""), i == len(spec) - 1)
+
+if __name__ == "__main__":
+    out = ARGS[0]; os.makedirs(out, exist_ok=True)
+    for code in arg("--play", "A11").split(","):
+        one(code, out)

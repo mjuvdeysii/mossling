@@ -34,8 +34,10 @@ struct LampScene: View {
             let deskY = h * 0.72
             let ms = min(w * 0.36, h * 0.46), os = ms * 0.96
             let mossX = w * 0.30, ottoX = w * 0.72, toyX = w * 0.505
-            let ottoOrigin = CGPoint(x: ottoX - os / 2, y: deskY - os * 0.9)
-            let bead = CGPoint(x: ottoOrigin.x + os * 0.2, y: ottoOrigin.y + os * 0.115)
+            // the figures stand with their feet on the table top (the feet line of each render, Sprites.swift)
+            let mossTop = deskY - ms * Sprites.mossFeet / 100, ottoTop = deskY - os * Sprites.ottoFeet / 100
+            let b0 = Sprites.bead["idle"] ?? CGPoint(x: 0.29, y: 0.34)
+            let bead = CGPoint(x: ottoX - os / 2 + os * b0.x, y: ottoTop + os * b0.y)
             ZStack(alignment: .topLeading) {
                 room(w, h, deskY, bead, toyX)
                 lit(w, h, deskY, bead, toyX)
@@ -46,8 +48,8 @@ struct LampScene: View {
                         .position(x: c == .moss ? mossX : ottoX, y: deskY + 9)
                         .animation(.spring(response: 0.4, dampingFraction: 0.8), value: chosen)
                 }
-                companion(.moss, size: ms, at: CGPoint(x: mossX, y: deskY - ms * 0.9 + ms / 2))
-                companion(.otto, size: os, at: CGPoint(x: ottoX, y: deskY - os * 0.9 + os / 2))
+                companion(.moss, size: ms, at: CGPoint(x: mossX, y: mossTop + ms / 2))
+                companion(.otto, size: os, at: CGPoint(x: ottoX, y: ottoTop + os / 2))
             }
         }
         .clipped()
