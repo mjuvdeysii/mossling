@@ -21,6 +21,8 @@ struct Creature: View {
     var arms: Arms = .rest
     /// Otto's bead lit as a lamp (at night).
     var glow: Bool = false
+    /// How long a change of `look` takes (MascotStyle.glanceMs: Moss quick, Otto slow).
+    var lookSeconds: Double = 0.42
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.colorScheme) private var scheme
@@ -111,7 +113,7 @@ struct Creature: View {
         return CGPoint(x: glanceTo.x * k, y: glanceTo.y * k)
     }
     private func lookValue(_ now: Date) -> CGPoint {
-        let k = Self.ease(now.timeIntervalSince(lookAt) / 0.42)
+        let k = Self.ease(now.timeIntervalSince(lookAt) / max(0.05, lookSeconds))
         return CGPoint(x: lookFrom.x + (look.x - lookFrom.x) * k, y: lookFrom.y + (look.y - lookFrom.y) * k)
     }
 
@@ -278,8 +280,13 @@ struct Creature: View {
     }
 }
 
-/// Moss and Otto together: the chosen one in front, the other a step behind and smaller. Every few seconds the one
-/// behind leans in, the one in front turns to it, and both brighten.
+/// Moss and Otto together: the chosen one in front, the other a step behind and smaller. Now and then (every quarter
+/// minute or so — mostly still) the one behind leans in, the one in front turns to it, and both brighten.
+///
+/// The chosen one stays in front by day and by night (the choice changes the performance, never the function). At night
+/// the two rest: half-closed eyes, no leaning in, Otto's bead glows softly — a drawing of a lamp, not the screen.
+/// With `reacts`, the pair answers a confirmed save (MascotDirector.acknowledgements) once, within 550 ms.
+/// Decorative: hidden from VoiceOver unless given a label.
 struct Duo: View {
     let primary: Kind
     var size: CGFloat = 112
@@ -290,42 +297,64 @@ struct Duo: View {
     var together = true
     /// Change it to make both cheer (arms up, a hop) for a moment.
     var cheer = 0
-    /// Night: Otto's bead is a lamp, and Moss sleeps unless Moss is the one in front.
+    /// Night: the pair rests; Otto's bead glows.
     var night = false
+    /// Answer confirmed saves (the IP event contract), once each.
+    var reacts = false
+    /// Read by VoiceOver only when it says something the page does not.
+    var label: String? = nil
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(MascotDirector.self) private var mascot: MascotDirector?
     @State private var beat = 0
     @State private var cheering = false
+    @State private var observing = false
 
     var body: some View {
         let small = size * 0.72
         let asleep = mood == .sleep
         ZStack(alignment: .bottomLeading) {
-            Creature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
-                     look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : 0, alive: !reduce, poke: poke,
+            Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
+                     look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
+                     lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
                      arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
-                     look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
+                     look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
+                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)
-        .onChange(of: cheer) { _, _ in
-            guard !reduce else { return }
-            cheering = true
-            Task { try? await Task.sleep(for: .milliseconds(1400)); cheering = false }
+        .accessibilityElement(children: label == nil ? .ignore : .combine)
+        .accessibilityLabel(label ?? "")
+        .accessibilityHidden(label == nil)
+        .onChange(of: cheer) { _, _ in answer() }
+        .onChange(of: mascot?.acknowledgements ?? 0) { _, _ in if reacts { answer() } }
+        // observing: a look down at what changed (the week's plays), held for the companion's own time, then back
+        .onChange(of: mascot?.observations ?? 0) { _, _ in
+            guard reacts, !reduce else { return }
+            observing = true
+            let ms = MascotStyle.of(primary).observeMs
+            Task { try? await Task.sleep(for: .milliseconds(ms)); observing = false }
         }
-        .task(id: "\(reduce)\(asleep)\(together)") {
+        .task(id: "\(reduce)\(asleep)\(together)\(night)") {
             beat = 0
-            guard !reduce, !asleep, together else { return }
-            try? await Task.sleep(for: .milliseconds(1800 + Int.random(in: 0...1600)))
+            guard !reduce, !asleep, together, !night else { return }
+            try? await Task.sleep(for: .milliseconds(4000 + Int.random(in: 0...4000)))
             while !Task.isCancelled {
                 beat = 1; try? await Task.sleep(for: .milliseconds(900))
-                beat = 2; try? await Task.sleep(for: .milliseconds(1500))
-                beat = 0; try? await Task.sleep(for: .milliseconds(6500 + Int.random(in: 0...5000)))
+                beat = 2; try? await Task.sleep(for: .milliseconds(1200))
+                beat = 0; try? await Task.sleep(for: .milliseconds(14000 + Int.random(in: 0...10000)))
             }
         }
+    }
+
+    /// The single reply: arms up and a hop, for the companion's own short time (≤ 550 ms); nothing under Reduce Motion.
+    private func answer() {
+        guard !reduce else { return }
+        cheering = true
+        let ms = MascotStyle.of(primary).acknowledgeMs
+        Task { try? await Task.sleep(for: .milliseconds(ms)); cheering = false }
     }
 }
 

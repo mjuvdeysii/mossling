@@ -18,7 +18,7 @@ final class ScreenshotTests: XCTestCase {
         return m
     }
 
-    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, width: CGFloat = 393, window whole: Bool = false, lamp: Bool = false, _ view: V) {
+    private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, width: CGFloat = 393, window whole: Bool = false, lamp: Bool = false, settle: Double = 1.2, _ view: V) {
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
         // lamp: the phone in light mode with the lamp on — the app darkens its window then (RootView), so do the same
         let host = UIHostingController(rootView: view.environment(\.colorScheme, dark || lamp ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
@@ -30,7 +30,7 @@ final class ScreenshotTests: XCTestCase {
         host.view.frame = window.bounds
         host.view.layoutIfNeeded()
         // let images decode and tasks settle
-        RunLoop.main.run(until: Date().addingTimeInterval(1.2))
+        RunLoop.main.run(until: Date().addingTimeInterval(settle))
         let img = UIGraphicsImageRenderer(size: size, format: { let f = UIGraphicsImageRendererFormat(); f.scale = 3; return f }()).image { _ in
             // the whole window includes a presented sheet, as on the phone
             if whole, let sheet = host.presentedViewController?.view {
@@ -62,6 +62,11 @@ final class ScreenshotTests: XCTestCase {
         NavigationStack { tab }.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)
     }
 
+    /// IP v1.3 first run: shot C, Otto chosen — the page says so, Otto looks down at 填写出生日期, Moss at Otto.
+    func test01OnboardingChosen() {
+        let m = model(companion: .otto, birth: nil); m.onboarded = false
+        shot("01_onboarding_shot_c", settle: 5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
+    }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }

@@ -13,6 +13,7 @@ struct AskSheet: View {
     @State private var temp = 368
     @State private var text = ""
     @State private var milk = "formula"
+    @State private var failed = false
     @FocusState private var typing: Bool
 
     private var at: Date { when }
@@ -28,6 +29,7 @@ struct AskSheet: View {
                         .padding(.horizontal, 16).padding(.vertical, 10)
                         .printCard(radius: 20)
                     content
+                    if failed { SaveFailed() }
                 }
                 .padding(20)
             }
@@ -74,7 +76,7 @@ struct AskSheet: View {
             Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 12) {
                 ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
-                    Button { j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)); dismiss() } label: {
+                    Button { if j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)) { dismiss() } else { failed = true } } label: {
                         VStack(spacing: 8) { Image(systemName: sym).font(.title2); Text(t).font(.subheadline.weight(.semibold)) }
                             .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(Crayon.ink(c))
                             .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
@@ -100,13 +102,14 @@ struct AskSheet: View {
             }
             save(enabled: !text.trimmingCharacters(in: .whitespaces).isEmpty || type == LogType.solid) {
                 typing = false
-                j.record(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
+                return j.record(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
             }
         }
     }
 
-    private func save(enabled: Bool = true, _ f: @escaping () -> Void) -> some View {
-        Button { f(); dismiss() } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
+    /// Saves and closes; if the save fails the page stays open with everything as typed, and says so.
+    private func save(enabled: Bool = true, _ f: @escaping () -> Bool) -> some View {
+        Button { if f() { dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
             .buttonStyle(.borderedProminent).tint(Crayon.fill(LogType.color(type), lamp)).controlSize(.large).disabled(!enabled)
     }
 }
@@ -162,12 +165,14 @@ struct EntrySheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
     @State var entry: LogEntry
+    @State private var failed = false
     let isNew: Bool
     init(entry: LogEntry, isNew: Bool) { _entry = State(initialValue: entry); self.isNew = isNew }
 
     var body: some View {
         NavigationStack {
             Form {
+                if failed { Section { SaveFailed() } }
                 if isNew {
                     Picker("类型", selection: $entry.type) {
                         ForEach(LogType.buttons.filter { $0 != LogType.growth }, id: \.self) { Text(LogType.name($0)).tag($0) }
@@ -194,7 +199,7 @@ struct EntrySheet: View {
             .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if isNew { j.record(entry) } else { j.update(entry) }; dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { let ok = isNew ? j.record(entry) : j.update(entry); if ok { dismiss() } else { failed = true } } }
             }
         }
     }
@@ -276,4 +281,17 @@ struct MeasureSheet: View {
 extension Indicator {
     var tint: Color { switch self { case .weight: Crayon.tangerine; case .length: Crayon.sky; case .head: Crayon.aqua } }
     var symbol: String { switch self { case .weight: "scalemass.fill"; case .length: "ruler.fill"; case .head: "circle.dashed" } }
+}
+
+/// Said in the page when a save did not happen: what to do, in plain words. The companions do nothing (no reply to a
+/// failure); what was typed stays.
+struct SaveFailed: View {
+    var body: some View {
+        Label { Text("没有保存成功，填写的内容还在，请再点一次。如果反复出现，请检查 iPhone 的存储空间。").fixedSize(horizontal: false, vertical: true) }
+            icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger) }
+            .font(.subheadline)
+            .padding(14).frame(maxWidth: .infinity, alignment: .leading)
+            .background(Palette.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .accessibilityElement(children: .combine)
+    }
 }

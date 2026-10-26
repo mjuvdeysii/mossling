@@ -9,12 +9,14 @@ enum Route: Hashable {
 struct MosslingApp: App {
     @State private var app = AppModel()
     @State private var journal = JournalStore()
+    @State private var mascot = MascotDirector()
     var body: some Scene {
         WindowGroup {
             RootView()
                 .environment(\.girlArt, app.drawsGirl)
                 .environment(app)
                 .environment(journal)
+                .environment(mascot)
                 .tint(Palette.accent)
                 .fontDesign(.rounded)
         }
@@ -33,6 +35,7 @@ struct RootView: View {
     @State private var journalPath = NavigationPath()
     @State private var searchPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
+    @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
     @State private var locked = true
     @Namespace private var zoomToday
@@ -52,10 +55,21 @@ struct RootView: View {
             if app.lock && locked { LockView { unlock() } }
         }
         .onChange(of: phase) { _, p in
-            if p == .active { app.today = .today; journal.reload(); Task { await LiveTimers.sync() } }
-            if p == .background { locked = true }
+            if p == .active { app.today = .today; journal.reload(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+            if p == .background { locked = true; mascot.send(.appBackground) }
         }
         .task { if app.lock { unlock() }; app.publish() }
+        // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
+        // flows back into the journal
+        .task {
+            mascot.companion = app.companion
+            mascot.timing = !journal.timers.isEmpty
+            if scheme == .dark { mascot.send(.nightmodeEnabled) }
+            journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
+        }
+        .onChange(of: scheme) { _, s in mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled) }
+        .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
+        .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }
         // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
         .task(id: phase) {
             guard phase == .active else { return }
@@ -181,19 +195,33 @@ private struct RouteView: View {
     }
 }
 
-/// First run: the two of them, the name, one question. Everything can be skipped.
+/// First run: the welcome page as it was (the two of them, the name, 填写出生日期 / 稍后再填), with three silent shots
+/// played in place (IP v1.3 §11.2) — no words from the characters, every line on the page is plain UI:
+///  A. the two rise and see each other (Moss two quick glances, Otto one slow look);
+///  B. they turn to the parent; tapping either makes it the main companion — the page says which, and that it can be
+///     changed in 我的 (the choice changes the performance only, never what the app can do);
+///  C. the chosen one looks down at the real way in, 填写出生日期.
+/// Nothing waits for the shots: the buttons work from the first frame, 稍后再填 skips everything, and a returning
+/// user never sees this page. Under Reduce Motion the page is still, already at shot C.
 struct OnboardingView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var askBirth = false
     @State private var doc: String?
     @State private var rise = false
+    /// 0 rising, 1 seeing each other, 2 facing the parent, 3 the chosen one looking at the way in.
+    @State private var shot = 0
+    @State private var chose = false
+    /// Moss's glance comes in two quick steps.
+    @State private var mossHalf = false
     var body: some View {
+        let k = app.companion
         VStack(spacing: 0) {
             ZStack(alignment: .bottom) {
                 Sky()
                 HStack(alignment: .bottom, spacing: -14) {
-                    Creature(kind: .moss, look: CGPoint(x: 0.9, y: -0.1), poke: true).frame(width: 150, height: 150).offset(y: rise ? 0 : 40)
-                    Creature(kind: .otto, look: CGPoint(x: -0.9, y: 0), poke: true).frame(width: 132, height: 132).offset(y: rise ? 0 : 60)
+                    pick(.moss, size: 150, drop: 40)
+                    pick(.otto, size: 132, drop: 60)
                 }
                 .opacity(rise ? 1 : 0)
                 .padding(.bottom, 26)
@@ -204,9 +232,15 @@ struct OnboardingView: View {
             VStack(spacing: 8) {
                 Text("摸索台灯").font(.largeTitle.weight(.bold))
                 Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(Palette.secondaryText)
+                // shot B's words belong to the page, not to the characters
+                Text(chose ? "主伙伴：\(k.rawValue) · 之后可在「我的」更换" : "点一位作为主伙伴，两位功能相同")
+                    .font(.footnote).foregroundStyle(Palette.secondaryText)
+                    .padding(.top, 2)
+                    .contentTransition(.opacity)
+                    .accessibilityAddTraits(.updatesFrequently)
             }
             .multilineTextAlignment(.center)
-            .padding(.top, 8)
+            .padding(.top, 8).padding(.horizontal, 24)
 
             VStack(spacing: 10) {
                 Button { askBirth = true } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
@@ -221,14 +255,58 @@ struct OnboardingView: View {
                     }
                 }
             }
-            .padding(.horizontal, 24).padding(.top, 28).padding(.bottom, 12)
+            .padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 12)
         }
         .pageBackground()
-        .onAppear { withAnimation(.spring(duration: 0.9)) { rise = true } }
+        .task { await play() }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
             NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { doc = nil } } } }
         }
+    }
+
+    /// One of the two, as a button: tap to make it the main companion. The chosen one stands a little larger.
+    private func pick(_ kind: Kind, size: CGFloat, drop: CGFloat) -> some View {
+        let on = app.companion == kind
+        return Button {
+            withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.75)) { app.companion = kind; chose = true }
+            if shot < 3 { shot = 3 }
+        } label: {
+            Creature(kind: kind, mood: shot == 2 && on ? .happy : .open, look: look(kind),
+                     lean: shot == 1 ? (kind == .moss ? MascotStyle.moss.tiltDegrees : -MascotStyle.otto.tiltDegrees) : 0,
+                     lookSeconds: Double(MascotStyle.of(kind).glanceMs) / 1000)
+                .frame(width: size, height: size)
+                .scaleEffect(chose && !on ? 0.88 : 1, anchor: .bottom)
+        }
+        .buttonStyle(.plain)
+        .offset(y: rise ? 0 : drop)
+        .accessibilityLabel("选择 \(kind.rawValue) 作为主伙伴，\(kind.trait)")
+        .accessibilityAddTraits(on && chose ? .isSelected : [])
+        .sensoryFeedback(.selection, trigger: app.companion)
+    }
+
+    /// Where each one looks in each shot.
+    private func look(_ kind: Kind) -> CGPoint {
+        switch shot {
+        case 1: return kind == .moss ? (mossHalf ? CGPoint(x: 0.45, y: -0.05) : CGPoint(x: 0.95, y: -0.15)) : CGPoint(x: -0.95, y: 0.05)   // at each other
+        case 2: return CGPoint(x: kind == .moss ? 0.2 : -0.2, y: 0.15)                           // at the parent
+        case 3: return kind == app.companion ? CGPoint(x: kind == .moss ? 0.35 : -0.35, y: 1)      // down at 填写出生日期
+                                             : CGPoint(x: kind == .moss ? 0.9 : -0.9, y: 0.4)     // at the chosen one
+        default: return CGPoint(x: kind == .moss ? 0.6 : -0.6, y: 0)
+        }
+    }
+
+    private func play() async {
+        if reduce { rise = true; shot = 3; return }
+        withAnimation(.spring(duration: 0.9)) { rise = true }
+        try? await Task.sleep(for: .milliseconds(900))
+        if shot < 1 { mossHalf = true; shot = 1 }         // A: they see each other (Moss in two quick steps)
+        try? await Task.sleep(for: .milliseconds(MascotStyle.moss.glanceMs + 60))
+        mossHalf = false
+        try? await Task.sleep(for: .milliseconds(1300))
+        if shot < 2 { shot = 2 }                          // B: they turn to the parent
+        try? await Task.sleep(for: .milliseconds(1400))
+        if shot < 3 { shot = 3 }                          // C: the chosen one looks at the way in
     }
 }
 

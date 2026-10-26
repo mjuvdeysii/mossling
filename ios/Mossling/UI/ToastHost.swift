@@ -28,7 +28,8 @@ private struct ToastBar: View {
     let toast: Toast
     var body: some View {
         HStack(spacing: 10) {
-            IconTile(symbol: LogType.symbol(toast.type), color: LogType.color(toast.type), size: 30, round: true)
+            if toast.failed { IconTile(symbol: "exclamationmark.triangle.fill", color: Palette.danger, size: 30, round: true) }
+            else { IconTile(symbol: LogType.symbol(toast.type), color: LogType.color(toast.type), size: 30, round: true) }
             Text(toast.text).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
@@ -42,9 +43,9 @@ private struct ToastBar: View {
         .padding(.horizontal, 16).padding(.top, 6)
         .onTapGesture { j.toast = nil }
         .task(id: toast.id) {
-            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            try? await Task.sleep(for: .seconds(toast.restore == nil ? 2 : 5))
+            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 2 : 5))
             if j.toast?.id == toast.id { j.toast = nil }
         }
         .accessibilityElement(children: .combine)

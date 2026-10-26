@@ -162,7 +162,8 @@ private struct Section2<Content: View>: View {
 }
 
 /// The two companions on a little stage. The chosen one stands in front, larger; tap the other and it hops forward
-/// while the first steps back. Each has its job: Moss keeps the day and the play, Otto the night and the lamp.
+/// while the first steps back. The choice changes who stands in front and how they move, never what the app can do:
+/// Moss is curious (quick double glances, leaning in), Otto is focused (one slow look, a slow blink, the lamp on his head).
 private struct CompanionStage: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
@@ -182,14 +183,14 @@ private struct CompanionStage: View {
                             .frame(width: on ? 76 : 52, height: on ? 76 : 52)
                             .frame(height: 80, alignment: .bottom)
                         Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
-                        Text(k == .moss ? "白天陪玩" : "夜里点灯").font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                        Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
                     }
                     .frame(maxWidth: .infinity, minHeight: 124)
                     .padding(.vertical, 8)
                     .contentShape(Rectangle())   // the whole half of the stage is the button, not just the drawing
                 }
                 .buttonStyle(.toy)
-                .accessibilityLabel("\(k.rawValue)，\(k == .moss ? "白天陪玩" : "夜里点灯")").accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityLabel("主伙伴 \(k.rawValue)，\(k.trait)").accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .background(alignment: .bottom) {

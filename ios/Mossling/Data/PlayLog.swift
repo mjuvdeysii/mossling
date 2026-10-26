@@ -20,9 +20,12 @@ extension AppModel {
         let legacy = l.isEmpty && ticks.values.contains { $0.kind == TickKind.did && $0.key.hasSuffix(":\(TickKind.did):\(p.code)") }
         return PlayRecord(count: legacy ? 1 : l.count, last: l.first?.startDate)
     }
-    func didPlay(_ p: Play, month: Int, _ j: JournalStore) {
-        j.add(LogEntry(type: LogType.play, start: JournalFile.now(), detail: "\(p.code) \(p.name)"))
+    /// Records one time played; false (and nothing ticked, nothing cheered) when it could not be saved.
+    @discardableResult func didPlay(_ p: Play, month: Int, _ j: JournalStore) -> Bool {
+        guard j.add(LogEntry(type: LogType.play, start: JournalFile.now(), detail: "\(p.code) \(p.name)")) else { return false }
         if !ticked(month, TickKind.did, p.code) { toggle(month, TickKind.did, p.code, p.name) }
+        j.onEvent?(.recordPersistSuccess)
+        return true
     }
     func undoPlay(_ p: Play, month: Int, _ j: JournalStore) {
         if let e = j.plays(p.code).first { j.delete(e) }

@@ -18,7 +18,6 @@ struct TimerScreen: View {
     let type: String
     @State private var picking = false
     @State private var ending = false
-    @State private var hop = 0
     @State private var acked: Set<String> = []
     @State private var adding = false
     /// Before starting: when it began, in minutes before now (0 = now); a chosen time when picked.
@@ -57,7 +56,7 @@ struct TimerScreen: View {
     private func ready(_ c: Color) -> some View {
         ScrollView {
             VStack(spacing: 18) {
-                Duo(primary: lamp ? .otto : app.companion, size: 62, mood: .open, look: CGPoint(x: 0, y: 0.5), poke: true, night: lamp)
+                Duo(primary: app.companion, size: 62, mood: .open, look: CGPoint(x: 0, y: 0.5), poke: true, night: lamp)
                     .frame(maxWidth: .infinity).padding(.top, 4)
                 Text(type == LogType.nurse ? "从哪一侧开始" : "宝宝要睡了").font(.title3.weight(.bold))
                 LastLine(type: type)
@@ -149,10 +148,10 @@ struct TimerScreen: View {
                         Check(text: q.text, keep: q.keep, end: q.end, color: c,
                               onKeep: { acked.insert(q.key) }, onEnd: { ending = true })
                     }
-                    Duo(primary: lamp ? .otto : app.companion, size: 62,
+                    Duo(primary: app.companion, size: 62,
                         mood: type == LogType.sleep && !paused ? .sleep : .open,
                         look: type == LogType.nurse ? CGPoint(x: side == "l" ? -0.9 : 0.9, y: 0.6) : CGPoint(x: 0, y: 0.5),
-                        poke: true, cheer: hop, night: lamp)
+                        poke: true, night: lamp)
                         .frame(maxWidth: .infinity)
                         .padding(.top, 4)
                     LastLine(type: type, until: t.start - t.carried - t.carriedPause, compact: true)
@@ -164,7 +163,6 @@ struct TimerScreen: View {
                                 SidePad(side: k, seconds: done + (k == side ? t.elapsed(now) : 0),
                                         state: k != side ? .other : paused ? .paused : .running, color: c) {
                                     withAnimation(.snappy) { j.tapSide(type, k) }
-                                    if k != side { hop += 1 }
                                 }
                             }
                         }

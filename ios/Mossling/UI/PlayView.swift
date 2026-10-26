@@ -111,7 +111,8 @@ struct PlayView: View {
     }
 
     private func record() {
-        withAnimation(.snappy) { app.didPlay(play, month: month, j); app.finishPlaying(); cheer += 1 }
+        // the reply only after the time played is really saved
+        withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1 } }
     }
 
     private func go(_ i: Int, _ proxy: ScrollViewProxy) {

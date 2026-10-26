@@ -167,6 +167,30 @@ private struct WeekStrip: View {
 
 /// A page of the journal: dotted paper, the date written large, the day's three totals as stamps, the day's strip,
 /// and every entry in fixed columns — time, sticker, kind, value — with the details on a second line.
+/// The companion beside the day's date: the chosen one, still. After a record is really saved (the IP event
+/// record.persist.success) it answers once — a happy face and a hop within its own short time; never after a failed
+/// save. Under the lamp it rests (half-closed eyes; Otto's bead glows). Decorative, so hidden from VoiceOver.
+private struct DayCompanion: View {
+    @Environment(AppModel.self) private var app
+    @Environment(MascotDirector.self) private var mascot: MascotDirector?
+    let lamp: Bool
+    let empty: Bool
+    @State private var answering = false
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    var body: some View {
+        let k = app.companion
+        Creature(kind: k, mood: answering ? .happy : .open, look: CGPoint(x: -0.6, y: 0.3),
+                 lid: lamp && !answering ? 0.5 : nil, alive: answering || lamp, glow: lamp && k == .otto)
+            .frame(width: 50, height: 50)
+            .accessibilityHidden(true)
+            .onChange(of: mascot?.acknowledgements ?? 0) { _, _ in
+                guard !reduce else { return }
+                answering = true
+                Task { try? await Task.sleep(for: .milliseconds(MascotStyle.of(k).acknowledgeMs)); answering = false }
+            }
+    }
+}
+
 private struct DayPage: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -193,8 +217,7 @@ private struct DayPage: View {
                     Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer()
-                if lamp { Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.3), glow: true).frame(width: 52, height: 52) }
-                else { Creature(kind: app.companion, mood: logs.isEmpty ? .open : .happy, alive: false).frame(width: 48, height: 48) }
+                DayCompanion(lamp: lamp, empty: logs.isEmpty)
             }
             // every number on the page is a way in: tap a total (or one of the other kinds) to see only that kind
             Totals(logs: logs, day: day, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
@@ -204,7 +227,7 @@ private struct DayPage: View {
             if day == today { ForEach(timers.filter { t in only.map { JournalKinds.matches(t.type, $0) } ?? true }, id: \.type) { t in RunningRow(timer: t) } }
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 VStack(spacing: 8) {
-                    Duo(primary: lamp ? .otto : app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
+                    Duo(primary: app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
                     Text("这一页还空着").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 12)

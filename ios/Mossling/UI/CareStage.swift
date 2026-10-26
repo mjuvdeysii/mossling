@@ -1,8 +1,8 @@
 import SwiftUI
 
 /// The top of every record page: a small stage in the colour of the kind of record, the kind's sticker and name, when
-/// it was last recorded, and the companion doing it with you — sleepy for a sleep, cheerful for the rest, and at night
-/// Otto with his lamp. Little things drift up behind them, chosen by the kind: hearts for a feed, milk bubbles for a
+/// it was last recorded, and the chosen companion with you — asleep beside a sleep, quiet otherwise, resting under the
+/// lamp (the same companion by day and by night). Little things drift up behind them, chosen by the kind: hearts for a feed, milk bubbles for a
 /// bottle, z's and stars for a sleep, soap bubbles for a nappy or a bath, sparkles for the rest. Tap the companion and
 /// it waves. The page's name lives here, so the bar above carries none (no duplicate).
 struct CareStage: View {
@@ -11,11 +11,11 @@ struct CareStage: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var waving = true
+    @State private var waving = false
 
     var body: some View {
         let c = LogType.color(type)
-        let kind: Kind = lamp ? .otto : app.companion
+        let kind: Kind = app.companion
         ZStack(alignment: .bottomLeading) {
             RoundedRectangle(cornerRadius: 30, style: .continuous)
                 .fill(LinearGradient(colors: [c.opacity(lamp ? 0.3 : 0.28), c.opacity(lamp ? 0.1 : 0.08)], startPoint: .topTrailing, endPoint: .bottomLeading))
@@ -30,8 +30,11 @@ struct CareStage: View {
                 }
                 .padding(18)
                 Spacer(minLength: 0)
-                Creature(kind: kind, mood: type == LogType.sleep && !lamp ? .sleep : .happy,
-                         look: CGPoint(x: -0.7, y: -0.1), poke: true, arms: waving ? .wave : .rest, glow: lamp)
+                // mostly still: the chosen companion, quiet; resting under the lamp (Otto's bead glows), asleep
+                // beside a sleep; a wave only when tapped
+                Creature(kind: kind, mood: type == LogType.sleep && !lamp ? .sleep : .open,
+                         look: CGPoint(x: -0.7, y: -0.1), lid: lamp && !waving ? 0.5 : nil, poke: true,
+                         arms: waving ? .wave : .rest, glow: lamp && kind == .otto)
                     .frame(width: 104, height: 104)
                     .padding(.trailing, 12).padding(.bottom, 4)
                     .onTapGesture { wave() }
@@ -39,7 +42,6 @@ struct CareStage: View {
         }
         .frame(minHeight: 156)
         .accessibilityElement(children: .combine)
-        .task { try? await Task.sleep(for: .milliseconds(1300)); waving = false }
     }
 
     private func wave() {

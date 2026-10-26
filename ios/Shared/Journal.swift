@@ -188,7 +188,18 @@ enum JournalFile {
     }
 
     static func read() -> Body { (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Body.self, from: $0) } ?? Body() }
-    static func write(_ b: Body) { try? JSONEncoder().encode(b).write(to: url, options: .atomic) }
+    /// Writes the journal; false when it could not be saved (the caller says so and keeps what was typed).
+    @discardableResult static func write(_ b: Body) -> Bool {
+        #if DEBUG
+        if failWrites { return false }
+        #endif
+        guard let data = try? JSONEncoder().encode(b) else { return false }
+        do { try data.write(to: url, options: .atomic); return true } catch { return false }
+    }
+    #if DEBUG
+    /// Tests only: every write fails, to check that nothing celebrates a save that did not happen.
+    nonisolated(unsafe) static var failWrites = false
+    #endif
     static func snapshot() -> Snapshot? { (try? Data(contentsOf: snapshotURL)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) } }
     static func writeSnapshot(_ s: Snapshot) { try? JSONEncoder().encode(s).write(to: snapshotURL, options: .atomic) }
 

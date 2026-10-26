@@ -16,6 +16,9 @@ final class JournalStore {
     var ask: String?
     /// What was just recorded, said back for a few seconds with a way to take it back.
     var toast: Toast?
+    /// Where confirmed events go for the companions (IP v1.3 event contract). Set by the app; the journal never
+    /// waits for, or depends on, what the companions do with them.
+    var onEvent: ((MascotEvent) -> Void)?
 
     init(preview: JournalFile.Body? = nil) {
         if preview == nil { JournalFile.migrateIntoGroup() }
@@ -36,11 +39,26 @@ final class JournalStore {
         Task { await LiveTimers.sync() }
         WidgetCenter.shared.reloadAllTimelines()
     }
-    private func edit(_ f: (inout JournalFile.Body) -> Void) { var b = JournalFile.read(); f(&b); JournalFile.write(b); changed(b) }
+    /// Applies a change and saves it. On a failed save nothing changes on screen, the failure is said in plain words
+    /// (no undo, no success haptic), and the caller keeps what was typed.
+    @discardableResult private func edit(_ f: (inout JournalFile.Body) -> Void) -> Bool {
+        var b = JournalFile.read(); f(&b)
+        guard JournalFile.write(b) else { failed(); return false }
+        changed(b); return true
+    }
+    private func failed(_ what: String = "这条记录") {
+        reload()
+        toast = Toast(type: LogType.note, text: "没有保存成功：" + what + "未写入，请再试一次", restore: nil, failed: true)
+        onEvent?(.recordPersistFailure)
+    }
 
     func start(_ type: String, side: String? = nil, at: Date = Date()) {
         let before = JournalFile.read()
-        changed(JournalFile.start(type, side: side, at: at.timeIntervalSince1970 * 1000)); focus = type
+        let b = JournalFile.start(type, side: side, at: at.timeIntervalSince1970 * 1000)
+        // confirmed only when the timer is really in the file (read back), never on the tap alone
+        guard JournalFile.read().timers.contains(where: { $0.type == type }) else { failed("计时"); return }
+        changed(b); focus = type
+        onEvent?(.recordStartConfirmed)
         let ago = Int(Date().timeIntervalSince(at) / 60)
         say(type, LogType.name(type) + "开始计时" + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (ago >= 1 ? " · 从 \(ago) 分钟前算起" : ""), undo: before)
     }
@@ -51,21 +69,28 @@ final class JournalStore {
     /// Ends the timer now, or at the moment given (a feed found running long after it ended), and says what was kept.
     func stop(_ type: String, at: Date? = nil) {
         let before = JournalFile.read()
+        // a second tap on 结束 (or one from the Lock Screen first) finds nothing running: no second entry, no reply
+        guard before.timers.contains(where: { $0.type == type }) else { reload(); return }
         var b = before
         b = JournalFile.stopping(b, type, now: at.map { ms($0) } ?? JournalFile.now())
-        JournalFile.write(b); changed(b)
+        guard JournalFile.write(b) else { failed("这次" + LogType.name(type)); return }
+        changed(b)
+        onEvent?(.recordPersistSuccess)
         if let e = b.logs.last, e.type == type { say(type, "已记下 " + LogType.name(type) + " · " + durationValue(e.activeSeconds) + "，到 " + hm(e.endDate ?? Date()), undo: before) }
     }
-    func discard(_ type: String) { changed(JournalFile.discard(type)) }
+    func discard(_ type: String) { changed(JournalFile.discard(type)); onEvent?(.timerEnded) }
 
-    func add(_ e: LogEntry) { edit { $0.logs.append(e) } }
-    /// Adds an entry and says so ("已记下 尿布 · 湿 · 14:05"), with 撤销 for a few seconds.
-    func record(_ e: LogEntry) {
+    @discardableResult func add(_ e: LogEntry) -> Bool { edit { $0.logs.append(e) } }
+    /// Adds an entry and says so ("已记下 尿布 · 湿 · 14:05"), with 撤销 for a few seconds. False when it could not be
+    /// saved: then the page that asked stays open with what was typed.
+    @discardableResult func record(_ e: LogEntry) -> Bool {
         let before = JournalFile.read()
-        add(e)
+        guard add(e) else { return false }
+        onEvent?(.recordPersistSuccess)
         let what = [LogType.name(e.type), e.summary].filter { !$0.isEmpty }.joined(separator: " · ")
         let when = Day(e.startDate) == Day.today ? hm(e.startDate) : whenLabel(e.startDate)
         say(e.type, "已记下 " + what + " · " + when, undo: before)
+        return true
     }
     /// Takes back what the toast describes: the journal as it was just before.
     func undo(_ t: Toast) {
@@ -74,7 +99,7 @@ final class JournalStore {
         toast = Toast(type: t.type, text: "已撤销", restore: nil)
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
-    func update(_ e: LogEntry) { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } }
+    @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } }
     func delete(_ e: LogEntry) { edit { $0.logs.removeAll { $0.id == e.id } } }
     func saveMeasure(_ m: Measure) { edit { b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } } }
     func deleteMeasure(_ m: Measure) { edit { $0.measures.removeAll { $0.id == m.id } } }
@@ -95,4 +120,6 @@ struct Toast: Identifiable {
     let type: String
     let text: String
     let restore: JournalFile.Body?
+    /// A save that did not happen: said with a warning, never with the success haptic.
+    var failed = false
 }
