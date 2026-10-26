@@ -9,9 +9,6 @@ struct YouView: View {
     @State private var editing = false
     @State private var clearing = false
     @Environment(JournalStore.self) private var j
-    @State private var exporting: DataFile?
-    @State private var exportName = ""
-    @State private var importing = false
     @State private var message: String?
 
     private let two = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
@@ -95,12 +92,8 @@ struct YouView: View {
                 // data: one card of rows, as Settings lists them; the destructive one last, in red, behind a confirmation
                 Section2(title: "数据") {
                     VStack(spacing: 0) {
-                        Menu {
-                            Button("记录文件（与安卓通用）", systemImage: "doc") { exportName = "摸索台灯记录-\(stamp).json"; exporting = DataFile(data: RecordFile.json(app, JournalFile.read())) }
-                            Button("表格（CSV）", systemImage: "tablecells") { exportName = "摸索台灯记录-\(stamp).csv"; exporting = DataFile(data: RecordFile.csv(JournalFile.read())) }
-                        } label: { DataRow(title: "导出记录", detail: "记录文件或表格", symbol: "square.and.arrow.up", color: Crayon.sky) }
-                        Divider().padding(.leading, 58)
-                        Button { importing = true } label: { DataRow(title: "导入记录", detail: "从摸索台灯导出的记录文件", symbol: "square.and.arrow.down", color: Crayon.lilac) }
+                        // export and import have their own page (no menu popping out of a card)
+                        NavigationLink(value: Route.data) { DataRow(title: "导出与导入", detail: "给医生或 AI 看的记录 · 完整备份 · 表格", symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
                         Divider().padding(.leading, 58)
                         Button(role: .destructive) { clearing = true } label: {
                             HStack { Text("清除全部数据").font(.subheadline.weight(.semibold)); Spacer() }
@@ -133,15 +126,6 @@ struct YouView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle("我的")
         .sheet(isPresented: $editing) { ProfileSheet() }
-        .fileExporter(isPresented: Binding(get: { exporting != nil }, set: { if !$0 { exporting = nil } }), document: exporting, contentType: exportName.hasSuffix(".csv") ? .commaSeparatedText : .json, defaultFilename: exportName) { r in
-            if case .success = r { message = "已导出" }
-        }
-        .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
-            guard case let .success(url) = r else { return }
-            let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
-            do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j); message = "已导入" }
-            catch { message = error is RecordFile.Failure ? "这不是摸索台灯导出的记录文件" : "没有导入成功，文件可能已损坏" }
-        }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
         .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
             Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }

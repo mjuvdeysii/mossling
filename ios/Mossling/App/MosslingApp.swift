@@ -2,7 +2,7 @@ import SwiftUI
 import LocalAuthentication
 
 enum Route: Hashable {
-    case story, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book
+    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book
 }
 
 @main
@@ -10,7 +10,7 @@ struct MosslingApp: App {
     @State private var app = AppModel()
     @State private var journal = JournalStore()
     @State private var mascot = MascotDirector()
-    init() { Guide.configure() }
+    init() { Guide.configure(); DataView.tidyDocuments() }
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -189,6 +189,7 @@ private struct RouteView: View {
         case .search: SearchView(path: $path)
         case .about: AboutView()
         case .story: StoryView()
+        case .data: DataView()
         case .sources: SourcesView()
         case .licenses: LicensesView()
         case let .doc(n): DocView(name: n)
