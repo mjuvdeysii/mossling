@@ -169,6 +169,7 @@ private struct CompanionStage: View {
                             .frame(height: 92, alignment: .bottom)
                         Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
                         Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 10)   // the two captions never run into each other
                     }
                     .frame(maxWidth: .infinity, minHeight: 124)
                     .padding(.vertical, 8)
