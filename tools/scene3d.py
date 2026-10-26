@@ -117,7 +117,7 @@ def person3d(p, depth):
     # the head: a round vinyl head, painted dot eyes on the side it faces, turned a little toward us
     c = W3(p.headc, depth); r = L(d["head"])
     sphere("head", c, (r, r, r), skin)
-    fdir = (f * 0.62, -0.78)                               # the face: toward its side and toward the camera
+    fdir = (f * 0.5, -0.866)                               # the face: toward its side and toward the camera
     def on_face(dx, dz, out=1.0):
         # a point on the head's surface, dx along the face's width, dz up
         nx, ny = fdir; px, py = -ny, nx                    # perpendicular in the floor plane
@@ -134,7 +134,7 @@ def person3d(p, depth):
             tube(f"lid{k}", [(e[0] - r * 0.1, e[1] - r * 0.02, e[2] + r * 0.01), (e[0], e[1] - r * 0.03, e[2] - r * 0.05), (e[0] + r * 0.1, e[1] - r * 0.02, e[2] + r * 0.01)], r * 0.028, ink())
         else:
             big = 1.15 if p.expr == "wow" else 1.0
-            sphere(f"eye{k}", e, (r * 0.1 * big, r * 0.06, r * 0.13 * big), ink())
+            sphere(f"eye{k}", e, (r * 0.12 * big, r * 0.07, r * 0.16 * big), ink())
     ch = on_face(0.32 if f > 0 else -0.45, -0.2, 0.99)
     sphere("cheek", ch, (r * 0.16, r * 0.05, r * 0.1), MATS.setdefault("cheek", mat("cheekp", "#F2A0A0", rough=0.7)))
     mo = on_face(-0.04, -0.36, 1.0)
@@ -155,12 +155,18 @@ def prop3d(o, depth):
         bv = b.modifiers.new("b", "BEVEL"); bv.width = h * 0.28; bv.segments = 5
         b.rotation_euler = (0, math.radians(o.get("rot", 0)), math.radians(-24))
         b.data.materials.append(vinyl(c or "#F2554B", 0.5))
+        # the carved shape on its face, as on the 2D blocks: a cream disc set into the front
+        d = sphere("carve", (0, -h * 1.0, 0), (h * 0.42, h * 0.08, h * 0.42), vinyl("#FFF3E0", 0.5)); d.parent = b
     elif k == "ball":
         r = L(34 * s)
         sphere("ball", (base[0], depth, base[2] + r), (r, r, r), vinyl(c or "#F2554B", 0.55), seg=48)
-        tube("seam", [(base[0] + r * 0.98 * math.cos(a), depth + r * 0.98 * math.sin(a) * 0 - r * 0.98 * abs(math.sin(a)) * 0.0, base[2] + r + r * 0.98 * math.sin(a)) for a in [i * math.pi / 12 for i in range(25)]], r * 0.05, vinyl("#FFF3E0"))
+        # a cloth ball's two cream panels, as bands round it
+        for rz in (62, -62):
+            bpy.ops.mesh.primitive_torus_add(major_radius=r * 0.985, minor_radius=r * 0.11, location=(base[0], depth, base[2] + r), rotation=(math.radians(90), 0, math.radians(rz)))
+            t = bpy.context.object; t.scale = (1, 1, 0.5); t.data.materials.append(vinyl("#FFF3E0", 0.6))
+            for poly in t.data.polygons: poly.use_smooth = True
     elif k == "mat":
-        w = L(300 * s); t = L(14)
+        w = L(300 * s); t = L(20)
         bpy.ops.mesh.primitive_cube_add(size=1, location=(base[0], depth + 0.9, base[2] - t * 0.1)); m = bpy.context.object
         m.scale = (w, 2.6, t); bv = m.modifiers.new("b", "BEVEL"); bv.width = t * 0.45; bv.segments = 4
         m.data.materials.append(vinyl(c or "#BFE3D6", 0.8))
@@ -174,14 +180,14 @@ def lights():
     def area(loc, rot, e, size, col):
         bpy.ops.object.light_add(type="AREA", location=loc, rotation=rot); l = bpy.context.object
         l.data.energy = e; l.data.size = size; l.data.color = hexcol(col)[:3]
-    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), 2600, 6, "#FFF1E0")
+    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), 1700, 6, "#FFF4EA")
     area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), 900, 5, "#F4F6FF")
     area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), 1400, 4, "#FFFFFF")
 
 def render_step(spec, area, out, size, prev=None, sprites_dir=None, last=False):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
-    s = ip3d.reset(); s.render.film_transparent = True; ip3d.materials(); MATS.clear(); lights()
+    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "None"; s.view_settings.exposure = -0.75; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
