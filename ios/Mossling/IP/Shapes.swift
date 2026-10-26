@@ -56,13 +56,12 @@ enum Shapes {
     static let mintVeins = SVGPath.parse("M49.80 24.00 L65.45 14.54 M55.26 20.70 L59.82 22.48 M55.26 20.70 L55.80 15.84 M59.26 18.28 L63.34 19.26 M59.26 18.28 L60.29 14.22 M62.90 16.08 L66.18 15.74 M62.90 16.08 L64.73 13.34 M48.80 26.00 L33.92 19.98 M43.61 23.90 L42.51 19.66 M43.61 23.90 L39.87 26.18 M39.80 22.36 L38.38 18.90 M39.80 22.36 L36.38 23.86 M36.34 20.96 L34.40 18.80 M36.34 20.96 L33.44 21.16 M50.40 17.80 L54.01 9.54 M49.60 18.00 L45.13 11.12")
     static let mintFleck = SVGPath.parse("M0 3 C1.6 1.2 4 0.6 6 0.8 C5.6 3 4 4.6 0 3Z")
     static let mossBody = SVGPath.parse("M22 82 C15 77 13 66 16 56 C19 45 28 36 41 34 C53 32 63 33 72 38 C82 44 88 55 87 67 C86 77 80 84 70 86 C56 88 33 89 22 82Z")
+    /// Little lighter tufts of moss on Moss's back (as in the picture book, tools/illustrate.py).
     static let mossTufts = SVGPath.parse("M24 52 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M64 44 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M70 72 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M28 72 c2 -2 5 -2 7 0 c-2 1.6 -5 1.6 -7 0Z")
     static let ottoStem = SVGPath.parse("M53 17 C54 12 57 8 61 6")
     /// The icon's rod (tools/ios_icon.py bead.svg): from the top of the head, forward, the bead hanging at its end.
     static let ottoRod = SVGPath.parse("M50 16.5 C45 4 30 1 21 8 L20 11.5")
     /// Moss's flat darker underside, the counterpart of Otto's dip.
-    /// Little lighter tufts of moss on Moss's back (as in the picture book, tools/illustrate.py).
-    static let mossTufts = SVGPath.parse("M24 52 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M64 44 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M70 72 c3 -3 7 -3 9 0 c-3 2 -6 2 -9 0Z M28 72 c2 -2 5 -2 7 0 c-2 1.6 -5 1.6 -7 0Z")
     static let mossUnder = SVGPath.parse("M14 68 C30 76 70 76 88 66 C88 76 80 84 70 86 C56 88 33 89 22 82 C17 78 14 74 14 68Z")
     static let ottoBody = SVGPath.parse("M30 84 C25 74 24 58 26 44 C28 28 38 16 52 16 C65 17 74 28 75 44 C76 60 74 75 70 84 C60 88 40 88 30 84Z")
     static let ottoDip = SVGPath.parse("M25.2 64 C35 68 64 68 75.4 63 C75 71 73 78 70 84 C60 88 40 88 30 84 C27.6 78 26 71 25.2 64Z")
