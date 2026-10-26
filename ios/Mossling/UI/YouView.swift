@@ -28,9 +28,10 @@ struct YouView: View {
                                 if let a = app.age {
                                     HStack(alignment: .firstTextBaseline, spacing: 2) {
                                         Ticking(text: "\(a.months)").font(Typeface.numerals(22, relativeTo: .title3, weight: .bold))
-                                        Text("个月").font(.footnote.weight(.semibold))
-                                        if a.days > 0 { Ticking(text: "\(a.days)").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).padding(.leading, 3); Text("天").font(.footnote.weight(.semibold)) }
+                                        Text("个月").font(.footnote.weight(.semibold)).fixedSize()
+                                        if a.days > 0 { Ticking(text: "\(a.days)").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).padding(.leading, 3); Text("天").font(.footnote.weight(.semibold)).fixedSize() }
                                     }
+                                    .fixedSize()   // "6 个月 17 天" stays one line: a unit never breaks off its number
                                     .foregroundStyle(Palette.accent)
                                 }
                                 Text(app.birth.map { "\($0.y)年\($0.md)出生" + (app.age.map { " · 第 \($0.lived) 天" } ?? "") } ?? "填写出生日期")

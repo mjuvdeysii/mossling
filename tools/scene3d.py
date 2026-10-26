@@ -47,6 +47,27 @@ def capture(spec, area):
 
 pb.companions = lambda *a, **k: None   # the 2D companions are replaced by the 3D ones
 
+_mark = pb.mark
+def mark3d(sv, m, ppl):
+    """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us)."""
+    if m["k"] == "look" and isinstance(m.get("a"), str) and isinstance(m.get("b"), str):
+        def end(v, other):
+            who, part = (v.split(".") + ["head"])[:2]
+            p = ppl.get(who)
+            if not p or part != "head": return None
+            c = p.head(); r = p.d["head"] * 1.25
+            dx, dy = other[0] - c[0], other[1] - c[1]; d = max(1e-3, math.hypot(dx, dy))
+            return (c[0] + dx / d * r, c[1] + dy / d * r)
+        ca = ppl[m["a"].split(".")[0]].head() if m["a"].split(".")[0] in ppl else None
+        cb = ppl[m["b"].split(".")[0]].head() if m["b"].split(".")[0] in ppl else None
+        if ca and cb:
+            a, b = end(m["a"], cb), end(m["b"], ca)
+            if a and b:
+                sv.add(f'<path d="M{a[0]:.1f} {a[1]:.1f} L{b[0]:.1f} {b[1]:.1f}" stroke="{m.get("c", "#4C9BE8")}" stroke-width="5" stroke-dasharray="1 13" stroke-linecap="round" fill="none"/>')
+                return
+    _mark(sv, m, ppl)
+pb.mark = mark3d
+
 def layers(spec, area, watch=None):
     """The 2D layers: the backdrop with the scenery and the contact shadows (under the 3D), and the flat props and the
     marks (over it)."""
@@ -580,6 +601,80 @@ def export(codes, size):
             index["size"][n] = [size, int(size * pb.H / pb.W)]; print("wrote", n, flush=True)
         json.dump(index, open(ipath, "w"), separators=(",", ":"))
 
+def figures():
+    """The growing child on its own (the growth map, the hug, the welcome): the picture book's seven stages, now as
+    the same vinyl figure as in the pictures. Square, transparent, a soft shadow under it."""
+    art = os.path.join(HERE, "..", "ios", "Art", "art"); ipath = os.path.join(art, "index.json"); index = json.load(open(ipath))
+    from PIL import ImageDraw, ImageFilter
+    for i, (pose, age, x, k) in enumerate(pb.FIGURES):
+        VIEW.update(z=k, cx=150)
+        c = pb.Person("child", pose, x, face=-1, age=age, expr="wow" if pose == "lieback" else "smile", at=(x, pb.GROUND),
+                      hands=[(x - 60, pb.GROUND - 86), None] if pose in ("stand", "walk") else [None, None], girl=pb.GIRL)
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"; sc.view_settings.exposure = -0.75
+        ip3d.materials(); MATS.clear(); lights()
+        person3d(c, 0.0)
+        bpy.ops.object.camera_add(location=(150 / U, -30, (pb.GROUND - (pb.GROUND - 136)) / U)); cam = bpy.context.object
+        cam.rotation_euler = (math.radians(90), 0, 0); cam.data.type = "ORTHO"; cam.data.ortho_scale = 300 / U; sc.camera = cam
+        tmp = f"/tmp/fig{i}.png"; ip3d.render(tmp, 600, 600)
+        im = Image.open(tmp).convert("RGBA")
+        sh = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(sh)
+        lying = pose in ("prone", "lieback")
+        hx = (150 + ((c.hip[0] - (c.d["torso"] * .45 * c.f if lying else 0)) - 150) * k) * 2
+        d.ellipse((hx - 120, 2 * 290 - 14, hx + 120, 2 * 290 + 14), fill=(90, 58, 32, 50))
+        sh = sh.filter(ImageFilter.GaussianBlur(10)); sh.alpha_composite(im)
+        n = f"child_{i}{pb.SUFFIX}.webp"; sh.save(os.path.join(art, n), "WEBP", quality=90, method=6)
+        index["size"][n] = [600, 600]; print("wrote", n, flush=True)
+    json.dump(index, open(ipath, "w"), separators=(",", ":"))
+
+def trays():
+    """The shelf's trays (本周的架子): a wooden Montessori tray with a felt mat in the play's area colour and its
+    materials on it — the same vinyl things as in the pictures, seen a little from above. Flat things (cards, books)
+    are the picture book's own, set where the 3D tray puts them."""
+    sys.path.insert(0, HERE)
+    import stickers
+    from bpy_extras.object_utils import world_to_camera_view
+    art = os.path.join(HERE, "..", "ios", "Art", "art"); ipath = os.path.join(art, "index.json"); index = json.load(open(ipath))
+    only = arg("--only", "").split(",") if "--only" in ARGS else None
+    for p in pb.C["activities"]:
+        code = p["code"]
+        if only and code not in only: continue
+        area = pb.area_of(p)
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"; sc.view_settings.exposure = -0.75
+        ip3d.materials(); MATS.clear(); lights()
+        VIEW.update(z=1.0, cx=0)
+        # the tray: a base, four rounded rails, the felt
+        rbox("tray", (2.0, 0.0, 0.03), (3.3, 1.5, 0.06), "#D9AE76", 0.4, 0.55)
+        for (cx, cy, w, d) in ((2.0, -0.72, 3.3, 0.08), (2.0, 0.72, 3.3, 0.08), (0.37, 0, 0.08, 1.5), (3.63, 0, 0.08, 1.5)):
+            rbox("rail", (cx, cy, 0.1), (w, d, 0.16), "#C99258", 0.45, 0.55)
+        rbox("felt", (2.0, 0.0, 0.065), (3.1, 1.3, 0.012), pb.AREA[area][0], 0.4, 0.9)
+        flat = []
+        for (k, dx, s_, c, r) in stickers.TRAYS.get(code, []):
+            x = 200 + dx * 1.25
+            o = dict(k=k, x=x, y=pb.GROUND - 7, s=s_ * 1.7, c=c, rot=r)
+            if k in FLAT or k in SCENERY: flat.append(o)
+            else: prop3d(o, 0.0)
+        bpy.ops.object.camera_add(location=(2.0, -9 * math.cos(math.radians(24)), 0.55 + 9 * math.sin(math.radians(24)))); cam = bpy.context.object
+        cam.rotation_euler = (math.radians(90 - 24), 0, 0); cam.data.type = "ORTHO"; cam.data.ortho_scale = 4.0; sc.camera = cam
+        sc.render.resolution_x, sc.render.resolution_y = 800, 600
+        bpy.context.view_layer.update()
+        tmp = f"/tmp/tray_{code}.png"; ip3d.render(tmp, 800, 600)
+        im = Image.open(tmp).convert("RGBA")
+        from PIL import ImageDraw, ImageFilter
+        sh = Image.new("RGBA", im.size, (0, 0, 0, 0)); ImageDraw.Draw(sh).ellipse((70, 470, 730, 545), fill=(90, 58, 32, 46))
+        sh = sh.filter(ImageFilter.GaussianBlur(14)); sh.alpha_composite(im); im = sh
+        if flat:
+            sv = pb.SVG(400, 300)
+            for o in flat:
+                from mathutils import Vector
+                q = world_to_camera_view(sc, cam, Vector((o["x"] / U, 0.0, 0.075)))
+                pb.obj = _obj
+                _obj(sv, o["k"], q.x * 400, (1 - q.y) * 300, o["s"] * 0.9, o["c"], o["rot"])
+            F = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=800))).convert("RGBA")
+            im.alpha_composite(F)
+        n = f"tray_{code.lower()}.webp"; im.save(os.path.join(art, n), "WEBP", quality=90, method=6)
+        index["size"][n] = [800, 600]; print("wrote", n, flush=True)
+    json.dump(index, open(ipath, "w"), separators=(",", ":"))
+
 def one(code, out):
     spec = json.load(open(pb.SCENES))[code]
     play = next(p for p in pb.C["activities"] if p["code"] == code)
@@ -591,6 +686,8 @@ def one(code, out):
         prev = render_step(st, area, os.path.join(out, f"{code}_{i + 1}.jpg"), arg("--size", 1440), prev, i, len(spec))
 
 if __name__ == "__main__":
+    if ARGS[0] == "figures": figures(); sys.exit()
+    if ARGS[0] == "trays": trays(); sys.exit()
     if ARGS[0] == "export":
         codes = arg("--play", "").split(",") if "--play" in ARGS else [a["code"] for a in pb.C["activities"] if a["code"] in json.load(open(pb.SCENES))]
         export([c for c in codes if c], arg("--size", 1440)); sys.exit()

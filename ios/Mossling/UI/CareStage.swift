@@ -171,24 +171,40 @@ struct LastLine: View {
         }
     }
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var big: Bool { typeSize >= .xxLarge }
+
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { tl in
             if let f = Self.fact(type, in: j.logs, before: until ?? .infinity) {
                 let to = until.map { Date(timeIntervalSince1970: $0 / 1000) } ?? tl.date
                 let gap = to.timeIntervalSince(f.at)
                 let c = LogType.color(type)
-                HStack(spacing: 10) {
-                    Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
-                            .font(.subheadline.weight(.semibold)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.75)
-                    }
-                    Spacer(minLength: 6)
-                    VStack(alignment: .trailing, spacing: 0) {
-                        Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
-                            .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                let when = VStack(alignment: .leading, spacing: 1) {
+                    Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
+                        .font(.subheadline.weight(.semibold)).monospacedDigit().fixedSize(horizontal: false, vertical: true)
+                }
+                let since = VStack(alignment: big ? .leading : .trailing, spacing: 0) {
+                    Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
+                        .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c)).fixedSize()
+                }
+                // large text: the two stack (nothing is cut or squeezed); otherwise one row
+                Group {
+                    if big {
+                        HStack(alignment: .top, spacing: 10) {
+                            Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+                            VStack(alignment: .leading, spacing: 6) { when; since }
+                            Spacer(minLength: 0)
+                        }
+                    } else {
+                        HStack(spacing: 10) {
+                            Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+                            when
+                            Spacer(minLength: 6)
+                            since
+                        }
                     }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
