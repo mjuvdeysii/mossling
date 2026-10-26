@@ -70,12 +70,23 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
             Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                 app.mossling.ui.ip.Duo(app.mossling.ui.theme.LocalCompanion.current, size = 88.dp)
                 Text("摸索台灯", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
-                Text("Mossling · 0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium)
-                Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
+                Text("孩子摸索，大人点灯", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                Text("Mossling · 陪 0–3 岁的孩子一起玩、一起长大", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
                 Text("版本 $version · 构建 $build", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
         }
         item { UpdateCard(st, updater) { open(it) } }
+        // the name, told (docs/IP.md), and how the app was made
+        item {
+            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                AboutText("摸索台灯的故事",
+                    "摸索属于孩子：0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。\n\n" +
+                    "台灯属于大人：台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。\n\n" +
+                    "在这里做三件事：一起玩（本周的架子与逐步插画）、看他长大（0–36 个月共 37 站与成长地图）、记下来（可选的记录，只保存在本机）。不打分，不比较，不催促。36 个月以后，故事仍在继续。")
+                AboutText("制作",
+                    "摸索台灯由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。育儿内容整理自公开发布的机构资料，每一条都在「内容来源」中注明。")
+            }
+        }
         item {
             var crash by remember { mutableStateOf(app.mossling.CrashLog.read(ctx)) }
             crash?.let { text ->
@@ -113,9 +124,19 @@ fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = n
         item {
             Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 20.dp)) {
                 Text("免责声明", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。",
+                Text("本应用陪伴家庭养育，内容仅供参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun AboutText(title: String, body: String) {
+    Column {
+        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
+        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+            Text(body, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
         }
     }
 }

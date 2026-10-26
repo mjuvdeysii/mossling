@@ -39,6 +39,12 @@ jobs:
           echo "::notice title=Simulator::$DEV"
           mkdir -p "$PWD/shots"
           echo "$DEV" > sim.txt
+          # network probe: every network event the app's own processes make while the tests run (the app should make none;
+          # in China a first network use shows the system's 无线数据 prompt)
+          xcrun simctl boot "$DEV" 2>/dev/null || true
+          xcrun simctl spawn "$DEV" log stream --style compact --level debug \
+            --predicate '(process BEGINSWITH "Mossling") AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")' > net.log 2>&1 &
+          echo $! > net.pid
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$DEV" \
             -skip-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
@@ -52,6 +58,17 @@ jobs:
         run: |
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
             -only-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Case.*(passed|failed)|\*\* " || true
+      - name: Network probe report
+        if: always()
+        continue-on-error: true
+        working-directory: ios
+        run: |
+          kill "$(cat net.pid 2>/dev/null)" 2>/dev/null || true
+          mkdir -p shots
+          { echo "Network events from the app's processes during the simulator tests ($(wc -l < net.log 2>/dev/null) log lines)"
+            grep -E "nw_connection|nw_endpoint|Task <|hostname|https?://|resolver|Connection [0-9]+" net.log | sed -E 's/^[0-9-]+ [0-9:.]+ //' | sort | uniq -c | sort -rn | head -80
+          } > shots/ios_network.txt
+          head -40 shots/ios_network.txt | while IFS= read -r l; do echo "::notice title=Network::$l"; done
       - name: App icon check
         if: always()
         continue-on-error: true

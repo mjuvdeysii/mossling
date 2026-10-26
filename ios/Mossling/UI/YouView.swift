@@ -345,7 +345,8 @@ struct ProfileSheet: View {
 
 private var stamp: String { let d = Day.today; return String(format: "%04d%02d%02d", d.y, d.m, d.d) }
 
-/// About: name, version, the documents, sources and licences, a short disclaimer.
+/// About, in the order a parent asks: what this is (the name and its story), who made it and how (AI-assisted, with
+/// the content's sources), the documents, help. Every row is the same shape: an icon tile, one name, a chevron.
 struct AboutView: View {
     @Environment(AppModel.self) private var app
     @State private var replay = false
@@ -357,40 +358,111 @@ struct AboutView: View {
                 VStack(spacing: 6) {
                     Duo(primary: app.companion, size: 96)
                     Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
-                    Text("Mossling · 0–3 岁早教活动规划").font(.subheadline).foregroundStyle(Palette.secondaryText)
-                    Text("版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    Text("孩子摸索，大人点灯").font(.headline).foregroundStyle(Palette.accent)
+                    Text("Mossling · 版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 8)
                 .listRowBackground(Color.clear)
             }
             Section {
-                NavigationLink(value: Route.doc("TERMS")) { Label { Text("使用条款") } icon: { IconTile(symbol: "doc.text.fill", color: Crayon.pebble) } }
-                NavigationLink(value: Route.doc("PRIVACY")) { Label { Text("隐私政策") } icon: { IconTile(symbol: "hand.raised.fill", color: Crayon.sky) } }
-                NavigationLink(value: Route.doc("DISCLAIMER")) { Label { Text("免责声明") } icon: { IconTile(symbol: "exclamationmark.bubble.fill", color: Crayon.tangerine) } }
+                row(Route.story, "摸索台灯的故事", "lamp.desk.fill", Crayon.sunflower)
+            } footer: {
+                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。不打分，不比较，不催促。")
             }
             Section {
-                NavigationLink(value: Route.sources) { Label { Text("内容来源") } icon: { IconTile(symbol: "books.vertical.fill", color: Crayon.caramel) } }
-                NavigationLink(value: Route.licenses) { Label { Text("许可与致谢") } icon: { IconTile(symbol: "checkmark.seal.fill", color: Crayon.aqua) } }
-                NavigationLink(value: Route.doc("CHANGELOG")) { Label { Text("更新日志") } icon: { IconTile(symbol: "clock.arrow.circlepath", color: Crayon.lilac) } }
+                row(Route.sources, "内容来源", "books.vertical.fill", Crayon.caramel)
+                row(Route.licenses, "许可与致谢", "checkmark.seal.fill", Crayon.aqua)
+            } header: { Text("制作") } footer: {
+                Text("摸索台灯由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。育儿内容整理自公开发布的机构资料，每一条都注明来源。")
+            }
+            Section("文件") {
+                row(Route.doc("TERMS"), "使用条款", "doc.text.fill", Crayon.pebble)
+                row(Route.doc("PRIVACY"), "隐私政策", "hand.raised.fill", Crayon.sky)
+                row(Route.doc("DISCLAIMER"), "免责声明", "exclamationmark.shield.fill", Crayon.tangerine)
+                row(Route.doc("CHANGELOG"), "更新日志", "clock.arrow.circlepath", Crayon.lilac)
+            }
+            Section {
                 Button { Guide.replayNextLaunch(); replay = true } label: {
-                    Label { Text(replay ? "下次打开时重新显示使用提示" : "重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
+                    Label { Text("重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
                 }
                 .tint(.primary).disabled(replay)
                 Link(destination: URL(string: "https://github.com/mjuvdeysii/mossling/issues")!) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
                     .tint(.primary)
-            } footer: {
-                VStack(spacing: 6) {
-                    Text("本应用内容仅供家庭养育参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。")
+            } header: { Text("帮助") } footer: {
+                VStack(alignment: .leading, spacing: 6) {
+                    if replay { Text("下次打开应用时，使用提示会重新出现。") }
+                    Text("本应用陪伴家庭养育，不构成医疗诊断或治疗建议。对孩子的健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。")
                     // the App filing number, shown where the filing rules ask (设置 / 关于), once there is one
                     if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
                         Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!).font(.footnote.weight(.semibold))
                     }
                 }
-                .padding(.top, 8)
+                .padding(.top, 4)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .navigationTitle("关于").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("关于摸索台灯").navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func row(_ r: Route, _ t: String, _ sym: String, _ c: Color) -> some View {
+        NavigationLink(value: r) { Label { Text(t) } icon: { IconTile(symbol: sym, color: c) } }
+    }
+}
+
+/// The name, told: the opening scene still, then what 摸索 and 台灯 mean, what the app does and does not do, and that
+/// the story goes on past 36 months (docs/IP.md).
+struct StoryView: View {
+    @Environment(AppModel.self) private var app
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                LampScene(play: true)
+                    .frame(height: 260)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                Text("孩子摸索，大人点灯").font(.title.weight(.bold))
+                pair("摸索", "孩子", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
+                pair("台灯", "大人", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("在这里做的三件事").font(.headline)
+                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
+                    thing("leaf.fill", Crayon.leaf, "看他长大", "0–36 个月，一个月一站，共 37 站；成长滚轮和成长册留下每一站的样子。")
+                    thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来（可选）", "喂奶、睡眠、尿布一点即记，只保存在这部手机里。")
+                }
+                .card(Palette.card, radius: 24, padding: 18)
+                Text("这里不打分，不比较，也不催促。每个孩子都按自己的节奏，一个月长出一点新的样子。")
+                    .font(.body).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                StoryGoesOn(primary: app.companion)
+            }
+            .padding(.horizontal, 16).padding(.bottom, 32)
+        }
+        .pageBackground()
+        .navigationTitle("摸索台灯的故事").navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func pair(_ word: String, _ who: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
+        HStack(alignment: .top, spacing: 14) {
+            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 64, height: 64).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(word).font(.title2.weight(.bold)).foregroundStyle(c)
+                    Text("属于" + who).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                }
+                Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .card(Palette.card, radius: 24, padding: 16)
+        .accessibilityElement(children: .combine)
+    }
+
+    private func thing(_ sym: String, _ c: Color, _ t: String, _ d: String) -> some View {
+        HStack(alignment: .top, spacing: 12) {
+            IconTile(symbol: sym, color: c, size: 34)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(t).font(.subheadline.weight(.semibold))
+                Text(d).font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -401,9 +473,11 @@ struct DocView: View {
         let raw = (Bundle.main.url(forResource: name, withExtension: "md").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "读取不到这份文件。")
             .replacingOccurrences(of: "安卓应用", with: "应用")
         let lines = raw.components(separatedBy: "\n")
+        // a table's first row (the one followed by |---|) names the columns; it is not an entry
+        let heads = Set(lines.indices.filter { i in i + 1 < lines.count && lines[i].hasPrefix("|") && lines[i + 1].replacingOccurrences(of: " ", with: "").hasPrefix("|---") })
         ScrollView {
             VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, l in docLine(l) }
+                ForEach(Array(lines.enumerated()), id: \.offset) { i, l in if !heads.contains(i) { docLine(l) } }
             }
             .padding(.horizontal, 20).padding(.bottom, 40)
         }

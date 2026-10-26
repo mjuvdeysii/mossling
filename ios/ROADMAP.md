@@ -1,4 +1,4 @@
-# 芽芽月历 iOS 版 · 重构路线图
+# 摸索台灯 iOS 版 · 重构路线图
 
 目标：一个原汁原味的 iOS 应用，而不是安卓版的搬运。内容与安卓版一致（content.json、WHO 数据、条款），其余按 Apple Human Interface Guidelines 与最新 iOS 设计语言（液态玻璃 / Liquid Glass）重新构思：界面、配色、字体、插画、Moss 与 Otto、应用图标。
 

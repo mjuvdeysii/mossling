@@ -163,15 +163,20 @@ struct StatsView: View {
     @Environment(JournalStore.self) private var j
     var body: some View {
         let days = (0..<7).reversed().map { app.today.plus(days: -$0) }
-        let rows = days.map { d -> (Day, Int, Double, Int) in
+        let rows = days.map { d -> (Day, Int, Double, Int, Double, Double) in
             let l = j.logs(on: d)
             return (d, l.feedCount(from: d.date.timeIntervalSince1970 * 1000),
                     l.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) } / 3600,
-                    l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count)
+                    l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count,
+                    // minutes on the breast (pauses left out) and millilitres from the bottle
+                    l.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) } / 60,
+                    Double(l.filter { $0.type == LogType.bottle && !$0.carriedOver(into: d) }.reduce(0) { $0 + ($1.amount ?? 0) }))
         }
         ScrollView {
             VStack(spacing: 14) {
                 chart("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })
+                if rows.contains(where: { $0.4 > 0 }) { chart("亲喂时长", "分钟", LogType.nurse, rows.map { ($0.0, $0.4) }) }
+                if rows.contains(where: { $0.5 > 0 }) { chart("瓶喂奶量", "毫升", LogType.bottle, rows.map { ($0.0, $0.5) }) }
                 chart("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) })
                 chart("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })
             }
@@ -187,7 +192,7 @@ struct StatsView: View {
             VStack(alignment: .leading, spacing: 0) {
                 Text("有记录的日子平均").font(.footnote).foregroundStyle(Palette.secondaryText)
                 // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
-                if unit == "小时" { Text(durationValue(avg * 3600)).font(Typeface.numerals(26, relativeTo: .title2, weight: .bold)) }
+                if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(26, relativeTo: .title2, weight: .bold)) }
                 else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 30) }
             }
             Chart(data, id: \.0) { d in
@@ -198,6 +203,7 @@ struct StatsView: View {
                 AxisMarks(position: .trailing) { v in
                     AxisGridLine()
                     if let d = v.as(Double.self), unit == "小时" || d == d.rounded() {
+                        // minutes and millilitres are whole numbers already
                         AxisValueLabel { Text(unit == "小时" ? String(format: "%g", d) : "\(Int(d))") }
                     }
                 }

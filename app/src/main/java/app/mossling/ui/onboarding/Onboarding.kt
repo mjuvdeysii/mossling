@@ -60,14 +60,14 @@ fun Onboarding(onBirth: () -> Unit, onSkip: () -> Unit) {
         Spacer(Modifier.height(28.dp))
         Text("摸索台灯", style = MaterialTheme.typography.displayMedium, color = MaterialTheme.colorScheme.primary)
         Text("Mossling", fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("跟着孩子，一个月一站。", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(top = 12.dp))
-        Text("0–3 岁早教活动规划", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+        Text("孩子摸索，大人点灯。", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp))
+        Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
         Spacer(Modifier.weight(1f))
         Button(onClick = onBirth, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(20.dp)) { Text("填写宝宝的出生日期") }
         TextButton(onClick = onSkip, modifier = Modifier.fillMaxWidth().height(52.dp)) { Text("先看看") }
         // what continuing means, with each document one tap away
         var doc by remember { androidx.compose.runtime.mutableStateOf<String?>(null) }
-        Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。", style = MaterialTheme.typography.bodySmall,
+        Text("继续使用即表示已阅读并同意以下文件。本应用陪伴家庭养育，不能替代医生的诊断和建议。", style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
         androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
             listOf("使用条款" to "TERMS.md", "隐私政策" to "PRIVACY.md", "免责声明" to "DISCLAIMER.md").forEach { (t, f) ->

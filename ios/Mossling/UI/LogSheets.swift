@@ -68,7 +68,7 @@ struct AskSheet: View {
             HStack(alignment: .firstTextBaseline) {
                 ValueText(parts: [("\(Int(ml))", "毫升")], size: 44)
                 Spacer()
-                Stepper("奶量", value: $ml, in: 10...300, step: 10).labelsHidden()
+                Stepper("奶量", value: $ml, in: 5...300, step: 5).labelsHidden()
             }
             FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
             save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
@@ -210,7 +210,7 @@ struct EntrySheet: View {
             Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
                 Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
             }
-            Stepper(value: Binding(get: { entry.amount ?? 120 }, set: { entry.amount = $0 }), in: 10...300, step: 10) { LabeledContent("奶量", value: "\(entry.amount ?? 120) 毫升") }
+            Stepper(value: Binding(get: { entry.amount ?? 120 }, set: { entry.amount = $0 }), in: 5...300, step: 5) { LabeledContent("奶量", value: "\(entry.amount ?? 120) 毫升") }
         case LogType.nurse:
             Picker("哪边", selection: Binding(get: { entry.side ?? "l" }, set: { entry.side = $0 })) { Text("左侧").tag("l"); Text("右侧").tag("r") }.pickerStyle(.segmented)
         case LogType.diaper:

@@ -2,7 +2,7 @@ import SwiftUI
 import LocalAuthentication
 
 enum Route: Hashable {
-    case play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book
+    case story, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book
 }
 
 @main
@@ -188,6 +188,7 @@ private struct RouteView: View {
         case let .topic(id): if let t = app.content.topics.first(where: { $0.id == id }) { TopicView(topic: t) }
         case .search: SearchView(path: $path)
         case .about: AboutView()
+        case .story: StoryView()
         case .sources: SourcesView()
         case .licenses: LicensesView()
         case let .doc(n): DocView(name: n)
@@ -196,118 +197,69 @@ private struct RouteView: View {
     }
 }
 
-/// First run: the welcome page as it was (the two of them, the name, 填写出生日期 / 稍后再填), with three silent shots
-/// played in place (IP v1.3 §11.2) — no words from the characters, every line on the page is plain UI:
-///  A. the two rise and see each other (Moss two quick glances, Otto one slow look);
-///  B. they turn to the parent; tapping either makes it the main companion — the page says which, and that it can be
-///     changed in 我的 (the choice changes the performance only, never what the app can do);
-///  C. the chosen one looks down at the real way in, 填写出生日期.
-/// Nothing waits for the shots: the buttons work from the first frame, 稍后再填 skips everything, and a returning
-/// user never sees this page. Under Reduce Motion the page is still, already at shot C.
+/// First run, told by the two of them (docs/IP.md): the evening table, Otto's lamp coming on, Moss exploring in its
+/// light (LampScene, about four seconds, once), then the name and what it means in plain words — 孩子摸索，大人点灯.
+/// Then the IP v1.3 shots in place: tap either companion to make it the main one (the page says which, and that it can
+/// be changed), and the main one looks down at the way in, 填写出生日期.
+/// Nothing waits for the animation: the buttons work from the first frame, 稍后再填 skips everything, a returning user
+/// never sees this page, and under Reduce Motion the scene is still.
 struct OnboardingView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var askBirth = false
     @State private var doc: String?
-    @State private var rise = false
-    /// 0 rising, 1 seeing each other, 2 facing the parent, 3 the chosen one looking at the way in.
-    @State private var shot = 0
     @State private var chose = false
-    /// Moss's glance comes in two quick steps.
-    @State private var mossHalf = false
+    @State private var lookDown = false
     var body: some View {
         let k = app.companion
         VStack(spacing: 0) {
-            ZStack(alignment: .bottom) {
-                Sky()
-                HStack(alignment: .bottom, spacing: -14) {
-                    pick(.moss, size: 150, drop: 40)
-                    pick(.otto, size: 132, drop: 60)
-                }
-                .opacity(rise ? 1 : 0)
-                .padding(.bottom, 26)
+            LampScene(play: true, chosen: chose ? k : nil, lookDown: lookDown) { kind in
+                withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.8)) { app.companion = kind; chose = true }
+                lookDown = true
             }
             .frame(maxHeight: .infinity)
             .ignoresSafeArea(edges: .top)
+            .sensoryFeedback(.selection, trigger: app.companion)
 
-            VStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text("摸索台灯").font(.largeTitle.weight(.bold))
-                Text("跟着孩子，一个月一站").font(.title3).foregroundStyle(Palette.secondaryText)
-                // shot B's words belong to the page, not to the characters
+                Text("孩子摸索，大人点灯").font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
+                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。")
+                    .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                // the choice belongs to the page, not to the characters
                 Text(chose ? "主伙伴：\(k.rawValue) · 之后可在「我的」更换" : "点一位作为主伙伴，两位功能相同")
                     .font(.footnote).foregroundStyle(Palette.secondaryText)
-                    .padding(.top, 2)
+                    .padding(.top, 4)
                     .contentTransition(.opacity)
-                    .accessibilityAddTraits(.updatesFrequently)
             }
             .multilineTextAlignment(.center)
-            .padding(.top, 8).padding(.horizontal, 24)
+            .padding(.top, 14).padding(.horizontal, 24)
 
             VStack(spacing: 10) {
                 Button { askBirth = true } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
                 Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
-                Text("继续使用即表示已阅读并同意以下文件。本应用提供家庭养育参考，不能替代医生的诊断和建议。")
-                    .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).padding(.top, 6)
+                Text("继续使用即表示已阅读并同意以下文件。本应用陪伴家庭养育，不能替代医生的诊断和建议。")
+                    .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).padding(.top, 4)
                 HStack(spacing: 16) {
                     ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
                         Button(t) { doc = f }.font(.caption.weight(.semibold))
                     }
                 }
             }
-            .padding(.horizontal, 24).padding(.top, 22).padding(.bottom, 12)
+            .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
         }
         .pageBackground()
-        .task { await play() }
+        .task {
+            // shot C after the opening: the main one looks at the way in
+            if !reduce { try? await Task.sleep(for: .milliseconds(5200)) }
+            lookDown = true
+        }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
             NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { doc = nil } } } }
         }
-    }
-
-    /// One of the two, as a button: tap to make it the main companion. The chosen one stands a little larger.
-    private func pick(_ kind: Kind, size: CGFloat, drop: CGFloat) -> some View {
-        let on = app.companion == kind
-        return Button {
-            withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.75)) { app.companion = kind; chose = true }
-            if shot < 3 { shot = 3 }
-        } label: {
-            Creature(kind: kind, mood: shot == 2 && on ? .happy : .open, look: look(kind),
-                     lean: shot == 1 ? (kind == .moss ? MascotStyle.moss.tiltDegrees : -MascotStyle.otto.tiltDegrees) : 0,
-                     lookSeconds: Double(MascotStyle.of(kind).glanceMs) / 1000)
-                .frame(width: size, height: size)
-                .scaleEffect(chose && !on ? 0.88 : 1, anchor: .bottom)
-        }
-        .buttonStyle(.plain)
-        .offset(y: rise ? 0 : drop)
-        .accessibilityLabel("选择 \(kind.rawValue) 作为主伙伴，\(kind.trait)")
-        .accessibilityAddTraits(on && chose ? .isSelected : [])
-        .sensoryFeedback(.selection, trigger: app.companion)
-    }
-
-    /// Where each one looks in each shot.
-    private func look(_ kind: Kind) -> CGPoint {
-        switch shot {
-        case 1: return kind == .moss ? (mossHalf ? CGPoint(x: 0.45, y: -0.05) : CGPoint(x: 0.95, y: -0.15)) : CGPoint(x: -0.95, y: 0.05)   // at each other
-        case 2: return CGPoint(x: kind == .moss ? 0.2 : -0.2, y: 0.15)                           // at the parent
-        case 3: return kind == app.companion ? CGPoint(x: kind == .moss ? 0.35 : -0.35, y: 1)      // down at 填写出生日期
-                                             : CGPoint(x: kind == .moss ? 0.9 : -0.9, y: 0.4)     // at the chosen one
-        default: return CGPoint(x: kind == .moss ? 0.6 : -0.6, y: 0)
-        }
-    }
-
-    private func play() async {
-        if reduce { rise = true; shot = 3; return }
-        withAnimation(.spring(duration: 0.9)) { rise = true }
-        try? await Task.sleep(for: .milliseconds(900))
-        if shot < 1 { mossHalf = true; shot = 1 }         // A: they see each other (Moss in two quick steps)
-        try? await Task.sleep(for: .milliseconds(MascotStyle.moss.glanceMs + 60))
-        mossHalf = false
-        try? await Task.sleep(for: .milliseconds(1300))
-        if shot < 2 { shot = 2 }                          // B: they turn to the parent
-        try? await Task.sleep(for: .milliseconds(1400))
-        if shot < 3 { shot = 3 }                          // C: the chosen one looks at the way in
     }
 }
 

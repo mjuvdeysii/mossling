@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -139,8 +140,13 @@ fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, on
                     Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 12.dp)) {
                         Text("${ml.roundToInt()}", style = MaterialTheme.typography.displayMedium)
                         Text(" 毫升", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 10.dp))
+                        Spacer(Modifier.weight(1f))
+                        // 5 ml at a time, as precise as a bottle's markings
+                        FilledTonalButton(onClick = { ml = (ml - 5f).coerceAtLeast(5f) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("−5") }
+                        Spacer(Modifier.width(8.dp))
+                        FilledTonalButton(onClick = { ml = (ml + 5f).coerceAtMost(300f) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("+5") }
                     }
-                    Slider(ml, { ml = (it / 10).roundToInt() * 10f }, valueRange = 10f..300f)
+                    Slider(ml, { ml = (it / 5).roundToInt() * 5f }, valueRange = 5f..300f, steps = 58)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(60, 90, 120, 150, 180).forEach { v -> FilterChip(selected = ml.roundToInt() == v, onClick = { ml = v.toFloat() }, label = { Text("$v") }) }
                     }
@@ -255,7 +261,7 @@ fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -
                 LogType.Bottle -> {
                     var ml by remember(e.id) { mutableFloatStateOf((cur.amount ?: 120).toFloat()) }
                     Text("${ml.roundToInt()} 毫升", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-                    Slider(ml, { ml = (it / 10).roundToInt() * 10f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 10f..300f)
+                    Slider(ml, { ml = (it / 5).roundToInt() * 5f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 5f..300f, steps = 58)
                 }
                 LogType.Nurse -> Choice(listOf("l" to "左侧", "r" to "右侧"), cur.side) { cur = cur.copy(side = it) }
                 LogType.Diaper -> Choice(listOf("wet" to "湿", "dirty" to "便", "both" to "都有"), cur.detail) { cur = cur.copy(detail = it) }

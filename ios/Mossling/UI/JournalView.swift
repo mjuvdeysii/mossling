@@ -451,6 +451,9 @@ private struct Totals: View {
         let own = logs.filter { !$0.carriedOver(into: day) }
         let feeds = logs.feedCount(from: day.date.timeIntervalSince1970 * 1000)
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
+        // breastfeeding as time on the breast that day (pauses left out), not only how many times
+        let nursed = logs.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: day) }
+        let feedLine = [nursed >= 60 ? "亲喂 " + durationValue(nursed) : nil, ml > 0 ? "瓶喂 \(ml) 毫升" : nil].compactMap { $0 }.joined(separator: " · ")
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
@@ -459,7 +462,7 @@ private struct Totals: View {
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
-            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], ml > 0 ? "瓶喂 \(ml) 毫升" : " "))
+            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], feedLine.isEmpty ? " " : feedLine))
             tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? "最长一觉 " + durationValue(longest) : " "))
             // what a doctor asks: how many wet, how many dirty
             tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? " " : "湿 \(wet) · 便 \(dirty)"))

@@ -65,7 +65,7 @@ final class ScreenshotTests: XCTestCase {
     /// IP v1.3 first run: shot C, Otto chosen — the page says so, Otto looks down at 填写出生日期, Moss at Otto.
     func test01OnboardingChosen() {
         let m = model(companion: .otto, birth: nil); m.onboarded = false
-        shot("01_onboarding_shot_c", settle: 5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
+        shot("01_onboarding_shot_c", settle: 6.5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
