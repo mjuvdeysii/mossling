@@ -143,5 +143,5 @@ final class MascotDirector {
 
 extension Kind {
     /// The character in a few words (a description for the picker, not something the character says).
-    var trait: String { self == .moss ? "好奇，爱探头看" : "专注，头顶一盏小灯" }
+    var trait: String { self == .moss ? "精力用不完，什么都要先看一眼" : "有点困，但灯一直亮着" }
 }

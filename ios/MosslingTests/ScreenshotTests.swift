@@ -209,8 +209,8 @@ final class ScreenshotTests: XCTestCase {
             StoryGoesOn(primary: .moss).padding(.horizontal)
         }.frame(maxWidth: .infinity, maxHeight: .infinity).background(Palette.background)
     }
-    func test12Characters() { shot("12_characters", height: 1100, characters) }
-    func test12CharactersDark() { shot("12_characters_dark", dark: true, height: 1100, characters) }
+    func test12Characters() { shot("12_characters", height: 1100, settle: 3, characters) }
+    func test12CharactersDark() { shot("12_characters_dark", dark: true, height: 1100, settle: 3, characters) }
     func test13Doc() { let m = model(); shot("13_terms", height: 1400, tabs(m, DocView(name: "TERMS"))) }
     /// One kind alone: tap 喂奶 and the day shows only feeds, with how many and the usual gap between them.
     func test15JournalOnlyFeeds() { let m = model(); m.journal = true; shot("15_journal_feeds", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()), only: "feed"))) }

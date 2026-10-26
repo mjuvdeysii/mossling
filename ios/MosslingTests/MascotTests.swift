@@ -125,4 +125,25 @@ final class MascotTests: XCTestCase {
         XCTAssertEqual(j.logs.filter { $0.type == LogType.sleep }.count, 1)
         XCTAssertEqual(box.events.filter { $0 == .recordPersistSuccess }.count, 1)
     }
+
+    /// The figures are rendered states; the view picks one from the face and the look, and every state has its picture.
+    func testSpriteStates() {
+        let st = Creature.state
+        XCTAssertEqual(st(.moss, .open, CGPoint(x: -0.9, y: 0), 0, false, false), "left")
+        XCTAssertEqual(st(.moss, .open, CGPoint(x: 0.7, y: 0.2), 0, false, false), "right")
+        XCTAssertEqual(st(.otto, .open, CGPoint(x: 0, y: -0.8), 0, false, false), "up")
+        XCTAssertEqual(st(.otto, .open, CGPoint(x: 0.1, y: 1), 0, false, false), "down")
+        XCTAssertEqual(st(.moss, .open, .zero, 1, false, false), "blink")
+        XCTAssertEqual(st(.otto, .open, .zero, 0, false, true), "yawn")
+        XCTAssertEqual(st(.moss, .open, .zero, 0, false, true), "idle", "only Otto yawns")
+        XCTAssertEqual(st(.moss, .happy, .zero, 0, true, false), "hop")
+        XCTAssertEqual(st(.otto, .sleep, .zero, 0, false, false), "sleep")
+        for (kind, names) in Creature.states {
+            for n in names {
+                let file = "ip_\(kind == .moss ? "moss" : "otto")_\(n).webp"
+                XCTAssertNotNil(ArtCache.shared.image(file, maxPixel: 256), "missing \(file)")
+            }
+        }
+        XCTAssertNotNil(Sprites.bead["idle"])
+    }
 }

@@ -1,14 +1,17 @@
 import SwiftUI
 
-/// A companion, drawn as on the app icon (tools/ios_icon.py): the same silhouettes, colours and eyes, in flat colour
-/// with a flat darker underside — no gloss, no sheen, no glass (ios/DESIGN.md §3). Beyond the icon it has a face that
-/// changes (a mouth, pink cheeks) and two small arms that appear only to wave or cheer, so at rest it is the icon.
+/// A companion as the studio made it: a matte soft-vinyl figure, rendered in Blender (tools/ip3d.py sprites) in each
+/// of its states — idle, a look left, right, up and down, a blink, wide eyes, its one kind of smile, asleep, and its own
+/// move (Moss hops, leaves up; Otto yawns). The view picks the state of the moment and moves the whole figure: it
+/// breathes, blinks, glances, hops; a contact shadow stays on the floor; Otto's bead throws a little light.
 ///
-/// `look` is where the pupils point (each axis −1…1); `lid` closes the eye (0 open, 1 shut), nil uses the character's
-/// own rest (Otto rests under a heavy lid). It breathes, blinks now and then, glances away and back, hops once when it
-/// becomes happy; Moss's mint leaves sway and Otto's bead swings on its rod. A tap makes it hop (Otto's bead swings
-/// wide); a long press is a pat — eyes close happily, cheeks go pink, a soft tap of haptics. Five quick taps on Moss
-/// send mint leaves drifting up. Everything is computed from time, so it stays still when Reduce Motion is on.
+/// Personalities (docs/IP.md): Moss is a small child — always charged, quick glances, a faster breath, a hop at any
+/// excuse — with a deadpan face. Otto is a tired grown-up — heavy lids, slow breath, a glance only now and then, and
+/// sometimes a long yawn — and still always holds the light. Neither smiles much; that is the joke.
+///
+/// `look` is where the eyes point (each axis −1…1, y down); `lid` ≥ 0.8 shuts the eyes. A tap makes it hop; a long
+/// press is a pat — eyes close happily, a soft tap of haptics. Five quick taps on Moss send mint leaves drifting up.
+/// Everything is computed from time, so it stays still when Reduce Motion is on.
 struct Creature: View {
     let kind: Kind
     var mood: Mood = .open
@@ -30,7 +33,6 @@ struct Creature: View {
     @State private var doubleBlink = false
     @State private var hopAt = Date.distantPast
     @State private var hopSize = 1.0
-    @State private var leafAt = Date.distantPast
     @State private var fleckAt = Date.distantPast
     @State private var glanceTo = CGPoint.zero
     @State private var glanceAt = Date.distantPast
@@ -40,9 +42,10 @@ struct Creature: View {
     @State private var leanAt = Date.distantPast
     @State private var taps = 0
     @State private var lastTap = Date.distantPast
-    @State private var swingAt = Date.distantPast
     @State private var pattedAt = Date.distantPast
     @State private var pats = 0
+    @State private var yawnAt = Date.distantPast
+    @State private var sprites: [String: UIImage] = [:]
 
     private var still: Bool { !alive || reduce }
 
@@ -62,6 +65,7 @@ struct Creature: View {
         .allowsHitTesting(poke)
         .task(id: still) { await blinks() }
         .task(id: still) { await glances() }
+        .task(id: kind) { await loadSprites() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
@@ -73,7 +77,7 @@ struct Creature: View {
         lastTap = now
         blinkAt = now; doubleBlink = false
         hopSize = 0.7; hopAt = now
-        leafAt = now; swingAt = now
+
         if taps >= 5 { taps = 0; fleckAt = now }   // 小薄荷
     }
 
@@ -89,8 +93,11 @@ struct Creature: View {
     private func glances() async {
         guard !still else { return }
         while !Task.isCancelled {
-            try? await Task.sleep(for: .milliseconds(7000 + Int.random(in: 0...7000)))
+            // Moss can't keep still; Otto can barely be bothered
+            try? await Task.sleep(for: kind == .moss ? .milliseconds(3200 + Int.random(in: 0...3800)) : .milliseconds(9000 + Int.random(in: 0...8000)))
             guard mood != .sleep else { continue }
+            if kind == .otto && mood == .open && Int.random(in: 0..<4) == 0 { yawnAt = Date(); continue }
+            if kind == .moss && mood == .open && Int.random(in: 0..<5) == 0 { hopSize = 0.45; hopAt = Date(); continue }
             glanceTo = CGPoint(x: Double.random(in: -0.6...0.6) - look.x * 0.6, y: Double.random(in: -0.5...0.3) - look.y * 0.6)
             glanceAt = Date()
         }
@@ -119,34 +126,72 @@ struct Creature: View {
 
     // MARK: drawing
 
+    /// Which of the rendered states (tools/ip3d.py sprites) shows this moment: the face first, then the look, quantised
+    /// to five directions — a designer toy does not slide its pupils, it turns them.
+    static func state(_ kind: Kind, face: Mood, look: CGPoint, lid: Double, hopping: Bool, yawning: Bool) -> String {
+        if face == .sleep { return "sleep" }
+        if face == .happy { return kind == .moss && hopping ? "hop" : "glee" }
+        if lid >= 0.8 { return "blink" }
+        if kind == .otto && yawning { return "yawn" }
+        if face == .wow { return "wide" }
+        if kind == .moss && hopping { return "hop" }
+        if abs(look.x) >= 0.45 && abs(look.x) >= abs(look.y) { return look.x < 0 ? "left" : "right" }
+        if look.y <= -0.45 { return "up" }
+        if look.y >= 0.45 { return "down" }
+        return "idle"
+    }
+    static let states: [Kind: [String]] = [
+        .moss: ["idle", "left", "right", "up", "down", "blink", "wide", "glee", "sleep", "hop"],
+        .otto: ["idle", "left", "right", "up", "down", "blink", "wide", "glee", "sleep", "yawn"],
+    ]
+    /// Where Otto's bead sits in each state (fraction of the square, from sprites.json), for the lamp's light.
+    static let bead: [String: CGPoint] = Sprites.bead
+    /// Feet line in the square (from the renders), where squash and stretch are anchored and the shadow sits.
+    private var feet: CGFloat { kind == .moss ? Sprites.mossFeet : Sprites.ottoFeet }
+
+    private func loadSprites() async {
+        let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
+        let names = Self.states[kind] ?? []
+        let loaded: [String: UIImage] = await Task.detached(priority: .userInitiated) {
+            var d: [String: UIImage] = [:]
+            for s in names { if let i = ArtCache.shared.image(prefix + s + ".webp", maxPixel: 512) { d[s] = i } }
+            return d
+        }.value
+        sprites = loaded
+    }
+
     private func draw(_ ctx: inout GraphicsContext, _ size: CGSize, _ now: Date) {
         let s = min(size.width, size.height) / 100
         let t = now.timeIntervalSinceReferenceDate
-        let period = mood == .sleep ? 4.2 : 3.2
+        let period = mood == .sleep ? 4.2 : kind == .moss ? 2.6 : 3.8
         let b = still ? 0 : (1 - cos(t / period * 2 * .pi)) / 2
-        let amp = mood == .sleep ? 0.022 : 0.012
-        let hop = still ? 0 : max(0, Self.bounce(now.timeIntervalSince(hopAt))) * hopSize
-        let leaf = still ? 0 : 14 * Self.bounce(now.timeIntervalSince(leafAt) * 0.6)
+        let amp = mood == .sleep ? 0.022 : kind == .moss ? 0.016 : 0.01
+        let hopT = now.timeIntervalSince(hopAt)
+        let hop = still ? 0 : max(0, Self.bounce(hopT)) * hopSize
         let leanNow = leanFrom + (lean - leanFrom) * Self.ease(now.timeIntervalSince(leanAt) / 0.5)
 
-        ctx.translateBy(x: (size.width - 100 * s) / 2, y: (size.height - 100 * s) / 2 - hop * 7 * s)
+        ctx.translateBy(x: (size.width - 100 * s) / 2, y: (size.height - 100 * s) / 2)
         ctx.scaleBy(x: s, y: s)
+        shadow(&ctx, kind == .moss ? 30 : 22, lift: hop)
+        ctx.translateBy(x: 0, y: -hop * 7)
         // squash and stretch from the feet
-        ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 - b * amp * 0.5, y: 1 + b * amp); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -88)
+        ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: 1 - b * amp * 0.5, y: 1 + b * amp); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
 
         let patted = now.timeIntervalSince(pattedAt) < 1.6
-        let rest = lid ?? (kind == .otto ? 0.34 : 0)
-        let l = max(rest, still ? 0 : blinkValue(now))
-        let face: Mood = patted ? .happy : mood
-        let wave: Double = still ? 0 : sin(t * 9) * 16
-        let swingK = still ? 0 : Self.bounce(now.timeIntervalSince(swingAt) * 0.45) * 26
+        // the resting lids are part of the figures (Moss half-lidded, Otto heavier); only a real blink or a shut lid swaps
+        let l = max(lid ?? 0, !still && blinkValue(now) >= 0.5 ? 1 : 0)
+        let face: Mood = patted ? .happy : (arms == .cheer ? .happy : mood)
         let e0 = lookValue(still ? .distantFuture : now), g = still ? .zero : glanceValue(now)
         let e = CGPoint(x: e0.x + g.x, y: e0.y + g.y)
         let squeeze: Double = patted && !still ? 0.04 * sin(min(1.0, now.timeIntervalSince(pattedAt) / 0.3) * Double.pi) : 0
-        if squeeze > 0 { ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -88) }
-        let pose: Arms = patted ? .rest : arms
-        if kind == .moss { drawMoss(&ctx, e, patted ? 1 : l, face, pose, wave, sway: (b - 0.5) * 6 + leaf) }
-        else { drawOtto(&ctx, e, patted ? 1 : l, face, pose, wave, swing: (b - 0.5) * 5 + leaf * 0.4 + swingK) }
+        if squeeze > 0 { ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -feet) }
+        let yawning = !still && now.timeIntervalSince(yawnAt) < 1.7
+        let st = Self.state(kind, face: face, look: e, lid: patted ? 0 : l, hopping: hop > 0.15 || (arms == .cheer && !still), yawning: yawning)
+        let box = CGRect(x: 0, y: 0, width: 100, height: 100)
+        if let img = sprites[st] ?? sprites["idle"] {
+            ctx.draw(Image(uiImage: img), in: box)
+        }
+        if kind == .otto { lamp(&ctx, Self.bead[st] ?? Self.bead["idle"] ?? CGPoint(x: 0.29, y: 0.34), now) }
 
         // the mint leaves drifting up
         let f = now.timeIntervalSince(fleckAt) / 1.6
@@ -162,129 +207,23 @@ struct Creature: View {
         }
     }
 
-    private func shadow(_ ctx: inout GraphicsContext, _ rx: CGFloat) {
-        // a soft contact shadow, darkest right under the feet, as under the figures in the pictures
-        var g = ctx; g.translateBy(x: 50, y: 90.5); g.scaleBy(x: 1, y: 0.2)
+    /// Otto's bead is always a lamp: a faint warm halo by day, a full soft glow at night (a drawing, not the screen).
+    private func lamp(_ ctx: inout GraphicsContext, _ at: CGPoint, _ now: Date) {
+        let c = CGPoint(x: at.x * 100, y: at.y * 100)
+        let pulse = still || !glow ? 1 : 0.88 + 0.12 * sin(now.timeIntervalSinceReferenceDate * 2)
+        let r = (glow ? 15 : 8) * pulse
+        var g = ctx
+        g.blendMode = .plusLighter
+        g.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
+               with: .radialGradient(Gradient(colors: [Palette.amber.opacity(glow ? 0.7 : 0.22), Palette.amber.opacity(0)]), center: c, startRadius: 1.5, endRadius: r))
+    }
+
+    private func shadow(_ ctx: inout GraphicsContext, _ rx: CGFloat, lift: Double) {
+        // a soft contact shadow under the feet; it shrinks and fades while the body is in the air
+        let k = 1 - min(0.5, lift * 0.6)
+        var g = ctx; g.translateBy(x: 50, y: feet + 0.5); g.scaleBy(x: k, y: 0.2 * k)
         g.fill(Path(ellipseIn: CGRect(x: -rx * 1.1, y: -rx * 1.1, width: rx * 2.2, height: rx * 2.2)),
-               with: .radialGradient(Gradient(colors: [Palette.ink.opacity(0.2), Palette.ink.opacity(0)]), center: .zero, startRadius: 0, endRadius: rx * 1.1))
-    }
-    private func leg(_ ctx: inout GraphicsContext, _ x: CGFloat) {
-        ctx.fill(Path(roundedRect: CGRect(x: x, y: 80, width: 6.5, height: 10), cornerRadius: 3.2), with: .color(Palette.ink))
-    }
-    /// The icon's body: one flat colour, and the underside in a flat deeper colour (as Otto's dip on the icon).
-    private func body(_ ctx: inout GraphicsContext, _ p: Path, _ fill: Color, under: Path, _ deep: Color) {
-        // on the dark page a thin lighter rim keeps the silhouette (navy Otto would sink into black); no gloss
-        if scheme == .dark { ctx.stroke(p, with: .color(fill.mix(with: .white, by: 0.35)), lineWidth: 2.4) }
-        // matte volume, lit from the top left as in the picture book: a soft light side and a soft shade side, the
-        // icon's flat underside, then a little bounce light from the floor along the bottom edge — clay, not glass:
-        // no specular highlight, no reflection
-        let b = p.boundingRect
-        ctx.fill(p, with: .linearGradient(Gradient(stops: [.init(color: fill.mix(with: .white, by: 0.2), location: 0),
-                                                           .init(color: fill, location: 0.45),
-                                                           .init(color: fill.mix(with: deep, by: 0.45), location: 1)]),
-                                          startPoint: CGPoint(x: b.minX + b.width * 0.15, y: b.minY), endPoint: CGPoint(x: b.maxX, y: b.maxY)))
-        var c = ctx; c.clip(to: p)
-        c.fill(under, with: .color(deep.opacity(0.5)))
-        c.fill(Path(ellipseIn: CGRect(x: b.minX + b.width * 0.08, y: b.minY + b.height * 0.05, width: b.width * 0.55, height: b.height * 0.5)),
-               with: .radialGradient(Gradient(colors: [Color.white.opacity(0.16), Color.white.opacity(0)]),
-                                     center: CGPoint(x: b.minX + b.width * 0.32, y: b.minY + b.height * 0.25), startRadius: 0, endRadius: b.width * 0.32))
-        c.fill(Path(CGRect(x: b.minX, y: b.maxY - b.height * 0.14, width: b.width, height: b.height * 0.14)),
-               with: .linearGradient(Gradient(colors: [Color(hex: 0xFFE7B8).opacity(0), Color(hex: 0xFFE7B8).opacity(0.14)]),
-                                     startPoint: CGPoint(x: 0, y: b.maxY - b.height * 0.14), endPoint: CGPoint(x: 0, y: b.maxY)))
-    }
-    private func eye(_ ctx: inout GraphicsContext, _ cx: CGFloat, _ cy: CGFloat, _ rx: CGFloat, _ ry: CGFloat, _ look: CGPoint, _ lid: Double, _ skin: Color, _ face: Mood) {
-        if face == .sleep || (face == .happy && lid >= 1) {
-            // closed: asleep (a gentle downward curve) or delighted (an upward arch)
-            var p = Path(); p.move(to: CGPoint(x: cx - rx * 0.9, y: cy))
-            p.addQuadCurve(to: CGPoint(x: cx + rx * 0.9, y: cy), control: CGPoint(x: cx, y: face == .sleep ? cy + ry * 0.9 : cy - ry * 0.9))
-            ctx.stroke(p, with: .color(Palette.ink), style: StrokeStyle(lineWidth: max(1.8, ry * 0.34), lineCap: .round)); return
-        }
-        let r = CGRect(x: cx - rx, y: cy - ry, width: rx * 2, height: ry * 2)
-        var c = ctx
-        c.clip(to: Path(ellipseIn: r))
-        c.fill(Path(r), with: .color(Palette.paper))
-        let pr = min(rx, ry) * (face == .wow ? 0.5 : 0.62)
-        let px = cx + max(-1, min(1, look.x)) * (rx - pr - 0.3), py = cy + max(-1, min(1, look.y)) * (ry - pr - 0.3)
-        c.fill(Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)), with: .color(Palette.ink))
-        c.fill(Path(ellipseIn: CGRect(x: px - pr * 0.55, y: py - pr * 0.6, width: pr * 0.4, height: pr * 0.4)), with: .color(.white.opacity(0.9)))
-        if face == .happy { c.fill(Path(ellipseIn: CGRect(x: cx - rx * 1.3, y: cy + ry * 0.2, width: rx * 2.6, height: ry * 2)), with: .color(skin)) }
-        if lid > 0 { c.fill(Path(CGRect(x: cx - rx - 0.6, y: cy - ry - 0.6, width: rx * 2 + 1.2, height: (ry * 2 + 1.2) * lid)), with: .color(skin)) }
-        // the anti-aliased edge of the white would leave a pale ring under the lid: cover it with the skin
-        if lid > 0 { ctx.stroke(Path(ellipseIn: r.insetBy(dx: -0.4, dy: -0.4)), with: .color(skin), lineWidth: 1.2) }
-    }
-    private func cheeks(_ ctx: inout GraphicsContext, _ pts: [CGPoint], _ face: Mood) {
-        guard face == .happy || face == .wow else { return }
-        for p in pts { ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 2.4, width: 8, height: 4.8)), with: .color(Crayon.pink.opacity(0.75))) }
-    }
-    private func mouth(_ ctx: inout GraphicsContext, _ at: CGPoint, _ face: Mood) {
-        switch face {
-        case .wow: ctx.fill(Path(ellipseIn: CGRect(x: at.x - 2.2, y: at.y - 2.6, width: 4.4, height: 5.6)), with: .color(Palette.ink))
-        case .happy:
-            var p = Path(); p.move(to: CGPoint(x: at.x - 4, y: at.y - 1)); p.addQuadCurve(to: CGPoint(x: at.x + 4, y: at.y - 1), control: CGPoint(x: at.x, y: at.y + 4))
-            ctx.stroke(p, with: .color(Palette.ink), style: StrokeStyle(lineWidth: 1.8, lineCap: .round))
-        default: break
-        }
-    }
-    /// Small round arms, only when waving or cheering; `left`/`right` are the shoulders.
-    private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
-        func arm(_ from: CGPoint, _ deg: Double, _ L: CGFloat = 13) {
-            let r = CGFloat(deg * .pi / 180)
-            var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + CGFloat(Foundation.sin(Double(r))) * L, y: from.y - CGFloat(Foundation.cos(Double(r))) * L))
-            ctx.stroke(p, with: .color(c), style: StrokeStyle(lineWidth: 7, lineCap: .round))
-        }
-        switch pose {
-        case .rest: break
-        case .wave: arm(right, 30 + wave)
-        case .cheer: arm(left, -38 - wave * 0.4); arm(right, 38 + wave * 0.4)
-        case .hug: arm(left, -112 + wave * 0.12, 24)
-        }
-    }
-
-    private func drawMoss(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, sway: Double) {
-        shadow(&ctx, 31)
-        ctx.stroke(Shapes.mossStem, with: .color(Palette.mossDeep), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
-        var leaves = ctx
-        leaves.translateBy(x: 49.6, y: 25); leaves.rotate(by: .degrees(sway)); leaves.translateBy(x: -49.6, y: -25)
-        leaves.fill(Shapes.mintB, with: .color(Palette.mintLight))
-        leaves.fill(Shapes.mintA, with: .color(Palette.mint))
-        leaves.fill(Shapes.mintD, with: .color(Palette.mintPale))
-        leaves.fill(Shapes.mintC, with: .color(Palette.mintPale))
-        leg(&ctx, 33); leg(&ctx, 59)
-        armsDraw(&ctx, pose, left: CGPoint(x: 19, y: 62), right: CGPoint(x: 83, y: 60), Palette.mossDeep, wave)
-        body(&ctx, Shapes.mossBody, Palette.moss, under: Shapes.mossUnder, Palette.mossDeep)
-        // the moss itself: a few lighter tufts on the back, so he reads as a little mossy stone, not a green blob
-        var tufts = ctx; tufts.clip(to: Shapes.mossBody)
-        tufts.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.42)))
-        cheeks(&ctx, [CGPoint(x: 35, y: 64), CGPoint(x: 66, y: 64)], face)
-        eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss, face)
-        eye(&ctx, 58, 55, 6.4, 7.4, look, lid, Palette.moss, face)
-        mouth(&ctx, CGPoint(x: 50.5, y: 68), face)
-    }
-
-    private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, swing: Double) {
-        shadow(&ctx, 23)
-        // the rod curves forward and the golden bead hangs from it, as on the icon
-        var rod = ctx
-        rod.translateBy(x: 50, y: 16.5); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -50, y: -16.5)
-        rod.stroke(Shapes.ottoRod, with: .color(Palette.rodDeep), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
-        // the lamp is always a lamp: a faint warm halo round the bead by day, a full glow at night (a drawing only)
-        if !glow {
-            rod.fill(Path(ellipseIn: CGRect(x: 11, y: 2.5, width: 18, height: 18)),
-                     with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.32), Palette.amber.opacity(0)]), center: CGPoint(x: 20, y: 11.5), startRadius: 3, endRadius: 9))
-        }
-        if glow {
-            let pulse = still ? 1 : 0.85 + 0.15 * sin(Date().timeIntervalSinceReferenceDate * 2)
-            rod.fill(Path(ellipseIn: CGRect(x: 20 - 14 * pulse, y: 11.5 - 14 * pulse, width: 28 * pulse, height: 28 * pulse)),
-                     with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.75), Palette.amber.opacity(0)]), center: CGPoint(x: 20, y: 11.5), startRadius: 2, endRadius: 14 * pulse))
-        }
-        rod.fill(Path(ellipseIn: CGRect(x: 15, y: 6.5, width: 10, height: 10)), with: .color(glow ? Palette.amber : Palette.bead))
-        rod.fill(Path(ellipseIn: CGRect(x: 17, y: 8.3, width: 3.2, height: 3.2)), with: .color(Palette.beadLight))
-        leg(&ctx, 38); leg(&ctx, 56)
-        armsDraw(&ctx, pose, left: CGPoint(x: 29, y: 60), right: CGPoint(x: 72, y: 58), Palette.rodDeep, wave)
-        body(&ctx, Shapes.ottoBody, Palette.rod, under: Shapes.ottoDip, Palette.rodDeep)
-        cheeks(&ctx, [CGPoint(x: 64, y: 58)], face)
-        eye(&ctx, 51, 44, 12.5, 11.5, look, face == .wow ? 0 : lid, Palette.rod, face)
-        mouth(&ctx, CGPoint(x: 51, y: 64), face)
+               with: .radialGradient(Gradient(colors: [Palette.ink.opacity(scheme == .dark ? 0.45 : 0.2), Palette.ink.opacity(0)]), center: .zero, startRadius: 0, endRadius: rx * 1.1))
     }
 }
 

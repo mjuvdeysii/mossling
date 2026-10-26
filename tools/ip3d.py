@@ -109,7 +109,7 @@ def leaf(name, at, rot, length, material, width=0.55):
         w = W * math.sin(math.pi * min(1.0, t ** 0.78)) * (1 - 0.22 * t)
         if t < 0.07: w *= t / 0.07 * 0.35 + 0.05          # the stalk
         saw = ((t * 7.5) % 1.0)
-        w *= 1 + 0.085 * (saw if t > 0.1 else 0) - 0.04
+        w *= 1 + 0.13 * (saw if t > 0.1 else 0) - 0.06
         for i in range(nu + 1):
             u = i / nu * 2 - 1
             x, y = t * L, u * w
@@ -155,8 +155,8 @@ def tube(name, points, radius, material):
 M = {}
 def materials():
     M["moss"] = rubber("moss", "#55704A")
-    M["mint"] = rubber("mint", "#5FA77A", rough=0.5, sss=0.25)
-    M["mintPale"] = rubber("mintPale", "#A9E0C0", rough=0.5, sss=0.2)
+    M["mint"] = rubber("mint", "#4E9A6C", rough=0.5, sss=0.08)
+    M["mintPale"] = rubber("mintPale", "#8CCBA5", rough=0.5, sss=0.08)
     M["mintDeep"] = mat("mintDeep", "#3D6B44", rough=0.6)
     M["otto"] = rubber("otto", "#203872")
     M["ottoDeep"] = rubber("ottoDeep", "#1F3566")
@@ -211,7 +211,7 @@ def moss_surface_y(x, z):
     m = MOSS; k = 1 - (x / m["rx"]) ** 2 - ((z - m["cz"]) / m["rz"]) ** 2
     return -m["ry"] * math.sqrt(max(0.0, k))
 
-def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105, pupil=0.62, hop=0.0, perk=0.0):
+def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105, pupil=0.62, hop=0.0, perk=0.0, shut=None):
     """Moss, the child: energy. `hop` lifts and stretches the body mid-jump; `perk` stands the leaves up."""
     m = MOSS
     root = bpy.data.objects.new("Moss", None); bpy.context.collection.objects.link(root)
@@ -229,11 +229,12 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
     ez, ex = m["cz"] + 0.2, 0.125
     for s in (-1, 1):
         sy = moss_surface_y(s * ex, ez)
-        if happy:
-            parts.append(tube(f"moss_smile{s}", [(s * ex - 0.07, sy - 0.005, ez - 0.01), (s * ex, sy - 0.02, ez + 0.045), (s * ex + 0.07, sy - 0.005, ez - 0.01)], 0.013, M["pupil"]))
+        if happy or shut:
+            dz = {"down": -0.03, "flat": -0.006}.get(shut, 0.045)
+            parts.append(tube(f"moss_shut{s}", [(s * ex - 0.07, sy - 0.005, ez - 0.01), (s * ex, sy - 0.02, ez + dz), (s * ex + 0.07, sy - 0.005, ez - 0.01)], 0.013, M["pupil"]))
         else:
             parts += eye(f"moss_eye{s}", (s * ex, sy + 0.025, ez), er, look, scale=(0.87, 0.5, 1.0), lid=lid, skin=M["moss"], pupil=pupil)
-    if happy or "--cheeks" in ARGS:
+    if "--cheeks" in ARGS:
         for s in (-1, 1):
             cz = m["cz"] + 0.04; cx = s * 0.3
             parts.append(sphere(f"moss_cheek{s}", (cx, moss_surface_y(cx, cz) + 0.012, cz), (0.075, 0.015, 0.045), M["cheek"]))
@@ -253,7 +254,7 @@ def otto_surface_y(x, z):
     r = otto_radius(z) * 0.97   # the subdivided surface sits a little inside the profile
     return -0.9 * math.sqrt(max(0.0, r * r - x * x))
 
-def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False, slouch=0.0, droop=0.0, bags=False, yawn=False):
+def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False, slouch=0.0, droop=0.0, bags=False, yawn=False, shut=None, smirk=False):
     """Otto, the adult: a tired, unhurried calm. `slouch` lets the body settle forward and sag a little; `droop` lowers the
     lamp on its rod; `bags` adds the soft shadow under the eye; `yawn` opens a small mouth."""
     o = OTTO
@@ -270,7 +271,12 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
     feet = [sphere(f"otto_foot{i}", (s * 0.17, -0.1, 0.045), (0.075, 0.095, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
     parts = [body, *feet]
     ez = 0.8
-    if happy:
+    if shut:
+        sy = otto_surface_y(0, ez)
+        dz = -0.012 if shut == "flat" else -0.05
+        parts.append(tube("otto_shut", [(-0.13, sy - 0.0, ez), (0.0, sy - 0.03, ez + dz), (0.13, sy - 0.0, ez)], 0.017, M["pupil"]))
+        if bags: parts.append(sphere("otto_bag", (0.0, otto_surface_y(0, ez - 0.2) + 0.035, ez - 0.2), (0.17, 0.03, 0.035), M["ottoDeep"]))
+    elif happy:
         sy = otto_surface_y(0, ez)
         parts.append(tube("otto_smile", [(-0.12, sy + 0.01, ez - 0.02), (0.0, sy - 0.015, ez + 0.06), (0.12, sy + 0.01, ez - 0.02)], 0.016, M["pupil"]))
         parts.append(sphere("otto_cheek", (0.24, otto_surface_y(0.24, ez - 0.14) + 0.01, ez - 0.14), (0.065, 0.015, 0.04), M["cheek"]))
@@ -279,8 +285,13 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
         if bags:
             # tiredness: a soft, slightly darker fold under the eye
             parts.append(sphere("otto_bag", (0.0, otto_surface_y(0, ez - 0.2) + 0.035, ez - 0.2), (0.17, 0.03, 0.035), M["ottoDeep"]))
+    if smirk:
+        # the most Otto ever smiles: one corner, lifted
+        sy = otto_surface_y(0.05, 0.5)
+        parts.append(tube("otto_smirk", [(-0.07, sy + 0.005, 0.5), (0.04, sy - 0.005, 0.495), (0.1, sy + 0.0, 0.525)], 0.012, M["pupil"]))
     if yawn:
-        parts.append(sphere("otto_yawn", (0.02, otto_surface_y(0, 0.47) + 0.02, 0.47), (0.055, 0.02, 0.075), M["pupil"]))
+        # a long, slow yawn: a dark oval mouth set into the front, low on the face
+        parts.append(sphere("otto_yawn", (0.0, otto_surface_y(0, 0.5) - 0.005, 0.5), (0.085, 0.03, 0.11), M["foot"]))
     # the antenna: from the top of the head, arching forward, the lamp bead at its end
     top = (0.0, 0.0, 1.13)
     # the icon's rod: up from the crown, arching forward and to the left, the bead hanging at its end
@@ -399,6 +410,67 @@ def render(path, w, h):
     s = bpy.context.scene; s.render.resolution_x = w; s.render.resolution_y = h; s.render.filepath = os.path.abspath(path)
     bpy.ops.render.render(write_still=True)
 
+# ---------- the app's sprites ----------
+# Every state the app shows, each character alone, transparent, under one product-photo light, the same slightly
+# raised orthographic camera; the bead's position is written alongside, for the app's glow at night.
+OTTO_TIRED = dict(slouch=0.8, droop=0.6, bags=True)
+STATES = {
+    "moss": {
+        "idle": dict(lid=0.45, look=(0, 0), pupil=0.5), "left": dict(lid=0.45, look=(-0.9, 0), pupil=0.5),
+        "right": dict(lid=0.45, look=(0.9, 0), pupil=0.5), "up": dict(lid=0.4, look=(0.1, 0.85), pupil=0.5),
+        "down": dict(lid=0.5, look=(0, -0.8), pupil=0.5), "blink": dict(shut="flat"),
+        "wide": dict(lid=0.0, look=(0, 0.2), pupil=0.46, perk=0.6), "glee": dict(shut="up", perk=1.0),
+        "sleep": dict(shut="down", perk=-0.3), "hop": dict(lid=0.45, look=(0, 0.2), pupil=0.5, perk=1.0),
+    },
+    "otto": {
+        "idle": dict(lid=0.6, look=(0, -0.1), **OTTO_TIRED), "left": dict(lid=0.6, look=(-0.85, -0.15), **OTTO_TIRED),
+        "right": dict(lid=0.6, look=(0.85, -0.15), **OTTO_TIRED), "up": dict(lid=0.5, look=(0, 0.7), **OTTO_TIRED),
+        "down": dict(lid=0.62, look=(0, -0.42), **OTTO_TIRED), "blink": dict(shut="flat", **OTTO_TIRED),
+        "wide": dict(lid=0.3, look=(0, 0.1), slouch=0.3, droop=0.2, bags=True), "glee": dict(lid=0.5, look=(0, 0), smirk=True, **OTTO_TIRED),
+        "sleep": dict(shut="down", slouch=1.2, droop=1.0, bags=True), "yawn": dict(shut="flat", yawn=True, slouch=1.0, droop=0.9, bags=True),
+    },
+}
+FRAME = {"moss": (1.5, 0.52), "otto": (1.9, 0.74)}   # orthographic width, centre height (the ground sits ~8% up)
+
+def sprite_lights():
+    world = bpy.data.worlds.new("w"); bpy.context.scene.world = world; world.use_nodes = True
+    world.node_tree.nodes["Background"].inputs["Color"].default_value = hexcol("#FFF6EC")
+    world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.45
+    def area(loc, rot, energy, size, color):
+        bpy.ops.object.light_add(type="AREA", location=loc, rotation=rot); l = bpy.context.object
+        l.data.energy = energy; l.data.size = size; l.data.color = hexcol(color)[:3]
+    area((-2.2, -3.0, 3.0), (math.radians(55), 0, math.radians(-35)), 520, 3.2, "#FFF1E0")
+    area((2.8, -2.4, 1.4), (math.radians(75), 0, math.radians(50)), 170, 3.0, "#F4F6FF")
+    area((1.5, 2.8, 2.8), (math.radians(-55), 0, math.radians(150)), 380, 1.5, "#FFFFFF")
+
+def sprites(outdir):
+    import json
+    os.makedirs(outdir, exist_ok=True)
+    only = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
+    size = arg("--size", 512)
+    meta = {"frame": FRAME}
+    for kind, states in STATES.items():
+        for st, kw in states.items():
+            name = f"{kind}_{st}"
+            if only and name not in only: continue
+            s = reset(); s.render.film_transparent = True; materials(); sprite_lights()
+            s.render.resolution_x = s.render.resolution_y = size
+            if kind == "moss": build_moss(**kw)
+            else: build_otto(glow=0.6, **kw)
+            ortho, cz = FRAME[kind]
+            tilt = math.radians(6)
+            bpy.ops.object.camera_add(location=(0, -8 * math.cos(tilt), cz + 8 * math.sin(tilt))); c = bpy.context.object
+            c.rotation_euler = (math.radians(90) - tilt, 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = ortho
+            s.camera = c
+            if kind == "otto":
+                from bpy_extras.object_utils import world_to_camera_view
+                bpy.context.view_layer.update()
+                p = world_to_camera_view(s, c, bpy.data.objects["otto_bead"].matrix_world.translation)
+                meta[f"bead_{st}"] = [round(p.x, 4), round(1 - p.y, 4)]
+            render(os.path.join(outdir, name + ".png"), size, size)
+    old = json.load(open(os.path.join(outdir, "sprites.json"))) if os.path.exists(os.path.join(outdir, "sprites.json")) else {}
+    old.update(meta); json.dump(old, open(os.path.join(outdir, "sprites.json"), "w"), indent=1)
+
 def hero(path):
     reset(); materials(); table_and_lights(night="--night" in ARGS)
     build_moss(x=-0.62, look=(0.7, 0.1), lean=4)
@@ -410,4 +482,4 @@ def hero(path):
 
 if __name__ == "__main__":
     what, out = ARGS[0], ARGS[1]
-    {"hero": hero, "board": board3d}[what](out)
+    {"hero": hero, "board": board3d, "sprites": sprites}[what](out)
