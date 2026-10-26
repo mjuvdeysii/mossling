@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// The growth map, as a stage and a wheel. On the stage the child stands among the companions under the sky, at the
-/// age of the chosen month — lying, lifting the head, sitting, crawling, standing, walking, running — with the month's
-/// name, a word on it and its plays as small icons. Under it a wheel of months, 0 to 36, turns with a tick at every
-/// month; turning it walks the child through the months and the page below follows.
+/// The growth map, as a stage and a bead chain. On the stage the child stands among the companions under the sky, at
+/// the age of the chosen month — lying, lifting the head, sitting, crawling, standing, walking, running — with the
+/// month's name, a word on it and its plays as small icons. Under it all 37 months as a winding bead chain (BeadPath):
+/// running a finger along it walks the child through the months and the page below follows.
 struct GrowthWheel: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
@@ -69,7 +69,7 @@ struct GrowthWheel: View {
                     Text("\(plays.count) 个教具").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                     Spacer(minLength: 0)
                 }
-                MonthDial(preview: $preview, baby: baby) { settled in
+                BeadPath(preview: $preview, baby: baby, companion: app.companion) { settled in
                     if settled != month { month = settled }
                     if settled == baby { arrived += 1 }
                 }
@@ -84,96 +84,87 @@ struct GrowthWheel: View {
     }
 }
 
-/// The wheel of months: beads on a band that scrolls sideways and snaps to a month, curving away at both ends like a
-/// wheel seen from the front, a ring under the chosen month and a tick under the finger at every month. It reports
-/// the month under the ring as it turns (`preview`) and the month it settles on when the scroll comes to rest.
+/// The growth map as a Montessori bead chain laid out on the card: all 37 months at once, three years in three rows
+/// that wind like a board-game path (birth to 1, then back along the second year, then on along the third), so where
+/// the child is can be read at a glance and any month is one touch away. Months lived are beads in their year's
+/// colour on a coloured string, the child's month is the golden bead with the companion standing on it, months ahead
+/// are pale; after the last bead the string runs on, dotted (the story goes on).
 ///
-/// How it moves (build 150, after "往回不跟手、定位阻尼不够细腻"): the band is a plain system scroll view, so the finger
-/// drives it 1:1 both ways and a flick decelerates with the system's own physics. Two things that fought the finger
-/// are gone: the old `viewAligned` snapping aligned beads to the band's *leading* edge (with the centring padding
-/// that is half a bead off the ring, so every rest ended with a correction), and the month was written back into the
-/// scroll position while the finger was still on it (a quick drag could be pulled back to the bead it just left).
-/// Now the month is only *read* from the offset while turning; the wheel is moved by code only when it is at rest
-/// (a tap, or 回到本月). Where a flick comes to rest is decided once, at release: the system's predicted resting
-/// point rounded to the nearest bead (`BeadSnap`), so the deceleration itself lands on the bead with no second snap.
-private struct MonthDial: View {
+/// Touch: tap a bead, or run a finger along the chain — the chosen ring follows the finger bead by bead with a tick
+/// at each, the stage above shows that month as it passes, and the page below follows when the finger lifts.
+/// VoiceOver: one adjustable element (swipe up/down for the next or previous month).
+struct BeadPath: View {
     @Binding var preview: Int
     let baby: Int
+    var companion: Kind = .moss
     let settle: (Int) -> Void
-    @State private var position: ScrollPosition
-    @State private var start: Int
-    @State private var phase: ScrollPhase = .idle
-    @State private var under: Int
-    private let item = BeadSnap.item
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var dragging = false
 
-    init(preview: Binding<Int>, baby: Int, settle: @escaping (Int) -> Void) {
-        _preview = preview; self.baby = baby; self.settle = settle
-        _position = State(initialValue: ScrollPosition(x: CGFloat(preview.wrappedValue) * BeadSnap.item))
-        _start = State(initialValue: preview.wrappedValue)   // the first position only; never moves while turning
-        _under = State(initialValue: preview.wrappedValue)
+    static let rowHeight: CGFloat = 46
+    /// Where bead `m` sits in a chain `width` wide: column and row of the winding path, then points.
+    static func point(_ m: Int, width: CGFloat) -> CGPoint {
+        let margin: CGFloat = 16, step = (width - 2 * margin - 12) / 12
+        let (row, col): (Int, Int) = m <= 12 ? (0, m) : m <= 24 ? (1, 12 - (m - 13)) : (2, 1 + (m - 25))
+        return CGPoint(x: margin + CGFloat(col) * step, y: 34 + CGFloat(row) * rowHeight)
+    }
+    /// The bead nearest a touch.
+    static func month(near p: CGPoint, width: CGFloat) -> Int {
+        (0...36).min { a, b in
+            let pa = point(a, width: width), pb = point(b, width: width)
+            return hypot(pa.x - p.x, (pa.y - p.y) * 1.6) < hypot(pb.x - p.x, (pb.y - p.y) * 1.6)
+        } ?? 0
     }
 
     var body: some View {
         GeometryReader { g in
-            let half = g.size.width / 2
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 0) {
-                    ForEach(0...36, id: \.self) { m in
-                        VStack(spacing: 4) {
-                            Bead(month: m, here: m == baby, past: m < baby)
-                                .scaleEffect(m == baby ? 0.72 : 0.86)
-                                .frame(width: item, height: 40)
-                            Text(m % 12 == 0 ? (m == 0 ? "出生" : "\(m / 12) 岁") : " ")
-                                .font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        }
-                        .frame(width: item)
-                        .visualEffect { content, proxy in
-                            // d: −1 … 1 across the band. The bead under the ring swells a little as it arrives
-                            // (a continuous "pull" rather than a jump), the ends turn away like a wheel's rim.
-                            let d = (proxy.frame(in: .scrollView).midX - half) / half
-                            let near = max(0, 1 - abs(d) * half / item)   // 1 at the ring, 0 a bead away
-                            return content
-                                .rotation3DEffect(.degrees(Double(d) * 30), axis: (x: 0, y: 1, z: 0), perspective: 0.6)
-                                .scaleEffect(1 - min(0.25, abs(d) * 0.25) + near * 0.1)
-                                .opacity(1 - min(0.45, abs(d) * 0.45))
-                        }
-                        .contentShape(Rectangle())
-                        .onTapGesture { go(to: m) }
-                        .accessibilityLabel(m == 0 ? "出生" : "满 \(m) 个月")
+            let w = g.size.width
+            ZStack(alignment: .topLeading) {
+                Canvas { ctx, size in draw(&ctx, w) }
+                // the year marks under the chain's turns
+                ForEach([(0, "出生"), (12, "1 岁"), (24, "2 岁"), (36, "3 岁")], id: \.0) { m, t in
+                    let p = Self.point(m, width: w)
+                    Text(t).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        .fixedSize().position(x: p.x, y: p.y + 17)
+                }
+                // the child's month: the companion stands on its bead
+                let h = Self.point(baby, width: w)
+                Figure(name: "ip_\(companion == .moss ? "moss" : "otto")_idle.webp")
+                    .frame(width: 30, height: 30)
+                    .position(x: h.x, y: h.y - 22)
+                    .allowsHitTesting(false)
+                // the chosen month: a ring that glides along the chain, and its number above it
+                let c = Self.point(preview, width: w)
+                ZStack {
+                    Circle().strokeBorder(Color.primary.opacity(0.75), lineWidth: 2.5).frame(width: 30, height: 30)
+                    if preview != baby {
+                        Text("\(preview)").font(Typeface.numerals(12, relativeTo: .caption2, weight: .bold))
+                            .foregroundStyle(.primary).padding(.horizontal, 5).padding(.vertical, 1)
+                            .background(Capsule().fill(Palette.card)).offset(y: -24)
                     }
                 }
-                .padding(.horizontal, half - item / 2)
+                .position(c)
+                .animation(reduce ? nil : .spring(response: dragging ? 0.18 : 0.38, dampingFraction: 0.78), value: preview)
+                .allowsHitTesting(false)
             }
-            .scrollPosition($position)
-            .scrollTargetBehavior(BeadSnap())
-            .defaultScrollAnchor(UnitPoint(x: CGFloat(start) / 36, y: 0.5), for: .initialOffset)
-            .onScrollGeometryChange(for: Int.self) { geo in
-                BeadSnap.month(at: geo.contentOffset.x)
-            } action: { _, m in
-                under = m
-            }
-            .onScrollPhaseChange { _, p in
-                phase = p
-                if p == .idle { settle(under) }
-            }
-            .background(alignment: .top) {
-                Circle().fill(Palette.bead.opacity(0.14))
-                    .overlay(Circle().strokeBorder(Palette.bead.opacity(0.55), lineWidth: 2))
-                    .frame(width: 46, height: 46).offset(y: -3)
-                    .allowsHitTesting(false)
-            }
+            .contentShape(Rectangle())
+            .gesture(DragGesture(minimumDistance: 0)
+                .onChanged { v in
+                    dragging = true
+                    let m = Self.month(near: v.location, width: w)
+                    if m != preview { preview = m }
+                }
+                .onEnded { v in
+                    dragging = false
+                    let m = Self.month(near: v.location, width: w)
+                    preview = m; settle(m)
+                })
         }
-        .frame(height: 64)
-        // read while turning; the stage follows the bead under the ring
-        .onChange(of: under) { _, m in if m != preview { preview = m } }
-        // written only at rest: a change from outside (回到本月, VoiceOver) turns the wheel to it
-        .onChange(of: preview) { _, m in
-            if phase == .idle, m != under { withAnimation(.smooth(duration: 0.45)) { position.scrollTo(x: CGFloat(m) * item) } }
-        }
-        .sensoryFeedback(.selection, trigger: under)
+        .frame(height: 34 + Self.rowHeight * 2 + 30)
+        .sensoryFeedback(.selection, trigger: preview)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("月份")
-        .accessibilityValue(preview == 0 ? "出生" : "满 \(preview) 个月")
+        .accessibilityLabel("成长地图，37 个月")
+        .accessibilityValue((preview == 0 ? "出生" : "满 \(preview) 个月") + (preview == baby ? "，宝宝在这里" : ""))
         .accessibilityAdjustableAction { d in
             switch d {
             case .increment: preview = min(36, preview + 1); settle(preview)
@@ -183,31 +174,45 @@ private struct MonthDial: View {
         }
     }
 
-    private func go(to m: Int) {
-        guard phase == .idle else { return }   // a tap that catches a turning wheel only stops it
-        preview = m
-        withAnimation(.smooth(duration: 0.45)) { position.scrollTo(x: CGFloat(m) * item) }
-        settle(m)
-    }
-}
-
-/// Where the wheel comes to rest. With the band padded by half its width less half a bead, bead `m` sits under the
-/// ring exactly when the content offset is `m × item`; the system's predicted resting offset is rounded to the
-/// nearest such offset, so a slow release settles on the nearest bead and a flick on the bead its momentum reaches.
-struct BeadSnap: ScrollTargetBehavior {
-    static let item: CGFloat = 46
-    static let last = 36
-
-    static func month(at offset: CGFloat) -> Int {
-        min(last, max(0, Int((offset / item).rounded())))
-    }
-
-    static func resting(_ predicted: CGFloat) -> CGFloat {
-        CGFloat(month(at: predicted)) * item
-    }
-
-    func updateTarget(_ target: inout ScrollTarget, context: TargetContext) {
-        target.rect.origin.x = Self.resting(target.rect.minX)
+    private func draw(_ ctx: inout GraphicsContext, _ w: CGFloat) {
+        // the string: through every bead, with a round turn at the end of each year; lived in colour, ahead pale
+        func segment(_ a: Int, _ b: Int) -> Path {
+            var p = Path(); let pa = Self.point(a, width: w), pb = Self.point(b, width: w)
+            p.move(to: pa)
+            if pa.y == pb.y { p.addLine(to: pb) }
+            else {
+                let out: CGFloat = a == 12 ? 22 : -22
+                p.addCurve(to: pb, control1: CGPoint(x: pa.x + out, y: pa.y), control2: CGPoint(x: pb.x + out, y: pb.y))
+            }
+            return p
+        }
+        for m in 0..<36 {
+            let lived = m + 1 <= baby
+            ctx.stroke(segment(m, m + 1), with: .color(lived ? Land.of(m).crayon.opacity(0.75) : Palette.outline.opacity(0.9)),
+                       style: StrokeStyle(lineWidth: lived ? 3 : 2, lineCap: .round))
+        }
+        // after the last bead the string runs on, dotted
+        let end = Self.point(36, width: w)
+        var tail = Path(); tail.move(to: end)
+        tail.addCurve(to: CGPoint(x: end.x + 12, y: end.y + 18), control1: CGPoint(x: end.x + 14, y: end.y), control2: CGPoint(x: end.x + 14, y: end.y + 8))
+        ctx.stroke(tail, with: .color(Palette.bead.opacity(0.7)), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [1, 5]))
+        for m in 0...36 {
+            let p = Self.point(m, width: w)
+            let here = m == baby, lived = m < baby
+            let d: CGFloat = here ? 20 : lived ? 15 : 13
+            let r = CGRect(x: p.x - d / 2, y: p.y - d / 2, width: d, height: d)
+            let c = here ? Palette.bead : Land.of(m).crayon
+            if here || lived {
+                ctx.fill(Path(ellipseIn: r.offsetBy(dx: 0, dy: 1.5)), with: .color(c.mix(with: .black, by: 0.35).opacity(0.25)))
+                ctx.fill(Path(ellipseIn: r), with: .radialGradient(Gradient(colors: [c.mix(with: .white, by: 0.35), c, c.mix(with: .black, by: 0.15)]),
+                                                                   center: CGPoint(x: r.minX + d * 0.35, y: r.minY + d * 0.3), startRadius: 0, endRadius: d * 0.75))
+            } else {
+                ctx.fill(Path(ellipseIn: r), with: .color(Palette.card))
+                ctx.stroke(Path(ellipseIn: r.insetBy(dx: 0.75, dy: 0.75)), with: .color(c.opacity(0.55)), lineWidth: 1.5)
+            }
+            // every year's first bead is a little larger in the real chains; here it carries a dot
+            if m % 12 == 0 && !here { ctx.fill(Path(ellipseIn: CGRect(x: p.x - 2, y: p.y - 2, width: 4, height: 4)), with: .color(lived ? .white.opacity(0.9) : c.opacity(0.7))) }
+        }
     }
 }
 

@@ -179,19 +179,20 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(try JSONDecoder().decode(RunningTimer.self, from: old).carried, 0)
     }
 
-    func testTheWheelRestsOnABeadEitherWay() {
-        let w = BeadSnap.item
-        // a slow release settles on the nearest bead, forwards or back
-        XCTAssertEqual(BeadSnap.resting(5 * w + 0.4 * w), 5 * w)
-        XCTAssertEqual(BeadSnap.resting(5 * w + 0.6 * w), 6 * w)
-        XCTAssertEqual(BeadSnap.resting(5 * w - 0.4 * w), 5 * w)
-        XCTAssertEqual(BeadSnap.resting(5 * w - 0.6 * w), 4 * w)
-        // a flick past either end rests on the end bead
-        XCTAssertEqual(BeadSnap.resting(-300), 0)
-        XCTAssertEqual(BeadSnap.resting(40 * w), 36 * w)
-        // the month read while turning is the bead under the ring
-        XCTAssertEqual(BeadSnap.month(at: 12 * w + 10), 12)
-        XCTAssertEqual(BeadSnap.month(at: 12 * w - 10), 12)
+    /// The bead chain: every month has its own place, a touch on a bead picks that bead, and the years wind (the end of
+    /// one year sits right above the start of the next).
+    func testTheBeadChainWinds() {
+        let w: CGFloat = 329
+        var seen = Set<String>()
+        for m in 0...36 {
+            let p = BeadPath.point(m, width: w)
+            XCTAssertTrue(seen.insert("\(Int(p.x))-\(Int(p.y))").inserted, "two months share a place")
+            XCTAssertEqual(BeadPath.month(near: p, width: w), m)
+            XCTAssertEqual(BeadPath.month(near: CGPoint(x: p.x + 4, y: p.y - 6), width: w), m, "a touch a little off still picks it")
+            XCTAssertTrue(p.x >= 0 && p.x <= w)
+        }
+        XCTAssertEqual(BeadPath.point(12, width: w).x, BeadPath.point(13, width: w).x, accuracy: 0.01)
+        XCTAssertEqual(BeadPath.point(24, width: w).x, BeadPath.point(25, width: w).x, accuracy: 0.01)
     }
 
     /// Night mode is where contrast breaks first (a bright fill under white text, a dark ink on the lamp page), so
