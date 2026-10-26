@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The home, in the order of how often it is needed (ios/DESIGN.md §5): the month as one compact card that opens into
 /// the growth wheel in place; this week's shelf, the everyday reason to open the app; the month's other plays; the
@@ -11,6 +12,8 @@ struct TodayView: View {
     @State private var arranging = false
     @State private var chosen: Int?
     @State private var wheel = false
+    private let shelfTip = ShelfTip()
+    private let recordsTip = RecordsTip()
 
     var body: some View {
         let baby = app.babyMonth ?? 0
@@ -22,6 +25,11 @@ struct TodayView: View {
                         .buttonStyle(.borderedProminent).tint(Palette.accentFill).controlSize(.large)
                 }
                 if app.journal && app.age != nil { NowCard(month: baby) }
+                if app.age != nil {
+                    TipView(recordsTip) { action in
+                        if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
+                    }
+                }
                 if wheel {
                     GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
                         .overlay(alignment: .topTrailing) {
@@ -37,7 +45,10 @@ struct TodayView: View {
                         .transition(.opacity)
                 }
                 if m >= 36 { StoryGoesOn(primary: app.companion) }
-                if m == baby && app.age != nil { ShelfView(month: m) { arranging = true } }
+                if m == baby && app.age != nil {
+                    TipView(shelfTip)
+                    ShelfView(month: m) { arranging = true }
+                }
                 PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
                 MonthParts(month: m)
                 Topics()
@@ -46,6 +57,7 @@ struct TodayView: View {
             .padding(.bottom, 32)
         }
         .pageBackground(tone: Crayon.sunflower)
+        .onChange(of: app.journal, initial: true) { _, on in RecordsTip.recordsOff = !on }
         .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {

@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The journal (optional): what is running, one-tap buttons, the week, then the day — its totals, its time line and
 /// every entry in order.
@@ -16,6 +17,7 @@ struct JournalView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                TipView(StickerTip())
                 StickerSheet(timers: j.timers, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only)

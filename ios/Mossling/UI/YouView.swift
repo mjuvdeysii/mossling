@@ -348,6 +348,7 @@ private var stamp: String { let d = Day.today; return String(format: "%04d%02d%0
 /// About: name, version, the documents, sources and licences, a short disclaimer.
 struct AboutView: View {
     @Environment(AppModel.self) private var app
+    @State private var replay = false
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
@@ -371,6 +372,10 @@ struct AboutView: View {
                 NavigationLink(value: Route.sources) { Label { Text("内容来源") } icon: { IconTile(symbol: "books.vertical.fill", color: Crayon.caramel) } }
                 NavigationLink(value: Route.licenses) { Label { Text("许可与致谢") } icon: { IconTile(symbol: "checkmark.seal.fill", color: Crayon.aqua) } }
                 NavigationLink(value: Route.doc("CHANGELOG")) { Label { Text("更新日志") } icon: { IconTile(symbol: "clock.arrow.circlepath", color: Crayon.lilac) } }
+                Button { Guide.replayNextLaunch(); replay = true } label: {
+                    Label { Text(replay ? "下次打开时重新显示使用提示" : "重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
+                }
+                .tint(.primary).disabled(replay)
                 Link(destination: URL(string: "https://github.com/mjuvdeysii/mossling/issues")!) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
                     .tint(.primary)
             } footer: {

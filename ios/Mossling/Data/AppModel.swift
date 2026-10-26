@@ -113,6 +113,7 @@ final class AppModel {
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
+        Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
     }
 }

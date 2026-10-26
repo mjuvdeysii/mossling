@@ -10,6 +10,7 @@ struct MosslingApp: App {
     @State private var app = AppModel()
     @State private var journal = JournalStore()
     @State private var mascot = MascotDirector()
+    init() { Guide.configure() }
     var body: some Scene {
         WindowGroup {
             RootView()

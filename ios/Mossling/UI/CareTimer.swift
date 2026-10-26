@@ -1,4 +1,5 @@
 import SwiftUI
+import TipKit
 
 /// The page of a feed or a sleep — the one place a timer starts, runs and ends (build 169, after "点一下就开始了，点进去
 ///发现已经开始很久了"). Tapping 亲喂 or 睡觉 anywhere opens this page *not yet running*: the sides (or the moon) say
@@ -70,6 +71,7 @@ struct TimerScreen: View {
                 }
 
                 if type == LogType.nurse {
+                    TipView(SideTip())
                     HStack(spacing: 12) {
                         ForEach(["l", "r"], id: \.self) { k in
                             SidePad(side: k, seconds: 0, state: .ready(suggested: k == suggested), color: c) { begin(side: k) }
