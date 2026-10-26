@@ -195,24 +195,30 @@ def build_moss(x=0.0, look=(0.3, 0.1), happy=False, lean=0.0):
 
 # Otto: a tall dome 0.84 wide, its top at 1.26, the bottom rounded onto the table
 OTTO = dict(rx=0.45, ry=0.41, cz=0.48, top=0.64, bottom=0.44)
+OTTO_PROFILE = [(0.03, 0.0), (0.09, 0.41), (0.22, 0.455), (0.45, 0.45), (0.7, 0.425), (0.9, 0.37), (1.04, 0.27), (1.12, 0.14), (1.14, 0.0)]
+def otto_radius(z):
+    for (z0, r0), (z1, r1) in zip(OTTO_PROFILE, OTTO_PROFILE[1:]):
+        if z0 <= z <= z1: return r0 + (r1 - r0) * (z - z0) / (z1 - z0)
+    return 0.0
 def otto_surface_y(x, z):
-    o = OTTO; rz = o["top"] if z > o["cz"] else o["bottom"]
-    k = 1 - (x / o["rx"]) ** 2 - ((z - o["cz"]) / rz) ** 2
-    return -o["ry"] * math.sqrt(max(0.0, k))
+    r = otto_radius(z) * 0.97   # the subdivided surface sits a little inside the profile
+    return -0.9 * math.sqrt(max(0.0, r * r - x * x))
 
 def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False):
     o = OTTO
     root = bpy.data.objects.new("Otto", None); bpy.context.collection.objects.link(root)
-    # a bell: the dome narrows a little towards the top, the base is broad and flattened where it stands
-    def f(a, b, c):
-        w = 1 + 0.1 * max(0.0, -c) - 0.08 * max(0.0, c) ** 2
-        z = c * (o["top"] if c > 0 else o["bottom"])
-        if c < -0.85: z = -0.85 * o["bottom"] + (c + 0.85) * o["bottom"] * 0.35
-        return (a * o["rx"] * w, b * o["ry"] * w, o["cz"] + z)
-    body = shaped_sphere("otto_body", f, M["otto"])
+    # turned like a wooden toy: a profile spun round its axis — a broad soft base, nearly straight sides that lean in a
+    # little, and a round dome (the icon's silhouette), then smoothed
+    prof = [(0.0, 0.03), (0.28, 0.035), (0.41, 0.09), (0.455, 0.22), (0.45, 0.45), (0.425, 0.7), (0.37, 0.9), (0.27, 1.04), (0.14, 1.12), (0.0, 1.14)]
+    me = bpy.data.meshes.new("otto_profile"); me.from_pydata([(x, 0, z) for x, z in prof], [(i, i + 1) for i in range(len(prof) - 1)], [])
+    body = bpy.data.objects.new("otto_body", me); bpy.context.collection.objects.link(body)
+    sc = body.modifiers.new("spin", "SCREW"); sc.steps = 64; sc.render_steps = 64; sc.use_merge_vertices = True; sc.use_smooth_shade = True
+    smooth(body, 2)
+    body.scale = (1.0, 0.9, 1.0)
+    body.data.materials.append(M["otto"])
     feet = [sphere(f"otto_foot{i}", (s * 0.17, -0.1, 0.045), (0.075, 0.095, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
     parts = [body, *feet]
-    ez = o["cz"] + 0.34
+    ez = 0.8
     if happy:
         sy = otto_surface_y(0, ez)
         parts.append(tube("otto_smile", [(-0.12, sy + 0.01, ez - 0.02), (0.0, sy - 0.015, ez + 0.06), (0.12, sy + 0.01, ez - 0.02)], 0.016, M["pupil"]))
@@ -220,7 +226,7 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
     else:
         parts += eye("otto_eye", (0.0, otto_surface_y(0, ez) + 0.05, ez), 0.17, look, scale=(1, 0.5, 0.95), lid=lid, skin=M["otto"])
     # the antenna: from the top of the head, arching forward, the lamp bead at its end
-    top = (0.0, 0.0, o["cz"] + o["top"] - 0.02)
+    top = (0.0, 0.0, 1.13)
     bx, by, bz = -0.26, -0.3, top[2] + 0.16
     parts.append(tube("otto_antenna", [top, (0.0, -0.04, top[2] + 0.24), (-0.14, -0.2, top[2] + 0.3), (bx, by, bz + 0.07)], 0.014, M["ottoDeep"]))
     parts.append(sphere("otto_bead", (bx, by, bz), (0.07, 0.07, 0.07), M["bead"]))
