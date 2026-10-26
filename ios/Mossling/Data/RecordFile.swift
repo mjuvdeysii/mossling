@@ -105,10 +105,11 @@ enum RecordFile {
                     guard let v else { return "" }
                     let x = Double(v) / k
                     let p = months.flatMap { mo in mo >= 0 && mo <= 36 && app.sex != nil ? app.growth.percentile(i, girl: app.girl, months: mo, value: x) : nil }
-                    return i.fmt(x) + (p.map { "（" + pctText($0) + "）" } ?? "")
+                    guard let p else { return i.fmt(x) }
+                    return "\(i.fmt(x))（\(pctText(p))）"
                 }
                 let row: [String] = [date(m.at), months.map { String(format: "%.1f", $0) } ?? "", cell(m.weightG, .weight, 1000), cell(m.lengthMm, .length, 10), cell(m.headMm, .head, 10)]
-                o += "| " + row.joined(separator: " | ") + " |\n"
+                o += "| \(row.joined(separator: " | ")) |\n"
             }
         }
 
@@ -134,7 +135,7 @@ enum RecordFile {
                     o += String(format: "| %04d-%02d-%02d ", d.y, d.m, d.d)
                     let cells: [String] = ["\(feeds)", nursed > 0 ? minutesOf(nursed) : "", ml > 0 ? "\(ml) 毫升" : "", sleep > 0 ? minutesOf(sleep) : "",
                                            nap.isEmpty ? "" : "\(nap.count)（\(wet) / \(dirty)）", temp, solid, med]
-                    o += "| " + cells.joined(separator: " | ") + " |\n"
+                    o += "| \(cells.joined(separator: " | ")) |\n"
                 }
                 d = d.plus(days: 1)
             }
@@ -149,7 +150,8 @@ enum RecordFile {
                 o += "\n### \(m == 0 ? "出生" : "满 \(m) 个月")\n\n"
                 for (k, name) in kinds {
                     let items = ticks.filter { $0.month == m && $0.kind == k }
-                    if !items.isEmpty { o += "- \(name)：" + items.map { $0.label.isEmpty ? $0.key : $0.label }.joined(separator: "；") + "\n" }
+                    let labels: [String] = items.map { (t: Tick) -> String in t.label.isEmpty ? t.key : t.label }
+                    if !items.isEmpty { o += "- \(name)：\(labels.joined(separator: "；"))\n" }
                 }
             }
         }
@@ -166,11 +168,12 @@ enum RecordFile {
                     what = [side, length].compactMap { $0 }.joined(separator: " · ")
                 }
                 let row: [String] = [date(e.start), time(e.start), e.end.map(time) ?? "", LogType.name(e.type), what.replacingOccurrences(of: "|", with: "／")]
-                o += "| " + row.joined(separator: " | ") + " |\n"
+                o += "| \(row.joined(separator: " | ")) |\n"
             }
         }
         if !j.timers.isEmpty {
-            o += "\n正在计时：" + j.timers.map { LogType.name($0.type) + "，" + date($0.start) + " " + time($0.start) + " 开始" }.joined(separator: "；") + "\n"
+            let running: [String] = j.timers.map { (t: RunningTimer) -> String in "\(LogType.name(t.type))，\(date(t.start)) \(time(t.start)) 开始" }
+            o += "\n正在计时：\(running.joined(separator: "；"))\n"
         }
         o += "\n—— 来自 摸索台灯 Mossling。应用内容仅供家庭养育参考，不能替代医生的诊断和建议。\n"
         return Data(o.utf8)
