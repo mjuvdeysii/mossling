@@ -45,6 +45,8 @@ def capture(spec, area):
     last = BUILT[-len([w for w in ("adult", "child", "peer", "adult2") if w in spec]):]
     return last, list(OBJS)
 
+pb.companions = lambda *a, **k: None   # the 2D companions are replaced by the 3D ones
+
 def layers(spec, area, watch=None):
     """The 2D layers: the backdrop with the scenery and the contact shadows (under the 3D), and the flat props and the
     marks (over it)."""
@@ -328,7 +330,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
         prop3d(o, dep)
     where = None; bead = None
     back, front = layers(spec, area)
-    if not spec.get("companions"):
+    if True:   # the two are in every picture, covers included (as 3D figures, never the 2D ones)
         play = interplay(spec, people, objs, step, nsteps)
         # the step as the picture book draws it (people, things, marks): where something is, they are not
         # (a play mat, a road are floor: they may sit on them)
@@ -337,7 +339,9 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
         pb.SVG.shadow = lambda *a_, **kw: None      # soft floor shadows are not things
         try: occupied = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=pb.scene(spec, area).svg().encode(), output_width=pb.W))).convert("RGB")
         finally: pb.obj, pb.SVG.shadow = keep_obj, keep_sh
-        where = stand(play, prev, occupied, area)
+        # the marks (arrows, look lines, speech, badges) and flat things, as a strict mask: not one pixel under them
+        marks = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=pb.W))).getchannel("A")
+        where = stand(play, prev, occupied, area, marks)
         # the layout pass: a step can set its own staging for the two (scenes.json "duo": x, base, k, oside, depth, act)
         o = spec.get("duo")
         if o == "off": where = None
@@ -363,7 +367,9 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     B.alpha_composite(T)
     if where and bead: lamplight(B, bead, play["focus"], where[1] + 4 if where[4] == 0.9 else None)
     B.alpha_composite(F)
-    B.convert("RGB").save(out, quality=92); os.remove(tmp)
+    if out.endswith(".webp"): B.convert("RGB").save(out, "WEBP", quality=88, method=6)
+    else: B.convert("RGB").save(out, quality=92)
+    os.remove(tmp)
     return where
 
 # ---------- Moss and Otto in the scene ----------
@@ -378,8 +384,9 @@ def page(pt):
 def P3(px, py, depth): return (px / U, depth, (pb.GROUND - py) / U)
 
 def companion_box(x, base, k, oside=-1):
-    """Moss at x; Otto half a step behind him on side `oside`."""
-    return (x - 124 * k, base - 120 * k, x + 50 * k, base + 6) if oside < 0 else (x - 50 * k, base - 120 * k, x + 124 * k, base + 6)
+    """Moss at x; Otto half a step behind him, `oside` × 82k to the side (±1 beside, ±0.5 tucked in behind)."""
+    reach = (abs(oside) * 82 + 42) * k
+    return (x - reach, base - 120 * k, x + 50 * k, base + 6) if oside < 0 else (x - 50 * k, base - 120 * k, x + reach, base + 6)
 
 def place(img, spec, area, prev, focus, keep=()):
     """Where the two stand: right up beside the action, as near the focus as possible. They may stand in front of
@@ -452,7 +459,7 @@ def interplay(spec, people, objs, i, n):
                 furniture=[furn(o) for o in objs if o["k"] in ("stool", "table")],
                 avoid=[page(p.head()) for p in people] + ([page(child.hand(0)), page(child.hand(1))] if child else []))
 
-def stand(play, prev, occupied, area):
+def stand(play, prev, occupied, area, marks=None):
     """Where the two are: like family sitting with them — close to the child, on the floor in front, turned to the
     play, always whole and always the same size. Nothing of theirs covers anyone, the thing being played with or a
     mark, and nothing covers them (`occupied` is the step drawn in 2D: people, things and marks). Within a play they
@@ -460,8 +467,12 @@ def stand(play, prev, occupied, area):
     cx = play["child"][0]; fx = play["focus"][0]
     def free(x, base, k, os_):
         b = companion_box(x, base, k, os_)
-        if b[0] < 8 or b[2] > pb.W - 8 or b[1] < 50: return False
-        return pb.busy(occupied, (b[0] - 6, b[1] - 6, b[2] + 6, b[3]), area) < 0.03
+        if b[0] < 24 or b[2] > pb.W - 36 or b[1] < 50: return False
+        if any(b[0] - 10 < q[2] and b[2] + 10 > q[0] and b[1] < q[3] and b[3] > q[1] for q in play.get("furniture", [])): return False
+        if marks is not None:
+            m = marks.crop((int(max(0, b[0] - 10)), int(max(0, b[1] - 10)), int(min(pb.W, b[2] + 10)), int(min(pb.H, b[3] + 4))))
+            if m.getbbox() and sum(m.histogram()[24:]) > 0: return False
+        return pb.busy(occupied, (b[0] - 14, b[1] - 10, b[2] + 14, b[3]), area) < 0.015
     if prev and free(*prev[:4]): return prev
     best = None
     for k in (0.86, 0.76, 0.66):
@@ -470,9 +481,12 @@ def stand(play, prev, occupied, area):
         for base, depth in ((pb.GROUND + 30, -2.2), (pb.GROUND + 16, -2.2), (pb.GROUND + 44, -2.2), (pb.GROUND - 14, 0.95), (pb.GROUND - 30, 0.95)):
             for x in range(40, pb.W - 40, 6):
                 t = 1 if fx > x else -1
-                for os_ in (-t, t):          # Otto behind Moss, away from the play when there is room
+                for os_ in (-t, t, -0.8 * t, 0.8 * t):   # Otto beside Moss away from the play, else tucked in behind him
                     if not free(x, base, k, os_): continue
-                    score = abs(x - cx) + (0 if os_ == -t else 25) + (0.86 - k) * 400 + abs(pb.GROUND + 30 - base) * 0.4
+                    if depth > 0:   # just behind the play, but never behind furniture (under a table, behind a stool)
+                        b = companion_box(x, base, k, os_)
+                        if any(b[0] < q[2] and b[2] > q[0] and b[1] < q[3] and b[3] > q[1] for q in play.get("furniture", [])): continue
+                    score = abs(x - cx) + (0 if os_ == -t else 25 if abs(os_) == 1 else 40) + (0.86 - k) * 400 + abs(pb.GROUND + 30 - base) * 0.4
                     if best is None or score < best[0]: best = (score, (x, base, k, os_, depth))
         if best: return best[1]
     return None
@@ -509,7 +523,7 @@ def companions3d(where, play):
     ot = dict(lid=0.45, look=(0.6 * toward, 0.0), slouch=0.6, droop=0.2, bags=True, glow=1.0)
     if act == "glee": ot = dict(lid=0.5, smirk=True, slouch=0.6, droop=0.3, bags=True, glow=1.0)
     o = build_otto(**ot)
-    o.location = P3(ox, base - 8 * k, depth + 0.5)
+    o.location = P3(ox, base - (8 if abs(oside) == 1 else 14) * k, depth + (0.5 if abs(oside) == 1 else 0.8))
     # the rod arches to his left: turn him round when the action is on his right, so the lamp leans over it
     o.scale = (sc * (-1 if fx > ox else 1), sc, sc)
     o.rotation_euler = (0, math.radians(6 * toward), 0)
@@ -544,6 +558,28 @@ def lamplight(img, bead, focus, land=None):
     # on paper, light shows as warm colour: a soft amber wash, strongest where it lands
     img.alpha_composite(g); img.alpha_composite(halo)
 
+def export(codes, size):
+    """Into the app: the steps (and with --covers the 37 month covers) as WebP in ios/Art/art under the names the app
+    already uses, and their sizes in art/index.json."""
+    art = os.path.join(HERE, "..", "ios", "Art", "art"); ipath = os.path.join(art, "index.json")
+    index = json.load(open(ipath)); scenes = json.load(open(pb.SCENES))
+    for code in codes:
+        play = next(p for p in pb.C["activities"] if p["code"] == code); area = pb.area_of(play)
+        spec = scenes[code]; prev = None
+        for i, st in enumerate(spec):
+            n = f"play_{code.lower()}_{i + 1}{pb.SUFFIX}.webp"
+            prev = render_step(st, area, os.path.join(art, n), size, prev, i, len(spec))
+            index["size"][n] = [size, int(size * pb.H / pb.W)]
+            print("wrote", n, flush=True)
+        json.dump(index, open(ipath, "w"), separators=(",", ":"))
+    if "--covers" in ARGS:
+        for mo in pb.C["months"]:
+            spec, area = pb.cover_spec(mo["month"], mo, scenes)
+            n = "cover_%02d%s.webp" % (mo["month"], pb.SUFFIX)
+            render_step(spec, area, os.path.join(art, n), size, None, 1, 1)
+            index["size"][n] = [size, int(size * pb.H / pb.W)]; print("wrote", n, flush=True)
+        json.dump(index, open(ipath, "w"), separators=(",", ":"))
+
 def one(code, out):
     spec = json.load(open(pb.SCENES))[code]
     play = next(p for p in pb.C["activities"] if p["code"] == code)
@@ -555,6 +591,9 @@ def one(code, out):
         prev = render_step(st, area, os.path.join(out, f"{code}_{i + 1}.jpg"), arg("--size", 1440), prev, i, len(spec))
 
 if __name__ == "__main__":
+    if ARGS[0] == "export":
+        codes = arg("--play", "").split(",") if "--play" in ARGS else [a["code"] for a in pb.C["activities"] if a["code"] in json.load(open(pb.SCENES))]
+        export([c for c in codes if c], arg("--size", 1440)); sys.exit()
     out = ARGS[0]; os.makedirs(out, exist_ok=True)
     for code in arg("--play", "A11").split(","):
         one(code, out)
