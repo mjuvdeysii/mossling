@@ -165,12 +165,23 @@ private struct StickerSheet: View {
 private struct Sticker: View {
     let type: String, running: Bool, since: String?
     let action: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var pops = 0
     var body: some View {
         let c = LogType.color(type)
-        Button(action: action) {
+        let on = ArtStyle.current == .vinyl && !reduce
+        Button { pops += 1; action() } label: {
             VStack(spacing: 4) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
+                    // 3D: the sticker squashes into the page and springs back up, like a soft toy pressed
+                    .keyframeAnimator(initialValue: CGFloat(1), trigger: pops) { v, k in
+                        v.scaleEffect(x: 2 - k, y: k, anchor: .bottom)
+                    } keyframes: { _ in
+                        CubicKeyframe(on ? 0.84 : 1, duration: 0.08)
+                        SpringKeyframe(on ? 1.08 : 1, duration: 0.16, spring: .snappy)
+                        SpringKeyframe(1, duration: 0.3, spring: .bouncy)
+                    }
                 Text(LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
                 Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }

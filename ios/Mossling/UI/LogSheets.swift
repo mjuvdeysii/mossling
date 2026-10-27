@@ -14,9 +14,15 @@ struct AskSheet: View {
     @State private var text = ""
     @State private var milk = "formula"
     @State private var failed = false
+    /// 3D world: minutes before saving (nil when an exact time was chosen), and the exact time.
+    @State private var ago: Int? = 0
+    @State private var chosen: String?
+    @State private var saved = 0
     @FocusState private var typing: Bool
 
-    private var at: Date { when }
+    private var vinyl: Bool { ArtStyle.current == .vinyl }
+    private var at: Date { vinyl ? (ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? when) : when }
+    private var tempC: Binding<Double> { Binding(get: { Double(temp) / 10 }, set: { temp = Int(($0 * 10).rounded()) }) }
 
     var body: some View {
         let c = LogType.color(type)
@@ -25,9 +31,13 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 22) {
                     CareStage(type: type)
                     LastLine(type: type)
-                    DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                        .padding(.horizontal, 16).padding(.vertical, 10)
-                        .printCard(radius: 20)
+                    if vinyl {
+                        WhenChips(ago: $ago, exact: $when, tint: LogType.color(type))
+                    } else {
+                        DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .printCard(radius: 20)
+                    }
                     content
                     if failed { SaveFailed() }
                 }
@@ -37,13 +47,64 @@ struct AskSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
             .background { PageBackground(tone: LogType.color(type)) }
         }
-        .presentationDetents([.fraction(0.72), .large])
+        .presentationDetents(vinyl ? [.large] : [.fraction(0.72), .large])
+        .sensoryFeedback(.success, trigger: saved)
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
     }
 
     @ViewBuilder private var content: some View {
         let c = LogType.color(type)
         switch type {
+        case LogType.bottle where vinyl:
+            HStack(spacing: 12) {
+                ChoiceTile(sticker: "ic_heart_fill.webp", symbol: "heart.fill", title: "母乳", on: milk == "breastmilk", tint: Crayon.pink, height: 78) { withAnimation(.snappy) { milk = "breastmilk" } }
+                ChoiceTile(sticker: "ic_waterbottle_fill.webp", symbol: "waterbottle.fill", title: "配方奶", on: milk == "formula", tint: Crayon.peach, height: 78) { withAnimation(.snappy) { milk = "formula" } }
+            }
+            HStack(alignment: .center, spacing: 16) {
+                LevelGauge(vessel: .bottle, value: $ml, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" },
+                           tint: c, liquid: milk == "breastmilk" ? Color(hex: 0xFFF6E2) : Color(hex: 0xF6E2BC))
+                    .frame(width: 112, height: 252)
+                VStack(alignment: .leading, spacing: 12) {
+                    ValueText(parts: [("\(Int(ml))", "毫升")], size: 52)
+                    Text("点按或上下拖动奶瓶").font(.footnote).foregroundStyle(Palette.secondaryText)
+                    NudgeButtons(value: $ml, range: 5...300, step: 5, tint: c)
+                    FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in withAnimation(.snappy) { ml = Double(v) } }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
+            save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
+        case LogType.diaper where vinyl:
+            Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
+            HStack(spacing: 10) {
+                ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
+                    ChoiceTile(sticker: art, symbol: sym, title: t, on: chosen == k, tint: c, height: 116) {
+                        guard chosen == nil else { return }
+                        withAnimation(.snappy) { chosen = k }
+                        if j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)) {
+                            saved += 1
+                            Task { @MainActor in try? await Task.sleep(for: .milliseconds(320)); dismiss() }
+                        } else { chosen = nil; failed = true }
+                    }
+                }
+            }
+        case LogType.temp where vinyl:
+            HStack(alignment: .center, spacing: 16) {
+                LevelGauge(vessel: .thermometer, value: tempC, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" },
+                           tint: Crayon.tangerine, alarm: 38)
+                    .frame(width: 96, height: 268)
+                VStack(alignment: .leading, spacing: 12) {
+                    ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
+                        .foregroundStyle(temp >= 380 ? Palette.danger : .primary)
+                    Text("点按或上下拖动体温计").font(.footnote).foregroundStyle(Palette.secondaryText)
+                    NudgeButtons(value: tempC, range: 34...42.5, step: 0.1, tint: temp >= 380 ? Palette.danger : c)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(16)
+            .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
+            save { j.record(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
         case LogType.bottle:
             // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
             HStack(spacing: 12) {
@@ -110,7 +171,7 @@ struct AskSheet: View {
 
     /// Saves and closes; if the save fails the page stays open with everything as typed, and says so.
     private func save(enabled: Bool = true, _ f: @escaping () -> Bool) -> some View {
-        Button { if f() { dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
+        Button { if f() { saved += 1; dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
             .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!enabled)
     }
 }
@@ -221,7 +282,52 @@ struct EntrySheet: View {
     }
 
     @ViewBuilder private var fields: some View {
+        let c = LogType.color(entry.type)
+        let vinyl = ArtStyle.current == .vinyl
         switch entry.type {
+        case LogType.bottle where vinyl:
+            Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
+                Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
+            }
+            let amount = Binding<Double>(get: { Double(entry.amount ?? 120) }, set: { entry.amount = Int($0) })
+            HStack(spacing: 16) {
+                LevelGauge(vessel: .bottle, value: amount, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" }, tint: c)
+                    .frame(width: 92, height: 196)
+                VStack(alignment: .leading, spacing: 12) {
+                    ValueText(parts: [("\(entry.amount ?? 120)", "毫升")], size: 40)
+                    NudgeButtons(value: amount, range: 5...300, step: 5, tint: c)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 6)
+        case LogType.nurse where vinyl:
+            HStack(spacing: 10) {
+                ForEach([("l", "左侧", "L"), ("r", "右侧", "R")], id: \.0) { k, t, mark in
+                    ChoiceTile(sticker: nil, symbol: k == "l" ? "l.circle.fill" : "r.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: c, height: 76) { withAnimation(.snappy) { entry.side = k } }
+                        .accessibilityLabel(t + mark)
+                }
+            }
+            .padding(.vertical, 4)
+        case LogType.diaper where vinyl:
+            HStack(spacing: 10) {
+                ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
+                    ChoiceTile(sticker: art, symbol: sym, title: t, on: (entry.detail ?? "wet") == k, tint: c, height: 96) { withAnimation(.snappy) { entry.detail = k } }
+                }
+            }
+            .padding(.vertical, 4)
+        case LogType.temp where vinyl:
+            let t = Binding<Double>(get: { Double(entry.amount ?? 368) / 10 }, set: { entry.amount = Int(($0 * 10).rounded()) })
+            HStack(spacing: 16) {
+                LevelGauge(vessel: .thermometer, value: t, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" }, tint: Crayon.tangerine, alarm: 38)
+                    .frame(width: 84, height: 220)
+                VStack(alignment: .leading, spacing: 12) {
+                    ValueText(parts: [(String(format: "%.1f", Double(entry.amount ?? 368) / 10), "°C")], size: 40)
+                        .foregroundStyle((entry.amount ?? 368) >= 380 ? Palette.danger : .primary)
+                    NudgeButtons(value: t, range: 34...42.5, step: 0.1, tint: c)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .padding(.vertical, 6)
         case LogType.bottle:
             Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
                 Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
@@ -288,9 +394,11 @@ struct MeasureSheet: View {
 
     private func field(_ t: String, _ unit: String, _ v: Binding<String>, _ s: String, _ i: Indicator) -> some View {
         HStack {
-            Image(systemName: s).foregroundStyle(i.tint).frame(width: 24)
+            if ArtStyle.current == .vinyl { IconTile(symbol: s, color: i.tint, size: 32, round: true) }
+            else { Image(systemName: s).foregroundStyle(i.tint).frame(width: 24) }
             Text(t)
             TextField("—", text: v).keyboardType(.decimalPad).multilineTextAlignment(.trailing).monospacedDigit()
+                .font(ArtStyle.current == .vinyl ? Typeface.numerals(22, relativeTo: .title3, weight: .bold) : .body)
             Text(unit).foregroundStyle(Palette.secondaryText)
         }
     }

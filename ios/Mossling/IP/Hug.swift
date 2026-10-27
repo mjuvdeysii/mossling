@@ -37,7 +37,7 @@ struct HuggedAvatar: View {
 
             // a heart between the two, for each hug
             Figure(name: "ic_heart_fill.webp")
-                .frame(width: size * 0.3, height: size * 0.3)
+                .frame(width: size * (ArtStyle.current == .flat ? 0.3 : 0.35), height: size * (ArtStyle.current == .flat ? 0.3 : 0.35))
                 .keyframeAnimator(initialValue: Pop(), trigger: hugs) { v, p in
                     v.scaleEffect(p.scale).opacity(p.opacity).offset(y: p.rise)
                 } keyframes: { _ in

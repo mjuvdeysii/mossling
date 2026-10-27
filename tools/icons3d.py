@@ -17,6 +17,7 @@ from PIL import Image, ImageDraw, ImageFilter
 ART = os.path.join(HERE, "..", "ios", "Art", "art")
 ARGS = sys.argv[1:]
 PX = 360
+FRAME = 2.1   # ortho scale; IconTile draws the sticker at 1.22 × 2.1 / 1.8 of its tile
 TEAL, PINK, YELLOW, RED, BLUE, ORANGE = "#1FB5A6", "#FF6F91", "#FFC23D", "#F2554B", "#4C9BE8", "#FF8A3D"
 LILAC, MINT, GREEN, CARAMEL, GREY, PEACH = "#9B7BEA", "#3CC9A0", "#4DB86A", "#D9964F", "#9A9289", "#FF9E7A"
 CREAM, INKC, SKIN = "#FFF6E6", "#2A2522", "#F2CDA8"
@@ -110,8 +111,10 @@ def shoot(s, path):
                 p.inputs["Specular IOR Level"].default_value = 0.08
     s.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.22
     s.view_settings.exposure = -1.2   # calibrated: a lit face shows its own colour, not a paler one
-    bpy.ops.object.camera_add(location=(0, -8 * math.cos(math.radians(20)), 0.5 + 8 * math.sin(math.radians(20))))
-    c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 1.8
+    # framed with room all round: the token's front rim, its contour and the cast shadow below it stay inside the
+    # picture (at 1.8 the token's bottom and sides were cut by the frame)
+    bpy.ops.object.camera_add(location=(0, -8 * math.cos(math.radians(20)), 0.36 + 8 * math.sin(math.radians(20))))
+    c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = FRAME
     s.camera = c; ip3d.render(path, PX, PX)
 
 I = {}
@@ -241,6 +244,22 @@ def _():
     rbox((0, 0, 0.32), (0.95, 0.5, 0.55), "#FFFFFF", 0.4)
     rbox((0, -0.04, 0.42), (0.96, 0.46, 0.14), "#9CCBF5", 0.4)
     for sx in (-1, 1): rbox((sx * 0.4, -0.25, 0.42), (0.12, 0.04, 0.12), YELLOW, 0.4)
+@icon("drop_halffull", BLUE)                              # 尿布 · 湿: a drop of water
+def _():
+    g = MATS.setdefault("water", mat("water", "#7FC4F4", rough=0.12, coat=0.8))
+    sph((0, 0, 0.4), (0.33, 0.3, 0.33), g); cyl((0, 0, 0.78), 0.235, 0.42, g, r2=0.0, bevel=0.5, verts=64)
+    sph((-0.12, -0.24, 0.52), (0.06, 0.03, 0.1), "#FFFFFF")
+@icon("diaper_dirty", CARAMEL)                            # 尿布 · 便: a soft little swirl, like soft-serve
+def _():
+    for z, rx, rz in ((0.2, 0.42, 0.2), (0.42, 0.31, 0.16), (0.6, 0.2, 0.13)): sph((0, 0, z), (rx, rx * 0.92, rz), "#A86F3E")
+    cyl((0.02, 0, 0.78), 0.1, 0.16, "#A86F3E", r2=0.0, bevel=0.5)
+    sph((-0.17, -0.3, 0.3), (0.05, 0.03, 0.07), "#E7C7A6")
+@icon("diaper_both", LILAC)                               # 尿布 · 都有: the drop and the swirl together
+def _():
+    g = MATS.setdefault("water", mat("water", "#7FC4F4", rough=0.12, coat=0.8))
+    sph((-0.3, 0.05, 0.3), (0.24, 0.22, 0.24), g); cyl((-0.3, 0.05, 0.58), 0.17, 0.3, g, r2=0.0, bevel=0.5, verts=64)
+    for z, rx, rz in ((0.16, 0.3, 0.15), (0.32, 0.22, 0.12), (0.45, 0.14, 0.1)): sph((0.3, -0.05, z), (rx, rx * 0.92, rz), "#A86F3E")
+    cyl((0.31, -0.05, 0.58), 0.07, 0.12, "#A86F3E", r2=0.0, bevel=0.5)
 @icon("bathtub_fill", TEAL)                               # 洗澡: a tub, bubbles and a duck
 def _():
     cyl((0, 0, 0.26), 0.62, 0.5, "#FFFFFF", r2=0.5, rot=(math.pi, 0, 0)); cyl((0, 0, 0.5), 0.56, 0.02, "#9CDDE6")

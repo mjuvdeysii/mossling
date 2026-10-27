@@ -344,6 +344,14 @@ private struct SidePad: View {
                     .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
                              : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
                     .overlay {
+                        // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
+                        if ArtStyle.current == .vinyl {
+                            let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+                            shape.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                            shape.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
+                        }
+                    }
+                    .overlay {
                         // paused: the side stays coloured (it is still this side's feed) with a solid rim
                         if state == .paused {
                             RoundedRectangle(cornerRadius: 34, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
@@ -414,6 +422,12 @@ private struct SleepPad: View {
             .background {
                 Circle().fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
                               : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
+                    .overlay {
+                        if ArtStyle.current == .vinyl {
+                            Circle().fill(LinearGradient(colors: [.white.opacity(paused && !ready ? (lamp ? 0.05 : 0.45) : 0.24), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                            Circle().strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
+                        }
+                    }
             }
             .modifier(Breathe(on: !paused && !reduce, amount: 1.02, period: 2.1))   // slow, like a sleeping breath
             .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)

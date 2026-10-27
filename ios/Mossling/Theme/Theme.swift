@@ -126,7 +126,9 @@ struct IconTile: View {
         let s = size * min(scale, 1.6)
         if let n = Self.sticker(symbol) {
             // the sticker's white edge makes it read smaller than a tile, so it is drawn a little larger
-            Figure(name: n).frame(width: s * 1.22, height: s * 1.22).frame(width: s, height: s).accessibilityHidden(true)
+            // (the 3D stickers are framed with room for the token's shadow, so they are drawn larger still)
+            let k: CGFloat = ArtStyle.current == .flat ? 1.22 : 1.42
+            Figure(name: n).frame(width: s * k, height: s * k).frame(width: s, height: s).accessibilityHidden(true)
         } else {
             let shape = RoundedRectangle(cornerRadius: round ? s / 2 : s * 0.3, style: .continuous)
             Image(systemName: symbol)
