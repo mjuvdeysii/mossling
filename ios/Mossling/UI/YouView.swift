@@ -137,9 +137,9 @@ struct YouView: View {
         } message: { Text("清除后无法恢复。") }
     }
 
-    private var birthLine: some View { Text(app.birth.map { "\($0.y)年\($0.md)出生" } ?? "填写出生日期").fixedSize() }
+    private var birthLine: some View { Text(verbatim: app.birth.map { b in String(b.y) + "年" + b.md + "出生" } ?? "填写出生日期").fixedSize() }
     @ViewBuilder private func lived(dot: Bool) -> some View {
-        if let a = app.age { Text((dot ? "· " : "") + "第 \(a.lived) 天").monospacedDigit().fixedSize() }
+        if let a = app.age { Text(verbatim: (dot ? "· " : "") + "第 " + String(a.lived) + " 天").monospacedDigit().fixedSize() }
     }
 }
 
