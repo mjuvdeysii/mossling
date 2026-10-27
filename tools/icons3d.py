@@ -11,7 +11,7 @@ sys.argv = sys.argv[:1] + ["--samples", "24"] + sys.argv[1:]
 import bpy
 from mathutils import Vector, Euler
 import ip3d
-from ip3d import M, sphere, tube, hexcol, rubber, mat, build_moss
+from ip3d import M, sphere, tube, hexcol, rubber, mat, build_moss, shaped_sphere
 from PIL import Image, ImageDraw, ImageFilter
 
 ART = os.path.join(HERE, "..", "ios", "Art", "art")
@@ -59,6 +59,12 @@ def face(c, r, front=-1.0, spread=0.32, smile=True, z=0.0):
     if smile:
         y = c[1] + front * r * 0.95
         tube("m", [(c[0] - r * 0.14, y, c[2] - r * 0.1 + z), (c[0], y - 0.002, c[2] - r * 0.2 + z), (c[0] + r * 0.14, y, c[2] - r * 0.1 + z)], r * 0.03, v(INKC))
+def drop(c, r, col):
+    """A water drop: round below, drawn up into a soft point."""
+    def f(x, y, z):
+        k = 1.0 if z <= 0 else (1 - z) ** 1.1
+        return (c[0] + x * r * k, c[1] + y * r * 0.92 * k, c[2] + (z if z <= 0 else z * 1.75) * r)
+    return shaped_sphere("drop", f, col)
 def heart(c, s, col):
     """A plump heart: two round lobes and a soft point, overlapping so they read as one shape."""
     for sx in (-1, 1): sph((c[0] + sx * s * 0.34, c[1], c[2] + s * 0.22), (s * 0.5, s * 0.4, s * 0.5), col)
@@ -247,8 +253,7 @@ def _():
 @icon("drop_halffull", BLUE)                              # 尿布 · 湿: a drop of water
 def _():
     g = MATS.setdefault("water", mat("water", "#7FC4F4", rough=0.12, coat=0.8))
-    sph((0, 0, 0.4), (0.33, 0.3, 0.33), g); cyl((0, 0, 0.78), 0.235, 0.42, g, r2=0.0, bevel=0.5, verts=64)
-    sph((-0.12, -0.24, 0.52), (0.06, 0.03, 0.1), "#FFFFFF")
+    drop((0, 0, 0.36), 0.34, g)
 @icon("diaper_dirty", CARAMEL)                            # 尿布 · 便: a soft little swirl, like soft-serve
 def _():
     for z, rx, rz in ((0.2, 0.42, 0.2), (0.42, 0.31, 0.16), (0.6, 0.2, 0.13)): sph((0, 0, z), (rx, rx * 0.92, rz), "#A86F3E")
@@ -257,7 +262,7 @@ def _():
 @icon("diaper_both", LILAC)                               # 尿布 · 都有: the drop and the swirl together
 def _():
     g = MATS.setdefault("water", mat("water", "#7FC4F4", rough=0.12, coat=0.8))
-    sph((-0.3, 0.05, 0.3), (0.24, 0.22, 0.24), g); cyl((-0.3, 0.05, 0.58), 0.17, 0.3, g, r2=0.0, bevel=0.5, verts=64)
+    drop((-0.3, 0.05, 0.26), 0.24, g)
     for z, rx, rz in ((0.16, 0.3, 0.15), (0.32, 0.22, 0.12), (0.45, 0.14, 0.1)): sph((0.3, -0.05, z), (rx, rx * 0.92, rz), "#A86F3E")
     cyl((0.31, -0.05, 0.58), 0.07, 0.12, "#A86F3E", r2=0.0, bevel=0.5)
 @icon("bathtub_fill", TEAL)                               # 洗澡: a tub, bubbles and a duck
