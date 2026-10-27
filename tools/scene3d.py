@@ -51,7 +51,22 @@ _mark = pb.mark
 def mark3d(sv, m, ppl):
     """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us).
     With the cast, a badge over a head floats over the character's crown (the bodies are taller than the rig's heads),
-    keeping the storyboard's offset from it."""
+    keeping the storyboard's offset from it. Two badges never sit on each other: a later one steps aside."""
+    if IP and m["k"] == "badge":
+        at = m.get("at")
+        if isinstance(at, str) and at.split(".")[0] in ppl and at.endswith(".head"): c = ip_head(ppl[at.split(".")[0]])
+        elif isinstance(at, (list, tuple)): c = tuple(at)
+        else: c = None
+        if c is not None:
+            r = 26 * m.get("s", 1)
+            x, y = c[0] + m.get("dx", 0), c[1] + m.get("dy", -60)
+            for _ in range(4):
+                hit = next(((px, py) for px, py in BADGES if math.hypot(x - px, y - py) < 2.3 * r), None) or \
+                      next(((px, py) for px, py, rb in BUBBLES if math.hypot(x - px, y - py) < rb + r + 6), None)
+                if not hit: break
+                x = hit[0] + (2.4 * r if x >= hit[0] else -2.4 * r)
+            m = dict(m, dx=x - c[0], dy=y - c[1])
+            BADGES.append((x, y))
 
     if m["k"] == "look" and isinstance(m.get("a"), str) and isinstance(m.get("b"), str):
         def end(v, other):
@@ -83,7 +98,16 @@ def layers(spec, area, watch=None):
     pb.Person.draw = lambda s, sv: None; pb.obj = only(SCENERY); pb.mark = lambda *a, **k: None
     try: back = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj, pb.mark = keep
-    pb.Person.draw = lambda s, sv: None; pb.obj = only(FLAT)
+    def front_obj(sv, k, x, y, s=1.0, *a, **kw):
+        # a flat thing held up in front of a grown-up of the cast would cover its eye (Otto's face is where a
+        # person's chest was): it is held a little further out, beside the face
+        if k in FLAT:
+            for (fx, fy), R, f in AVOID:
+                cx, cy = x, y - 10 * s
+                if math.hypot(cx - fx, cy - fy) < R:
+                    x = fx + f * (R + 26 * s)
+        if k in FLAT: _obj(sv, k, x, y, s, *a, **kw)
+    pb.Person.draw = lambda s, sv: None; pb.obj = front_obj
     sh = pb.SVG.shadow; pb.SVG.shadow = lambda *a, **k: None
     try: front = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj = keep[0], keep[1]; pb.SVG.shadow = sh
@@ -133,6 +157,9 @@ def hair_cap(c, r, f, hexc, kind):
 # along the floor when lying), with short soft limbs from the rig's shoulders and hips to its hands and feet, so a
 # held toy is still held and a crawl is still a crawl.
 IP = "--people" not in ARGS
+BADGES = []  # badges already placed in this picture
+BUBBLES = [] # the picture's speech bubbles: (x, y, radius)
+AVOID = []   # the cast grown-ups' faces on the page: (centre, radius, facing), kept clear of held flat things
 CAST = {"child": "moss", "adult": "otto", "peer": "mosto", "adult2": "mochi"}
 
 def _drop(root, prefix):
@@ -159,10 +186,15 @@ def _place(root, p, depth, height, base_drop=0.0, tilt=0.62):
     root.location = (a[0] - ux * r * (0.35 + base_drop), depth, a[2] - uz * r * (0.35 + base_drop))
     return k
 
-def _limbs(p, depth, arm, hand, leg, foot, rk=1.0):
+def _limbs(p, depth, arm, hand, leg, foot, rk=1.0, low=0.0):
     d = p.d; r = L(d["head"])
     sp = 0.12
     for k, (shp, el, hd) in enumerate(p.arms):
+        # a grown-up of the cast has its face where a person's chest was: its arms start lower on the body, below the
+        # eye, and bend toward the hand from there
+        if low:
+            shp = (shp[0] + (p.hip[0] - shp[0]) * low, shp[1] + (p.hip[1] - shp[1]) * low)
+            el = (el[0] + (p.hip[0] - el[0]) * low * 0.5, el[1] + (p.hip[1] - el[1]) * low * 0.5)
         dd = depth + (sp if k == 1 else -sp)
         limb(f"arm{k}", [W3(shp, depth + (dd - depth) * 0.6), W3(el, dd), W3(hd, dd)], r * 0.2 * rk, arm)
         sphere(f"hand{k}", W3(hd, dd), (r * 0.27 * rk,) * 3, hand)
@@ -220,7 +252,7 @@ def ip_person(p, depth, who):
                           shut="down" if asleep else None)
         _drop(root, "otto_foot")
         _place(root, p, depth, ip3d.OTTO_TOP, base_drop=0.1, tilt=0.28)   # a grown-up leans in a little, no more
-        _limbs(p, depth, M["otto"], M["otto"], M["ottoBand"], M["foot"], rk=1.1)
+        _limbs(p, depth, M["otto"], M["otto"], M["ottoBand"], M["foot"], rk=1.1, low=0.45)
     else:
         # Mochi: a soft rice-cake grown-up — a squat, rounded cream body, pink cheeks, a small knitted beanie
         root = bpy.data.objects.new("Mochi", None); bpy.context.collection.objects.link(root)
@@ -599,6 +631,20 @@ def finish3d(T, size):
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
+    AVOID.clear(); BADGES.clear(); BUBBLES.clear()
+    if IP:
+        # where the speech bubbles will be (picturebook's own placement), so a badge never sits on one
+        ppl = dict(zip([w for w in ("adult", "child", "peer", "adult2") if w in spec], people))
+        for m in spec.get("marks", []):
+            if m.get("k") != "say": continue
+            who, part = (m.get("from", "adult.mouth").split(".") + ["mouth"])[:2]
+            p = ppl.get(who)
+            if not p: continue
+            h = ip_head(p); a0 = (h[0] + p.f * p.d["head"] * .9, h[1] + p.d["head"] * .3)
+            side = m.get("side", 1); r = 36 * m.get("s", 1)
+            BUBBLES.append((a0[0] + side * m.get("dx", 64), a0[1] - m.get("dy", 70), r * 1.2))
+        for who, p in zip([w for w in ("adult", "child", "peer", "adult2") if w in spec], people):
+            if p.kind == "adult": AVOID.append((ip_face(p), p.d["head"] * 2.4, p.f))
     s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = LOOK["view"]; s.view_settings.look = LOOK["look"]; s.view_settings.exposure = LOOK["exp"]; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
