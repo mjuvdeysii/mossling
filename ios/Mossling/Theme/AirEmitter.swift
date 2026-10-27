@@ -100,7 +100,6 @@ struct AirEmitter: UIViewRepresentable {
                 c.alphaSpeed = -0.5 / life
                 cells = [c]
                 emitter.renderMode = .additive
-            }
             case .rise(let images):
                 let v: CGFloat = max(12, h / 8)
                 let life = Float((h + 20) / v)
