@@ -78,7 +78,7 @@ private struct Drift: View {
 
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still)) { tl in
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: true) { ctx, size in
                 let t = still ? 0 : tl.date.timeIntervalSinceReferenceDate
                 for i in 0..<8 {
                     let seed = Double(i) * 0.618

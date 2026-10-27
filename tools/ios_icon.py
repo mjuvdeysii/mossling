@@ -1,3 +1,4 @@
+# Superseded by tools/appicon3d.py (the 3D vinyl icon); kept for the record.
 """The iOS app icon as an Icon Composer document (AppIcon.icon): Moss in front, Otto behind dangling the golden bead
 over Moss, on a warm paper field. Each part is its own layer so the system can render it as Liquid Glass (specular
 highlights, translucency, shadows) and in the light, dark, tinted and clear appearances."""

@@ -46,14 +46,18 @@ struct Creature: View {
     @State private var pats = 0
     @State private var yawnAt = Date.distantPast
     @State private var sprites: [String: UIImage] = [:]
+    /// Off screen in a scroll view: nothing to animate (the frame clock stops until it scrolls back).
+    @State private var onScreen = true
 
     private var still: Bool { !alive || reduce }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still)) { tl in
-            Canvas { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+        // 30 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
+        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still || !onScreen)) { tl in
+            Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
         }
         .aspectRatio(1, contentMode: .fit)
+        .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
         .accessibilityElement()
         .accessibilityLabel(label ?? "")
         .accessibilityHidden(label == nil)

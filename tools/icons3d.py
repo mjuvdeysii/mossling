@@ -77,14 +77,15 @@ def leafpair(base, h, col=GREEN):
 # ---------- the scene for one icon ----------
 def setup(colour):
     s = ip3d.reset(); s.render.film_transparent = True
-    s.view_settings.view_transform = "Standard"; s.view_settings.look = "None"; s.view_settings.exposure = -0.6
+    s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium High Contrast"; s.view_settings.exposure = -0.95
     ip3d.materials(); MATS.clear(); ip3d.sprite_lights()
-    # the token: a round, thick, soft vinyl coaster in a light tint of the colour
-    t = cyl((0, 0, -0.06), 0.86, 0.12, mix(colour, "#FFFFFF", 0.55), bevel=0.45, verts=96)
+    # the token: a round, thick, soft vinyl coaster in the colour itself (a light tint washed out on white cards and
+    # glowed on the lamp's blue), a little smaller so the object leads
+    t = cyl((0, 0, -0.06), 0.78, 0.12, mix(colour, "#FFFFFF", 0.22), bevel=0.45, verts=96)
     return s
 def shoot(s, path):
     bpy.ops.object.camera_add(location=(0, -8 * math.cos(math.radians(20)), 0.5 + 8 * math.sin(math.radians(20))))
-    c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 1.95
+    c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 1.8
     s.camera = c; ip3d.render(path, PX, PX)
 
 I = {}
@@ -201,7 +202,7 @@ def _():
 # records
 @icon("heart_fill", PINK)                                 # 亲喂: a rose heart with a drop of milk (never red)
 def _():
-    heart((0, 0, 0.6), 0.5, "#F06B8E")
+    heart((0, 0, 0.6), 0.5, "#E04F78")
     sph((0.42, -0.25, 0.24), (0.12, 0.1, 0.13), "#FFFFFF"); cyl((0.42, -0.25, 0.38), 0.085, 0.14, "#FFFFFF", r2=0.0)
 @icon("waterbottle_fill", PEACH)                          # 瓶喂: a baby bottle
 def _():
