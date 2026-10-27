@@ -40,8 +40,8 @@ struct PlayView: View {
                     HStack {
                         DoneCount(record: rec, cheer: cheer)
                         Spacer(minLength: 8)
-                        Button { record() } label: { Label("记一次", systemImage: "plus").font(.subheadline.weight(.semibold)) }
-                            .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Palette.accent).controlSize(.small)
+                        Button { record() } label: { Label("记一次", systemImage: "plus") }
+                            .buttonStyle(.vinyl)
                             .overlay { BeadBurst(trigger: cheer) }
                             .accessibilityLabel("做过了，记一次")
                     }
@@ -58,7 +58,7 @@ struct PlayView: View {
                 }
 
                 ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
-                    StepCard(n: i + 1, text: s, art: i < art.count ? art[i] : nil, open: i == open, done: i < open, last: i == play.steps.count - 1) {
+                    StepCard(n: i + 1, text: s, art: i < art.count ? art[i] : nil, open: i == open, done: i < open, last: i == play.steps.count - 1, companion: app.companion) {
                         go(i, proxy)
                     } next: {
                         go(i + 1, proxy)
@@ -176,8 +176,13 @@ private struct StepCard: View {
     let open: Bool
     let done: Bool
     let last: Bool
+    /// Moss and Otto stay out of the picture (it shows the people and the play, nothing else) and keep the parent
+    /// company beside it: they sit by 下一步, looking up at the picture, and give a little hop each time a new step
+    /// opens — following along, never in the way.
+    let companion: Kind
     let tap: () -> Void
     let next: () -> Void
+    @State private var arrived = 0
 
     var body: some View {
         Group {
@@ -189,12 +194,16 @@ private struct StepCard: View {
                             badge
                             Text(text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
-                        Button(action: next) {
-                            Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
-                                .font(.subheadline.weight(.semibold)).padding(.horizontal, 6)
+                        HStack(alignment: .bottom) {
+                            Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived)
+                            Spacer(minLength: 8)
+                            Button(action: next) {
+                                Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
+                                    .font(.subheadline.weight(.semibold)).padding(.horizontal, 6)
+                            }
+                            .buttonStyle(.vinyl)
                         }
-                        .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Palette.accent)
-                        .frame(maxWidth: .infinity, alignment: .trailing)
+                        .task { if n > 1 { try? await Task.sleep(for: .milliseconds(380)); arrived += 1 } }
                     }
                     .padding(16)
                 }

@@ -88,11 +88,11 @@ struct TimerScreen: View {
                         ForEach([0, 5, 10, 15, 30], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
                             Button(m == 0 ? "现在" : "\(m) 分钟前") { startAt = nil; startAgo = m }
-                                .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(on ? Crayon.ink(c) : .secondary)
+                                .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
                         Button(startAt.map { whenLabel($0) } ?? "其他时间…") { pickingStart = true }
-                            .buttonStyle(.bordered).buttonBorderShape(.capsule).tint(startAt != nil ? Crayon.ink(c) : .secondary)
+                            .buttonStyle(.vinyl(startAt != nil ? c : Color(hex: 0x8A8279)))
                             .fontWeight(startAt != nil ? .semibold : .regular)
                     }
                 }
@@ -268,7 +268,7 @@ private struct Notice: View {
                 Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
             }
             Spacer(minLength: 6)
-            Button(action, action: tap).buttonStyle(.bordered).tint(Crayon.ink(c)).font(.subheadline.weight(.semibold))
+            Button(action, action: tap).buttonStyle(.vinyl(c))
         }
         .padding(12)
         .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -286,8 +286,8 @@ private struct Check: View {
             Label(text, systemImage: "questionmark.circle.fill").font(.subheadline.weight(.semibold))
                 .labelStyle(.titleAndIcon).foregroundStyle(.primary)
             HStack(spacing: 10) {
-                Button(action: onKeep) { Text(keep).frame(maxWidth: .infinity) }.buttonStyle(.bordered)
-                Button(action: onEnd) { Text(end).frame(maxWidth: .infinity) }.buttonStyle(.borderedProminent).tint(Crayon.buttonFill(color))
+                Button(action: onKeep) { Text(keep).frame(maxWidth: .infinity) }.buttonStyle(.vinyl(color))
+                Button(action: onEnd) { Text(end).frame(maxWidth: .infinity) }.buttonStyle(.vinyl(Crayon.buttonFill(color), prominent: true))
             }
             .font(.subheadline.weight(.semibold)).controlSize(.large)
         }

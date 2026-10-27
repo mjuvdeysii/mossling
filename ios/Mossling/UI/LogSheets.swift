@@ -109,8 +109,8 @@ struct AskSheet: View {
 
     /// Saves and closes; if the save fails the page stays open with everything as typed, and says so.
     private func save(enabled: Bool = true, _ f: @escaping () -> Bool) -> some View {
-        Button { if f() { dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity).padding(.vertical, 6) }
-            .buttonStyle(.borderedProminent).tint(Crayon.fill(LogType.color(type), lamp)).controlSize(.large).disabled(!enabled)
+        Button { if f() { dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
+            .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!enabled)
     }
 }
 
@@ -127,8 +127,7 @@ struct FlowChips<T: Hashable>: View {
             ForEach(items, id: \.0) { v, t in
                 let on = selected == v
                 Button { pick(v) } label: { Text(t).monospacedDigit() }
-                    .buttonStyle(.bordered).buttonBorderShape(.capsule)
-                    .tint(on ? tint : .secondary)
+                    .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
                     .fontWeight(on ? .semibold : .regular)
                     .accessibilityAddTraits(on ? .isSelected : [])
             }

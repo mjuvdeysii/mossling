@@ -567,3 +567,42 @@ struct ToyPress: ButtonStyle {
     }
 }
 extension ButtonStyle where Self == ToyPress { static var toy: ToyPress { ToyPress() } }
+
+/// A button made like the characters and the icons' tokens: a pill of matte soft vinyl. Soft (the default): a light
+/// tint of the colour with the colour's own ink — for 下一步, 记一次 and the like. Prominent: the colour itself with
+/// white type — for the one main action of a screen. Both are lit from above (a lighter top, a lit rim), stand on
+/// the page with a small contact shadow, and squash a little when pressed, with a light tap.
+struct VinylButton: ButtonStyle {
+    var tint: Color = Palette.accent
+    var prominent = false
+    var large = false
+    @Environment(\.isEnabled) private var enabled
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    func makeBody(configuration: Configuration) -> some View {
+        let dark = lamp || scheme == .dark
+        let body = prominent ? tint : tint.opacity(dark ? 0.26 : 0.16)
+        let ink: Color = prominent ? .white : Crayon.ink(tint)
+        let shape = Capsule(style: .continuous)
+        configuration.label
+            .font((large ? Font.body : Font.subheadline).weight(.semibold))
+            .foregroundStyle(ink)
+            .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 14 : 9)
+            .frame(minHeight: 44)
+            .background {
+                shape.fill(body)
+                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.28 : 0.45), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                    .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.18 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                    .shadow(color: (prominent ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (prominent ? 0.28 : 0.10)), radius: prominent ? 6 : 3, y: prominent ? 3 : 2)
+            }
+            .contentShape(shape)
+            .opacity(enabled ? 1 : 0.45)
+            .scaleEffect(x: configuration.isPressed ? 1.03 : 1, y: configuration.isPressed ? 0.93 : 1, anchor: .bottom)
+            .animation(.spring(response: 0.22, dampingFraction: 0.5), value: configuration.isPressed)
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: configuration.isPressed) { _, new in new }
+    }
+}
+extension ButtonStyle where Self == VinylButton {
+    static var vinyl: VinylButton { VinylButton() }
+    static func vinyl(_ tint: Color, prominent: Bool = false, large: Bool = false) -> VinylButton { VinylButton(tint: tint, prominent: prominent, large: large) }
+}

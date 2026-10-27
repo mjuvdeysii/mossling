@@ -770,9 +770,20 @@ def scene(spec, area, sv=None, watch=None):
         sv.add(f'<path d="M0 {GROUND - 40} Q{W * .3} {GROUND - 90} {W * .62} {GROUND - 50} T{W} {GROUND - 60} V{H} H0 Z" fill="#CFE6B8"/>')
         sv.add(f'<rect y="{GROUND}" width="{W}" height="{H - GROUND}" fill="#B9DA9C"/>')
     else:
-        # a soft disc of the area colour behind the action, and the floor
-        sv.add(f'<circle cx="{spec.get("disc", 360)}" cy="{GROUND - 150}" r="210" fill="{back}"/>')
-        sv.add(f'<ellipse cx="360" cy="{GROUND + 18}" rx="330" ry="56" fill="{ground}"/>')
+        # a soft disc of the area colour behind the action, lit from the upper left like the figures; and the floor
+        # as a thick soft vinyl stage (the same tokens the app's icons stand on): a lit top that deepens toward the
+        # front, a darker edge showing its thickness, and a soft shadow under it on the paper
+        dc = spec.get("disc", 360)
+        g = sv.id(); sv.defs.append(f'<radialGradient id="{g}" cx=".36" cy=".3" r=".8"><stop offset="0" stop-color="{light(back, .45)}"/>'
+                                   f'<stop offset=".7" stop-color="{back}"/><stop offset="1" stop-color="{dark(back, .04)}"/></radialGradient>')
+        sv.add(f'<circle cx="{dc}" cy="{GROUND - 150}" r="210" fill="url(#{g})"/>')
+        sv.shadow(360, GROUND + 40, 350, 40, .14)
+        sv.add(f'<ellipse cx="360" cy="{GROUND + 27}" rx="330" ry="56" fill="{dark(ground, .16)}"/>')
+        t = sv.id(); sv.defs.append(f'<linearGradient id="{t}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{light(ground, .3)}"/>'
+                                   f'<stop offset=".55" stop-color="{ground}"/><stop offset="1" stop-color="{dark(ground, .05)}"/></linearGradient>')
+        sv.add(f'<ellipse cx="360" cy="{GROUND + 18}" rx="330" ry="56" fill="url(#{t})"/>')
+        # the lit back rim of the stage: a soft highlight along its far edge only
+        sv.add(f'<path d="M{360 - 318} {GROUND + 10} A330 56 0 0 1 {360 + 318} {GROUND + 10}" fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>')
     z = spec.get("zoom", 1.32); cx0 = spec.get("cx", 380); VIEW.update(z=z, cx=cx0)
     sv.add(f'<g transform="translate({cx0} {GROUND}) scale({z}) translate({-cx0} {-GROUND})">')
     ppl = {}

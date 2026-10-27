@@ -23,8 +23,8 @@ struct TodayView: View {
             // play this week (the shelf, the heart), the month's other plays, the month's parts, the topics, the story
             VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
-                    Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity).padding(.vertical, 6) }
-                        .buttonStyle(.borderedProminent).tint(Palette.accentFill).controlSize(.large)
+                    Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
+                        .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
                 if wheel {
                     GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)

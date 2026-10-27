@@ -348,7 +348,7 @@ private struct FocusLine: View {
             Text(summary).font(.footnote.weight(.semibold)).foregroundStyle(.primary).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.75)
             Spacer(minLength: 6)
-            Button("全部", action: clear).font(.footnote.weight(.bold)).buttonStyle(.bordered).buttonBorderShape(.capsule).tint(Crayon.ink(c))
+            Button("全部", action: clear).buttonStyle(.vinyl(c))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))

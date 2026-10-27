@@ -412,7 +412,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
         prop3d(o, dep)
     where = None; bead = None
     back, front = layers(spec, area)
-    if True:   # the two are in every picture, covers included (as 3D figures, never the 2D ones)
+    if COMPANIONS:   # off: the pictures show the people and the play only; Moss and Otto act around the picture in the app
         play, occupied, marks = step_ctx(spec, area, people, objs, front, step, nsteps)
         # a place chosen for the whole play (plan) is kept as it is: the same place and size in every step
         where = prev[1] if isinstance(prev, tuple) and prev and prev[0] == "fixed" else stand(play, prev, occupied, area, marks)
@@ -457,6 +457,7 @@ def page(pt):
     return (cx + (pt[0] - cx) * z, pb.GROUND + (pt[1] - pb.GROUND) * z)
 def P3(px, py, depth): return (px / U, depth, (pb.GROUND - py) / U)
 
+COMPANIONS = False
 GAP = 104   # centre to centre, page px at k = 1: never one in front of the other
 
 def companion_box(x, base, k, oside=-1):
@@ -629,7 +630,7 @@ def export(codes, size):
     index = json.load(open(ipath)); scenes = json.load(open(pb.SCENES))
     for code in codes:
         play = next(p for p in pb.C["activities"] if p["code"] == code); area = pb.area_of(play)
-        spec = scenes[code]; prev = plan(spec, area)
+        spec = scenes[code]; prev = plan(spec, area) if COMPANIONS else None
         if prev: spec = [dict(st, zoom=st.get("zoom", 1.32) * prev[2]) for st in spec]
         print(code, f"placed for the whole play (zoom ×{prev[2]})" if prev else "placed step by step", flush=True)
         for i, st in enumerate(spec):
@@ -725,7 +726,7 @@ def one(code, out):
     spec = json.load(open(pb.SCENES))[code]
     play = next(p for p in pb.C["activities"] if p["code"] == code)
     area = pb.area_of(play)
-    prev = plan(spec, area); print(code, f"placed for the whole play (zoom ×{prev[2]})" if prev else "placed step by step", flush=True)
+    prev = plan(spec, area) if COMPANIONS else None; print(code, f"placed for the whole play (zoom ×{prev[2]})" if prev else "placed step by step", flush=True)
     if prev: spec = [dict(st, zoom=st.get("zoom", 1.32) * prev[2]) for st in spec]
     fixed = prev is not None
     steps = [int(x) - 1 for x in arg("--steps", "").split(",") if x] or range(len(spec))
