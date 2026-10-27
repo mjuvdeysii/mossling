@@ -58,8 +58,17 @@ enum Firsts {
         if a.months == 0 { return "出生第 \(a.lived) 天" }
         return a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天"
     }
-    static func symbol(_ f: First) -> String { kind(f.key)?.symbol ?? "star.fill" }
-    static func color(_ f: First) -> Color { kind(f.key)?.color ?? Palette.bead }
+    /// A first the parent named keeps the mark they picked for it, as "icon:<symbol>" in `key`.
+    static let customIcons: [(String, Color)] = [("star.fill", Palette.bead), ("heart.fill", Crayon.pink), ("sun.max.fill", Crayon.sunflower),
+        ("leaf.fill", Crayon.leaf), ("drop.fill", Crayon.sky), ("music.note", Crayon.lilac), ("airplane", Crayon.aqua), ("gift.fill", Crayon.tangerine),
+        ("camera.fill", Crayon.caramel), ("pawprint.fill", Crayon.peach), ("water.waves", Crayon.sky), ("birthday.cake.fill", Crayon.pink)]
+    static func customIcon(_ key: String?) -> String? { key.flatMap { $0.hasPrefix("icon:") ? String($0.dropFirst(5)) : nil } }
+    static func symbol(_ f: First) -> String { kind(f.key)?.symbol ?? customIcon(f.key) ?? "star.fill" }
+    static func color(_ f: First) -> Color {
+        if let k = kind(f.key) { return k.color }
+        if let i = customIcon(f.key), let c = customIcons.first(where: { $0.0 == i })?.1 { return c }
+        return Palette.bead
+    }
 }
 
 /// "今天" / "昨天" / "10月20日" / "2025年10月20日" — a day, said as people say it.
@@ -80,6 +89,8 @@ struct FirstSheet: View {
     let isNew: Bool
     @State private var day = Date()
     @State private var named = false
+    /// The mark of a first the parent names.
+    @State private var mark = "star.fill"
     @State private var cheers = 0
     @State private var failed = false
     @FocusState private var typing: Bool
@@ -92,14 +103,8 @@ struct FirstSheet: View {
                 VStack(alignment: .leading, spacing: 20) {
                     header
                     if failed { SaveFailed() }
+                    own
                     if isNew { choices }
-                    if named || !isNew || first.key == nil && !first.title.isEmpty {
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("第一次做了什么").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                            TextField("例如：自己翻过身来", text: $first.title).font(.title3.weight(.semibold)).focused($typing)
-                                .padding(14).printCard(radius: 18, fill: lamp ? Palette.lampCard : Palette.card)
-                        }
-                    }
                     VStack(alignment: .leading, spacing: 0) {
                         DatePicker("哪一天", selection: $day, in: earliest...Date(), displayedComponents: .date)
                             .padding(.horizontal, 16).padding(.vertical, 10)
@@ -133,7 +138,43 @@ struct FirstSheet: View {
         }
         .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: cheers)
-        .onAppear { day = isNew ? Date() : first.date; named = !isNew && first.key == nil }
+        .onAppear {
+            day = isNew ? Date() : first.date; named = !isNew && Firsts.kind(first.key) == nil
+            if let i = Firsts.customIcon(first.key) { mark = i }
+        }
+    }
+
+    /// Any first at all, in the parent's own words, with a mark of their choosing — written here, or picked below.
+    private var own: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(isNew ? "自己写一个第一次" : "第一次做了什么").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            TextField("例如：第一次看海、第一次坐飞机", text: Binding(get: { first.title }, set: { v in
+                first.title = String(v.prefix(40))
+                // typing makes it the parent's own first (unless it is still exactly a common one's name)
+                if let k = Firsts.kind(first.key) {
+                    if k.title != first.title { first.key = "icon:" + mark; named = true }
+                } else { first.key = "icon:" + mark; named = true }
+            }))
+                .font(.title3.weight(.semibold)).focused($typing).submitLabel(.done)
+                .padding(14).printCard(radius: 18, fill: lamp ? Palette.lampCard : Palette.card)
+            if Firsts.kind(first.key) == nil {
+                // a mark for it, from a small set
+                WrapLayout(spacing: 8) {
+                    ForEach(Firsts.customIcons, id: \.0) { sym, c in
+                        let on = mark == sym
+                        Button { withAnimation(.snappy) { mark = sym; first.key = "icon:" + sym } } label: {
+                            Image(systemName: sym).font(.body.weight(.semibold)).frame(width: 40, height: 40)
+                                .foregroundStyle(on ? Color.white : Crayon.ink(c))
+                                .background(Circle().fill(on ? c : c.opacity(0.16)))
+                                .overlay(Circle().strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 2))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityLabel("标记").accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+                .transition(.opacity)
+            }
+        }
     }
 
     private var earliest: Date { app.birth.map { $0.date } ?? Date.distantPast }
@@ -153,7 +194,7 @@ struct FirstSheet: View {
     private var choices: some View {
         let done = Set(j.firsts.compactMap(\.key))
         return VStack(alignment: .leading, spacing: 10) {
-            Text("选一个，或者写下别的").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            Text("或者选一个常见的").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             WrapLayout(spacing: 8) {
                 ForEach(Firsts.ordered(around: app.babyMonth)) { k in
                     let on = first.key == k.id
@@ -172,10 +213,6 @@ struct FirstSheet: View {
                     .accessibilityLabel(k.title + (kept ? "，已经记下" : ""))
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
-                Button {
-                    withAnimation(.snappy) { first.key = nil; if Firsts.kind(first.key) == nil && named == false { first.title = "" }; named = true; typing = true }
-                } label: { Label("别的第一次…", systemImage: "pencil") }
-                    .buttonStyle(.vinyl(named ? Palette.bead : Color(hex: 0x8A8279), prominent: named))
             }
         }
     }
