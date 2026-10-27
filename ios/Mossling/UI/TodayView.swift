@@ -315,11 +315,12 @@ struct ShelfView: View {
         let left = Shelf.candidates(app.content, month).filter { c in !s.plays.contains { $0.code == c.code } }.count
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline) {
+                GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
                 Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
                 if !s.plays.isEmpty && !s.stale {
                     Text("玩过 \(played) / \(s.plays.count)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .semibold))
-                        .foregroundStyle(Palette.accent).padding(.horizontal, 8).padding(.vertical, 3)
-                        .background(Capsule().fill(Palette.accent.opacity(0.12))).fixedSize()
+                        .foregroundStyle(Palette.accent).padding(.horizontal, 9).padding(.vertical, 4)
+                        .vinylSurface(Palette.accent, radius: 12).fixedSize()
                 }
                 Spacer()
                 Button(action: arrange) {
@@ -379,8 +380,8 @@ struct ShelfView: View {
                         Text(p.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
                         if first {
                             Text("先玩这件").font(.caption2.weight(.bold)).foregroundStyle(.white)
-                                .padding(.horizontal, 6).padding(.vertical, 2)
-                                .background(Capsule().fill(Palette.accent)).fixedSize()
+                                .padding(.horizontal, 7).padding(.vertical, 3)
+                                .vinylSurface(Palette.accentFill, radius: 10, strong: true).fixedSize()
                         }
                     }
                     Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))

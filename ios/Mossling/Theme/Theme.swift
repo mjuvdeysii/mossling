@@ -497,13 +497,28 @@ struct SectionTitle: View {
     let title: String
     var detail: String? = nil
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            // every section starts at a golden bead, the same bead as the counts and the growth chain
+            GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
             Text(title).font(.title3.weight(.bold))
             Spacer()
             if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
         }
         .padding(.horizontal, 4).padding(.top, 20)
         .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// The golden bead (Montessori's golden bead): a small glossy sphere, lit from the upper left, on a hair of shadow.
+struct GoldBead: View {
+    var size: CGFloat = 10
+    var body: some View {
+        Circle()
+            .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.7))
+            .overlay(Circle().fill(.white.opacity(0.7)).frame(width: size * 0.28, height: size * 0.28).offset(x: -size * 0.16, y: -size * 0.18))
+            .frame(width: size, height: size)
+            .shadow(color: Color(hex: 0x7A5230).opacity(0.25), radius: 1, y: 1)
+            .accessibilityHidden(true)
     }
 }
 
@@ -567,6 +582,29 @@ struct ToyPress: ButtonStyle {
     }
 }
 extension ButtonStyle where Self == ToyPress { static var toy: ToyPress { ToyPress() } }
+
+/// A small surface in the same vinyl as the cards and buttons — a chip, a stamp, a day in the week strip: the colour
+/// as a soft tint (or the colour itself when `strong`), lit from above with a lit rim, on a hair of contact shadow.
+struct VinylSurface: ViewModifier {
+    var tint: Color
+    var radius: CGFloat = 14
+    var strong = false
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    func body(content: Self.Content) -> some View {
+        let dark = lamp || scheme == .dark
+        let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        content.background {
+            shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
+                .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? 0.26 : (dark ? 0.06 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.14 : 0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                .shadow(color: (strong ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (strong ? 0.3 : 0.08)), radius: strong ? 5 : 2, y: strong ? 3 : 1)
+        }
+    }
+}
+extension View {
+    func vinylSurface(_ tint: Color, radius: CGFloat = 14, strong: Bool = false) -> some View { modifier(VinylSurface(tint: tint, radius: radius, strong: strong)) }
+}
 
 /// A button made like the characters and the icons' tokens: a pill of matte soft vinyl. Soft (the default): a light
 /// tint of the colour with the colour's own ink — for 下一步, 记一次 and the like. Prominent: the colour itself with

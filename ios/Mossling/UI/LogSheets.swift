@@ -57,7 +57,8 @@ struct AskSheet: View {
                             if on { Image(systemName: "checkmark.circle.fill").foregroundStyle(Crayon.ink(c)) }
                         }
                         .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(on ? c.opacity(0.18) : Palette.card))
+                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.card))
+                        .vinylSurface(on ? c : .white, radius: 20)
                         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(on ? Crayon.ink(c) : Color.clear, lineWidth: 2))
                         .contentShape(Rectangle())
                     }

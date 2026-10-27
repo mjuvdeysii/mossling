@@ -202,8 +202,8 @@ private struct WeekStrip: View {
                     }
                     .foregroundStyle(on ? Color.white : isToday ? Crayon.ink(Crayon.pink) : Color.primary)
                     .frame(maxWidth: .infinity, minHeight: 50)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(Crayon.pink, lamp).mix(with: Crayon.pink, by: lamp ? 0.06 : 0.15), Crayon.fill(Crayon.pink, lamp)], startPoint: .top, endPoint: .bottom)) : AnyShapeStyle(Palette.card)))
-                    .shadow(color: on && !lamp ? Crayon.pink.opacity(0.35) : Color.black.opacity(lamp ? 0 : 0.06), radius: on ? 6 : 3, y: on ? 3 : 2)
+                    .background { if !on { RoundedRectangle(cornerRadius: 14, style: .continuous).fill(lamp ? Palette.lampCard : Palette.card) } }
+                    .vinylSurface(on ? Crayon.fill(Crayon.pink, lamp) : .white, strong: on)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel("\(d.md) \(d.weekday)")
@@ -320,7 +320,7 @@ private struct OtherKinds: View {
                             Ticking(text: "\(n)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Crayon.ink(c))
                         }
                         .padding(.leading, 6).padding(.trailing, 10).padding(.vertical, 5)
-                        .background(Capsule().fill(c.opacity(on ? 0.26 : 0.1)))
+                        .vinylSurface(c, radius: 15)
                         .overlay(Capsule().strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 1.5))
                         .opacity(only == nil || on ? 1 : 0.5)
                     }
@@ -554,7 +554,7 @@ private struct Totals: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .padding(10)
-        .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(c.opacity(0.12)))   // a solid chip: dashes mean an empty slot
+        .vinylSurface(c)   // a solid chip: dashes mean an empty slot
         .accessibilityElement(children: .combine)
     }
 }

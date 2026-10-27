@@ -149,7 +149,11 @@ private struct Section2<Content: View>: View {
     @ViewBuilder let content: Content
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
+            HStack(spacing: 6) {
+                GoldBead(size: 7)
+                Text(title).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            }
+            .padding(.leading, 4).accessibilityAddTraits(.isHeader)
             content
         }
     }
@@ -320,7 +324,7 @@ struct ProfileSheet: View {
                                     Text(k == "girl" ? "女宝" : "男宝").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                                 }
                                 .frame(maxWidth: .infinity).padding(.vertical, 10)
-                                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(on ? Palette.accent.opacity(0.12) : Palette.fill))
+                                .vinylSurface(on ? Palette.accent : Color(hex: 0x9A9289), radius: 18)
                                 .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(on ? Palette.accent : .clear, lineWidth: 2))
                             }
                             .buttonStyle(.toy)
