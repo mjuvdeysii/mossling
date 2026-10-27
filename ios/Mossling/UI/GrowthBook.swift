@@ -26,12 +26,19 @@ struct GrowthBookView: View {
         }
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle("成长册")
-        .toolbar {
-            ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: JournalRoute.firsts) { Label("第一次", systemImage: "star") }
-            }
+        .toolbar { firstsLink }
+        .navigationSubtitle(subtitle)
+    }
+
+    private var firstsLink: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            NavigationLink(value: JournalRoute.firsts) { Label("第一次", systemImage: "star") }
         }
-        .navigationSubtitle(app.birth.map { "从 " + String($0.y) + "年" + $0.md + " 开始" } ?? "")
+    }
+
+    private var subtitle: String {
+        guard let b = app.birth else { return "" }
+        return "从 \(b.y)年\(b.md) 开始"
     }
 }
 
