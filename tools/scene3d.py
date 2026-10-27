@@ -120,7 +120,122 @@ def hair_cap(c, r, f, hexc, kind):
     k = 1.0 if kind == "adult" else 0.97
     return sphere("hair", (c[0] - f * r * 0.1, c[1] + r * 0.1, c[2] + r * (0.13 if kind == "adult" else 0.3)), (r * k, r * k, r * k), vinyl(hexc, 0.7), seg=64)
 
-def person3d(p, depth):
+
+# ---------- the cast: Moss, Otto, Mosto and Mochi play the people ----------
+# The pictures are acted by the app's own characters (the rig's staging is kept: who kneels where, where the hands
+# reach): Moss is the child, Otto the grown-up; a second child (a friend at play) is Mosto, the little lavender demon
+# king with the matte-gold crown; a second grown-up (a grandparent, a friend) is Mochi, a soft rice-cake grown-up.
+# Each body stands where the rig's torso and head were, along the same line (upright when sitting or standing, lying
+# along the floor when lying), with short soft limbs from the rig's shoulders and hips to its hands and feet, so a
+# held toy is still held and a crawl is still a crawl.
+IP = "--people" not in ARGS
+CAST = {"child": "moss", "adult": "otto", "peer": "mosto", "adult2": "mochi"}
+
+def _drop(root, prefix):
+    for o in list(root.children):
+        if o.name.startswith(prefix): bpy.data.objects.remove(o, do_unlink=True)
+
+def _look(p):
+    """Where the eyes go: toward the rig's look target (a page point), else ahead on the side it faces."""
+    t = p.look if isinstance(p.look, (tuple, list)) and len(p.look) == 2 and all(isinstance(v, (int, float)) for v in p.look) else None
+    if t is None: return (0.55 * p.f, 0.05)
+    dx, dy = t[0] - p.headc[0], t[1] - p.headc[1]; d = max(1.0, math.hypot(dx, dy))
+    return (max(-0.8, min(0.8, dx / d * 0.8)), max(-0.6, min(0.6, -dy / d * 0.6)))
+
+def _place(root, p, depth, height, base_drop=0.0, tilt=0.62):
+    """Stand the built character (its feet at its origin, `height` tall) along the rig's hip → head line."""
+    a = W3(p.hip, depth); b = W3(p.headc, depth); r = L(p.d["head"])
+    ux, uz = b[0] - a[0], b[2] - a[2]; n = max(1e-4, math.hypot(ux, uz)); ux, uz = ux / n, uz / n
+    span = n + r * 1.05
+    k = span / height
+    root.scale = (k, k, k)
+    # upright, or leaning with the rig's body — but never laid flat: a lying baby reclines (a face on its side reads
+    # as a fall, not as lying on a mat)
+    root.rotation_euler = (0, max(-tilt, min(tilt, math.atan2(ux, uz))), 0)
+    root.location = (a[0] - ux * r * (0.35 + base_drop), depth, a[2] - uz * r * (0.35 + base_drop))
+    return k
+
+def _limbs(p, depth, arm, hand, leg, foot, rk=1.0):
+    d = p.d; r = L(d["head"])
+    sp = 0.12
+    for k, (shp, el, hd) in enumerate(p.arms):
+        dd = depth + (sp if k == 1 else -sp)
+        limb(f"arm{k}", [W3(shp, depth + (dd - depth) * 0.6), W3(el, dd), W3(hd, dd)], r * 0.2 * rk, arm)
+        sphere(f"hand{k}", W3(hd, dd), (r * 0.27 * rk,) * 3, hand)
+    for k, (knee, ft) in enumerate(p.legs):
+        dd = depth + (sp if k == 1 else -sp)
+        limb(f"leg{k}", [W3(p.hip, depth), W3(knee, dd), W3(ft, dd)], r * 0.24 * rk, leg)
+        fx = W3(ft, dd)
+        sphere(f"foot{k}", (fx[0] + p.f * r * 0.12, fx[1], fx[2] - r * 0.06), (r * 0.36 * rk, r * 0.3 * rk, r * 0.22 * rk), foot)
+
+def ip_person(p, depth, who):
+    role = CAST.get(who, "moss" if p.kind == "child" else "otto")
+    e = p.expr; look = _look(p)
+    asleep = e in ("sleep", "calm") or p.pose == "bundle"
+    if role in ("moss", "mosto"):
+        root = build_moss(look=look, happy=e in ("laugh",), lid=0.35 if e == "sad" else 0.0, er=0.125 if e == "wow" else 0.11,
+                          shut="down" if asleep else None, perk=0.6 if e in ("wow", "smile") else 0.2)
+        _drop(root, "moss_foot")
+        if role == "mosto":
+            # Mosto: the little demon king — lavender, two small soft horns, a matte-gold crown; no mint sprig
+            lav = MATS.setdefault("mosto", rubber("mosto", "#9C86D8", rough=0.55))
+            for o in root.children:
+                if o.name.startswith("moss_body"): o.data.materials[0] = lav
+                if o.name.startswith(("leaf", "sprig", "stem", "bud", "mint")) or "sprig" in o.name or "leaf" in o.name: o.hide_render = True
+            gold = MATS.setdefault("crown", mat("crown", "#C9A24A", rough=0.45, coat=0.2))
+            top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
+            parts = []
+            parts.append(ip3d.tube("crownband", [(-0.17, 0, top - 0.02), (0.0, -0.02, top - 0.04), (0.17, 0, top - 0.02)], 0.05, gold))
+            for x, h in ((-0.15, 0.13), (0.0, 0.17), (0.15, 0.13)):
+                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.05, radius2=0.012, depth=h, location=(x, -0.01, top + h / 2 - 0.01))
+                c = bpy.context.object; c.data.materials.append(gold); parts.append(c)
+                parts.append(sphere("crownball", (x, -0.01, top + h - 0.005), (0.022,) * 3, gold, seg=16))
+            for sx in (-1, 1):
+                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.055, radius2=0.0, depth=0.15, location=(sx * 0.36, 0.02, top - 0.12), rotation=(0, math.radians(28 * sx), 0))
+                h = bpy.context.object; h.data.materials.append(MATS.setdefault("horn", rubber("horn", "#6F5AA8"))); parts.append(h)
+            ip3d.parent(parts, root)
+            mat_body, mat_hand = lav, lav
+        else:
+            mat_body, mat_hand = M["moss"], M["moss"]
+        # the rig's baby is small beside a kneeling grown-up; Moss is drawn a size up so the face reads
+        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.85 if p.pose == "bundle" else 1.25))
+        if e in ("talk", "sing", "wow", "laugh") and not asleep:
+            mz = ip3d.MOSS["cz"] + 0.05
+            m = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.05, 0.02, 0.04 if e != "talk" else 0.03), MATS.setdefault("mouth", rubber("mouthm", "#5B2A2A", rough=0.7)))
+            m.parent = root
+        if p.pose != "bundle": _limbs(p, depth, mat_body, mat_hand, mat_body, M["foot"], rk=1.0)
+        else:
+            # a newborn: Moss tucked in a soft blanket roll
+            c = W3(p.bundle_c, depth); Lb = L(p.d["torso"] * 1.9); w = L(p.d["tw"] * 1.25)
+            o = sphere("bundle", (c[0], c[1] - 0.05, c[2]), (Lb / 2, w * 0.62, w * 0.5), vinyl("#F6D58C", 0.8)); o.rotation_euler = (0, -math.radians(p.bundle_a), 0)
+    elif role == "otto":
+        root = build_otto(look=look, lid=0.3, glow=0.0, happy=False, smirk=e in ("smile", "talk", "sing"),
+                          shut="down" if asleep else None)
+        _drop(root, "otto_foot")
+        _place(root, p, depth, ip3d.OTTO_TOP, base_drop=0.1, tilt=0.28)   # a grown-up leans in a little, no more
+        _limbs(p, depth, M["otto"], M["otto"], M["ottoBand"], M["foot"], rk=1.1)
+    else:
+        # Mochi: a soft rice-cake grown-up — a squat, rounded cream body, pink cheeks, a small knitted beanie
+        root = bpy.data.objects.new("Mochi", None); bpy.context.collection.objects.link(root)
+        cream = MATS.setdefault("mochi", rubber("mochi", "#F4E4CF", rough=0.6))
+        def f(a, b, c):
+            z = (c if c > 0 else c * 0.8) * 0.55
+            sq = 1 + 0.08 * (1 - c * c)
+            return (a * 0.5 * sq, b * 0.45 * sq, 0.5 + z)
+        body = ip3d.shaped_sphere("mochi_body", f, cream)
+        parts = [body]
+        for sx in (-1, 1):
+            parts += ip3d.eye(f"mochi_eye{sx}", (sx * 0.13, -0.44, 0.66), 0.075, look, scale=(0.8, 0.45, 1.0), lid=0.2, skin=cream, pupil=0.6)
+            parts.append(sphere("mochi_cheek", (sx * 0.27, -0.4, 0.55), (0.07, 0.02, 0.045), M["cheek"]))
+        hat = MATS.setdefault("beanie", rubber("beanie", "#E07A6A", rough=0.8))
+        parts.append(sphere("beanie", (0, 0.02, 0.98), (0.36, 0.33, 0.2), hat))
+        parts.append(sphere("pom", (0, 0.02, 1.18), (0.08,) * 3, MATS.setdefault("pom", rubber("pom", "#F7EFE4"))))
+        ip3d.parent(parts, root)
+        _place(root, p, depth, 1.18)
+        _limbs(p, depth, cream, cream, hat, M["foot"], rk=1.05)
+
+def person3d(p, depth, who=None):
+    if IP: return ip_person(p, depth, who)
     d, f = p.d, p.f
     skin = vinyl(p.skin, 0.55); leg = vinyl(p.leg)
     top = vinyl("#9A7BE8" if p.top == pb.GIRL_TOP else p.top)   # the girl's lilac, a step deeper so the light does not wash it out
@@ -455,7 +570,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
         n = order.index(who) if who in order else 0
-        person3d(p, -0.55 * n)
+        person3d(p, -0.55 * n, who)
     # where each prop goes in depth, in the order picturebook.scene draws them: scenery at the back, things on the
     # floor behind the people (the picture book draws them first), things in front and things held in front of them
     so = spec.get("objs", [])
