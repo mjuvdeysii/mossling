@@ -335,10 +335,62 @@ def lights():
     area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), 900, 5, "#F4F6FF")
     area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), 1400, 4, "#FFFFFF")
 
+def step_ctx(spec, area, people, objs, front, step, nsteps):
+    """What the two need to know about a step to find their place: what happens (interplay), the step as the picture
+    book draws it (people, things, marks — where something is, they are not; a play mat, a road are floor: they may
+    sit on them), and the marks and flat things as a strict mask (not one pixel under them)."""
+    play = interplay(spec, people, objs, step, nsteps)
+    keep_obj, keep_sh = pb.obj, pb.SVG.shadow
+    pb.obj = lambda sv, k, *a_, **kw: None if k in ("mat", "road", "kerb") else _obj(sv, k, *a_, **kw)
+    pb.SVG.shadow = lambda *a_, **kw: None      # soft floor shadows are not things
+    try: occupied = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=pb.scene(spec, area).svg().encode(), output_width=pb.W))).convert("RGB")
+    finally: pb.obj, pb.SVG.shadow = keep_obj, keep_sh
+    marks = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=pb.W))).getchannel("A")
+    return play, occupied, marks
+
+KS = (0.86, 0.76, 0.66, 0.58, 0.52)
+PLACES = ((pb.GROUND + 30, -2.2), (pb.GROUND + 16, -2.2), (pb.GROUND + 44, -2.2), (pb.GROUND + 58, -2.2), (pb.GROUND - 14, 0.95), (pb.GROUND - 30, 0.95))
+
+def free_at(play, occupied, area, marks, x, base, k, os_, depth):
+    """Whether the two fit at this place in this step: inside the picture, off furniture, not under a mark, and on
+    clear paper or floor with a margin all round."""
+    b = companion_box(x, base, k, os_)
+    if b[0] < 24 or b[2] > pb.W - 36 or b[1] < 50 or b[3] > pb.H - 2: return False
+    if any(b[0] - 10 < q[2] and b[2] + 10 > q[0] and b[1] < q[3] and b[3] > q[1] for q in play.get("furniture", [])): return False
+    if marks is not None:
+        m = marks.crop((int(max(0, b[0] - 10)), int(max(0, b[1] - 10)), int(min(pb.W, b[2] + 10)), int(min(pb.H, b[3] + 4))))
+        if m.getbbox() and sum(m.histogram()[24:]) > 0: return False
+    return pb.busy(occupied, (b[0] - 22, b[1] - 12, b[2] + 22, b[3]), area) < 0.015
+
+def plan(spec, area):
+    """One place for the whole play: the largest size and the nearest spot that is free in every step, so the two
+    never jump about, change size, or drop out of a step. When the room is too full for them in some step, the whole
+    play steps back a little (every step zoomed out by the same amount, so nobody changes size between steps) until
+    one place fits all. Returns ("fixed", where, zoom factor), or None (each step then finds its own)."""
+    for f in (1.0, 0.92, 0.85, 0.78, 0.72):
+        steps = [dict(st, zoom=st.get("zoom", 1.32) * f) for st in spec]
+        ctxs = []
+        for i, st in enumerate(steps):
+            VIEW.update(z=st["zoom"], cx=st.get("cx", 380))
+            people, objs = capture(st, area)
+            _, front = layers(st, area)
+            ctxs.append(step_ctx(st, area, people, objs, front, i, len(spec)))
+        for k in KS:
+            best = None
+            for base, depth in PLACES:
+                for x in range(40, pb.W - 40, 6):
+                    t = 1 if ctxs[0][0]["focus"][0] > x else -1
+                    for os_ in (-t, t):
+                        if not all(free_at(pl, oc, area, mk, x, base, k, os_, depth) for pl, oc, mk in ctxs): continue
+                        score = sum(abs(x - pl["child"][0]) for pl, _, _ in ctxs) / len(ctxs) + (0 if os_ == -t else 25) + abs(pb.GROUND + 30 - base) * 0.4
+                        if best is None or score < best[0]: best = (score, (x, base, k, os_, depth))
+            if best: return ("fixed", best[1], f)
+    return None
+
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
-    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "None"; s.view_settings.exposure = -0.75; ip3d.materials(); MATS.clear(); lights()
+    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium High Contrast"; s.view_settings.exposure = -0.95; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
@@ -361,17 +413,9 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     where = None; bead = None
     back, front = layers(spec, area)
     if True:   # the two are in every picture, covers included (as 3D figures, never the 2D ones)
-        play = interplay(spec, people, objs, step, nsteps)
-        # the step as the picture book draws it (people, things, marks): where something is, they are not
-        # (a play mat, a road are floor: they may sit on them)
-        keep_obj, keep_sh = pb.obj, pb.SVG.shadow
-        pb.obj = lambda sv, k, *a_, **kw: None if k in ("mat", "road", "kerb") else _obj(sv, k, *a_, **kw)
-        pb.SVG.shadow = lambda *a_, **kw: None      # soft floor shadows are not things
-        try: occupied = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=pb.scene(spec, area).svg().encode(), output_width=pb.W))).convert("RGB")
-        finally: pb.obj, pb.SVG.shadow = keep_obj, keep_sh
-        # the marks (arrows, look lines, speech, badges) and flat things, as a strict mask: not one pixel under them
-        marks = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=pb.W))).getchannel("A")
-        where = stand(play, prev, occupied, area, marks)
+        play, occupied, marks = step_ctx(spec, area, people, objs, front, step, nsteps)
+        # a place chosen for the whole play (plan) is kept as it is: the same place and size in every step
+        where = prev[1] if isinstance(prev, tuple) and prev and prev[0] == "fixed" else stand(play, prev, occupied, area, marks)
         # the layout pass: a step can set its own staging for the two (scenes.json "duo": x, base, k, oside, depth, act)
         o = spec.get("duo")
         if o == "off": where = None
@@ -389,7 +433,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     tmp = out + ".3d.png"; ip3d.render(tmp, size, int(size * pb.H / pb.W))
     if where:
         x, base, k, oside, _ = where
-        back.shadow(x, base + 3, 58 * k, 10 * k, .2); back.shadow(x + 82 * k * oside, base - 7 * k, 34 * k, 7 * k, .16)
+        back.shadow(x, base + 3, 58 * k, 10 * k, .2); back.shadow(x + GAP * k * oside, base - 7 * k, 34 * k, 7 * k, .16)
     bw = size
     B = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=back.svg().encode(), output_width=bw))).convert("RGBA")
     F = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=bw))).convert("RGBA")
@@ -413,9 +457,12 @@ def page(pt):
     return (cx + (pt[0] - cx) * z, pb.GROUND + (pt[1] - pb.GROUND) * z)
 def P3(px, py, depth): return (px / U, depth, (pb.GROUND - py) / U)
 
+GAP = 104   # centre to centre, page px at k = 1: never one in front of the other
+
 def companion_box(x, base, k, oside=-1):
-    """Moss at x; Otto half a step behind him, `oside` × 82k to the side (±1 beside, ±0.5 tucked in behind)."""
-    reach = (abs(oside) * 82 + 50) * k
+    """Moss at x; Otto half a step behind him, `oside` × GAP·k to the side — always fully beside him: Moss is 49k
+    wide each side of his centre and Otto (lamp rod included) up to 47k, so GAP leaves a clear space between them."""
+    reach = (abs(oside) * GAP + 50) * k
     return (x - reach, base - 120 * k, x + 50 * k, base + 6) if oside < 0 else (x - 50 * k, base - 120 * k, x + reach, base + 6)
 
 def place(img, spec, area, prev, focus, keep=()):
@@ -490,33 +537,20 @@ def interplay(spec, people, objs, i, n):
                 avoid=[page(p.head()) for p in people] + ([page(child.hand(0)), page(child.hand(1))] if child else []))
 
 def stand(play, prev, occupied, area, marks=None):
-    """Where the two are: like family sitting with them — close to the child, on the floor in front, turned to the
-    play, always whole and always the same size. Nothing of theirs covers anyone, the thing being played with or a
-    mark, and nothing covers them (`occupied` is the step drawn in 2D: people, things and marks). Within a play they
-    keep their place while it stays free, so they don't jump about from step to step."""
+    """Where the two are in one step: like family sitting with them — close to the child, on the floor in front,
+    turned to the play, always whole. Nothing of theirs covers anyone, the thing being played with or a mark, and
+    nothing covers them. The size of the step before is kept while it fits, so they don't change size."""
     cx = play["child"][0]; fx = play["focus"][0]
-    def free(x, base, k, os_):
-        b = companion_box(x, base, k, os_)
-        if b[0] < 24 or b[2] > pb.W - 36 or b[1] < 50: return False
-        if any(b[0] - 10 < q[2] and b[2] + 10 > q[0] and b[1] < q[3] and b[3] > q[1] for q in play.get("furniture", [])): return False
-        if marks is not None:
-            m = marks.crop((int(max(0, b[0] - 10)), int(max(0, b[1] - 10)), int(min(pb.W, b[2] + 10)), int(min(pb.H, b[3] + 4))))
-            if m.getbbox() and sum(m.histogram()[24:]) > 0: return False
-        return pb.busy(occupied, (b[0] - 22, b[1] - 12, b[2] + 22, b[3]), area) < 0.015
-    if prev and free(*prev[:4]): return prev
-    best = None
-    for k in (0.86, 0.76, 0.66):
-        # on the floor in front of the play, or just behind it (further back = higher on the page); never hidden,
-        # because the whole place must be free in the drawing
-        for base, depth in ((pb.GROUND + 30, -2.2), (pb.GROUND + 16, -2.2), (pb.GROUND + 44, -2.2), (pb.GROUND - 14, 0.95), (pb.GROUND - 30, 0.95)):
+    if prev and len(prev) == 5 and free_at(play, occupied, area, marks, *prev[:4], prev[4]): return prev
+    ks = KS[KS.index(prev[2]):] if prev and len(prev) == 5 and prev[2] in KS else KS
+    for k in ks:
+        best = None
+        for base, depth in PLACES:
             for x in range(40, pb.W - 40, 6):
                 t = 1 if fx > x else -1
-                for os_ in (-t, t, -0.8 * t, 0.8 * t):   # Otto beside Moss away from the play, else tucked in behind him
-                    if not free(x, base, k, os_): continue
-                    if depth > 0:   # just behind the play, but never behind furniture (under a table, behind a stool)
-                        b = companion_box(x, base, k, os_)
-                        if any(b[0] < q[2] and b[2] > q[0] and b[1] < q[3] and b[3] > q[1] for q in play.get("furniture", [])): continue
-                    score = abs(x - cx) + (0 if os_ == -t else 25 if abs(os_) == 1 else 40) + (0.86 - k) * 400 + abs(pb.GROUND + 30 - base) * 0.4
+                for os_ in (-t, t):
+                    if not free_at(play, occupied, area, marks, x, base, k, os_, depth): continue
+                    score = abs(x - cx) + (0 if os_ == -t else 25) + abs(pb.GROUND + 30 - base) * 0.4
                     if best is None or score < best[0]: best = (score, (x, base, k, os_, depth))
         if best: return best[1]
     return None
@@ -526,7 +560,7 @@ def companions3d(where, play):
     fx, fy = play["focus"]
     toward = 1 if fx > x else -1
     sc = 0.86 * k
-    ox = x + 82 * k * oside               # Otto half a step behind Moss, the lamp held out toward the play
+    ox = x + GAP * k * oside              # Otto beside Moss, the lamp held out toward the play
     look_x = 0.9 * toward
     act = play["act"]
     # Moss
@@ -595,10 +629,13 @@ def export(codes, size):
     index = json.load(open(ipath)); scenes = json.load(open(pb.SCENES))
     for code in codes:
         play = next(p for p in pb.C["activities"] if p["code"] == code); area = pb.area_of(play)
-        spec = scenes[code]; prev = None
+        spec = scenes[code]; prev = plan(spec, area)
+        if prev: spec = [dict(st, zoom=st.get("zoom", 1.32) * prev[2]) for st in spec]
+        print(code, f"placed for the whole play (zoom ×{prev[2]})" if prev else "placed step by step", flush=True)
         for i, st in enumerate(spec):
             n = f"play_{code.lower()}_{i + 1}{pb.SUFFIX}.webp"
-            prev = render_step(st, area, os.path.join(art, n), size, prev, i, len(spec))
+            got = render_step(st, area, os.path.join(art, n), size, prev, i, len(spec))
+            if not (isinstance(prev, tuple) and prev and prev[0] == "fixed"): prev = got
             index["size"][n] = [size, int(size * pb.H / pb.W)]
             print("wrote", n, flush=True)
         json.dump(index, open(ipath, "w"), separators=(",", ":"))
@@ -619,7 +656,7 @@ def figures():
         VIEW.update(z=k, cx=150)
         c = pb.Person("child", pose, x, face=-1, age=age, expr="wow" if pose == "lieback" else "smile", at=(x, pb.GROUND),
                       hands=[(x - 60, pb.GROUND - 86), None] if pose in ("stand", "walk") else [None, None], girl=pb.GIRL)
-        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"; sc.view_settings.exposure = -0.75
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium High Contrast"; sc.view_settings.exposure = -0.95
         ip3d.materials(); MATS.clear(); lights()
         person3d(c, 0.0)
         bpy.ops.object.camera_add(location=(150 / U, -30, (pb.GROUND - (pb.GROUND - 136)) / U)); cam = bpy.context.object
@@ -648,7 +685,7 @@ def trays():
         code = p["code"]
         if only and code not in only: continue
         area = pb.area_of(p)
-        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "None"; sc.view_settings.exposure = -0.75
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium High Contrast"; sc.view_settings.exposure = -0.95
         ip3d.materials(); MATS.clear(); lights()
         VIEW.update(z=1.0, cx=0)
         # the tray: a base, four rounded rails, the felt
@@ -688,11 +725,14 @@ def one(code, out):
     spec = json.load(open(pb.SCENES))[code]
     play = next(p for p in pb.C["activities"] if p["code"] == code)
     area = pb.area_of(play)
-    prev = None
+    prev = plan(spec, area); print(code, f"placed for the whole play (zoom ×{prev[2]})" if prev else "placed step by step", flush=True)
+    if prev: spec = [dict(st, zoom=st.get("zoom", 1.32) * prev[2]) for st in spec]
+    fixed = prev is not None
     steps = [int(x) - 1 for x in arg("--steps", "").split(",") if x] or range(len(spec))
     for i, st in enumerate(spec):
         if i not in steps: continue
-        prev = render_step(st, area, os.path.join(out, f"{code}_{i + 1}.jpg"), arg("--size", 1440), prev, i, len(spec))
+        got = render_step(st, area, os.path.join(out, f"{code}_{i + 1}.jpg"), arg("--size", 1440), prev, i, len(spec))
+        if not fixed: prev = got
 
 if __name__ == "__main__":
     if ARGS[0] == "figures": figures(); sys.exit()

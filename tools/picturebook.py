@@ -41,7 +41,7 @@ AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E"
 def _tint(c, t):
     a = [int(c[i:i + 2], 16) for i in (1, 3, 5)]
     return "#" + "".join(f"{round(x + (255 - x) * t):02X}" for x in a)
-AREA = {k: (_tint(v, .62), _tint(v, .84)) for k, v in AREA_FILL.items()}
+AREA = {k: (_tint(v, .5), _tint(v, .76)) for k, v in AREA_FILL.items()}   # floor and backdrop: tints deep enough to hold the figures
 INK = "#3B3330"
 
 def area_of(play):
