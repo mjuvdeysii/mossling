@@ -41,6 +41,10 @@ SUFFIX = "_g" if GIRL else ""
 # companions left out of the pictures as in the 3D style
 FLAT = "--2d" in sys.argv
 PREFIX = "2d_" if FLAT else ""
+# the 2D style chosen: strong jelly candy — light 3D on a 2D drawing, a strong gloss, rich colour (JELLY 0 gives the
+# plain flat drawing with contour and grain; 1 a lighter gloss)
+JELLY = 1.8
+SATURATE = 1.4
 PEER_TOP, PEER_LEG = "#4C9BE8", "#F2554B"
 # the app's six areas (Theme.swift Palette.area): teal, orange, yellow, pink, blue, red — as (ground, backdrop) tints
 AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E": "#4C9BE8", "F": "#F2554B"}
@@ -64,13 +68,13 @@ def mix(hexc, t, to="#FFFFFF"):
     return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
 def dark(c, t=0.18): return mix(c, t, "#3A2418")
 def light(c, t=0.35): return mix(c, t, "#FFFFFF")
-def vivid(c, k=1.22):
+def vivid(c, k=None):
     """The same colour, more saturated (the 2D style's rich colour), lightness kept."""
     import colorsys
     if not (isinstance(c, str) and c.startswith("#") and len(c) == 7): return c
     r, g, b = (int(c[i:i + 2], 16) / 255 for i in (1, 3, 5))
     h, l, s_ = colorsys.rgb_to_hls(r, g, b)
-    r, g, b = colorsys.hls_to_rgb(h, l, min(1.0, s_ * k))
+    r, g, b = colorsys.hls_to_rgb(h, l, min(1.0, s_ * (SATURATE if k is None else k)))
     return "#%02X%02X%02X" % (round(r * 255), round(g * 255), round(b * 255))
 
 class SVG:
@@ -80,7 +84,7 @@ class SVG:
     def lin(s, c, angle=135):
         i = s.id(); r = math.radians(angle)
         x1, y1 = 0.5 - math.cos(r) / 2, 0.5 - math.sin(r) / 2
-        if FLAT:
+        if FLAT and JELLY > 0:
             # jelly: a bright lit side, the colour at full strength, a deeper core, and light glowing back out at the
             # far edge, as through a soft translucent sweet
             c = vivid(c)
@@ -93,7 +97,7 @@ class SVG:
         return f"url(#{i})"
     def rad(s, c):
         i = s.id()
-        if FLAT:
+        if FLAT and JELLY > 0:
             c = vivid(c)
             s.defs.append(f'<radialGradient id="{i}" cx=".36" cy=".3" r=".78"><stop offset="0" stop-color="{light(c, .5)}"/>'
                           f'<stop offset=".35" stop-color="{c}"/><stop offset=".85" stop-color="{dark(c, .12)}"/><stop offset="1" stop-color="{light(c, .16)}"/></radialGradient>')
@@ -123,14 +127,14 @@ def limb(s, pts, w, c, cap=True):
     o = w * 0.14
     d2 = "M" + " L".join(f"{x - o:.1f} {y - o:.1f}" for x, y in pts)
     s.add(f'<path d="{d2}" fill="none" stroke="{light(c, .16)}" stroke-width="{w * .52:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>')
-    if FLAT:
+    if FLAT and JELLY > 0:
         # jelly: a glossy streak along the lit side of the tube, and light glowing through the shaded edge
         o2 = w * 0.24
         d3 = "M" + " L".join(f"{x - o2:.1f} {y - o2:.1f}" for x, y in pts)
-        s.add(f'<path d="{d3}" fill="none" stroke="#FFFFFF" stroke-width="{w * .16:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>')
+        s.add(f'<path d="{d3}" fill="none" stroke="#FFFFFF" stroke-width="{w * .16:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity="{min(1, .5 * JELLY):.2f}"/>')
         o3 = w * 0.3
         d4 = "M" + " L".join(f"{x + o3:.1f} {y + o3:.1f}" for x, y in pts)
-        s.add(f'<path d="{d4}" fill="none" stroke="{light(vivid(c), .3)}" stroke-width="{w * .1:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/>')
+        s.add(f'<path d="{d4}" fill="none" stroke="{light(vivid(c), .3)}" stroke-width="{w * .1:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity="{min(1, .45 * JELLY):.2f}"/>')
 
 def ik(shoulder, target, a, b, bend):
     """Two-bone reach: where the elbow goes for the hand to reach target (or as near as it can)."""
@@ -323,8 +327,8 @@ class Person:
         if s.hair == "bun":
             sv.add(f'<circle cx="{c[0] - f * r * .72:.1f}" cy="{c[1] - r * .62:.1f}" r="{r * .42:.1f}" fill="{sv.rad(hair)}"/>')
         sv.add(f'<circle cx="{c[0]:.1f}" cy="{c[1]:.1f}" r="{r:.1f}" fill="{sv.rad(s.skin)}"/>')
-        if FLAT:   # jelly: a soft gloss on the forehead's lit side
-            sv.add(f'<ellipse cx="{c[0] + f * r * .28:.1f}" cy="{c[1] - r * .5:.1f}" rx="{r * .26:.1f}" ry="{r * .14:.1f}" fill="#FFFFFF" opacity=".42" transform="rotate({-25 * f:.0f} {c[0] + f * r * .28:.1f} {c[1] - r * .5:.1f})"/>')
+        if FLAT and JELLY > 0:   # jelly: a soft gloss on the forehead's lit side
+            sv.add(f'<ellipse cx="{c[0] + f * r * .28:.1f}" cy="{c[1] - r * .5:.1f}" rx="{r * .26:.1f}" ry="{r * .14:.1f}" fill="#FFFFFF" opacity="{min(1, .42 * JELLY):.2f}" transform="rotate({-25 * f:.0f} {c[0] + f * r * .28:.1f} {c[1] - r * .5:.1f})"/>')
         # hair cap over the top and back
         if s.hair == "bob":
             # a toddler's soft hair: a small cap at the back and top, a curl standing up
@@ -965,10 +969,10 @@ def finish2d(im, figs_svg, width):
     tl = ImageChops.subtract(a, ImageChops.offset(a, d, d)).filter(ImageFilter.GaussianBlur(d * 0.6))
     br = ImageChops.subtract(a, ImageChops.offset(a, -d, -d)).filter(ImageFilter.GaussianBlur(d * 0.8))
     tl = ImageChops.multiply(tl, a); br = ImageChops.multiply(br, a)
-    hi = Image.new("RGBA", im.size, (255, 255, 255, 0)); hi.putalpha(tl.point(lambda v: int(v * 0.42)))
+    hi = Image.new("RGBA", im.size, (255, 255, 255, 0)); hi.putalpha(tl.point(lambda v: int(min(255, v * 0.42 * max(JELLY, 0.35)))))
     lo = Image.new("RGBA", im.size, (60, 30, 40, 0)); lo.putalpha(br.point(lambda v: int(v * 0.16)))
-    out.alpha_composite(lo); out.alpha_composite(hi)
-    rgb = ImageEnhance.Color(ImageEnhance.Contrast(out.convert("RGB")).enhance(1.06)).enhance(1.14)
+    if JELLY > 0: out.alpha_composite(lo); out.alpha_composite(hi)
+    rgb = ImageEnhance.Color(ImageEnhance.Contrast(out.convert("RGB")).enhance(1.06)).enhance(1.04 + 0.1 * min(JELLY, 1))
     if im.size not in _GRAIN:
         n = Image.effect_noise(im.size, 22).filter(ImageFilter.GaussianBlur(0.5))
         _GRAIN[im.size] = n.point(lambda v: 255 - int(max(0, 128 - v) * 0.10))

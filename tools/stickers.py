@@ -33,6 +33,16 @@ def sticker(colour, draw, wobble=0):
     sv.add(f'<path d="{blob}" fill="{tint(colour, .72)}"/>')
     sv.add('</g>')
     draw(sv)
+    if pb.FLAT and pb.JELLY > 0:
+        # strong jelly: the whole sticker glazed like a candy — a broad gloss across the upper left, a bright
+        # crescent along the top edge, light glowing back up from the lower edge
+        k = min(1.0, pb.JELLY / 1.8)
+        g = sv.id(); sv.defs.append(f'<radialGradient id="{g}" cx=".32" cy=".24" r=".55"><stop offset="0" stop-color="#FFFFFF" stop-opacity="{.55 * k:.2f}"/>'
+                                   f'<stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/></radialGradient>')
+        cl = sv.id(); sv.defs.append(f'<clipPath id="{cl}"><path d="{blob}" transform="rotate({wobble} 120 120)"/></clipPath>')
+        sv.add(f'<g clip-path="url(#{cl})"><rect width="{S}" height="{S}" fill="url(#{g})"/>'
+               f'<path d="M50 62 C80 34 160 30 192 64" fill="none" stroke="#FFFFFF" stroke-opacity="{.6 * k:.2f}" stroke-width="9" stroke-linecap="round"/>'
+               f'<path d="M58 196 C95 214 150 214 186 194" fill="none" stroke="#FFFFFF" stroke-opacity="{.32 * k:.2f}" stroke-width="7" stroke-linecap="round"/></g>')
     return sv
 
 def G(sv, c): return sv.lin(c, 120)
