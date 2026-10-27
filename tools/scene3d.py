@@ -98,6 +98,8 @@ def L(v): return v * VIEW["z"] / U        # a length in rig pixels to world unit
 
 MATS = {}
 def vinyl(hexc, rough=0.62):
+    # pure white melts into the paper: white things (cloths, cards, paper) are a warm porcelain instead
+    if isinstance(hexc, str) and hexc.upper() in ("#FFFFFF", "#FFF", "WHITE"): hexc = "#F2EADD"
     if hexc not in MATS: MATS[hexc] = rubber("v" + hexc, hexc, rough=rough)
     return MATS[hexc]
 def ink(): return MATS.setdefault("ink", mat("ink", "#2A2522", rough=0.4, coat=0.6))
@@ -387,6 +389,18 @@ def plan(spec, area):
             if best: return ("fixed", best[1], f)
     return None
 
+def finish3d(T, size):
+    """What keeps the figures and things from dissolving into the light page: a gentle contrast and colour lift, and a
+    fine warm contour round every silhouette (as a printed picture book would have), drawn under the figure."""
+    from PIL import ImageEnhance, ImageFilter
+    a = T.getchannel("A")
+    rgb = ImageEnhance.Color(ImageEnhance.Contrast(T.convert("RGB")).enhance(1.08)).enhance(1.10)
+    body = rgb.convert("RGBA"); body.putalpha(a)
+    k = max(3, int(size / 1200 * 5) | 1)
+    rim = Image.new("RGBA", T.size, (84, 54, 30, 0)); rim.putalpha(a.filter(ImageFilter.MaxFilter(k)).point(lambda v: int(v * 0.30)))
+    out = Image.new("RGBA", T.size, (0, 0, 0, 0)); out.alpha_composite(rim); out.alpha_composite(body)
+    return out
+
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
@@ -437,7 +451,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     bw = size
     B = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=back.svg().encode(), output_width=bw))).convert("RGBA")
     F = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=bw))).convert("RGBA")
-    T = Image.open(tmp).convert("RGBA")
+    T = finish3d(Image.open(tmp).convert("RGBA"), size)
     B.alpha_composite(T)
     if where and bead: lamplight(B, bead, play["focus"], where[1] + 4 if where[4] == 0.9 else None)
     B.alpha_composite(F)

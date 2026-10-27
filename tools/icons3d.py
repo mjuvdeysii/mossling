@@ -23,6 +23,8 @@ CREAM, INKC, SKIN = "#FFF6E6", "#2A2522", "#F2CDA8"
 
 MATS = {}
 def v(hexc, rough=0.6):
+    # pure white melts into the white cards it sits on: white things are a warm porcelain instead
+    if hexc.upper() == "#FFFFFF": hexc = "#F3ECE1"
     if hexc not in MATS: MATS[hexc] = rubber("v" + hexc, hexc, rough=rough)
     return MATS[hexc]
 def glossy(hexc): return MATS.setdefault("g" + hexc, mat("g" + hexc, hexc, rough=0.15, coat=0.6))
@@ -379,6 +381,24 @@ def _():
     cap((0, -0.14, 0.5), (0, -0.14, 0.72), 0.03, INKC); cap((0, -0.14, 0.5), (0.15, -0.14, 0.5), 0.03, INKC)
     for sx in (-1, 1): sph((sx * 0.28, 0, 0.9), 0.1, YELLOW); cap((sx * 0.25, 0, 0.1), (sx * 0.3, 0, 0.0), 0.04, LILAC)
 
+def finish(im):
+    """What keeps a light object from dissolving into a light page: a gentle contrast and colour lift, a fine warm
+    contour round the whole silhouette, and a soft cast shadow under it on the page."""
+    from PIL import ImageEnhance, ImageChops
+    a = im.getchannel("A")
+    rgb = im.convert("RGB")
+    rgb = ImageEnhance.Contrast(rgb).enhance(1.10); rgb = ImageEnhance.Color(rgb).enhance(1.12)
+    body = rgb.convert("RGBA"); body.putalpha(a)
+    # contour: the silhouette grown by ~1.5 px at 240 (2 px here), in a warm dark at low strength
+    grown = a.filter(ImageFilter.MaxFilter(5))
+    rim = Image.new("RGBA", im.size, (90, 58, 32, 0)); rim.putalpha(grown.point(lambda v: int(v * 0.28)))
+    # cast shadow: the silhouette, blurred and dropped a little
+    sh = Image.new("RGBA", im.size, (90, 58, 32, 0)); sh.putalpha(a.point(lambda v: int(v * 0.30)))
+    sh = ImageChops.offset(sh, 0, 7).filter(ImageFilter.GaussianBlur(7))
+    out = Image.new("RGBA", im.size, (0, 0, 0, 0))
+    out.alpha_composite(sh); out.alpha_composite(rim); out.alpha_composite(body)
+    return out
+
 def main():
     only = ARGS[ARGS.index("--only") + 1].split(",") if "--only" in ARGS else None
     ipath = os.path.join(ART, "index.json"); index = json.load(open(ipath))
@@ -387,7 +407,7 @@ def main():
         if only and key not in only: continue
         s = setup(colour); fn()
         p = f"/tmp/icons3d/{key}.png"; shoot(s, p)
-        im = Image.open(p).convert("RGBA")
+        im = finish(Image.open(p).convert("RGBA"))
         n = f"ic_{key}.webp"; im.resize((240, 240), Image.LANCZOS).save(os.path.join(ART, n), "WEBP", quality=92, method=6)
         index["size"][n] = [240, 240]; print("wrote", n, flush=True)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
