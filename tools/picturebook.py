@@ -889,7 +889,7 @@ def scene(spec, area, sv=None, watch=None):
             hx, hy = resolve(o["on"], built)
             obj(sv, o["k"], hx + o.get("dx", 0), hy + o.get("h", 30) * o.get("s", 1) + o.get("dy", 0), o.get("s", 1), o.get("c"), o.get("r", 0))
     for m in spec.get("marks", []): mark(sv, m, built)
-    if spec.get("companions"): companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))
+    if spec.get("companions") and not FLAT: companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))
     sv.add('</g>')
     if watch: watchers(sv, *watch)
     return sv
