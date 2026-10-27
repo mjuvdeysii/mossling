@@ -26,6 +26,11 @@ struct GrowthBookView: View {
         }
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle("成长册")
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: JournalRoute.firsts) { Label("第一次", systemImage: "star") }
+            }
+        }
         .navigationSubtitle(app.birth.map { "从 " + String($0.y) + "年" + $0.md + " 开始" } ?? "")
     }
 }
@@ -41,7 +46,9 @@ struct BookPage {
     let days: Int
     let sleepHours: Double?, feeds: Double?, diapers: Double?
     let notes: [LogEntry]
-    var empty: Bool { plays.isEmpty && observed == 0 && measure == nil && days == 0 && notes.isEmpty }
+    /// The firsts of this month (第一次), oldest first.
+    let firsts: [First]
+    var empty: Bool { plays.isEmpty && observed == 0 && measure == nil && days == 0 && notes.isEmpty && firsts.isEmpty }
 
     static func all(_ app: AppModel, _ j: JournalStore) -> [BookPage] {
         guard let birth = app.birth, let baby = app.babyMonth else { return [] }
@@ -79,7 +86,8 @@ struct BookPage {
                             measure: j.measures.last { $0.at >= a && $0.at < b }, days: days,
                             sleepHours: sleep > 0 ? sleep / 3600 / d : nil, feeds: feeds > 0 ? Double(feeds) / d : nil,
                             diapers: diapers > 0 ? Double(diapers) / d : nil,
-                            notes: Array(logs.filter { $0.type == LogType.note && !($0.detail ?? "").isEmpty }.prefix(3)))
+                            notes: Array(logs.filter { $0.type == LogType.note && !($0.detail ?? "").isEmpty }.prefix(3)),
+                            firsts: j.firsts.filter { $0.at >= a && $0.at < b }.sorted { $0.at < $1.at })
         }
     }
 }
@@ -90,12 +98,14 @@ private struct BookTotals: View {
     var body: some View {
         let plays = pages.reduce(0) { $0 + $1.plays.reduce(0) { $0 + $1.times } }
         let kinds = Set(pages.flatMap { $0.plays.map(\.play.code) }).count
+        let firsts = pages.reduce(0) { $0 + $1.firsts.count }
         HStack(spacing: 0) {
             item("\(pages.count)", "个月")
             Divider().frame(height: 30)
             item("\(plays)", "次玩耍")
             Divider().frame(height: 30)
             item("\(kinds)", "种教具")
+            if firsts > 0 { Divider().frame(height: 30); item("\(firsts)", "个第一次") }
         }
         .padding(.vertical, 12)
         .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.08)], startPoint: .leading, endPoint: .trailing))
@@ -115,6 +125,7 @@ private struct BookTotals: View {
 private struct BookPageView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    @State private var newFirst: First?
     let page: BookPage
     let current: Bool
     let tilt: Double
@@ -149,6 +160,8 @@ private struct BookPageView: View {
                 }
             }
 
+            if !page.firsts.isEmpty { FirstStamps(firsts: page.firsts) }
+
             let facts = self.facts
             if !facts.isEmpty {
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 220 : 140), spacing: 8)], alignment: .leading, spacing: 8) {
@@ -168,6 +181,15 @@ private struct BookPageView: View {
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
+            }
+
+            // this month's page: a first can be kept right here, onto this page
+            if current {
+                Button { newFirst = First(at: ms(Date()), title: "") } label: {
+                    Label(page.firsts.isEmpty ? "记下这个月的第一次" : "再记一个第一次", systemImage: "star.fill").font(.subheadline.weight(.semibold))
+                }
+                .buttonStyle(.vinyl(Palette.bead))
+                .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
             }
 
             if page.empty {

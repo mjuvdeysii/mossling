@@ -12,6 +12,7 @@ struct JournalView: View {
     @State private var day: Day = .today
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
+    @State private var newFirst: First?
     @Environment(\.dynamicTypeSize) private var size
 
     var body: some View {
@@ -33,11 +34,20 @@ struct JournalView: View {
         .navigationTitle("记录")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button("补记", systemImage: "plus") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
+                // the rarer records live behind +, not on the page: an entry after the fact, a first, a measurement
+                Menu {
+                    Button("补记一条记录", systemImage: "square.and.pencil") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
+                    Button("记一个第一次", systemImage: "star") { newFirst = First(at: ms(Date()), title: "") }
+                    Button("记一次测量", systemImage: "ruler") { measuring = Measure(at: Date().timeIntervalSince1970 * 1000) }
+                    Divider()
+                    Button("第一次时间线", systemImage: "point.topleft.down.to.point.bottomright.curvepath") { path.append(JournalRoute.firsts) }
+                } label: { Image(systemName: "plus") }
+                .accessibilityLabel("补记、第一次、测量")
             }
         }
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id).lampPresented() }
         .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }).lampPresented() }
+        .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
         .onChange(of: app.today) { _, t in day = t }
         .onAppear { day = app.today }
@@ -70,7 +80,7 @@ struct JournalView: View {
     private func defaultTime() -> Double { day == app.today ? JournalFile.now() : day.date.addingTimeInterval(12 * 3600).timeIntervalSince1970 * 1000 }
 }
 
-enum JournalRoute: Hashable { case stats, growth }
+enum JournalRoute: Hashable { case stats, growth, firsts }
 
 /// Seven small soft bars, one per day ending today: how many things were recorded. Today's bar is the full colour.
 private struct WeekBars: View {

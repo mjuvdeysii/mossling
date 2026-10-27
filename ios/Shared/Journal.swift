@@ -152,6 +152,17 @@ struct Measure: Codable, Identifiable, Hashable {
     var headMm: Int? = nil
 }
 
+/// A first (第一次): the first time the child did something worth keeping — sucked a hand, cooed, rolled over, sat,
+/// crawled. `key` is one of the common firsts (Firsts.all) or nil for one the parent named.
+struct First: Codable, Identifiable, Hashable {
+    var id: UUID = UUID()
+    var at: Double                 // ms since 1970: the day it happened (noon, as measurements)
+    var key: String? = nil
+    var title: String
+    var note: String? = nil
+    var date: Date { Date(timeIntervalSince1970: at / 1000) }
+}
+
 /// What the widget needs to know without opening the content: written by the app whenever it changes.
 struct Snapshot: Codable {
     var birthEpochDay: Int?
@@ -172,7 +183,21 @@ enum JournalFile {
     static var url: URL { dir.appendingPathComponent("journal.json") }
     static var snapshotURL: URL { dir.appendingPathComponent("snapshot.json") }
 
-    struct Body: Codable { var logs: [LogEntry] = []; var timers: [RunningTimer] = []; var measures: [Measure] = [] }
+    struct Body: Codable {
+        var logs: [LogEntry] = []; var timers: [RunningTimer] = []; var measures: [Measure] = []
+        /// The child's firsts (第一次), a line of their own that is never cut by dates.
+        var firsts: [First] = []
+        init() {}
+        // every field may be missing in a file written by an earlier build: read what is there, never fail the whole
+        // file (a failed read would show an empty journal)
+        init(from d: Decoder) throws {
+            let c = try d.container(keyedBy: CodingKeys.self)
+            logs = try c.decodeIfPresent([LogEntry].self, forKey: .logs) ?? []
+            timers = try c.decodeIfPresent([RunningTimer].self, forKey: .timers) ?? []
+            measures = try c.decodeIfPresent([Measure].self, forKey: .measures) ?? []
+            firsts = try c.decodeIfPresent([First].self, forKey: .firsts) ?? []
+        }
+    }
 
     /// Builds signed before the app group was set up kept the journal in the app's own Documents folder. Once the
     /// group exists, move it there (once), so nothing recorded earlier is lost and the widget sees it too.

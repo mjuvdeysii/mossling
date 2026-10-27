@@ -178,7 +178,7 @@ extension View {
     func routes(path: Binding<NavigationPath>) -> some View {
         navigationDestination(for: Route.self) { r in RouteView(route: r, path: path) }
             .navigationDestination(for: JournalRoute.self) { r in
-                switch r { case .stats: StatsView(); case .growth: GrowthView() }
+                switch r { case .stats: StatsView(); case .growth: GrowthView(); case .firsts: FirstsView() }
             }
     }
 }
