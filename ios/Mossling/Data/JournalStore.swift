@@ -9,6 +9,8 @@ final class JournalStore {
     private(set) var logs: [LogEntry] = []
     private(set) var timers: [RunningTimer] = []
     private(set) var measures: [Measure] = []
+    /// The firsts, newest first.
+    private(set) var firsts: [First] = []
     /// The page of a feed or a sleep, shown full screen: the only place a timer starts (tap 亲喂 or 睡觉 anywhere and
     /// this page opens, not yet running), and where a running one is paused, changed and ended.
     var focus: String?
@@ -33,6 +35,7 @@ final class JournalStore {
     private static func stamp() -> Date? { (try? FileManager.default.attributesOfItem(atPath: JournalFile.url.path))?[.modificationDate] as? Date }
     private func apply(_ b: JournalFile.Body) {
         logs = b.logs.sorted { $0.start > $1.start }; timers = b.timers; measures = b.measures.sorted { $0.at < $1.at }
+        firsts = b.firsts.sorted { $0.at > $1.at }
     }
     private func changed(_ b: JournalFile.Body) {
         apply(b); seen = Self.stamp()
@@ -103,6 +106,16 @@ final class JournalStore {
     func delete(_ e: LogEntry) { edit { $0.logs.removeAll { $0.id == e.id } } }
     func saveMeasure(_ m: Measure) { edit { b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } } }
     func deleteMeasure(_ m: Measure) { edit { $0.measures.removeAll { $0.id == m.id } } }
+    /// Keeps a first (new or changed) and says so; false when it could not be saved.
+    @discardableResult func saveFirst(_ f: First) -> Bool {
+        let isNew = !firsts.contains { $0.id == f.id }
+        let before = JournalFile.read()
+        guard edit({ b in if let i = b.firsts.firstIndex(where: { $0.id == f.id }) { b.firsts[i] = f } else { b.firsts.append(f) } }) else { return false }
+        onEvent?(.recordPersistSuccess)
+        if isNew { toast = Toast(type: LogType.note, text: "记下了第一次：" + f.title + " · " + whenLabelDay(f.date), restore: before) }
+        return true
+    }
+    func deleteFirst(_ f: First) { edit { $0.firsts.removeAll { $0.id == f.id } } }
     func replaceAll(_ body: JournalFile.Body) { JournalFile.write(body); changed(body) }
 
     func last(_ type: String) -> Date? { logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate } }

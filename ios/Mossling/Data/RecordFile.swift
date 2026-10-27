@@ -25,13 +25,18 @@ enum RecordFile {
             if let v = m.weightG { o["weightG"] = v }; if let v = m.lengthMm { o["lengthMm"] = v }; if let v = m.headMm { o["headMm"] = v }
             return o
         }
+        let firsts = j.firsts.map { f -> [String: Any] in
+            var o: [String: Any] = ["at": Int64(f.at), "title": f.title]
+            if let v = f.key { o["key"] = v }; if let v = f.note, !v.isEmpty { o["note"] = v }
+            return o
+        }
         let timers = j.timers.map { t -> [String: Any] in
             var o: [String: Any] = ["type": t.type, "start": Int64(t.start), "pausedTotal": Int64(t.pausedTotal), "carried": Int64(t.carried), "carriedPause": Int64(t.carriedPause)]
             if let v = t.side { o["side"] = v }; if let v = t.pausedAt { o["pausedAt"] = Int64(v) }
             return o
         }
         let root: [String: Any] = ["app": "mossling", "v": 1, "at": ISO8601DateFormatter().string(from: Date()),
-                                   "mossling": ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "timers": timers]]
+                                   "mossling": ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "firsts": firsts, "timers": timers]]
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
 
@@ -68,13 +73,17 @@ enum RecordFile {
             guard let at = num(o["at"]) else { return nil }
             return Measure(at: at, weightG: num(o["weightG"]).map { Int($0) }, lengthMm: num(o["lengthMm"]).map { Int($0) }, headMm: num(o["headMm"]).map { Int($0) })
         }
+        body.firsts = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
+            guard let at = num(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
+            return First(at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
+        }
         body.timers = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
             return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: num(o["pausedAt"]), pausedTotal: num(o["pausedTotal"]) ?? 0,
                                 carried: num(o["carried"]) ?? 0, carriedPause: num(o["carriedPause"]) ?? 0)
         }
         if let v = s["journal"] as? Bool { app.journal = v }
-        if !body.logs.isEmpty || !body.measures.isEmpty { app.journal = true }
+        if !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty { app.journal = true }
         journal.replaceAll(body)
     }
 
@@ -94,6 +103,17 @@ enum RecordFile {
             o += "- 今天：满 \(a.months) 个月 \(a.days) 天\n"
         } else { o += "- 出生日期：未填写\n" }
         o += "\n## 说明\n\n记录由家长在摸索台灯中自行录入，应用不做发育评估或医疗判断。可交给儿科医生参考；也可以交给 AI 助手，请它在说明自身局限的前提下帮助整理和提出值得向医生询问的问题。生长百分位按世界卫生组织儿童生长标准（2006）计算。\n"
+
+        // firsts
+        let fs = j.firsts.sorted { $0.at < $1.at }
+        if !fs.isEmpty {
+            o += "\n## 第一次\n\n| 日期 | 月龄 | 第一次 | 备注 |\n|---|---|---|---|\n"
+            for f in fs {
+                let d = Day(f.date)
+                let age = app.birth.map { b in Firsts.age(from: b, to: d) } ?? ""
+                o += String(format: "| %04d-%02d-%02d | ", d.y, d.m, d.d) + age + " | " + f.title + " | " + (f.note ?? "").replacingOccurrences(of: "|", with: "／").replacingOccurrences(of: "\n", with: " ") + " |\n"
+            }
+        }
 
         // growth
         let ms = j.measures.sorted { $0.at < $1.at }
