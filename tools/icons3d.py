@@ -95,7 +95,7 @@ def icon_lights():
 
 def setup(colour):
     s = ip3d.reset(); s.render.film_transparent = True
-    s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium High Contrast"; s.view_settings.exposure = -0.95
+    s.view_settings.view_transform = "Standard"; s.view_settings.look = "None"; s.view_settings.exposure = -0.95
     ip3d.materials(); MATS.clear(); icon_lights()
     # the token: a round, thick, soft vinyl coaster in the colour itself (a light tint washed out on white cards and
     # glowed on the lamp's blue), a little smaller so the object leads
@@ -111,7 +111,7 @@ def shoot(s, path):
             if p.inputs["Emission Strength"].default_value == 0 and p.inputs["Coat Weight"].default_value < 0.3:
                 p.inputs["Specular IOR Level"].default_value = 0.08
     s.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.22
-    s.view_settings.exposure = -0.75
+    s.view_settings.exposure = -1.2   # calibrated: a lit face shows its own colour, not a paler one
     bpy.ops.object.camera_add(location=(0, -8 * math.cos(math.radians(20)), 0.5 + 8 * math.sin(math.radians(20))))
     c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 1.8
     s.camera = c; ip3d.render(path, PX, PX)
