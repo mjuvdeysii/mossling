@@ -152,15 +152,15 @@ private struct MonthCard: View {
             HStack(spacing: 14) {
                 // the child at this age, as in the pictures, standing in a small pool of light of the year's colour
                 ZStack(alignment: .bottom) {
-                    RoundedRectangle(cornerRadius: 22, style: .continuous)
-                        .fill(LinearGradient(colors: [Land.of(month).crayon.opacity(night ? 0.22 : 0.16), Land.of(month).crayon.opacity(night ? 0.10 : 0.06)], startPoint: .top, endPoint: .bottom))
-                    Circle().fill(RadialGradient(colors: [Color(hex: 0xFFE39A).opacity(night ? 0.25 : 0.6), .clear], center: .center, startRadius: 0, endRadius: 40))
-                        .frame(width: 80, height: 80).offset(x: 26, y: -58)
-                    Ellipse().fill(Land.of(month).crayon.opacity(0.22)).frame(width: 78, height: 14).offset(y: -9)
-                    GrowingChild(month: month).frame(width: 104, height: 104).offset(y: 6)
+                    // the same vinyl meadow as the growth map's stage, the child standing on it with a soft shadow
+                    StagePlate(night: night)
+                    Ellipse().fill(RadialGradient(colors: [Color(hex: 0x3A5A2A).opacity(0.28), .clear], center: .center, startRadius: 0, endRadius: 34))
+                        .frame(width: 70, height: 14).offset(y: -12)
+                    GrowingChild(month: month).frame(width: 112, height: 112).offset(y: 4)
                 }
                 .frame(width: 104, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
