@@ -6,7 +6,7 @@ import UIKit
 /// By day: dandelion seeds, petals in the tab's colour, small leaves and pollen, falling slowly over the whole width
 /// and turning as they go. At night: specks of the lamp's amber light, rising.
 struct AirEmitter: UIViewRepresentable {
-    enum Kind: Equatable { case day(UIColor), night }
+    enum Kind: Equatable { case day(UIColor), night, rise([UIImage]) }
     let kind: Kind
     var scale: Double = 1
 
@@ -47,6 +47,11 @@ struct AirEmitter: UIViewRepresentable {
                 emitter.emitterShape = .line
                 emitter.emitterPosition = CGPoint(x: b.midX, y: b.height + 16)
                 emitter.emitterSize = CGSize(width: b.width, height: 1)
+            case .rise:
+                // the record pages' stage: small things rising behind the right half, round the companion
+                emitter.emitterShape = .line
+                emitter.emitterPosition = CGPoint(x: b.width * 0.67, y: b.height + 8)
+                emitter.emitterSize = CGSize(width: b.width * 0.5, height: 1)
             }
             if !built { build(height: b.height); built = true }
         }
@@ -96,6 +101,24 @@ struct AirEmitter: UIViewRepresentable {
                 cells = [c]
                 emitter.renderMode = .additive
             }
+            case .rise(let images):
+                let v: CGFloat = max(12, h / 8)
+                let life = Float((h + 20) / v)
+                cells = images.map { img in
+                    let c = CAEmitterCell()
+                    c.contents = img.cgImage
+                    c.birthRate = 1.0 / Float(max(1, images.count))
+                    c.lifetime = life; c.lifetimeRange = life * 0.15
+                    c.velocity = v; c.velocityRange = v * 0.25
+                    c.emissionLongitude = -.pi / 2; c.emissionRange = .pi / 14
+                    c.spin = 0; c.spinRange = 0.6
+                    c.scale = 1.0 / 3; c.scaleRange = 0.1
+                    c.alphaRange = 0.2
+                    c.alphaSpeed = -0.8 / life
+                    return c
+                }
+                emitter.renderMode = .unordered
+            }
             emitter.emitterCells = cells
             // already in mid-air when the page appears, not starting from an empty sky
             emitter.beginTime = CACurrentMediaTime() - Double(cells.first?.lifetime ?? 30) * 0.9
@@ -103,7 +126,7 @@ struct AirEmitter: UIViewRepresentable {
 
         // MARK: the particles, drawn once at 3×
 
-        private static func draw(_ size: CGSize, _ f: (CGContext) -> Void) -> UIImage {
+        static func draw(_ size: CGSize, _ f: (CGContext) -> Void) -> UIImage {
             let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 3; fmt.opaque = false
             return UIGraphicsImageRenderer(size: size, format: fmt).image { f($0.cgContext) }
         }

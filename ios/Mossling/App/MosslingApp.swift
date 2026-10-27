@@ -107,9 +107,10 @@ struct RootView: View {
         }
     }
 
-    /// The tab's mark: the vinyl icon, or in the hidden 2D world (build 196) the system symbol it had then.
-    private func tabLabel(_ t: String, _ image: String, _ symbol: String) -> Label<Text, Image> {
-        ArtStyle.current == .flat ? Label(t, systemImage: symbol) : Label(t, image: image)
+    /// The tab's mark: the vinyl icon — in full colour when chosen, quietened otherwise, so the chosen tab leads —
+    /// or in the hidden 2D world (build 196) the system symbol it had then.
+    private func tabLabel(_ t: String, _ image: String, _ symbol: String, _ value: Int) -> Label<Text, Image> {
+        ArtStyle.current == .flat ? Label(t, systemImage: symbol) : Label(t, image: tab == value ? image + "On" : image)
     }
 
     private var tabView: some View {
@@ -117,16 +118,18 @@ struct RootView: View {
             Tab(value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
                     .environment(\.night, night || scheme == .dark)
-            } label: { tabLabel("本月", "TabMonth", "leaf.fill") }
+            } label: { tabLabel("本月", "TabMonth", "leaf.fill", 0) }
             if app.journal {
                 Tab(value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
-                } label: { tabLabel("记录", "TabJournal", "list.bullet.clipboard.fill") }
+                } label: { tabLabel("记录", "TabJournal", "list.bullet.clipboard.fill", 2) }
             }
             Tab(value: 3) {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
-            } label: { tabLabel("我的", "TabMe", "person.crop.circle.fill") }
+            } label: { tabLabel("我的", "TabMe", "person.crop.circle.fill", 3) }
         }
+        // a light tick as the chosen tab changes, like turning to a tabbed page
+        .sensoryFeedback(.selection, trigger: tab)
         // a change of drawing style redraws every picture and icon at once
         .id(app.artStyle)
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light

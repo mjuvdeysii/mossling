@@ -76,21 +76,23 @@ private struct Drift: View {
         }
     }
 
+    @State private var images: [UIImage] = []
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still)) { tl in
-            Canvas(rendersAsynchronously: true) { ctx, size in
-                let t = still ? 0 : tl.date.timeIntervalSinceReferenceDate
-                for i in 0..<8 {
-                    let seed = Double(i) * 0.618
-                    let period = 7.0 + Double(i % 3) * 1.6
-                    let f = (t / period + seed).truncatingRemainder(dividingBy: 1)   // 0 … 1, bottom to top
-                    let x = size.width * (0.42 + 0.5 * (seed.truncatingRemainder(dividingBy: 1))) + sin(t * 0.9 + Double(i)) * 8
-                    let y = size.height * (1.05 - f * 1.1)
-                    let a = min(1, f * 5) * min(1, (1 - f) * 3) * 0.55
-                    let s = 7 + Double(i % 3) * 3
-                    draw(&ctx, CGPoint(x: x, y: y), s, a, i)
-                }
-            }
+        // risen by Core Animation at the display's own rate (no per-frame drawing on the app's side)
+        ZStack { if !still && !images.isEmpty { AirEmitter(kind: .rise(images)) } }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .allowsHitTesting(false)
+            .onAppear { if images.isEmpty { images = Self.marks(self) } }
+    }
+
+    /// The things that rise, each drawn once at three sizes (the same drawing as before, now a particle image).
+    @MainActor private static func marks(_ d: Drift) -> [UIImage] {
+        [7.0, 10.0, 13.0].enumerated().compactMap { i, s in
+            let side = s * 1.6 + 4
+            let r = ImageRenderer(content: Canvas { ctx, _ in d.draw(&ctx, CGPoint(x: side / 2, y: side / 2), s, 0.6, i) }.frame(width: side, height: side))
+            r.scale = 3
+            return r.uiImage
         }
     }
 

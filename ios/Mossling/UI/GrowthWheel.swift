@@ -254,13 +254,18 @@ struct GrowingChild: View {
 struct Lively: ViewModifier {
     let giggle: Int
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var sway = false
+    @State private var breath = false
     func body(content: Self.Content) -> some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
-            let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-            content
-                .rotationEffect(.degrees(Foundation.sin(t * 1.6) * 2.4), anchor: .bottom)
-                .scaleEffect(x: 1, y: 1 + 0.014 * Foundation.sin(t * 2.3), anchor: .bottom)
-        }
+        // two endless eased swings (not a per-frame clock re-running the view thirty times a second)
+        content
+            .rotationEffect(.degrees(reduce ? 0 : sway ? 2.4 : -2.4), anchor: .bottom)
+            .scaleEffect(x: 1, y: reduce ? 1 : breath ? 1.014 : 0.986, anchor: .bottom)
+            .onAppear {
+                guard !reduce else { return }
+                withAnimation(.easeInOut(duration: 1.96).repeatForever(autoreverses: true)) { sway = true }
+                withAnimation(.easeInOut(duration: 1.37).repeatForever(autoreverses: true)) { breath = true }
+            }
         .keyframeAnimator(initialValue: 0.0, trigger: giggle) { v, h in
             v.offset(y: reduce ? 0 : -h).rotationEffect(.degrees(reduce ? 0 : h * 0.4), anchor: .bottom)
         } keyframes: { _ in
