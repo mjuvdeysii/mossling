@@ -12,7 +12,8 @@ struct HuggedAvatar: View {
     @State private var hugs = 0
 
     var body: some View {
-        let kind = app.companion
+        // 3D: the picture is Moss (the child), so it is Otto (the grown-up) who hugs him
+        let kind: Kind = ArtStyle.current == .vinyl ? .otto : app.companion
         let c = size * 0.74
         // the companion's box: its body overlaps the frame's right edge
         let box = CGRect(x: size * 0.6, y: size - c * 0.86, width: c, height: c)

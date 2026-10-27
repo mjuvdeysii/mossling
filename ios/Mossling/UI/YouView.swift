@@ -311,6 +311,8 @@ struct ProfileSheet: View {
                         Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
                     }
                 } footer: { Text("性别只用于选择 WHO 生长曲线。") }
+                // 3D: the pictures are acted by Moss and Otto, the same for every child — nothing to choose
+                if ArtStyle.current == .flat {
                 Section {
                     HStack(spacing: 12) {
                         ForEach(["boy", "girl"], id: \.self) { k in
@@ -333,6 +335,7 @@ struct ProfileSheet: View {
                     }
                     .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
                 } header: { Text("图里的宝宝") } footer: { Text("只改变插画里宝宝的样子，与伙伴无关；没选时跟随性别。") }
+                }
             }
             .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }

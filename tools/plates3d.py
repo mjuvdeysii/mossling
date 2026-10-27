@@ -142,17 +142,13 @@ def room(out="stage_room"):
     sphere("body", (cx + 0.25, cy - 0.05, bot + 0.5), (0.75, 0.45, 0.2), blanket)
     for i in range(4):   # dots on the blanket
         sphere("dot", (cx - 0.3 + i * 0.45, cy - 0.66, bot + 0.42 + (i % 2) * 0.04), (0.06, 0.02, 0.06), rubber("dotc", "#FFFFFF"), seg=16)
-    # the child: head on the pillow, eyes closed, cheeks warm, a tuft of hair
-    hx, hy, hz = cx - 0.9, cy - 0.1, bot + 0.74
-    skin = rubber("skin", "#F2CDA8", rough=0.55)
-    sphere("head", (hx, hy, hz), (0.34, 0.32, 0.31), skin)
-    sphere("hair", (hx - 0.06, hy + 0.04, hz + 0.2), (0.27, 0.25, 0.14), rubber("hair", "#6B4A35"))
-    sphere("ear", (hx + 0.31, hy, hz - 0.02), (0.07, 0.06, 0.09), skin)
-    ink = rubber("ink", "#3B3330")
-    for ex in (-0.12, 0.12):
-        pts = [(hx + ex + dx, hy - 0.305, hz - 0.01 - 0.035 * (1 - (dx / 0.06) ** 2)) for dx in (-0.06, 0, 0.06)]
-        ip3d.tube("lid", pts, 0.012, ink)
-        sphere("cheek", (hx + ex * 1.5, hy - 0.27, hz - 0.11), (0.06, 0.02, 0.04), rubber("cheekc", "#F59AA6"), seg=16)
+    # the child is Moss: asleep on the pillow under the blanket, eyes shut, the mint sprig on the pillow
+    ip3d.materials()
+    moss = ip3d.build_moss(shut="down", perk=0.0)
+    for o in list(moss.children):
+        if o.name.startswith("moss_foot"): bpy.data.objects.remove(o, do_unlink=True)
+    moss.scale = (0.62, 0.62, 0.62); moss.rotation_euler = (0, math.radians(-14), 0)
+    moss.location = (cx - 0.95, cy - 0.12, bot + 0.36)
     # a soft toy beside the crib on the rug, and a ring stacker
     ip3d.ring_stacker((-3.2, -0.2), 1.3)
     # a mobile over the crib: a moon and two stars on threads
