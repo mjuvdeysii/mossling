@@ -8,3 +8,4 @@ ios/Mossling.xcodeproj/
 ios/shots/
 ios/build.log
 __pycache__/
+tools/stages/

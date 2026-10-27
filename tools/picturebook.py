@@ -27,6 +27,8 @@ GROUND = 440
 
 # ---------- colour ----------
 PAPER = "#FBF7F0"
+# the paper, the disc and the floor drawn in 2D; off when the 3D stage (tools/stage3d.py) is laid behind instead
+BACKDROP = True
 SKIN = ["#F2CDA8", "#D9A57C"]           # adult, child (two warm tones so the two read apart)
 HAIR = {"adult": "#4A3428", "child": "#6B4A32"}
 ADULT_TOP, ADULT_LEG = "#FF6F91", "#3E5A86"
@@ -764,12 +766,12 @@ def scene(spec, area, sv=None, watch=None):
     sv = sv or SVG()
     ground, back = AREA[area]
     setting = spec.get("set", "floor")
-    sv.add(f'<rect width="{W}" height="{H}" fill="{PAPER}"/>')
+    if BACKDROP or setting == "outdoor": sv.add(f'<rect width="{W}" height="{H}" fill="{PAPER}"/>')
     if setting == "outdoor":
         sv.add(f'<rect width="{W}" height="{GROUND}" fill="#E6F2F8"/>')
         sv.add(f'<path d="M0 {GROUND - 40} Q{W * .3} {GROUND - 90} {W * .62} {GROUND - 50} T{W} {GROUND - 60} V{H} H0 Z" fill="#CFE6B8"/>')
         sv.add(f'<rect y="{GROUND}" width="{W}" height="{H - GROUND}" fill="#B9DA9C"/>')
-    else:
+    elif BACKDROP:
         # a soft disc of the area colour behind the action, lit from the upper left like the figures; and the floor
         # as a thick soft vinyl stage (the same tokens the app's icons stand on): a lit top that deepens toward the
         # front, a darker edge showing its thickness, and a soft shadow under it on the paper

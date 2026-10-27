@@ -389,6 +389,41 @@ def plan(spec, area):
             if best: return ("fixed", best[1], f)
     return None
 
+TILT = math.asin(56 / 330)   # the stage camera's tilt (tools/stage3d.py)
+
+def contact_pass(out, size):
+    """The shadows the people and things cast on the 3D stage, seen by the stage's own camera (tilted down a little),
+    so they lie on the floor under the figures' feet. Everything is flattened onto the floor line's depth (the front
+    view stands every figure on GROUND, whatever its depth), made invisible to the camera, and lit by one soft sun from
+    the upper left and front, like the key light; a shadow catcher on the floor keeps only the shadows."""
+    sc = bpy.context.scene
+    objs = [o for o in sc.objects if o.type not in ("CAMERA", "LIGHT")]
+    root = bpy.data.objects.new("flat", None); sc.collection.objects.link(root)
+    for o in objs:
+        if o.parent is None:
+            mw = o.matrix_world.copy(); o.parent = root; o.matrix_world = mw
+    root.scale = (1, 0.001, 1)
+    for o in objs: o.visible_camera = False
+    for o in [o for o in sc.objects if o.type == "LIGHT"]: bpy.data.objects.remove(o)
+    sc.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.0
+    bpy.ops.object.light_add(type="SUN", location=(0, 0, 10)); sun = bpy.context.object
+    sun.data.energy = 4.0; sun.data.angle = math.radians(14)
+    sun.rotation_euler = (math.radians(38), math.radians(-14), math.radians(-18))
+    bpy.ops.mesh.primitive_plane_add(size=60, location=(pb.W / 2 / U, 0, 0)); fl = bpy.context.object; fl.is_shadow_catcher = True
+    cam = sc.camera
+    v = (pb.GROUND - pb.H / 2) / U
+    f = (0, math.cos(TILT), -math.sin(TILT))
+    tgt = (pb.W / 2 / U, v * math.sin(TILT), v * math.cos(TILT))
+    cam.location = (tgt[0] - 30 * f[0], tgt[1] - 30 * f[1], tgt[2] - 30 * f[2]); cam.rotation_euler = (math.radians(90) - TILT, 0, 0)
+    cam.data.clip_end = 100
+    keep = sc.cycles.samples; sc.cycles.samples = 48
+    tmp = out + ".shadow.png"; ip3d.render(tmp, size, int(size * pb.H / pb.W)); sc.cycles.samples = keep
+    im = Image.open(tmp).convert("RGBA"); os.remove(tmp)
+    # warm the shadow (a shadow on warm vinyl is a deeper warm, not grey) and keep it soft
+    a = im.getchannel("A").point(lambda x: int(x * 0.85))
+    sh = Image.new("RGBA", im.size, (92, 56, 30, 0)); sh.putalpha(a)
+    return sh
+
 def finish3d(T, size):
     """What keeps the figures and things from dissolving into the light page: a gentle contrast and colour lift, and a
     fine warm contour round every silhouette (as a printed picture book would have), drawn under the figure."""
@@ -425,7 +460,12 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
         if o["k"] == "mat": dep = 0.4
         prop3d(o, dep)
     where = None; bead = None
-    back, front = layers(spec, area)
+    # indoors, the stage is the 3D plate of the area (tools/stage3d.py): the 2D paper, disc and floor are left out
+    sp = os.path.join(HERE, "stages", f"stage_{area}.png")
+    stage = Image.open(sp) if spec.get("set", "floor") == "floor" and os.path.exists(sp) and spec.get("disc", 360) == 360 else None
+    pb.BACKDROP = stage is None
+    try: back, front = layers(spec, area)
+    finally: pb.BACKDROP = True
     if COMPANIONS:   # off: the pictures show the people and the play only; Moss and Otto act around the picture in the app
         play, occupied, marks = step_ctx(spec, area, people, objs, front, step, nsteps)
         # a place chosen for the whole play (plan) is kept as it is: the same place and size in every step
@@ -445,11 +485,17 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     s.camera = c
     s.render.resolution_x, s.render.resolution_y = size, int(size * pb.H / pb.W)
     tmp = out + ".3d.png"; ip3d.render(tmp, size, int(size * pb.H / pb.W))
+    shadows = contact_pass(out, size) if stage is not None else None
     if where:
         x, base, k, oside, _ = where
         back.shadow(x, base + 3, 58 * k, 10 * k, .2); back.shadow(x + GAP * k * oside, base - 7 * k, 34 * k, 7 * k, .16)
     bw = size
     B = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=back.svg().encode(), output_width=bw))).convert("RGBA")
+    if stage is not None:
+        # the 3D stage behind everything; the 2D back layer (contact shadows, scenery) over it
+        P = stage.resize(B.size, Image.LANCZOS).convert("RGBA"); P.alpha_composite(B)
+        if shadows is not None: P.alpha_composite(shadows.resize(B.size, Image.LANCZOS))
+        B = P
     F = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=front.svg().encode(), output_width=bw))).convert("RGBA")
     T = finish3d(Image.open(tmp).convert("RGBA"), size)
     B.alpha_composite(T)
