@@ -285,7 +285,8 @@ struct Duo: View {
     /// Moss dwarf Otto and a main Otto look no bigger than Moss).
     static func behind(_ primary: Kind, _ size: CGFloat) -> CGFloat {
         let frame: (Kind) -> CGFloat = { $0 == .moss ? Sprites.mossFrame : Sprites.ottoFrame }
-        return size * frame(primary.other) / frame(primary) * 0.78
+        // a step smaller than true scale, but the grown-up stays a grown-up: Otto behind Moss is still clearly taller
+        return size * frame(primary.other) / frame(primary) * (primary.other == .otto ? 0.92 : 0.78)
     }
     static func feet(_ k: Kind) -> CGFloat { (k == .moss ? Sprites.mossFeet : Sprites.ottoFeet) / 100 }
     /// How far across its own square each one reaches, leaves and lamp rod included (measured on the sprites, every
