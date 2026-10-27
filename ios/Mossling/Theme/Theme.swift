@@ -239,30 +239,39 @@ struct PageBackground: View {
 /// The day's counterpart of the lamp's drifting motes: a garden morning behind the paper. Sunlight comes in from the
 /// top right in a few soft beams that slowly breathe; dandelion seeds, petals in the tab's colour, small leaves and
 /// specks of pollen drift across on the air; at the foot of the page a low hill of grass where a few flowers sway, a
-/// wooden ring stacker and a ball resting in it. Everything is faint — the paper stays paper — and moves at ten frames
-/// a second, slowly enough to be felt more than watched. Still under Reduce Motion.
+/// wooden ring stacker and a ball resting in it. Everything is faint — the paper stays paper. The drifting things are
+/// Core Animation particles (smooth at the display's own rate, no main-thread work); the rest is drawn once. Still
+/// under Reduce Motion.
 struct DayAir: View {
     var tone: Color
     /// Size of everything, for small previews (the theme swatches).
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var breath = false
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 10, paused: reduce)) { tl in
-            Canvas(rendersAsynchronously: true) { ctx, size in   // drawn off the main thread: the page scrolls freely over it
-                let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-                sun(&ctx, size, t)
-                meadow(&ctx, size, t)
-                drift(&ctx, size, t)
-            }
+        ZStack {
+            // the sun, its hill and flowers: drawn once (nothing in them moves per frame)
+            Canvas { ctx, size in meadow(&ctx, size, 0); sunDisc(&ctx, size) }
+            // the beams breathe as one slow change of opacity, run by the system compositor, not redrawn
+            Canvas { ctx, size in beams(&ctx, size, 0) }
+                .opacity(breath ? 1 : 0.55)
+            // seeds, petals, leaves and pollen drifting down over the whole page, animated by Core Animation off the
+            // main thread at the display's full frame rate
+            if !reduce { AirEmitter(kind: .day(UIColor(tone)), scale: scale) }
         }
         .allowsHitTesting(false)
+        .onAppear { if !reduce { withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { breath = true } } }
     }
 
-    private func sun(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
+    private func sunDisc(_ ctx: inout GraphicsContext, _ size: CGSize) {
         let o = CGPoint(x: size.width * 0.96, y: -size.height * 0.02)
         let R = 320 * scale
         ctx.fill(Path(ellipseIn: CGRect(x: o.x - R, y: o.y - R, width: 2 * R, height: 2 * R)),
                  with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE39A).opacity(0.75), Color(hex: 0xFFE9A8).opacity(0.25), Color(hex: 0xFFE9A8).opacity(0)]), center: o, startRadius: 0, endRadius: R))
+    }
+
+    private func beams(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
+        let o = CGPoint(x: size.width * 0.96, y: -size.height * 0.02)
         // three beams fanning down to the left, each breathing on its own slow cycle
         for i in 0..<3 {
             let a = (128.0 + Double(i) * 13 + Foundation.sin(t * 0.05 + Double(i)) * 2) * .pi / 180
@@ -278,6 +287,7 @@ struct DayAir: View {
                                              endPoint: CGPoint(x: o.x + dir.x * len, y: o.y + dir.y * len)))
         }
     }
+
 
     private func meadow(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
         let w = size.width, h = size.height, base = h - 44 * scale
@@ -320,49 +330,6 @@ struct DayAir: View {
         ctx.fill(Path(ellipseIn: CGRect(x: sx - 46 * q, y: sy - 12 * q, width: 14 * q, height: 14 * q)), with: .color(Color(hex: 0xF2554B).opacity(0.45)))
     }
 
-    /// The drifting things float slowly down the page's two margins only — the strips beside the content where no
-    /// word or card ever stands — so a seed or a petal never passes behind a title (no glyph is ever crossed).
-    /// In the small previews (scale < 1) the whole width is free, as there is no text there.
-    private func drift(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: Double) {
-        let w = size.width, h = size.height
-        let preview = scale < 1
-        let n = preview ? 18 : 10, z = (preview ? 1.7 : 1.15) * scale
-        for i in 0..<n {
-            let s = Double(i) * 0.618
-            let period = (preview ? 15.0 : 26.0) + Double(i % 5) * 4.5
-            let f = (t / period + s).truncatingRemainder(dividingBy: 1)          // 0 … 1 along its path
-            let gutter = 8.0, side = i % 2 == 0
-            let x = preview ? -30 + (w + 60) * f : (side ? gutter : w - gutter) + Foundation.sin(t * 0.7 + Double(i) * 1.9) * 3
-            let y0 = preview ? h * (0.06 + 0.62 * (s * 1.37).truncatingRemainder(dividingBy: 1)) : -20
-            let y = preview ? y0 + f * 90 + Foundation.sin(t * 0.9 + Double(i) * 2.3) * 18 * scale : y0 + (h * 0.8 + 20) * f
-            let a = min(1, f * 6) * min(1, (1 - f) * 6)                           // fade in and out at the edges
-            let p = CGPoint(x: x, y: y)
-            switch i % 4 {
-            case 0:   // a dandelion seed: a fluff of fine rays on a short stalk
-                let r = 6.0 * z
-                for k in 0..<9 {
-                    let q = Double(k) / 9 * .pi + .pi + Foundation.sin(t * 0.6 + Double(i)) * 0.2
-                    var ray = Path(); ray.move(to: p); ray.addLine(to: CGPoint(x: p.x + Foundation.cos(q) * r, y: p.y + Foundation.sin(q) * r))
-                    ctx.stroke(ray, with: .color(Color.white.opacity(0.9 * a)), lineWidth: 1)
-                    ctx.fill(Path(ellipseIn: CGRect(x: p.x + Foundation.cos(q) * r - 1, y: p.y + Foundation.sin(q) * r - 1, width: 2, height: 2)), with: .color(Color.white.opacity(0.9 * a)))
-                }
-                var stalk = Path(); stalk.move(to: p); stalk.addLine(to: CGPoint(x: p.x, y: p.y + 7 * z))
-                ctx.stroke(stalk, with: .color(Color(hex: 0xB8A070).opacity(0.75 * a)), lineWidth: 1)
-            case 1:   // a petal in the tab's colour, turning
-                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(t * 0.9 + Double(i))); g.scaleBy(x: z, y: z * (0.7 + 0.3 * Foundation.sin(t * 1.3 + Double(i))))
-                g.fill(Path(ellipseIn: CGRect(x: -4.5, y: -2.4, width: 9, height: 4.8)), with: .color(tone.opacity(0.62 * a)))
-            case 2:   // a small leaf
-                var g = ctx; g.translateBy(x: p.x, y: p.y); g.rotate(by: .radians(Foundation.sin(t * 1.1 + Double(i)) * 1.1)); g.scaleBy(x: z, y: z)
-                var leaf = Path(); leaf.move(to: CGPoint(x: -5, y: 0)); leaf.addQuadCurve(to: CGPoint(x: 5, y: 0), control: CGPoint(x: 0, y: -4)); leaf.addQuadCurve(to: CGPoint(x: -5, y: 0), control: CGPoint(x: 0, y: 4))
-                g.fill(leaf, with: .color(Color(hex: 0x6ABF6E).opacity(0.55 * a)))
-                var vein = Path(); vein.move(to: CGPoint(x: -4, y: 0)); vein.addLine(to: CGPoint(x: 4, y: 0))
-                g.stroke(vein, with: .color(Color(hex: 0x3F8F4A).opacity(0.4 * a)), lineWidth: 0.6)
-            default:  // a speck of pollen catching the light
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 6 * z, y: p.y - 6 * z, width: 12 * z, height: 12 * z)), with: .color(Color(hex: 0xFFD36B).opacity(0.18 * a)))
-                ctx.fill(Path(ellipseIn: CGRect(x: p.x - 1.8 * z, y: p.y - 1.8 * z, width: 3.6 * z, height: 3.6 * z)), with: .color(Color(hex: 0xFFC23D).opacity(0.7 * a)))
-            }
-        }
-    }
 }
 
 /// The tooth of the paper the pictures are printed on: fine fibres and specks, tiled, too faint to see as a pattern
@@ -402,31 +369,14 @@ struct Grain: View {
     }
 }
 
-/// Specks of Otto's lamplight drifting slowly in the dark, as dust in a lamp's beam: a dozen, faint, near the lamp at
-/// the top. Ten frames a second is enough for something this slow; still under Reduce Motion.
+/// Specks of Otto's lamplight rising slowly through the dark, as dust in a lamp's beam, over the whole page. Off
+/// under Reduce Motion.
 struct Motes: View {
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduce)) { tl in
-            Canvas(rendersAsynchronously: true) { ctx, size in
-                let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-                for i in 0..<22 {
-                    let s = Double(i) * 0.618
-                    // they rise slowly through the lamp's light, swaying, and come round again (behind the cards)
-                    let period = 34.0 + Double(i % 4) * 9
-                    let f = (t / period + s).truncatingRemainder(dividingBy: 1)
-                    let x = size.width * (0.08 + 0.9 * (s * 1.3).truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.35 + Double(i)) * 26 * scale
-                    let y = size.height * (1.02 - f * 1.05)
-                    let edge = min(1, f * 6) * min(1, (1 - f) * 6)
-                    let a = (0.3 + 0.4 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge
-                    let r = (1.6 + Double(i % 4) * 0.9) * scale
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r * 4, y: y - r * 4, width: r * 8, height: r * 8)), with: .color(Palette.amber.opacity(a * 0.22)))
-                    ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Palette.amber.opacity(a)))
-                }
-            }
-        }
-        .allowsHitTesting(false)
+        // risen by Core Animation at the display's full frame rate, off the main thread
+        if !reduce { AirEmitter(kind: .night, scale: scale).allowsHitTesting(false) }
     }
 }
 
@@ -436,15 +386,15 @@ struct LampGlow: View {
     /// The reach of the light, for small previews.
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var bright = false
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 10, paused: reduce)) { tl in
-            let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
-            let k = 0.88 + 0.12 * Foundation.sin(t * 0.7) + 0.04 * Foundation.sin(t * 2.3)
-            ZStack {
-                RadialGradient(colors: [Palette.amber.opacity(0.42 * k), Palette.amber.opacity(0.12 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.88, y: 0.02), startRadius: 0, endRadius: 560 * scale)
-                RadialGradient(colors: [Palette.amber.opacity(0.14 * k), Palette.amber.opacity(0)], center: UnitPoint(x: 0.05, y: 0.92), startRadius: 0, endRadius: 420 * scale)
-            }
+        ZStack {
+            RadialGradient(colors: [Palette.amber.opacity(0.46), Palette.amber.opacity(0.13), Palette.amber.opacity(0)], center: UnitPoint(x: 0.88, y: 0.02), startRadius: 0, endRadius: 560 * scale)
+            RadialGradient(colors: [Palette.amber.opacity(0.15), Palette.amber.opacity(0)], center: UnitPoint(x: 0.05, y: 0.92), startRadius: 0, endRadius: 420 * scale)
         }
+        // the flame's slow breath: one change of opacity, composited by the system, nothing redrawn
+        .opacity(bright ? 1 : 0.8)
+        .onAppear { if !reduce { withAnimation(.easeInOut(duration: 4.5).repeatForever(autoreverses: true)) { bright = true } } }
         .allowsHitTesting(false)
     }
 }
