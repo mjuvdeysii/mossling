@@ -606,13 +606,16 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
     elif k == "photo":  # a family photo: c = number of people
         n = c or 3
         A(f'<rect x="{x - 46 * s:.1f}" y="{y - 70 * s:.1f}" width="{92 * s:.1f}" height="{70 * s:.1f}" rx="{6 * s:.1f}" fill="{g("#C98A4B")}"/><rect x="{x - 38 * s:.1f}" y="{y - 62 * s:.1f}" width="{76 * s:.1f}" height="{54 * s:.1f}" rx="3" fill="#E6F1FB"/>')
-        for i in range(n):
+        for i in range(n if CAST else 0):
+            px = x - (n - 1) * 12 * s + i * 24 * s
+            A(cast_icon(["otto", "moss", "mosto", "mochi"][i % 4], px, y - (34 if i == 0 else 28) * s, (10 if i == 0 else 9) * s))
+        for i in range(0 if CAST else n):
             px = x - (n - 1) * 12 * s + i * 24 * s; big = i < 2
             A(f'<circle cx="{px:.1f}" cy="{y - (44 if big else 34) * s:.1f}" r="{(8 if big else 6) * s:.1f}" fill="{SKIN[i % 2]}"/>'
               f'<rect x="{px - (9 if big else 7) * s:.1f}" y="{y - (36 if big else 28) * s:.1f}" width="{(18 if big else 14) * s:.1f}" height="{(28 if big else 20) * s:.1f}" rx="{6 * s:.1f}" fill="{["#E2728C", "#55607E", "#FFC23D", "#4DB86A"][i % 4]}"/>')
     elif k == "phone":
         A(f'<rect x="{x - 18 * s:.1f}" y="{y - 64 * s:.1f}" width="{36 * s:.1f}" height="{64 * s:.1f}" rx="{8 * s:.1f}" fill="#3B3330"/><rect x="{x - 14 * s:.1f}" y="{y - 58 * s:.1f}" width="{28 * s:.1f}" height="{50 * s:.1f}" rx="4" fill="#E6F1FB"/>'
-          f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DB86A"/>')
+          + (cast_icon("otto", x, y - 32 * s, 9 * s) if CAST else f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DB86A"/>'))
     elif k == "notebook":
         A(f'<rect x="{x - 34 * s:.1f}" y="{y - 46 * s:.1f}" width="{68 * s:.1f}" height="{46 * s:.1f}" rx="{5 * s:.1f}" fill="#FFFFFF" stroke="#E6DED0" stroke-width="2"/>')
         for i in range(3): A(f'<path d="M{x - 24 * s:.1f} {y - 34 * s + i * 11 * s:.1f} h{(40 - i * 8) * s:.1f}" stroke="#B9B2A8" stroke-width="{3 * s:.1f}" stroke-linecap="round"/>')
@@ -650,11 +653,43 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         for i in range(c or 1):
             fx = x + (i - ((c or 1) - 1) / 2) * 34 * s; big = (c or 1) == 2 and i == 0
             r = (20 if big else 15) * s; fy = y - (120 if big else 98) * s
+            if CAST: A(cast_icon("otto" if big else "moss", fx, fy, r)); continue
             A(f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="{r:.1f}" fill="{SKIN[0 if big else 1]}" opacity=".85"/><circle cx="{fx - r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/><circle cx="{fx + r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/>'
               f'<path d="M{fx - r * .3:.1f} {fy + r * .3:.1f} q{r * .3:.1f} {r * .3:.1f} {r * .6:.1f} 0" stroke="{INK}" stroke-width="2" fill="none"/>')
     elif k == "speaker":
         A(f'<rect x="{x - 26 * s:.1f}" y="{y - 70 * s:.1f}" width="{52 * s:.1f}" height="{70 * s:.1f}" rx="{10 * s:.1f}" fill="{g("#9B7BEA")}"/><circle cx="{x:.1f}" cy="{y - 30 * s:.1f}" r="{16 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/><circle cx="{x:.1f}" cy="{y - 56 * s:.1f}" r="{7 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/>')
     sv.add("".join(out))
+
+
+# The cast in small (the illustrations' people are Moss, Otto, Mosto and Mochi when scene3d sets CAST): for pictures
+# inside the pictures — a family photo, a face in a mirror, a phone's screen, a speech bubble.
+CAST = False
+def cast_icon(who, x, y, r):
+    """A small flat drawing of one of the cast, its face centred on (x, y), about 2r across."""
+    def eyes(cx, cy, rr, n=2):
+        o = ""
+        for dx in ((-0.36, 0.36) if n == 2 else (0,)):
+            ex = cx + dx * rr
+            o += f'<ellipse cx="{ex:.1f}" cy="{cy:.1f}" rx="{rr * (0.2 if n == 2 else 0.34):.1f}" ry="{rr * (0.24 if n == 2 else 0.3):.1f}" fill="#FFFFFF"/>'
+            o += f'<circle cx="{ex + rr * 0.04:.1f}" cy="{cy + rr * 0.03:.1f}" r="{rr * (0.12 if n == 2 else 0.18):.1f}" fill="{INK}"/>'
+        return o
+    if who == "otto":
+        o = f'<rect x="{x - r * .7:.1f}" y="{y - r * 1.0:.1f}" width="{r * 1.4:.1f}" height="{r * 2.0:.1f}" rx="{r * .7:.1f}" fill="#1F3366"/>'
+        o += f'<path d="M{x:.1f} {y - r:.1f} q{-r * .1:.1f} {-r * .6:.1f} {-r * .6:.1f} {-r * .5:.1f}" stroke="#1F3366" stroke-width="{max(1.5, r * .12):.1f}" fill="none" stroke-linecap="round"/>'
+        o += f'<circle cx="{x - r * .62:.1f}" cy="{y - r * 1.38:.1f}" r="{r * .16:.1f}" fill="#D4A21C"/>'
+        return o + eyes(x, y - r * .3, r, 1)
+    if who == "mochi":
+        o = f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r:.1f}" ry="{r * .82:.1f}" fill="#F4E4CF" stroke="#E2CFB6" stroke-width="1"/>'
+        o += f'<ellipse cx="{x:.1f}" cy="{y - r * .62:.1f}" rx="{r * .72:.1f}" ry="{r * .36:.1f}" fill="#E07A6A"/>'
+        return o + eyes(x, y + r * .05, r * .8)
+    body = "#9C86D8" if who == "mosto" else "#4F6B3C"
+    o = f'<path d="M{x - r:.1f} {y + r * .55:.1f} Q{x - r * 1.05:.1f} {y - r * .9:.1f} {x:.1f} {y - r * .9:.1f} Q{x + r * 1.05:.1f} {y - r * .9:.1f} {x + r:.1f} {y + r * .55:.1f} Z" fill="{body}"/>'
+    if who == "mosto":
+        o += f'<path d="M{x - r * .4:.1f} {y - r * .85:.1f} l{r * .1:.1f} {-r * .4:.1f} l{r * .2:.1f} {r * .25:.1f} l{r * .1:.1f} {-r * .35:.1f} l{r * .1:.1f} {r * .35:.1f} l{r * .2:.1f} {-r * .25:.1f} l{r * .1:.1f} {r * .4:.1f} Z" fill="#C9A24A"/>'
+    else:
+        for sx in (-1, 1):
+            o += f'<ellipse cx="{x + sx * r * .22:.1f}" cy="{y - r * 1.05:.1f}" rx="{r * .26:.1f}" ry="{r * .12:.1f}" fill="#7FCB8F" transform="rotate({-25 * sx} {x + sx * r * .22:.1f} {y - r * 1.05:.1f})"/>'
+    return o + eyes(x, y - r * .15, r)
 
 def pict(kind, x, y, s):
     """A small picture of a thing, centred on (x, y): for cards, bubbles and real objects."""
@@ -710,6 +745,8 @@ def pict(kind, x, y, s):
         return f'<path d="M{x - 10 * s:.1f} {y:.1f} l{7 * s:.1f} {7 * s:.1f} l{13 * s:.1f} {-14 * s:.1f}" stroke="#4DB86A" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
     if kind == "stop":
         return f'<rect x="{x - 9 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/><rect x="{x + 3 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/>'
+    if kind == "people" and CAST:
+        return cast_icon("otto", x - 9 * s, y + 2 * s, 9 * s) + cast_icon("moss", x + 10 * s, y + 6 * s, 8 * s)
     if kind == "people":
         return f'<circle cx="{x - 9 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[0]}"/><circle cx="{x + 9 * s:.1f}" cy="{y - 2 * s:.1f}" r="{5 * s:.1f}" fill="{SKIN[1]}"/><rect x="{x - 16 * s:.1f}" y="{y + 1 * s:.1f}" width="{14 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#E2728C"/><rect x="{x + 3 * s:.1f}" y="{y + 4 * s:.1f}" width="{12 * s:.1f}" height="{11 * s:.1f}" rx="{4 * s:.1f}" fill="#FFC23D"/>'
     if kind == "lantern":
@@ -718,6 +755,8 @@ def pict(kind, x, y, s):
         return f'<path d="M{x - 16 * s:.1f} {y - 4 * s:.1f} Q{x:.1f} {y + 18 * s:.1f} {x + 16 * s:.1f} {y - 4 * s:.1f} Z" fill="#1FB5A6"/><circle cx="{x - 4 * s:.1f}" cy="{y - 6 * s:.1f}" r="{5 * s:.1f}" fill="#FFC23D"/>'
     if kind == "drop":
         return f'<path d="M{x:.1f} {y - 16 * s:.1f} Q{x + 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y + 12 * s:.1f} Q{x - 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y - 16 * s:.1f} Z" fill="#4C9BE8"/>'
+    if kind == "bed" and CAST:
+        return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#9B7BEA"/>' + cast_icon("moss", x - 9 * s, y - 6 * s, 6 * s)
     if kind == "bed":
         return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#9B7BEA"/><circle cx="{x - 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[1]}"/>'
     return ""

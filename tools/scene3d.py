@@ -202,7 +202,10 @@ def ip_person(p, depth, who):
         else:
             mat_body, mat_hand = M["moss"], M["moss"]
         # the rig's baby is small beside a kneeling grown-up; Moss is drawn a size up so the face reads
-        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.85 if p.pose == "bundle" else 1.25))
+        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.72 if p.pose == "bundle" else 1.25))
+        if p.pose == "bundle":
+            # held in the arms: lower, at the chest, clear of the grown-up's face
+            root.location = (root.location[0], root.location[1] - 0.12, root.location[2] - L(p.d["head"]) * 1.1)
         if e in ("talk", "sing", "wow", "laugh") and not asleep:
             mz = ip3d.MOSS["cz"] + 0.05
             m = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.05, 0.02, 0.04 if e != "talk" else 0.03), MATS.setdefault("mouth", rubber("mouthm", "#5B2A2A", rough=0.7)))
@@ -263,7 +266,7 @@ def ip_head(s):
     """The rig's "head" for the 2D marks (badges, speech bubbles, a hand at the mouth): just under the character's
     crown, so what floats over a head floats over the cast's taller bodies, not across their faces."""
     t = ip_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
-if IP: pb.Person.head = ip_head
+if IP: pb.Person.head = ip_head; pb.CAST = True
 
 def person3d(p, depth, who=None):
     if IP: return ip_person(p, depth, who)
