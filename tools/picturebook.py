@@ -202,7 +202,9 @@ class Person:
     def draw_shadow(s, sv):
         xs = [s.hip[0], s.legs[0][1][0], s.legs[1][1][0], s.legs[0][0][0], s.headc[0]]
         cx = (min(xs) + max(xs)) / 2; w = max(xs) - min(xs) + s.d["tw"]
-        sv.shadow(cx, GROUND + 4, w * 0.62, 14 if s.kind == "adult" else 10)
+        # a wide soft shade and a tight dark core where the body meets the floor: grounded, never floating
+        sv.shadow(cx, GROUND + 4, w * 0.66, 15 if s.kind == "adult" else 11, .24)
+        sv.shadow(cx, GROUND + 2, w * 0.42, 5 if s.kind == "adult" else 4, .34)
 
     def draw(s, sv):
         d, f = s.d, s.f
@@ -772,20 +774,16 @@ def scene(spec, area, sv=None, watch=None):
         sv.add(f'<path d="M0 {GROUND - 40} Q{W * .3} {GROUND - 90} {W * .62} {GROUND - 50} T{W} {GROUND - 60} V{H} H0 Z" fill="#CFE6B8"/>')
         sv.add(f'<rect y="{GROUND}" width="{W}" height="{H - GROUND}" fill="#B9DA9C"/>')
     elif BACKDROP:
-        # a soft disc of the area colour behind the action, lit from the upper left like the figures; and the floor
-        # as a thick soft vinyl stage (the same tokens the app's icons stand on): a lit top that deepens toward the
-        # front, a darker edge showing its thickness, and a soft shadow under it on the paper
+        # a soft disc of the area colour on the wall behind the action, lit from the upper left like the figures
         dc = spec.get("disc", 360)
         g = sv.id(); sv.defs.append(f'<radialGradient id="{g}" cx=".36" cy=".3" r=".8"><stop offset="0" stop-color="{light(back, .45)}"/>'
                                    f'<stop offset=".7" stop-color="{back}"/><stop offset="1" stop-color="{dark(back, .04)}"/></radialGradient>')
         sv.add(f'<circle cx="{dc}" cy="{GROUND - 150}" r="210" fill="url(#{g})"/>')
-        sv.shadow(360, GROUND + 40, 350, 40, .14)
-        sv.add(f'<ellipse cx="360" cy="{GROUND + 27}" rx="330" ry="56" fill="{dark(ground, .16)}"/>')
-        t = sv.id(); sv.defs.append(f'<linearGradient id="{t}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{light(ground, .3)}"/>'
-                                   f'<stop offset=".55" stop-color="{ground}"/><stop offset="1" stop-color="{dark(ground, .05)}"/></linearGradient>')
-        sv.add(f'<ellipse cx="360" cy="{GROUND + 18}" rx="330" ry="56" fill="url(#{t})"/>')
-        # the lit back rim of the stage: a soft highlight along its far edge only
-        sv.add(f'<path d="M{360 - 318} {GROUND + 10} A330 56 0 0 1 {360 + 318} {GROUND + 10}" fill="none" stroke="#FFFFFF" stroke-opacity=".28" stroke-width="3" stroke-linecap="round"/>')
+        # the floor runs the full width of the picture into a soft horizon (a room, not an island): lighter toward
+        # the back, a breath deeper at the front edge
+        t = sv.id(); sv.defs.append(f'<linearGradient id="{t}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{light(ground, .45)}" stop-opacity="0"/>'
+                                   f'<stop offset=".12" stop-color="{light(ground, .42)}"/><stop offset=".55" stop-color="{light(ground, .2)}"/><stop offset="1" stop-color="{ground}"/></linearGradient>')
+        sv.add(f'<rect x="0" y="{GROUND - 46}" width="{W}" height="{H - GROUND + 46}" fill="url(#{t})"/>')
     z = spec.get("zoom", 1.32); cx0 = spec.get("cx", 380); VIEW.update(z=z, cx=cx0)
     sv.add(f'<g transform="translate({cx0} {GROUND}) scale({z}) translate({-cx0} {-GROUND})">')
     ppl = {}
@@ -835,7 +833,10 @@ def scene(spec, area, sv=None, watch=None):
     for p in built.values():
         if p.pose == "bundle": pass
         elif p.pose not in ("prone", "lieback"): p.draw_shadow(sv)
-        else: sv.shadow(p.hip[0] - p.f * p.d["torso"] * .4, GROUND + 4, p.d["torso"] * 1.1, 10)
+        else:
+            # lying down: the whole body on the floor — a long soft shade and a dark core along it
+            sv.shadow(p.hip[0] - p.f * p.d["torso"] * .4, GROUND + 4, p.d["torso"] * 1.2, 11, .24)
+            sv.shadow(p.hip[0] - p.f * p.d["torso"] * .4, GROUND + 2, p.d["torso"] * .9, 4, .32)
     for o in spec.get("objs", []):
         if not o.get("back") and not o.get("front") and not o.get("on"):
             if o.get("y", GROUND) >= GROUND - 2: sv.shadow(o.get("x", 360), GROUND + 3, 46 * o.get("s", 1), 8, .12)

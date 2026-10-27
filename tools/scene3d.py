@@ -327,15 +327,18 @@ def prop3d(o, depth):
         print("no 3D model yet for", k)
 
 def lights():
+    """Soft indoor light, never a sun: a large warm window light from the upper left, a broad cool fill from the right,
+    a gentle back light for the outline and a generous ambient so no side goes dark — the shading models the forms
+    without hot spots or burnt highlights."""
     w = bpy.data.worlds.new("w"); bpy.context.scene.world = w; w.use_nodes = True
-    w.node_tree.nodes["Background"].inputs["Color"].default_value = hexcol("#FFF6EC")
-    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.55
+    w.node_tree.nodes["Background"].inputs["Color"].default_value = hexcol("#FFF3E6")
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8
     def area(loc, rot, e, size, col):
         bpy.ops.object.light_add(type="AREA", location=loc, rotation=rot); l = bpy.context.object
         l.data.energy = e; l.data.size = size; l.data.color = hexcol(col)[:3]
-    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), 1700, 6, "#FFF4EA")
-    area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), 900, 5, "#F4F6FF")
-    area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), 1400, 4, "#FFFFFF")
+    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), 1150, 9, "#FFF1E4")
+    area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), 800, 7, "#EEF2FF")
+    area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), 650, 6, "#FFF8F0")
 
 def step_ctx(spec, area, people, objs, front, step, nsteps):
     """What the two need to know about a step to find their place: what happens (interplay), the step as the picture
@@ -389,6 +392,7 @@ def plan(spec, area):
             if best: return ("fixed", best[1], f)
     return None
 
+STAGE = False   # the 3D dais made the people look as if they floated above it: the floor stays the picture's own
 TILT = math.asin(56 / 330)   # the stage camera's tilt (tools/stage3d.py)
 
 def contact_pass(out, size):
@@ -439,7 +443,7 @@ def finish3d(T, size):
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
-    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium High Contrast"; s.view_settings.exposure = -0.95; ip3d.materials(); MATS.clear(); lights()
+    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium Contrast"; s.view_settings.exposure = -0.85; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
@@ -462,7 +466,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     where = None; bead = None
     # indoors, the stage is the 3D plate of the area (tools/stage3d.py): the 2D paper, disc and floor are left out
     sp = os.path.join(HERE, "stages", f"stage_{area}.png")
-    stage = Image.open(sp) if spec.get("set", "floor") == "floor" and os.path.exists(sp) and spec.get("disc", 360) == 360 else None
+    stage = Image.open(sp) if STAGE and spec.get("set", "floor") == "floor" and os.path.exists(sp) and spec.get("disc", 360) == 360 else None
     pb.BACKDROP = stage is None
     try: back, front = layers(spec, area)
     finally: pb.BACKDROP = True
@@ -717,7 +721,7 @@ def figures():
         VIEW.update(z=k, cx=150)
         c = pb.Person("child", pose, x, face=-1, age=age, expr="wow" if pose == "lieback" else "smile", at=(x, pb.GROUND),
                       hands=[(x - 60, pb.GROUND - 86), None] if pose in ("stand", "walk") else [None, None], girl=pb.GIRL)
-        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium High Contrast"; sc.view_settings.exposure = -0.95
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium Contrast"; sc.view_settings.exposure = -0.85
         ip3d.materials(); MATS.clear(); lights()
         person3d(c, 0.0)
         bpy.ops.object.camera_add(location=(150 / U, -30, (pb.GROUND - (pb.GROUND - 136)) / U)); cam = bpy.context.object
@@ -746,7 +750,7 @@ def trays():
         code = p["code"]
         if only and code not in only: continue
         area = pb.area_of(p)
-        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium High Contrast"; sc.view_settings.exposure = -0.95
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"; sc.view_settings.look = "Medium Contrast"; sc.view_settings.exposure = -0.85
         ip3d.materials(); MATS.clear(); lights()
         VIEW.update(z=1.0, cx=0)
         # the tray: a base, four rounded rails, the felt
