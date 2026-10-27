@@ -326,19 +326,24 @@ def prop3d(o, depth):
     else:
         print("no 3D model yet for", k)
 
+# the light and the film: one place to tune them (tools/scene3d.py and the comparison sheets read these)
+LOOK = dict(spec=0.08, world=0.3, key=1500, ksize=6, fill=420, back=420, view="Standard", look="Medium High Contrast", exp=-0.7, con=1.12, sat=1.25, rough=None)
+# why the colour washed out before: a strong warm ambient (0.8) and big soft lights filled every shadow, and the vinyl's
+# broad sheen (specular 0.35) laid white over every lit surface. Less ambient, a firmer key, almost no sheen.
+
 def lights():
     """Soft indoor light, never a sun: a large warm window light from the upper left, a broad cool fill from the right,
     a gentle back light for the outline and a generous ambient so no side goes dark — the shading models the forms
     without hot spots or burnt highlights."""
     w = bpy.data.worlds.new("w"); bpy.context.scene.world = w; w.use_nodes = True
     w.node_tree.nodes["Background"].inputs["Color"].default_value = hexcol("#FFF3E6")
-    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.8
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = LOOK["world"]
     def area(loc, rot, e, size, col):
         bpy.ops.object.light_add(type="AREA", location=loc, rotation=rot); l = bpy.context.object
         l.data.energy = e; l.data.size = size; l.data.color = hexcol(col)[:3]
-    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), 1150, 9, "#FFF1E4")
-    area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), 800, 7, "#EEF2FF")
-    area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), 650, 6, "#FFF8F0")
+    area((0.5, -6, 6.5), (math.radians(45), 0, math.radians(-25)), LOOK["key"], LOOK["ksize"], "#FFF1E4")
+    area((7.5, -5, 3), (math.radians(70), 0, math.radians(45)), LOOK["fill"], 7, "#EEF2FF")
+    area((3.6, 6, 6), (math.radians(-50), 0, math.radians(180)), LOOK["back"], 6, "#FFF8F0")
 
 def step_ctx(spec, area, people, objs, front, step, nsteps):
     """What the two need to know about a step to find their place: what happens (interplay), the step as the picture
@@ -433,7 +438,7 @@ def finish3d(T, size):
     fine warm contour round every silhouette (as a printed picture book would have), drawn under the figure."""
     from PIL import ImageEnhance, ImageFilter
     a = T.getchannel("A")
-    rgb = ImageEnhance.Color(ImageEnhance.Contrast(T.convert("RGB")).enhance(1.08)).enhance(1.10)
+    rgb = ImageEnhance.Color(ImageEnhance.Contrast(T.convert("RGB")).enhance(LOOK["con"])).enhance(LOOK["sat"])
     body = rgb.convert("RGBA"); body.putalpha(a)
     k = max(3, int(size / 1200 * 5) | 1)
     rim = Image.new("RGBA", T.size, (84, 54, 30, 0)); rim.putalpha(a.filter(ImageFilter.MaxFilter(k)).point(lambda v: int(v * 0.30)))
@@ -443,7 +448,7 @@ def finish3d(T, size):
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
-    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium Contrast"; s.view_settings.exposure = -0.85; ip3d.materials(); MATS.clear(); lights()
+    s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = LOOK["view"]; s.view_settings.look = LOOK["look"]; s.view_settings.exposure = LOOK["exp"]; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
@@ -488,6 +493,11 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     c.rotation_euler = (math.radians(90), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = pb.W / U
     s.camera = c
     s.render.resolution_x, s.render.resolution_y = size, int(size * pb.H / pb.W)
+    if LOOK["spec"] is not None:
+        # the sheen of the vinyl: a broad soft specular washes the colour out toward white under big lights
+        for m in bpy.data.materials:
+            if m.use_nodes and "Principled BSDF" in m.node_tree.nodes:
+                m.node_tree.nodes["Principled BSDF"].inputs["Specular IOR Level"].default_value = LOOK["spec"]
     tmp = out + ".3d.png"; ip3d.render(tmp, size, int(size * pb.H / pb.W))
     shadows = contact_pass(out, size) if stage is not None else None
     if where:

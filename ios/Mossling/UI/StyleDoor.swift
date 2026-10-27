@@ -2,10 +2,10 @@ import SwiftUI
 
 // MARK: the hidden door between the two worlds
 //
-// 关于摸索台灯 shows Moss and Otto at the top. Tap them five times (each tap a little crack and a tap of haptics) and
+// 摸索台灯的故事 (关于摸索台灯 › 摸索台灯的故事) opens on a picture of the lamp and the two. Tap it five times (each tap a little crack and a tap of haptics) and
 // they shatter: the picture of the two breaks into shards that fall away, a sheet of paper sweeps the screen, and the
 // whole app is the 2D world of build 196 — the flat companions, the stickers, the pictures, the shelf, the tabs.
-// In the 2D world, keep a finger moving on the two for three seconds without lifting it: a ring of light fills
+// In the 2D world, keep a finger moving on the picture for three seconds without lifting it: a ring of light fills
 // round them, and when it closes a warm light blooms from them over the whole screen and the 3D world comes back.
 
 /// What the overlay above the whole app is showing.
@@ -18,12 +18,12 @@ import SwiftUI
     var frame: CGRect = .zero
 }
 
-/// Moss and Otto on the 关于 page, as the door.
-struct StyleDoor: View {
-    let primary: Kind
+/// The story page's title picture, as the door.
+struct StyleDoor<Content: View>: View {
+    var radius: CGFloat = 28
+    @ViewBuilder let content: Content
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @Environment(\.displayScale) private var scale
     @State private var taps = 0
     @State private var lastTap = Date.distantPast
     @State private var frame: CGRect = .zero
@@ -36,18 +36,16 @@ struct StyleDoor: View {
     private var flat: Bool { app.artStyle == .flat }
 
     var body: some View {
-        Duo(primary: primary, size: 96, poke: false)
-            // each tap toward five shows a hairline crack
+        content
+            // each tap toward five shows more hairline cracks
             .overlay { if !flat && taps >= 2 { Cracks(level: taps).allowsHitTesting(false) } }
-            .overlay { if flat && progress > 0 { ProgressHalo(progress: progress).allowsHitTesting(false) } }
-            .padding(10)
+            .overlay { if flat && progress > 0 { ProgressHalo(progress: progress, radius: radius).allowsHitTesting(false) } }
             .contentShape(Rectangle())
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { frame = $0 }
             .onTapGesture { if !flat { tapped() } }
             .simultaneousGesture(DragGesture(minimumDistance: 0).onChanged { _ in if flat { moved() } }.onEnded { _ in if flat { reset() } })
             .sensoryFeedback(.impact(weight: .medium, intensity: 0.8), trigger: taps)
             .sensoryFeedback(.selection, trigger: ticks)
-            .accessibilityLabel("Moss 和 Otto")
     }
 
     private func tapped() {
@@ -60,7 +58,7 @@ struct StyleDoor: View {
     }
 
     private func shatter() {
-        StyleShift.shared.image = duoImage()
+        StyleShift.shared.image = Self.snapshot(frame)
         StyleShift.shared.frame = frame
         if reduce { app.artStyle = .flat; return }
         StyleShift.shared.phase = .shatter(start: Date())
@@ -73,17 +71,12 @@ struct StyleDoor: View {
         }
     }
 
-    /// The two as they stand on the page (the same layout as Duo), as one picture to break.
-    private func duoImage() -> UIImage? {
-        let size: CGFloat = 96, other = primary.other
-        let small = Duo.behind(primary, size)
-        let lift = size * (1 - Duo.feet(primary)) - small * (1 - Duo.feet(other)) + size * 0.03
-        let w = Duo.apart(primary, size) + small, h = max(size, small + lift)
-        func sprite(_ k: Kind) -> UIImage? { ArtCache.shared.image("ip_" + (k == .moss ? "moss" : "otto") + "_idle.webp", maxPixel: Int(size * scale)) }
-        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = scale
-        return UIGraphicsImageRenderer(size: CGSize(width: w + 20, height: h + 20), format: fmt).image { _ in
-            sprite(other)?.draw(in: CGRect(x: 10 + Duo.apart(primary, size), y: 10 + h - small - lift, width: small, height: small))
-            sprite(primary)?.draw(in: CGRect(x: 10, y: 10 + h - size, width: size, height: size))
+    /// What is on screen inside `rect` right now, as one picture to break.
+    static func snapshot(_ rect: CGRect) -> UIImage? {
+        guard let w = UIApplication.shared.connectedScenes.compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first, rect.width > 1 else { return nil }
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = w.screen.scale
+        return UIGraphicsImageRenderer(size: rect.size, format: fmt).image { _ in
+            w.drawHierarchy(in: CGRect(x: -rect.minX, y: -rect.minY, width: w.bounds.width, height: w.bounds.height), afterScreenUpdates: false)
         }
     }
 
@@ -135,18 +128,19 @@ private struct Cracks: View {
     }
 }
 
-/// The ring of light that fills while the finger keeps moving.
+/// The ring of light that fills round the picture while the finger keeps moving.
 private struct ProgressHalo: View {
     let progress: Double
+    var radius: CGFloat = 28
     var body: some View {
+        let shape = RoundedRectangle(cornerRadius: radius + 4, style: .continuous)
         ZStack {
-            Circle().stroke(Palette.bead.opacity(0.2), lineWidth: 5)
-            Circle().trim(from: 0, to: progress)
-                .stroke(AngularGradient(colors: [Palette.beadLight, Palette.bead, Palette.beadLight], center: .center), style: StrokeStyle(lineWidth: 5, lineCap: .round))
-                .rotationEffect(.degrees(-90))
+            shape.stroke(Palette.bead.opacity(0.2), lineWidth: 5)
+            shape.trim(from: 0, to: progress)
+                .stroke(LinearGradient(colors: [Palette.beadLight, Palette.bead], startPoint: .topLeading, endPoint: .bottomTrailing), style: StrokeStyle(lineWidth: 5, lineCap: .round))
                 .shadow(color: Palette.bead.opacity(0.6), radius: 6)
         }
-        .padding(-6)
+        .padding(-4)
     }
 }
 

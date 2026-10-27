@@ -355,9 +355,7 @@ struct AboutView: View {
         List {
             Section {
                 VStack(spacing: 6) {
-                    // the hidden door between the two worlds: tap the two five times and they shatter into the 2D
-                    // world of build 196; in it, keep a finger moving on them for three seconds to come back
-                    StyleDoor(primary: app.companion)
+                    Duo(primary: app.companion, size: 96)
                     Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
                     Text("孩子摸索，大人点灯").font(.headline).foregroundStyle(Palette.accent)
                     Text("Moss & Otto · 版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
@@ -417,9 +415,13 @@ struct StoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                LampScene(play: true)
-                    .frame(height: 260)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                // the hidden door between the two worlds: tap this picture five times and it shatters into the 2D
+                // world of build 196; in it, keep a finger moving on the picture for three seconds to come back
+                StyleDoor {
+                    LampScene(play: true)
+                        .frame(height: 260)
+                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                }
                 Text("孩子摸索，大人点灯").font(.title.weight(.bold))
                 pair("摸索", "孩子", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
                 pair("台灯", "大人", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
