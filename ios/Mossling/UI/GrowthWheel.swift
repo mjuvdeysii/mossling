@@ -26,7 +26,10 @@ struct GrowthWheel: View {
         VStack(spacing: 0) {
             ZStack(alignment: .topLeading) {
                 StagePlate(night: night)
+                // 3D at night the child is asleep in the crib in the plate; Otto's lamp comes on for a moment and goes out
+                if night && StagePlate.room { LampFlash(at: UnitPoint(x: 0.86, y: 0.72), reach: 230) }
                 // tap the child: a giggle, and the companions cheer with it
+                if !(night && StagePlate.room) {
                 GrowingChild(month: m, giggle: giggles)
                     .frame(width: 150, height: 150)
                     .contentShape(Rectangle())
@@ -34,7 +37,8 @@ struct GrowthWheel: View {
                     .accessibilityAddTraits(.isButton).accessibilityLabel("宝宝")
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
-                Duo(primary: app.companion, size: 64, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night)
+                }
+                Duo(primary: app.companion, size: 64, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night, briefLamp: night && StagePlate.room)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {

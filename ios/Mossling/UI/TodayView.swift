@@ -154,9 +154,18 @@ private struct MonthCard: View {
                 ZStack(alignment: .bottom) {
                     // the same vinyl meadow as the growth map's stage, the child standing on it with a soft shadow
                     StagePlate(night: night)
-                    Ellipse().fill(RadialGradient(colors: [Color(hex: 0x3A5A2A).opacity(0.28), .clear], center: .center, startRadius: 0, endRadius: 34))
-                        .frame(width: 70, height: 14).offset(y: -12)
-                    GrowingChild(month: month).frame(width: 112, height: 112).offset(y: 4)
+                    if night && StagePlate.room {
+                        // night: the child asleep in the crib at home; Otto beside it lights his lamp for a moment
+                        LampFlash(at: UnitPoint(x: 0.82, y: 0.78), reach: 90)
+                        Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.4), lid: 0.5, alive: true, glow: true, glowFor: 4.5)
+                            .frame(width: 46, height: 46)
+                            .frame(maxWidth: .infinity, alignment: .trailing)
+                            .padding(.trailing, -4).padding(.bottom, 2)
+                    } else {
+                        Ellipse().fill(RadialGradient(colors: [Color(hex: 0x3A5A2A).opacity(0.28), .clear], center: .center, startRadius: 0, endRadius: 34))
+                            .frame(width: 70, height: 14).offset(y: -12)
+                        GrowingChild(month: month).frame(width: 112, height: 112).offset(y: 4)
+                    }
                 }
                 .frame(width: 104, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))

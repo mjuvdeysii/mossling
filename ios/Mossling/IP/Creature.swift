@@ -24,6 +24,9 @@ struct Creature: View {
     var arms: Arms = .rest
     /// Otto's bead lit as a lamp (at night).
     var glow: Bool = false
+    /// With `glow`: light the lamp only for this many seconds after appearing (a lamp switched on to look in on a
+    /// sleeping baby, then off again — a sleeping baby is best left in the dark), fading in and out.
+    var glowFor: Double? = nil
     /// How long a change of `look` takes (MascotStyle.glanceMs: Moss quick, Otto slow).
     var lookSeconds: Double = 0.42
 
@@ -48,6 +51,7 @@ struct Creature: View {
     @State private var sprites: [String: UIImage] = [:]
     /// Off screen in a scroll view: nothing to animate (the frame clock stops until it scrolls back).
     @State private var onScreen = true
+    @State private var glowStart = Date()
 
     private var still: Bool { !alive || reduce }
 
@@ -79,6 +83,7 @@ struct Creature: View {
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
+        .onAppear { glowStart = Date() }
     }
 
     private func tapped() {
@@ -228,13 +233,21 @@ struct Creature: View {
     /// is a plain golden bead.
     private func lamp(_ ctx: inout GraphicsContext, _ at: CGPoint, _ now: Date) {
         guard glow else { return }
+        var level = 1.0
+        if let d = glowFor {
+            // still (Reduce Motion): the lamp stays dark rather than lit without end
+            if still { return }
+            let e = now.timeIntervalSince(glowStart)
+            level = min(1, max(0, e / 0.7)) * min(1, max(0, (d - e) / 1.2))
+            if level <= 0.001 { return }
+        }
         let c = CGPoint(x: at.x * 100, y: at.y * 100)
         let pulse = still || !glow ? 1 : 0.88 + 0.12 * sin(now.timeIntervalSinceReferenceDate * 2)
-        let r = (glow ? 15 : 8) * pulse
+        let r = (glow ? 15 : 8) * pulse * (0.6 + 0.4 * level)
         var g = ctx
         g.blendMode = .plusLighter
         g.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: r * 2, height: r * 2)),
-               with: .radialGradient(Gradient(colors: [Palette.amber.opacity(glow ? 0.7 : 0.22), Palette.amber.opacity(0)]), center: c, startRadius: 1.5, endRadius: r))
+               with: .radialGradient(Gradient(colors: [Palette.amber.opacity((glow ? 0.7 : 0.22) * level), Palette.amber.opacity(0)]), center: c, startRadius: 1.5, endRadius: r))
     }
 
     private func shadow(_ ctx: inout GraphicsContext, _ rx: CGFloat, lift: Double) {
@@ -270,6 +283,8 @@ struct Duo: View {
     var cheer = 0
     /// Night: the pair rests; Otto's bead glows.
     var night = false
+    /// At night, Otto's lamp is lit only for a few seconds (beside a sleeping baby), then goes dark.
+    var briefLamp = false
     /// Answer confirmed saves (the IP event contract), once each.
     var reacts = false
     /// Read by VoiceOver only when it says something the page does not.
@@ -313,12 +328,12 @@ struct Duo: View {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
+                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, glowFor: briefLamp ? 4.5 : nil)
                 .frame(width: small, height: small)
                 .offset(x: Self.apart(primary, size), y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
-                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
+                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto, glowFor: briefLamp ? 4.5 : nil)
                 .frame(width: size, height: size)
         }
         .frame(width: Self.apart(primary, size) + small, height: max(size, small + lift), alignment: .bottomLeading)

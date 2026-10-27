@@ -87,6 +87,8 @@ struct Sky: View {
 /// night (tools/plates3d.py), filling its frame. The drawn Sky stays as the fallback while it decodes.
 struct StagePlate: View {
     var night = false
+    /// 3D at night: not the meadow under the stars but the child's room, the child asleep in the crib.
+    static var room: Bool { ArtStyle.current == .vinyl }
     @Environment(\.displayScale) private var scale
     @State private var img: UIImage?
     var body: some View {
@@ -98,11 +100,34 @@ struct StagePlate: View {
             .frame(width: g.size.width, height: g.size.height)
             .clipped()
             .task(id: night) {
-                let px = Int(max(g.size.width, g.size.height) * scale), n = night ? "stage_night.webp" : "stage_day.webp"
+                let px = Int(max(g.size.width, g.size.height) * scale), n = night ? (Self.room ? "stage_room.webp" : "stage_night.webp") : "stage_day.webp"
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.25)) { img = i }
             }
         }
         .accessibilityHidden(true)
+    }
+}
+
+/// Otto's lamp switched on for a moment to look in on the sleeping child: a warm pool of light that comes up, stays a
+/// few seconds and goes out again (a sleeping baby is best left in the dark). Composited opacity only.
+struct LampFlash: View {
+    var at: UnitPoint = UnitPoint(x: 0.88, y: 0.7)
+    var reach: CGFloat = 220
+    var seconds: Double = 4.5
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var on = false
+    var body: some View {
+        RadialGradient(colors: [Palette.amber.opacity(0.42), Palette.amber.opacity(0.14), Palette.amber.opacity(0)], center: at, startRadius: 0, endRadius: reach)
+            .blendMode(.screen)
+            .opacity(on ? 1 : 0)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+            .task {
+                guard !reduce else { return }
+                withAnimation(.easeOut(duration: 0.7)) { on = true }
+                try? await Task.sleep(for: .seconds(max(0.5, seconds - 1.2)))
+                withAnimation(.easeInOut(duration: 1.2)) { on = false }
+            }
     }
 }
