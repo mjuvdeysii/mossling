@@ -77,15 +77,37 @@ def leafpair(base, h, col=GREEN):
         l.rotation_euler = (0, math.radians(-30 * sx), 0)
 
 # ---------- the scene for one icon ----------
+def icon_lights():
+    """A small studio for objects: a firm key from high on the upper left (small enough to cast a clear, soft-edged
+    shadow onto the token), a weak cool fill so the shaded side keeps its colour, and a rim from behind that outlines
+    the top edges — light and shade that model each object instead of washing it flat."""
+    w = bpy.data.worlds.new("w"); bpy.context.scene.world = w; w.use_nodes = True
+    w.node_tree.nodes["Background"].inputs["Color"].default_value = hexcol("#FFF4EA")
+    w.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.22
+    def area(loc, rot, e, size, col):
+        bpy.ops.object.light_add(type="AREA", location=loc, rotation=rot); l = bpy.context.object
+        l.data.energy = e; l.data.size = size; l.data.color = hexcol(col)[:3]
+    area((-2.4, -2.2, 4.2), (math.radians(38), 0, math.radians(-45)), 640, 1.4, "#FFF0DE")
+    area((3.0, -2.6, 1.2), (math.radians(78), 0, math.radians(50)), 110, 3.0, "#EAF0FF")
+    area((0.8, 3.2, 3.0), (math.radians(-52), 0, math.radians(165)), 420, 1.6, "#FFFFFF")
+
 def setup(colour):
     s = ip3d.reset(); s.render.film_transparent = True
     s.view_settings.view_transform = "Standard"; s.view_settings.look = "Medium High Contrast"; s.view_settings.exposure = -0.95
-    ip3d.materials(); MATS.clear(); ip3d.sprite_lights()
+    ip3d.materials(); MATS.clear(); icon_lights()
     # the token: a round, thick, soft vinyl coaster in the colour itself (a light tint washed out on white cards and
     # glowed on the lamp's blue), a little smaller so the object leads
     t = cyl((0, 0, -0.06), 0.78, 0.12, mix(colour, "#FFFFFF", 0.22), bevel=0.45, verts=96)
     return s
 def shoot(s, path):
+    # colour that holds: almost no vinyl sheen (a broad specular lays white over every lit face) and less ambient
+    for m in bpy.data.materials:
+        if m.use_nodes and "Principled BSDF" in m.node_tree.nodes:
+            p = m.node_tree.nodes["Principled BSDF"]
+            if p.inputs["Emission Strength"].default_value == 0 and p.inputs["Coat Weight"].default_value < 0.3:
+                p.inputs["Specular IOR Level"].default_value = 0.08
+    s.world.node_tree.nodes["Background"].inputs["Strength"].default_value = 0.22
+    s.view_settings.exposure = -0.75
     bpy.ops.object.camera_add(location=(0, -8 * math.cos(math.radians(20)), 0.5 + 8 * math.sin(math.radians(20))))
     c = bpy.context.object; c.rotation_euler = (math.radians(70), 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 1.8
     s.camera = c; ip3d.render(path, PX, PX)
@@ -387,7 +409,7 @@ def finish(im):
     from PIL import ImageEnhance, ImageChops
     a = im.getchannel("A")
     rgb = im.convert("RGB")
-    rgb = ImageEnhance.Contrast(rgb).enhance(1.10); rgb = ImageEnhance.Color(rgb).enhance(1.12)
+    rgb = ImageEnhance.Contrast(rgb).enhance(1.12); rgb = ImageEnhance.Color(rgb).enhance(1.22)
     body = rgb.convert("RGBA"); body.putalpha(a)
     # contour: the silhouette grown by ~1.5 px at 240 (2 px here), in a warm dark at low strength
     grown = a.filter(ImageFilter.MaxFilter(5))

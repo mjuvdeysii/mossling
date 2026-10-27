@@ -173,6 +173,20 @@ struct EntrySheet: View {
         NavigationStack {
             Form {
                 if failed { Section { SaveFailed() } }
+                // the kind, large, in its own vinyl: what this entry is, before any field
+                Section {
+                    HStack(spacing: 14) {
+                        IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 52, round: true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(LogType.name(entry.type)).font(.title3.weight(.bold))
+                            Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
+                                .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.vertical, 4)
+                }
+                .listRowBackground(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LogType.color(entry.type).opacity(0.16)))
                 if isNew {
                     Picker("类型", selection: $entry.type) {
                         ForEach(LogType.buttons.filter { $0 != LogType.growth }, id: \.self) { Text(LogType.name($0)).tag($0) }
@@ -196,6 +210,8 @@ struct EntrySheet: View {
                     Section { Button("删除这条", role: .destructive) { j.delete(entry); dismiss() } }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .pageBackground(tone: LogType.color(entry.type))
             .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
@@ -248,6 +264,8 @@ struct MeasureSheet: View {
                 Section { field("头围", "厘米", $h, "circle.dashed", Indicator.head) } footer: { Text("精确到 0.1 厘米，经眉上缘与后脑最突出处") }
                 if !isNew { Section { Button("删除这次测量", role: .destructive) { j.deleteMeasure(measure); dismiss() } } }
             }
+            .scrollContentBackground(.hidden)
+            .pageBackground(tone: Crayon.tangerine)
             .navigationTitle(isNew ? "记一次测量" : "这次测量").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
