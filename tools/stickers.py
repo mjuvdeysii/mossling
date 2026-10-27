@@ -26,7 +26,9 @@ def sticker(colour, draw, wobble=0):
     sv = pb.SVG(S, S)
     blob = "M120 22 C178 20 220 56 219 118 C218 180 180 219 120 218 C58 219 21 182 22 120 C23 58 62 24 120 22Z"
     sv.add(f'<g transform="rotate({wobble} 120 120)">')
-    sv.add(f'<path d="{blob}" fill="#5A3A20" opacity=".10" transform="translate(0 6)"/>')
+    sv.add(f'<path d="{blob}" fill="#5A3A20" opacity=".18" transform="translate(0 7)"/>')
+    # a fine warm contour just outside the white edge, so the sticker holds on a white card
+    sv.add(f'<path d="{blob}" fill="none" stroke="#7A5230" stroke-opacity=".28" stroke-width="20" stroke-linejoin="round"/>')
     sv.add(f'<path d="{blob}" fill="#FFFFFF" stroke="#FFFFFF" stroke-width="16" stroke-linejoin="round"/>')
     sv.add(f'<path d="{blob}" fill="{tint(colour, .72)}"/>')
     sv.add('</g>')
@@ -268,7 +270,7 @@ def render(key):
     sv = sticker(colour, fn, wob)
     png = cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=360)
     im = Image.open(io.BytesIO(png)).convert("RGBA")
-    n = f"ic_{key}.webp"
+    n = f"{pb.PREFIX}ic_{key}.webp"
     im.save(os.path.join(OUT, n), "WEBP", quality=92, method=6)
     return n
 
@@ -354,7 +356,7 @@ def tray(code, area):
         pb.obj(sv, k, 200 + dx * 1.25, top - 14, s * 1.7, c, r)
     png = cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=800)
     im = Image.open(io.BytesIO(png)).convert("RGBA")
-    n = f"tray_{code.lower()}.webp"
+    n = f"{pb.PREFIX}tray_{code.lower()}.webp"
     im.save(os.path.join(OUT, n), "WEBP", quality=90, method=4)
     return n
 

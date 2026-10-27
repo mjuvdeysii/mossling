@@ -67,6 +67,13 @@ struct YouView: View {
                             }
                         }
                         Divider()
+                        // how the pictures are drawn: 立体 (3D vinyl) or 平面 (the picture book's 2D drawings)
+                        HStack(spacing: 8) {
+                            ForEach(ArtStyle.allCases, id: \.self) { s in
+                                StyleChoice(style: s, on: app.artStyle == s) { withAnimation(.snappy) { app.artStyle = s } }
+                            }
+                        }
+                        Divider()
                         Toggle(isOn: $app.nightLight) {
                             HStack(spacing: 8) {
                                 Image(systemName: "moon.stars.fill").font(.footnote).foregroundStyle(Palette.lampTint)
@@ -549,5 +556,40 @@ struct LicensesView: View {
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
         VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }
+    }
+}
+
+/// One way of drawing the pictures, as a small window onto the same picture drawn that way, and its name.
+private struct StyleChoice: View {
+    let style: ArtStyle
+    let on: Bool
+    let pick: () -> Void
+    @Environment(\.displayScale) private var scale
+    @State private var img: UIImage?
+    var body: some View {
+        Button(action: pick) {
+            VStack(spacing: 6) {
+                ZStack {
+                    Palette.fill
+                    if let img { Image(uiImage: img).resizable().scaledToFill() }
+                }
+                .frame(height: 70).frame(maxWidth: .infinity)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Palette.accent : .clear, lineWidth: 2.5))
+                .overlay(alignment: .topTrailing) {
+                    if on { Image(systemName: "checkmark.circle.fill").font(.subheadline).foregroundStyle(.white, Palette.accent).padding(5) }
+                }
+                Text(style.title + (style == .vinyl ? "（3D）" : "（2D）")).font(.footnote.weight(on ? .bold : .semibold))
+                    .foregroundStyle(on ? Palette.accent : .primary)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel("插画风格：" + style.title)
+        .accessibilityAddTraits(on ? .isSelected : [])
+        .task {
+            let n = style == .vinyl ? "3d:cover_06.webp" : "2d_cover_06.webp", px = Int(200 * scale)
+            img = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
+        }
     }
 }

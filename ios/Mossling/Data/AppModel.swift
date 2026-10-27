@@ -25,6 +25,8 @@ final class AppModel {
     var birth: Day? { didSet { d.set(birth?.epochDay, forKey: "birth"); if birth != nil { onboarded = true } } }
     var companion: Kind { didSet { d.set(companion.rawValue, forKey: "companion") } }
     var theme: ThemeMode { didSet { d.set(theme.rawValue, forKey: "theme") } }
+    /// How the pictures and icons are drawn: 立体 (3D vinyl, the default) or 平面 (the picture book's 2D drawings).
+    var artStyle: ArtStyle { didSet { d.set(artStyle.rawValue, forKey: "artStyle"); ArtStyle.current = artStyle } }
     var onboarded: Bool { didSet { d.set(onboarded, forKey: "onboarded") } }
     var skipDay: Int { didSet { d.set(skipDay, forKey: "skipDay") } }
     var pick: String { didSet { d.set(pick, forKey: "pick") } }
@@ -50,6 +52,8 @@ final class AppModel {
         birth = ((d.object(forKey: "birth") as? Int) ?? d.string(forKey: "birth").flatMap { Int($0) }).map { Day(epochDay: $0) }
         companion = Kind(rawValue: d.string(forKey: "companion") ?? "") ?? .moss
         theme = ThemeMode(rawValue: d.string(forKey: "theme") ?? "") ?? .system
+        artStyle = ArtStyle(rawValue: d.string(forKey: "artStyle") ?? "") ?? .vinyl
+        ArtStyle.current = artStyle
         onboarded = d.bool(forKey: "onboarded")
         skipDay = (d.object(forKey: "skipDay") as? Int) ?? -1
         pick = d.string(forKey: "pick") ?? ""

@@ -3,13 +3,29 @@ import ImageIO
 
 // MARK: pictures
 
+/// The two ways the app's pictures can be drawn. 立体: matte soft-vinyl 3D (tools/scene3d.py, icons3d.py), the
+/// default. 平面: the picture book's 2D drawings (tools/picturebook.py, stickers.py), kept under the same names with
+/// "2d_" in front; a picture with no 2D drawing shows its 3D one.
+enum ArtStyle: String, CaseIterable {
+    case vinyl = "3d", flat = "2d"
+    nonisolated(unsafe) static var current: ArtStyle = .vinyl
+    var title: String { self == .vinyl ? "立体" : "平面" }
+    static func resolve(_ name: String) -> String {
+        if name.hasPrefix("3d:") { return String(name.dropFirst(3)) }   // asked for the 3D drawing, whatever the style
+        guard current == .flat else { return name }
+        let n = "2d_" + name
+        return ArtIndex.shared.size[n] == nil ? name : n
+    }
+}
+
 /// Decodes the pictures in art/ at the size they are shown, off the main thread, and keeps a few in memory.
 final class ArtCache {
     static let shared = ArtCache()
     private let cache = NSCache<NSString, UIImage>()
     init() { cache.totalCostLimit = 48 * 1024 * 1024 }
 
-    func image(_ name: String, maxPixel: Int) -> UIImage? {
+    func image(_ asked: String, maxPixel: Int) -> UIImage? {
+        let name = ArtStyle.resolve(asked)
         let bucket = max(256, 1 << Int(ceil(log2(Double(max(1, maxPixel))))))
         let key = "\(name)@\(bucket)" as NSString
         if let i = cache.object(forKey: key) { return i }

@@ -37,6 +37,10 @@ CHILD_TOP, CHILD_LEG = "#FFC23D", "#1FB5A6"
 GIRL = "--girl" in sys.argv
 GIRL_TOP, BOW = "#B39CF4", "#F2554B"
 SUFFIX = "_g" if GIRL else ""
+# the 2D style (the app's 平面 setting): the same drawings under "2d_" names, finished for print (finish2d), with the
+# companions left out of the pictures as in the 3D style
+FLAT = "--2d" in sys.argv
+PREFIX = "2d_" if FLAT else ""
 PEER_TOP, PEER_LEG = "#4C9BE8", "#F2554B"
 # the app's six areas (Theme.swift Palette.area): teal, orange, yellow, pink, blue, red — as (ground, backdrop) tints
 AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E": "#4C9BE8", "F": "#F2554B"}
@@ -896,11 +900,40 @@ def watchers(sv, where, i, n):
     look = (0.9 if ax > x else -0.9, -0.5)
     companions(sv, x, base, k, look=look, happy=(i == n - 1))
 
-def render(svg, path, width=1440):
+def render(svg, path, width=1440, figs=None):
     png = cairosvg.svg2png(bytestring=svg.encode(), output_width=width)
     im = Image.open(io.BytesIO(png)).convert("RGB")
-    im.save(path, "WEBP", quality=88, method=6)
+    if figs is not None: im = finish2d(im, figs, width)
+    im.save(path, "WEBP", quality=90, method=6)
     return im.size
+
+def figures_only(spec, area):
+    """The people and things of a step alone, on nothing (no paper, disc, floor, shadows or marks): for their outline."""
+    global BACKDROP
+    keep = BACKDROP, SVG.shadow, mark
+    BACKDROP = False; SVG.shadow = lambda *a, **k: None
+    globals()["mark"] = lambda *a, **k: None
+    try: return scene(spec, area).svg()
+    finally: BACKDROP, SVG.shadow = keep[0], keep[1]; globals()["mark"] = keep[2]
+
+_GRAIN = {}
+def finish2d(im, figs_svg, width):
+    """The print finish of the 2D pictures: a fine warm contour round every person and thing (so a light face or a
+    white cloth never melts into a light page), a gentle contrast and colour lift, and the tooth of the paper."""
+    from PIL import ImageFilter, ImageEnhance, ImageChops
+    f = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=figs_svg.encode(), output_width=width))).convert("RGBA")
+    a = f.getchannel("A").point(lambda v: 255 if v > 110 else 0)
+    k = max(3, int(width / 1440 * 6) | 1)
+    ring = ImageChops.subtract(a.filter(ImageFilter.MaxFilter(k)), a).filter(ImageFilter.GaussianBlur(0.6))
+    out = im.convert("RGBA")
+    col = Image.new("RGBA", im.size, (84, 54, 30, 0)); col.putalpha(ring.point(lambda v: int(v * 0.42)))
+    out.alpha_composite(col)
+    rgb = ImageEnhance.Color(ImageEnhance.Contrast(out.convert("RGB")).enhance(1.06)).enhance(1.08)
+    if im.size not in _GRAIN:
+        n = Image.effect_noise(im.size, 22).filter(ImageFilter.GaussianBlur(0.5))
+        _GRAIN[im.size] = n.point(lambda v: 255 - int(max(0, 128 - v) * 0.10))
+    g = _GRAIN[im.size]
+    return ImageChops.multiply(rgb, Image.merge("RGB", (g, g, g)))
 
 # ---------- the companions (the app's own shapes, tools/mint.json), with the same soft volume ----------
 MINT = json.load(open(os.path.join(ROOT, "tools", "mint.json")))
@@ -997,7 +1030,7 @@ def figures(index):
         sv.shadow(c.hip[0] - (c.d["torso"] * .45 * c.f if lying else 0), 290, 60, 7)
         c.draw(sv); sv.add('</g>')
         im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=600))).convert("RGBA")
-        n = f"child_{i}{SUFFIX}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
+        n = f"{PREFIX}child_{i}{SUFFIX}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
         index["size"][n] = [600, 600]
 
 def main():
@@ -1014,23 +1047,23 @@ def main():
         for i, t in enumerate(p["steps"]):
             spec = scenes.get(p["code"], [None] * len(p["steps"]))
             if i >= len(spec) or spec[i] is None: missing.append(f'{p["code"]}.{i + 1}'); continue
-            n = f"play_{p['code'].lower()}_{i + 1}{SUFFIX}.webp"
+            n = f"{PREFIX}play_{p['code'].lower()}_{i + 1}{SUFFIX}.webp"
             path = os.path.join(OUT, n)
             # the two watch from a free place on the floor near the action; with no free place, they sit this one out
             base = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=scene(spec[i], area).svg().encode(), output_width=360)))
-            where = None if spec[i].get("companions") else place_watchers(base, spec[i], area, prev)
+            where = None if spec[i].get("companions") or FLAT else place_watchers(base, spec[i], area, prev)
             prev = where
             w = (where, i, len(p["steps"])) if where else None
-            if w is None: skipped.append(f'{p["code"]}.{i + 1}')
-            index["size"][n] = list(render(scene(spec[i], area, watch=w).svg(), path)); names.append(n)
-        if not GIRL: index["plays"][p["code"]] = names   # the girl's pictures share the names, with _g
+            if w is None and not FLAT: skipped.append(f'{p["code"]}.{i + 1}')
+            index["size"][n] = list(render(scene(spec[i], area, watch=w).svg(), path, figs=figures_only(spec[i], area) if FLAT else None)); names.append(n)
+        if not GIRL and not FLAT: index["plays"][p["code"]] = names   # the girl's pictures share the names, with _g
     if not only:
         for mo in C["months"]:
             spec, area = cover_spec(mo["month"], mo, scenes)
-            n = "cover_%02d%s.webp" % (mo["month"], SUFFIX)
+            n = "%scover_%02d%s.webp" % (PREFIX, mo["month"], SUFFIX)
             sv = scene(spec, area); sv.w, sv.h = W, H
-            index["size"][n] = list(render(sv.svg(), os.path.join(OUT, n)))
-            if not GIRL: index["covers"][str(mo["month"])] = n
+            index["size"][n] = list(render(sv.svg(), os.path.join(OUT, n), figs=figures_only(spec, area) if FLAT else None))
+            if not GIRL and not FLAT: index["covers"][str(mo["month"])] = n
     if not only: figures(index)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
     if missing: print("no scene for", ", ".join(missing))

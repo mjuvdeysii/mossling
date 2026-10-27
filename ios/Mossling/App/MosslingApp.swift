@@ -122,6 +122,8 @@ struct RootView: View {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
             }
         }
+        // a change of drawing style redraws every picture and icon at once
+        .id(app.artStyle)
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
             TimerScreen(type: w.id).lampPresented()
