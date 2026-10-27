@@ -117,18 +117,20 @@ struct StyleDoor: View {
 private struct Cracks: View {
     let level: Int
     var body: some View {
-        Canvas { ctx, size in
-            let c = CGPoint(x: size.width * 0.42, y: size.height * 0.55)
-            let n = min(9, (level - 1) * 3)
-            for i in 0..<n {
-                let a = Double(i) / Double(n) * 2 * .pi + 0.4
-                var p = Path(); p.move(to: c)
-                let m = CGPoint(x: c.x + cos(a) * size.width * 0.18, y: c.y + sin(a) * size.height * 0.16)
-                p.addLine(to: m)
-                p.addLine(to: CGPoint(x: m.x + cos(a + 0.5) * size.width * 0.14, y: m.y + sin(a + 0.5) * size.height * 0.12))
-                ctx.stroke(p, with: .color(.white.opacity(0.9)), lineWidth: 1.2)
-                ctx.stroke(p, with: .color(.black.opacity(0.18)), lineWidth: 0.5)
-            }
+        Canvas { ctx, size in Self.draw(&ctx, size, level) }
+    }
+    private static func draw(_ ctx: inout GraphicsContext, _ size: CGSize, _ level: Int) {
+        let w: CGFloat = size.width, h: CGFloat = size.height
+        let c = CGPoint(x: w * 0.42, y: h * 0.55)
+        let n: Int = min(9, (level - 1) * 3)
+        for i in 0..<n {
+            let a: CGFloat = CGFloat(i) / CGFloat(n) * 2 * .pi + 0.4
+            let m = CGPoint(x: c.x + cos(a) * w * 0.18, y: c.y + sin(a) * h * 0.16)
+            let e = CGPoint(x: m.x + cos(a + 0.5) * w * 0.14, y: m.y + sin(a + 0.5) * h * 0.12)
+            var p = Path()
+            p.move(to: c); p.addLine(to: m); p.addLine(to: e)
+            ctx.stroke(p, with: .color(.white.opacity(0.9)), lineWidth: 1.2)
+            ctx.stroke(p, with: .color(.black.opacity(0.18)), lineWidth: 0.5)
         }
     }
 }
@@ -173,11 +175,16 @@ private struct Shatter: View {
         var g = SystemRandomNumberGenerator(); var out: [Shard] = []
         let n = 6
         for i in 0..<n { for j in 0..<n {
-            let x0 = Double(i) / Double(n), y0 = Double(j) / Double(n), d = 1 / Double(n)
-            let quads = [CGPoint(x: x0, y: y0), CGPoint(x: x0 + d, y: y0), CGPoint(x: x0 + d, y: y0 + d), CGPoint(x: x0, y: y0 + d)]
-            for tri in [[quads[0], quads[1], quads[2]], [quads[0], quads[2], quads[3]]] {
-                let c = CGPoint(x: (tri[0].x + tri[1].x + tri[2].x) / 3, y: (tri[0].y + tri[1].y + tri[2].y) / 3)
-                let v = CGVector(dx: (c.x - 0.5) * Double.random(in: 180...320, using: &g), dy: -Double.random(in: 60...240, using: &g))
+            let d: CGFloat = 1 / CGFloat(n)
+            let x0: CGFloat = CGFloat(i) * d, y0: CGFloat = CGFloat(j) * d
+            let quads: [CGPoint] = [CGPoint(x: x0, y: y0), CGPoint(x: x0 + d, y: y0), CGPoint(x: x0 + d, y: y0 + d), CGPoint(x: x0, y: y0 + d)]
+            let tris: [[CGPoint]] = [[quads[0], quads[1], quads[2]], [quads[0], quads[2], quads[3]]]
+            for tri in tris {
+                let cx: CGFloat = (tri[0].x + tri[1].x + tri[2].x) / 3
+                let cy: CGFloat = (tri[0].y + tri[1].y + tri[2].y) / 3
+                let c = CGPoint(x: cx, y: cy)
+                let sx: CGFloat = CGFloat.random(in: 180...320, using: &g)
+                let v = CGVector(dx: (cx - 0.5) * sx, dy: -CGFloat.random(in: 60...240, using: &g))
                 out.append(Shard(tri: tri, c: c, v: v, spin: Double.random(in: -4...4, using: &g)))
             }
         } }
@@ -186,27 +193,35 @@ private struct Shatter: View {
     var body: some View {
         TimelineView(.animation) { tl in
             let t = tl.date.timeIntervalSince(start)
-            Canvas { ctx, size in
-                // the sheet of paper: in by 0.42 s, out by 1.3 s
-                let sheet = t < 0.42 ? t / 0.42 : max(0, 1 - (t - 0.5) / 0.8)
-                ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(hex: 0xFBF7F0).opacity(sheet * 0.96)))
-                guard let image, t < 1.4 else { return }
-                let img = ctx.resolve(Image(uiImage: image))
-                for s in shards {
-                    let k = min(1, t / 1.3)
-                    let dx = s.v.dx * t, dy = s.v.dy * t + 900 * t * t
-                    let cx = frame.minX + s.c.x * frame.width + dx, cy = frame.minY + s.c.y * frame.height + dy
-                    var g = ctx
-                    g.opacity = 1 - k
-                    g.translateBy(x: cx, y: cy); g.rotate(by: .radians(s.spin * t)); g.translateBy(x: -s.c.x * frame.width, y: -s.c.y * frame.height)
-                    var p = Path(); p.move(to: CGPoint(x: s.tri[0].x * frame.width, y: s.tri[0].y * frame.height))
-                    p.addLine(to: CGPoint(x: s.tri[1].x * frame.width, y: s.tri[1].y * frame.height))
-                    p.addLine(to: CGPoint(x: s.tri[2].x * frame.width, y: s.tri[2].y * frame.height)); p.closeSubpath()
-                    g.clip(to: p)
-                    g.draw(img, in: CGRect(origin: .zero, size: frame.size))
-                    g.stroke(p, with: .color(.white.opacity(0.7)), lineWidth: 0.8)
-                }
-            }
+            Canvas { ctx, size in draw(&ctx, size, CGFloat(t)) }
+        }
+    }
+    private func draw(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: CGFloat) {
+        // the sheet of paper: in by 0.42 s, out by 1.3 s
+        let sheet: CGFloat = t < 0.42 ? t / 0.42 : max(0, 1 - (t - 0.5) / 0.8)
+        ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .color(Color(hex: 0xFBF7F0).opacity(Double(sheet) * 0.96)))
+        guard let image, t < 1.4 else { return }
+        let img = ctx.resolve(Image(uiImage: image))
+        let fw: CGFloat = frame.width, fh: CGFloat = frame.height
+        for s in shards {
+            let k: CGFloat = min(1, t / 1.3)
+            let dx: CGFloat = CGFloat(s.v.dx) * t
+            let dy: CGFloat = CGFloat(s.v.dy) * t + 900 * t * t
+            let cx: CGFloat = frame.minX + s.c.x * fw + dx
+            let cy: CGFloat = frame.minY + s.c.y * fh + dy
+            var g = ctx
+            g.opacity = Double(1 - k)
+            g.translateBy(x: cx, y: cy)
+            g.rotate(by: .radians(s.spin * Double(t)))
+            g.translateBy(x: -s.c.x * fw, y: -s.c.y * fh)
+            var p = Path()
+            p.move(to: CGPoint(x: s.tri[0].x * fw, y: s.tri[0].y * fh))
+            p.addLine(to: CGPoint(x: s.tri[1].x * fw, y: s.tri[1].y * fh))
+            p.addLine(to: CGPoint(x: s.tri[2].x * fw, y: s.tri[2].y * fh))
+            p.closeSubpath()
+            g.clip(to: p)
+            g.draw(img, in: CGRect(origin: .zero, size: frame.size))
+            g.stroke(p, with: .color(.white.opacity(0.7)), lineWidth: 0.8)
         }
     }
 }
@@ -219,22 +234,26 @@ private struct Bloom: View {
     var body: some View {
         TimelineView(.animation) { tl in
             let t = tl.date.timeIntervalSince(start)
-            Canvas { ctx, size in
-                let c = CGPoint(x: frame.midX, y: frame.midY)
-                let far = hypot(max(c.x, size.width - c.x), max(c.y, size.height - c.y))
-                let grow = min(1, t / 0.48), fade = t < 0.5 ? 1 : max(0, 1 - (t - 0.5) / 0.8)
-                let r = 40 + (far + 80) * grow * grow
-                ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
-                         with: .radialGradient(Gradient(colors: [Color(hex: 0xFFF3D6).opacity(fade), Color(hex: 0xFFE2A6).opacity(fade * 0.97), Color(hex: 0xFFD27A).opacity(fade * 0.9)]),
-                                               center: c, startRadius: 0, endRadius: r))
-                guard t > 0.5 else { return }
-                for i in 0..<14 {
-                    let a = Double(i) * 0.45, u = (t - 0.5) * (0.8 + Double(i % 4) * 0.15)
-                    let p = CGPoint(x: c.x + cos(a * 3.1) * 40 * u * 3, y: c.y - 160 * u - Double(i % 3) * 12)
-                    let o = max(0, 1 - u * 1.2)
-                    ctx.fill(Path(ellipseIn: CGRect(x: p.x - 3, y: p.y - 3, width: 6, height: 6)), with: .color(Palette.bead.opacity(o)))
-                }
-            }
+            Canvas { ctx, size in draw(&ctx, size, CGFloat(t)) }
+        }
+    }
+    private func draw(_ ctx: inout GraphicsContext, _ size: CGSize, _ t: CGFloat) {
+        let c = CGPoint(x: frame.midX, y: frame.midY)
+        let far: CGFloat = hypot(max(c.x, size.width - c.x), max(c.y, size.height - c.y))
+        let grow: CGFloat = min(1, t / 0.48)
+        let fade: Double = t < 0.5 ? 1 : Double(max(0, 1 - (t - 0.5) / 0.8))
+        let r: CGFloat = 40 + (far + 80) * grow * grow
+        let colors: [Color] = [Color(hex: 0xFFF3D6).opacity(fade), Color(hex: 0xFFE2A6).opacity(fade * 0.97), Color(hex: 0xFFD27A).opacity(fade * 0.9)]
+        ctx.fill(Path(ellipseIn: CGRect(x: c.x - r, y: c.y - r, width: 2 * r, height: 2 * r)),
+                 with: .radialGradient(Gradient(colors: colors), center: c, startRadius: 0, endRadius: r))
+        guard t > 0.5 else { return }
+        for i in 0..<14 {
+            let a: CGFloat = CGFloat(i) * 0.45
+            let u: CGFloat = (t - 0.5) * (0.8 + CGFloat(i % 4) * 0.15)
+            let x: CGFloat = c.x + cos(a * 3.1) * 120 * u
+            let y: CGFloat = c.y - 160 * u - CGFloat(i % 3) * 12
+            let o: Double = Double(max(0, 1 - u * 1.2))
+            ctx.fill(Path(ellipseIn: CGRect(x: x - 3, y: y - 3, width: 6, height: 6)), with: .color(Palette.bead.opacity(o)))
         }
     }
 }
