@@ -2,21 +2,21 @@
 import CoreGraphics
 
 enum Sprites {
-    static let mossFeet: CGFloat = 89.1
-    static let ottoFeet: CGFloat = 89.1
+    static let mossFeet: CGFloat = 86.5
+    static let ottoFeet: CGFloat = 92.4
     /// The width of each render's square in world units: both are drawn on one scale, so sizes compare truly.
-    static let mossFrame: CGFloat = 1.62
-    static let ottoFrame: CGFloat = 1.9
+    static let mossFrame: CGFloat = 1.72
+    static let ottoFrame: CGFloat = 2.5
     static let bead: [String: CGPoint] = [
-        "blink": CGPoint(x: 0.2874, y: 0.3371),
-        "down": CGPoint(x: 0.2874, y: 0.3371),
-        "glee": CGPoint(x: 0.2874, y: 0.3371),
-        "idle": CGPoint(x: 0.2874, y: 0.3371),
-        "left": CGPoint(x: 0.2874, y: 0.3371),
-        "right": CGPoint(x: 0.2874, y: 0.3371),
-        "sleep": CGPoint(x: 0.2723, y: 0.3999),
-        "up": CGPoint(x: 0.2874, y: 0.3371),
-        "wide": CGPoint(x: 0.3027, y: 0.2698),
-        "yawn": CGPoint(x: 0.2767, y: 0.3802),
+        "blink": CGPoint(x: 0.247, y: 0.4317),
+        "down": CGPoint(x: 0.247, y: 0.4317),
+        "glee": CGPoint(x: 0.247, y: 0.4317),
+        "idle": CGPoint(x: 0.247, y: 0.4317),
+        "left": CGPoint(x: 0.247, y: 0.4317),
+        "right": CGPoint(x: 0.247, y: 0.4317),
+        "sleep": CGPoint(x: 0.2446, y: 0.4848),
+        "up": CGPoint(x: 0.247, y: 0.4317),
+        "wide": CGPoint(x: 0.2501, y: 0.3746),
+        "yawn": CGPoint(x: 0.2458, y: 0.4679),
     ]
 }

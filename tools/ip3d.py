@@ -160,6 +160,7 @@ def materials():
     M["mintDeep"] = mat("mintDeep", "#3D6B44", rough=0.6)
     M["otto"] = rubber("otto", "#203872")
     M["ottoDeep"] = rubber("ottoDeep", "#1F3566")
+    M["ottoBand"] = rubber("ottoBand", "#15264D")   # the lower band of his body, a deeper blue (the 2D icon's waist)
     # painted eyes: a satin white and a glossy black, as on a vinyl figure
     M["eye"] = mat("eye", "#F6F3EA", rough=0.35, coat=0.35)
     M["pupil"] = mat("pupil", "#0E0E0D", rough=0.05, coat=1.0)
@@ -206,10 +207,13 @@ def shaped_sphere(name, f, material, seg=64):
     o.data.materials.append(material); return o
 
 # Moss: a pebble 1.24 wide, 1.0 deep, its top at 0.74; the bottom flattened where it rests
-MOSS = dict(rx=0.57, ry=0.5, rz=0.5, cz=0.4)
+# Moss is a baby: wider than tall, full and round all over (baby fat), the belly a little forward
+MOSS = dict(rx=0.56, ry=0.5, rz=0.6, cz=0.36)   # the 2D icon's proportions: 0.77 as tall as it is wide
 def moss_surface_y(x, z):
-    m = MOSS; k = 1 - (x / m["rx"]) ** 2 - ((z - m["cz"]) / m["rz"]) ** 2
-    return -m["ry"] * math.sqrt(max(0.0, k))
+    m = MOSS; c = (z - m["cz"]) / m["rz"]
+    bulge = 1 + 0.1 * (1 - min(1, c * c)) * (1 + 0.8 * max(0.0, -c))   # as in build_moss's shape
+    k = 1 - (x / (m["rx"] * bulge)) ** 2 - c ** 2
+    return -m["ry"] * bulge * math.sqrt(max(0.0, k))
 
 def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105, pupil=0.62, hop=0.0, perk=0.0, shut=None):
     """Moss, the child: energy. `hop` lifts and stretches the body mid-jump; `perk` stands the leaves up."""
@@ -217,13 +221,15 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
     root = bpy.data.objects.new("Moss", None); bpy.context.collection.objects.link(root)
     # the icon's pebble: higher on the right, the left shoulder lower and rounder, the base flattened where it rests
     def f(a, b, c):
-        # a round, full pebble: no peak, no wedge — only a breath higher on the right (the icon's DNA), so the body
-        # never reads as an arrow pointing somewhere
-        z = (c if c > 0 else c * 0.72) * m["rz"]
+        # the 2D icon's gumdrop: a full round dome over sides that stay out, a broad flat base it sits on — a plump
+        # baby, never a ball; a breath higher on the right (the icon's DNA)
+        z = (c if c > 0 else c * 0.62) * m["rz"]
         if c > 0: z *= 1 + 0.05 * a
-        return (a * m["rx"], b * m["ry"], m["cz"] + z)
+        k = 1 + 0.1 * (1 - c * c) * (1 + 0.8 * max(0.0, -c))   # full sides, fullest below the middle (baby fat)
+        return (a * m["rx"] * k, b * m["ry"] * k, m["cz"] + z)
     body = shaped_sphere("moss_body", f, M["moss"])
-    feet = [sphere(f"moss_foot{i}", (s * 0.22, -0.12, 0.045), (0.08, 0.1, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
+    # short stubby feet, set wide under the round body
+    feet = [sphere(f"moss_foot{i}", (s * 0.25, -0.13, 0.045), (0.085, 0.1, 0.05), M["foot"]) for i, s in enumerate((-1, 1))]
     top = m["cz"] + m["rz"]
     # the mint sprig: always real mint leaves (serrated, veined), never a generic sprout
     sprig_parts = sprig(top, M["mint"], M["mintPale"], perk)
@@ -235,19 +241,22 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
             dz = {"down": -0.03, "flat": -0.006}.get(shut, 0.045)
             parts.append(tube(f"moss_shut{s}", [(s * ex - 0.075, sy - 0.0, ez - 0.01), (s * ex, sy - 0.022, ez + dz * 1.2), (s * ex + 0.075, sy - 0.0, ez - 0.01)], 0.016, M["pupil"]))
         else:
-            parts += eye(f"moss_eye{s}", (s * ex, sy + 0.025, ez), er, look, scale=(0.87, 0.5, 1.0), lid=lid, skin=M["moss"], pupil=pupil)
-    if "--cheeks" in ARGS:
+            parts += eye(f"moss_eye{s}", (s * ex, sy + 0.025, ez), er * 1.12, look, scale=(0.8, 0.5, 1.16), lid=lid, skin=M["moss"], pupil=pupil)
+    if not shut or shut != "flat":   # a baby's soft pink cheeks, always
         for s in (-1, 1):
-            cz = m["cz"] + 0.04; cx = s * 0.3
-            parts.append(sphere(f"moss_cheek{s}", (cx, moss_surface_y(cx, cz) + 0.012, cz), (0.075, 0.015, 0.045), M["cheek"]))
+            cz = m["cz"] + 0.03; cx = s * 0.33
+            parts.append(sphere(f"moss_cheek{s}", (cx, moss_surface_y(cx, cz) + 0.02, cz), (0.07, 0.022, 0.055), M["cheek"]))
     parent(parts, root)
     root.location = (x, 0, hop); root.rotation_euler = (0, math.radians(lean), 0)
     if hop > 0: root.scale = (1 - hop * 0.35, 1 - hop * 0.35, 1 + hop * 0.7)   # stretched in the air
     return root
 
-# Otto: a tall dome 0.84 wide, its top at 1.26, the bottom rounded onto the table
-OTTO = dict(rx=0.45, ry=0.41, cz=0.48, top=0.64, bottom=0.44)
-OTTO_PROFILE = [(0.03, 0.0), (0.09, 0.41), (0.22, 0.455), (0.45, 0.45), (0.7, 0.425), (0.9, 0.37), (1.04, 0.27), (1.12, 0.14), (1.14, 0.0)]
+# the 2D icon's silhouette, turned in 3D: widest above the middle, the sides drawing in toward a narrower base (his
+# waist and hips), a round dome; 1.42 tall — half as tall again as Moss
+OTTO_PROFILE = [(0.03, 0.0), (0.06, 0.33), (0.14, 0.40), (0.3, 0.435), (0.5, 0.45), (0.8, 0.45), (1.0, 0.43), (1.15, 0.37), (1.28, 0.26), (1.37, 0.13), (1.42, 0.0)]
+OTTO_TOP = 1.42
+OTTO_WAIST = 0.46   # below this the body is his deeper blue, as the 2D icon's lower band
+OTTO = dict(rx=0.455, ry=0.41, cz=0.7, top=OTTO_TOP, bottom=0.3)
 def otto_radius(z):
     for (z0, r0), (z1, r1) in zip(OTTO_PROFILE, OTTO_PROFILE[1:]):
         if z0 <= z <= z1: return r0 + (r1 - r0) * (z - z0) / (z1 - z0)
@@ -263,16 +272,22 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
     root = bpy.data.objects.new("Otto", None); bpy.context.collection.objects.link(root)
     # turned like a wooden toy: a profile spun round its axis — a broad soft base, nearly straight sides that lean in a
     # little, and a round dome (the icon's silhouette), then smoothed
-    prof = [(0.0, 0.03), (0.28, 0.035), (0.41, 0.09), (0.455, 0.22), (0.45, 0.45), (0.425, 0.7), (0.37, 0.9), (0.27, 1.04), (0.14, 1.12), (0.0, 1.14)]
+    prof = [(0.0, 0.03), (0.22, 0.035)] + [(r, z) for z, r in OTTO_PROFILE[1:]]
     me = bpy.data.meshes.new("otto_profile"); me.from_pydata([(x, 0, z) for x, z in prof], [(i, i + 1) for i in range(len(prof) - 1)], [])
     body = bpy.data.objects.new("otto_body", me); bpy.context.collection.objects.link(body)
     sc = body.modifiers.new("spin", "SCREW"); sc.steps = 64; sc.render_steps = 64; sc.use_merge_vertices = True; sc.use_smooth_shade = True
     smooth(body, 2)
     body.scale = (1.0, 0.9, 1.0)
-    body.data.materials.append(M["otto"])
+    body.data.materials.append(M["otto"]); body.data.materials.append(M["ottoBand"])
+    # the two-tone of the 2D icon: the lower band a deeper blue, so he has a waist
+    bpy.context.view_layer.objects.active = body
+    for mod in list(body.modifiers): bpy.ops.object.modifier_apply(modifier=mod.name)
+    for poly in body.data.polygons:
+        poly.use_smooth = True
+        if poly.center.z < OTTO_WAIST: poly.material_index = 1
     feet = [sphere(f"otto_foot{i}", (s * 0.17, -0.1, 0.045), (0.075, 0.095, 0.055), M["foot"]) for i, s in enumerate((-1, 1))]
     parts = [body, *feet]
-    ez = 0.8
+    ez = 0.98
     if shut:
         sy = otto_surface_y(0, ez)
         dz = -0.012 if shut == "flat" else -0.05
@@ -289,16 +304,26 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
             parts.append(sphere("otto_bag", (0.0, otto_surface_y(0, ez - 0.2) + 0.035, ez - 0.2), (0.17, 0.03, 0.035), M["ottoDeep"]))
     if smirk:
         # the most Otto ever smiles: one corner, lifted
-        sy = otto_surface_y(0.05, 0.5)
-        parts.append(tube("otto_smirk", [(-0.07, sy + 0.005, 0.5), (0.04, sy - 0.005, 0.495), (0.1, sy + 0.0, 0.525)], 0.012, M["pupil"]))
+        mz = ez - 0.3
+        sy = otto_surface_y(0.05, mz)
+        parts.append(tube("otto_smirk", [(-0.07, sy + 0.005, mz), (0.04, sy - 0.005, mz - 0.005), (0.1, sy + 0.0, mz + 0.025)], 0.012, M["pupil"]))
     if yawn:
         # a long, slow yawn: a dark oval mouth set into the front, low on the face
-        parts.append(sphere("otto_yawn", (0.0, otto_surface_y(0, 0.5) - 0.005, 0.5), (0.085, 0.03, 0.11), M["foot"]))
+        parts.append(sphere("otto_yawn", (0.0, otto_surface_y(0, ez - 0.3) - 0.005, ez - 0.3), (0.085, 0.03, 0.11), M["foot"]))
     # the antenna: from the top of the head, arching forward, the lamp bead at its end
-    top = (0.0, 0.0, 1.13)
+    top = (0.0, 0.0, OTTO_TOP - 0.01)
     # the icon's rod: up from the crown, arching forward and to the left, the bead hanging at its end
-    bx, by, bz = -0.36 - 0.06 * droop, -0.22 - 0.08 * droop, top[2] + 0.12 - 0.22 * droop
-    parts.append(tube("otto_antenna", [top, (-0.02, -0.03, top[2] + 0.2 - 0.05 * droop), (-0.2 - 0.04 * droop, -0.12 - 0.05 * droop, top[2] + 0.28 - 0.1 * droop), (bx, by, bz + 0.07)], 0.015, M["ottoDeep"]))
+    # a long rod in one unbroken curve, like a desk lamp's neck: it rises straight out of the crown and, without a
+    # single straight piece or corner, bends over forward and to the left and falls toward what is in front of him;
+    # the bead hangs at its end. One cubic Bézier, sampled finely, so the curvature changes smoothly all along.
+    d = droop
+    P = [top, (0.0, -0.02, top[2] + 0.62 - 0.1 * d), (-0.66, -0.26 - 0.06 * d, top[2] + 0.62 - 0.18 * d), (-0.62, -0.28 - 0.08 * d, top[2] + 0.12 - 0.24 * d)]
+    def bez(t):
+        u = 1 - t
+        return tuple(u**3 * P[0][k] + 3 * u * u * t * P[1][k] + 3 * u * t * t * P[2][k] + t**3 * P[3][k] for k in range(3))
+    pts = [bez(i / 24) for i in range(25)]
+    parts.append(tube("otto_antenna", pts, 0.016, M["ottoDeep"]))
+    bx, by, bz = pts[-1][0], pts[-1][1], pts[-1][2] - 0.07
     parts.append(sphere("otto_bead", (bx, by, bz), (0.07, 0.07, 0.07), M["bead"]))
     # (the glow round the bead is added in 2D, over the render)
     M["bead"].node_tree.nodes["Principled BSDF"].inputs["Emission Strength"].default_value = 1.6 * glow
@@ -438,7 +463,7 @@ STATES = {
         "sleep": dict(shut="down", slouch=1.2, droop=1.0, bags=True), "yawn": dict(shut="flat", yawn=True, slouch=1.0, droop=0.9, bags=True),
     },
 }
-FRAME = {"moss": (1.62, 0.6), "otto": (1.9, 0.74)}   # orthographic width, centre height (the ground sits ~8% up)
+FRAME = {"moss": (1.72, 0.6), "otto": (2.5, 1.06)}   # orthographic width, centre height (the ground sits ~8% up)
 
 def sprite_lights():
     world = bpy.data.worlds.new("w"); bpy.context.scene.world = world; world.use_nodes = True
@@ -464,7 +489,7 @@ def sprites(outdir):
             s = reset(); s.render.film_transparent = True; materials(); sprite_lights()
             s.render.resolution_x = s.render.resolution_y = size
             if kind == "moss": build_moss(**kw)
-            else: build_otto(glow=0.6, **kw)
+            else: build_otto(glow=0.0, **kw)   # the lamp is lit only at night, by the app (Creature.lamp)
             ortho, cz = FRAME[kind]
             tilt = math.radians(6)
             bpy.ops.object.camera_add(location=(0, -8 * math.cos(tilt), cz + 8 * math.sin(tilt))); c = bpy.context.object

@@ -17,12 +17,24 @@ def feet(path):
         if any(px[x, y] > 128 for x in range(0, w, 2)): return 100 * (y + 1) / h
     return 88.0
 
+def outline(im):
+    """A clean white edge all round the figure, as a die-cut sticker of the character: the silhouette grown by ~1.4 %
+    of the square, smoothed, in white, under the figure."""
+    from PIL import ImageFilter
+    a = im.getchannel("A")
+    k = max(3, int(im.width * 0.014) * 2 + 1)
+    grown = a.point(lambda v: 255 if v > 60 else 0).filter(ImageFilter.MaxFilter(k)).filter(ImageFilter.GaussianBlur(1.2))
+    grown = grown.point(lambda v: 255 if v > 128 else int(v * 1.6))
+    white = Image.new("RGBA", im.size, (255, 255, 255, 0)); white.putalpha(grown)
+    white.alpha_composite(im)
+    return white
+
 def main(src):
     meta = json.load(open(os.path.join(src, "sprites.json")))
     n = 0
     for f in sorted(os.listdir(src)):
         if not f.endswith(".png"): continue
-        im = Image.open(os.path.join(src, f)).convert("RGBA")
+        im = outline(Image.open(os.path.join(src, f)).convert("RGBA"))
         im.save(os.path.join(ART, "ip_" + f[:-4] + ".webp"), "WEBP", quality=90, method=6)
         n += 1
     beads = {k[5:]: v for k, v in meta.items() if k.startswith("bead_")}

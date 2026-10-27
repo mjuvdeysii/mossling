@@ -25,8 +25,6 @@ MATS = {}
 def v(hexc, rough=0.6):
     # pure white melts into the white cards it sits on: white things are a warm porcelain instead
     if hexc.upper() == "#FFFFFF": hexc = "#F3ECE1"
-    # calmer, never candy-bright: every colour carries a touch of warm black
-    if hexc.startswith("#") and len(hexc) == 7: hexc = mix(hexc, "#2A2522", 0.09)
     if hexc not in MATS: MATS[hexc] = rubber("v" + hexc, hexc, rough=rough)
     return MATS[hexc]
 def glossy(hexc): return MATS.setdefault("g" + hexc, mat("g" + hexc, hexc, rough=0.15, coat=0.6))
@@ -99,9 +97,9 @@ def setup(colour):
     ip3d.materials(); MATS.clear(); icon_lights()
     # the token: a round, thick, soft vinyl coaster in the colour itself (a light tint washed out on white cards and
     # glowed on the lamp's blue), a little smaller so the object leads
-    # the token: one pale, pale mint for every icon (the colour of Moss's young leaves), so the set reads as one
-    # calm family and the object, not the plate, carries the colour
-    t = cyl((0, 0, -0.06), 0.78, 0.12, "#AFD6C2", bevel=0.45, verts=96)
+    # the token: a round, thick, soft vinyl coaster in the icon's own colour (with the exposure calibrated, the
+    # colours hold without being muted)
+    t = cyl((0, 0, -0.06), 0.78, 0.12, mix(colour, "#FFFFFF", 0.22), bevel=0.45, verts=96)
     return s
 def shoot(s, path):
     # colour that holds: almost no vinyl sheen (a broad specular lays white over every lit face) and less ambient

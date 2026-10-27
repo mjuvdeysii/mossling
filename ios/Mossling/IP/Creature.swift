@@ -224,8 +224,10 @@ struct Creature: View {
         }
     }
 
-    /// Otto's bead is always a lamp: a faint warm halo by day, a full soft glow at night (a drawing, not the screen).
+    /// Otto's lamp is lit only at night: a soft warm glow round the bead (a drawing, not the screen); by day the bead
+    /// is a plain golden bead.
     private func lamp(_ ctx: inout GraphicsContext, _ at: CGPoint, _ now: Date) {
+        guard glow else { return }
         let c = CGPoint(x: at.x * 100, y: at.y * 100)
         let pulse = still || !glow ? 1 : 0.88 + 0.12 * sin(now.timeIntervalSinceReferenceDate * 2)
         let r = (glow ? 15 : 8) * pulse
@@ -288,7 +290,7 @@ struct Duo: View {
     static func feet(_ k: Kind) -> CGFloat { (k == .moss ? Sprites.mossFeet : Sprites.ottoFeet) / 100 }
     /// How far across its own square each one reaches, leaves and lamp rod included (measured on the sprites, every
     /// state, with a little room for breathing and leaning).
-    static func reach(_ k: Kind) -> (left: CGFloat, right: CGFloat) { k == .moss ? (0.10, 0.90) : (0.22, 0.76) }
+    static func reach(_ k: Kind) -> (left: CGFloat, right: CGFloat) { k == .moss ? (0.11, 0.87) : (0.20, 0.71) }
     /// Where the one behind stands: just clear of the one in front, never overlapping it (the pair stand side by side,
     /// the one behind a little further back).
     static func apart(_ primary: Kind, _ size: CGFloat) -> CGFloat {
