@@ -327,7 +327,9 @@ def prop3d(o, depth):
         print("no 3D model yet for", k)
 
 # the light and the film: one place to tune them (tools/scene3d.py and the comparison sheets read these)
-LOOK = dict(spec=0.08, world=0.3, key=1500, ksize=6, fill=420, back=420, view="Standard", look="Medium High Contrast", exp=-0.7, con=1.12, sat=1.25, rough=None)
+LOOK = dict(spec=0.08, world=0.3, key=1500, ksize=6, fill=420, back=420, view="Standard", look="None", exp=-1.2, con=1.04, sat=1.0, rough=None)
+# calibrated on the colours themselves: at this exposure a lit yellow top renders (244, 176, 53) for #FFC23D and a pink
+# one (241, 104, 132) for #FF6F91 — each thing shows its own colour, never pushed to white or neon by the light
 # why the colour washed out before: a strong warm ambient (0.8) and big soft lights filled every shadow, and the vinyl's
 # broad sheen (specular 0.35) laid white over every lit surface. Less ambient, a firmer key, almost no sheen.
 
