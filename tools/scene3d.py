@@ -49,17 +49,21 @@ pb.companions = lambda *a, **k: None   # the 2D companions are replaced by the 3
 
 _mark = pb.mark
 def mark3d(sv, m, ppl):
-    """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us)."""
+    """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us).
+    With the cast, a badge over a head floats over the character's crown (the bodies are taller than the rig's heads),
+    keeping the storyboard's offset from it."""
+
     if m["k"] == "look" and isinstance(m.get("a"), str) and isinstance(m.get("b"), str):
         def end(v, other):
             who, part = (v.split(".") + ["head"])[:2]
             p = ppl.get(who)
             if not p or part != "head": return None
-            c = p.head(); r = p.d["head"] * 1.25
+            c = ip_face(p) if IP else p.head(); r = p.d["head"] * 1.25
             dx, dy = other[0] - c[0], other[1] - c[1]; d = max(1e-3, math.hypot(dx, dy))
             return (c[0] + dx / d * r, c[1] + dy / d * r)
-        ca = ppl[m["a"].split(".")[0]].head() if m["a"].split(".")[0] in ppl else None
-        cb = ppl[m["b"].split(".")[0]].head() if m["b"].split(".")[0] in ppl else None
+        face = (lambda p: ip_face(p)) if IP else (lambda p: p.head())
+        ca = face(ppl[m["a"].split(".")[0]]) if m["a"].split(".")[0] in ppl else None
+        cb = face(ppl[m["b"].split(".")[0]]) if m["b"].split(".")[0] in ppl else None
         if ca and cb:
             a, b = end(m["a"], cb), end(m["b"], ca)
             if a and b:
@@ -233,6 +237,33 @@ def ip_person(p, depth, who):
         ip3d.parent(parts, root)
         _place(root, p, depth, 1.18)
         _limbs(p, depth, cream, cream, hat, M["foot"], rk=1.05)
+
+def ip_face(s):
+    """Where the cast character's face is on the page (its eyes), for the marks that point at a head — a badge above
+    it, a line of sight from it. Mirrors _place: the body along hip → head, leaning no more than the body allows."""
+    if s.pose == "bundle": return s.headc
+    a, b, r = s.hip, s.headc, s.d["head"]
+    ux, uy = b[0] - a[0], b[1] - a[1]; n = max(1e-4, math.hypot(ux, uy))
+    adult = s.kind == "adult"
+    tilt = 0.28 if adult else 0.62
+    ang = max(-tilt, min(tilt, math.atan2(ux / n, -uy / n)))
+    vx, vy = math.sin(ang), -math.cos(ang)
+    span = n + r * 1.05
+    H = span if adult else span * 1.25
+    base = 0.45 if adult else 0.35
+    bx, by = a[0] - vx * r * base, a[1] - vy * r * base
+    return (bx + vx * H * 0.58, by + vy * H * 0.58)
+
+def ip_top(s):
+    """The top of the cast character's body on the page (its crown, below the sprig or the rod)."""
+    f = ip_face(s); a = s.hip
+    if s.pose == "bundle": return (s.headc[0], s.headc[1] - s.d["head"])
+    return (a[0] + (f[0] - a[0]) / 0.58 * 0.9, a[1] + (f[1] - a[1]) / 0.58 * 0.9)
+def ip_head(s):
+    """The rig's "head" for the 2D marks (badges, speech bubbles, a hand at the mouth): just under the character's
+    crown, so what floats over a head floats over the cast's taller bodies, not across their faces."""
+    t = ip_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
+if IP: pb.Person.head = ip_head
 
 def person3d(p, depth, who=None):
     if IP: return ip_person(p, depth, who)
