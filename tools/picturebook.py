@@ -935,6 +935,104 @@ def finish2d(im, figs_svg, width):
     g = _GRAIN[im.size]
     return ImageChops.multiply(rgb, Image.merge("RGB", (g, g, g)))
 
+# ---------- the 2D look: weak 3D, mostly flat, jelly (项目负责人 2026-10-27: 弱 3D、偏 2D、果冻，色彩更丰富) ----------
+# Flat shapes keep the picture-book read; the volume is a jelly's, not a lamp-lit solid's: a saturated body, shade that
+# turns the hue (toward violet) instead of greying it, a bright translucent rim on the shade side where light comes
+# through, a crisp gloss on the lit side, and coloured, see-through shadows. Only the 2D set (--2d) is drawn this way.
+import colorsys
+def _hsv(c):
+    return colorsys.rgb_to_hsv(*[int(c[i:i + 2], 16) / 255 for i in (1, 3, 5)])
+def _hex(h, s, v):
+    return "#" + "".join(f"{round(max(0, min(1, x)) * 255):02X}" for x in colorsys.hsv_to_rgb(h % 1, max(0, min(1, s)), max(0, min(1, v))))
+def juicy(c, k=1.0):
+    """The same colour, a little more saturated: a jelly's colour is its whole body, not a coat."""
+    h, s, v = _hsv(c); return _hex(h, s * (1 + .16 * k) + .04 * k, v * (1 + .03 * k))
+def _toward(h, to, t):
+    d = ((to - h + .5) % 1) - .5; return h + d * t
+def jdark(c, t=0.18):
+    """Shade that turns the hue toward violet and deepens the colour, never toward brown or grey."""
+    h, s, v = _hsv(c)
+    deep = _hex(_toward(h, .76, .16), min(1, s * 1.18 + .12), v * .42)
+    return mix(c, min(1, t * 1.7), deep)
+def jlight(c, t=0.35):
+    """Light that warms as it brightens (a glow through the jelly)."""
+    return mix(juicy(c, .5), t, "#FFFBEE")
+def jrim(c):
+    """The translucent rim on the shade side: the colour lit from inside."""
+    h, s, v = _hsv(c); return _hex(_toward(h, .14, .05), min(1, s * 1.05 + .05), min(1, v * 1.12 + .08))
+
+if FLAT:
+    _dark0, _light0 = dark, light
+    dark, light = jdark, jlight
+    SHADE = ["#5A3A20"]
+    def _jlin(s, c, angle=135):
+        # cel bands with hard steps, not a smooth airbrush: a thin lit band, the flat body, one shade band, the rim
+        i = s.id(); r = math.radians(angle)
+        x1, y1 = 0.5 - math.cos(r) / 2, 0.5 - math.sin(r) / 2
+        L, B, D, R = jlight(c, .3), juicy(c), jdark(c, .12), jrim(c)
+        s.defs.append(f'<linearGradient id="{i}" x1="{x1:.2f}" y1="{y1:.2f}" x2="{1 - x1:.2f}" y2="{1 - y1:.2f}">'
+                      f'<stop offset="0" stop-color="{L}"/><stop offset=".12" stop-color="{L}"/><stop offset=".15" stop-color="{B}"/>'
+                      f'<stop offset=".66" stop-color="{B}"/><stop offset=".69" stop-color="{D}"/><stop offset=".9" stop-color="{D}"/>'
+                      f'<stop offset=".93" stop-color="{R}"/><stop offset="1" stop-color="{R}"/></linearGradient>')
+        return f"url(#{i})"
+    def _jrad(s, c):
+        i = s.id()
+        L, B, D, R = jlight(c, .34), juicy(c), jdark(c, .12), jrim(c)
+        s.defs.append(f'<radialGradient id="{i}" cx=".42" cy=".38" r=".66" fx=".34" fy=".28"><stop offset="0" stop-color="{mix(L, .55, "#FFFFFF")}"/><stop offset=".08" stop-color="{mix(L, .45, "#FFFFFF")}"/><stop offset=".11" stop-color="{L}"/>'
+                      f'<stop offset=".2" stop-color="{L}"/><stop offset=".25" stop-color="{B}"/><stop offset=".74" stop-color="{B}"/>'
+                      f'<stop offset=".78" stop-color="{D}"/><stop offset=".93" stop-color="{D}"/><stop offset=".97" stop-color="{R}"/><stop offset="1" stop-color="{R}"/></radialGradient>')
+        return f"url(#{i})"
+    def _jshadow(s, cx, cy, rx, ry, a=0.16):
+        # a jelly's shadow is coloured and see-through: the area's colour, deepened, rather than a brown smudge
+        i = s.id(); col = SHADE[0]
+        s.defs.append(f'<radialGradient id="{i}"><stop offset="0" stop-color="{col}" stop-opacity="{a * 1.15:.3f}"/>'
+                      f'<stop offset=".6" stop-color="{col}" stop-opacity="{a * .6:.3f}"/><stop offset="1" stop-color="{col}" stop-opacity="0"/></radialGradient>')
+        s.add(f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{rx:.1f}" ry="{ry:.1f}" fill="url(#{i})"/>')
+    SVG.lin, SVG.rad, SVG.shadow = _jlin, _jrad, _jshadow
+    def limb(s, pts, w, c, cap=True):
+        """A jelly limb in flat bands: the bright rim on the shade side, one shade band, the flat body, a crisp gloss."""
+        def path(o): return "M" + " L".join(f"{x + o:.1f} {y + o:.1f}" for x, y in pts)
+        o = w * 0.14
+        s.add(f'<path d="{path(0)}" fill="none" stroke="{jrim(c)}" stroke-width="{w:.1f}" stroke-linecap="round" stroke-linejoin="round"/>')
+        s.add(f'<path d="{path(-o * .2)}" fill="none" stroke="{jdark(c, .12)}" stroke-width="{w * .9:.1f}" stroke-linecap="round" stroke-linejoin="round"/>')
+        s.add(f'<path d="{path(-o * .7)}" fill="none" stroke="{juicy(c)}" stroke-width="{w * .7:.1f}" stroke-linecap="round" stroke-linejoin="round"/>')
+        if w >= 12:
+            s.add(f'<path d="{path(-o * 1.9)}" fill="none" stroke="#FFFFFF" stroke-width="{max(1.6, w * .1):.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".72"/>')
+    AREA = {k: (_tint(v, .32), _tint(v, .58)) for k, v in AREA_FILL.items()}   # richer floor and wall tints
+    _scene0 = scene
+    def scene(spec, area, sv=None, watch=None):
+        SHADE[0] = jdark(AREA_FILL[area], .55)
+        return _scene0(spec, area, sv, watch)
+
+    def finish2d(im, figs_svg, width):
+        """The jelly finish: a contour in each thing's own deepened colour (no brown line), a soft gloss along the lit
+        edges of every silhouette and a glow along the shade edges, and a colour lift. No paper grain: jelly is smooth."""
+        import numpy as np
+        from PIL import ImageFilter, ImageEnhance, ImageChops
+        f = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=figs_svg.encode(), output_width=width))).convert("RGBA")
+        a = f.getchannel("A").point(lambda v: 255 if v > 110 else 0)
+        sc = width / 1440
+        k = max(3, int(sc * 5) | 1)
+        ring = ImageChops.subtract(a.filter(ImageFilter.MaxFilter(k)), a).filter(ImageFilter.GaussianBlur(0.7))
+        # the contour takes the colour of what it rings, deepened toward violet
+        out = im.convert("RGB")
+        # each thing's own colour (taken from the finished picture, inside its outline), deepened, spread over the ring
+        own = Image.composite(out, Image.new("RGB", out.size, (255, 255, 255)), a)
+        deep = ImageEnhance.Color(ImageEnhance.Brightness(own.filter(ImageFilter.MinFilter(k))).enhance(.58)).enhance(1.3)
+        out = Image.composite(deep, out, ring.point(lambda v: int(v * .62)))
+        A = np.asarray(a, dtype=np.float32) / 255
+        hgt = np.asarray(a.filter(ImageFilter.GaussianBlur(9 * sc)), dtype=np.float32) / 255
+        d = max(2, int(5 * sc))
+        lit = np.clip((hgt - np.roll(np.roll(hgt, d, 0), d, 1)) * -1, 0, 1)        # facing the upper left
+        shd = np.clip((hgt - np.roll(np.roll(hgt, -d, 0), -d, 1)) * -1, 0, 1)      # facing the lower right
+        gloss = np.clip((lit * 3.2 - .45) * 4, 0, 1) * A * .5   # a crisp sheen, not a haze
+        glow = np.clip(shd * 2.6, 0, 1) * A * .22
+        o = np.asarray(out, dtype=np.float32)
+        o = o + (255 - o) * gloss[..., None]
+        o = o + (255 - o) * glow[..., None] * np.array([1.0, .92, .7])
+        out = Image.fromarray(np.clip(o, 0, 255).astype("uint8"))
+        return ImageEnhance.Color(ImageEnhance.Contrast(out).enhance(1.05)).enhance(1.14)
+
 # ---------- the companions (the app's own shapes, tools/mint.json), with the same soft volume ----------
 MINT = json.load(open(os.path.join(ROOT, "tools", "mint.json")))
 MOSS_BODY = "M22 82 C15 77 13 66 16 56 C19 45 28 36 41 34 C53 32 63 33 72 38 C82 44 88 55 87 67 C86 77 80 84 70 86 C56 88 33 89 22 82Z"
@@ -984,7 +1082,7 @@ def cover_spec(m, mo, scenes=None):
     spec = {"set": "floor", "adult": {"pose": "kneel" if m < 12 else "tallkneel", "x": 230, "e": "smile", "look": "child.head",
                                       "hands": ["child.hand", None] if pose in ("stand", "walk") else [None, None]},
             "child": {"pose": pose, "x": 430 if pose not in ("lieback", "prone") else 450, "age": m, "e": "wow" if m < 6 else "smile", "look": "adult.head",
-                      "hands": ["adult.hand", None] if pose in ("stand", "walk") else [None, None]}, "objs": [thing] if thing else [], "companions": True}
+                      "hands": ["adult.hand", None] if pose in ("stand", "walk") else [None, None]}, "objs": [thing] if thing else [], "companions": not FLAT}
     if pose in ("lieback",): spec["child"]["at"] = [450, 440]
     if thing: thing["x"] = 330
     return spec, area_of(feature) if feature else "A"
