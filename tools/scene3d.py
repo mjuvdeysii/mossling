@@ -238,6 +238,13 @@ def ip_person(p, depth, who):
         if p.pose == "bundle":
             # held in the arms: lower, at the chest, clear of the grown-up's face
             root.location = (root.location[0], root.location[1] - 0.12, root.location[2] - L(p.d["head"]) * 1.1)
+        # carried or held up close: never in front of a grown-up's face — lowered until the face is clear
+        mt = ip_top(p) if p.pose != "bundle" else (p.headc[0], p.headc[1] + p.d["head"] * 0.4)
+        mt = (mt[0], mt[1] - p.d["head"] * 1.3)   # the sprig stands above the crown
+        for (fx, fy), R, _f in AVOID:
+            # in front of the face (across it, not beside it): drop until the sprig is below the eye
+            if abs(mt[0] - fx) < R * 1.1 and mt[1] < fy + R * 0.5:
+                root.location = (root.location[0], root.location[1], root.location[2] - L(fy + R * 0.5 - mt[1]))
         if e in ("talk", "sing", "wow", "laugh") and not asleep:
             mz = ip3d.MOSS["cz"] + 0.05
             m = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.05, 0.02, 0.04 if e != "talk" else 0.03), MATS.setdefault("mouth", rubber("mouthm", "#5B2A2A", rough=0.7)))
