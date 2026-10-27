@@ -64,6 +64,14 @@ def mix(hexc, t, to="#FFFFFF"):
     return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(a, b))
 def dark(c, t=0.18): return mix(c, t, "#3A2418")
 def light(c, t=0.35): return mix(c, t, "#FFFFFF")
+def vivid(c, k=1.22):
+    """The same colour, more saturated (the 2D style's rich colour), lightness kept."""
+    import colorsys
+    if not (isinstance(c, str) and c.startswith("#") and len(c) == 7): return c
+    r, g, b = (int(c[i:i + 2], 16) / 255 for i in (1, 3, 5))
+    h, l, s_ = colorsys.rgb_to_hls(r, g, b)
+    r, g, b = colorsys.hls_to_rgb(h, l, min(1.0, s_ * k))
+    return "#%02X%02X%02X" % (round(r * 255), round(g * 255), round(b * 255))
 
 class SVG:
     def __init__(s, w=W, h=H): s.w, s.h, s.defs, s.body, s.n = w, h, [], [], 0
@@ -72,11 +80,24 @@ class SVG:
     def lin(s, c, angle=135):
         i = s.id(); r = math.radians(angle)
         x1, y1 = 0.5 - math.cos(r) / 2, 0.5 - math.sin(r) / 2
+        if FLAT:
+            # jelly: a bright lit side, the colour at full strength, a deeper core, and light glowing back out at the
+            # far edge, as through a soft translucent sweet
+            c = vivid(c)
+            s.defs.append(f'<linearGradient id="{i}" x1="{x1:.2f}" y1="{y1:.2f}" x2="{1 - x1:.2f}" y2="{1 - y1:.2f}">'
+                          f'<stop offset="0" stop-color="{light(c, .42)}"/><stop offset=".3" stop-color="{c}"/><stop offset=".78" stop-color="{dark(c, .13)}"/>'
+                          f'<stop offset="1" stop-color="{light(c, .18)}"/></linearGradient>')
+            return f"url(#{i})"
         s.defs.append(f'<linearGradient id="{i}" x1="{x1:.2f}" y1="{y1:.2f}" x2="{1 - x1:.2f}" y2="{1 - y1:.2f}">'
                       f'<stop offset="0" stop-color="{light(c, .28)}"/><stop offset=".55" stop-color="{c}"/><stop offset="1" stop-color="{dark(c, .16)}"/></linearGradient>')
         return f"url(#{i})"
     def rad(s, c):
         i = s.id()
+        if FLAT:
+            c = vivid(c)
+            s.defs.append(f'<radialGradient id="{i}" cx=".36" cy=".3" r=".78"><stop offset="0" stop-color="{light(c, .5)}"/>'
+                          f'<stop offset=".35" stop-color="{c}"/><stop offset=".85" stop-color="{dark(c, .12)}"/><stop offset="1" stop-color="{light(c, .16)}"/></radialGradient>')
+            return f"url(#{i})"
         s.defs.append(f'<radialGradient id="{i}" cx=".38" cy=".34" r=".75"><stop offset="0" stop-color="{light(c, .3)}"/>'
                       f'<stop offset=".6" stop-color="{c}"/><stop offset="1" stop-color="{dark(c, .14)}"/></radialGradient>')
         return f"url(#{i})"
@@ -102,6 +123,14 @@ def limb(s, pts, w, c, cap=True):
     o = w * 0.14
     d2 = "M" + " L".join(f"{x - o:.1f} {y - o:.1f}" for x, y in pts)
     s.add(f'<path d="{d2}" fill="none" stroke="{light(c, .16)}" stroke-width="{w * .52:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".8"/>')
+    if FLAT:
+        # jelly: a glossy streak along the lit side of the tube, and light glowing through the shaded edge
+        o2 = w * 0.24
+        d3 = "M" + " L".join(f"{x - o2:.1f} {y - o2:.1f}" for x, y in pts)
+        s.add(f'<path d="{d3}" fill="none" stroke="#FFFFFF" stroke-width="{w * .16:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".5"/>')
+        o3 = w * 0.3
+        d4 = "M" + " L".join(f"{x + o3:.1f} {y + o3:.1f}" for x, y in pts)
+        s.add(f'<path d="{d4}" fill="none" stroke="{light(vivid(c), .3)}" stroke-width="{w * .1:.1f}" stroke-linecap="round" stroke-linejoin="round" opacity=".45"/>')
 
 def ik(shoulder, target, a, b, bend):
     """Two-bone reach: where the elbow goes for the hand to reach target (or as near as it can)."""
@@ -294,6 +323,8 @@ class Person:
         if s.hair == "bun":
             sv.add(f'<circle cx="{c[0] - f * r * .72:.1f}" cy="{c[1] - r * .62:.1f}" r="{r * .42:.1f}" fill="{sv.rad(hair)}"/>')
         sv.add(f'<circle cx="{c[0]:.1f}" cy="{c[1]:.1f}" r="{r:.1f}" fill="{sv.rad(s.skin)}"/>')
+        if FLAT:   # jelly: a soft gloss on the forehead's lit side
+            sv.add(f'<ellipse cx="{c[0] + f * r * .28:.1f}" cy="{c[1] - r * .5:.1f}" rx="{r * .26:.1f}" ry="{r * .14:.1f}" fill="#FFFFFF" opacity=".42" transform="rotate({-25 * f:.0f} {c[0] + f * r * .28:.1f} {c[1] - r * .5:.1f})"/>')
         # hair cap over the top and back
         if s.hair == "bob":
             # a toddler's soft hair: a small cap at the back and top, a curl standing up
@@ -928,7 +959,16 @@ def finish2d(im, figs_svg, width):
     out = im.convert("RGBA")
     col = Image.new("RGBA", im.size, (84, 54, 30, 0)); col.putalpha(ring.point(lambda v: int(v * 0.42)))
     out.alpha_composite(col)
-    rgb = ImageEnhance.Color(ImageEnhance.Contrast(out.convert("RGB")).enhance(1.06)).enhance(1.08)
+    # the jelly: a soft bright rim along every top-left edge (light catching a glossy surface) and a faint deeper
+    # shade along the bottom-right ones — a little volume, still drawn
+    d = max(3, int(width / 1440 * 7))
+    tl = ImageChops.subtract(a, ImageChops.offset(a, d, d)).filter(ImageFilter.GaussianBlur(d * 0.6))
+    br = ImageChops.subtract(a, ImageChops.offset(a, -d, -d)).filter(ImageFilter.GaussianBlur(d * 0.8))
+    tl = ImageChops.multiply(tl, a); br = ImageChops.multiply(br, a)
+    hi = Image.new("RGBA", im.size, (255, 255, 255, 0)); hi.putalpha(tl.point(lambda v: int(v * 0.42)))
+    lo = Image.new("RGBA", im.size, (60, 30, 40, 0)); lo.putalpha(br.point(lambda v: int(v * 0.16)))
+    out.alpha_composite(lo); out.alpha_composite(hi)
+    rgb = ImageEnhance.Color(ImageEnhance.Contrast(out.convert("RGB")).enhance(1.06)).enhance(1.14)
     if im.size not in _GRAIN:
         n = Image.effect_noise(im.size, 22).filter(ImageFilter.GaussianBlur(0.5))
         _GRAIN[im.size] = n.point(lambda v: 255 - int(max(0, 128 - v) * 0.10))
