@@ -117,6 +117,8 @@ struct IconTile: View {
         // a few marks share one object (export and import in one row are still the parcel going out)
         let alias = ["square.and.arrow.up.on.square": "square.and.arrow.up", "list.bullet.clipboard": "list.bullet.clipboard.fill"]
         let n = "ic_" + (alias[symbol] ?? symbol).replacingOccurrences(of: ".", with: "_") + ".webp"
+        // in the hidden 2D world, only the stickers build 196 had; the rest are drawn as symbol tiles, as then
+        if ArtStyle.current == .flat { return ArtIndex.shared.size["2d_" + n] == nil ? nil : n }
         return ArtIndex.shared.size[n] == nil ? nil : n
     }
 
@@ -513,6 +515,9 @@ struct SectionTitle: View {
 struct GoldBead: View {
     var size: CGFloat = 10
     var body: some View {
+        if ArtStyle.current != .flat { bead }
+    }
+    private var bead: some View {
         Circle()
             .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.7))
             .overlay(Circle().fill(.white.opacity(0.7)).frame(width: size * 0.28, height: size * 0.28).offset(x: -size * 0.16, y: -size * 0.18))
@@ -533,10 +538,19 @@ struct PrintCard: ViewModifier {
     /// lighter at the top, a soft lit edge along the top rim, the faintest shade toward the bottom), sitting on the
     /// page with a small contact shadow and a wide soft one — no gloss, no hard border. The shadows are cast by the
     /// card's own shape behind the content (not by the content), so scrolling never has to redraw them off-screen.
+    @ViewBuilder
     func body(content: Self.Content) -> some View {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         let dark = lamp || scheme == .dark
         let base = lamp ? Palette.lampCard : fill
+        if ArtStyle.current == .flat {
+            // build 196: one flat colour of paper, a soft shadow
+            content
+                .background { ZStack { base; Grain(dark: dark, strength: 0.6) }.clipShape(shape) }
+                .clipShape(shape)
+                .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
+                .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)
+        } else {
         content
             .background {
                 ZStack {
@@ -560,6 +574,7 @@ struct PrintCard: ViewModifier {
                     .allowsHitTesting(false)
             }
             .contentShape(shape)
+        }
     }
 }
 
@@ -591,14 +606,19 @@ struct VinylSurface: ViewModifier {
     var strong = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @ViewBuilder
     func body(content: Self.Content) -> some View {
         let dark = lamp || scheme == .dark
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
+        if ArtStyle.current == .flat {
+            content.background(shape.fill(strong ? tint : tint.opacity(dark ? 0.2 : 0.12)))
+        } else {
         content.background {
             shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
                 .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? 0.26 : (dark ? 0.06 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
                 .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.14 : 0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 .shadow(color: (strong ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (strong ? 0.3 : 0.08)), radius: strong ? 5 : 2, y: strong ? 3 : 1)
+        }
         }
     }
 }
@@ -617,11 +637,23 @@ struct VinylButton: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @ViewBuilder
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
         let body = prominent ? tint : tint.opacity(dark ? 0.26 : 0.16)
         let ink: Color = prominent ? .white : Crayon.ink(tint)
         let shape = Capsule(style: .continuous)
+        if ArtStyle.current == .flat {
+            // build 196: the system's tinted capsule
+            configuration.label
+                .font((large ? Font.body : Font.subheadline).weight(.semibold))
+                .foregroundStyle(ink)
+                .padding(.horizontal, large ? 22 : 14).padding(.vertical, large ? 14 : 8)
+                .frame(minHeight: 44)
+                .background(shape.fill(prominent ? tint : tint.opacity(dark ? 0.22 : 0.14)))
+                .contentShape(shape)
+                .opacity(enabled ? (configuration.isPressed ? 0.6 : 1) : 0.45)
+        } else {
         configuration.label
             .font((large ? Font.body : Font.subheadline).weight(.semibold))
             .foregroundStyle(ink)
@@ -638,6 +670,7 @@ struct VinylButton: ButtonStyle {
             .scaleEffect(x: configuration.isPressed ? 1.03 : 1, y: configuration.isPressed ? 0.93 : 1, anchor: .bottom)
             .animation(.spring(response: 0.22, dampingFraction: 0.5), value: configuration.isPressed)
             .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: configuration.isPressed) { _, new in new }
+        }
     }
 }
 extension ButtonStyle where Self == VinylButton {

@@ -52,6 +52,12 @@ struct Creature: View {
     private var still: Bool { !alive || reduce }
 
     var body: some View {
+        if ArtStyle.current == .flat {
+            FlatCreature(kind: kind, mood: mood, look: look, lid: lid, lean: lean, alive: alive, poke: poke, label: label, arms: arms, glow: glow)
+        } else { vinyl }
+    }
+
+    @ViewBuilder private var vinyl: some View {
         // 30 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
         TimelineView(.animation(minimumInterval: 1.0 / 30, paused: still || !onScreen)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
@@ -283,6 +289,12 @@ struct Duo: View {
     }
 
     var body: some View {
+        if ArtStyle.current == .flat {
+            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night)
+        } else { vinyl }
+    }
+
+    @ViewBuilder private var vinyl: some View {
         let small = Self.behind(primary, size)
         // feet on one floor line, the one behind a little further back (higher)
         let lift = size * (1 - Self.feet(primary)) - small * (1 - Self.feet(primary.other)) + size * 0.03

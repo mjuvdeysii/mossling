@@ -195,7 +195,8 @@ private struct StepCard: View {
                             Text(text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
                         HStack(alignment: .bottom) {
-                            Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived)
+                            // in the 2D world (build 196) the two are inside the pictures, as they were then
+                            if ArtStyle.current != .flat { Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived) }
                             Spacer(minLength: 8)
                             Button(action: next) {
                                 Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")

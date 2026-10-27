@@ -92,7 +92,7 @@ struct StagePlate: View {
     var body: some View {
         GeometryReader { g in
             ZStack {
-                if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+                if let img, ArtStyle.current != .flat { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
                 else { Sky(hour: night ? 22 : 12) }
             }
             .frame(width: g.size.width, height: g.size.height)

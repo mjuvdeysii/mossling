@@ -107,23 +107,30 @@ struct RootView: View {
         }
     }
 
+    /// The tab's mark: the vinyl icon, or in the hidden 2D world (build 196) the system symbol it had then.
+    private func tabLabel(_ t: String, _ image: String, _ symbol: String) -> Label<Text, Image> {
+        ArtStyle.current == .flat ? Label(t, systemImage: symbol) : Label(t, image: image)
+    }
+
     private var tabView: some View {
         TabView(selection: $tab) {
-            Tab("本月", image: "TabMonth", value: 0) {
+            Tab(value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
                     .environment(\.night, night || scheme == .dark)
-            }
+            } label: { tabLabel("本月", "TabMonth", "leaf.fill") }
             if app.journal {
-                Tab("记录", image: "TabJournal", value: 2) {
+                Tab(value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
-                }
+                } label: { tabLabel("记录", "TabJournal", "list.bullet.clipboard.fill") }
             }
-            Tab("我的", image: "TabMe", value: 3) {
+            Tab(value: 3) {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
-            }
+            } label: { tabLabel("我的", "TabMe", "person.crop.circle.fill") }
         }
         // a change of drawing style redraws every picture and icon at once
         .id(app.artStyle)
+        // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
+        .overlay { StyleShiftOverlay() }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
             TimerScreen(type: w.id).lampPresented()
