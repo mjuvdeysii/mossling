@@ -52,8 +52,9 @@ final class AppModel {
         birth = ((d.object(forKey: "birth") as? Int) ?? d.string(forKey: "birth").flatMap { Int($0) }).map { Day(epochDay: $0) }
         companion = Kind(rawValue: d.string(forKey: "companion") ?? "") ?? .moss
         theme = ThemeMode(rawValue: d.string(forKey: "theme") ?? "") ?? .system
-        artStyle = ArtStyle(rawValue: d.string(forKey: "artStyle") ?? "") ?? .vinyl
-        ArtStyle.current = artStyle
+        let style = ArtStyle(rawValue: d.string(forKey: "artStyle") ?? "") ?? .vinyl
+        artStyle = style
+        ArtStyle.current = style
         onboarded = d.bool(forKey: "onboarded")
         skipDay = (d.object(forKey: "skipDay") as? Int) ?? -1
         pick = d.string(forKey: "pick") ?? ""
