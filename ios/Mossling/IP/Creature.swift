@@ -159,7 +159,12 @@ struct Creature: View {
     /// Feet line in the square (from the renders), where squash and stretch are anchored and the shadow sits.
     private var feet: CGFloat { kind == .moss ? Sprites.mossFeet : Sprites.ottoFeet }
 
+    /// The decoded states, kept for the life of the app: every companion on every page shares them, so a page never
+    /// waits for (or redraws after) its companions' pictures.
+    nonisolated(unsafe) private static var shared: [Kind: [String: UIImage]] = [:]
+
     private func loadSprites() async {
+        if let have = Self.shared[kind] { sprites = have; return }
         let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
         let names = Self.states[kind] ?? []
         let loaded: [String: UIImage] = await Task.detached(priority: .userInitiated) {
@@ -167,6 +172,7 @@ struct Creature: View {
             for s in names { if let i = ArtCache.shared.image(prefix + s + ".webp", maxPixel: 512) { d[s] = i } }
             return d
         }.value
+        Self.shared[kind] = loaded
         sprites = loaded
     }
 
@@ -198,6 +204,7 @@ struct Creature: View {
         let yawning = !still && now.timeIntervalSince(yawnAt) < 1.7
         let st = Self.state(kind, face: face, look: e, lid: patted ? 0 : l, hopping: hop > 0.15 || (arms == .cheer && !still), yawning: yawning)
         let box = CGRect(x: 0, y: 0, width: 100, height: 100)
+        let sprites = self.sprites.isEmpty ? (Self.shared[kind] ?? [:]) : self.sprites
         if let img = sprites[st] ?? sprites["idle"] {
             ctx.draw(Image(uiImage: img), in: box)
         }

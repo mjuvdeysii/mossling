@@ -245,7 +245,7 @@ struct DayAir: View {
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 15, paused: reduce)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 10, paused: reduce)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in   // drawn off the main thread: the page scrolls freely over it
                 let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
                 sun(&ctx, size, t)
@@ -563,9 +563,9 @@ struct PrintCard: ViewModifier {
             }
             .clipShape(shape)
             .background {
+                // one soft shadow (two blurred passes per card cost every frame of a scroll or a page transition)
                 shape.fill(base)
-                    .shadow(color: dark ? .clear : Color(hex: 0x7A5230).opacity(0.07), radius: 1.5, y: 1)
-                    .shadow(color: dark ? .black.opacity(0.25) : Color(hex: 0x7A5230).opacity(0.10), radius: 16, y: 8)
+                    .shadow(color: dark ? .black.opacity(0.22) : Color(hex: 0x7A5230).opacity(0.12), radius: 10, y: 5)
             }
             .overlay {
                 // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece

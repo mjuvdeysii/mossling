@@ -276,10 +276,13 @@ struct Figure: View {
         let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
             // Color.clear keeps the view non-empty so its task runs before the image exists
-            ZStack { Color.clear; if let img { Image(uiImage: img).resizable().scaledToFit() } }
+            let px = Int(max(g.size.width, g.size.height) * scale)
+            let ready = img ?? ArtCache.shared.cached(shown, maxPixel: px)
+            ZStack { Color.clear; if let ready { Image(uiImage: ready).resizable().scaledToFit() } }
                 .frame(width: g.size.width, height: g.size.height)
                 .task(id: shown) {
-                    let px = Int(max(g.size.width, g.size.height) * scale), n = shown
+                    if ArtCache.shared.cached(shown, maxPixel: px) != nil { return }
+                    let n = shown
                     img = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 }
         }

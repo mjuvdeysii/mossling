@@ -22,12 +22,23 @@ enum ArtStyle: String, CaseIterable {
 final class ArtCache {
     static let shared = ArtCache()
     private let cache = NSCache<NSString, UIImage>()
-    init() { cache.totalCostLimit = 48 * 1024 * 1024 }
+    // enough for a page of pictures and the page behind it, so going back never decodes them again
+    init() { cache.totalCostLimit = 160 * 1024 * 1024 }
+
+    private static func key(_ name: String, _ maxPixel: Int) -> NSString {
+        let bucket = max(256, 1 << Int(ceil(log2(Double(max(1, maxPixel))))))
+        return "\(name)@\(bucket)" as NSString
+    }
+
+    /// The picture if it is already decoded, without decoding: for drawing at once, with no placeholder and no fade.
+    func cached(_ asked: String, maxPixel: Int) -> UIImage? {
+        cache.object(forKey: Self.key(ArtStyle.resolve(asked), maxPixel))
+    }
 
     func image(_ asked: String, maxPixel: Int) -> UIImage? {
         let name = ArtStyle.resolve(asked)
         let bucket = max(256, 1 << Int(ceil(log2(Double(max(1, maxPixel))))))
-        let key = "\(name)@\(bucket)" as NSString
+        let key = Self.key(name, maxPixel)
         if let i = cache.object(forKey: key) { return i }
         guard let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "art"),
               let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -61,14 +72,17 @@ struct ArtView: View {
     var body: some View {
         let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
+            let px = Int(g.size.width * scale)
+            // already decoded (coming back to a page): drawn at once, no placeholder, no fade
+            let ready = img ?? ArtCache.shared.cached(shown, maxPixel: px)
             ZStack {
                 Palette.fill
-                if let img { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+                if let ready { Image(uiImage: ready).resizable().scaledToFill().transition(.opacity) }
                 NightDim()
             }
             .frame(width: g.size.width, height: g.size.height)
             .task(id: shown) {
-                let px = Int(g.size.width * scale)
+                if ArtCache.shared.cached(shown, maxPixel: px) != nil { return }
                 let n = shown
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.18)) { img = i }
