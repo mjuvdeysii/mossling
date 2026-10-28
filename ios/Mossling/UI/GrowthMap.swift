@@ -405,6 +405,8 @@ struct GrowthMap: View {
             arrived += 1
         }
         .sensoryFeedback(.selection, trigger: preview)
+        // crossing into a new year (出生, 1 岁, 2 岁, 3 岁) is felt more than a month
+        .sensoryFeedback(.impact(weight: .medium), trigger: MapGeo.row(preview))
         .sensoryFeedback(.success, trigger: arrived)
         .sensoryFeedback(.impact(weight: .light), trigger: giggles)
     }
