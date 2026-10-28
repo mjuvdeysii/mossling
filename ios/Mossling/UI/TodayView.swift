@@ -179,6 +179,7 @@ private struct MonthCard: View {
 struct PlaysLeadGrid: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.dynamicTypeSize) private var type
     let plays: [Play], month: Int
     var body: some View {
         // a stable order: not yet done first, then the fewest times
@@ -186,9 +187,14 @@ struct PlaysLeadGrid: View {
             let x = app.record(a.element, j).count, y = app.record(b.element, j).count
             return x != y ? x < y : a.offset < b.offset
         }.map(\.element)
-        LeadGrid(items: ordered) { PlayTileLink(play: $0, month: month, form: .lead) }
-            cell: { PlayTileLink(play: $0, month: month) }
-            row: { PlayTileLink(play: $0, month: month, form: .row) }
+        // two to a row, all alike (no full-width lead picture): a month's plays read in one screen
+        if type.isAccessibilitySize {
+            VStack(spacing: 10) { ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .row) } }
+        } else {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(ordered) { PlayTileLink(play: $0, month: month) }
+            }
+        }
     }
 }
 
