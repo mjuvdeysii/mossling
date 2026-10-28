@@ -394,6 +394,16 @@ struct GrowthMap: View {
         }
         .printCard(radius: 30)
         .onChange(of: month) { _, v in if preview != v { preview = v } }
+        // a new month since the map was last opened: Moss is on last month's stone, and hops on to the new one
+        .task {
+            let seen = UserDefaults.standard.object(forKey: "mapSeenMonth") as? Int
+            UserDefaults.standard.set(baby, forKey: "mapSeenMonth")
+            guard let seen, seen < baby, month == baby, !reduce else { return }
+            preview = max(0, baby - 1)
+            try? await Task.sleep(for: .milliseconds(650))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.6)) { preview = baby }
+            arrived += 1
+        }
         .sensoryFeedback(.selection, trigger: preview)
         .sensoryFeedback(.success, trigger: arrived)
         .sensoryFeedback(.impact(weight: .light), trigger: giggles)
