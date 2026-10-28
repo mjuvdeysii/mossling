@@ -719,33 +719,54 @@ def cast_role(s):
     who = getattr(s, "who", None)
     return {"child": "moss", "adult": "otto", "peer": "mosto", "adult2": "mochi"}.get(who, "moss" if s.kind == "child" else "otto")
 
-def cast_frame(s):
-    """The body's line: base point, unit up vector (page coordinates, y down), its height."""
-    a, b, r = s.hip, s.headc, s.d["head"]
-    ux, uy = b[0] - a[0], b[1] - a[1]; n = max(1e-4, math.hypot(ux, uy))
-    adult = s.kind == "adult"
-    tilt = 0.28 if adult else 0.62
-    ang = max(-tilt, min(tilt, math.atan2(ux / n, -uy / n)))
-    vx, vy = math.sin(ang), -math.cos(ang)
-    span = n + r * 1.05
-    role = cast_role(s)
-    H = span if adult else span * (1.0 / 1.05 * 1.25 if role == "mosto" else 1.25)
-    if s.pose == "bundle": H = span * 0.72 / 1.25 * 1.25 * 0.58
-    base = 0.45 if adult else 0.35
-    return (a[0] - vx * r * base, a[1] - vy * r * base), (vx, vy), H, ang
+CAST_PEOPLE = {}   # this picture's people by role key ("adult", "child", …), for placing one beside another
 
-def cast_face(s):
-    if s.pose == "bundle": return s.headc
-    (bx, by), (vx, vy), H, _ = cast_frame(s)
-    return (bx + vx * H * 0.58, by + vy * H * 0.58)
+def cast_place(s):
+    """Where a character of the cast stands and how: (x, y, H, deg, squash). The cast are not people: no long limbs,
+    no kneeling or sitting cross-legged — they stand on the floor in their own shape (Moss a soft stone on short
+    legs, Otto a tall lamp that leans toward Moss and turns his lamp head), at the rig's place; the rig's pose only
+    colours how they stand (a crawl leans forward, tummy time squashes a little, a chair seats them)."""
+    role = cast_role(s); age = getattr(s, "age", 12)
+    if role == "moss": H = 100 * (0.8 + 0.3 * min(36, age) / 36)
+    elif role == "mosto": H = 98
+    elif role == "otto": H = 170
+    else: H = 165
+    if s.pose == "bundle": H *= 0.72
+    x = (s.hip[0] + s.headc[0]) / 2 if s.pose != "bundle" else s.bundle_c[0]
+    y = GROUND
+    if s.pose == "chair": y = s.hip[1] + s.d["lw"] * 0.4
+    held = s.pose == "bundle" or (s.kind == "child" and s.hip[1] < GROUND - 120)
+    if held and "adult" in CAST_PEOPLE:
+        # a held baby sits on the floor right beside the grown-up, on the side it faces
+        a = CAST_PEOPLE["adult"]; ax = (a.hip[0] + a.headc[0]) / 2
+        x = ax + a.f * (170 * 0.64 / 2 + H / 1.72 * 1.05 + 30); y = GROUND
+    # never cut by the picture's edge
+    half = H * (0.62 if role in ("moss", "mosto") else 0.4) * (1.5 if role == "mosto" else 1.0)
+    z, c0 = VIEW["z"], VIEW["cx"]
+    x = min(max(x, c0 - c0 / z + half + 6), c0 + (W - c0) / z - half - 6)
+    deg, sq = 0.0, 1.0
+    if role in ("otto", "mochi"): deg = 10 * s.f
+    elif s.pose == "crawl": deg = 16 * s.f
+    elif s.pose in ("walk", "run"): deg = 6 * s.f
+    elif s.pose == "prone": sq = 0.86; deg = 8 * s.f
+    elif s.pose == "lieback": sq = 0.9; deg = -8 * s.f
+    return x, y, H, deg, sq
 
-def cast_top(s):
-    if s.pose == "bundle": return (s.headc[0], s.headc[1] - s.d["head"])
-    (bx, by), (vx, vy), H, _ = cast_frame(s)
-    return (bx + vx * H * 0.9, by + vy * H * 0.9)
+def cast_point(s, k):
+    """A point k of the way up the character's body (0 the base, 1 the crown), leaning with it."""
+    x, y, H, deg, sq = cast_place(s); r = math.radians(deg)
+    return (x + math.sin(r) * H * k * sq, y - math.cos(r) * H * k * sq)
 
+def cast_face(s): return cast_point(s, 0.6 if cast_role(s) in ("moss", "mosto") else 0.58)
+def cast_top(s): return cast_point(s, 0.95)
 def cast_head(s):
-    t = cast_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
+    t = cast_top(s); return (t[0], t[1] - 6)
+def cast_hold(s):
+    """Where a held thing goes: in front of Moss, hugged at mid height; for a grown-up, set down on the floor in
+    front of it, toward the child (Otto has no hands — he brings things by leaning and lighting them)."""
+    x, y, H, deg, sq = cast_place(s)
+    if s.kind == "child": return (x + s.f * H * 0.42, y - H * 0.42)
+    return (x + s.f * H * 0.42, GROUND)
 
 def _look(s):
     t = s.look if isinstance(s.look, (tuple, list)) and len(s.look) == 2 and all(isinstance(v, (int, float)) for v in s.look) else None
@@ -762,48 +783,21 @@ def _eye(sv, x, y, rx, ry, look, shut=False):
     sv.add(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="{min(rx, ry) * .62:.1f}" fill="{INK}"/><circle cx="{px - rx * .2:.1f}" cy="{py - ry * .25:.1f}" r="{min(rx, ry) * .2:.1f}" fill="#FFFFFF"/>')
 
 def draw_cast(s, sv):
-    role = cast_role(s); d = s.d; r = d["head"]
+    role = cast_role(s); r = s.d["head"]
     shut = s.expr in ("sleep", "calm") or s.pose == "bundle"
     look = _look(s)
+    x, y, H, deg, sq = cast_place(s)
     body = {"moss": "#55703F", "mosto": "#5E43A0", "otto": "#22386E", "mochi": "#F4E4CF"}[role]
-    limbc = {"moss": "#4A6337", "mosto": "#523A8E", "otto": "#1C2F5E", "mochi": "#E9D5BB"}[role]
-    (bx, by), (vx, vy), H, ang = cast_frame(s)
-    low = 0.45 if role == "otto" else 0.0
-    lw = r * (0.42 if role == "otto" else 0.4)
-    def arm(k):
-        shp, el, hd = s.arms[k]
-        if low:
-            shp = (shp[0] + (s.hip[0] - shp[0]) * low, shp[1] + (s.hip[1] - shp[1]) * low)
-            el = (el[0] + (s.hip[0] - el[0]) * low * .5, el[1] + (s.hip[1] - el[1]) * low * .5)
-        c = limbc if k == 0 else dark(limbc, .1)
-        limb(sv, [shp, el, hd], lw, c); sv.add(f'<circle cx="{hd[0]:.1f}" cy="{hd[1]:.1f}" r="{r * .3:.1f}" fill="{sv.rad(c)}"/>')
-    if s.pose != "bundle":
-        for k in (1, 0):
-            knee, foot = s.legs[k]
-            c = "#15264D" if role == "otto" else "#C9604F" if role == "mochi" else limbc
-            limb(sv, [s.hip, knee, foot], lw * 1.1, c if k == 0 else dark(c, .1))
-            sv.add(f'<ellipse cx="{foot[0] + s.f * r * .14:.1f}" cy="{foot[1] + r * .06:.1f}" rx="{r * .36:.1f}" ry="{r * .22:.1f}" fill="#22231F"/>')
-        arm(1)
-        if role in ("moss", "mosto", "mochi"): arm(0)   # short arms from behind the round body, never across the face
-    else:
-        c = s.bundle_c; Lb = d["torso"] * 1.9; w = d["tw"] * 1.25
-        sv.add(f'<g transform="translate({c[0]:.1f} {c[1] + r * .5:.1f}) rotate({s.bundle_a:.1f})"><rect x="{-Lb / 2:.1f}" y="{-w / 2:.1f}" width="{Lb:.1f}" height="{w:.1f}" rx="{w / 2:.1f}" fill="{sv.lin("#F6D58C", 120)}"/></g>')
-    # the body, along its line
-    deg = math.degrees(ang)
+    sv.shadow(x, GROUND + 3 if y >= GROUND - 2 else y + 3, H * (0.42 if role in ("moss", "mosto") else 0.36), 8, .2)
+    sv.add(f'<g transform="rotate({deg:.1f} {x:.1f} {y:.1f}) translate({x:.1f} {y:.1f}) scale(1 {sq:.2f}) translate({-x:.1f} {-y:.1f})">')
     if role in ("moss", "mosto"):
-        R = H / 1.8
-        cx, cy = bx + vx * R * .85, by + vy * R * .85
-        if s.pose == "bundle": cx, cy = s.headc[0], s.headc[1] + r * 1.4; R = r * .95
-        # carried or held up close: never across a grown-up's face — lowered until the sprig is below the eye
-        for fx, fy, FR, _f in CAST_FACES:
-            tip = cy - R * 1.45
-            if abs(cx - fx) < FR * 1.1 and tip < fy + FR * .5: cy += fy + FR * .5 - tip
-        # never cut by the picture's edge
-        z, c0 = VIEW["z"], VIEW["cx"]
-        x0, x1 = c0 - c0 / z + R * 1.5, c0 + (W - c0) / z - R * 1.5
-        cx = min(max(cx, x0), x1)
-        g = f'<g transform="rotate({deg:.1f} {cx:.1f} {cy:.1f})">'
-        sv.add(g)
+        R = H / 1.72
+        cx, cy = x, y - R * 0.95
+        if s.pose == "bundle":
+            sv.add(f'<path d="M{cx - R * 1.15:.1f} {y:.1f} Q{cx - R * 1.2:.1f} {cy:.1f} {cx:.1f} {cy + R * .1:.1f} Q{cx + R * 1.2:.1f} {cy:.1f} {cx + R * 1.15:.1f} {y:.1f} Z" fill="{sv.lin("#F6D58C", 120)}"/>')
+        for sx in (-1, 1):   # the short dark legs and feet
+            sv.add(f'<rect x="{cx + sx * R * .36 - R * .1:.1f}" y="{y - R * .3:.1f}" width="{R * .2:.1f}" height="{R * .26:.1f}" rx="{R * .1:.1f}" fill="#22231F"/>')
+            sv.add(f'<ellipse cx="{cx + sx * R * .38 + s.f * R * .06:.1f}" cy="{y - R * .04:.1f}" rx="{R * .2:.1f}" ry="{R * .09:.1f}" fill="#22231F"/>')
         sv.add(f'<path d="M{cx - R * 1.02:.1f} {cy + R * .45:.1f} C{cx - R * 1.1:.1f} {cy - R * .55:.1f} {cx - R * .5:.1f} {cy - R * .95:.1f} {cx:.1f} {cy - R * .95:.1f} C{cx + R * .55:.1f} {cy - R * .95:.1f} {cx + R * 1.1:.1f} {cy - R * .5:.1f} {cx + R * 1.02:.1f} {cy + R * .45:.1f} C{cx + R * .9:.1f} {cy + R * .85:.1f} {cx - R * .9:.1f} {cy + R * .85:.1f} {cx - R * 1.02:.1f} {cy + R * .45:.1f} Z" fill="{sv.rad(body)}"/>')
         sv.add(f'<ellipse cx="{cx - R * .4:.1f}" cy="{cy - R * .5:.1f}" rx="{R * .32:.1f}" ry="{R * .16:.1f}" fill="#FFFFFF" opacity=".16" transform="rotate(-20 {cx - R * .4:.1f} {cy - R * .5:.1f})"/>')
         if role == "moss":
@@ -826,34 +820,39 @@ def draw_cast(s, sv):
             sv.add(f'<path d="M{cx + R * .02:.1f} {cy + R * .08:.1f} l{R * .05:.1f} {R * .1:.1f} l{R * .05:.1f} {-R * .1:.1f}Z" fill="#FFFFFF"/>')
         elif s.expr in ("talk", "sing", "wow", "laugh") and not shut:
             sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy + R * .12:.1f}" rx="{R * .08:.1f}" ry="{R * .07:.1f}" fill="#5B2A2A"/>')
-        sv.add('</g>')
+        if getattr(s, "holding", False):
+            # a pair of small round hands, out only to hold something
+            for dy in (-0.05, 0.25):
+                sv.add(f'<circle cx="{cx + s.f * R * .78:.1f}" cy="{cy + R * dy:.1f}" r="{R * .15:.1f}" fill="{sv.rad(dark(body, .05))}"/>')
     elif role == "otto":
         w = H * 0.64
-        cx, cy = bx + vx * H * .5, by + vy * H * .5
-        sv.add(f'<g transform="rotate({deg:.1f} {cx:.1f} {cy:.1f})">')
-        top, bot = cy - H * .5, cy + H * .5
+        cx, top, bot = x, y - H, y
+        for sx in (-1, 1):   # short dark legs and feet
+            sv.add(f'<rect x="{cx + sx * w * .2 - w * .06:.1f}" y="{bot - w * .2:.1f}" width="{w * .12:.1f}" height="{w * .16:.1f}" rx="{w * .06:.1f}" fill="#22231F"/>')
+            sv.add(f'<ellipse cx="{cx + sx * w * .22 + s.f * w * .04:.1f}" cy="{bot - w * .03:.1f}" rx="{w * .12:.1f}" ry="{w * .05:.1f}" fill="#22231F"/>')
+        bot -= w * .1
         sv.add(f'<path d="M{cx - w / 2:.1f} {bot - w * .2:.1f} V{top + w * .55:.1f} A{w / 2:.1f} {w * .55:.1f} 0 0 1 {cx + w / 2:.1f} {top + w * .55:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="{sv.lin("#2A4580", 120)}"/>')
-        sv.add(f'<path d="M{cx - w / 2:.1f} {bot - H * .32:.1f} H{cx + w / 2:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="#15264D"/>')
+        sv.add(f'<path d="M{cx - w / 2:.1f} {bot - H * .3:.1f} H{cx + w / 2:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="#15264D"/>')
         sv.add(f'<ellipse cx="{cx - w * .2:.1f}" cy="{top + w * .4:.1f}" rx="{w * .14:.1f}" ry="{w * .24:.1f}" fill="#FFFFFF" opacity=".1"/>')
-        # the rod from the crown, arching forward, the bead (unlit by day)
         f = s.f; rt = top + 2
-        sv.add(f'<path d="M{cx:.1f} {rt:.1f} C{cx:.1f} {rt - H * .42:.1f} {cx - f * w * .9:.1f} {rt - H * .5:.1f} {cx - f * w * .85:.1f} {rt - H * .1:.1f}" stroke="#1C2F5E" stroke-width="{max(2.5, w * .05):.1f}" fill="none" stroke-linecap="round"/>')
-        sv.add(f'<circle cx="{cx - f * w * .85:.1f}" cy="{rt - H * .06:.1f}" r="{w * .1:.1f}" fill="{sv.rad("#D4A21C")}"/>')
-        ey = top + H * .44
-        _eye(sv, cx, ey, w * .26, w * .22, look, shut)
-        if not shut: sv.add(f'<path d="M{cx - w * .3:.1f} {ey - w * .14:.1f} Q{cx:.1f} {ey - w * .3:.1f} {cx + w * .3:.1f} {ey - w * .14:.1f}" fill="#22386E" opacity=".85"/>')
+        sv.add(f'<path d="M{cx:.1f} {rt:.1f} C{cx:.1f} {rt - H * .34:.1f} {cx + f * w * .7:.1f} {rt - H * .4:.1f} {cx + f * w * .66:.1f} {rt - H * .1:.1f}" stroke="#1C2F5E" stroke-width="{max(2.5, w * .05):.1f}" fill="none" stroke-linecap="round"/>')
+        sv.add(f'<circle cx="{cx + f * w * .66:.1f}" cy="{rt - H * .06:.1f}" r="{w * .1:.1f}" fill="{sv.rad("#D4A21C")}"/>')
+        ey = top + H * .42
+        _eye(sv, cx + f * w * .06, ey, w * .26, w * .22, look, shut)
+        if not shut: sv.add(f'<path d="M{cx + f * w * .06 - w * .3:.1f} {ey - w * .14:.1f} Q{cx + f * w * .06:.1f} {ey - w * .3:.1f} {cx + f * w * .06 + w * .3:.1f} {ey - w * .14:.1f}" fill="#22386E" opacity=".85"/>')
         if s.expr in ("smile", "talk", "sing"):
-            sv.add(f'<path d="M{cx - w * .06:.1f} {ey + w * .34:.1f} q{w * .1:.1f} {w * .03:.1f} {w * .18:.1f} {-w * .05:.1f}" stroke="{INK}" stroke-width="{max(1.5, w * .025):.1f}" fill="none" stroke-linecap="round"/>')
-        sv.add('</g>')
+            sv.add(f'<path d="M{cx - w * .02:.1f} {ey + w * .34:.1f} q{w * .1:.1f} {w * .03:.1f} {w * .18:.1f} {-w * .05:.1f}" stroke="{INK}" stroke-width="{max(1.5, w * .025):.1f}" fill="none" stroke-linecap="round"/>')
     else:
-        R = H / 2.3
-        cx, cy = bx + vx * H * .45, by + vy * H * .45
+        R = H / 2.2
+        cx, cy = x, y - R * 1.0
+        for sx in (-1, 1):
+            sv.add(f'<ellipse cx="{cx + sx * R * .4:.1f}" cy="{y - R * .06:.1f}" rx="{R * .2:.1f}" ry="{R * .08:.1f}" fill="#22231F"/>')
         sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{R * 1.05:.1f}" ry="{R * .95:.1f}" fill="{sv.rad(body)}"/>')
         sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy - R * .78:.1f}" rx="{R * .8:.1f}" ry="{R * .38:.1f}" fill="{sv.rad("#E07A6A")}"/><circle cx="{cx:.1f}" cy="{cy - R * 1.2:.1f}" r="{R * .14:.1f}" fill="#F7EFE4"/>')
         for sx in (-1, 1):
             _eye(sv, cx + sx * R * .3, cy - R * .05, R * .13, R * .16, look, shut)
             sv.add(f'<ellipse cx="{cx + sx * R * .6:.1f}" cy="{cy + R * .2:.1f}" rx="{R * .15:.1f}" ry="{R * .09:.1f}" fill="#F49AB0" opacity=".85"/>')
-    if s.pose != "bundle" and role == "otto": arm(0)
+    sv.add('</g>')
 
 def pict(kind, x, y, s):
     """A small picture of a thing, centred on (x, y): for cards, bubbles and real objects."""
@@ -936,6 +935,14 @@ def inside(x, y, r):
 
 def mark(sv, m, ppl):
     k = m["k"]
+    if CAST:
+        # Otto's lamp arches forward over the side he faces: a sign over his head floats on the other side, clear of
+        # the rod and the bead
+        src = m.get("at") if k == "badge" else m.get("from", "adult.mouth") if k == "say" else None
+        if isinstance(src, str) and src.split(".")[0].startswith("adult") and src.split(".")[0] in ppl:
+            f = ppl[src.split(".")[0]].f
+            if k == "badge": m = dict(m, dx=-f * max(40, abs(m.get("dx", 0))))
+            else: m = dict(m, side=-f)
     def pt(v):
         if isinstance(v, str):
             who, part = (v.split(".") + ["head"])[:2]
@@ -1070,18 +1077,17 @@ def scene(spec, area, sv=None, watch=None):
                                 top=top, leg=leg, expr=q.get("e", "smile"), look=look, hands=hands, hair=q.get("hair"),
                                 at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0), girl=GIRL and who == "child", lean=q.get("lean", 0))
             p_.who = who
-    CAST_FACES.clear(); faces = []
+    CAST_PEOPLE.clear(); CAST_PEOPLE.update(built)
     if CAST:
-        for p_ in built.values():
-            if p_.pose == "bundle": continue
-            f_ = cast_face(p_)
-            if p_.kind == "adult": CAST_FACES.append((f_[0], f_[1], p_.d["head"] * 2.4, p_.f))
-            faces.append((f_[0], f_[1], p_.d["head"] * (2.4 if p_.kind == "adult" else 2.3), p_.f))
+        for o in spec.get("objs", []):
+            if isinstance(o.get("on"), str):
+                w_ = o["on"].split(".")[0]
+                if w_ in built and built[w_].kind == "child": built[w_].holding = True
     # back objects (scenery), shadows, people and front objects
     for o in spec.get("objs", []):
         if o.get("back"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
     for p in built.values():
-        if p.pose == "bundle": pass
+        if CAST or p.pose == "bundle": pass   # the cast cast their own soft shadow where they stand
         elif p.pose not in ("prone", "lieback"): p.draw_shadow(sv)
         else:
             # lying down: the whole body on the floor — a long soft shade and a dark core along it
@@ -1098,9 +1104,14 @@ def scene(spec, area, sv=None, watch=None):
         if o.get("front"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
         if o.get("on"):  # held: the hand is at the middle of the thing
             hx, hy = resolve(o["on"], built)
-            # a thing held up in front of a cast face is held beside it instead
-            for fx, fy, FR, ff in faces:
-                if math.hypot(hx - fx, hy - fy) < FR: hx = fx + ff * (FR + 20 * o.get("s", 1))
+            w_ = o["on"].split(".")[0] if isinstance(o["on"], str) else None
+            if CAST and w_ in built and o["on"].split(".")[-1] in ("hand", "hand2"):
+                # the cast hold things their own way: Moss hugs it in front of him; a grown-up of the cast has set it
+                # down on the floor in front of him, toward the child
+                hx, hy = cast_hold(built[w_])
+                if o["on"].endswith("hand2"): hx += built[w_].f * 26
+                if built[w_].kind == "adult":
+                    obj(sv, o["k"], hx + o.get("dx", 0), hy, o.get("s", 1), o.get("c"), o.get("r", 0)); continue
             obj(sv, o["k"], hx + o.get("dx", 0), hy + o.get("h", 30) * o.get("s", 1) + o.get("dy", 0), o.get("s", 1), o.get("c"), o.get("r", 0))
     for m in spec.get("marks", []): mark(sv, m, built)
     if spec.get("companions") and not FLAT: companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))

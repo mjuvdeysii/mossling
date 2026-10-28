@@ -211,7 +211,6 @@ def ip_person(p, depth, who):
     if role in ("moss", "mosto"):
         root = build_moss(look=look, happy=e in ("laugh",), lid=0.35 if e == "sad" else 0.0, er=0.125 if e == "wow" else 0.11,
                           shut="down" if asleep else None, perk=0.6 if e in ("wow", "smile") else 0.2)
-        _drop(root, "moss_foot")
         if role == "mosto":
             # Mosto, as the character bible draws him: a deep-violet jelly body about Moss's size, a matte-gold crown
             # worn crooked (always), cream curled horns, a pair of small bat wings behind, a heart-tipped tail, round
@@ -254,38 +253,24 @@ def ip_person(p, depth, who):
             mat_body, mat_hand = lav, lav
         else:
             mat_body, mat_hand = M["moss"], M["moss"]
-        # the rig's baby is small beside a kneeling grown-up; Moss is drawn a size up so the face reads
-        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.72 if p.pose == "bundle" else 1.05 if role == "mosto" else 1.25))
-        # never cut by the picture's edge: a body wider than the rig's (Mosto's wings and horns) steps inside the frame
-        half = ip3d.MOSS["rx"] * k * (1.35 if role == "mosto" else 1.05)
-        x0, x1 = half + 0.12, pb.W / U - half - 0.12
-        if root.location[0] < x0 or root.location[0] > x1:
-            root.location = (min(max(root.location[0], x0), x1), root.location[1], root.location[2])
-        if p.pose == "bundle":
-            # held in the arms: lower, at the chest, clear of the grown-up's face
-            root.location = (root.location[0], root.location[1] - 0.12, root.location[2] - L(p.d["head"]) * 1.1)
-        # carried or held up close: never in front of a grown-up's face — lowered until the face is clear
-        mt = ip_top(p) if p.pose != "bundle" else (p.headc[0], p.headc[1] + p.d["head"] * 0.4)
-        mt = (mt[0], mt[1] - p.d["head"] * 1.3)   # the sprig stands above the crown
-        for (fx, fy), R, _f in AVOID:
-            # in front of the face (across it, not beside it): drop until the sprig is below the eye
-            if abs(mt[0] - fx) < R * 1.1 and mt[1] < fy + R * 0.5:
-                root.location = (root.location[0], root.location[1], root.location[2] - L(fy + R * 0.5 - mt[1]))
+        # the cast stand in their own shape where the rig put the child (picturebook.cast_place): no limbs drawn
+        # from a person's skeleton — short legs, and small round hands only to hold something
+        _stand(root, p, depth, ip3d.MOSS["cz"] + ip3d.MOSS["rz"])
         if e in ("talk", "sing", "wow", "laugh") and not asleep:
             mz = ip3d.MOSS["cz"] + 0.05
             m = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.05, 0.02, 0.04 if e != "talk" else 0.03), MATS.setdefault("mouth", rubber("mouthm", "#5B2A2A", rough=0.7)))
             m.parent = root
-        if p.pose != "bundle": _limbs(p, depth, mat_body, mat_hand, mat_body, M["foot"], rk=1.0)
-        else:
-            # a newborn: Moss tucked in a soft blanket roll
-            c = W3(p.bundle_c, depth); Lb = L(p.d["torso"] * 1.9); w = L(p.d["tw"] * 1.25)
-            o = sphere("bundle", (c[0], c[1] - 0.05, c[2]), (Lb / 2, w * 0.62, w * 0.5), vinyl("#F6D58C", 0.8)); o.rotation_euler = (0, -math.radians(p.bundle_a), 0)
+        if getattr(p, "holding", False):
+            for dz in (0.3, 0.5):
+                h = sphere("hand", (p.f * 0.5, -0.32, dz), (0.08, 0.07, 0.08), mat_body); h.parent = root
+        if p.pose == "bundle":
+            b = sphere("bundle", (0, 0.05, 0.12), (0.62, 0.5, 0.22), vinyl("#F6D58C", 0.8)); b.parent = root
     elif role == "otto":
-        root = build_otto(look=look, lid=0.3, glow=0.0, happy=False, smirk=e in ("smile", "talk", "sing"),
+        root = build_otto(look=(-look[0], look[1]) if p.f > 0 else look, lid=0.3, glow=0.0, happy=False, smirk=e in ("smile", "talk", "sing"),
                           shut="down" if asleep else None)
-        _drop(root, "otto_foot")
-        _place(root, p, depth, ip3d.OTTO_TOP, base_drop=0.1, tilt=0.28)   # a grown-up leans in a little, no more
-        _limbs(p, depth, M["otto"], M["otto"], M["ottoBand"], M["foot"], rk=1.1, low=0.45)
+        # his rod arches forward over the side he faces (the model's rod arches to the left: mirrored when he faces
+        # right)
+        _stand(root, p, depth, ip3d.OTTO_TOP, mirror=p.f > 0)
     else:
         # Mochi: a soft rice-cake grown-up — a squat, rounded cream body, pink cheeks, a small knitted beanie
         root = bpy.data.objects.new("Mochi", None); bpy.context.collection.objects.link(root)
@@ -302,35 +287,18 @@ def ip_person(p, depth, who):
         hat = MATS.setdefault("beanie", rubber("beanie", "#E07A6A", rough=0.8))
         parts.append(sphere("beanie", (0, 0.02, 0.98), (0.36, 0.33, 0.2), hat))
         parts.append(sphere("pom", (0, 0.02, 1.18), (0.08,) * 3, MATS.setdefault("pom", rubber("pom", "#F7EFE4"))))
+        for sx in (-1, 1): parts.append(sphere("mochi_foot", (sx * 0.2, -0.1, 0.04), (0.08, 0.1, 0.05), M["foot"]))
         ip3d.parent(parts, root)
-        _place(root, p, depth, 1.18)
-        _limbs(p, depth, cream, cream, hat, M["foot"], rk=1.05)
+        _stand(root, p, depth, 1.18)
 
-def ip_face(s):
-    """Where the cast character's face is on the page (its eyes), for the marks that point at a head — a badge above
-    it, a line of sight from it. Mirrors _place: the body along hip → head, leaning no more than the body allows."""
-    if s.pose == "bundle": return s.headc
-    a, b, r = s.hip, s.headc, s.d["head"]
-    ux, uy = b[0] - a[0], b[1] - a[1]; n = max(1e-4, math.hypot(ux, uy))
-    adult = s.kind == "adult"
-    tilt = 0.28 if adult else 0.62
-    ang = max(-tilt, min(tilt, math.atan2(ux / n, -uy / n)))
-    vx, vy = math.sin(ang), -math.cos(ang)
-    span = n + r * 1.05
-    H = span if adult else span * 1.25
-    base = 0.45 if adult else 0.35
-    bx, by = a[0] - vx * r * base, a[1] - vy * r * base
-    return (bx + vx * H * 0.58, by + vy * H * 0.58)
+def _stand(root, p, depth, height, mirror=False):
+    """Stands a built character (its feet at its origin, `height` tall) where picturebook.cast_place puts it: on the
+    floor (or a chair) at the rig's place, its own size, leaning only as the cast lean."""
+    x, y, H, deg, sq = pb.cast_place(p)
+    w = W3((x, y), depth); k = L(H) / height
+    root.location = w; root.scale = (-k if mirror else k, k, k * sq); root.rotation_euler = (0, math.radians(deg), 0)
 
-def ip_top(s):
-    """The top of the cast character's body on the page (its crown, below the sprig or the rod)."""
-    f = ip_face(s); a = s.hip
-    if s.pose == "bundle": return (s.headc[0], s.headc[1] - s.d["head"])
-    return (a[0] + (f[0] - a[0]) / 0.58 * 0.9, a[1] + (f[1] - a[1]) / 0.58 * 0.9)
-def ip_head(s):
-    """The rig's "head" for the 2D marks (badges, speech bubbles, a hand at the mouth): just under the character's
-    crown, so what floats over a head floats over the cast's taller bodies, not across their faces."""
-    t = ip_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
+ip_face, ip_top, ip_head = pb.cast_face, pb.cast_top, pb.cast_head
 if IP: pb.Person.head = ip_head; pb.CAST = True
 
 def person3d(p, depth, who=None):
@@ -695,7 +663,7 @@ def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     for i, o in enumerate(objs):
         if o["k"] == "mirror" and i > 0 and objs[i - 1]["k"] == "mirrorfaces": continue   # drawn inside mirrorfaces
         kind = flags[j][0] if j < len(flags) else "floor"; j += 1
-        dep = {"back": 1.5, "floor": 0.45, "front": -0.55 * len(whos) - 0.4, "on": -0.55 * len(whos) + 0.1}[kind]
+        dep = {"back": 1.5, "floor": 0.45, "front": -0.55 * len(whos) - 0.4, "on": -0.55 * len(whos) - (0.5 if IP else -0.1)}[kind]
         if o["k"] == "mat": dep = 0.4
         prop3d(o, dep)
     where = None; bead = None
