@@ -257,7 +257,8 @@ struct DayAir: View {
                 .opacity(breath ? 1 : 0.55)
             // seeds, petals, leaves and pollen drifting down over the whole page, animated by Core Animation off the
             // main thread at the display's full frame rate
-            if !reduce { AirEmitter(kind: .day(UIColor(tone)), scale: scale) }
+            // only in the flat (2D) world: the vinyl world's page is still air
+            if !reduce && ArtStyle.current == .flat { AirEmitter(kind: .day(UIColor(tone)), scale: scale) }
         }
         .allowsHitTesting(false)
         .onAppear { if !reduce { withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { breath = true } } }
@@ -376,7 +377,7 @@ struct Motes: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         // risen by Core Animation at the display's full frame rate, off the main thread
-        if !reduce { AirEmitter(kind: .night, scale: scale).allowsHitTesting(false) }
+        if !reduce && ArtStyle.current == .flat { AirEmitter(kind: .night, scale: scale).allowsHitTesting(false) }
     }
 }
 

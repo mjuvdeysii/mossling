@@ -14,17 +14,18 @@ struct AirEmitter: UIViewRepresentable {
     func updateUIView(_ v: AirView, context: Context) { v.update(kind: kind) }
 
     final class AirView: UIView {
-        private let emitter = CAEmitterLayer()
+        /// One emitter for a preview or the record stage; on a page, one down each margin.
+        private var emitters: [CAEmitterLayer] = []
         private var kind: Kind
         private let scale: CGFloat
         private var built = false
+        private var builtSize: CGSize = .zero
 
         init(kind: Kind, scale: CGFloat) {
             self.kind = kind; self.scale = scale
             super.init(frame: .zero)
             isUserInteractionEnabled = false
             backgroundColor = .clear
-            layer.addSublayer(emitter)
         }
         required init?(coder: NSCoder) { fatalError() }
 
@@ -33,71 +34,100 @@ struct AirEmitter: UIViewRepresentable {
             self.kind = kind; built = false; setNeedsLayout()
         }
 
+        /// On a page the drifting things keep to the two margins (the 16-point strips beside the content where no
+        /// word or picture stands), so nothing ever crosses a title or a picture: they pass behind the cards' edges
+        /// at most. In the small previews (scale < 1) there is no text, so the whole width is theirs.
+        private var page: Bool {
+            if case .rise = kind { return false }
+            return scale >= 1
+        }
+
         override func layoutSubviews() {
             super.layoutSubviews()
             let b = bounds
             guard b.width > 1, b.height > 1 else { return }
-            emitter.frame = b
-            switch kind {
-            case .day:
-                emitter.emitterShape = .line
-                emitter.emitterPosition = CGPoint(x: b.midX, y: -24)
-                emitter.emitterSize = CGSize(width: b.width * 1.15, height: 1)
-            case .night:
-                emitter.emitterShape = .line
-                emitter.emitterPosition = CGPoint(x: b.midX, y: b.height + 16)
-                emitter.emitterSize = CGSize(width: b.width, height: 1)
-            case .rise:
-                // the record pages' stage: small things rising behind the right half, round the companion
-                emitter.emitterShape = .line
-                emitter.emitterPosition = CGPoint(x: b.width * 0.67, y: b.height + 8)
-                emitter.emitterSize = CGSize(width: b.width * 0.5, height: 1)
+            if built && abs(builtSize.height - b.height) < 1 && abs(builtSize.width - b.width) < 1 { return }
+            emitters.forEach { $0.removeFromSuperlayer() }
+            emitters = []
+            let strips: [(x: CGFloat, w: CGFloat)]
+            if page {
+                let g: CGFloat = 16
+                strips = [(g / 2, g * 0.5), (b.width - g / 2, g * 0.5)]
+            } else if case .rise = kind {
+                strips = [(b.width * 0.67, b.width * 0.5)]
+            } else {
+                strips = [(b.midX, b.width * 1.15)]
             }
-            if !built { build(height: b.height); built = true }
+            for (i, st) in strips.enumerated() {
+                let e = CAEmitterLayer()
+                e.frame = b
+                e.emitterShape = .line
+                e.emitterSize = CGSize(width: st.w, height: 1)
+                switch kind {
+                case .day: e.emitterPosition = CGPoint(x: st.x, y: -20)
+                case .night: e.emitterPosition = CGPoint(x: st.x, y: b.height + 16)
+                case .rise: e.emitterPosition = CGPoint(x: st.x, y: b.height + 8)
+                }
+                build(e, height: b.height, side: i)
+                layer.addSublayer(e); emitters.append(e)
+            }
+            built = true; builtSize = b.size
         }
 
-        private func build(height h: CGFloat) {
+        private func build(_ emitter: CAEmitterLayer, height h: CGFloat, side: Int) {
             let z = scale
             let preview = scale < 1
+            let narrow = page
             var cells: [CAEmitterCell] = []
             switch kind {
             case .day(let tone):
-                // fall speed in points a second; a whole page takes the better part of a minute
-                let v: CGFloat = (preview ? 14 : 24) * max(0.5, z)
-                let life = Float((h + 60) / v * 1.1)
+                // fall speed in points a second: a page in about twelve seconds, brisk enough to read as air moving
+                let v: CGFloat = (preview ? 18 : 62) * max(0.5, z)
+                let life = Float((h + 60) / v * 1.05)
                 func cell(_ img: UIImage, rate: Float, spin: CGFloat, size: CGFloat) -> CAEmitterCell {
                     let c = CAEmitterCell()
                     c.contents = img.cgImage
                     c.birthRate = rate * (preview ? 2.5 : 1)
-                    c.lifetime = life; c.lifetimeRange = life * 0.15
-                    c.velocity = v; c.velocityRange = v * 0.35
-                    c.emissionLongitude = .pi / 2; c.emissionRange = .pi / 7   // mostly down, a little sideways
-                    c.xAcceleration = 0.12                                       // a light breeze from the left
+                    c.lifetime = life; c.lifetimeRange = life * 0.1
+                    c.velocity = v; c.velocityRange = v * 0.4
+                    c.emissionLongitude = .pi / 2
+                    // in a margin, straight down with the least sideways spread, so nothing wanders into the text
+                    c.emissionRange = narrow ? 0.035 : .pi / 7
+                    c.xAcceleration = narrow ? 0 : 0.12
                     c.spin = 0; c.spinRange = spin
-                    c.scale = size * z / 3; c.scaleRange = c.scale * 0.3         // images are drawn at 3×
-                    c.alphaRange = 0.25
-                    c.alphaSpeed = -0.6 / life                                   // fade a little toward the foot
+                    c.scale = size * z / 3; c.scaleRange = c.scale * 0.25       // images are drawn at 3×
+                    c.alphaRange = 0.2
+                    c.alphaSpeed = -0.45 / life                                  // fade a little toward the foot
                     return c
                 }
+                // the margins are narrow, so the things in them are a little smaller and come more often
+                let k: CGFloat = narrow ? 0.85 : 1
                 cells = [
-                    cell(Self.seed(), rate: 0.11, spin: 0.5, size: 1.0),
-                    cell(Self.petal(tone), rate: 0.09, spin: 1.6, size: 1.0),
-                    cell(Self.leaf(), rate: 0.08, spin: 1.3, size: 1.0),
-                    cell(Self.pollen(), rate: 0.1, spin: 0, size: 1.0),
+                    cell(Self.seed(), rate: narrow ? 0.34 : 0.11, spin: 0.9, size: k),
+                    cell(Self.petal(tone), rate: narrow ? 0.3 : 0.09, spin: 2.2, size: k),
+                    cell(Self.leaf(), rate: narrow ? 0.26 : 0.08, spin: 1.8, size: k),
+                    cell(Self.pollen(), rate: narrow ? 0.3 : 0.1, spin: 0, size: k),
                 ]
                 emitter.renderMode = .unordered
             case .night:
-                let v: CGFloat = 16 * max(0.5, z)
+                let v: CGFloat = (narrow ? 34 : 16) * max(0.5, z)
                 let life = Float((h + 40) / v)
                 let c = CAEmitterCell()
                 c.contents = Self.mote().cgImage
-                c.birthRate = preview ? 1.2 : 0.55
-                c.lifetime = life; c.lifetimeRange = life * 0.2
-                c.velocity = v; c.velocityRange = v * 0.4
-                c.emissionLongitude = -.pi / 2; c.emissionRange = .pi / 9
-                c.scale = z / 3; c.scaleRange = z / 6
+                c.birthRate = preview ? 1.2 : 0.9
+                c.lifetime = life; c.lifetimeRange = life * 0.15
+                c.velocity = v; c.velocityRange = v * 0.45
+                c.emissionLongitude = -.pi / 2; c.emissionRange = narrow ? 0.035 : .pi / 9
+                c.scale = z / 3; c.scaleRange = z / 7
                 c.alphaRange = 0.5
-                c.alphaSpeed = -0.5 / life
+                c.alphaSpeed = -0.4 / life
+                // a firefly breathes: a soft pulse in its own glow
+                let pulse = CAEmitterCell()
+                pulse.contents = Self.mote().cgImage
+                pulse.birthRate = 0.6; pulse.lifetime = 1.6; pulse.lifetimeRange = 0.6
+                pulse.velocity = 0; pulse.scale = z / 2.2; pulse.scaleSpeed = -z / 4
+                pulse.alphaSpeed = -0.55
+                c.emitterCells = [pulse]
                 cells = [c]
                 emitter.renderMode = .additive
             case .rise(let images):
@@ -119,8 +149,8 @@ struct AirEmitter: UIViewRepresentable {
                 emitter.renderMode = .unordered
             }
             emitter.emitterCells = cells
-            // already in mid-air when the page appears, not starting from an empty sky
-            emitter.beginTime = CACurrentMediaTime() - Double(cells.first?.lifetime ?? 30) * 0.9
+            // already in mid-air when the page appears, not starting from an empty sky; the two margins out of step
+            emitter.beginTime = CACurrentMediaTime() - Double(cells.first?.lifetime ?? 30) * (0.9 + 0.05 * Double(side))
         }
 
         // MARK: the particles, drawn once at 3×
