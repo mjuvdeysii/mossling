@@ -601,14 +601,17 @@ struct MapVignette: View {
     /// Night by the home tab's clock or under the lamp (夜灯) on any page.
     private var night: Bool { nightTab || lamp }
     private var flat: Bool { ArtStyle.current == .flat }
+    @Environment(\.colorScheme) private var scheme
     var body: some View {
         let band = MapGeo.row(month)
+        // dark appearance by day: the same day, at dusk (a bright noon sky on a dark card glared)
+        let dusk = scheme == .dark && !night
         GeometryReader { g in
             let w = g.size.width, h = g.size.height
             ZStack {
                 Canvas { ctx, size in
                     let c = Hill.of(band, night: night)
-                    let top = night ? Color(hex: 0x0E1430) : Color(hex: 0xBFE2F6), low = night ? Color(hex: 0x1D2A55) : Color(hex: 0xEAF6F2)
+                    let top = night ? Color(hex: 0x0E1430) : dusk ? Color(hex: 0x3E4C80) : Color(hex: 0xBFE2F6), low = night ? Color(hex: 0x1D2A55) : dusk ? Color(hex: 0xE8A98A) : Color(hex: 0xEAF6F2)
                     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: flat ? .color(top.mix(with: low, by: 0.45)) : .linearGradient(Gradient(colors: [top, low]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.6)))
                     // the sky's things: the sun and two clouds, or the moon and a few stars
                     let sun = CGPoint(x: size.width * 0.86, y: size.height * 0.2)
@@ -620,7 +623,12 @@ struct MapVignette: View {
                             ctx.fill(Path(ellipseIn: CGRect(x: q.x - 1.4, y: q.y - 1.4, width: 2.8, height: 2.8)), with: .color(.white.opacity(0.85)))
                         }
                     } else {
-                        if flat { ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 14, y: sun.y - 14, width: 28, height: 28)), with: .color(Color(hex: 0xFFD45E))) }
+                        if dusk {
+                            let low = CGPoint(x: sun.x, y: size.height * 0.42)
+                            if !flat { ctx.fill(Path(ellipseIn: CGRect(x: low.x - 40, y: low.y - 40, width: 80, height: 80)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFC08A).opacity(0.8), Color(hex: 0xFFB27A).opacity(0)]), center: low, startRadius: 8, endRadius: 40)) }
+                            ctx.fill(Path(ellipseIn: CGRect(x: low.x - 13, y: low.y - 13, width: 26, height: 26)), with: .color(Color(hex: 0xFF9F5A)))
+                        }
+                        else if flat { ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 14, y: sun.y - 14, width: 28, height: 28)), with: .color(Color(hex: 0xFFD45E))) }
                         else {
                             ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 40, y: sun.y - 40, width: 80, height: 80)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFF2B8), Color(hex: 0xFFE7A0).opacity(0)]), center: sun, startRadius: 8, endRadius: 40))
                             ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 14, y: sun.y - 14, width: 28, height: 28)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFF6CF), Color(hex: 0xFFCF4A)]), center: CGPoint(x: sun.x - 4, y: sun.y - 5), startRadius: 0, endRadius: 17))
@@ -630,7 +638,7 @@ struct MapVignette: View {
                             var cl = Path()
                             for (dx, dy, r) in [(-12.0, 3.0, 8.0), (0.0, -1.0, 11.0), (13.0, 3.0, 8.0)] { cl.addEllipse(in: CGRect(x: cc.x + dx * k - r * k, y: cc.y + dy * k - r * k, width: 2 * r * k, height: 2 * r * k)) }
                             cl.addRoundedRect(in: CGRect(x: cc.x - 20 * k, y: cc.y, width: 40 * k, height: 10 * k), cornerSize: CGSize(width: 5 * k, height: 5 * k))
-                            ctx.fill(cl, with: .color(.white.opacity(flat ? 1 : 0.92)))
+                            ctx.fill(cl, with: .color(dusk ? Color(hex: 0xF6C9B8).opacity(0.75) : .white.opacity(flat ? 1 : 0.92)))
                         }
                     }
                     // the next year's hill, far behind

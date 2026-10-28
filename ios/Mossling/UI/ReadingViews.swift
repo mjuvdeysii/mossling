@@ -95,7 +95,7 @@ struct PlanView: View {
 /// A play in a list: its own tray on its area's tile (as on the home shelf), the name and the age range.
 struct PlayRowLabel: View {
     let play: Play
-    @ScaledMetric(relativeTo: .body) private var w: CGFloat = 52
+    @ScaledMetric(relativeTo: .body) private var w: CGFloat = 60
     var body: some View {
         HStack(spacing: 12) {
             TrayTile(code: play.code, color: Palette.area(Palette.areaKey(of: play)), flat: ArtStyle.current == .flat)
