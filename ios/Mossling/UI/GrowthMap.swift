@@ -552,24 +552,37 @@ struct GrowthMap: View {
 struct MonthProgress: View {
     let days: Int, toNext: Int, next: Int
     private var flat: Bool { ArtStyle.current == .flat }
+    private var words: some View {
+        Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            .lineLimit(1).fixedSize()
+    }
+    private var wrappingWords: some View {
+        Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            .fixedSize(horizontal: false, vertical: true)
+    }
+    private func bar(_ k: Double) -> some View {
+        GeometryReader { g in
+            let w = g.size.width
+            ZStack(alignment: .leading) {
+                Capsule().fill(Palette.outline.opacity(0.45)).frame(height: 6)
+                Capsule().fill(flat ? AnyShapeStyle(Color(hex: 0xFFD27A)) : AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xFFE3A3), Palette.bead], startPoint: .leading, endPoint: .trailing)))
+                    .frame(width: max(10, w * k), height: 6)
+                Circle().fill(Palette.bead).frame(width: 12, height: 12)
+                    .overlay(Circle().strokeBorder(.white, lineWidth: 2))
+                    .shadow(color: flat ? .clear : .black.opacity(0.18), radius: 1.5, y: 1)
+                    .offset(x: max(0, w * k - 6))
+            }
+            .frame(maxHeight: .infinity)
+        }
+        .frame(height: 12)
+    }
     var body: some View {
         let k = Double(days) / Double(max(1, days + toNext))
-        HStack(spacing: 8) {
-            GeometryReader { g in
-                let w = g.size.width
-                ZStack(alignment: .leading) {
-                    Capsule().fill(Palette.outline.opacity(0.45)).frame(height: 6)
-                    Capsule().fill(flat ? AnyShapeStyle(Color(hex: 0xFFD27A)) : AnyShapeStyle(LinearGradient(colors: [Color(hex: 0xFFE3A3), Palette.bead], startPoint: .leading, endPoint: .trailing)))
-                        .frame(width: max(10, w * k), height: 6)
-                    Circle().fill(Palette.bead).frame(width: 12, height: 12)
-                        .overlay(Circle().strokeBorder(.white, lineWidth: 2))
-                        .shadow(color: flat ? .clear : .black.opacity(0.18), radius: 1.5, y: 1)
-                        .offset(x: max(0, w * k - 6))
-                }
-                .frame(maxHeight: .infinity)
-            }
-            .frame(height: 12)
-            Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize()
+        // the bar and the words side by side, or the words under the bar when there is no room (large text): the
+        // card never grows wider than the page
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { bar(k).frame(minWidth: 60); words }
+            VStack(alignment: .leading, spacing: 4) { bar(k); wrappingWords }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(toNext) 天后满 \(next) 个月")

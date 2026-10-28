@@ -297,7 +297,9 @@ struct ShelfView: View {
             HStack(alignment: .center, spacing: 8) {
                 GoldBead(size: 10)
                 Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
-                if !s.plays.isEmpty && !s.stale { WeekStones(played: played, total: s.plays.count) }
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                // at the largest text sizes the stones go on their own line (the header never pushes the page wider)
+                if !s.plays.isEmpty && !s.stale && !size.isAccessibilitySize { WeekStones(played: played, total: s.plays.count) }
                 Spacer(minLength: 4)
                 Button(action: arrange) {
                     // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
@@ -306,6 +308,7 @@ struct ShelfView: View {
                 .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
             .padding(.horizontal, 4).padding(.top, 20)
+            if !s.plays.isEmpty && !s.stale && size.isAccessibilitySize { WeekStones(played: played, total: s.plays.count).padding(.horizontal, 4) }
             if s.stale || s.plays.isEmpty {
                 Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。" : "架子还空着。点「整理」，从这个月的 \(left) 件里挑三四件放上来。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
@@ -344,7 +347,7 @@ struct ShelfView: View {
         return NavigationLink(value: route(p)) {
             layout {
                 TrayTile(code: p.code, color: Palette.area(key), flat: flat)
-                    .frame(width: big ? 180 : 76, height: big ? 135 : 60)
+                    .frame(width: big ? 120 : 76, height: big ? 90 : 60)
                     .zoomSource(route(p))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
