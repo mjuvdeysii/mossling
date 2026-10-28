@@ -161,6 +161,7 @@ struct GrowthView: View {
 struct StatsView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
         let days = (0..<7).reversed().map { app.today.plus(days: -$0) }
         let rows = days.map { d -> (Day, Int, Double, Int, Double, Double) in
@@ -173,14 +174,17 @@ struct StatsView: View {
                     Double(l.filter { $0.type == LogType.bottle && !$0.carriedOver(into: d) }.reduce(0) { $0 + ($1.amount ?? 0) }))
         }
         ScrollView {
-            VStack(spacing: 14) {
+            // two small charts to a row (one at the largest text sizes): the week of every kind in one screen
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 12) {
                 chart("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })
                 if rows.contains(where: { $0.4 > 0 }) { chart("亲喂时长", "分钟", LogType.nurse, rows.map { ($0.0, $0.4) }) }
                 if rows.contains(where: { $0.5 > 0 }) { chart("瓶喂奶量", "毫升", LogType.bottle, rows.map { ($0.0, $0.5) }) }
                 chart("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) })
                 chart("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.horizontal, 16).padding(.bottom, 8)
+            Text("每格是一天，最右是今天；数字是有记录的日子的平均。").font(.caption).foregroundStyle(Palette.secondaryText)
+                .padding(.horizontal, 20).padding(.bottom, 32).frame(maxWidth: .infinity, alignment: .leading)
         }
         .pageBackground()
         .navigationTitle("最近七天")
@@ -190,14 +194,15 @@ struct StatsView: View {
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
         return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
-                Text("有记录的日子平均").font(.footnote).foregroundStyle(Palette.secondaryText)
                 // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
-                if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(26, relativeTo: .title2, weight: .bold)) }
-                else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 30) }
+                if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7) }
+                else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 22) }
             }
             Chart(data, id: \.0) { d in
-                BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1)).foregroundStyle(LogType.color(type).gradient).cornerRadius(5)
+                BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1))
+                    .foregroundStyle(LogType.color(type).opacity(d.0 == app.today ? 1 : 0.55).gradient).cornerRadius(4)
             }
+            .chartXAxis(.hidden)
             .chartYAxis {
                 // counts in whole numbers only (no "0.5 次")
                 AxisMarks(position: .trailing) { v in
@@ -208,7 +213,7 @@ struct StatsView: View {
                     }
                 }
             }
-            .frame(height: 150)
+            .frame(height: 84)
         }
     }
 }

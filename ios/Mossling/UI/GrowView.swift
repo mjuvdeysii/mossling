@@ -394,16 +394,35 @@ struct PlayTile: View {
 /// What to look out for this month, by area: tick what has been seen.
 struct ObserveView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int
     var body: some View {
         let mo = app.content.month(month)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
-                    Box(title: g.area) {
-                        ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
-                            CheckRow(text: t, on: app.ticked(month, TickKind.observed, "\(gi)-\(ii)"), last: ii == g.items.count - 1) {
-                                app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t)
+                    // each area's things as small tick tiles, two to a row: the month's whole list in one screen
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionTitle(title: g.area)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 8) {
+                            ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
+                                let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
+                                Button { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) } label: {
+                                    HStack(alignment: .top, spacing: 8) {
+                                        Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.body)
+                                            .foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
+                                            .contentTransition(.symbolEffect(.replace))
+                                        Text(t).font(.subheadline).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                        Spacer(minLength: 0)
+                                    }
+                                    .padding(10).frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
+                                    .printCard(radius: 16)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.toy)
+                                .sensoryFeedback(.selection, trigger: on)
+                                .accessibilityAddTraits(on ? .isSelected : [])
                             }
                         }
                     }
