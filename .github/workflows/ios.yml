@@ -85,6 +85,15 @@ jobs:
         working-directory: ios
         run: |
           grep -E "error:|failed|XCTAssert" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::$(echo "$l" | sed 's/%/%25/g')"; done
+      - name: Upload screens
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: screens
+          path: ios/shots
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Publish screens
         if: always()
         continue-on-error: true
