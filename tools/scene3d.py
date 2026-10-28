@@ -215,13 +215,13 @@ def ip_person(p, depth, who):
             # Mosto, as the character bible draws him: a deep-violet jelly body about Moss's size, a matte-gold crown
             # worn crooked (always), cream curled horns, a pair of small bat wings behind, a heart-tipped tail, round
             # eyes with brows pressed toward the middle, one small fang; no mint sprig
-            lav = MATS.setdefault("mosto", mat("mosto", "#F4DCE4", rough=0.4, sss=0.18, coat=0.3))   # a pale pink-white: he is the supporting role here, not the one who draws the eye
+            lav = MATS.setdefault("mosto", mat("mosto", "#F6CFD8", rough=0.4, sss=0.18, coat=0.3))   # a pale pink-white: he is the supporting role here, not the one who draws the eye
             for o in root.children:
                 if o.name.startswith("moss_body"): o.data.materials[0] = lav
                 if o.name.startswith(("leaf", "sprig", "stem", "bud", "mint")) or "sprig" in o.name or "leaf" in o.name: o.hide_render = True
             gold = MATS.setdefault("crown", mat("crown", "#C9A24A", rough=0.5, coat=0.15))
             cream = MATS.setdefault("horn", rubber("horn", "#F1E2C4", rough=0.5))
-            wing = MATS.setdefault("wing", rubber("wing", "#D9B8CF", rough=0.6))
+            wing = MATS.setdefault("wing", rubber("wing", "#E2AFC0", rough=0.6))
             top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
             parts = []
             crown = bpy.data.objects.new("crown", None); bpy.context.collection.objects.link(crown)
@@ -248,7 +248,7 @@ def ip_person(p, depth, who):
             f = bpy.context.object; f.data.materials.append(MATS.setdefault("fang", rubber("fang", "#FFFFFF", rough=0.3))); parts.append(f)
             # the heart-tipped tail
             parts.append(ip3d.tube("tail", [(-0.3, 0.3, 0.12), (-0.55, 0.32, 0.14), (-0.66, 0.25, 0.3)], 0.025, lav))
-            for dx in (-0.035, 0.035): parts.append(sphere("tailheart", (-0.66 + dx, 0.25, 0.36), (0.045, 0.03, 0.045), MATS.setdefault("tailtip", mat("tailtip", "#E8A8C0", rough=0.4)), seg=16))
+            for dx in (-0.035, 0.035): parts.append(sphere("tailheart", (-0.66 + dx, 0.25, 0.36), (0.045, 0.03, 0.045), MATS.setdefault("tailtip", mat("tailtip", "#EA9CB0", rough=0.4)), seg=16))
             ip3d.parent(parts, root)
             mat_body, mat_hand = lav, lav
         else:
