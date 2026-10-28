@@ -1248,12 +1248,38 @@ def cover_spec(m, mo, scenes=None):
     thing = None
     for o in ((scenes or {}).get(feature["code"], [{}])[0].get("objs", []) if feature else []):
         if o["k"] not in SCENERY: thing = dict(k=o["k"], x=360, s=min(1.0, o.get("s", 1) * 1.1), c=o.get("c")); break
-    spec = {"set": "floor", "adult": {"pose": "kneel" if m < 12 else "tallkneel", "x": 230, "e": "smile", "look": "child.head",
-                                      "hands": ["child.hand", None] if pose in ("stand", "walk") else [None, None]},
-            "child": {"pose": pose, "x": 430 if pose not in ("lieback", "prone") else 450, "age": m, "e": "wow" if m < 6 else "smile", "look": "adult.head",
-                      "hands": ["adult.hand", None] if pose in ("stand", "walk") else [None, None]}, "objs": [thing] if thing else [], "companions": True}
-    if pose in ("lieback",): spec["child"]["at"] = [450, 440]
-    if thing: thing["x"] = 330
+    # each month its own moment, from who the two are: Moss goes to things, Otto leans in slowly and stays near. The
+    # composition turns from month to month so the 37 covers do not repeat one picture: the two face each other
+    # (Otto on the left or the right), or Moss has gone ahead to the month's thing and Otto watches from behind, and
+    # from the second year a playmate (Mosto) joins some months.
+    apose = "kneel" if m < 12 else "tallkneel"
+    held = pose in ("stand", "walk")
+    if m >= 18 and m % 4 == 3:
+        layout = "peer"
+    elif m >= 6 and m % 3 == 0:
+        layout = "explore"
+    else:
+        layout = "left" if m % 2 == 0 else "right"
+    if layout == "left":
+        ax, cx, tx, cf = 190, (470 if pose not in ("lieback", "prone") else 480), 330, None
+    elif layout == "right":
+        ax, cx, tx, cf = 560, (250 if pose not in ("lieback", "prone") else 240), 400, 1
+    elif layout == "explore":
+        ax, cx, tx, cf = 170, 360, 560, 1
+    else:
+        ax, cx, tx, cf = 140, 300, 440, 1
+    spec = {"set": "floor", "adult": {"pose": apose, "x": ax, "e": "smile", "look": "child.head",
+                                      "hands": ["child.hand", None] if held and layout in ("left", "right") else [None, None]},
+            "child": {"pose": pose, "x": cx, "age": m, "e": "wow" if m < 6 or layout == "explore" else "smile",
+                      "look": [tx, 400] if layout in ("explore", "peer") else "adult.head",
+                      "hands": ["adult.hand", None] if held and layout in ("left", "right") else [None, None]},
+            "objs": [thing] if thing else [], "companions": True}
+    if cf: spec["child"]["f"] = cf
+    if layout == "right": spec["adult"]["f"] = -1
+    if layout == "peer":
+        spec["peer"] = {"pose": "sit" if pose in ("sit", "crawl") else "stand", "x": 600, "age": m, "e": "smile", "look": [tx, 400], "hands": [None, None], "f": -1}
+    if pose in ("lieback",): spec["child"]["at"] = [cx + 20, 440]
+    if thing: thing["x"] = tx
     return spec, area_of(feature) if feature else "A"
 
 # ---------- main ----------
