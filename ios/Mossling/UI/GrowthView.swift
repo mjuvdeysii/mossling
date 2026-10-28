@@ -132,25 +132,32 @@ struct GrowthView: View {
 
     private func legend(_ v: AnyView, _ t: String) -> some View { HStack(spacing: 5) { v; Text(t).font(.caption2).foregroundStyle(Palette.secondaryText) } }
 
+    @ViewBuilder private func values(_ m: Measure) -> some View {
+        ForEach(Indicator.allCases) { x in
+            if let v = value(m, x) {
+                HStack(alignment: .firstTextBaseline, spacing: 2) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
+                    .foregroundStyle(x == ind ? x.tint : .primary)
+                    .fixedSize()
+            }
+        }
+    }
+
     private func row(_ m: Measure, last: Bool) -> some View {
         let d = Day(Date(timeIntervalSince1970: m.at / 1000))
         return VStack(spacing: 0) {
-            HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(verbatim: "\(d.y)年\(d.md)").font(.body)
                     if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.subheadline).foregroundStyle(Palette.secondaryText) }
                 }
                 Spacer(minLength: 8)
-                VStack(alignment: .trailing, spacing: 2) {
-                    ForEach(Indicator.allCases) { x in
-                        if let v = value(m, x) {
-                            HStack(spacing: 3) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
-                                .foregroundStyle(x == ind ? x.tint : .primary)
-                        }
-                    }
+                // the three measures on one line (wrapping under at large text): a measurement reads at a glance
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 10) { values(m) }
+                    VStack(alignment: .trailing, spacing: 2) { values(m) }
                 }
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
+            .padding(.horizontal, 16).padding(.vertical, 10)
             .contentShape(Rectangle())
             if !last { Divider().padding(.leading, 16) }
         }

@@ -272,7 +272,7 @@ struct DayAir: View {
             // the meadow at the foot of the page: low and quiet, so text that reaches the bottom of a short page stays
             // easy to read over it
             Canvas { ctx, size in meadow(&ctx, size, 0) }
-                .opacity(0.5).offset(y: 16 * scale)
+                .opacity(0.4).offset(y: 28 * scale)
             // the beams breathe as one slow change of opacity, run by the system compositor, not redrawn
             Canvas { ctx, size in beams(&ctx, size, 0) }
                 .opacity(breath ? 1 : 0.55)
