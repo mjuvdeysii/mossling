@@ -189,18 +189,22 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(unbroken(long), long)
     }
 
-    func testTheBeadChainWinds() {
+    func testTheGrowthPathWinds() {
         let w: CGFloat = 329
         var seen = Set<String>()
         for m in 0...36 {
-            let p = BeadPath.point(m, width: w)
+            let p = MapGeo.point(m, width: w)
             XCTAssertTrue(seen.insert("\(Int(p.x))-\(Int(p.y))").inserted, "two months share a place")
-            XCTAssertEqual(BeadPath.month(near: p, width: w), m)
-            XCTAssertEqual(BeadPath.month(near: CGPoint(x: p.x + 4, y: p.y - 6), width: w), m, "a touch a little off still picks it")
+            XCTAssertEqual(MapGeo.month(near: p, width: w), m)
+            XCTAssertEqual(MapGeo.month(near: CGPoint(x: p.x + 4, y: p.y - 6), width: w), m, "a touch a little off still picks it")
             XCTAssertTrue(p.x >= 0 && p.x <= w)
         }
-        XCTAssertEqual(BeadPath.point(12, width: w).x, BeadPath.point(13, width: w).x, accuracy: 0.01)
-        XCTAssertEqual(BeadPath.point(24, width: w).x, BeadPath.point(25, width: w).x, accuracy: 0.01)
+        XCTAssertEqual(MapGeo.point(12, width: w).x, MapGeo.point(13, width: w).x, accuracy: 0.01)
+        XCTAssertEqual(MapGeo.point(24, width: w).x, MapGeo.point(25, width: w).x, accuracy: 0.01)
+        // growing up is walking on up the hills: birth at the foot, three years at the top
+        XCTAssertGreaterThan(MapGeo.point(0, width: w).y, MapGeo.point(36, width: w).y)
+        // Moss (up to 66 points) stands on any stone without leaving the map
+        for m in 0...36 { XCTAssertGreaterThanOrEqual(MapGeo.point(m, width: w).y - 66, 0) }
     }
 
     /// Night mode is where contrast breaks first (a bright fill under white text, a dark ink on the lamp page), so
