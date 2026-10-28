@@ -164,10 +164,10 @@ extension EnvironmentValues {
 /// Marks a page's scroll view so the living things on it rest while it moves (see `scrolling`).
 struct CalmScroll: ViewModifier {
     @State private var moving = false
-    func body(content: Content) -> some View {
+    func body(content: Self.Content) -> some View {
         content
-            .onScrollPhaseChange { _, phase in
-                let m = phase != .idle
+            .onScrollPhaseChange { (_: ScrollPhase, phase: ScrollPhase) in
+                let m = phase.isScrolling
                 if m != moving { moving = m }
             }
             .environment(\.scrolling, moving)
