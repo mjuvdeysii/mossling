@@ -204,7 +204,13 @@ private struct PlaysGrid: View {
         if !plays.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
                 SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的教具", detail: "\(plays.count) 个")
-                PlaysLeadGrid(plays: plays, month: month)
+                if plays.count <= 2 || type.isAccessibilitySize {
+                    VStack(spacing: 10) { ForEach(plays) { PlayTileLink(play: $0, month: month, form: .row) } }
+                } else {
+                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                        ForEach(plays) { PlayTileLink(play: $0, month: month) }
+                    }
+                }
             }
         }
     }
@@ -222,18 +228,15 @@ private struct Topics: View {
             SectionTitle(title: "专题", detail: "照护参考")
             VStack(spacing: 0) {
                 ForEach(items) { x in
-                    if x.i > 0 { Divider().padding(.leading, 60) }
+                    if x.i > 0 { Divider().padding(.leading, 54) }
                     NavigationLink(value: Route.topic(x.t.id)) {
                         HStack(spacing: 12) {
-                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 34)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                                Text(x.t.sourceTitle).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
-                            }
+                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 28)
+                            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                             Spacer(minLength: 0)
                             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 11)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.toy)
@@ -299,11 +302,11 @@ struct ShelfView: View {
                 .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
             .padding(.horizontal, 4).padding(.top, 20)
-            Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。"
-                 : s.plays.isEmpty ? "架子还空着。点「整理」，从这个月的 \(left) 件里挑三四件放上来。"
-                 : "从标着「先玩这件」的开始；点开一件，跟着图一步步玩。每周三四件，孩子想重复就重复。")
-                .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
-                .fixedSize(horizontal: false, vertical: true)
+            if s.stale || s.plays.isEmpty {
+                Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。" : "架子还空着。点「整理」，从这个月的 \(left) 件里挑三四件放上来。")
+                    .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             VStack(spacing: 0) {
                 ShelfBoard(dark: dark).frame(height: 12)   // the top of the cabinet
                 ForEach(s.plays) { p in
@@ -341,7 +344,7 @@ struct ShelfView: View {
         return NavigationLink(value: route(p)) {
             layout {
                 Figure(name: "tray_\(p.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
-                    .frame(width: big ? 200 : 118)
+                    .frame(width: big ? 200 : 96)
                     .zoomSource(route(p))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
@@ -357,7 +360,7 @@ struct ShelfView: View {
                         .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     if let step = p.steps.first {
                         Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(soft(dark))
-                            .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                            .lineLimit(big ? 3 : 1).multilineTextAlignment(.leading)
                     }
                     BeadCount(times: times, dark: dark).padding(.top, 1)
                 }
@@ -365,7 +368,7 @@ struct ShelfView: View {
                 Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(soft(dark).opacity(0.7))
                     .opacity(big ? 0 : 1)
             }
-            .padding(.leading, 18).padding(.trailing, 20).padding(.top, 8).padding(.bottom, 4)
+            .padding(.leading, 16).padding(.trailing, 18).padding(.top, 4).padding(.bottom, 2)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
@@ -382,7 +385,7 @@ struct ShelfView: View {
                 .strokeBorder(Color(hex: 0xB98A5A).opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
                 .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(dark ? 0.05 : 0.25)))
                 .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440)))
-                .frame(width: 118, height: 56)
+                .frame(width: 96, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text("放一件").font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))
                 Text("还能放 \(room) 件 · 这个月有 \(left) 件可选").font(.caption).foregroundStyle(soft(dark))
@@ -390,7 +393,7 @@ struct ShelfView: View {
             }
             Spacer(minLength: 0)
         }
-        .padding(.leading, 18).padding(.trailing, 20).padding(.vertical, 10)
+        .padding(.leading, 16).padding(.trailing, 18).padding(.vertical, 6)
         .contentShape(Rectangle())
     }
 }
