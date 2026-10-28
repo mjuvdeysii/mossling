@@ -215,7 +215,7 @@ private struct BookPageView: View {
             .buttonStyle(.toy)
 
             if !page.plays.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 140 : 70), spacing: 8, alignment: .top)], alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 220 : 140), spacing: 8, alignment: .top)], alignment: .leading, spacing: 8) {
                     ForEach(page.plays, id: \.play.code) { x in
                         NavigationLink(value: Route.play(x.play.code, min(m, 36))) { PlayStamp(play: x.play, times: x.times) }
                             .buttonStyle(.toy)
@@ -330,25 +330,27 @@ private struct FactChip: View {
     }
 }
 
-/// A play in the book: its picture, how many times, its name.
+/// A play in the book, as a chip beside the month's facts: its own tray on its area's tile, its name, how many times.
 private struct PlayStamp: View {
     let play: Play
     let times: Int
+    @ScaledMetric(relativeTo: .caption) private var w: CGFloat = 48
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-                Figure(name: "tray_\(play.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
-                    .padding(6)
-                    .background(Palette.area(Palette.areaKey(of: play)).opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
-                if times > 1 {
-                    Text("×\(times)").font(Typeface.numerals(11, relativeTo: .caption, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
-                        .padding(.horizontal, 6).frame(height: 18).background(Capsule().fill(Palette.bead)).padding(4)
-                }
+        let c = Palette.area(Palette.areaKey(of: play))
+        HStack(spacing: 8) {
+            TrayTile(code: play.code, color: c, flat: ArtStyle.current == .flat)
+                .frame(width: min(w, 80), height: min(w, 80) * 0.75)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(play.name).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("玩过 \(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.secondaryText)
             }
-            Text(play.name).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2, reservesSpace: true).multilineTextAlignment(.leading)
+            Spacer(minLength: 0)
         }
+        .padding(6)
+        .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(play.name + (times > 1 ? "，\(times) 次" : ""))
+        .accessibilityLabel(play.name + "，玩过 \(times) 次")
     }
 }
 
