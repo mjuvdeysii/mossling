@@ -17,8 +17,14 @@ struct GrowthBookView: View {
                 } else {
                     BookTotals(pages: pages)
                     if (app.babyMonth ?? 0) >= 36 { StoryGoesOn(primary: app.companion) }
-                    ForEach(Array(pages.enumerated()), id: \.element.month) { i, p in
-                        BookPageView(page: p, current: i == 0, tilt: i % 2 == 0 ? -2 : 1.6)
+                    // months with nothing recorded are gathered into one strip of small photos, so the book is read in a
+                    // few screens, not one screen a month
+                    ForEach(Self.runs(pages), id: \.id) { r in
+                        if r.pages.count == 1 && (!r.pages[0].empty || r.first) {
+                            BookPageView(page: r.pages[0], current: r.first, tilt: r.index % 2 == 0 ? -2 : 1.6)
+                        } else {
+                            QuietMonths(pages: r.pages)
+                        }
                     }
                 }
             }
@@ -30,6 +36,20 @@ struct GrowthBookView: View {
         .navigationSubtitle(subtitle)
     }
 
+    /// The pages in order, with each run of empty months (other than this month) as one group.
+    struct Run { let id: Int; let index: Int; let first: Bool; let pages: [BookPage] }
+    static func runs(_ pages: [BookPage]) -> [Run] {
+        var out: [Run] = [], quiet: [BookPage] = []
+        func flush() { if !quiet.isEmpty { out.append(Run(id: -quiet[0].month - 1, index: out.count, first: false, pages: quiet)); quiet = [] } }
+        for (i, p) in pages.enumerated() {
+            if i > 0 && p.empty { quiet.append(p); continue }
+            flush()
+            out.append(Run(id: p.month, index: out.count, first: i == 0, pages: [p]))
+        }
+        flush()
+        return out
+    }
+
     private var firstsLink: some ToolbarContent {
         ToolbarItem(placement: .topBarTrailing) {
             NavigationLink(value: JournalRoute.firsts) { Label("第一次", systemImage: "star") }
@@ -39,6 +59,41 @@ struct GrowthBookView: View {
     private var subtitle: String {
         guard let b = app.birth else { return "" }
         return "从 \(b.y)年\(b.md) 开始"
+    }
+}
+
+/// Months with nothing recorded, together: their pictures as a row of small photos (each opens its month) and one line.
+private struct QuietMonths: View {
+    let pages: [BookPage]
+    @Environment(\.dynamicTypeSize) private var type
+    var body: some View {
+        let ms = pages.map(\.month)
+        let lo = ms.min() ?? 0, hi = ms.max() ?? 0
+        VStack(alignment: .leading, spacing: 10) {
+            Text(lo == hi ? "满 \(lo) 个月 · 没有留下记录" : "满 \(lo)–\(hi) 个月 · 没有留下记录")
+                .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 96 : 60), spacing: 8)], alignment: .leading, spacing: 8) {
+                ForEach(pages, id: \.month) { p in
+                    NavigationLink(value: Route.month(min(p.month, 36))) {
+                        VStack(spacing: 3) {
+                            Group {
+                                if let f = ArtIndex.shared.cover(min(p.month, 36)) { ArtView(name: f, label: "满 \(p.month) 个月", radius: 4) }
+                                else { Color.clear.aspectRatio(4 / 3, contentMode: .fit) }
+                            }
+                            .padding(3)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white))
+                            .shadow(color: Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
+                            Text("\(p.month)").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
+                        }
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel("满 \(p.month) 个月，没有记录")
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: 22)
     }
 }
 
@@ -159,7 +214,7 @@ private struct BookPageView: View {
             .buttonStyle(.toy)
 
             if !page.plays.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 140 : 92), spacing: 10, alignment: .top)], alignment: .leading, spacing: 12) {
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 140 : 70), spacing: 8, alignment: .top)], alignment: .leading, spacing: 12) {
                     ForEach(page.plays, id: \.play.code) { x in
                         NavigationLink(value: Route.play(x.play.code, min(m, 36))) { PlayStamp(play: x.play, times: x.times) }
                             .buttonStyle(.toy)

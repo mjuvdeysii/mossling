@@ -151,11 +151,17 @@ private struct FamilyCard: View {
                 }
                 facts
                 Divider()
-                VStack(alignment: .leading, spacing: 10) {
-                    role(.moss, "宝宝", Kind.moss.trait)
-                    role(.otto, "大人", Kind.otto.trait)
+                // the two side by side (one column at the largest text sizes)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .top, spacing: 10) {
+                        role(.moss, "宝宝", Kind.moss.trait)
+                        role(.otto, "大人", Kind.otto.trait)
+                    }
+                    VStack(alignment: .leading, spacing: 10) {
+                        role(.moss, "宝宝", Kind.moss.trait)
+                        role(.otto, "大人", Kind.otto.trait)
+                    }
                 }
-                Text("孩子摸索，大人点灯。").font(.caption).foregroundStyle(Palette.secondaryText)
             }
             .padding(16)
         }
@@ -191,10 +197,10 @@ private struct FamilyCard: View {
     }
 
     private func role(_ k: Kind, _ who: String, _ trait: String) -> some View {
-        HStack(alignment: .center, spacing: 12) {
+        HStack(alignment: .top, spacing: 8) {
             Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && night ? 0.5 : nil, alive: true, poke: true, glow: k == .otto && night)
-                .frame(width: 40 * k.scale, height: 40 * k.scale)
-                .frame(width: 48, height: 48)
+                .frame(width: 34 * k.scale, height: 34 * k.scale)
+                .frame(width: 40, height: 40)
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(k.rawValue).font(.subheadline.weight(.bold))
@@ -202,10 +208,11 @@ private struct FamilyCard: View {
                         .padding(.horizontal, 6).padding(.vertical, 1)
                         .background(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
                 }
-                Text(trait).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                Text(trait).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
     }
 }
