@@ -529,9 +529,10 @@ struct PrintCard: ViewModifier {
             .background {
                 ZStack {
                     base
-                    LinearGradient(colors: [.white.opacity(dark ? 0.04 : 0.55), .white.opacity(0), Color(hex: 0x7A5230).opacity(dark ? 0 : 0.035)],
+                    // lit from above: a plain gradient (a blend mode here cost every card an off-screen pass on each frame
+                    // of a scroll)
+                    LinearGradient(colors: [.white.opacity(dark ? 0.04 : 0.2), .white.opacity(0), Color(hex: 0x7A5230).opacity(dark ? 0 : 0.03)],
                                    startPoint: .top, endPoint: .bottom)
-                        .blendMode(dark ? .normal : .softLight)
                     Grain(dark: dark, strength: 0.6)
                 }
             }
