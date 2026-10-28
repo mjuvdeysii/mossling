@@ -1,0 +1,3 @@
+Network events from the app's processes during the simulator tests (       0 log lines)
+-- connections and requests --
+-- every line, deduplicated (timestamps and ids removed) --
