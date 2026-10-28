@@ -213,28 +213,54 @@ def ip_person(p, depth, who):
                           shut="down" if asleep else None, perk=0.6 if e in ("wow", "smile") else 0.2)
         _drop(root, "moss_foot")
         if role == "mosto":
-            # Mosto: the little demon king — lavender, two small soft horns, a matte-gold crown; no mint sprig
-            lav = MATS.setdefault("mosto", rubber("mosto", "#9C86D8", rough=0.55))
+            # Mosto, as the character bible draws him: a deep-violet jelly body about Moss's size, a matte-gold crown
+            # worn crooked (always), cream curled horns, a pair of small bat wings behind, a heart-tipped tail, round
+            # eyes with brows pressed toward the middle, one small fang; no mint sprig
+            lav = MATS.setdefault("mosto", mat("mosto", "#5E43A0", rough=0.35, sss=0.12, coat=0.35))
             for o in root.children:
                 if o.name.startswith("moss_body"): o.data.materials[0] = lav
                 if o.name.startswith(("leaf", "sprig", "stem", "bud", "mint")) or "sprig" in o.name or "leaf" in o.name: o.hide_render = True
-            gold = MATS.setdefault("crown", mat("crown", "#C9A24A", rough=0.45, coat=0.2))
+            gold = MATS.setdefault("crown", mat("crown", "#C9A24A", rough=0.5, coat=0.15))
+            cream = MATS.setdefault("horn", rubber("horn", "#F1E2C4", rough=0.5))
+            wing = MATS.setdefault("wing", rubber("wing", "#3E2A72", rough=0.6))
             top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
             parts = []
-            parts.append(ip3d.tube("crownband", [(-0.17, 0, top - 0.02), (0.0, -0.02, top - 0.04), (0.17, 0, top - 0.02)], 0.05, gold))
-            for x, h in ((-0.15, 0.13), (0.0, 0.17), (0.15, 0.13)):
-                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.05, radius2=0.012, depth=h, location=(x, -0.01, top + h / 2 - 0.01))
-                c = bpy.context.object; c.data.materials.append(gold); parts.append(c)
-                parts.append(sphere("crownball", (x, -0.01, top + h - 0.005), (0.022,) * 3, gold, seg=16))
+            crown = bpy.data.objects.new("crown", None); bpy.context.collection.objects.link(crown)
+            cps = [ip3d.tube("crownband", [(-0.16, 0, 0.0), (0.0, -0.02, -0.015), (0.16, 0, 0.0)], 0.045, gold)]
+            for x, h in ((-0.13, 0.12), (0.0, 0.16), (0.13, 0.12)):
+                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.045, radius2=0.01, depth=h, location=(x, -0.01, h / 2))
+                c = bpy.context.object; c.data.materials.append(gold); cps.append(c)
+                cps.append(sphere("crownball", (x, -0.01, h + 0.005), (0.02,) * 3, gold, seg=16))
+            ip3d.parent(cps, crown)
+            crown.location = (0.1, 0, top - 0.04); crown.rotation_euler = (0, math.radians(16), 0)   # worn crooked
+            parts.append(crown)
             for sx in (-1, 1):
-                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.055, radius2=0.0, depth=0.15, location=(sx * 0.36, 0.02, top - 0.12), rotation=(0, math.radians(28 * sx), 0))
-                h = bpy.context.object; h.data.materials.append(MATS.setdefault("horn", rubber("horn", "#6F5AA8"))); parts.append(h)
+                # cream horns, curling out and back
+                parts.append(ip3d.tube(f"horn{sx}", [(sx * 0.3, 0.02, top - 0.14), (sx * 0.42, 0.0, top - 0.02), (sx * 0.38, 0.04, top + 0.06), (sx * 0.3, 0.08, top + 0.04)], 0.04, cream))
+                # small bat wings behind the shoulders
+                w = sphere(f"wing{sx}", (sx * 0.5, 0.22, ip3d.MOSS["cz"] + 0.18), (0.2, 0.025, 0.13), wing)
+                w.rotation_euler = (0, math.radians(-25 * sx), math.radians(-20 * sx)); parts.append(w)
+                # brows pressed toward the middle
+                ez = ip3d.MOSS["cz"] + 0.33; sy = ip3d.moss_surface_y(sx * 0.14, ez) - 0.005
+                parts.append(ip3d.tube(f"brow{sx}", [(sx * 0.22, sy + 0.01, ez + 0.03), (sx * 0.07, sy - 0.005, ez - 0.01)], 0.012, M["pupil"]))
+            # one small fang
+            fz = ip3d.MOSS["cz"] + 0.02
+            bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.022, radius2=0.0, depth=0.05, location=(0.05, ip3d.moss_surface_y(0.05, fz) - 0.004, fz), rotation=(math.pi, 0, 0))
+            f = bpy.context.object; f.data.materials.append(MATS.setdefault("fang", rubber("fang", "#FFFFFF", rough=0.3))); parts.append(f)
+            # the heart-tipped tail
+            parts.append(ip3d.tube("tail", [(-0.3, 0.3, 0.12), (-0.55, 0.32, 0.14), (-0.66, 0.25, 0.3)], 0.025, lav))
+            for dx in (-0.035, 0.035): parts.append(sphere("tailheart", (-0.66 + dx, 0.25, 0.36), (0.045, 0.03, 0.045), MATS.setdefault("tailtip", mat("tailtip", "#B9A6E8", rough=0.4, emit="#B9A6E8", emit_strength=0.4)), seg=16))
             ip3d.parent(parts, root)
             mat_body, mat_hand = lav, lav
         else:
             mat_body, mat_hand = M["moss"], M["moss"]
         # the rig's baby is small beside a kneeling grown-up; Moss is drawn a size up so the face reads
-        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.72 if p.pose == "bundle" else 1.25))
+        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.72 if p.pose == "bundle" else 1.05 if role == "mosto" else 1.25))
+        # never cut by the picture's edge: a body wider than the rig's (Mosto's wings and horns) steps inside the frame
+        half = ip3d.MOSS["rx"] * k * (1.35 if role == "mosto" else 1.05)
+        x0, x1 = half + 0.12, pb.W / U - half - 0.12
+        if root.location[0] < x0 or root.location[0] > x1:
+            root.location = (min(max(root.location[0], x0), x1), root.location[1], root.location[2])
         if p.pose == "bundle":
             # held in the arms: lower, at the chest, clear of the grown-up's face
             root.location = (root.location[0], root.location[1] - 0.12, root.location[2] - L(p.d["head"]) * 1.1)
