@@ -92,11 +92,7 @@ private struct MonthBody: View {
 
             MonthParts(month: m)
 
-            Box(title: "专题") {
-                ForEach(Array(c.topics.enumerated()), id: \.offset) { i, t in
-                    NavigationLink(value: Route.topic(t.id)) { BoxRow(symbol: topicMarks[i % topicMarks.count].0, color: topicMarks[i % topicMarks.count].1, title: t.title, last: i == c.topics.count - 1, opens: true) }.buttonStyle(.toy)
-                }
-            }
+            Topics()
 
             if m == 36 { StoryGoesOn(primary: app.companion) }
         }

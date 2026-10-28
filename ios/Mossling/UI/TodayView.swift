@@ -227,7 +227,7 @@ private struct PlaysGrid: View {
 let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.knife", "mouth.fill", "cross.case.fill"].map { ($0, Palette.area("F")) }
 
 /// The topics, as one card of rows: a mark, the title, where it comes from, a chevron.
-private struct Topics: View {
+struct Topics: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     var body: some View {
