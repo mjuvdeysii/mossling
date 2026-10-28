@@ -15,6 +15,10 @@ on:
         description: "Run the accessibility audit (about 20 minutes)"
         type: boolean
         default: false
+      perf:
+        description: "Measure scrolling (hitch time ratio) on the home, 3D and 2D"
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -67,6 +71,15 @@ jobs:
         run: |
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
             -only-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | grep -E "error:|Test Case.*(passed|failed)|\*\* " || true
+      - name: Scroll performance
+        if: success() && inputs.perf
+        continue-on-error: true
+        timeout-minutes: 25
+        working-directory: ios
+        run: |
+          xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
+            -only-testing:MosslingUITests/ScrollPerfTests CODE_SIGNING_ALLOWED=NO 2>&1 | tee perf.log | grep -E "Test Case.*(passed|failed)|\*\* " || true
+          grep -iE "hitch|measured \[" perf.log | sed -E 's/.*(testHomeScroll[23]D).*measured \[([^]]+)\].*average: ([0-9.]+).*/\1 \2 avg \3/' | head -20 | while IFS= read -r l; do echo "::notice title=Scroll::$l"; done
       - name: Network probe report
         if: always()
         continue-on-error: true
