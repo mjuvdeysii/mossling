@@ -145,16 +145,16 @@ struct GrowthView: View {
     private func row(_ m: Measure, last: Bool) -> some View {
         let d = Day(Date(timeIntervalSince1970: m.at / 1000))
         return VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: "\(d.y)年\(d.md)").font(.body)
+            // date and age on the first line, the three measures together on the second: a row reads at a glance
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(verbatim: "\(d.y)年\(d.md)").font(.subheadline.weight(.semibold))
                     if let b = app.birth { let a = Age.on(birth: b, today: d); Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天").font(.subheadline).foregroundStyle(Palette.secondaryText) }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 8)
-                // the three measures on one line (wrapping under at large text): a measurement reads at a glance
                 ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 10) { values(m) }
-                    VStack(alignment: .trailing, spacing: 2) { values(m) }
+                    HStack(spacing: 16) { values(m); Spacer(minLength: 0) }
+                    VStack(alignment: .leading, spacing: 2) { values(m) }
                 }
             }
             .padding(.horizontal, 16).padding(.vertical, 10)
