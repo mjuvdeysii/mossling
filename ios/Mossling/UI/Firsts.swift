@@ -334,7 +334,7 @@ private struct BirthRow: View {
             .frame(width: 40)
             VStack(alignment: .leading, spacing: 2) {
                 Text("出生").font(.headline)
-                Text("\(birth.y)年\(birth.md)").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                Text(verbatim: "\(birth.y)年\(birth.md)").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
             }
             .padding(.top, 4)
             Spacer(minLength: 0)
