@@ -500,8 +500,18 @@ struct GrowthMap: View {
                 }
             }
             .animation(.snappy, value: m)
-            Text(mo.title).font(.headline).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            // the month's own picture beside what it is about: the month at a glance, without opening it
+            HStack(alignment: .top, spacing: 12) {
+                if let f = ArtIndex.shared.cover(m) {
+                    ArtView(name: f, label: m == 0 ? "出生" : "满 \(m) 个月", radius: 10)
+                        .frame(width: 92)
+                        .id(f)
+                        .transition(.opacity)
+                }
+                Text(mo.title).font(.headline).lineLimit(4).fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .animation(.easeOut(duration: 0.18), value: m)
             if m == baby, let a = app.age, a.days + a.toNext > 0 {
                 MonthProgress(days: a.days, toNext: a.toNext, next: m + 1)
             }
@@ -633,8 +643,8 @@ struct MapVignette: View {
                     let hs = otto ? h * 0.56 : 52
                     MapHome(flat: flat).frame(width: hs, height: hs).position(x: stone.x - 6, y: stone.y - hs * 0.42)
                     Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.4), lid: 0.5, alive: true, glow: true, glowFor: 4.5)
-                        .frame(width: otto ? h * 0.5 : 36, height: otto ? h * 0.5 : 36)
-                        .position(x: otto ? ottoAt.x : w - 18, y: stone.y - (otto ? h * 0.2 : 14))
+                        .frame(width: otto ? h * 0.78 : 36, height: otto ? h * 0.78 : 36)
+                        .position(x: otto ? ottoAt.x : w - 18, y: stone.y - (otto ? h * 0.33 : 14))
                 } else {
                     let d: CGFloat = otto ? h * 0.7 : 78
                     if otto {
