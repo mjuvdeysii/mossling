@@ -86,6 +86,17 @@ final class ScreenshotTests: XCTestCase {
         shot("01_onboarding_opening", settle: 2.9, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
+    func test39Firsts() {
+        let m = model()
+        let j = journal
+        _ = j.saveFirst(First(at: at(10, 0) - 60 * 86_400_000, title: "第一次吃手"))
+        _ = j.saveFirst(First(at: at(10, 0) - 20 * 86_400_000, title: "第一次翻身"))
+        shot("39_firsts", height: 1500, tabs(m, FirstsView()))
+    }
+    func test39Firsts2D() {
+        let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("39_firsts_2d", height: 1500, tabs(m, FirstsView()))
+    }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test02Today2D() {
         let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
