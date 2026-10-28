@@ -407,10 +407,10 @@ struct TrayTile: View {
         let dark = scheme == .dark
         ZStack {
             if flat {
-                shape.fill(color.mix(with: dark ? .black : .white, by: dark ? 0.55 : 0.78))
+                shape.fill(color.mix(with: dark ? Palette.lampCard : .white, by: dark ? 0.68 : 0.78))
                     .background(shape.fill(color.opacity(dark ? 0.35 : 0.3)).offset(y: 2))
             } else {
-                shape.fill(LinearGradient(colors: [color.mix(with: .white, by: dark ? 0.55 : 0.86), color.mix(with: dark ? .black : .white, by: dark ? 0.6 : 0.7)],
+                shape.fill(LinearGradient(colors: [color.mix(with: dark ? Palette.lampCard : .white, by: dark ? 0.62 : 0.86), color.mix(with: dark ? Palette.lampCard : .white, by: dark ? 0.75 : 0.7)],
                                           startPoint: .top, endPoint: .bottom))
                     .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.15 : 0.9), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                     .shadow(color: color.opacity(dark ? 0 : 0.18), radius: 4, y: 2)
@@ -427,9 +427,15 @@ private struct WeekStones: View {
     var body: some View {
         HStack(spacing: 4) {
             ForEach(0..<total, id: \.self) { i in
-                Circle()
-                    .fill(i < played ? AnyShapeStyle(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6)) : AnyShapeStyle(Palette.outline.opacity(0.5)))
-                    .frame(width: 9, height: 9)
+                ZStack {
+                    if i < played {
+                        Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
+                    } else {
+                        Circle().fill(Palette.card)
+                        Circle().strokeBorder(Palette.bead.opacity(0.55), lineWidth: 1.5)
+                    }
+                }
+                .frame(width: 10, height: 10)
             }
             Text("\(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
                 .padding(.leading, 2)
