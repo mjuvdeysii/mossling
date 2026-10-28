@@ -27,14 +27,7 @@ struct TodayView: View {
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
                 if wheel {
-                    GrowthWheel(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby)
-                        .overlay(alignment: .topTrailing) {
-                            Button { withAnimation(.snappy) { wheel = false } } label: {
-                                Image(systemName: "chevron.up").font(.footnote.weight(.bold)).frame(width: 30, height: 30)
-                                    .background(.white.opacity(0.85), in: Circle())
-                            }
-                            .foregroundStyle(Color(hex: 0x2E2418)).padding(12).accessibilityLabel("收起成长滚轮")
-                        }
+                    GrowthMap(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby) { withAnimation(.snappy) { wheel = false } }
                         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
                 } else {
                     MonthCard(month: m, baby: baby) { withAnimation(.snappy) { wheel = true } }
@@ -150,23 +143,8 @@ private struct MonthCard: View {
     var body: some View {
         Button(action: open) {
             HStack(spacing: 14) {
-                // the child at this age, as in the pictures, standing in a small pool of light of the year's colour
-                ZStack(alignment: .bottom) {
-                    // the same vinyl meadow as the growth map's stage, the child standing on it with a soft shadow
-                    StagePlate(night: night)
-                    if night && StagePlate.room {
-                        // night: the child asleep in the crib at home; Otto beside it lights his lamp for a moment
-                        LampFlash(at: UnitPoint(x: 0.82, y: 0.78), reach: 90)
-                        Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.4), lid: 0.5, alive: true, glow: true, glowFor: 4.5)
-                            .frame(width: 46, height: 46)
-                            .frame(maxWidth: .infinity, alignment: .trailing)
-                            .padding(.trailing, -4).padding(.bottom, 2)
-                    } else {
-                        Ellipse().fill(RadialGradient(colors: [Color(hex: 0x3A5A2A).opacity(0.28), .clear], center: .center, startRadius: 0, endRadius: 34))
-                            .frame(width: 70, height: 14).offset(y: -12)
-                        GrowingChild(month: month).frame(width: 112, height: 112).offset(y: 4)
-                    }
-                }
+                // the map in small: the child's hill and path, Moss on his stone (by night, home asleep)
+                MapVignette(month: month, baby: baby)
                 .frame(width: 104, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
@@ -178,27 +156,9 @@ private struct MonthCard: View {
                         if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
                     }
                     Text(app.content.month(month).title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
-                    // the way through this month to the next: a bead on a string, and how many days are left
+                    // the way through this month to the next, and how many days are left
                     if month == baby, let a = app.age, a.days + a.toNext > 0 {
-                        let k = Double(a.days) / Double(a.days + a.toNext)
-                        HStack(spacing: 8) {
-                            GeometryReader { g in
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Palette.outline.opacity(0.5)).frame(height: 4)
-                                    Capsule().fill(LinearGradient(colors: [Crayon.sunflower, Palette.accentFill], startPoint: .leading, endPoint: .trailing))
-                                        .frame(width: max(8, g.size.width * k), height: 4)
-                                    Circle().fill(Palette.bead).frame(width: 10, height: 10)
-                                        .overlay(Circle().strokeBorder(.white, lineWidth: 1.5))
-                                        .offset(x: max(0, g.size.width * k - 5))
-                                }
-                                .frame(maxHeight: .infinity)
-                            }
-                            .frame(height: 10)
-                            Text("\(a.toNext) 天后满 \(month + 1) 个月").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize()
-                        }
-                        .padding(.top, 2)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel("\(a.toNext) 天后满 \(month + 1) 个月")
+                        MonthProgress(days: a.days, toNext: a.toNext, next: month + 1).padding(.top, 2)
                     }
                 }
                 .foregroundStyle(.primary)
@@ -211,7 +171,7 @@ private struct MonthCard: View {
         }
         .buttonStyle(.toy)
         .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
-        .accessibilityHint("打开成长滚轮，选择月份")
+        .accessibilityHint("打开成长地图，选择月份")
     }
 }
 

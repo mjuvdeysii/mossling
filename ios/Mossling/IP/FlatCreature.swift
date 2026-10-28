@@ -220,8 +220,9 @@ struct FlatCreature: View {
         default: break
         }
     }
-    /// Small round arms, only when waving or cheering; `left`/`right` are the shoulders.
+    /// Moss and Otto have no arms: a wave or a cheer is the hop and the face alone (the cast as themselves).
     private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
+        return
         func arm(_ from: CGPoint, _ deg: Double, _ L: CGFloat = 13) {
             let r = CGFloat(deg * .pi / 180)
             var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + CGFloat(Foundation.sin(Double(r))) * L, y: from.y - CGFloat(Foundation.cos(Double(r))) * L))

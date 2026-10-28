@@ -795,9 +795,8 @@ def draw_cast(s, sv):
         cx, cy = x, y - R * 0.95
         if s.pose == "bundle":
             sv.add(f'<path d="M{cx - R * 1.15:.1f} {y:.1f} Q{cx - R * 1.2:.1f} {cy:.1f} {cx:.1f} {cy + R * .1:.1f} Q{cx + R * 1.2:.1f} {cy:.1f} {cx + R * 1.15:.1f} {y:.1f} Z" fill="{sv.lin("#F6D58C", 120)}"/>')
-        for sx in (-1, 1):   # the short dark legs and feet
-            sv.add(f'<rect x="{cx + sx * R * .36 - R * .1:.1f}" y="{y - R * .3:.1f}" width="{R * .2:.1f}" height="{R * .26:.1f}" rx="{R * .1:.1f}" fill="#22231F"/>')
-            sv.add(f'<ellipse cx="{cx + sx * R * .38 + s.f * R * .06:.1f}" cy="{y - R * .04:.1f}" rx="{R * .2:.1f}" ry="{R * .09:.1f}" fill="#22231F"/>')
+        for sx in (-1, 1):   # two soft nubs tucked under the body (no legs)
+            sv.add(f'<ellipse cx="{cx + sx * R * .42:.1f}" cy="{y - R * .08:.1f}" rx="{R * .17:.1f}" ry="{R * .09:.1f}" fill="#2B2C27"/>')
         sv.add(f'<path d="M{cx - R * 1.02:.1f} {cy + R * .45:.1f} C{cx - R * 1.1:.1f} {cy - R * .55:.1f} {cx - R * .5:.1f} {cy - R * .95:.1f} {cx:.1f} {cy - R * .95:.1f} C{cx + R * .55:.1f} {cy - R * .95:.1f} {cx + R * 1.1:.1f} {cy - R * .5:.1f} {cx + R * 1.02:.1f} {cy + R * .45:.1f} C{cx + R * .9:.1f} {cy + R * .85:.1f} {cx - R * .9:.1f} {cy + R * .85:.1f} {cx - R * 1.02:.1f} {cy + R * .45:.1f} Z" fill="{sv.rad(body)}"/>')
         sv.add(f'<ellipse cx="{cx - R * .4:.1f}" cy="{cy - R * .5:.1f}" rx="{R * .32:.1f}" ry="{R * .16:.1f}" fill="#FFFFFF" opacity=".16" transform="rotate(-20 {cx - R * .4:.1f} {cy - R * .5:.1f})"/>')
         if role == "moss":
@@ -827,10 +826,9 @@ def draw_cast(s, sv):
     elif role == "otto":
         w = H * 0.64
         cx, top, bot = x, y - H, y
-        for sx in (-1, 1):   # short dark legs and feet
-            sv.add(f'<rect x="{cx + sx * w * .2 - w * .06:.1f}" y="{bot - w * .2:.1f}" width="{w * .12:.1f}" height="{w * .16:.1f}" rx="{w * .06:.1f}" fill="#22231F"/>')
-            sv.add(f'<ellipse cx="{cx + sx * w * .22 + s.f * w * .04:.1f}" cy="{bot - w * .03:.1f}" rx="{w * .12:.1f}" ry="{w * .05:.1f}" fill="#22231F"/>')
-        bot -= w * .1
+        for sx in (-1, 1):   # two soft nubs tucked under the body (no legs)
+            sv.add(f'<ellipse cx="{cx + sx * w * .22:.1f}" cy="{bot - w * .06:.1f}" rx="{w * .12:.1f}" ry="{w * .06:.1f}" fill="#2B2C27"/>')
+        bot -= w * .07
         sv.add(f'<path d="M{cx - w / 2:.1f} {bot - w * .2:.1f} V{top + w * .55:.1f} A{w / 2:.1f} {w * .55:.1f} 0 0 1 {cx + w / 2:.1f} {top + w * .55:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="{sv.lin("#2A4580", 120)}"/>')
         sv.add(f'<path d="M{cx - w / 2:.1f} {bot - H * .3:.1f} H{cx + w / 2:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="#15264D"/>')
         sv.add(f'<ellipse cx="{cx - w * .2:.1f}" cy="{top + w * .4:.1f}" rx="{w * .14:.1f}" ry="{w * .24:.1f}" fill="#FFFFFF" opacity=".1"/>')
@@ -1288,7 +1286,7 @@ def rig_sheet(out):
 # one scale for all, so the child grows from figure to figure
 FIGURES = [("lieback", 1, 196, 1.12), ("prone", 4, 190, 1.12), ("sit", 7, 160, 1.12), ("crawl", 10, 176, 1.12),
            ("stand", 14, 166, 1.12), ("walk", 22, 158, 1.12), ("run", 30, 150, 1.12)]
-def figures(index):
+def figures_people(index):
     CAST_FACES.clear(); VIEW.update(z=1.0, cx=150)
     for i, (pose, age, x, k) in enumerate(FIGURES):
         sv = SVG(300, 300)
@@ -1299,6 +1297,98 @@ def figures(index):
         lying = pose in ("prone", "lieback")
         sv.shadow(c.hip[0] - (c.d["torso"] * .45 * c.f if lying else 0), 290, 60, 7)
         c.draw(sv); sv.add('</g>')
+        im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=600))).convert("RGBA")
+        n = f"{PREFIX}child_{i}{SUFFIX}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
+        index["size"][n] = [600, 600]
+
+
+# Moss growing, for the growth map (and the home header, 我的, the growth book): the child of the app is Moss, so each
+# stage is Moss as himself — no arms, no legs, no human pose. What changes is what a parent sees change: he gets
+# bigger, his sprig grows (a seed-leaf pair, then the full pair, then a second pair, then a bud), and how he is in the
+# world — asleep in a leaf nest, lifting his face on the tummy mat, sitting up on a cushion, leaning forward on the
+# way somewhere, standing tall, stepping along, off the ground running. Facing right (forward in time).
+MOSS_STAGES = [
+    dict(H=118, x=150, deg=0, sq=0.9, lift=0, look=(0.0, 0.0), shut=True, mouth="smile", sprig=0.45, prop="nest"),
+    dict(H=126, x=150, deg=-9, sq=0.86, lift=0, look=(0.35, -0.6), mouth="o", sprig=0.6, prop="mat"),
+    dict(H=136, x=150, deg=0, sq=1.0, lift=0, look=(0.35, 0.05), mouth="smile", sprig=0.75, prop="cushion"),
+    dict(H=146, x=160, deg=17, sq=0.93, lift=0, look=(0.75, 0.15), mouth=None, sprig=0.85, prop="puffs"),
+    dict(H=158, x=150, deg=0, sq=1.05, lift=0, look=(0.2, -0.55), mouth="o", sprig=1.0, pair2=True, prop="sparkle"),
+    dict(H=166, x=168, deg=7, sq=1.0, lift=9, look=(0.7, 0.0), mouth="smile", sprig=1.05, pair2=True, prop="trail"),
+    dict(H=168, x=162, deg=13, sq=1.0, lift=26, look=(0.75, -0.1), mouth="laugh", sprig=1.1, pair2=True, bud=True, prop="speed"),
+]
+
+def moss_stage(sv, st, ground=286):
+    H, x, deg, sq, lift = st["H"], st["x"], st["deg"], st["sq"], st["lift"]
+    R = H / 1.72
+    body = "#55703F"
+    prop = st["prop"]
+    # the ground things, under him
+    if prop == "nest":       # a soft leaf nest: a low cream crescent with a mint lining
+        sv.add(f'<ellipse cx="{x:.1f}" cy="{ground - 8:.1f}" rx="{R * 1.42:.1f}" ry="{R * .36:.1f}" fill="{sv.lin("#BFE3B4")}"/>')
+    elif prop == "mat":      # the tummy-time mat
+        sv.add(f'<rect x="{x - R * 1.6:.1f}" y="{ground - 12:.1f}" width="{R * 3.2:.1f}" height="16" rx="8" fill="{sv.lin("#BFE0F2")}"/>')
+        for k in range(4): sv.add(f'<circle cx="{x - R * 1.2 + k * R * .8:.1f}" cy="{ground - 4:.1f}" r="3.2" fill="#FFFFFF" opacity=".75"/>')
+    elif prop == "cushion":  # a round floor cushion to sit up on
+        sv.add(f'<ellipse cx="{x:.1f}" cy="{ground - 12:.1f}" rx="{R * 1.25:.1f}" ry="{R * .32:.1f}" fill="{sv.rad("#F7C7A3")}"/>')
+    sv.shadow(x + (lift * .2), ground + 2, R * (1.05 - lift / 160), 9, .2 - lift / 400)
+    base = ground - (14 if prop in ("cushion",) else 8 if prop == "mat" else 6 if prop == "nest" else 0) - lift
+    # motion: behind him (to the left), never on him
+    if prop == "puffs":
+        for k, (dx, r) in enumerate(((-1.25, 9), (-1.6, 7), (-1.9, 5))): sv.add(f'<circle cx="{x + dx * R:.1f}" cy="{ground - 8 - k * 3:.1f}" r="{r}" fill="#FFFFFF" opacity=".85"/>')
+    elif prop == "trail":
+        for k in range(4): sv.add(f'<circle cx="{x - R * (1.25 + k * .33):.1f}" cy="{ground - 22 - k * 9 - (k % 2) * 6:.1f}" r="{3.6 - k * .6:.1f}" fill="#7FCB8F" opacity="{.8 - k * .15:.2f}"/>')
+        sv.add(f'<circle cx="{x - R * 1.15:.1f}" cy="{ground - 6:.1f}" r="7" fill="#FFFFFF" opacity=".85"/>')
+    elif prop == "speed":
+        for k, (dy, ln) in enumerate(((-.9, .7), (-.45, 1.0), (0.0, .75))):
+            y0 = base - R * .95 + dy * R * .9
+            sv.add(f'<path d="M{x - R * 1.25:.1f} {y0:.1f} h{-R * ln:.1f}" stroke="#7FCB8F" stroke-width="5" stroke-linecap="round" opacity=".7"/>')
+        for k, (dx, r) in enumerate(((-.7, 9), (-1.05, 6))): sv.add(f'<circle cx="{x + dx * R:.1f}" cy="{ground - 5:.1f}" r="{r}" fill="#FFFFFF" opacity=".85"/>')
+    cy = base - R * 0.95
+    sv.add(f'<g transform="rotate({deg:.1f} {x:.1f} {base:.1f}) translate({x:.1f} {base:.1f}) scale(1 {sq:.2f}) translate({-x:.1f} {-base:.1f})">')
+    if st.get("nubs"):
+        for sx in (-1, 1): sv.add(f'<ellipse cx="{x + sx * R * .42:.1f}" cy="{base - R * .08:.1f}" rx="{R * .17:.1f}" ry="{R * .09:.1f}" fill="#2B2C27"/>')
+    cx = x
+    sv.add(f'<path d="M{cx - R * 1.02:.1f} {cy + R * .45:.1f} C{cx - R * 1.1:.1f} {cy - R * .55:.1f} {cx - R * .5:.1f} {cy - R * .95:.1f} {cx:.1f} {cy - R * .95:.1f} C{cx + R * .55:.1f} {cy - R * .95:.1f} {cx + R * 1.1:.1f} {cy - R * .5:.1f} {cx + R * 1.02:.1f} {cy + R * .45:.1f} C{cx + R * .9:.1f} {cy + R * .85:.1f} {cx - R * .9:.1f} {cy + R * .85:.1f} {cx - R * 1.02:.1f} {cy + R * .45:.1f} Z" fill="{sv.rad(body)}"/>')
+    sv.add(f'<ellipse cx="{cx - R * .4:.1f}" cy="{cy - R * .5:.1f}" rx="{R * .32:.1f}" ry="{R * .16:.1f}" fill="#FFFFFF" opacity=".16" transform="rotate(-20 {cx - R * .4:.1f} {cy - R * .5:.1f})"/>')
+    # the sprig, growing with him
+    g = st["sprig"]; top = cy - R * .92; tip = top - R * .36 * g
+    sv.add(f'<path d="M{cx:.1f} {top:.1f} V{tip:.1f}" stroke="#3E7D4E" stroke-width="{max(2, R * .07):.1f}" stroke-linecap="round"/>')
+    for sx in (-1, 1):
+        lx, ly = cx + sx * R * .27 * g, tip - R * .04
+        sv.add(f'<ellipse cx="{lx:.1f}" cy="{ly:.1f}" rx="{R * .3 * g:.1f}" ry="{R * .14 * g:.1f}" fill="{sv.lin("#7FCB8F")}" transform="rotate({-28 * sx} {lx:.1f} {ly:.1f})"/>')
+    if st.get("pair2"):
+        mid = top - R * .2 * g
+        for sx in (-1, 1):
+            lx = cx + sx * R * .2
+            sv.add(f'<ellipse cx="{lx:.1f}" cy="{mid:.1f}" rx="{R * .2:.1f}" ry="{R * .09:.1f}" fill="{sv.lin("#5DB27A")}" transform="rotate({-12 * sx} {lx:.1f} {mid:.1f})"/>')
+    if st.get("bud"):
+        sv.add(f'<circle cx="{cx:.1f}" cy="{tip - R * .1:.1f}" r="{R * .09:.1f}" fill="{sv.rad("#FF9DB5")}"/>')
+    for sx in (-1, 1):
+        sv.add(f'<ellipse cx="{cx + sx * R * .66:.1f}" cy="{cy + R * .12:.1f}" rx="{R * .15:.1f}" ry="{R * .09:.1f}" fill="#F49AB0" opacity=".85"/>')
+    er = R * 0.2
+    for sx in (-1, 1): _eye(sv, cx + sx * R * .34, cy - R * .2, er * .8, er, st["look"], st.get("shut", False))
+    m = st.get("mouth")
+    if m == "smile":
+        sv.add(f'<path d="M{cx - R * .1:.1f} {cy + R * .1:.1f} q{R * .1:.1f} {R * .09:.1f} {R * .2:.1f} 0" stroke="{INK}" stroke-width="{max(1.6, R * .04):.1f}" fill="none" stroke-linecap="round"/>')
+    elif m == "o":
+        sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy + R * .13:.1f}" rx="{R * .06:.1f}" ry="{R * .07:.1f}" fill="#5B2A2A"/>')
+    elif m == "laugh":
+        sv.add(f'<path d="M{cx - R * .13:.1f} {cy + R * .07:.1f} h{R * .26:.1f} q0 {R * .2:.1f} {-R * .13:.1f} {R * .2:.1f} q{-R * .13:.1f} 0 {-R * .13:.1f} {-R * .2:.1f} Z" fill="#5B2A2A"/>')
+    sv.add('</g>')
+    if prop == "sparkle":
+        for (dx, dy, r) in ((-1.2, -1.75, 7), (1.25, -1.6, 5), (1.45, -1.05, 4)):
+            px, py = x + dx * R, base - R * .95 + dy * R * .62
+            sv.add(f'<path d="M{px:.1f} {py - r:.1f} Q{px:.1f} {py:.1f} {px + r:.1f} {py:.1f} Q{px:.1f} {py:.1f} {px:.1f} {py + r:.1f} Q{px:.1f} {py:.1f} {px - r:.1f} {py:.1f} Q{px:.1f} {py:.1f} {px:.1f} {py - r:.1f}Z" fill="#FFC23D"/>')
+    if prop == "nest":       # the nest's front lip, over his base: he is in it
+        sv.add(f'<path d="M{x - R * 1.42:.1f} {ground - 10:.1f} Q{x:.1f} {ground + 12:.1f} {x + R * 1.42:.1f} {ground - 10:.1f} Q{x + R * 1.3:.1f} {ground + 4:.1f} {x:.1f} {ground + 6:.1f} Q{x - R * 1.3:.1f} {ground + 4:.1f} {x - R * 1.42:.1f} {ground - 10:.1f}Z" fill="{sv.lin("#9FD39A")}"/>')
+        sv.add(f'<text x="{x + R * .9:.1f}" y="{ground - R * 1.9:.1f}" font-size="{R * .32:.0f}" font-weight="700" fill="#8FA7C9" font-family="Helvetica">z</text>')
+        sv.add(f'<text x="{x + R * 1.12:.1f}" y="{ground - R * 2.15:.1f}" font-size="{R * .24:.0f}" font-weight="700" fill="#8FA7C9" font-family="Helvetica">z</text>')
+
+def figures(index):
+    if not CAST: return figures_people(index)
+    for i, st in enumerate(MOSS_STAGES):
+        sv = SVG(300, 300)
+        moss_stage(sv, st)
         im = Image.open(io.BytesIO(cairosvg.svg2png(bytestring=sv.svg().encode(), output_width=600))).convert("RGBA")
         n = f"{PREFIX}child_{i}{SUFFIX}.webp"; im.save(os.path.join(OUT, n), "WEBP", quality=90, method=6)
         index["size"][n] = [600, 600]

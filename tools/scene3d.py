@@ -13,6 +13,7 @@ Usage: python3 tools/scene3d.py OUT_DIR --play A11 [--samples 64] [--sprites DIR
 """
 import io, math, os, sys, json
 import bpy
+from mathutils import Euler
 from PIL import Image
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import ip3d
@@ -945,6 +946,92 @@ def figures():
         index["size"][n] = [600, 600]; print("wrote", n, flush=True)
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
 
+def moss_figures(only=None):
+    """Moss growing, in soft vinyl: the same seven stages as the flat world (picturebook.MOSS_STAGES) — the same
+    size, lean, lift, sprig and the same ground things (a leaf nest, the tummy-time mat, a floor cushion, puffs of air
+    behind him, a sparkle, a trail of seeds, speed lines), so the two worlds tell one story. Square, transparent."""
+    art = os.path.join(HERE, "..", "ios", "Art", "art"); ipath = os.path.join(art, "index.json"); index = json.load(open(ipath))
+    from PIL import ImageDraw, ImageFilter
+    P = 0.01                                   # one 2D pixel in world units
+    for i, st in enumerate(pb.MOSS_STAGES):
+        if only is not None and i not in only: continue
+        sc = ip3d.reset(); sc.render.film_transparent = True; sc.view_settings.view_transform = "Standard"
+        sc.view_settings.look = "Medium Contrast"; sc.view_settings.exposure = -0.85
+        ip3d.materials(); MATS.clear(); lights()
+        H, x, deg, sq, lift = st["H"], st["x"], st["deg"], st["sq"], st["lift"]
+        R = H / 1.72
+        wx = (x - 150) * P
+        prop = st["prop"]
+        rise = {"cushion": 14, "mat": 8, "nest": 6}.get(prop, 0) * P
+        if prop == "nest":
+            o = sphere("nest", (wx, 0, 0.05), (R * 1.42 * P, R * 0.9 * P, 0.07), vinyl("#A9DB9F", 0.7))
+            torus("nestrim", (wx, 0, 0.07), R * 1.25 * P, 0.06, "#8FCB86", rot=(0, 0, 0)).scale = (1, 0.62, 0.8)
+        elif prop == "mat":
+            rbox("mat", (wx, 0, 0.04), (R * 3.2 * P, R * 1.3 * P, 0.08), "#BFE0F2", bevel=0.45)
+            for k in range(4): sphere(f"dot{k}", (wx - R * 1.2 * P + k * R * 0.8 * P, -R * 0.66 * P, 0.06), (0.035, 0.012, 0.035), vinyl("#FFFFFF", 0.5))
+        elif prop == "cushion":
+            sphere("cushion", (wx, 0, 0.07), (R * 1.25 * P, R * 0.85 * P, 0.11), vinyl("#F7C7A3", 0.75))
+        root = build_moss(look=(st["look"][0] * 0.9, -st["look"][1] * 0.9), shut="down" if st.get("shut") else None, perk=min(1.0, st["sprig"] - 0.2))
+        for o in list(root.children):
+            if o.name.startswith("moss_foot"): bpy.data.objects.remove(o, do_unlink=True)
+        g = st["sprig"]
+        for o in root.children:
+            if o.name.startswith("moss_leaf"): o.scale = tuple(v * g for v in o.scale)
+        if st.get("pair2"):
+            top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
+            for sxx in (-1, 1):
+                l = ip3d.leaf(f"moss_pair2{sxx}", (0.0, -0.022, top + 0.04), Euler((sxx * 1.05, -math.radians(14), math.radians(185 if sxx < 0 else -5))), 0.2, M["mintPale"], width=0.6)
+                l.parent = root
+        if st.get("bud"):
+            top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
+            b = sphere("bud", (0.0, -0.02, top + 0.2), (0.045, 0.045, 0.05), vinyl("#FF9DB5", 0.4)); b.parent = root
+        m = st.get("mouth")
+        mz = ip3d.MOSS["cz"] + 0.08
+        if m == "o":
+            o = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.032, 0.02, 0.038), ink()); o.parent = root
+        elif m == "laugh":
+            o = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.012, mz - 0.01), (0.07, 0.022, 0.05), vinyl("#5B2A2A", 0.4)); o.parent = root
+        elif m == "smile" and not st.get("shut"):
+            o = tube("mouth", [(-0.05, ip3d.moss_surface_y(-0.05, mz + 0.02) + 0.004, mz + 0.02), (0, ip3d.moss_surface_y(0, mz - 0.01) - 0.004, mz - 0.01), (0.05, ip3d.moss_surface_y(0.05, mz + 0.02) + 0.004, mz + 0.02)], 0.011, ink()); o.parent = root
+        k = 1.1 * H * P / 0.96
+        root.location = (wx, 0, rise + lift * P)
+        root.scale = (k, k, k * sq)
+        root.rotation_euler = (0, math.radians(deg), 0)
+        # motion behind him, never on him
+        white = MATS.setdefault("puff", mat("puff", "#FFFFFF", rough=0.55, emit="#FFFFFF", emit_strength=0.45))
+        if prop == "puffs":
+            for kk, (dx, r) in enumerate(((-1.25, 9), (-1.6, 7), (-1.9, 5))): sphere(f"puff{kk}", (wx + dx * R * P, 0, (8 + kk * 3) * P), (r * P,) * 3, white)
+        elif prop == "trail":
+            for kk in range(4): sphere(f"seed{kk}", (wx - R * (1.25 + kk * 0.33) * P, 0, (22 + kk * 9 + (kk % 2) * 6) * P), ((3.6 - kk * 0.6) * P,) * 3, vinyl("#7FCB8F", 0.5))
+            sphere("puff", (wx - R * 1.15 * P, 0, 6 * P), (7 * P,) * 3, white)
+        elif prop == "speed":
+            for kk, (dy, ln) in enumerate(((-0.9, 0.7), (-0.45, 1.0), (0.0, 0.75))):
+                z0 = lift * P + (R * 0.95 - dy * R * 0.9) * P
+                capsule(f"speed{kk}", (wx - R * 1.25 * P, 0.1, z0), (wx - R * (1.25 + ln) * P, 0.1, z0), 2.6 * P, vinyl("#9FD9AE", 0.5))
+            for kk, (dx, r) in enumerate(((-0.7, 9), (-1.05, 6))): sphere(f"puff{kk}", (wx + dx * R * P, 0, 5 * P), (r * P,) * 3, white)
+        elif prop == "sparkle":
+            gold = mat("gold", "#FFC23D", rough=0.3, coat=0.5)
+            for kk, (dx, dy, r) in enumerate(((-1.2, -1.75, 7), (1.25, -1.6, 5), (1.45, -1.05, 4))):
+                z = (R * 0.95 - dy * R * 0.62) * P
+                for ax in ((r * P, 0.012, r * 0.28 * P), (r * 0.28 * P, 0.012, r * P)):
+                    sphere(f"spark{kk}{ax[0]:.3f}", (wx + dx * R * P, -0.2, z), ax, gold)
+        if st.get("shut"):
+            for kk, (dx, dz, r) in enumerate(((0.9, 1.9, 0.16), (1.12, 2.15, 0.12))):
+                o = rbox(f"z{kk}", (wx + dx * R * P, -0.3, dz * R * P), (r * R * P, 0.02, r * R * P * 0.25), "#8FA7C9", bevel=0.4)
+        # a front camera, the same frame as the 2D figure (300 px square, the ground 14 px from the foot)
+        t = math.radians(8)
+        bpy.ops.object.camera_add(location=(0, -30 * math.cos(t), 1.36 + 30 * math.sin(t))); cam = bpy.context.object
+        cam.rotation_euler = (math.radians(90) - t, 0, 0); cam.data.type = "ORTHO"; cam.data.ortho_scale = 3.0; sc.camera = cam
+        tmp = f"/tmp/mfig{i}.png"; ip3d.render(tmp, 600, 600)
+        im = Image.open(tmp).convert("RGBA")
+        sh = Image.new("RGBA", im.size, (0, 0, 0, 0)); d = ImageDraw.Draw(sh)
+        hx = (x + lift * 0.2) * 2; rr = R * (1.05 - lift / 160) * 2
+        d.ellipse((hx - rr, 2 * 287 - 12, hx + rr, 2 * 287 + 12), fill=(90, 58, 32, int(60 - lift)))
+        sh = sh.filter(ImageFilter.GaussianBlur(9)); sh.alpha_composite(im)
+        n = f"child_{i}.webp"; sh.save(os.path.join(art, n), "WEBP", quality=90, method=6)
+        index["size"][n] = [600, 600]; print("wrote", n, flush=True)
+    json.dump(index, open(ipath, "w"), separators=(",", ":"))
+
 def trays():
     """The shelf's trays (本周的架子): a wooden Montessori tray with a felt mat in the play's area colour and its
     materials on it — the same vinyl things as in the pictures, seen a little from above. Flat things (cards, books)
@@ -1008,7 +1095,10 @@ def one(code, out):
         if not fixed: prev = got
 
 if __name__ == "__main__":
-    if ARGS[0] == "figures": figures(); sys.exit()
+    if ARGS[0] == "figures":
+        if IP: moss_figures(set(int(v) for v in arg("--only", "").split(",") if v) or None)
+        else: figures()
+        sys.exit()
     if ARGS[0] == "trays": trays(); sys.exit()
     if ARGS[0] == "export":
         codes = arg("--play", "").split(",") if "--play" in ARGS else [a["code"] for a in pb.C["activities"] if a["code"] in json.load(open(pb.SCENES))]
