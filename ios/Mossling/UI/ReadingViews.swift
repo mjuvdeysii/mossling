@@ -32,8 +32,7 @@ struct SearchView: View {
         List {
             if !plays.isEmpty {
                 Section("活动") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
-                    let k = Palette.areaKey(of: p)
-                    Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) } } } }
+                    PlayRowLabel(play: p) } } }
             }
             if !months.isEmpty {
                 Section("月份") { ForEach(months, id: \.month) { m in NavigationLink(value: Route.month(m.month)) {
@@ -41,6 +40,12 @@ struct SearchView: View {
             }
             if !topics.isEmpty {
                 Section("专题") { ForEach(topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
+            }
+            // before typing: what is on the shelf this week and the topics, so the page opens on something to read
+            if t.isEmpty {
+                let m = app.babyMonth ?? 0
+                Section("本周的架子") { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
+                Section("专题") { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
             }
             if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty {
                 ContentUnavailableView.search(text: t)
@@ -84,8 +89,21 @@ struct PlanView: View {
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("本周的架子")
     }
-    private func playLabel(_ p: Play) -> some View {
-        let k = Palette.areaKey(of: p)
-        return Label { VStack(alignment: .leading, spacing: 2) { Text(p.name); Text(p.age).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k)) }
+    private func playLabel(_ p: Play) -> some View { PlayRowLabel(play: p) }
+}
+
+/// A play in a list: its own tray on its area's tile (as on the home shelf), the name and the age range.
+struct PlayRowLabel: View {
+    let play: Play
+    @ScaledMetric(relativeTo: .body) private var w: CGFloat = 52
+    var body: some View {
+        HStack(spacing: 12) {
+            TrayTile(code: play.code, color: Palette.area(Palette.areaKey(of: play)), flat: ArtStyle.current == .flat)
+                .frame(width: min(w, 84), height: min(w, 84) * 0.75)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(play.name)
+                Text(play.age).font(.subheadline).foregroundStyle(Palette.secondaryText)
+            }
+        }
     }
 }
