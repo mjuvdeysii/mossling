@@ -112,6 +112,7 @@ struct YouView: View {
 /// being. Tap Moss and he giggles; 编辑 opens the child's details.
 private struct FamilyCard: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     @Environment(\.lamp) private var night
     let edit: () -> Void
     @State private var giggles = 0
@@ -152,15 +153,10 @@ private struct FamilyCard: View {
                 facts
                 Divider()
                 // the two side by side (one column at the largest text sizes)
-                ViewThatFits(in: .horizontal) {
-                    HStack(alignment: .top, spacing: 10) {
-                        role(.moss, "宝宝", Kind.moss.trait)
-                        role(.otto, "大人", Kind.otto.trait)
-                    }
-                    VStack(alignment: .leading, spacing: 10) {
-                        role(.moss, "宝宝", Kind.moss.trait)
-                        role(.otto, "大人", Kind.otto.trait)
-                    }
+                let roles = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
+                roles {
+                    role(.moss, "宝宝", Kind.moss.trait)
+                    role(.otto, "大人", Kind.otto.trait)
                 }
             }
             .padding(16)
