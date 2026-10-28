@@ -1,8 +1,8 @@
 import SwiftUI
 import LocalAuthentication
 
-/// Me: the child in one compact line (set once, edited in a sheet), the companion in front, and the settings and the
-/// data as tiles in a grid. Nothing here repeats the home or the records.
+/// Me: the family first (Moss the child and Otto the grown-up, and the child's details, edited in a sheet), the growth
+/// book, then how the app looks, its features and the data. Nothing here repeats the home or the records.
 struct YouView: View {
     @Environment(AppModel.self) private var app
     @Binding var path: NavigationPath
@@ -17,43 +17,8 @@ struct YouView: View {
         @Bindable var app = app
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                // the child and the companion, one card: who the app is for, and who keeps it company
-                VStack(spacing: 0) {
-                    Button { editing = true } label: {
-                        HStack(spacing: 16) {
-                            // the child from the picture book, at the child's own stage, in the chosen companion's arms
-                            HuggedAvatar(size: 86)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title2.weight(.bold)).foregroundStyle(.primary)
-                                if let a = app.age {
-                                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                                        Ticking(text: "\(a.months)").font(Typeface.numerals(22, relativeTo: .title3, weight: .bold))
-                                        Text("个月").font(.footnote.weight(.semibold)).fixedSize()
-                                        if a.days > 0 { Ticking(text: "\(a.days)").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).padding(.leading, 3); Text("天").font(.footnote.weight(.semibold)).fixedSize() }
-                                    }
-                                    .fixedSize()   // "6 个月 17 天" stays one line: a unit never breaks off its number
-                                    .foregroundStyle(Palette.accent)
-                                }
-                                // the date and the day count each keep to one piece: "第 201 天" never breaks off its number
-                                ViewThatFits(in: .horizontal) {
-                                    HStack(spacing: 4) { birthLine; lived(dot: true) }
-                                    VStack(alignment: .leading, spacing: 1) { birthLine; lived(dot: false) }
-                                }
-                                .font(.caption).foregroundStyle(Palette.secondaryText)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                        }
-                        .padding(16)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.toy)
-                    Divider().padding(.horizontal, 16)
-                    // the companions: the chosen one in front; tap the other to bring it forward
-                    CompanionStage()
-                }
-                .background(LinearGradient(colors: [Crayon.lilac.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                .printCard(radius: 28)
+                // the family: the child (Moss) and the grown-up (Otto) at home on the child's own hill, then who the child is
+                FamilyCard { editing = true }
 
                 // the growth book: a page for every month lived, from what is already recorded
                 if app.birth != nil { GrowthBookCard() }
@@ -137,9 +102,135 @@ struct YouView: View {
         } message: { Text("清除后无法恢复。") }
     }
 
-    private var birthLine: some View { Text(verbatim: app.birth.map { b in String(b.y) + "年" + b.md + "出生" } ?? "填写出生日期").fixedSize() }
-    @ViewBuilder private func lived(dot: Bool) -> some View {
-        if let a = app.age { Text(verbatim: (dot ? "· " : "") + "第 " + String(a.lived) + " 天").monospacedDigit().fixedSize() }
+}
+
+/// The family, at the top of 我的: who the app is for and who it is from. The child is Moss — at the child's own stage
+/// (asleep in a leaf nest, sitting up, stepping along…), on the stone of the child's own month, on the hill of the
+/// child's own year, as on the growth map — and the grown-up beside him is Otto with his lamp: 孩子摸索，大人点灯. By
+/// night the child is home asleep and Otto's lamp comes on for a moment. Under the scene, the child: name, age, the day
+/// count, the sex (for the WHO curves) and what this stretch of growing is about; then the two, each with their way of
+/// being. Tap Moss and he giggles; 编辑 opens the child's details.
+private struct FamilyCard: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.night) private var night
+    let edit: () -> Void
+    @State private var giggles = 0
+
+    private static let stretch = ["躺着看世界", "趴着抬起头", "坐起来看", "往前爬", "站起来", "迈开步子", "跑起来"]
+
+    var body: some View {
+        let baby = app.babyMonth ?? 0
+        VStack(alignment: .leading, spacing: 0) {
+            MapVignette(month: baby, baby: baby, otto: true, giggle: giggles)
+                .frame(height: 176)
+                .contentShape(Rectangle())
+                .onTapGesture { giggles += 1 }
+                .sensoryFeedback(.impact(weight: .light), trigger: giggles)
+                .accessibilityElement().accessibilityLabel("Moss 和 Otto 在家").accessibilityAddTraits(.isImage)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title2.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                    Spacer(minLength: 8)
+                    Button(action: edit) {
+                        Label("编辑", systemImage: "pencil").font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.vinyl(Palette.accentFill))
+                    .accessibilityLabel("编辑宝宝信息")
+                }
+                if let a = app.age {
+                    HStack(alignment: .firstTextBaseline, spacing: 2) {
+                        Ticking(text: "\(a.months)").font(Typeface.numerals(28, relativeTo: .title2, weight: .bold))
+                        Text("个月").font(.subheadline.weight(.semibold)).fixedSize()
+                        if a.days > 0 {
+                            Ticking(text: "\(a.days)").font(Typeface.numerals(20, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
+                            Text("天").font(.subheadline.weight(.semibold)).fixedSize()
+                        }
+                    }
+                    .fixedSize()
+                    .foregroundStyle(Palette.accent)
+                }
+                facts
+                Divider()
+                VStack(alignment: .leading, spacing: 10) {
+                    role(.moss, "宝宝", Kind.moss.trait)
+                    role(.otto, "大人", Kind.otto.trait)
+                }
+                Text("孩子摸索，大人点灯。").font(.caption).foregroundStyle(Palette.secondaryText)
+            }
+            .padding(16)
+        }
+        .printCard(radius: 28)
+    }
+
+    /// The child's facts as small chips that wrap (never a line that scrolls sideways).
+    private var facts: some View {
+        let birth = app.birth.map { b in String(b.y) + "年" + b.md + "出生" }
+        let lived = app.age.map { "第 \($0.lived) 天" }
+        let sex = app.sex == "boy" ? "男孩" : app.sex == "girl" ? "女孩" : nil
+        let stage = app.age.map { _ in "这一段：" + Self.stretch[GrowingChild.stage(app.babyMonth ?? 0)] }
+        return FlowRow(spacing: 6) {
+            if let birth { chip(birth, "calendar") } else {
+                Button(action: edit) { chip("填写出生日期", "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
+            }
+            if let lived { chip(lived, "sun.max") }
+            if let sex { chip(sex, "figure.child") } else {
+                Button(action: edit) { chip("填写性别", "plus", strong: true) }.buttonStyle(.toy)
+            }
+            if let stage { chip(stage, "leaf") }
+        }
+    }
+
+    private func chip(_ t: String, _ symbol: String, strong: Bool = false) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol).font(.caption2.weight(.bold))
+            Text(t).font(.caption.weight(.semibold)).fixedSize()
+        }
+        .foregroundStyle(strong ? Palette.accent : Palette.secondaryText)
+        .padding(.horizontal, 10).padding(.vertical, 5)
+        .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : Palette.outline.opacity(0.3)))
+    }
+
+    private func role(_ k: Kind, _ who: String, _ trait: String) -> some View {
+        HStack(alignment: .center, spacing: 12) {
+            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && night ? 0.5 : nil, alive: true, poke: true, glow: k == .otto && night)
+                .frame(width: 40 * k.scale, height: 40 * k.scale)
+                .frame(width: 48, height: 48)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(k.rawValue).font(.subheadline.weight(.bold))
+                    Text(who).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        .padding(.horizontal, 6).padding(.vertical, 1)
+                        .background(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
+                }
+                Text(trait).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Chips laid out in lines that wrap, left to right.
+private struct FlowRow: Layout {
+    var spacing: CGFloat = 6
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? .infinity
+        var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > 0 && x + s.width > w { y += line + spacing; x = 0; line = 0 }
+            x += s.width + spacing; line = max(line, s.height); widest = max(widest, x - spacing)
+        }
+        return CGSize(width: proposal.width ?? widest, height: y + line)
+    }
+    func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = b.minX, y = b.minY, line: CGFloat = 0
+        for v in subviews {
+            let s = v.sizeThatFits(.unspecified)
+            if x > b.minX && x + s.width > b.maxX { y += line + spacing; x = b.minX; line = 0 }
+            v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
+            x += s.width + spacing; line = max(line, s.height)
+        }
     }
 }
 
@@ -156,51 +247,6 @@ private struct Section2<Content: View>: View {
             .padding(.leading, 4).accessibilityAddTraits(.isHeader)
             content
         }
-    }
-}
-
-/// The two companions on a little stage. The chosen one stands in front, larger; tap the other and it hops forward
-/// while the first steps back. The choice changes who stands in front and how they move, never what the app can do:
-/// Moss is curious (quick double glances, leaning in), Otto is focused (one slow look, a slow blink, the lamp on his head).
-private struct CompanionStage: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.lamp) private var lamp
-    @State private var cheer = 0
-    var body: some View {
-        HStack(alignment: .bottom, spacing: 0) {
-            ForEach(Kind.allCases, id: \.self) { k in
-                let on = app.companion == k
-                Button {
-                    guard !on else { cheer += 1; return }
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { app.companion = k }
-                    cheer += 1
-                } label: {
-                    VStack(spacing: 6) {
-                        Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.7 : -0.7, y: 0.1),
-                                 poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: (on ? 76 : 54) * k.scale, height: (on ? 76 : 54) * k.scale)
-                            .frame(height: 92, alignment: .bottom)
-                        Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
-                        Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
-                            .padding(.horizontal, 10)   // the two captions never run into each other
-                    }
-                    .frame(maxWidth: .infinity, minHeight: 124)
-                    .padding(.vertical, 8)
-                    .contentShape(Rectangle())   // the whole half of the stage is the button, not just the drawing
-                }
-                .buttonStyle(.toy)
-                .accessibilityLabel("主伙伴 \(k.rawValue)，\(k.trait)").accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .background(alignment: .bottom) {
-            // the stage: a soft floor line under their feet, a spot of light under the one in front
-            // by day a soft gold floor; under the lamp a pool of amber light (a flat fill read as a hole on the blue)
-            Ellipse().fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(lamp ? 0.4 : 0.22), .clear], center: .center, startRadius: 0, endRadius: 70))
-                .frame(width: 150, height: 22)
-                .offset(x: app.companion == .moss ? -80 : 80, y: -50)
-                .animation(.spring(response: 0.45, dampingFraction: 0.7), value: app.companion)
-        }
-        .sensoryFeedback(.impact(weight: .light), trigger: cheer)
     }
 }
 
@@ -300,10 +346,6 @@ struct ProfileSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    HuggedAvatar(size: 96).frame(maxWidth: .infinity).padding(.vertical, 4)
-                        .listRowBackground(Color.clear)
-                }
-                Section {
                     TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) }))
                     DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                         .onChange(of: date) { _, _ in hasBirth = true }
@@ -311,31 +353,6 @@ struct ProfileSheet: View {
                         Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
                     }
                 } footer: { Text("性别只用于选择 WHO 生长曲线。") }
-                // 3D: the pictures are acted by Moss and Otto, the same for every child — nothing to choose
-                if false {   // one cast in both worlds: the pictures are Moss and Otto, the same for every child
-                Section {
-                    HStack(spacing: 12) {
-                        ForEach(["boy", "girl"], id: \.self) { k in
-                            let on = app.drawsGirl == (k == "girl")
-                            Button { withAnimation(.snappy) { app.look = k } } label: {
-                                VStack(spacing: 6) {
-                                    Figure(name: "child_\(GrowingChild.stage(app.babyMonth ?? 0)).webp")
-                                        .environment(\.girlArt, k == "girl")
-                                        .scaleEffect(1.7, anchor: .bottom)   // the figure carries a margin
-                                        .frame(height: 96).clipped()
-                                    Text(k == "girl" ? "女宝" : "男宝").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                }
-                                .frame(maxWidth: .infinity).padding(.vertical, 10)
-                                .vinylSurface(on ? Palette.accent : Color(hex: 0x9A9289), radius: 18)
-                                .overlay(RoundedRectangle(cornerRadius: 18, style: .continuous).strokeBorder(on ? Palette.accent : .clear, lineWidth: 2))
-                            }
-                            .buttonStyle(.toy)
-                            .accessibilityLabel(k == "girl" ? "女宝" : "男宝").accessibilityAddTraits(on ? .isSelected : [])
-                        }
-                    }
-                    .listRowBackground(Color.clear).listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 4, trailing: 0))
-                } header: { Text("图里的宝宝") } footer: { Text("只改变插画里宝宝的样子，与伙伴无关；没选时跟随性别。") }
-                }
             }
             .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }

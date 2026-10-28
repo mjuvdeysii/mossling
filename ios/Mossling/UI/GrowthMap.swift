@@ -555,6 +555,10 @@ struct MonthProgress: View {
 /// house with its lit window and Otto's lamp), in the same world as the map.
 struct MapVignette: View {
     let month: Int, baby: Int
+    /// The grown-up beside the child by day too (the family on 我的), not only by night.
+    var otto = false
+    var giggle = 0
+    var poke = 0
     @Environment(\.night) private var night
     private var flat: Bool { ArtStyle.current == .flat }
     var body: some View {
@@ -581,19 +585,31 @@ struct MapVignette: View {
                     // a piece of the path, with the stone Moss stands on
                     var road = Path(); road.move(to: CGPoint(x: -6, y: size.height * 0.84)); road.addLine(to: CGPoint(x: size.width + 6, y: size.height * 0.84))
                     ctx.stroke(road, with: .color(night ? c.road : Color(hex: 0xFFF6E2)), style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    let s = CGRect(x: size.width / 2 - 8, y: size.height * 0.84 - 8, width: 16, height: 16)
+                    let s = CGRect(x: size.width * (otto ? 0.4 : 0.5) - 8, y: size.height * 0.84 - 8, width: 16, height: 16)
                     ctx.fill(Path(ellipseIn: s.offsetBy(dx: 0, dy: 1.5)), with: .color(.black.opacity(0.15)))
                     ctx.fill(Path(ellipseIn: s), with: .color(Palette.bead))
                 }
                 .overlay { if flat { Grain(dark: night, strength: 0.9).blendMode(.multiply) } }
-                let stone = CGPoint(x: w / 2, y: h * 0.84)
+                // the child's stone: in the middle, or a little left of it when Otto stands beside
+                let stone = CGPoint(x: otto ? w * 0.4 : w / 2, y: h * 0.84)
+                let ottoAt = CGPoint(x: min(w - h * 0.3, stone.x + h * 0.78), y: stone.y)
                 if night && month == baby {
-                    MapHome(flat: flat).frame(width: 52, height: 52).position(x: w / 2 - 6, y: stone.y - 22)
+                    let hs = otto ? h * 0.56 : 52
+                    MapHome(flat: flat).frame(width: hs, height: hs).position(x: stone.x - 6, y: stone.y - hs * 0.42)
                     Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.4), lid: 0.5, alive: true, glow: true, glowFor: 4.5)
-                        .frame(width: 36, height: 36).position(x: w - 18, y: stone.y - 14)
+                        .frame(width: otto ? h * 0.5 : 36, height: otto ? h * 0.5 : 36)
+                        .position(x: otto ? ottoAt.x : w - 18, y: stone.y - (otto ? h * 0.2 : 14))
                 } else {
-                    let d: CGFloat = 78
-                    GrowingChild(month: month).frame(width: d, height: d)
+                    let d: CGFloat = otto ? h * 0.78 : 78
+                    if otto {
+                        // Otto leans toward the child, his lamp pooling light on the stone
+                        Ellipse().fill(RadialGradient(colors: [Palette.amber.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: h * 0.4))
+                            .frame(width: h * 0.9, height: h * 0.22).position(x: stone.x, y: stone.y)
+                        Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.45), lean: -8, poke: true, glow: false)
+                            .frame(width: h * 0.62, height: h * 0.62)
+                            .position(x: ottoAt.x, y: stone.y - h * 0.26)
+                    }
+                    GrowingChild(month: month, giggle: giggle).frame(width: d, height: d)
                         .position(x: stone.x, y: stone.y + 3 - d / 2 + d * 14 / 300)
                 }
             }

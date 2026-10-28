@@ -202,6 +202,10 @@ final class ScreenshotTests: XCTestCase {
     func test15JournalDark() { let m = model(); m.journal = true; shot("15_journal_dark", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())))) }
     func test20YouDark() { let m = model(); shot("20_you_dark", dark: true, height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test08You() { let m = model(); shot("08_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
+    func test08You2D() {
+        let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("08_you_2d", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))))
+    }
     func test09About() { let m = model(); shot("09_about", tabs(m, AboutView())) }
     func test10Topic() { let m = model(); shot("10_topic", height: 1600, tabs(m, TopicView(topic: m.content.topics[0]))) }
     func test11Plan() { let m = model(); shot("11_plan", tabs(m, PlanView(path: .constant(NavigationPath())))) }
