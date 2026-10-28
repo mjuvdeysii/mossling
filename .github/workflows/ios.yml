@@ -102,7 +102,7 @@ jobs:
           mkdir -p /tmp/s && cp ios/shots/* /tmp/s/
           git config user.name "github-actions"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -q --orphan s-tmp && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && git push -qf origin s-tmp:screens-ios
+          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && (git push -qf origin s-tmp:screens-ios || git push -q origin s-tmp:refs/heads/shots-${GITHUB_SHA::7})
   testflight:
     # Signs with the developer account's App Store Connect API key and uploads the build to TestFlight.
     # Runs only when the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 and APPLE_TEAM_ID are set.
