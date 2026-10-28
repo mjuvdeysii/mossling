@@ -1,11 +1,20 @@
 name: iOS
-# Builds the iOS app with the newest Xcode on the runner, runs the tests in the iPhone simulator, and publishes the
-# rendered screens to the screens-ios branch for review.
+# Builds the iOS app with the newest Xcode on the runner, runs the tests in the iPhone simulator and, from main, uploads
+# to TestFlight. Kept fast: the accessibility audit and the published screens run only when a manual run asks for them.
 on:
   push:
     branches: [main]
     paths: ["ios/**", "app/src/main/assets/**", "*.md", ".github/workflows/ios.yml"]
   workflow_dispatch:
+    inputs:
+      screens:
+        description: "Publish the rendered screens (small) to a branch shots-<sha>"
+        type: boolean
+        default: false
+      audit:
+        description: "Run the accessibility audit (about 20 minutes)"
+        type: boolean
+        default: false
 permissions:
   contents: write
 concurrency:
@@ -50,8 +59,8 @@ jobs:
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
       - name: Accessibility audit
         # Xcode's accessibility audit on each tab (default and largest text); the findings go out with the screens.
-        # It reports, never blocks: the build and the TestFlight upload do not wait on it.
-        if: success()
+        # It reports, never blocks; it runs only when asked for (it takes about 20 minutes), so a build ships fast.
+        if: success() && inputs.audit
         continue-on-error: true
         timeout-minutes: 20
         working-directory: ios
@@ -86,15 +95,17 @@ jobs:
         run: |
           grep -E "error:|failed|XCTAssert" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::$(echo "$l" | sed 's/%/%25/g')"; done
       - name: Publish screens
-        if: always()
-        timeout-minutes: 10
+        # only when asked for: the screens, made small (600 points wide), to a branch of their own — a few megabytes,
+        # pushed in seconds
+        if: always() && inputs.screens
+        timeout-minutes: 8
         continue-on-error: true
         run: |
           [ -d ios/shots ] && [ "$(ls ios/shots)" ] || exit 0
-          mkdir -p /tmp/s && cp ios/shots/* /tmp/s/
+          mkdir -p /tmp/s && for f in ios/shots/*; do case "$f" in *.png) sips --resampleWidth 600 "$f" --out "/tmp/s/$(basename "$f")" >/dev/null;; *) cp "$f" /tmp/s/;; esac; done
           git config user.name "github-actions"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -q --orphan s-tmp && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && (git push -qf origin s-tmp:screens-ios || { git checkout -q --orphan s-small && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} + && for f in /tmp/s/*.png; do sips --resampleWidth 600 "$f" --out "./$(basename "$f")" >/dev/null; done && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens (small) ${GITHUB_SHA}" && git push -q origin s-small:refs/heads/shots-${GITHUB_SHA::7}; })
+          git checkout -q --orphan s-small && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && git push -q origin s-small:refs/heads/shots-${GITHUB_SHA::7}
   testflight:
     # Signs with the developer account's App Store Connect API key and uploads the build to TestFlight.
     # Runs only when the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 and APPLE_TEAM_ID are set.
