@@ -85,24 +85,16 @@ jobs:
         working-directory: ios
         run: |
           grep -E "error:|failed|XCTAssert" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::$(echo "$l" | sed 's/%/%25/g')"; done
-      - name: Upload screens
-        if: always()
-        continue-on-error: true
-        uses: actions/upload-artifact@v4
-        with:
-          name: screens
-          path: ios/shots
-          retention-days: 7
-          if-no-files-found: ignore
       - name: Publish screens
         if: always()
+        timeout-minutes: 10
         continue-on-error: true
         run: |
           [ -d ios/shots ] && [ "$(ls ios/shots)" ] || exit 0
           mkdir -p /tmp/s && cp ios/shots/* /tmp/s/
           git config user.name "github-actions"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git checkout -q --orphan s-tmp && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
-          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && (git push -qf origin s-tmp:screens-ios || git push -q origin s-tmp:refs/heads/shots-${GITHUB_SHA::7})
+          cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && (git push -qf origin s-tmp:screens-ios || { git checkout -q --orphan s-small && git rm -rqf --cached . && find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} + && for f in /tmp/s/*.png; do sips --resampleWidth 600 "$f" --out "./$(basename "$f")" >/dev/null; done && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens (small) ${GITHUB_SHA}" && git push -q origin s-small:refs/heads/shots-${GITHUB_SHA::7}; })
   testflight:
     # Signs with the developer account's App Store Connect API key and uploads the build to TestFlight.
     # Runs only when the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 and APPLE_TEAM_ID are set.
