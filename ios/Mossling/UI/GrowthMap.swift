@@ -39,6 +39,11 @@ enum MapGeo {
 /// The palette of a hill, by day and by night, in either world.
 private struct Hill {
     let top: Color, base: Color, edge: Color, road: Color
+    /// The same hill in the evening light (dark appearance by day): drawn down toward a warm plum.
+    var dusk: Hill {
+        let p = Color(hex: 0x5A3E58)
+        return Hill(top: top.mix(with: p, by: 0.38), base: base.mix(with: p, by: 0.45), edge: edge.mix(with: p, by: 0.5), road: road.mix(with: Color(hex: 0xE8A98A), by: 0.4))
+    }
     static func of(_ band: Int, night: Bool) -> Hill {
         if night {
             switch band {
@@ -610,7 +615,7 @@ struct MapVignette: View {
             let w = g.size.width, h = g.size.height
             ZStack {
                 Canvas { ctx, size in
-                    let c = Hill.of(band, night: night)
+                    let c = dusk ? Hill.of(band, night: false).dusk : Hill.of(band, night: night)
                     let top = night ? Color(hex: 0x0E1430) : dusk ? Color(hex: 0x3E4C80) : Color(hex: 0xBFE2F6), low = night ? Color(hex: 0x1D2A55) : dusk ? Color(hex: 0xE8A98A) : Color(hex: 0xEAF6F2)
                     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: flat ? .color(top.mix(with: low, by: 0.45)) : .linearGradient(Gradient(colors: [top, low]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.6)))
                     // the sky's things: the sun and two clouds, or the moon and a few stars
@@ -642,7 +647,7 @@ struct MapVignette: View {
                         }
                     }
                     // the next year's hill, far behind
-                    let far = Hill.of(min(2, band + 1), night: night)
+                    let far = dusk ? Hill.of(min(2, band + 1), night: false).dusk : Hill.of(min(2, band + 1), night: night)
                     var back = Path()
                     let yb = size.height * 0.5
                     back.move(to: CGPoint(x: 0, y: size.height)); back.addLine(to: CGPoint(x: 0, y: yb - 4))
@@ -659,11 +664,11 @@ struct MapVignette: View {
                     } else {
                         ctx.fill(hill, with: .linearGradient(Gradient(colors: [c.top, c.base]), startPoint: CGPoint(x: 0, y: y0 - 10), endPoint: CGPoint(x: 0, y: size.height)))
                         var rim = ctx; rim.clip(to: hill)
-                        rim.stroke(hill.offsetBy(dx: 0, dy: 1.5), with: .color(.white.opacity(night ? 0.12 : 0.6)), lineWidth: 2)
+                        rim.stroke(hill.offsetBy(dx: 0, dy: 1.5), with: .color(.white.opacity(night ? 0.12 : dusk ? 0.3 : 0.6)), lineWidth: 2)
                     }
                     // a piece of the path, with the stone Moss stands on
                     var road = Path(); road.move(to: CGPoint(x: -6, y: size.height * 0.84)); road.addLine(to: CGPoint(x: size.width + 6, y: size.height * 0.84))
-                    ctx.stroke(road, with: .color(night ? c.road : Color(hex: 0xFFF6E2)), style: StrokeStyle(lineWidth: 8, lineCap: .round))
+                    ctx.stroke(road, with: .color(night || dusk ? c.road : Color(hex: 0xFFF6E2)), style: StrokeStyle(lineWidth: 8, lineCap: .round))
                     let s = CGRect(x: size.width * (otto ? 0.38 : 0.5) - 8, y: size.height * 0.84 - 8, width: 16, height: 16)
                     ctx.fill(Path(ellipseIn: s.offsetBy(dx: 0, dy: 1.5)), with: .color(.black.opacity(0.15)))
                     ctx.fill(Path(ellipseIn: s), with: .color(Palette.bead))
