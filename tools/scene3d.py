@@ -49,17 +49,36 @@ pb.companions = lambda *a, **k: None   # the 2D companions are replaced by the 3
 
 _mark = pb.mark
 def mark3d(sv, m, ppl):
-    """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us)."""
+    """A line of sight starts and ends at the edge of a head, not across the face (in 3D the faces turn toward us).
+    With the cast, a badge over a head floats over the character's crown (the bodies are taller than the rig's heads),
+    keeping the storyboard's offset from it. Two badges never sit on each other: a later one steps aside."""
+    if IP and m["k"] == "badge":
+        at = m.get("at")
+        if isinstance(at, str) and at.split(".")[0] in ppl and at.endswith(".head"): c = ip_head(ppl[at.split(".")[0]])
+        elif isinstance(at, (list, tuple)): c = tuple(at)
+        else: c = None
+        if c is not None:
+            r = 26 * m.get("s", 1)
+            x, y = c[0] + m.get("dx", 0), c[1] + m.get("dy", -60)
+            for _ in range(4):
+                hit = next(((px, py) for px, py in BADGES if math.hypot(x - px, y - py) < 2.3 * r), None) or \
+                      next(((px, py) for px, py, rb in BUBBLES if math.hypot(x - px, y - py) < rb + r + 6), None)
+                if not hit: break
+                x = hit[0] + (2.4 * r if x >= hit[0] else -2.4 * r)
+            m = dict(m, dx=x - c[0], dy=y - c[1])
+            BADGES.append((x, y))
+
     if m["k"] == "look" and isinstance(m.get("a"), str) and isinstance(m.get("b"), str):
         def end(v, other):
             who, part = (v.split(".") + ["head"])[:2]
             p = ppl.get(who)
             if not p or part != "head": return None
-            c = p.head(); r = p.d["head"] * 1.25
+            c = ip_face(p) if IP else p.head(); r = p.d["head"] * 1.25
             dx, dy = other[0] - c[0], other[1] - c[1]; d = max(1e-3, math.hypot(dx, dy))
             return (c[0] + dx / d * r, c[1] + dy / d * r)
-        ca = ppl[m["a"].split(".")[0]].head() if m["a"].split(".")[0] in ppl else None
-        cb = ppl[m["b"].split(".")[0]].head() if m["b"].split(".")[0] in ppl else None
+        face = (lambda p: ip_face(p)) if IP else (lambda p: p.head())
+        ca = face(ppl[m["a"].split(".")[0]]) if m["a"].split(".")[0] in ppl else None
+        cb = face(ppl[m["b"].split(".")[0]]) if m["b"].split(".")[0] in ppl else None
         if ca and cb:
             a, b = end(m["a"], cb), end(m["b"], ca)
             if a and b:
@@ -79,7 +98,16 @@ def layers(spec, area, watch=None):
     pb.Person.draw = lambda s, sv: None; pb.obj = only(SCENERY); pb.mark = lambda *a, **k: None
     try: back = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj, pb.mark = keep
-    pb.Person.draw = lambda s, sv: None; pb.obj = only(FLAT)
+    def front_obj(sv, k, x, y, s=1.0, *a, **kw):
+        # a flat thing held up in front of a grown-up of the cast would cover its eye (Otto's face is where a
+        # person's chest was): it is held a little further out, beside the face
+        if k in FLAT:
+            for (fx, fy), R, f in AVOID:
+                cx, cy = x, y - 10 * s
+                if math.hypot(cx - fx, cy - fy) < R:
+                    x = fx + f * (R + 26 * s)
+        if k in FLAT: _obj(sv, k, x, y, s, *a, **kw)
+    pb.Person.draw = lambda s, sv: None; pb.obj = front_obj
     sh = pb.SVG.shadow; pb.SVG.shadow = lambda *a, **k: None
     try: front = pb.scene(spec, area)
     finally: pb.Person.draw, pb.obj = keep[0], keep[1]; pb.SVG.shadow = sh
@@ -120,7 +148,193 @@ def hair_cap(c, r, f, hexc, kind):
     k = 1.0 if kind == "adult" else 0.97
     return sphere("hair", (c[0] - f * r * 0.1, c[1] + r * 0.1, c[2] + r * (0.13 if kind == "adult" else 0.3)), (r * k, r * k, r * k), vinyl(hexc, 0.7), seg=64)
 
-def person3d(p, depth):
+
+# ---------- the cast: Moss, Otto, Mosto and Mochi play the people ----------
+# The pictures are acted by the app's own characters (the rig's staging is kept: who kneels where, where the hands
+# reach): Moss is the child, Otto the grown-up; a second child (a friend at play) is Mosto, the little lavender demon
+# king with the matte-gold crown; a second grown-up (a grandparent, a friend) is Mochi, a soft rice-cake grown-up.
+# Each body stands where the rig's torso and head were, along the same line (upright when sitting or standing, lying
+# along the floor when lying), with short soft limbs from the rig's shoulders and hips to its hands and feet, so a
+# held toy is still held and a crawl is still a crawl.
+IP = "--people" not in ARGS
+BADGES = []  # badges already placed in this picture
+BUBBLES = [] # the picture's speech bubbles: (x, y, radius)
+AVOID = []   # the cast grown-ups' faces on the page: (centre, radius, facing), kept clear of held flat things
+CAST = {"child": "moss", "adult": "otto", "peer": "mosto", "adult2": "mochi"}
+
+def _drop(root, prefix):
+    for o in list(root.children):
+        if o.name.startswith(prefix): bpy.data.objects.remove(o, do_unlink=True)
+
+def _look(p):
+    """Where the eyes go: toward the rig's look target (a page point), else ahead on the side it faces."""
+    t = p.look if isinstance(p.look, (tuple, list)) and len(p.look) == 2 and all(isinstance(v, (int, float)) for v in p.look) else None
+    if t is None: return (0.55 * p.f, 0.05)
+    dx, dy = t[0] - p.headc[0], t[1] - p.headc[1]; d = max(1.0, math.hypot(dx, dy))
+    return (max(-0.8, min(0.8, dx / d * 0.8)), max(-0.6, min(0.6, -dy / d * 0.6)))
+
+def _place(root, p, depth, height, base_drop=0.0, tilt=0.62):
+    """Stand the built character (its feet at its origin, `height` tall) along the rig's hip → head line."""
+    a = W3(p.hip, depth); b = W3(p.headc, depth); r = L(p.d["head"])
+    ux, uz = b[0] - a[0], b[2] - a[2]; n = max(1e-4, math.hypot(ux, uz)); ux, uz = ux / n, uz / n
+    span = n + r * 1.05
+    k = span / height
+    root.scale = (k, k, k)
+    # upright, or leaning with the rig's body — but never laid flat: a lying baby reclines (a face on its side reads
+    # as a fall, not as lying on a mat)
+    root.rotation_euler = (0, max(-tilt, min(tilt, math.atan2(ux, uz))), 0)
+    root.location = (a[0] - ux * r * (0.35 + base_drop), depth, a[2] - uz * r * (0.35 + base_drop))
+    return k
+
+def _limbs(p, depth, arm, hand, leg, foot, rk=1.0, low=0.0):
+    d = p.d; r = L(d["head"])
+    sp = 0.12
+    for k, (shp, el, hd) in enumerate(p.arms):
+        # a grown-up of the cast has its face where a person's chest was: its arms start lower on the body, below the
+        # eye, and bend toward the hand from there
+        if low:
+            shp = (shp[0] + (p.hip[0] - shp[0]) * low, shp[1] + (p.hip[1] - shp[1]) * low)
+            el = (el[0] + (p.hip[0] - el[0]) * low * 0.5, el[1] + (p.hip[1] - el[1]) * low * 0.5)
+        dd = depth + (sp if k == 1 else -sp)
+        limb(f"arm{k}", [W3(shp, depth + (dd - depth) * 0.6), W3(el, dd), W3(hd, dd)], r * 0.2 * rk, arm)
+        sphere(f"hand{k}", W3(hd, dd), (r * 0.27 * rk,) * 3, hand)
+    for k, (knee, ft) in enumerate(p.legs):
+        dd = depth + (sp if k == 1 else -sp)
+        limb(f"leg{k}", [W3(p.hip, depth), W3(knee, dd), W3(ft, dd)], r * 0.24 * rk, leg)
+        fx = W3(ft, dd)
+        sphere(f"foot{k}", (fx[0] + p.f * r * 0.12, fx[1], fx[2] - r * 0.06), (r * 0.36 * rk, r * 0.3 * rk, r * 0.22 * rk), foot)
+
+def ip_person(p, depth, who):
+    role = CAST.get(who, "moss" if p.kind == "child" else "otto")
+    e = p.expr; look = _look(p)
+    asleep = e in ("sleep", "calm") or p.pose == "bundle"
+    if role in ("moss", "mosto"):
+        root = build_moss(look=look, happy=e in ("laugh",), lid=0.35 if e == "sad" else 0.0, er=0.125 if e == "wow" else 0.11,
+                          shut="down" if asleep else None, perk=0.6 if e in ("wow", "smile") else 0.2)
+        _drop(root, "moss_foot")
+        if role == "mosto":
+            # Mosto, as the character bible draws him: a deep-violet jelly body about Moss's size, a matte-gold crown
+            # worn crooked (always), cream curled horns, a pair of small bat wings behind, a heart-tipped tail, round
+            # eyes with brows pressed toward the middle, one small fang; no mint sprig
+            lav = MATS.setdefault("mosto", mat("mosto", "#5E43A0", rough=0.35, sss=0.12, coat=0.35))
+            for o in root.children:
+                if o.name.startswith("moss_body"): o.data.materials[0] = lav
+                if o.name.startswith(("leaf", "sprig", "stem", "bud", "mint")) or "sprig" in o.name or "leaf" in o.name: o.hide_render = True
+            gold = MATS.setdefault("crown", mat("crown", "#C9A24A", rough=0.5, coat=0.15))
+            cream = MATS.setdefault("horn", rubber("horn", "#F1E2C4", rough=0.5))
+            wing = MATS.setdefault("wing", rubber("wing", "#3E2A72", rough=0.6))
+            top = ip3d.MOSS["cz"] + ip3d.MOSS["rz"]
+            parts = []
+            crown = bpy.data.objects.new("crown", None); bpy.context.collection.objects.link(crown)
+            cps = [ip3d.tube("crownband", [(-0.16, 0, 0.0), (0.0, -0.02, -0.015), (0.16, 0, 0.0)], 0.045, gold)]
+            for x, h in ((-0.13, 0.12), (0.0, 0.16), (0.13, 0.12)):
+                bpy.ops.mesh.primitive_cone_add(vertices=16, radius1=0.045, radius2=0.01, depth=h, location=(x, -0.01, h / 2))
+                c = bpy.context.object; c.data.materials.append(gold); cps.append(c)
+                cps.append(sphere("crownball", (x, -0.01, h + 0.005), (0.02,) * 3, gold, seg=16))
+            ip3d.parent(cps, crown)
+            crown.location = (0.1, 0, top - 0.04); crown.rotation_euler = (0, math.radians(16), 0)   # worn crooked
+            parts.append(crown)
+            for sx in (-1, 1):
+                # cream horns, curling out and back
+                parts.append(ip3d.tube(f"horn{sx}", [(sx * 0.3, 0.02, top - 0.14), (sx * 0.42, 0.0, top - 0.02), (sx * 0.38, 0.04, top + 0.06), (sx * 0.3, 0.08, top + 0.04)], 0.04, cream))
+                # small bat wings behind the shoulders
+                w = sphere(f"wing{sx}", (sx * 0.5, 0.22, ip3d.MOSS["cz"] + 0.18), (0.2, 0.025, 0.13), wing)
+                w.rotation_euler = (0, math.radians(-25 * sx), math.radians(-20 * sx)); parts.append(w)
+                # brows pressed toward the middle
+                ez = ip3d.MOSS["cz"] + 0.33; sy = ip3d.moss_surface_y(sx * 0.14, ez) - 0.005
+                parts.append(ip3d.tube(f"brow{sx}", [(sx * 0.22, sy + 0.01, ez + 0.03), (sx * 0.07, sy - 0.005, ez - 0.01)], 0.012, M["pupil"]))
+            # one small fang
+            fz = ip3d.MOSS["cz"] + 0.02
+            bpy.ops.mesh.primitive_cone_add(vertices=12, radius1=0.022, radius2=0.0, depth=0.05, location=(0.05, ip3d.moss_surface_y(0.05, fz) - 0.004, fz), rotation=(math.pi, 0, 0))
+            f = bpy.context.object; f.data.materials.append(MATS.setdefault("fang", rubber("fang", "#FFFFFF", rough=0.3))); parts.append(f)
+            # the heart-tipped tail
+            parts.append(ip3d.tube("tail", [(-0.3, 0.3, 0.12), (-0.55, 0.32, 0.14), (-0.66, 0.25, 0.3)], 0.025, lav))
+            for dx in (-0.035, 0.035): parts.append(sphere("tailheart", (-0.66 + dx, 0.25, 0.36), (0.045, 0.03, 0.045), MATS.setdefault("tailtip", mat("tailtip", "#B9A6E8", rough=0.4, emit="#B9A6E8", emit_strength=0.4)), seg=16))
+            ip3d.parent(parts, root)
+            mat_body, mat_hand = lav, lav
+        else:
+            mat_body, mat_hand = M["moss"], M["moss"]
+        # the rig's baby is small beside a kneeling grown-up; Moss is drawn a size up so the face reads
+        k = _place(root, p, depth, (ip3d.MOSS["cz"] + ip3d.MOSS["rz"]) / (0.72 if p.pose == "bundle" else 1.05 if role == "mosto" else 1.25))
+        # never cut by the picture's edge: a body wider than the rig's (Mosto's wings and horns) steps inside the frame
+        half = ip3d.MOSS["rx"] * k * (1.35 if role == "mosto" else 1.05)
+        x0, x1 = half + 0.12, pb.W / U - half - 0.12
+        if root.location[0] < x0 or root.location[0] > x1:
+            root.location = (min(max(root.location[0], x0), x1), root.location[1], root.location[2])
+        if p.pose == "bundle":
+            # held in the arms: lower, at the chest, clear of the grown-up's face
+            root.location = (root.location[0], root.location[1] - 0.12, root.location[2] - L(p.d["head"]) * 1.1)
+        # carried or held up close: never in front of a grown-up's face — lowered until the face is clear
+        mt = ip_top(p) if p.pose != "bundle" else (p.headc[0], p.headc[1] + p.d["head"] * 0.4)
+        mt = (mt[0], mt[1] - p.d["head"] * 1.3)   # the sprig stands above the crown
+        for (fx, fy), R, _f in AVOID:
+            # in front of the face (across it, not beside it): drop until the sprig is below the eye
+            if abs(mt[0] - fx) < R * 1.1 and mt[1] < fy + R * 0.5:
+                root.location = (root.location[0], root.location[1], root.location[2] - L(fy + R * 0.5 - mt[1]))
+        if e in ("talk", "sing", "wow", "laugh") and not asleep:
+            mz = ip3d.MOSS["cz"] + 0.05
+            m = sphere("mouth", (0, ip3d.moss_surface_y(0, mz) + 0.01, mz), (0.05, 0.02, 0.04 if e != "talk" else 0.03), MATS.setdefault("mouth", rubber("mouthm", "#5B2A2A", rough=0.7)))
+            m.parent = root
+        if p.pose != "bundle": _limbs(p, depth, mat_body, mat_hand, mat_body, M["foot"], rk=1.0)
+        else:
+            # a newborn: Moss tucked in a soft blanket roll
+            c = W3(p.bundle_c, depth); Lb = L(p.d["torso"] * 1.9); w = L(p.d["tw"] * 1.25)
+            o = sphere("bundle", (c[0], c[1] - 0.05, c[2]), (Lb / 2, w * 0.62, w * 0.5), vinyl("#F6D58C", 0.8)); o.rotation_euler = (0, -math.radians(p.bundle_a), 0)
+    elif role == "otto":
+        root = build_otto(look=look, lid=0.3, glow=0.0, happy=False, smirk=e in ("smile", "talk", "sing"),
+                          shut="down" if asleep else None)
+        _drop(root, "otto_foot")
+        _place(root, p, depth, ip3d.OTTO_TOP, base_drop=0.1, tilt=0.28)   # a grown-up leans in a little, no more
+        _limbs(p, depth, M["otto"], M["otto"], M["ottoBand"], M["foot"], rk=1.1, low=0.45)
+    else:
+        # Mochi: a soft rice-cake grown-up — a squat, rounded cream body, pink cheeks, a small knitted beanie
+        root = bpy.data.objects.new("Mochi", None); bpy.context.collection.objects.link(root)
+        cream = MATS.setdefault("mochi", rubber("mochi", "#F4E4CF", rough=0.6))
+        def f(a, b, c):
+            z = (c if c > 0 else c * 0.8) * 0.55
+            sq = 1 + 0.08 * (1 - c * c)
+            return (a * 0.5 * sq, b * 0.45 * sq, 0.5 + z)
+        body = ip3d.shaped_sphere("mochi_body", f, cream)
+        parts = [body]
+        for sx in (-1, 1):
+            parts += ip3d.eye(f"mochi_eye{sx}", (sx * 0.13, -0.44, 0.66), 0.075, look, scale=(0.8, 0.45, 1.0), lid=0.2, skin=cream, pupil=0.6)
+            parts.append(sphere("mochi_cheek", (sx * 0.27, -0.4, 0.55), (0.07, 0.02, 0.045), M["cheek"]))
+        hat = MATS.setdefault("beanie", rubber("beanie", "#E07A6A", rough=0.8))
+        parts.append(sphere("beanie", (0, 0.02, 0.98), (0.36, 0.33, 0.2), hat))
+        parts.append(sphere("pom", (0, 0.02, 1.18), (0.08,) * 3, MATS.setdefault("pom", rubber("pom", "#F7EFE4"))))
+        ip3d.parent(parts, root)
+        _place(root, p, depth, 1.18)
+        _limbs(p, depth, cream, cream, hat, M["foot"], rk=1.05)
+
+def ip_face(s):
+    """Where the cast character's face is on the page (its eyes), for the marks that point at a head — a badge above
+    it, a line of sight from it. Mirrors _place: the body along hip → head, leaning no more than the body allows."""
+    if s.pose == "bundle": return s.headc
+    a, b, r = s.hip, s.headc, s.d["head"]
+    ux, uy = b[0] - a[0], b[1] - a[1]; n = max(1e-4, math.hypot(ux, uy))
+    adult = s.kind == "adult"
+    tilt = 0.28 if adult else 0.62
+    ang = max(-tilt, min(tilt, math.atan2(ux / n, -uy / n)))
+    vx, vy = math.sin(ang), -math.cos(ang)
+    span = n + r * 1.05
+    H = span if adult else span * 1.25
+    base = 0.45 if adult else 0.35
+    bx, by = a[0] - vx * r * base, a[1] - vy * r * base
+    return (bx + vx * H * 0.58, by + vy * H * 0.58)
+
+def ip_top(s):
+    """The top of the cast character's body on the page (its crown, below the sprig or the rod)."""
+    f = ip_face(s); a = s.hip
+    if s.pose == "bundle": return (s.headc[0], s.headc[1] - s.d["head"])
+    return (a[0] + (f[0] - a[0]) / 0.58 * 0.9, a[1] + (f[1] - a[1]) / 0.58 * 0.9)
+def ip_head(s):
+    """The rig's "head" for the 2D marks (badges, speech bubbles, a hand at the mouth): just under the character's
+    crown, so what floats over a head floats over the cast's taller bodies, not across their faces."""
+    t = ip_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
+if IP: pb.Person.head = ip_head; pb.CAST = True
+
+def person3d(p, depth, who=None):
+    if IP: return ip_person(p, depth, who)
     d, f = p.d, p.f
     skin = vinyl(p.skin, 0.55); leg = vinyl(p.leg)
     top = vinyl("#9A7BE8" if p.top == pb.GIRL_TOP else p.top)   # the girl's lilac, a step deeper so the light does not wash it out
@@ -450,12 +664,26 @@ def finish3d(T, size):
 def render_step(spec, area, out, size, prev=None, step=0, nsteps=1):
     VIEW.update(z=spec.get("zoom", 1.32), cx=spec.get("cx", 380))
     people, objs = capture(spec, area)
+    AVOID.clear(); BADGES.clear(); BUBBLES.clear()
+    if IP:
+        # where the speech bubbles will be (picturebook's own placement), so a badge never sits on one
+        ppl = dict(zip([w for w in ("adult", "child", "peer", "adult2") if w in spec], people))
+        for m in spec.get("marks", []):
+            if m.get("k") != "say": continue
+            who, part = (m.get("from", "adult.mouth").split(".") + ["mouth"])[:2]
+            p = ppl.get(who)
+            if not p: continue
+            h = ip_head(p); a0 = (h[0] + p.f * p.d["head"] * .9, h[1] + p.d["head"] * .3)
+            side = m.get("side", 1); r = 36 * m.get("s", 1)
+            BUBBLES.append((a0[0] + side * m.get("dx", 64), a0[1] - m.get("dy", 70), r * 1.2))
+        for who, p in zip([w for w in ("adult", "child", "peer", "adult2") if w in spec], people):
+            if p.kind == "adult": AVOID.append((ip_face(p), p.d["head"] * 2.4, p.f))
     s = ip3d.reset(); s.render.film_transparent = True; s.view_settings.view_transform = LOOK["view"]; s.view_settings.look = LOOK["look"]; s.view_settings.exposure = LOOK["exp"]; ip3d.materials(); MATS.clear(); lights()
     order = spec.get("order", ["adult2", "peer", "child", "adult"] if spec.get("child_front") else ["adult2", "adult", "peer", "child"])
     whos = [w for w in ("adult", "child", "peer", "adult2") if w in spec]
     for who, p in zip(whos, people):
         n = order.index(who) if who in order else 0
-        person3d(p, -0.55 * n)
+        person3d(p, -0.55 * n, who)
     # where each prop goes in depth, in the order picturebook.scene draws them: scenery at the back, things on the
     # floor behind the people (the picture book draws them first), things in front and things held in front of them
     so = spec.get("objs", [])

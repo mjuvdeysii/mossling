@@ -54,7 +54,9 @@ final class ArtCache {
 extension ArtIndex {
     /// The girl's version of a picture with the child in it, when there is one.
     static func variant(_ name: String, girl: Bool) -> String {
-        guard girl, name.hasSuffix(".webp") else { return name }
+        // the 3D pictures are acted by Moss and Otto: one cast for every child, so no girl's set
+        // one cast (Moss and Otto) in both worlds: no girl's set
+        guard girl, false, name.hasSuffix(".webp") else { return name }
         let g = String(name.dropLast(5)) + "_g.webp"
         return shared.size[g] == nil ? name : g
     }

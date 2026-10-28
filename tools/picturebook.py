@@ -43,8 +43,8 @@ FLAT = "--2d" in sys.argv
 PREFIX = "2d_" if FLAT else ""
 # the 2D style chosen: strong jelly candy — light 3D on a 2D drawing, a strong gloss, rich colour (JELLY 0 gives the
 # plain flat drawing with contour and grain; 1 a lighter gloss)
-JELLY = 1.8
-SATURATE = 1.4
+JELLY = float(sys.argv[sys.argv.index("--jelly") + 1]) if "--jelly" in sys.argv else 1.8
+SATURATE = 1.4 if JELLY > 0 else 1.0
 PEER_TOP, PEER_LEG = "#4C9BE8", "#F2554B"
 # the app's six areas (Theme.swift Palette.area): teal, orange, yellow, pink, blue, red — as (ground, backdrop) tints
 AREA_FILL = {"A": "#1FB5A6", "B": "#FF8A3D", "C": "#FFC23D", "D": "#FF6F91", "E": "#4C9BE8", "F": "#F2554B"}
@@ -234,7 +234,7 @@ class Person:
             s.arms.append((shp, elbow, hand))
 
     def hand(s, k=0): return s.arms[k][2]
-    def head(s): return s.headc
+    def head(s): return cast_head(s) if CAST else s.headc
 
     def draw_shadow(s, sv):
         xs = [s.hip[0], s.legs[0][1][0], s.legs[1][1][0], s.legs[0][0][0], s.headc[0]]
@@ -244,6 +244,7 @@ class Person:
         sv.shadow(cx, GROUND + 2, w * 0.42, 5 if s.kind == "adult" else 4, .34)
 
     def draw(s, sv):
+        if CAST: return draw_cast(s, sv)
         d, f = s.d, s.f
         if s.pose == "bundle":
             c = s.bundle_c; L = d["torso"] * 1.9; w = d["tw"] * 1.25; ang = s.bundle_a
@@ -606,13 +607,16 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
     elif k == "photo":  # a family photo: c = number of people
         n = c or 3
         A(f'<rect x="{x - 46 * s:.1f}" y="{y - 70 * s:.1f}" width="{92 * s:.1f}" height="{70 * s:.1f}" rx="{6 * s:.1f}" fill="{g("#C98A4B")}"/><rect x="{x - 38 * s:.1f}" y="{y - 62 * s:.1f}" width="{76 * s:.1f}" height="{54 * s:.1f}" rx="3" fill="#E6F1FB"/>')
-        for i in range(n):
+        for i in range(n if CAST else 0):
+            px = x - (n - 1) * 12 * s + i * 24 * s
+            A(cast_icon(["otto", "moss", "mosto", "mochi"][i % 4], px, y - (34 if i == 0 else 28) * s, (10 if i == 0 else 9) * s))
+        for i in range(0 if CAST else n):
             px = x - (n - 1) * 12 * s + i * 24 * s; big = i < 2
             A(f'<circle cx="{px:.1f}" cy="{y - (44 if big else 34) * s:.1f}" r="{(8 if big else 6) * s:.1f}" fill="{SKIN[i % 2]}"/>'
               f'<rect x="{px - (9 if big else 7) * s:.1f}" y="{y - (36 if big else 28) * s:.1f}" width="{(18 if big else 14) * s:.1f}" height="{(28 if big else 20) * s:.1f}" rx="{6 * s:.1f}" fill="{["#E2728C", "#55607E", "#FFC23D", "#4DB86A"][i % 4]}"/>')
     elif k == "phone":
         A(f'<rect x="{x - 18 * s:.1f}" y="{y - 64 * s:.1f}" width="{36 * s:.1f}" height="{64 * s:.1f}" rx="{8 * s:.1f}" fill="#3B3330"/><rect x="{x - 14 * s:.1f}" y="{y - 58 * s:.1f}" width="{28 * s:.1f}" height="{50 * s:.1f}" rx="4" fill="#E6F1FB"/>'
-          f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DB86A"/>')
+          + (cast_icon("otto", x, y - 32 * s, 9 * s) if CAST else f'<circle cx="{x:.1f}" cy="{y - 38 * s:.1f}" r="{8 * s:.1f}" fill="{SKIN[0]}"/><rect x="{x - 9 * s:.1f}" y="{y - 29 * s:.1f}" width="{18 * s:.1f}" height="{14 * s:.1f}" rx="5" fill="#4DB86A"/>'))
     elif k == "notebook":
         A(f'<rect x="{x - 34 * s:.1f}" y="{y - 46 * s:.1f}" width="{68 * s:.1f}" height="{46 * s:.1f}" rx="{5 * s:.1f}" fill="#FFFFFF" stroke="#E6DED0" stroke-width="2"/>')
         for i in range(3): A(f'<path d="M{x - 24 * s:.1f} {y - 34 * s + i * 11 * s:.1f} h{(40 - i * 8) * s:.1f}" stroke="#B9B2A8" stroke-width="{3 * s:.1f}" stroke-linecap="round"/>')
@@ -650,11 +654,206 @@ def obj(sv, k, x, y, s=1.0, c=None, rot=0):
         for i in range(c or 1):
             fx = x + (i - ((c or 1) - 1) / 2) * 34 * s; big = (c or 1) == 2 and i == 0
             r = (20 if big else 15) * s; fy = y - (120 if big else 98) * s
+            if CAST: A(cast_icon("otto" if big else "moss", fx, fy, r)); continue
             A(f'<circle cx="{fx:.1f}" cy="{fy:.1f}" r="{r:.1f}" fill="{SKIN[0 if big else 1]}" opacity=".85"/><circle cx="{fx - r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/><circle cx="{fx + r * .3:.1f}" cy="{fy - r * .1:.1f}" r="{r * .1:.1f}" fill="{INK}"/>'
               f'<path d="M{fx - r * .3:.1f} {fy + r * .3:.1f} q{r * .3:.1f} {r * .3:.1f} {r * .6:.1f} 0" stroke="{INK}" stroke-width="2" fill="none"/>')
     elif k == "speaker":
         A(f'<rect x="{x - 26 * s:.1f}" y="{y - 70 * s:.1f}" width="{52 * s:.1f}" height="{70 * s:.1f}" rx="{10 * s:.1f}" fill="{g("#9B7BEA")}"/><circle cx="{x:.1f}" cy="{y - 30 * s:.1f}" r="{16 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/><circle cx="{x:.1f}" cy="{y - 56 * s:.1f}" r="{7 * s:.1f}" fill="{dark("#9B7BEA", .3)}"/>')
     sv.add("".join(out))
+
+
+# The cast in small (the illustrations' people are Moss, Otto, Mosto and Mochi when scene3d sets CAST): for pictures
+# inside the pictures — a family photo, a face in a mirror, a phone's screen, a speech bubble.
+CAST = False
+def cast_icon(who, x, y, r, asleep=False):
+    """A small flat drawing of one of the cast, its face centred on (x, y), about 2r across."""
+    def eyes(cx, cy, rr, n=2):
+        o = ""
+        if asleep:
+            for dx in ((-0.36, 0.36) if n == 2 else (0,)):
+                ex = cx + dx * rr
+                o += f'<path d="M{ex - rr * .18:.1f} {cy:.1f} q{rr * .18:.1f} {rr * .14:.1f} {rr * .36:.1f} 0" stroke="{INK}" stroke-width="{max(1.2, rr * .07):.1f}" fill="none" stroke-linecap="round"/>'
+            return o
+        for dx in ((-0.36, 0.36) if n == 2 else (0,)):
+            ex = cx + dx * rr
+            o += f'<ellipse cx="{ex:.1f}" cy="{cy:.1f}" rx="{rr * (0.2 if n == 2 else 0.34):.1f}" ry="{rr * (0.24 if n == 2 else 0.3):.1f}" fill="#FFFFFF"/>'
+            o += f'<circle cx="{ex + rr * 0.04:.1f}" cy="{cy + rr * 0.03:.1f}" r="{rr * (0.12 if n == 2 else 0.18):.1f}" fill="{INK}"/>'
+        return o
+    if who == "otto":
+        o = f'<rect x="{x - r * .7:.1f}" y="{y - r * 1.0:.1f}" width="{r * 1.4:.1f}" height="{r * 2.0:.1f}" rx="{r * .7:.1f}" fill="#1F3366"/>'
+        o += f'<path d="M{x:.1f} {y - r:.1f} q{-r * .1:.1f} {-r * .6:.1f} {-r * .6:.1f} {-r * .5:.1f}" stroke="#1F3366" stroke-width="{max(1.5, r * .12):.1f}" fill="none" stroke-linecap="round"/>'
+        o += f'<circle cx="{x - r * .62:.1f}" cy="{y - r * 1.38:.1f}" r="{r * .16:.1f}" fill="#D4A21C"/>'
+        return o + eyes(x, y - r * .3, r, 1)
+    if who == "mochi":
+        o = f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{r:.1f}" ry="{r * .82:.1f}" fill="#F4E4CF" stroke="#E2CFB6" stroke-width="1"/>'
+        o += f'<ellipse cx="{x:.1f}" cy="{y - r * .62:.1f}" rx="{r * .72:.1f}" ry="{r * .36:.1f}" fill="#E07A6A"/>'
+        return o + eyes(x, y + r * .05, r * .8)
+    if who == "mosto":
+        body, hi = "#5E43A0", "#8A70C8"
+    else:
+        body, hi = "#4F6B3C", "#6E8C55"
+    o = ""
+    for sx in (-1, 1):   # little dark feet
+        o += f'<ellipse cx="{x + sx * r * .42:.1f}" cy="{y + r * .82:.1f}" rx="{r * .2:.1f}" ry="{r * .1:.1f}" fill="#22231F"/>'
+    # a round, full pebble: wider than tall, its base gently flattened where it rests
+    o += f'<path d="M{x - r * 1.02:.1f} {y + r * .45:.1f} C{x - r * 1.1:.1f} {y - r * .55:.1f} {x - r * .5:.1f} {y - r * .95:.1f} {x:.1f} {y - r * .95:.1f} C{x + r * .55:.1f} {y - r * .95:.1f} {x + r * 1.1:.1f} {y - r * .5:.1f} {x + r * 1.02:.1f} {y + r * .45:.1f} C{x + r * .9:.1f} {y + r * .85:.1f} {x - r * .9:.1f} {y + r * .85:.1f} {x - r * 1.02:.1f} {y + r * .45:.1f} Z" fill="{body}"/>'
+    o += f'<ellipse cx="{x - r * .38:.1f}" cy="{y - r * .48:.1f}" rx="{r * .34:.1f}" ry="{r * .18:.1f}" fill="{hi}" opacity=".55" transform="rotate(-20 {x - r * .38:.1f} {y - r * .48:.1f})"/>'
+    if who == "mosto":
+        o += f'<g transform="rotate(14 {x + r * .1:.1f} {y - r * .95:.1f})"><path d="M{x - r * .3:.1f} {y - r * .9:.1f} l{r * .08:.1f} {-r * .38:.1f} l{r * .2:.1f} {r * .22:.1f} l{r * .12:.1f} {-r * .34:.1f} l{r * .12:.1f} {r * .34:.1f} l{r * .2:.1f} {-r * .22:.1f} l{r * .08:.1f} {r * .38:.1f} Z" fill="#C9A24A"/></g>'
+        for sx in (-1, 1):
+            o += f'<path d="M{x + sx * r * .62:.1f} {y - r * .62:.1f} q{sx * r * .3:.1f} {-r * .2:.1f} {sx * r * .18:.1f} {-r * .5:.1f}" stroke="#F1E2C4" stroke-width="{r * .16:.1f}" fill="none" stroke-linecap="round"/>'
+    else:
+        o += f'<path d="M{x:.1f} {y - r * .92:.1f} V{y - r * 1.25:.1f}" stroke="#3E7D4E" stroke-width="{max(1.2, r * .07):.1f}" stroke-linecap="round"/>'
+        for sx in (-1, 1):
+            o += f'<ellipse cx="{x + sx * r * .26:.1f}" cy="{y - r * 1.3:.1f}" rx="{r * .28:.1f}" ry="{r * .13:.1f}" fill="#7FCB8F" transform="rotate({-28 * sx} {x + sx * r * .26:.1f} {y - r * 1.3:.1f})"/>'
+    for sx in (-1, 1):   # cheeks
+        o += f'<ellipse cx="{x + sx * r * .66:.1f}" cy="{y + r * .12:.1f}" rx="{r * .15:.1f}" ry="{r * .09:.1f}" fill="#F49AB0" opacity=".85"/>'
+    return o + eyes(x, y - r * .18, r)
+
+# ---------- the cast, drawn (CAST): Moss plays the child, Otto the grown-up, Mosto a second child, Mochi a second
+# grown-up — on the rig's staging, the same placement as their 3D figures (tools/scene3d.py), drawn flat in the
+# picture book's soft volume ----------
+CAST = "--cast" in sys.argv
+CAST_FACES = []   # this picture's grown-ups' faces: (x, y, radius, facing) — kept clear of children and held things
+def cast_role(s):
+    who = getattr(s, "who", None)
+    return {"child": "moss", "adult": "otto", "peer": "mosto", "adult2": "mochi"}.get(who, "moss" if s.kind == "child" else "otto")
+
+def cast_frame(s):
+    """The body's line: base point, unit up vector (page coordinates, y down), its height."""
+    a, b, r = s.hip, s.headc, s.d["head"]
+    ux, uy = b[0] - a[0], b[1] - a[1]; n = max(1e-4, math.hypot(ux, uy))
+    adult = s.kind == "adult"
+    tilt = 0.28 if adult else 0.62
+    ang = max(-tilt, min(tilt, math.atan2(ux / n, -uy / n)))
+    vx, vy = math.sin(ang), -math.cos(ang)
+    span = n + r * 1.05
+    role = cast_role(s)
+    H = span if adult else span * (1.0 / 1.05 * 1.25 if role == "mosto" else 1.25)
+    if s.pose == "bundle": H = span * 0.72 / 1.25 * 1.25 * 0.58
+    base = 0.45 if adult else 0.35
+    return (a[0] - vx * r * base, a[1] - vy * r * base), (vx, vy), H, ang
+
+def cast_face(s):
+    if s.pose == "bundle": return s.headc
+    (bx, by), (vx, vy), H, _ = cast_frame(s)
+    return (bx + vx * H * 0.58, by + vy * H * 0.58)
+
+def cast_top(s):
+    if s.pose == "bundle": return (s.headc[0], s.headc[1] - s.d["head"])
+    (bx, by), (vx, vy), H, _ = cast_frame(s)
+    return (bx + vx * H * 0.9, by + vy * H * 0.9)
+
+def cast_head(s):
+    t = cast_top(s); return (t[0], t[1] - s.d["head"] * 0.1)
+
+def _look(s):
+    t = s.look if isinstance(s.look, (tuple, list)) and len(s.look) == 2 and all(isinstance(v, (int, float)) for v in s.look) else None
+    if t is None: return (0.55 * s.f, 0.05)
+    f = cast_face(s); dx, dy = t[0] - f[0], t[1] - f[1]; d = max(1.0, math.hypot(dx, dy))
+    return (max(-0.8, min(0.8, dx / d * 0.8)), max(-0.6, min(0.6, dy / d * 0.6)))
+
+def _eye(sv, x, y, rx, ry, look, shut=False):
+    if shut:
+        sv.add(f'<path d="M{x - rx:.1f} {y:.1f} q{rx:.1f} {ry * .7:.1f} {rx * 2:.1f} 0" stroke="{INK}" stroke-width="{max(1.6, rx * .22):.1f}" fill="none" stroke-linecap="round"/>')
+        return
+    sv.add(f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{rx:.1f}" ry="{ry:.1f}" fill="#FFFFFF"/>')
+    px, py = x + look[0] * rx * .38, y + look[1] * ry * .38
+    sv.add(f'<circle cx="{px:.1f}" cy="{py:.1f}" r="{min(rx, ry) * .62:.1f}" fill="{INK}"/><circle cx="{px - rx * .2:.1f}" cy="{py - ry * .25:.1f}" r="{min(rx, ry) * .2:.1f}" fill="#FFFFFF"/>')
+
+def draw_cast(s, sv):
+    role = cast_role(s); d = s.d; r = d["head"]
+    shut = s.expr in ("sleep", "calm") or s.pose == "bundle"
+    look = _look(s)
+    body = {"moss": "#55703F", "mosto": "#5E43A0", "otto": "#22386E", "mochi": "#F4E4CF"}[role]
+    limbc = {"moss": "#4A6337", "mosto": "#523A8E", "otto": "#1C2F5E", "mochi": "#E9D5BB"}[role]
+    (bx, by), (vx, vy), H, ang = cast_frame(s)
+    low = 0.45 if role == "otto" else 0.0
+    lw = r * (0.42 if role == "otto" else 0.4)
+    def arm(k):
+        shp, el, hd = s.arms[k]
+        if low:
+            shp = (shp[0] + (s.hip[0] - shp[0]) * low, shp[1] + (s.hip[1] - shp[1]) * low)
+            el = (el[0] + (s.hip[0] - el[0]) * low * .5, el[1] + (s.hip[1] - el[1]) * low * .5)
+        c = limbc if k == 0 else dark(limbc, .1)
+        limb(sv, [shp, el, hd], lw, c); sv.add(f'<circle cx="{hd[0]:.1f}" cy="{hd[1]:.1f}" r="{r * .3:.1f}" fill="{sv.rad(c)}"/>')
+    if s.pose != "bundle":
+        for k in (1, 0):
+            knee, foot = s.legs[k]
+            c = "#15264D" if role == "otto" else "#C9604F" if role == "mochi" else limbc
+            limb(sv, [s.hip, knee, foot], lw * 1.1, c if k == 0 else dark(c, .1))
+            sv.add(f'<ellipse cx="{foot[0] + s.f * r * .14:.1f}" cy="{foot[1] + r * .06:.1f}" rx="{r * .36:.1f}" ry="{r * .22:.1f}" fill="#22231F"/>')
+        arm(1)
+        if role in ("moss", "mosto", "mochi"): arm(0)   # short arms from behind the round body, never across the face
+    else:
+        c = s.bundle_c; Lb = d["torso"] * 1.9; w = d["tw"] * 1.25
+        sv.add(f'<g transform="translate({c[0]:.1f} {c[1] + r * .5:.1f}) rotate({s.bundle_a:.1f})"><rect x="{-Lb / 2:.1f}" y="{-w / 2:.1f}" width="{Lb:.1f}" height="{w:.1f}" rx="{w / 2:.1f}" fill="{sv.lin("#F6D58C", 120)}"/></g>')
+    # the body, along its line
+    deg = math.degrees(ang)
+    if role in ("moss", "mosto"):
+        R = H / 1.8
+        cx, cy = bx + vx * R * .85, by + vy * R * .85
+        if s.pose == "bundle": cx, cy = s.headc[0], s.headc[1] + r * 1.4; R = r * .95
+        # carried or held up close: never across a grown-up's face — lowered until the sprig is below the eye
+        for fx, fy, FR, _f in CAST_FACES:
+            tip = cy - R * 1.45
+            if abs(cx - fx) < FR * 1.1 and tip < fy + FR * .5: cy += fy + FR * .5 - tip
+        # never cut by the picture's edge
+        z, c0 = VIEW["z"], VIEW["cx"]
+        x0, x1 = c0 - c0 / z + R * 1.5, c0 + (W - c0) / z - R * 1.5
+        cx = min(max(cx, x0), x1)
+        g = f'<g transform="rotate({deg:.1f} {cx:.1f} {cy:.1f})">'
+        sv.add(g)
+        sv.add(f'<path d="M{cx - R * 1.02:.1f} {cy + R * .45:.1f} C{cx - R * 1.1:.1f} {cy - R * .55:.1f} {cx - R * .5:.1f} {cy - R * .95:.1f} {cx:.1f} {cy - R * .95:.1f} C{cx + R * .55:.1f} {cy - R * .95:.1f} {cx + R * 1.1:.1f} {cy - R * .5:.1f} {cx + R * 1.02:.1f} {cy + R * .45:.1f} C{cx + R * .9:.1f} {cy + R * .85:.1f} {cx - R * .9:.1f} {cy + R * .85:.1f} {cx - R * 1.02:.1f} {cy + R * .45:.1f} Z" fill="{sv.rad(body)}"/>')
+        sv.add(f'<ellipse cx="{cx - R * .4:.1f}" cy="{cy - R * .5:.1f}" rx="{R * .32:.1f}" ry="{R * .16:.1f}" fill="#FFFFFF" opacity=".16" transform="rotate(-20 {cx - R * .4:.1f} {cy - R * .5:.1f})"/>')
+        if role == "moss":
+            sv.add(f'<path d="M{cx:.1f} {cy - R * .92:.1f} V{cy - R * 1.28:.1f}" stroke="#3E7D4E" stroke-width="{max(2, R * .07):.1f}" stroke-linecap="round"/>')
+            for sx in (-1, 1):
+                sv.add(f'<ellipse cx="{cx + sx * R * .27:.1f}" cy="{cy - R * 1.32:.1f}" rx="{R * .3:.1f}" ry="{R * .14:.1f}" fill="{sv.lin("#7FCB8F")}" transform="rotate({-28 * sx} {cx + sx * R * .27:.1f} {cy - R * 1.32:.1f})"/>')
+        else:
+            for sx in (-1, 1):
+                sv.add(f'<path d="M{cx + sx * R * .6:.1f} {cy - R * .6:.1f} q{sx * R * .32:.1f} {-R * .22:.1f} {sx * R * .18:.1f} {-R * .52:.1f}" stroke="#F1E2C4" stroke-width="{R * .16:.1f}" fill="none" stroke-linecap="round"/>')
+                sv.add(f'<path d="M{cx + sx * R * .95:.1f} {cy - R * .1:.1f} l{sx * R * .5:.1f} {-R * .25:.1f} l{-sx * R * .12:.1f} {R * .2:.1f} l{sx * R * .1:.1f} {R * .16:.1f} Z" fill="#3E2A72"/>')
+            sv.add(f'<g transform="rotate(14 {cx + R * .1:.1f} {cy - R * .95:.1f})"><path d="M{cx - R * .3:.1f} {cy - R * .88:.1f} l{R * .08:.1f} {-R * .38:.1f} l{R * .2:.1f} {R * .22:.1f} l{R * .12:.1f} {-R * .34:.1f} l{R * .12:.1f} {R * .34:.1f} l{R * .2:.1f} {-R * .22:.1f} l{R * .08:.1f} {R * .38:.1f} Z" fill="#C9A24A"/></g>')
+            sv.add(f'<path d="M{cx - R * .9:.1f} {cy + R * .5:.1f} q{-R * .5:.1f} {R * .1:.1f} {-R * .6:.1f} {-R * .4:.1f}" stroke="{body}" stroke-width="{R * .1:.1f}" fill="none" stroke-linecap="round"/>')
+            sv.add(pict("heart", cx - R * 1.5, cy + R * .02, R / 60).replace("#FF6F91", "#B9A6E8"))
+        for sx in (-1, 1):
+            sv.add(f'<ellipse cx="{cx + sx * R * .66:.1f}" cy="{cy + R * .12:.1f}" rx="{R * .15:.1f}" ry="{R * .09:.1f}" fill="#F49AB0" opacity=".85"/>')
+        er = R * (0.22 if s.expr == "wow" else 0.19)
+        for sx in (-1, 1): _eye(sv, cx + sx * R * .34, cy - R * .2, er * .8, er, look, shut)
+        if role == "mosto":
+            for sx in (-1, 1): sv.add(f'<path d="M{cx + sx * R * .55:.1f} {cy - R * .5:.1f} L{cx + sx * R * .2:.1f} {cy - R * .4:.1f}" stroke="{INK}" stroke-width="{R * .06:.1f}" stroke-linecap="round"/>')
+            sv.add(f'<path d="M{cx + R * .02:.1f} {cy + R * .08:.1f} l{R * .05:.1f} {R * .1:.1f} l{R * .05:.1f} {-R * .1:.1f}Z" fill="#FFFFFF"/>')
+        elif s.expr in ("talk", "sing", "wow", "laugh") and not shut:
+            sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy + R * .12:.1f}" rx="{R * .08:.1f}" ry="{R * .07:.1f}" fill="#5B2A2A"/>')
+        sv.add('</g>')
+    elif role == "otto":
+        w = H * 0.64
+        cx, cy = bx + vx * H * .5, by + vy * H * .5
+        sv.add(f'<g transform="rotate({deg:.1f} {cx:.1f} {cy:.1f})">')
+        top, bot = cy - H * .5, cy + H * .5
+        sv.add(f'<path d="M{cx - w / 2:.1f} {bot - w * .2:.1f} V{top + w * .55:.1f} A{w / 2:.1f} {w * .55:.1f} 0 0 1 {cx + w / 2:.1f} {top + w * .55:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="{sv.lin("#2A4580", 120)}"/>')
+        sv.add(f'<path d="M{cx - w / 2:.1f} {bot - H * .32:.1f} H{cx + w / 2:.1f} V{bot - w * .2:.1f} Q{cx + w / 2:.1f} {bot:.1f} {cx:.1f} {bot:.1f} Q{cx - w / 2:.1f} {bot:.1f} {cx - w / 2:.1f} {bot - w * .2:.1f} Z" fill="#15264D"/>')
+        sv.add(f'<ellipse cx="{cx - w * .2:.1f}" cy="{top + w * .4:.1f}" rx="{w * .14:.1f}" ry="{w * .24:.1f}" fill="#FFFFFF" opacity=".1"/>')
+        # the rod from the crown, arching forward, the bead (unlit by day)
+        f = s.f; rt = top + 2
+        sv.add(f'<path d="M{cx:.1f} {rt:.1f} C{cx:.1f} {rt - H * .42:.1f} {cx - f * w * .9:.1f} {rt - H * .5:.1f} {cx - f * w * .85:.1f} {rt - H * .1:.1f}" stroke="#1C2F5E" stroke-width="{max(2.5, w * .05):.1f}" fill="none" stroke-linecap="round"/>')
+        sv.add(f'<circle cx="{cx - f * w * .85:.1f}" cy="{rt - H * .06:.1f}" r="{w * .1:.1f}" fill="{sv.rad("#D4A21C")}"/>')
+        ey = top + H * .44
+        _eye(sv, cx, ey, w * .26, w * .22, look, shut)
+        if not shut: sv.add(f'<path d="M{cx - w * .3:.1f} {ey - w * .14:.1f} Q{cx:.1f} {ey - w * .3:.1f} {cx + w * .3:.1f} {ey - w * .14:.1f}" fill="#22386E" opacity=".85"/>')
+        if s.expr in ("smile", "talk", "sing"):
+            sv.add(f'<path d="M{cx - w * .06:.1f} {ey + w * .34:.1f} q{w * .1:.1f} {w * .03:.1f} {w * .18:.1f} {-w * .05:.1f}" stroke="{INK}" stroke-width="{max(1.5, w * .025):.1f}" fill="none" stroke-linecap="round"/>')
+        sv.add('</g>')
+    else:
+        R = H / 2.3
+        cx, cy = bx + vx * H * .45, by + vy * H * .45
+        sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{R * 1.05:.1f}" ry="{R * .95:.1f}" fill="{sv.rad(body)}"/>')
+        sv.add(f'<ellipse cx="{cx:.1f}" cy="{cy - R * .78:.1f}" rx="{R * .8:.1f}" ry="{R * .38:.1f}" fill="{sv.rad("#E07A6A")}"/><circle cx="{cx:.1f}" cy="{cy - R * 1.2:.1f}" r="{R * .14:.1f}" fill="#F7EFE4"/>')
+        for sx in (-1, 1):
+            _eye(sv, cx + sx * R * .3, cy - R * .05, R * .13, R * .16, look, shut)
+            sv.add(f'<ellipse cx="{cx + sx * R * .6:.1f}" cy="{cy + R * .2:.1f}" rx="{R * .15:.1f}" ry="{R * .09:.1f}" fill="#F49AB0" opacity=".85"/>')
+    if s.pose != "bundle" and role == "otto": arm(0)
 
 def pict(kind, x, y, s):
     """A small picture of a thing, centred on (x, y): for cards, bubbles and real objects."""
@@ -710,6 +909,8 @@ def pict(kind, x, y, s):
         return f'<path d="M{x - 10 * s:.1f} {y:.1f} l{7 * s:.1f} {7 * s:.1f} l{13 * s:.1f} {-14 * s:.1f}" stroke="#4DB86A" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'
     if kind == "stop":
         return f'<rect x="{x - 9 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/><rect x="{x + 3 * s:.1f}" y="{y - 12 * s:.1f}" width="{6 * s:.1f}" height="{24 * s:.1f}" rx="{2 * s:.1f}" fill="#F2554B"/>'
+    if kind == "people" and CAST:
+        return cast_icon("otto", x - 9 * s, y + 2 * s, 9 * s) + cast_icon("moss", x + 10 * s, y + 6 * s, 8 * s)
     if kind == "people":
         return f'<circle cx="{x - 9 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[0]}"/><circle cx="{x + 9 * s:.1f}" cy="{y - 2 * s:.1f}" r="{5 * s:.1f}" fill="{SKIN[1]}"/><rect x="{x - 16 * s:.1f}" y="{y + 1 * s:.1f}" width="{14 * s:.1f}" height="{14 * s:.1f}" rx="{5 * s:.1f}" fill="#E2728C"/><rect x="{x + 3 * s:.1f}" y="{y + 4 * s:.1f}" width="{12 * s:.1f}" height="{11 * s:.1f}" rx="{4 * s:.1f}" fill="#FFC23D"/>'
     if kind == "lantern":
@@ -718,6 +919,8 @@ def pict(kind, x, y, s):
         return f'<path d="M{x - 16 * s:.1f} {y - 4 * s:.1f} Q{x:.1f} {y + 18 * s:.1f} {x + 16 * s:.1f} {y - 4 * s:.1f} Z" fill="#1FB5A6"/><circle cx="{x - 4 * s:.1f}" cy="{y - 6 * s:.1f}" r="{5 * s:.1f}" fill="#FFC23D"/>'
     if kind == "drop":
         return f'<path d="M{x:.1f} {y - 16 * s:.1f} Q{x + 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y + 12 * s:.1f} Q{x - 14 * s:.1f} {y + 2 * s:.1f} {x:.1f} {y - 16 * s:.1f} Z" fill="#4C9BE8"/>'
+    if kind == "bed" and CAST:
+        return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#9B7BEA"/>' + cast_icon("moss", x - 9 * s, y - 6 * s, 6 * s)
     if kind == "bed":
         return f'<rect x="{x - 18 * s:.1f}" y="{y - 2 * s:.1f}" width="{36 * s:.1f}" height="{12 * s:.1f}" rx="{4 * s:.1f}" fill="#9B7BEA"/><circle cx="{x - 10 * s:.1f}" cy="{y - 6 * s:.1f}" r="{6 * s:.1f}" fill="{SKIN[1]}"/>'
     return ""
@@ -863,9 +1066,17 @@ def scene(spec, area, sv=None, watch=None):
             look = resolve(q.get("look"), built) if pas else None
             top = q.get("top") or (PEER_TOP if who == "peer" else "#6FA8DC" if who == "adult2" else None)
             leg = q.get("leg") or (PEER_LEG if who == "peer" else "#4A4C43" if who == "adult2" else None)
-            built[who] = Person(kind, q["pose"], q["x"], face=q.get("f", 1 if kind == "adult" else -1), age=q.get("age", 30),
+            built[who] = p_ = Person(kind, q["pose"], q["x"], face=q.get("f", 1 if kind == "adult" else -1), age=q.get("age", 30),
                                 top=top, leg=leg, expr=q.get("e", "smile"), look=look, hands=hands, hair=q.get("hair"),
                                 at=tuple(q["at"]) if "at" in q else None, tilt=q.get("tilt", 0), girl=GIRL and who == "child", lean=q.get("lean", 0))
+            p_.who = who
+    CAST_FACES.clear(); faces = []
+    if CAST:
+        for p_ in built.values():
+            if p_.pose == "bundle": continue
+            f_ = cast_face(p_)
+            if p_.kind == "adult": CAST_FACES.append((f_[0], f_[1], p_.d["head"] * 2.4, p_.f))
+            faces.append((f_[0], f_[1], p_.d["head"] * (2.4 if p_.kind == "adult" else 2.3), p_.f))
     # back objects (scenery), shadows, people and front objects
     for o in spec.get("objs", []):
         if o.get("back"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
@@ -887,6 +1098,9 @@ def scene(spec, area, sv=None, watch=None):
         if o.get("front"): obj(sv, o["k"], o.get("x", 360), o.get("y", GROUND), o.get("s", 1), o.get("c"), o.get("r", 0))
         if o.get("on"):  # held: the hand is at the middle of the thing
             hx, hy = resolve(o["on"], built)
+            # a thing held up in front of a cast face is held beside it instead
+            for fx, fy, FR, ff in faces:
+                if math.hypot(hx - fx, hy - fy) < FR: hx = fx + ff * (FR + 20 * o.get("s", 1))
             obj(sv, o["k"], hx + o.get("dx", 0), hy + o.get("h", 30) * o.get("s", 1) + o.get("dy", 0), o.get("s", 1), o.get("c"), o.get("r", 0))
     for m in spec.get("marks", []): mark(sv, m, built)
     if spec.get("companions") and not FLAT: companions(sv, 540, GROUND + 2, 0.8, look=(-0.9, 0.1))
@@ -1064,6 +1278,7 @@ def rig_sheet(out):
 FIGURES = [("lieback", 1, 196, 1.12), ("prone", 4, 190, 1.12), ("sit", 7, 160, 1.12), ("crawl", 10, 176, 1.12),
            ("stand", 14, 166, 1.12), ("walk", 22, 158, 1.12), ("run", 30, 150, 1.12)]
 def figures(index):
+    CAST_FACES.clear(); VIEW.update(z=1.0, cx=150)
     for i, (pose, age, x, k) in enumerate(FIGURES):
         sv = SVG(300, 300)
         at = (x, 286)
