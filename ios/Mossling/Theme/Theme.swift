@@ -357,6 +357,14 @@ struct DayAir: View {
 /// The tooth of the paper the pictures are printed on: fine fibres and specks, tiled, too faint to see as a pattern
 /// but enough that the page and the cards read as paper like the pictures' grounds, not as flat screen colour. One
 /// small tile drawn once (deterministic), repeated. On the lamp's blue the specks are light.
+/// Switches for the on-demand scroll measurements only (launch arguments of ScrollPerfTests): each takes one 3D
+/// ingredient out so its cost shows as the difference. Never set in the app.
+enum Perf {
+    static let noCreatures = UserDefaults.standard.bool(forKey: "perfNoCreatures")
+    static let plainCards = UserDefaults.standard.bool(forKey: "perfPlainCards")
+    static let noArt = UserDefaults.standard.bool(forKey: "perfNoArt")
+}
+
 struct Grain: View {
     var dark: Bool
     var strength: Double = 1
@@ -517,7 +525,7 @@ struct PrintCard: ViewModifier {
         let shape = RoundedRectangle(cornerRadius: radius, style: .continuous)
         let dark = lamp || scheme == .dark
         let base = lamp ? Palette.lampCard : fill
-        if ArtStyle.current == .flat {
+        if ArtStyle.current == .flat || Perf.plainCards {
             // build 196: one flat colour of paper, a soft shadow
             content
                 .background { ZStack { base; Grain(dark: dark, strength: 0.6) }.clipShape(shape) }

@@ -54,7 +54,7 @@ struct Creature: View {
     @State private var glowStart = Date()
 
     @Environment(\.scrolling) private var scrolling
-    private var still: Bool { !alive || reduce }
+    private var still: Bool { !alive || reduce || Perf.noCreatures }
 
     var body: some View {
         if ArtStyle.current == .flat {

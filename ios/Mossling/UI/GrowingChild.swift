@@ -66,7 +66,7 @@ struct Figure: View {
         GeometryReader { g in
             // Color.clear keeps the view non-empty so its task runs before the image exists
             let px = Int(max(g.size.width, g.size.height) * scale)
-            let ready = img ?? ArtCache.shared.cached(shown, maxPixel: px)
+            let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px)
             ZStack { Color.clear; if let ready { Image(uiImage: ready).resizable().scaledToFit() } }
                 .frame(width: g.size.width, height: g.size.height)
                 .task(id: shown) {

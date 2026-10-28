@@ -76,7 +76,7 @@ struct ArtView: View {
         GeometryReader { g in
             let px = Int(g.size.width * scale)
             // already decoded (coming back to a page): drawn at once, no placeholder, no fade
-            let ready = img ?? ArtCache.shared.cached(shown, maxPixel: px)
+            let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px)
             ZStack {
                 Palette.fill
                 if let ready { Image(uiImage: ready).resizable().scaledToFill().transition(.opacity) }

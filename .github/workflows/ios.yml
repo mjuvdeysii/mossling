@@ -79,7 +79,7 @@ jobs:
         run: |
           xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
             -only-testing:MosslingUITests/ScrollPerfTests CODE_SIGNING_ALLOWED=NO 2>&1 | tee perf.log | grep -E "Test Case.*(passed|failed)|\*\* " || true
-          grep -iE "hitch|measured \[" perf.log | sed -E 's/.*(testHomeScroll[23]D).*measured \[([^]]+)\].*average: ([0-9.]+).*/\1 \2 avg \3/' | head -20 | while IFS= read -r l; do echo "::notice title=Scroll::$l"; done
+          grep -iE "hitch|measured \[" perf.log | sed -E 's/.*(testHomeScroll[23]D[A-Za-z]*).*measured \[([^]]+)\].*average: ([0-9.]+).*/\1 \2 avg \3/' | head -20 | while IFS= read -r l; do echo "::notice title=Scroll::$l"; done
       - name: Network probe report
         if: always()
         continue-on-error: true
