@@ -369,8 +369,10 @@ private struct MapMoss: View {
 
 struct GrowthMap: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.night) private var night
+    @Environment(\.night) private var nightTab
+    @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
+    private var night: Bool { nightTab || lamp }
     @Binding var month: Int
     let baby: Int
     var close: (() -> Void)? = nil
@@ -559,8 +561,10 @@ struct MapVignette: View {
     /// The grown-up beside the child by day too (the family on 我的), not only by night.
     var otto = false
     var giggle = 0
-    var poke = 0
-    @Environment(\.night) private var night
+    @Environment(\.night) private var nightTab
+    @Environment(\.lamp) private var lamp
+    /// Night by the home tab's clock or under the lamp (夜灯) on any page.
+    private var night: Bool { nightTab || lamp }
     private var flat: Bool { ArtStyle.current == .flat }
     var body: some View {
         let band = MapGeo.row(month)
@@ -617,14 +621,14 @@ struct MapVignette: View {
                     // a piece of the path, with the stone Moss stands on
                     var road = Path(); road.move(to: CGPoint(x: -6, y: size.height * 0.84)); road.addLine(to: CGPoint(x: size.width + 6, y: size.height * 0.84))
                     ctx.stroke(road, with: .color(night ? c.road : Color(hex: 0xFFF6E2)), style: StrokeStyle(lineWidth: 8, lineCap: .round))
-                    let s = CGRect(x: size.width * (otto ? 0.4 : 0.5) - 8, y: size.height * 0.84 - 8, width: 16, height: 16)
+                    let s = CGRect(x: size.width * (otto ? 0.38 : 0.5) - 8, y: size.height * 0.84 - 8, width: 16, height: 16)
                     ctx.fill(Path(ellipseIn: s.offsetBy(dx: 0, dy: 1.5)), with: .color(.black.opacity(0.15)))
                     ctx.fill(Path(ellipseIn: s), with: .color(Palette.bead))
                 }
                 .overlay { if flat { Grain(dark: night, strength: 0.9).blendMode(.multiply) } }
                 // the child's stone: in the middle, or a little left of it when Otto stands beside
-                let stone = CGPoint(x: otto ? w * 0.4 : w / 2, y: h * 0.84)
-                let ottoAt = CGPoint(x: min(w - h * 0.3, stone.x + h * 0.78), y: stone.y)
+                let stone = CGPoint(x: otto ? w * 0.38 : w / 2, y: h * 0.84)
+                let ottoAt = CGPoint(x: min(w - h * 0.36, stone.x + h * 0.92), y: stone.y)
                 if night && month == baby {
                     let hs = otto ? h * 0.56 : 52
                     MapHome(flat: flat).frame(width: hs, height: hs).position(x: stone.x - 6, y: stone.y - hs * 0.42)
@@ -632,14 +636,14 @@ struct MapVignette: View {
                         .frame(width: otto ? h * 0.5 : 36, height: otto ? h * 0.5 : 36)
                         .position(x: otto ? ottoAt.x : w - 18, y: stone.y - (otto ? h * 0.2 : 14))
                 } else {
-                    let d: CGFloat = otto ? h * 0.78 : 78
+                    let d: CGFloat = otto ? h * 0.7 : 78
                     if otto {
                         // Otto leans toward the child, his lamp pooling light on the stone
                         Ellipse().fill(RadialGradient(colors: [Palette.amber.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: h * 0.4))
                             .frame(width: h * 0.9, height: h * 0.22).position(x: stone.x, y: stone.y)
                         Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.45), lean: -8, poke: true, glow: false)
-                            .frame(width: h * 0.62, height: h * 0.62)
-                            .position(x: ottoAt.x, y: stone.y - h * 0.26)
+                            .frame(width: h * 0.88, height: h * 0.88)
+                            .position(x: ottoAt.x, y: stone.y - h * 0.38)
                     }
                     GrowingChild(month: month, giggle: giggle).frame(width: d, height: d)
                         .position(x: stone.x, y: stone.y + 3 - d / 2 + d * 14 / 300)

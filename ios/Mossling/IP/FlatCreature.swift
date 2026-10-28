@@ -39,13 +39,16 @@ struct FlatCreature: View {
     @State private var pattedAt = Date.distantPast
     @State private var pats = 0
 
+    @State private var onScreen = true
     private var still: Bool { !alive || reduce }
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still)) { tl in
-            Canvas { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+        // paused while off screen (a page of them scrolling costs nothing) and drawn off the main thread
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still || !onScreen)) { tl in
+            Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
         }
         .aspectRatio(1, contentMode: .fit)
+        .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
         .accessibilityElement()
         .accessibilityLabel(label ?? "")
         .accessibilityHidden(label == nil)

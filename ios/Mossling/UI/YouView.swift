@@ -112,7 +112,7 @@ struct YouView: View {
 /// being. Tap Moss and he giggles; 编辑 opens the child's details.
 private struct FamilyCard: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.night) private var night
+    @Environment(\.lamp) private var night
     let edit: () -> Void
     @State private var giggles = 0
 
@@ -134,7 +134,7 @@ private struct FamilyCard: View {
                     Button(action: edit) {
                         Label("编辑", systemImage: "pencil").font(.subheadline.weight(.semibold))
                     }
-                    .buttonStyle(.vinyl(Palette.accentFill))
+                    .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
                     .accessibilityLabel("编辑宝宝信息")
                 }
                 if let a = app.age {
