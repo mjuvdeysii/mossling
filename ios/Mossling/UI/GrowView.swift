@@ -115,20 +115,22 @@ struct MonthParts: View {
         let parts = parts(mo, m)
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "这个月")
-            // one kind of tile, two to a row (one at the largest text sizes): the same shape for every part
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 10) {
+            // one kind of tile, three to a row (one at the largest text sizes): the month's six parts in two rows
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 3), spacing: 8) {
                 ForEach(parts, id: \.title) { p in
-                    let label = HStack(spacing: 10) {
-                        IconTile(symbol: p.symbol, color: p.color, size: 36)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-                            Text(p.note).font(.caption).foregroundStyle(p.total > 0 ? Crayon.ink(p.color) : Palette.secondaryText).monospacedDigit()
+                    let label = VStack(alignment: .leading, spacing: 6) {
+                        HStack(alignment: .top) {
+                            IconTile(symbol: p.symbol, color: p.color, size: 32)
+                            Spacer(minLength: 0)
+                            if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 20) }
                         }
-                        Spacer(minLength: 0)
-                        if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 24) }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
+                            Text(p.note).font(.caption).foregroundStyle(p.total > 0 ? Crayon.ink(p.color) : Palette.secondaryText).monospacedDigit().lineLimit(1)
+                        }
                     }
-                    .padding(12).frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
-                    .printCard(radius: 20)
+                    .padding(10).frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
+                    .printCard(radius: 18)
                     .accessibilityElement(children: .combine)
                     if let r = p.route { NavigationLink(value: r) { label }.buttonStyle(.toy) }
                     else { NavigationLink(value: JournalRoute.growth) { label }.buttonStyle(.toy) }

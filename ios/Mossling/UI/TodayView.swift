@@ -229,27 +229,29 @@ let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.k
 /// The topics, as one card of rows: a mark, the title, where it comes from, a chevron.
 private struct Topics: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题", detail: "照护参考")
-            VStack(spacing: 0) {
+            // two to a row: the five topics in three short rows
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 10) {
                 ForEach(items) { x in
-                    if x.i > 0 { Divider().padding(.leading, 54) }
                     NavigationLink(value: Route.topic(x.t.id)) {
-                        HStack(spacing: 12) {
+                        HStack(spacing: 10) {
                             IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 28)
-                            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .padding(.horizontal, 12).padding(.vertical, 10)
+                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                        .printCard(radius: 18)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.toy)
                 }
             }
-            .printCard(radius: 22)
         }
     }
 }
