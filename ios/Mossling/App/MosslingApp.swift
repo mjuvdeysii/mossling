@@ -213,8 +213,8 @@ private struct RouteView: View {
 
 /// First run, told by the two of them (docs/IP.md): the evening table, Otto's lamp coming on, Moss exploring in its
 /// light (LampScene, about four seconds, once), then the name and what it means in plain words — 孩子摸索，大人点灯.
-/// Then the IP v1.3 shots in place: tap either companion to make it the main one (the page says which, and that it can
-/// be changed), and the main one looks down at the way in, 填写出生日期.
+/// Then the IP v1.3 shots in place: tap either of them and they answer (Moss is the child, Otto the grown-up), and Moss
+/// looks down at the way in, 填写出生日期.
 /// Nothing waits for the animation: the buttons work from the first frame, 稍后再填 skips everything, a returning user
 /// never sees this page, and under Reduce Motion the scene is still.
 struct OnboardingView: View {
@@ -225,26 +225,25 @@ struct OnboardingView: View {
     @State private var chose = false
     @State private var lookDown = false
     var body: some View {
-        let k = app.companion
         VStack(spacing: 0) {
-            LampScene(play: true, chosen: chose ? k : nil, lookDown: lookDown) { kind in
-                withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.8)) { app.companion = kind; chose = true }
+            // tap either of them: they answer (Moss is the child, Otto the grown-up — nothing to choose)
+            LampScene(play: true, chosen: nil, lookDown: lookDown) { _ in
+                withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.8)) { chose = true }
                 lookDown = true
             }
             .frame(maxHeight: .infinity)
             .ignoresSafeArea(edges: .top)
-            .sensoryFeedback(.selection, trigger: app.companion)
+            .sensoryFeedback(.selection, trigger: chose)
 
             VStack(spacing: 6) {
                 Text("摸索台灯").font(.largeTitle.weight(.bold))
                 Text("孩子摸索，大人点灯").font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
                 Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
-                // the choice belongs to the page, not to the characters
-                Text(chose ? "主伙伴：\(k.rawValue) · 之后可在「我的」更换" : "点一位作为主伙伴，两位功能相同")
+                // who the two are, in one line
+                Text("Moss 是孩子，Otto 是一直在旁边点灯的大人")
                     .font(.footnote).foregroundStyle(Palette.secondaryText)
                     .padding(.top, 4)
-                    .contentTransition(.opacity)
             }
             .multilineTextAlignment(.center)
             .padding(.top, 14).padding(.horizontal, 24)
@@ -254,13 +253,19 @@ struct OnboardingView: View {
                     .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
                 Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
-                Text("继续使用即表示已阅读并同意以下文件。本应用陪伴家庭养育，不能替代医生的诊断和建议。")
-                    .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center).padding(.top, 4)
-                HStack(spacing: 16) {
-                    ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
-                        Button(t) { doc = f }.font(.caption.weight(.semibold))
+                // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
+                VStack(spacing: 6) {
+                    Text("继续使用即表示已阅读并同意以下文件。本应用陪伴家庭养育，不能替代医生的诊断和建议。")
+                        .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
+                    HStack(spacing: 16) {
+                        ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
+                            Button(t) { doc = f }.font(.caption.weight(.semibold))
+                        }
                     }
                 }
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .padding(.top, 4)
             }
             .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
         }

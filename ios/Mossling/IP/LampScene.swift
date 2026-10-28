@@ -148,7 +148,7 @@ struct LampScene: View {
             Button { pick(kind) } label: { c }
                 .buttonStyle(.plain)
                 .position(p)
-                .accessibilityLabel("选择 \(kind.rawValue) 作为主伙伴，\(kind.trait)")
+                .accessibilityLabel("\(kind.rawValue)，\(kind == .moss ? "孩子" : "大人")，\(kind.trait)")
                 .accessibilityAddTraits(chosen == kind ? .isSelected : [])
         } else {
             c.position(p).accessibilityHidden(true)
