@@ -20,7 +20,7 @@ enum Guide {
 /// 本月 · this week's shelf.
 struct ShelfTip: Tip {
     var title: Text { Text("本周的教具") }
-    var message: Text? { Text("点开一件，跟着图一步步和孩子玩，做完最后一步会自动记一次。点月份卡可以展开成长滚轮，翻看其他月份；「整理」可以换成别的教具。") }
+    var message: Text? { Text("点开一件，跟着图一步步和孩子玩，做完最后一步会自动记一次。点月份卡可以展开成长地图，沿着小路翻看其他月份；「整理」可以换成别的教具。") }
     var image: Image? { Image(systemName: "hand.tap") }
 }
 

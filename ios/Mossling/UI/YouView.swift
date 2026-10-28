@@ -452,7 +452,7 @@ struct StoryView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text("在这里做的三件事").font(.headline)
                     thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
-                    thing("leaf.fill", Crayon.leaf, "看他长大", "0–36 个月，一个月一站，共 37 站；成长滚轮和成长册留下每一站的样子。")
+                    thing("leaf.fill", Crayon.leaf, "看他长大", "0–36 个月，一个月一站，共 37 站；成长地图和成长册留下每一站的样子。")
                     thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来（可选）", "喂奶、睡眠、尿布一点即记，只保存在这部手机里。")
                 }
                 .card(Palette.card, radius: 24, padding: 18)
