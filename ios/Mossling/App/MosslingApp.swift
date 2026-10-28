@@ -110,7 +110,8 @@ struct RootView: View {
     /// The tab's mark: the vinyl icon — in full colour when chosen, quietened otherwise, so the chosen tab leads —
     /// or in the hidden 2D world (build 196) the system symbol it had then.
     private func tabLabel(_ t: String, _ image: String, _ symbol: String, _ value: Int) -> Label<Text, Image> {
-        ArtStyle.current == .flat ? Label(t, systemImage: symbol) : Label(t, image: tab == value ? image + "On" : image)
+        let name = ArtStyle.current == .flat ? image + "2D" : image
+        return Label(t, image: tab == value ? name + "On" : name)
     }
 
     private var tabView: some View {

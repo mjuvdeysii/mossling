@@ -20,7 +20,8 @@ struct AskSheet: View {
     @State private var saved = 0
     @FocusState private var typing: Bool
 
-    private var vinyl: Bool { ArtStyle.current == .vinyl }
+    /// The record instruments are the same in both worlds (only their drawing differs).
+    private var vinyl: Bool { true }
     private var at: Date { vinyl ? (ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? when) : when }
     private var tempC: Binding<Double> { Binding(get: { Double(temp) / 10 }, set: { temp = Int(($0 * 10).rounded()) }) }
 
@@ -283,7 +284,7 @@ struct EntrySheet: View {
 
     @ViewBuilder private var fields: some View {
         let c = LogType.color(entry.type)
-        let vinyl = ArtStyle.current == .vinyl
+        let vinyl = true
         switch entry.type {
         case LogType.bottle where vinyl:
             Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
@@ -394,11 +395,10 @@ struct MeasureSheet: View {
 
     private func field(_ t: String, _ unit: String, _ v: Binding<String>, _ s: String, _ i: Indicator) -> some View {
         HStack {
-            if ArtStyle.current == .vinyl { IconTile(symbol: s, color: i.tint, size: 32, round: true) }
-            else { Image(systemName: s).foregroundStyle(i.tint).frame(width: 24) }
+            IconTile(symbol: s, color: i.tint, size: 32, round: true)
             Text(t)
             TextField("—", text: v).keyboardType(.decimalPad).multilineTextAlignment(.trailing).monospacedDigit()
-                .font(ArtStyle.current == .vinyl ? Typeface.numerals(22, relativeTo: .title3, weight: .bold) : .body)
+                .font(Typeface.numerals(22, relativeTo: .title3, weight: .bold))
             Text(unit).foregroundStyle(Palette.secondaryText)
         }
     }

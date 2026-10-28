@@ -312,7 +312,7 @@ struct ProfileSheet: View {
                     }
                 } footer: { Text("性别只用于选择 WHO 生长曲线。") }
                 // 3D: the pictures are acted by Moss and Otto, the same for every child — nothing to choose
-                if ArtStyle.current == .flat {
+                if false {   // one cast in both worlds: the pictures are Moss and Otto, the same for every child
                 Section {
                     HStack(spacing: 12) {
                         ForEach(["boy", "girl"], id: \.self) { k in

@@ -275,6 +275,83 @@ def _(sv):
     sv.add(f'<circle cx="154" cy="112" r="20" fill="{R(sv, pb.SKIN[1])}"/><rect x="132" y="136" width="46" height="56" rx="20" fill="{G(sv, YELLOW)}"/>')
     sv.add(eyes(92, 90, 9, 3.4) + eyes(154, 110, 7, 3) + smile(92, 102, 6) + smile(154, 120, 5))
 
+# ---------- added with the 3D world: the same marks in the 2D world, so no icon is ever missing there ----------
+@icon("chart_bar_fill", LILAC)                            # 最近七天: three soft bars
+def _(sv):
+    for i, (h, c) in enumerate(((60, "#B39CF4"), (96, LILAC), (126, "#7E5FD6"))):
+        sv.add(f'<rect x="{62 + i * 44}" y="{184 - h}" width="34" height="{h}" rx="10" fill="{G(sv, c)}"/>')
+    sv.add('<path d="M52 186 h138" stroke="#FFF" stroke-width="6" stroke-linecap="round"/>')
+@icon("circle_dashed", TEAL)                              # 头围: a soft tape measure round a ball
+def _(sv):
+    sv.add(f'<circle cx="120" cy="124" r="62" fill="{R(sv, "#FFE3A3")}"/>')
+    sv.add('<ellipse cx="120" cy="130" rx="70" ry="22" fill="none" stroke="#FFF" stroke-width="14"/>')
+    sv.add(''.join(f'<path d="M{70 + i * 20} {140 - (6 if i % 2 else 0)} v8" stroke="{TEAL}" stroke-width="4" stroke-linecap="round"/>' for i in range(6)))
+@icon("clock_fill", LILAC)                                # 时间: a round alarm clock
+def _(sv):
+    for x in (78, 162): sv.add(f'<circle cx="{x}" cy="66" r="16" fill="{R(sv, YELLOW)}"/>')
+    sv.add(f'<circle cx="120" cy="128" r="64" fill="{R(sv, LILAC)}"/><circle cx="120" cy="128" r="48" fill="#FFF"/>')
+    sv.add(f'<path d="M120 128 V96 M120 128 H146" stroke="{INK}" stroke-width="7" stroke-linecap="round"/><circle cx="120" cy="128" r="6" fill="{INK}"/>')
+@icon("drop_halffull", BLUE)                              # 尿布 · 湿: a drop of water
+def _(sv):
+    sv.add(f'<path d="M120 40 C150 84 172 112 172 144 a52 52 0 0 1 -104 0 C68 112 90 84 120 40Z" fill="{G(sv, "#7FC4F4")}"/>')
+    sv.add('<ellipse cx="100" cy="128" rx="9" ry="16" fill="#FFF" opacity=".7"/>')
+@icon("diaper_dirty", CARAMEL)                            # 尿布 · 便: a soft little swirl
+def _(sv):
+    for y, w in ((176, 128), (146, 96), (118, 62)):
+        sv.add(f'<ellipse cx="120" cy="{y}" rx="{w / 2}" ry="22" fill="{G(sv, "#A86F3E")}"/>')
+    sv.add(f'<path d="M112 98 q8 -22 14 -6 z" fill="#A86F3E"/><ellipse cx="98" cy="150" rx="7" ry="5" fill="#E7C7A6" opacity=".8"/>')
+@icon("diaper_both", LILAC)                               # 尿布 · 都有: the drop and the swirl together
+def _(sv):
+    sv.add(f'<path d="M84 64 C104 96 118 112 118 136 a34 34 0 0 1 -68 0 C50 112 64 96 84 64Z" fill="{G(sv, "#7FC4F4")}"/>')
+    for y, w in ((182, 84), (160, 62), (140, 40)):
+        sv.add(f'<ellipse cx="160" cy="{y}" rx="{w / 2}" ry="15" fill="{G(sv, "#A86F3E")}"/>')
+@icon("exclamationmark_shield_fill", RED)                 # 安全提醒: a shield with a mark
+def _(sv):
+    sv.add(f'<path d="M120 42 L180 64 V118 C180 160 152 186 120 200 C88 186 60 160 60 118 V64 Z" fill="{G(sv, RED)}"/>')
+    sv.add('<rect x="111" y="80" width="18" height="62" rx="9" fill="#FFF"/><circle cx="120" cy="164" r="11" fill="#FFF"/>')
+@icon("externaldrive_fill", GREY)                         # 备份: a little box that keeps things
+def _(sv):
+    sv.add(f'<rect x="48" y="92" width="144" height="76" rx="18" fill="{G(sv, "#B9B2A8")}"/><rect x="48" y="92" width="144" height="18" rx="9" fill="#D9D4C7"/>')
+    sv.add(f'<circle cx="166" cy="142" r="8" fill="{GREEN}"/><path d="M70 142 h60" stroke="#8A8279" stroke-width="6" stroke-linecap="round"/>')
+@icon("lamp_desk_fill", YELLOW)                           # 台灯: Otto's lamp, a rod and its golden bead
+def _(sv):
+    sv.add('<path d="M138 196 V110 q0 -50 -46 -54" stroke="#1F3366" stroke-width="12" fill="none" stroke-linecap="round"/>')
+    sv.add(f'<ellipse cx="138" cy="198" rx="40" ry="10" fill="#1F3366"/><circle cx="88" cy="70" r="20" fill="{R(sv, "#D4A21C")}"/>')
+@icon("leaf_fill", GREEN)                                 # 看他长大: a sprout with two round leaves
+def _(sv):
+    sv.add('<path d="M120 196 V104" stroke="#3E9B5A" stroke-width="9" stroke-linecap="round"/>')
+    sv.add(f'<ellipse cx="88" cy="102" rx="40" ry="22" fill="{G(sv, GREEN)}" transform="rotate(-24 88 102)"/>')
+    sv.add(f'<ellipse cx="152" cy="94" rx="40" ry="22" fill="{G(sv, "#6FCB86")}" transform="rotate(24 152 94)"/>')
+    sv.add('<ellipse cx="120" cy="196" rx="52" ry="10" fill="#8B6A4A" opacity=".5"/>')
+@icon("scalemass_fill", ORANGE)                           # 体重: a little scale
+def _(sv):
+    sv.add(f'<rect x="54" y="118" width="132" height="70" rx="20" fill="{G(sv, "#FFFFFF")}" stroke="#E6DED0" stroke-width="4"/>')
+    sv.add(f'<ellipse cx="120" cy="104" rx="70" ry="16" fill="{G(sv, "#A8E0B8")}"/><circle cx="120" cy="154" r="20" fill="#FFF" stroke="{ORANGE}" stroke-width="5"/>')
+    sv.add(f'<path d="M120 154 l10 -10" stroke="{RED}" stroke-width="4" stroke-linecap="round"/>')
+@icon("square_and_arrow_down_on_square_fill", BLUE)       # 导入: a parcel coming in
+def _(sv):
+    sv.add(f'<rect x="62" y="108" width="116" height="84" rx="14" fill="{G(sv, "#D9964F")}"/><rect x="62" y="108" width="116" height="20" rx="8" fill="#E8B583"/>')
+    sv.add(f'<path d="M120 40 V112 M96 90 L120 114 L144 90" stroke="{BLUE}" stroke-width="12" fill="none" stroke-linecap="round" stroke-linejoin="round"/>')
+@icon("square_grid_2x2_fill", YELLOW)                     # 一起玩: four soft blocks
+def _(sv):
+    for (x, y, c) in ((66, 70, YELLOW), (124, 70, GREEN), (66, 128, RED), (124, 128, BLUE)):
+        sv.add(f'<rect x="{x}" y="{y}" width="52" height="52" rx="12" fill="{G(sv, c)}"/>')
+@icon("stethoscope", RED)                                 # 看医生: a stethoscope
+def _(sv):
+    sv.add('<path d="M78 52 V110 a42 42 0 0 0 84 0 V52" stroke="#1F3366" stroke-width="10" fill="none" stroke-linecap="round"/>')
+    sv.add('<path d="M120 152 V176 a20 20 0 0 0 40 0" stroke="#1F3366" stroke-width="10" fill="none" stroke-linecap="round"/>')
+    sv.add(f'<circle cx="160" cy="176" r="18" fill="{R(sv, "#C9C1B6")}"/><circle cx="78" cy="50" r="8" fill="{RED}"/><circle cx="162" cy="50" r="8" fill="{RED}"/>')
+@icon("tablecells_fill", TEAL)                            # 表格: a sheet with cells
+def _(sv):
+    sv.add('<rect x="56" y="62" width="128" height="116" rx="14" fill="#FFF" stroke="#E6DED0" stroke-width="4"/>')
+    sv.add(f'<rect x="56" y="62" width="128" height="28" rx="14" fill="{TEAL}"/>')
+    sv.add('<path d="M56 120 H184 M56 150 H184 M98 90 V178 M140 90 V178" stroke="#C9C1B6" stroke-width="4"/>')
+@icon("tree_fill", GREEN)                                 # 户外: a round little tree
+def _(sv):
+    sv.add('<rect x="111" y="132" width="18" height="64" rx="8" fill="#B8854F"/>')
+    for (x, y, r) in ((90, 116, 38), (150, 116, 38), (120, 80, 46)):
+        sv.add(f'<circle cx="{x}" cy="{y}" r="{r}" fill="{R(sv, GREEN)}"/>')
+
 def render(key):
     colour, fn, wob = D[key]
     sv = sticker(colour, fn, wob)
@@ -287,9 +364,10 @@ def render(key):
 def main():
     ipath = os.path.join(OUT, "index.json")
     index = json.load(open(ipath))
-    names = [] if "--only-trays" in sys.argv else [render(k) for k in D]
+    only = sys.argv[sys.argv.index("--only") + 1].split(",") if "--only" in sys.argv else None
+    names = [] if "--only-trays" in sys.argv else [render(k) for k in D if not only or k in only]
     for n in names: index["size"][n] = [360, 360]
-    tnames = trays(index)
+    tnames = trays(index) if not only else []
     print(len(tnames), "trays")
     json.dump(index, open(ipath, "w"), separators=(",", ":"))
     print(len(names), "stickers")

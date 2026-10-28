@@ -194,7 +194,7 @@ struct ChoiceTile: View {
     var body: some View {
         Button(action: action) {
             VStack(spacing: 6) {
-                if let sticker, ArtStyle.current == .vinyl, ArtIndex.shared.size[sticker] != nil {
+                if let sticker, ArtIndex.shared.size[ArtStyle.resolve(sticker)] != nil {
                     Figure(name: sticker).frame(width: 66, height: 66).frame(width: 52, height: 52)
                 } else {
                     IconTile(symbol: symbol, color: tint, size: 46, round: true)

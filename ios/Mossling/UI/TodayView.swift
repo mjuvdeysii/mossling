@@ -49,7 +49,7 @@ struct TodayView: View {
                 if m >= 36 { StoryGoesOn(primary: app.companion) }
                 if m == baby && app.age != nil {
                     TipView(shelfTip)
-                    if ArtStyle.current == .flat { FlatShelfView(month: m) { arranging = true } } else { ShelfView(month: m) { arranging = true } }
+                    ShelfView(month: m) { arranging = true }
                 }
                 PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
                 MonthParts(month: m)

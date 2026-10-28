@@ -179,7 +179,7 @@ private struct Sticker: View {
     @State private var pops = 0
     var body: some View {
         let c = LogType.color(type)
-        let on = ArtStyle.current == .vinyl && !reduce
+        let on = !reduce
         Button { pops += 1; action() } label: {
             VStack(spacing: 4) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)

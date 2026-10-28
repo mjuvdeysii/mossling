@@ -88,13 +88,14 @@ struct Sky: View {
 struct StagePlate: View {
     var night = false
     /// 3D at night: not the meadow under the stars but the child's room, the child asleep in the crib.
-    static var room: Bool { ArtStyle.current == .vinyl }
+    static var room: Bool { true }
     @Environment(\.displayScale) private var scale
     @State private var img: UIImage?
     var body: some View {
         GeometryReader { g in
             ZStack {
-                if let img, ArtStyle.current != .flat { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
+                // 2D: the drawn sky by day and under the stars; at night the drawn room (2d_stage_room)
+                if let img, ArtStyle.current != .flat || night { Image(uiImage: img).resizable().scaledToFill().transition(.opacity) }
                 else { Sky(hour: night ? 22 : 12) }
             }
             .frame(width: g.size.width, height: g.size.height)

@@ -38,15 +38,9 @@ struct GrowthWheel: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                     .padding(.bottom, 6)
                 }
-                // 3D: Moss is the child on the stage, so Otto keeps watch beside him alone (the grown-up and the child)
-                Group {
-                    if ArtStyle.current == .vinyl {
-                        Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.2), lid: night ? 0.5 : nil, poke: true, glow: night, glowFor: night ? 4.5 : nil)
-                            .frame(width: 64 * Kind.otto.scale, height: 64 * Kind.otto.scale)
-                    } else {
-                        Duo(primary: app.companion, size: 64, look: CGPoint(x: -0.8, y: 0.1), poke: true, cheer: arrived &+ giggles, night: night, briefLamp: night && StagePlate.room)
-                    }
-                }
+                // Moss is the child on the stage, so Otto keeps watch beside him alone (the grown-up and the child)
+                Creature(kind: .otto, look: CGPoint(x: -0.8, y: 0.2), lid: night ? 0.5 : nil, poke: true, glow: night, glowFor: night ? 4.5 : nil)
+                    .frame(width: 64 * Kind.otto.scale, height: 64 * Kind.otto.scale)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 8).padding(.bottom, 4)
                 VStack(alignment: .leading, spacing: 4) {
