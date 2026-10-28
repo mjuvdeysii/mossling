@@ -69,8 +69,10 @@ struct Figure: View {
             let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px)
             ZStack { Color.clear; if let ready { Image(uiImage: ready).resizable().scaledToFit() } }
                 .frame(width: g.size.width, height: g.size.height)
-                .task(id: shown) {
-                    if ArtCache.shared.cached(shown, maxPixel: px) != nil { return }
+                .task(id: ArtCache.token(shown, px)) {
+                    // held by the view, not only by the cache: the cache is emptied when the app goes to the background
+                    // (and under memory pressure), and a picture that lived only there came back blank
+                    if let c = ArtCache.shared.cached(shown, maxPixel: px) { img = c; return }
                     let n = shown
                     img = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 }

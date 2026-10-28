@@ -30,6 +30,10 @@ final class ArtCache {
         return "\(name)@\(bucket)" as NSString
     }
 
+    /// What a view's loading task is keyed by: the picture and the size bucket it is drawn at (a view that grows past
+    /// its first size loads the sharper one).
+    static func token(_ name: String, _ maxPixel: Int) -> String { key(name, maxPixel) as String }
+
     /// The picture if it is already decoded, without decoding: for drawing at once, with no placeholder and no fade.
     func cached(_ asked: String, maxPixel: Int) -> UIImage? {
         cache.object(forKey: Self.key(ArtStyle.resolve(asked), maxPixel))
@@ -83,8 +87,9 @@ struct ArtView: View {
                 NightDim()
             }
             .frame(width: g.size.width, height: g.size.height)
-            .task(id: shown) {
-                if ArtCache.shared.cached(shown, maxPixel: px) != nil { return }
+            .task(id: ArtCache.token(shown, px)) {
+                // held by the view (see Figure): an evicted cache must not leave the picture blank
+                if let c = ArtCache.shared.cached(shown, maxPixel: px) { img = c; return }
                 let n = shown
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.18)) { img = i }
