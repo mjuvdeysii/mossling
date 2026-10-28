@@ -206,29 +206,91 @@ struct BlocksView: View {
                         }
                     }
                 case "table":
-                    let head = b.head ?? []
-                    VStack(spacing: 10) {
-                        ForEach(Array((b.rows ?? []).enumerated()), id: \.offset) { _, row in
-                            VStack(alignment: .leading, spacing: 0) {
-                                if let first = row.first { Text(first).font(.headline).padding(.horizontal, 16).padding(.vertical, 12) }
-                                ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { i, cell in
-                                    Divider().padding(.leading, 16)
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        if i + 1 < head.count { Text(head[i + 1]).font(.footnote).foregroundStyle(Palette.secondaryText) }
-                                        Text(rich(cell)).font(.body)
-                                    }
-                                    .padding(.horizontal, 16).padding(.vertical, 10)
-                                }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .printCard(radius: 22)
-                        }
-                    }
+                    TableBlock(head: b.head ?? [], rows: b.rows ?? [])
                 default:
                     Text(rich(b.text ?? "")).font(.body)
                 }
             }
         }
+    }
+}
+
+/// A table of a topic, one card per row. When its rows are age groups (0–3个月, 12–23个月, 满36个月起…), the child's own
+/// group is open and the others fold to one line each (tap to open), so the page is read in one screen; a label and a
+/// short value share one line.
+struct TableBlock: View {
+    @Environment(AppModel.self) private var app
+    let head: [String]
+    let rows: [[String]]
+    @State private var open: Set<Int> = []
+    @State private var seeded = false
+
+    /// The months an age-group heading covers, or nil when the heading is not an age group.
+    static func months(_ t: String) -> ClosedRange<Int>? {
+        let ns = t.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
+        guard t.contains("月") || t.contains("岁"), let a = ns.first else { return nil }
+        let k = t.contains("岁") && !t.contains("月") ? 12 : 1
+        if t.contains("起") || t.contains("以上") { return (a * k)...999 }
+        return (a * k)...((ns.count > 1 ? ns[1] : a) * k)
+    }
+
+    var body: some View {
+        let ranges = rows.map { Self.months($0.first ?? "") }
+        let grouped = rows.count >= 3 && ranges.allSatisfy { $0 != nil }
+        let m = app.babyMonth ?? 0
+        let mine: Int? = grouped ? (ranges.firstIndex { $0!.contains(m) } ?? 0) : nil
+        VStack(spacing: 10) {
+            ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
+                let shown = !grouped || open.contains(i)
+                VStack(alignment: .leading, spacing: 0) {
+                    if let first = row.first {
+                        Button {
+                            guard grouped else { return }
+                            withAnimation(.snappy) { if open.contains(i) { open.remove(i) } else { open.insert(i) } }
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(first).font(.headline).foregroundStyle(.primary)
+                                if i == mine {
+                                    Text("宝宝现在").font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
+                                        .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(Palette.bead))
+                                }
+                                Spacer(minLength: 0)
+                                if grouped {
+                                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                                        .rotationEffect(.degrees(shown ? 180 : 0))
+                                }
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 12).contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!grouped)
+                        .accessibilityAddTraits(grouped ? .isButton : [])
+                    }
+                    if shown {
+                        ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { j, cell in
+                            Divider().padding(.leading, 16)
+                            let label = j + 1 < head.count ? head[j + 1] : ""
+                            ViewThatFits(in: .horizontal) {
+                                HStack(alignment: .firstTextBaseline, spacing: 12) {
+                                    if !label.isEmpty { Text(label).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize() }
+                                    Spacer(minLength: 8)
+                                    Text(rich(cell)).font(.body).multilineTextAlignment(.trailing).fixedSize()
+                                }
+                                VStack(alignment: .leading, spacing: 2) {
+                                    if !label.isEmpty { Text(label).font(.footnote).foregroundStyle(Palette.secondaryText) }
+                                    Text(rich(cell)).font(.body).fixedSize(horizontal: false, vertical: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 9)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .printCard(radius: 22)
+            }
+        }
+        .onAppear { if !seeded, let mine { open = [mine]; seeded = true } }
     }
 }
 
