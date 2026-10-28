@@ -689,7 +689,7 @@ def cast_icon(who, x, y, r, asleep=False):
         o += f'<ellipse cx="{x:.1f}" cy="{y - r * .62:.1f}" rx="{r * .72:.1f}" ry="{r * .36:.1f}" fill="#E07A6A"/>'
         return o + eyes(x, y + r * .05, r * .8)
     if who == "mosto":
-        body, hi = "#5E43A0", "#8A70C8"
+        body, hi = "#F4DCE4", "#FFFFFF"
     else:
         body, hi = "#4F6B3C", "#6E8C55"
     o = ""
@@ -787,7 +787,7 @@ def draw_cast(s, sv):
     shut = s.expr in ("sleep", "calm") or s.pose == "bundle"
     look = _look(s)
     x, y, H, deg, sq = cast_place(s)
-    body = {"moss": "#55703F", "mosto": "#5E43A0", "otto": "#22386E", "mochi": "#F4E4CF"}[role]
+    body = {"moss": "#55703F", "mosto": "#F4DCE4", "otto": "#22386E", "mochi": "#F4E4CF"}[role]
     sv.shadow(x, GROUND + 3 if y >= GROUND - 2 else y + 3, H * (0.42 if role in ("moss", "mosto") else 0.36), 8, .2)
     sv.add(f'<g transform="rotate({deg:.1f} {x:.1f} {y:.1f}) translate({x:.1f} {y:.1f}) scale(1 {sq:.2f}) translate({-x:.1f} {-y:.1f})">')
     if role in ("moss", "mosto"):
@@ -807,10 +807,10 @@ def draw_cast(s, sv):
         else:
             for sx in (-1, 1):
                 sv.add(f'<path d="M{cx + sx * R * .6:.1f} {cy - R * .6:.1f} q{sx * R * .32:.1f} {-R * .22:.1f} {sx * R * .18:.1f} {-R * .52:.1f}" stroke="#F1E2C4" stroke-width="{R * .16:.1f}" fill="none" stroke-linecap="round"/>')
-                sv.add(f'<path d="M{cx + sx * R * .95:.1f} {cy - R * .1:.1f} l{sx * R * .5:.1f} {-R * .25:.1f} l{-sx * R * .12:.1f} {R * .2:.1f} l{sx * R * .1:.1f} {R * .16:.1f} Z" fill="#3E2A72"/>')
+                sv.add(f'<path d="M{cx + sx * R * .95:.1f} {cy - R * .1:.1f} l{sx * R * .5:.1f} {-R * .25:.1f} l{-sx * R * .12:.1f} {R * .2:.1f} l{sx * R * .1:.1f} {R * .16:.1f} Z" fill="#D9B8CF"/>')
             sv.add(f'<g transform="rotate(14 {cx + R * .1:.1f} {cy - R * .95:.1f})"><path d="M{cx - R * .3:.1f} {cy - R * .88:.1f} l{R * .08:.1f} {-R * .38:.1f} l{R * .2:.1f} {R * .22:.1f} l{R * .12:.1f} {-R * .34:.1f} l{R * .12:.1f} {R * .34:.1f} l{R * .2:.1f} {-R * .22:.1f} l{R * .08:.1f} {R * .38:.1f} Z" fill="#C9A24A"/></g>')
             sv.add(f'<path d="M{cx - R * .9:.1f} {cy + R * .5:.1f} q{-R * .5:.1f} {R * .1:.1f} {-R * .6:.1f} {-R * .4:.1f}" stroke="{body}" stroke-width="{R * .1:.1f}" fill="none" stroke-linecap="round"/>')
-            sv.add(pict("heart", cx - R * 1.5, cy + R * .02, R / 60).replace("#FF6F91", "#B9A6E8"))
+            sv.add(pict("heart", cx - R * 1.5, cy + R * .02, R / 60).replace("#FF6F91", "#E8A8C0"))
         for sx in (-1, 1):
             sv.add(f'<ellipse cx="{cx + sx * R * .66:.1f}" cy="{cy + R * .12:.1f}" rx="{R * .15:.1f}" ry="{R * .09:.1f}" fill="#F49AB0" opacity=".85"/>')
         er = R * (0.22 if s.expr == "wow" else 0.19)
