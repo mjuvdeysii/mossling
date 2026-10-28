@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ICON = os.path.join(HERE, "..", "ios", "Mossling", "Resources", "AppIcon.icon")
 PX = 1024
-FILL = 0.74   # the pair's larger side as a share of the icon (Apple's grid keeps the subject inside about 0.8)
+FILL = 0.8   # the pair's larger side as a share of the icon (Apple's grid keeps the subject inside about 0.8)
 
 def scene():
     s = ip3d.reset(); s.render.film_transparent = True
@@ -70,7 +70,7 @@ def main():
     spec = {
         "fill-specializations": [
             {"value": {"linear-gradient": ["display-p3:1.00000,0.96500,0.90500,1.00000", "display-p3:0.98000,0.86500,0.72000,1.00000"]}},
-            {"appearance": "dark", "value": {"linear-gradient": ["display-p3:0.16000,0.18500,0.32000,1.00000", "display-p3:0.08500,0.09500,0.18000,1.00000"]}},
+            {"appearance": "dark", "value": {"linear-gradient": ["display-p3:0.29000,0.20500,0.14500,1.00000", "display-p3:0.13000,0.09000,0.06000,1.00000"]}},
         ],
         "groups": [{
             "layers": [{"image-name": "duo.png", "name": "Moss and Otto", "glass": False, "hidden": False,
@@ -84,7 +84,7 @@ def main():
     json.dump(spec, open(os.path.join(ICON, "icon.json"), "w"), indent=2)
     if len(sys.argv) > 3:
         out = sys.argv[3]; P = Image.new("RGB", (2 * 560, 560), "white")
-        for i, (a, b) in enumerate((((255, 246, 231), (250, 221, 184)), ((41, 47, 82), (22, 24, 46)))):
+        for i, (a, b) in enumerate((((255, 246, 231), (250, 221, 184)), ((74, 52, 37), (33, 23, 15)))):
             bg = Image.new("RGB", (PX, PX)); dd = ImageDraw.Draw(bg)
             for y in range(PX):
                 t_ = y / PX; dd.line((0, y, PX, y), fill=tuple(int(a[k] + (b[k] - a[k]) * t_) for k in range(3)))
