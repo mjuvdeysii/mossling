@@ -69,6 +69,14 @@ struct TodayFace: View {
         if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
         return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
     }
+    /// The narrow cards' form: "25 分前", "3时20分前", "5 时前" (the long form was cut to "3 小时 20…").
+    private func agoCard(_ d: Date) -> String {
+        let m = Int(date.timeIntervalSince(d) / 60)
+        if m < 2 { return "刚刚" }
+        if m < 60 { return "\(m) 分前" }
+        if m < 600 && m % 60 != 0 { return "\(m / 60)时\(m % 60)分前" }
+        return m < 48 * 60 ? "\(m / 60) 时前" : "\(m / 1440) 天前"
+    }
     private var journal: Bool { snap?.journal == true }
 
     var body: some View {
@@ -201,7 +209,7 @@ struct TodayFace: View {
     private func timerButton(_ type: String) -> some View {
         let t = body_.timers.first { $0.type == type }
         // running: the card is the clock (how long so far)
-        let sub: Text? = t.map { t in t.pausedAt.map { Text(minutesOf(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoText($0)) }
+        let sub: Text? = t.map { t in t.pausedAt.map { Text(minutesOf(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoCard($0)) }
         return Link(destination: WidgetLinks.care(type)) {
             card(type, title: LogType.name(type), sub: sub, on: t != nil)
         }
@@ -210,7 +218,7 @@ struct TodayFace: View {
     /// A nappy: opens the nappy page (wet, dirty or both), where one tap records it.
     private var nappy: some View {
         Link(destination: WidgetLinks.log(LogType.diaper)) {
-            card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map { Text(agoText($0)) }, on: false)
+            card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map { Text(agoCard($0)) }, on: false)
         }
     }
 }
