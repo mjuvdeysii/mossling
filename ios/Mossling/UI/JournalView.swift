@@ -30,6 +30,7 @@ struct JournalView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
+        .calmWhileScrolling()
         .pageBackground(tone: Crayon.pink)
         .navigationTitle("记录")
         .toolbar {

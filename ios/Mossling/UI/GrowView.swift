@@ -58,6 +58,7 @@ struct MonthView: View {
             }
             .padding(.bottom, 40)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
         .navigationBarTitleDisplayMode(.large)

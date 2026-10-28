@@ -156,7 +156,24 @@ extension EnvironmentValues {
     @Entry var lamp: Bool = false
     /// Night (7 pm – 6 am): the sky on the home is the night sky and Otto's bead glows; the page itself stays as set.
     @Entry var night: Bool = false
+    /// The page is being scrolled: the companions hold still for that moment, so the scroll has the frame budget to
+    /// itself (their breathing and glances resume the instant it settles).
+    @Entry var scrolling: Bool = false
 }
+
+/// Marks a page's scroll view so the living things on it rest while it moves (see `scrolling`).
+struct CalmScroll: ViewModifier {
+    @State private var moving = false
+    func body(content: Content) -> some View {
+        content
+            .onScrollPhaseChange { _, phase in
+                let m = phase != .idle
+                if m != moving { moving = m }
+            }
+            .environment(\.scrolling, moving)
+    }
+}
+extension View { func calmWhileScrolling() -> some View { modifier(CalmScroll()) } }
 
 /// Lights a part of the app with Otto's lamp when `on`: dark appearance, amber tint, the lamp page and cards.
 struct LampScope: ViewModifier {
@@ -522,7 +539,7 @@ struct PrintCard: ViewModifier {
             .background {
                 // one soft shadow (two blurred passes per card cost every frame of a scroll or a page transition)
                 shape.fill(base)
-                    .shadow(color: dark ? .black.opacity(0.22) : Color(hex: 0x7A5230).opacity(0.12), radius: 10, y: 5)
+                    .shadow(color: dark ? .black.opacity(0.22) : Color(hex: 0x7A5230).opacity(0.13), radius: 7, y: 4)
             }
             .overlay {
                 // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece

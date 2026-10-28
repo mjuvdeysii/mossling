@@ -52,6 +52,7 @@ struct TodayView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
+        .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
         .onChange(of: app.journal, initial: true) { _, on in RecordsTip.recordsOff = !on }
         .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
@@ -270,37 +271,32 @@ private struct HomeFooter: View {
 }
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
-/// This week's shelf — the heart of the app when nothing is recorded (docs/IP.md §3). Built like the low open shelf of
-/// a Montessori room, but compact: one compartment per material, each a wooden board with the tray standing on it and,
-/// beside it, what the parent needs to begin — the area, the name, how many steps and the first one, and the gold beads
-/// for every time it was played (a count, never a score). The least-played one carries 「先玩这件」. A single dashed
-/// place invites one more while the shelf has room. Moss and Otto sit on top of the cabinet; at night Otto's lamp throws
-/// a warm pool of light down over the trays.
+/// This week's shelf — the heart of the app when nothing is recorded (docs/IP.md §3): the three or four materials
+/// out this week, in the app's own language — one card on the paper (soft vinyl in 3D, cut paper in 2D), each
+/// material a tray on a tile of its area's colour, with what the parent needs to begin: the area, the name, how many
+/// steps and the first one, and gold beads for the times it was played (a count, never a score). The least-played one
+/// carries 「先玩这件」. The week's progress is a short path of stones, as on the growth map. Moss and Otto sit on the
+/// card's top edge; at night Otto's lamp throws a warm pool over it.
 struct ShelfView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
-    @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var size
     @Environment(JournalStore.self) private var j
     let month: Int
     let arrange: () -> Void
+    private var flat: Bool { ArtStyle.current == .flat }
     var body: some View {
         let s = app.weekShelf(month)
-        let dark = scheme == .dark
         let since = app.today.monday.date
         let played = s.plays.filter { (app.record($0, j).last ?? .distantPast) >= since }.count
         let first = s.plays.min { app.record($0, j).count < app.record($1, j).count }?.code
         let left = Shelf.candidates(app.content, month).filter { c in !s.plays.contains { $0.code == c.code } }.count
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
-                GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                GoldBead(size: 10)
                 Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
-                if !s.plays.isEmpty && !s.stale {
-                    Text("玩过 \(played) / \(s.plays.count)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .semibold))
-                        .foregroundStyle(Palette.accent).padding(.horizontal, 9).padding(.vertical, 4)
-                        .vinylSurface(Palette.accent, radius: 12).fixedSize()
-                }
-                Spacer()
+                if !s.plays.isEmpty && !s.stale { WeekStones(played: played, total: s.plays.count) }
+                Spacer(minLength: 4)
                 Button(action: arrange) {
                     // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
                     Text(s.stale ? "换上新的一周" : "整理").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
@@ -314,43 +310,39 @@ struct ShelfView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             VStack(spacing: 0) {
-                ShelfBoard(dark: dark).frame(height: 12)   // the top of the cabinet
-                ForEach(s.plays) { p in
-                    compartment(p, first: p.code == first && s.plays.count > 1, dark: dark)
-                    ShelfBoard(dark: dark).frame(height: 12)
+                ForEach(Array(s.plays.enumerated()), id: \.element.code) { i, p in
+                    if i > 0 { Divider().padding(.leading, size.isAccessibilitySize ? 16 : 102) }
+                    compartment(p, first: p.code == first && s.plays.count > 1)
                 }
                 if s.plays.count < Shelf.max {
-                    Button(action: arrange) { empty(room: Shelf.max - s.plays.count, left: left, dark: dark) }
+                    if !s.plays.isEmpty { Divider().padding(.leading, size.isAccessibilitySize ? 16 : 102) }
+                    Button(action: arrange) { empty(room: Shelf.max - s.plays.count, left: left) }
                         .buttonStyle(.toy).accessibilityLabel("放一件教具").accessibilityHint("这个月还有 \(left) 件可选")
-                    ShelfBoard(dark: dark).frame(height: 12)
                 }
             }
-            .background { ShelfBack(dark: dark) }
-            .overlay { if night { LampPool() } }
-            .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-            .shadow(color: Color(hex: 0x6B4A2B).opacity(dark ? 0 : 0.18), radius: 10, y: 6)
+            .padding(.vertical, 4)
+            .background(alignment: .top) { if night { LampPool() } }
+            .printCard(radius: 24)
             .overlay(alignment: .topTrailing) {
-                // the two of them, sitting on top of the cabinet
-                Duo(primary: app.companion, size: 54, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true)
-                    .offset(x: -18, y: -48)
+                // the two of them, sitting on the card's top edge
+                Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true)
+                    .offset(x: -16, y: -40)
             }
-            .padding(.top, 34)
+            .padding(.top, 30)
         }
     }
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
-    private func ink(_ dark: Bool) -> Color { dark ? Color(hex: 0xF3E6D6) : Color(hex: 0x3A2C1E) }
-    private func soft(_ dark: Bool) -> Color { dark ? Color(hex: 0xCBB9A5) : Color(hex: 0x7A6650) }
 
-    /// One compartment: the tray on its board, and beside it what to know before starting.
-    private func compartment(_ p: Play, first: Bool, dark: Bool) -> some View {
+    /// One material: its tray on a tile of its area's colour, and beside it what to know before starting.
+    private func compartment(_ p: Play, first: Bool) -> some View {
         let times = app.record(p, j).count, key = Palette.areaKey(of: p)
         let big = size.isAccessibilitySize
         let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
         return NavigationLink(value: route(p)) {
             layout {
-                Figure(name: "tray_\(p.code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit)
-                    .frame(width: big ? 200 : 96)
+                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+                    .frame(width: big ? 180 : 76, height: big ? 135 : 60)
                     .zoomSource(route(p))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
@@ -362,19 +354,19 @@ struct ShelfView: View {
                                 .vinylSurface(Palette.accentFill, radius: 10, strong: true).fixedSize()
                         }
                     }
-                    Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))
+                    Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                         .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     if let step = p.steps.first {
-                        Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(soft(dark))
+                        Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
                             .lineLimit(big ? 3 : 1).multilineTextAlignment(.leading)
                     }
-                    BeadCount(times: times, dark: dark).padding(.top, 1)
+                    BeadCount(times: times).padding(.top, 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(soft(dark).opacity(0.7))
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                     .opacity(big ? 0 : 1)
             }
-            .padding(.leading, 16).padding(.trailing, 18).padding(.top, 4).padding(.bottom, 2)
+            .padding(.horizontal, 14).padding(.vertical, 9)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
@@ -384,86 +376,89 @@ struct ShelfView: View {
         .accessibilityHint((p.domains.first ?? "") + "，\(p.steps.count) 步")
     }
 
-    /// The one free place on the shelf: a dashed tray and how much room is left.
-    private func empty(room: Int, left: Int, dark: Bool) -> some View {
+    /// The one free place: a dashed tile and how much room is left.
+    private func empty(room: Int, left: Int) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color(hex: 0xB98A5A).opacity(0.7), style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
-                .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white.opacity(dark ? 0.05 : 0.25)))
-                .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Color(hex: 0x8A6440)))
-                .frame(width: 96, height: 40)
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
+                .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Palette.accent))
+                .frame(width: 76, height: 44)
             VStack(alignment: .leading, spacing: 2) {
-                Text("放一件").font(.subheadline.weight(.semibold)).foregroundStyle(ink(dark))
-                Text("还能放 \(room) 件 · 这个月有 \(left) 件可选").font(.caption).foregroundStyle(soft(dark))
+                Text("放一件").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text("还能放 \(room) 件 · 这个月有 \(left) 件可选").font(.caption).foregroundStyle(Palette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Spacer(minLength: 0)
         }
-        .padding(.leading, 16).padding(.trailing, 18).padding(.vertical, 6)
+        .padding(.horizontal, 14).padding(.vertical, 8)
         .contentShape(Rectangle())
+    }
+}
+
+/// A tray on a tile of its area's colour: in 3D a soft lit vinyl tile (lighter at the top, a fine lit rim), in 2D one
+/// flat colour of paper with a crisp edge below.
+struct TrayTile: View {
+    let code: String
+    let color: Color
+    let flat: Bool
+    @Environment(\.colorScheme) private var scheme
+    var body: some View {
+        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let dark = scheme == .dark
+        ZStack {
+            if flat {
+                shape.fill(color.mix(with: dark ? .black : .white, by: dark ? 0.55 : 0.78))
+                    .background(shape.fill(color.opacity(dark ? 0.35 : 0.3)).offset(y: 2))
+            } else {
+                shape.fill(LinearGradient(colors: [color.mix(with: .white, by: dark ? 0.55 : 0.86), color.mix(with: dark ? .black : .white, by: dark ? 0.6 : 0.7)],
+                                          startPoint: .top, endPoint: .bottom))
+                    .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.15 : 0.9), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                    .shadow(color: color.opacity(dark ? 0 : 0.18), radius: 4, y: 2)
+            }
+            Figure(name: "tray_\(code.lowercased()).webp").aspectRatio(4 / 3, contentMode: .fit).padding(4)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+/// The week's progress as a short path of stones, like the growth map's: gold for the materials played this week.
+private struct WeekStones: View {
+    let played: Int, total: Int
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<total, id: \.self) { i in
+                Circle()
+                    .fill(i < played ? AnyShapeStyle(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6)) : AnyShapeStyle(Palette.outline.opacity(0.5)))
+                    .frame(width: 9, height: 9)
+            }
+            Text("\(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                .padding(.leading, 2)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("本周玩过 \(played) / \(total)")
     }
 }
 
 /// Times played, as gold beads on a short string (Montessori's golden bead): up to five, then the number.
 private struct BeadCount: View {
     let times: Int
-    var dark = false
     var body: some View {
         HStack(spacing: 3) {
             if times == 0 {
-                Text("还没玩过").font(.caption2).foregroundStyle(dark ? Color(hex: 0xCBB9A5) : Color(hex: 0x7A6650))
+                Text("还没玩过").font(.caption2).foregroundStyle(Palette.secondaryText)
             } else {
                 ForEach(0..<min(times, 5), id: \.self) { _ in
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
                         .frame(width: 9, height: 9)
                 }
-                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(dark ? Palette.beadLight : Color(hex: 0x7A5A10)).padding(.leading, 2)
+                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.lampTint).padding(.leading, 2)
             }
         }
         .accessibilityHidden(true)
     }
 }
 
-/// One shelf board seen a little from above: a lit top face, a front edge with a fine highlight, wood grain.
-private struct ShelfBoard: View {
-    let dark: Bool
-    var body: some View {
-        Canvas { ctx, size in
-            let top = size.height * 0.42
-            ctx.fill(Path(CGRect(x: 0, y: 0, width: size.width, height: top)),
-                     with: .linearGradient(Gradient(colors: dark ? [Color(hex: 0x8A6A4E), Color(hex: 0x76583F)] : [Color(hex: 0xF3D3A6), Color(hex: 0xE2B47E)]), startPoint: .zero, endPoint: CGPoint(x: 0, y: top)))
-            ctx.fill(Path(CGRect(x: 0, y: top, width: size.width, height: size.height - top)),
-                     with: .linearGradient(Gradient(colors: dark ? [Color(hex: 0x6A4E37), Color(hex: 0x553E2B)] : [Color(hex: 0xC98F5E), Color(hex: 0xA9733F)]), startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: size.height)))
-            ctx.fill(Path(CGRect(x: 0, y: top, width: size.width, height: 1)), with: .color(.white.opacity(dark ? 0.15 : 0.4)))
-            for (x0, x1, y) in [(0.06, 0.34, 0.6), (0.44, 0.8, 0.75), (0.62, 0.95, 0.58)] as [(CGFloat, CGFloat, CGFloat)] {
-                var g = Path(); let gy = size.height * y
-                g.move(to: CGPoint(x: size.width * x0, y: gy)); g.addQuadCurve(to: CGPoint(x: size.width * x1, y: gy + 1), control: CGPoint(x: size.width * (x0 + x1) / 2, y: gy - 1.5))
-                ctx.stroke(g, with: .color(Color(hex: 0x6A4526).opacity(0.25)), lineWidth: 0.8)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// The cabinet behind the trays: a warm back panel, darker towards the bottom of each shelf, and two side posts.
-private struct ShelfBack: View {
-    let dark: Bool
-    var body: some View {
-        ZStack {
-            LinearGradient(colors: dark ? [Color(hex: 0x3E3346), Color(hex: 0x332A3A)] : [Color(hex: 0xFBEBD2), Color(hex: 0xF2DCBA)], startPoint: .top, endPoint: .bottom)
-            HStack {
-                post; Spacer(); post
-            }
-        }
-        .accessibilityHidden(true)
-    }
-    private var post: some View {
-        LinearGradient(colors: dark ? [Color(hex: 0x7A5C43), Color(hex: 0x5E4532)] : [Color(hex: 0xE8BF8A), Color(hex: 0xC99560)], startPoint: .leading, endPoint: .trailing)
-            .frame(width: 10)
-    }
-}
-
-/// At night, Otto's lamp on top of the cabinet throws a warm pool down over the trays (a drawing of light only).
+/// At night, Otto's lamp on the card's edge throws a warm pool down over the trays (a drawing of light only).
 private struct LampPool: View {
     var body: some View {
         RadialGradient(colors: [Palette.amber.opacity(0.28), Palette.amber.opacity(0)], center: UnitPoint(x: 0.82, y: 0), startRadius: 0, endRadius: 320)

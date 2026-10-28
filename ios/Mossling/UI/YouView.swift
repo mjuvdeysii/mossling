@@ -93,6 +93,7 @@ struct YouView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
+        .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle("我的")
         .sheet(isPresented: $editing) { ProfileSheet() }

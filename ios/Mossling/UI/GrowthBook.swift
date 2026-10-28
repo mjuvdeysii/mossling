@@ -30,6 +30,7 @@ struct GrowthBookView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
+        .calmWhileScrolling()
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle("成长册")
         .toolbar { firstsLink }
