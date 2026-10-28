@@ -87,6 +87,18 @@ final class ScreenshotTests: XCTestCase {
     }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
+    func test02Today2D() {
+        let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("02_today_2d", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath()))))
+    }
+    func test06Play2D() {
+        let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("06_play_2d", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6)))
+    }
+    func test15Journal2D() {
+        let m = model(); m.journal = true; ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("15_journal_2d", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()))))
+    }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
     private func wheel(_ m: AppModel, _ month: Int, night: Bool = false) -> some View {
