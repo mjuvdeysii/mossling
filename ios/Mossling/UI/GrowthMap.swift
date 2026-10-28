@@ -13,8 +13,8 @@ import SwiftUI
 /// At night the hills go blue under the stars, the lived stones glow, and on the child's own month there is a small
 /// house with a lit window: the child is home asleep, and Otto's lamp comes on for a moment and goes out.
 enum MapGeo {
-    static let height: CGFloat = 330
-    static let rows: [CGFloat] = [276, 176, 76]          // the stones' line on each hill: year 1, 2, 3
+    static let height: CGFloat = 350
+    static let rows: [CGFloat] = [296, 192, 88]          // the stones' line on each hill: year 1, 2, 3
     static let margin: CGFloat = 30
     static func row(_ m: Int) -> Int { m <= 12 ? 0 : m <= 24 ? 1 : 2 }
     static func col(_ m: Int) -> Int { m <= 12 ? m : m <= 24 ? 12 - (m - 13) : 1 + (m - 25) }
@@ -149,7 +149,8 @@ struct MapLand: View, Equatable {
             // a soft lit form: a shadow cast on the hill behind, lit at the crest, deeper toward its foot
             var sh = ctx; sh.addFilter(.blur(radius: 7))
             sh.fill(p.offsetBy(dx: 0, dy: -5), with: .color(.black.opacity(night ? 0.3 : 0.12)))
-            ctx.fill(p, with: .linearGradient(Gradient(colors: [c.top, c.base]), startPoint: CGPoint(x: 0, y: y0 - 10), endPoint: CGPoint(x: 0, y: y0 + 100)))
+            ctx.fill(p, with: .linearGradient(Gradient(colors: [c.top.mix(with: .white, by: night ? 0.04 : 0.28), c.top, c.base, c.base.mix(with: .black, by: night ? 0.1 : 0.06)]),
+                                             startPoint: CGPoint(x: 0, y: y0 - 12), endPoint: CGPoint(x: 0, y: y0 + 108)))
             var rim = ctx; rim.clip(to: p)
             rim.stroke(p.offsetBy(dx: 0, dy: 1.5), with: .color(.white.opacity(night ? 0.12 : 0.6)), lineWidth: 2)
         }
@@ -352,7 +353,7 @@ private struct MapMoss: View {
     var giggle = 0
     var body: some View {
         let st = GrowingChild.stage(month)
-        let d: CGFloat = 50 + CGFloat(st) * 2.6
+        let d: CGFloat = 76 + CGFloat(st) * 3
         GrowingChild(month: month, giggle: giggle)
             .frame(width: d, height: d)
             .scaleEffect(x: MapGeo.facing(month), y: 1)
@@ -361,7 +362,7 @@ private struct MapMoss: View {
     /// The figure's frame is square with its ground 14/300 above the foot: where its centre goes so Moss stands on
     /// the stone at `p`.
     static func centre(_ month: Int, on p: CGPoint) -> CGPoint {
-        let d: CGFloat = 50 + CGFloat(GrowingChild.stage(month)) * 2.6
+        let d: CGFloat = 76 + CGFloat(GrowingChild.stage(month)) * 3
         return CGPoint(x: p.x, y: p.y + 4 - d / 2 + d * 14 / 300)
     }
 }
@@ -414,11 +415,11 @@ struct GrowthMap: View {
                     .frame(width: 76, height: 30).position(x: home.x, y: home.y + 2)
                     .allowsHitTesting(false)
                 Creature(kind: .otto, look: CGPoint(x: (home.x - ox) / 54 * 0.7, y: 0.3), lid: night ? 0.5 : nil, poke: true, glow: night, glowFor: night ? 4.5 : nil)
-                    .frame(width: 40, height: 40)
-                    .position(x: ox, y: home.y - 16)
+                    .frame(width: 48, height: 48)
+                    .position(x: ox, y: home.y - 19)
                     .allowsHitTesting(false)
                 if night {
-                    MapHome(flat: flat).frame(width: 40, height: 40).position(x: home.x, y: home.y - 16).allowsHitTesting(false)
+                    MapHome(flat: flat).frame(width: 46, height: 46).position(x: home.x, y: home.y - 19).allowsHitTesting(false)
                 }
                 // the chosen month: a ring on its stone, and Moss on it
                 if preview != baby {
@@ -570,6 +571,37 @@ struct MapVignette: View {
                     let c = Hill.of(band, night: night)
                     let top = night ? Color(hex: 0x0E1430) : Color(hex: 0xBFE2F6), low = night ? Color(hex: 0x1D2A55) : Color(hex: 0xEAF6F2)
                     ctx.fill(Path(CGRect(origin: .zero, size: size)), with: flat ? .color(top.mix(with: low, by: 0.45)) : .linearGradient(Gradient(colors: [top, low]), startPoint: .zero, endPoint: CGPoint(x: 0, y: size.height * 0.6)))
+                    // the sky's things: the sun and two clouds, or the moon and a few stars
+                    let sun = CGPoint(x: size.width * 0.86, y: size.height * 0.2)
+                    if night {
+                        ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 10, y: sun.y - 10, width: 20, height: 20)), with: .color(Color(hex: 0xFFF1C9)))
+                        ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 4, y: sun.y - 14, width: 20, height: 20)), with: .color(top.mix(with: low, by: flat ? 0.45 : 0.15)))
+                        for (fx, fy) in [(0.12, 0.12), (0.3, 0.26), (0.5, 0.08), (0.66, 0.3)] {
+                            let q = CGPoint(x: size.width * fx, y: size.height * fy)
+                            ctx.fill(Path(ellipseIn: CGRect(x: q.x - 1.4, y: q.y - 1.4, width: 2.8, height: 2.8)), with: .color(.white.opacity(0.85)))
+                        }
+                    } else {
+                        if flat { ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 14, y: sun.y - 14, width: 28, height: 28)), with: .color(Color(hex: 0xFFD45E))) }
+                        else {
+                            ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 40, y: sun.y - 40, width: 80, height: 80)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFF2B8), Color(hex: 0xFFE7A0).opacity(0)]), center: sun, startRadius: 8, endRadius: 40))
+                            ctx.fill(Path(ellipseIn: CGRect(x: sun.x - 14, y: sun.y - 14, width: 28, height: 28)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFF6CF), Color(hex: 0xFFCF4A)]), center: CGPoint(x: sun.x - 4, y: sun.y - 5), startRadius: 0, endRadius: 17))
+                        }
+                        for (fx, fy, k) in [(0.16, 0.18, 1.0), (0.56, 0.1, 0.75)] {
+                            let cc = CGPoint(x: size.width * fx, y: size.height * fy)
+                            var cl = Path()
+                            for (dx, dy, r) in [(-12.0, 3.0, 8.0), (0.0, -1.0, 11.0), (13.0, 3.0, 8.0)] { cl.addEllipse(in: CGRect(x: cc.x + dx * k - r * k, y: cc.y + dy * k - r * k, width: 2 * r * k, height: 2 * r * k)) }
+                            cl.addRoundedRect(in: CGRect(x: cc.x - 20 * k, y: cc.y, width: 40 * k, height: 10 * k), cornerSize: CGSize(width: 5 * k, height: 5 * k))
+                            ctx.fill(cl, with: .color(.white.opacity(flat ? 1 : 0.92)))
+                        }
+                    }
+                    // the next year's hill, far behind
+                    let far = Hill.of(min(2, band + 1), night: night)
+                    var back = Path()
+                    let yb = size.height * 0.5
+                    back.move(to: CGPoint(x: 0, y: size.height)); back.addLine(to: CGPoint(x: 0, y: yb - 4))
+                    back.addQuadCurve(to: CGPoint(x: size.width, y: yb + 8), control: CGPoint(x: size.width * 0.3, y: yb - 24))
+                    back.addLine(to: CGPoint(x: size.width, y: size.height)); back.closeSubpath()
+                    ctx.fill(back, with: .color(flat ? far.top.mix(with: far.base, by: 0.35) : far.top))
                     var hill = Path()
                     let y0 = size.height * 0.62
                     hill.move(to: CGPoint(x: 0, y: size.height)); hill.addLine(to: CGPoint(x: 0, y: y0 + 6))
