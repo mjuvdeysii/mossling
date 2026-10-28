@@ -11,84 +11,63 @@ struct YouView: View {
     @Environment(JournalStore.self) private var j
     @State private var message: String?
 
-    private let two = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
-
     var body: some View {
         @Bindable var app = app
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                // the family: the child (Moss) and the grown-up (Otto) at home on the child's own hill, then who the child is
+            // the whole page in one screen: the family, the book, then one card of settings and one of data
+            VStack(alignment: .leading, spacing: 14) {
+                // the family: the child (Moss) and the grown-up (Otto) on the child's own hill, beside who the child is
                 FamilyCard { editing = true }
 
                 // the growth book: a page for every month lived, from what is already recorded
                 if app.birth != nil { GrowthBookCard() }
 
-                // how the app looks: 日光 or 夜灯 as small living windows, and the lamp coming on by itself at night
-                Section2(title: "外观") {
-                    VStack(spacing: 10) {
-                        HStack(spacing: 8) {
-                            ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
-                                Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
-                            }
-                        }
-                        Divider()
-                        Toggle(isOn: $app.nightLight) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "moon.stars.fill").font(.footnote).foregroundStyle(Palette.lampTint)
-                                Text("晚上自动开夜灯").font(.subheadline.weight(.semibold))
-                                Text("19:00–6:00").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                            }
-                        }
-                        .tint(Palette.accent)
-                    }
-                    .padding(12).printCard(radius: 22)
-                }
-
-                // features, in pairs
+                // settings, as rows of one card: how the app looks (日光 / 夜灯 / 自动 as small living windows), the lamp
+                // coming on by itself at night, and the two features
                 let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
-                Section2(title: "功能") {
-                    LazyVGrid(columns: two, spacing: 12) {
-                        SwitchTile(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
+                Section2(title: "设置") {
+                    VStack(spacing: 0) {
+                        HStack(spacing: 10) {
+                            IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
+                            Text("外观").font(.subheadline.weight(.semibold))
+                            Spacer(minLength: 4)
+                            HStack(spacing: 6) {
+                                ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
+                                    Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
+                                        .frame(width: 58)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        Divider().padding(.leading, 52)
+                        SwitchRow(title: "晚上自动开夜灯", detail: "19:00–6:00", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
+                        Divider().padding(.leading, 52)
+                        SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
                         if face {
-                            SwitchTile(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
-                        } else {
-                            NavigationLink(value: Route.about) { Tile(title: "关于", detail: "来源 · 条款 · 反馈", symbol: "info", color: Crayon.sky) }
-                                .buttonStyle(.toy)
+                            Divider().padding(.leading, 52)
+                            SwitchRow(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
                         }
                     }
+                    .printCard(radius: 22)
                 }
 
-                // data
-                // data: one card of rows, as Settings lists them; the destructive one last, in red, behind a confirmation
+                // data and about: rows of one card, as Settings lists them; the destructive one last, in red, behind a
+                // confirmation
                 Section2(title: "数据") {
                     VStack(spacing: 0) {
                         // export and import have their own page (no menu popping out of a card)
                         NavigationLink(value: Route.data) { DataRow(title: "导出与导入", detail: "给医生或 AI 看的记录 · 完整备份 · 表格", symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
                         Divider().padding(.leading, 58)
+                        NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
+                        Divider().padding(.leading, 58)
                         Button(role: .destructive) { clearing = true } label: {
                             HStack { Text("清除全部数据").font(.subheadline.weight(.semibold)); Spacer() }
-                                .foregroundStyle(Palette.danger).padding(.horizontal, 16).padding(.vertical, 14).contentShape(Rectangle())
+                                .foregroundStyle(Palette.danger).padding(.horizontal, 16).padding(.vertical, 12).contentShape(Rectangle())
                         }
                     }
                     .buttonStyle(.toy)
                     .printCard(radius: 22)
                     Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
-                }
-
-                if face {
-                    NavigationLink(value: Route.about) {
-                        HStack(spacing: 12) {
-                            IconTile(symbol: "info", color: Crayon.sky, size: 32)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text("关于摸索台灯").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                Text("内容来源 · 条款与隐私 · 反馈").font(.caption).foregroundStyle(Palette.secondaryText)
-                            }
-                            Spacer(minLength: 0)
-                            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
-                        }
-                        .padding(12).printCard(radius: 20)
-                    }
-                    .buttonStyle(.toy)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -122,46 +101,48 @@ private struct FamilyCard: View {
 
     var body: some View {
         let baby = app.babyMonth ?? 0
-        VStack(alignment: .leading, spacing: 0) {
-            MapVignette(month: baby, baby: baby, otto: true, giggle: giggles)
-                .frame(height: 176)
-                .contentShape(Rectangle())
-                .onTapGesture { giggles += 1 }
-                .sensoryFeedback(.impact(weight: .light), trigger: giggles)
-                .accessibilityElement().accessibilityLabel("Moss 和 Otto 在家").accessibilityAddTraits(.isImage)
-            VStack(alignment: .leading, spacing: 12) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title2.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
-                    Spacer(minLength: 8)
+        VStack(alignment: .leading, spacing: 12) {
+            // the scene beside who the child is, not over it (the growth map is the big picture of the hill)
+            HStack(alignment: .center, spacing: 14) {
+                MapVignette(month: baby, baby: baby, otto: true, giggle: giggles)
+                    .frame(width: type.isAccessibilitySize ? 120 : 136, height: type.isAccessibilitySize ? 86 : 98)
+                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                    .contentShape(Rectangle())
+                    .onTapGesture { giggles += 1 }
+                    .sensoryFeedback(.impact(weight: .light), trigger: giggles)
+                    .accessibilityElement().accessibilityLabel("Moss 和 Otto 在家").accessibilityAddTraits(.isImage)
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                    if let a = app.age {
+                        HStack(alignment: .firstTextBaseline, spacing: 2) {
+                            Ticking(text: "\(a.months)").font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                            Text("个月").font(.subheadline.weight(.semibold)).fixedSize()
+                            if a.days > 0 {
+                                Ticking(text: "\(a.days)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
+                                Text("天").font(.subheadline.weight(.semibold)).fixedSize()
+                            }
+                        }
+                        .fixedSize()
+                        .foregroundStyle(Palette.accent)
+                    }
                     Button(action: edit) {
-                        Label("编辑", systemImage: "pencil").font(.subheadline.weight(.semibold))
+                        Label("编辑", systemImage: "pencil").font(.footnote.weight(.semibold))
                     }
                     .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
                     .accessibilityLabel("编辑宝宝信息")
                 }
-                if let a = app.age {
-                    HStack(alignment: .firstTextBaseline, spacing: 2) {
-                        Ticking(text: "\(a.months)").font(Typeface.numerals(28, relativeTo: .title2, weight: .bold))
-                        Text("个月").font(.subheadline.weight(.semibold)).fixedSize()
-                        if a.days > 0 {
-                            Ticking(text: "\(a.days)").font(Typeface.numerals(20, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
-                            Text("天").font(.subheadline.weight(.semibold)).fixedSize()
-                        }
-                    }
-                    .fixedSize()
-                    .foregroundStyle(Palette.accent)
-                }
-                facts
-                Divider()
-                // the two side by side (one column at the largest text sizes)
-                let roles = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
-                roles {
-                    role(.moss, "宝宝", Kind.moss.trait)
-                    role(.otto, "大人", Kind.otto.trait)
-                }
+                Spacer(minLength: 0)
             }
-            .padding(16)
+            facts
+            Divider()
+            // the two side by side (one column at the largest text sizes)
+            let roles = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
+            roles {
+                role(.moss, "宝宝", Kind.moss.trait)
+                role(.otto, "大人", Kind.otto.trait)
+            }
         }
+        .padding(14)
         .printCard(radius: 28)
     }
 
@@ -262,18 +243,18 @@ private struct Swatch: View {
     let pick: () -> Void
     var body: some View {
         Button(action: pick) {
-            VStack(spacing: 6) {
+            VStack(spacing: 3) {
                 preview
-                    .frame(height: 54)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
+                    .frame(height: 34)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
                     .overlay(alignment: .topTrailing) {
-                        if on { Image(systemName: "checkmark.circle.fill").font(.footnote).foregroundStyle(.white, Palette.accentFill).padding(5) }
+                        if on { Image(systemName: "checkmark.circle.fill").font(.caption2).foregroundStyle(.white, Palette.accentFill).padding(3) }
                     }
                 HStack(spacing: 4) {
                     Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
                         .font(.caption2).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
-                    Text(mode.label).font(.caption.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
+                    Text(mode.label).font(.caption2.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -297,29 +278,22 @@ private struct Swatch: View {
     }
 }
 
-/// A square-ish settings tile: icon, title, a word of state.
-private struct Tile: View {
-    let title: String, detail: String, symbol: String, color: Color
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            IconTile(symbol: symbol, color: color, size: 32)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(1)
-            }
-        }
-        .padding(12).frame(maxWidth: .infinity, alignment: .leading).printCard(radius: 20)
-    }
-}
-
-/// A tile with a switch in its corner.
-private struct SwitchTile: View {
+/// One settings row with a switch: its sticker, what it is, a word on it, the switch.
+private struct SwitchRow: View {
     let title: String, detail: String, symbol: String, color: Color
     @Binding var on: Bool
     var body: some View {
-        Tile(title: title, detail: detail, symbol: symbol, color: color)
-            .overlay(alignment: .topTrailing) { Toggle(title, isOn: $on).labelsHidden().scaleEffect(0.8).padding(8) }
-            .accessibilityElement(children: .combine)
+        Toggle(isOn: $on) {
+            HStack(spacing: 10) {
+                IconTile(symbol: symbol, color: color, size: 28, round: true)
+                VStack(alignment: .leading, spacing: 0) {
+                    Text(title).font(.subheadline.weight(.semibold))
+                    Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                }
+            }
+        }
+        .tint(Palette.accent)
+        .padding(.horizontal, 14).padding(.vertical, 8)
     }
 }
 
