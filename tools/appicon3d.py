@@ -15,6 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ICON = os.path.join(HERE, "..", "ios", "Mossling", "Resources", "AppIcon.icon")
 PX = 1024
+FILL = 0.74   # the pair's larger side as a share of the icon (Apple's grid keeps the subject inside about 0.8)
 
 def scene():
     s = ip3d.reset(); s.render.film_transparent = True
@@ -23,9 +24,9 @@ def scene():
     # Moss: the main one, a little in front of the middle; Otto at his side (centres 1.12 apart: Moss reaches 0.57,
     # Otto 0.42 at this scale, so a clear gap between them)
     m = build_moss(lid=0.0, er=0.13, pupil=0.5, perk=1.0, look=(0.55, 0.35))
-    m.location = (-0.58, 0.0, 0.0); m.rotation_euler = (0, 0, math.radians(14))
+    m.location = (-0.5, 0.0, 0.0); m.rotation_euler = (0, 0, math.radians(14))
     o = build_otto(lid=0.42, look=(-0.7, -0.25), slouch=0.4, droop=0.0, bags=True, glow=0.0)
-    o.location = (0.74, 0.35, 0.0); o.rotation_euler = (0, 0, math.radians(-12))   # true scale: the grown-up is much taller
+    o.location = (0.64, 0.35, 0.0); o.rotation_euler = (0, 0, math.radians(-12))   # true scale: the grown-up is much taller
     bpy.context.view_layer.update()
     bead = bpy.data.objects["otto_bead"].matrix_world.translation
     # a rim of light from behind and above, so both read against the night fill as well as the day one
@@ -39,16 +40,25 @@ def shoot(path):
     t = math.radians(6)
     bpy.ops.object.camera_add(location=(0.08, -10 * math.cos(t), 1.08 + 10 * math.sin(t))); c = bpy.context.object
     c.rotation_euler = (math.radians(90) - t, 0, 0); c.data.type = "ORTHO"; c.data.ortho_scale = 2.95; s.camera = c
-    ip3d.render(path, PX, PX)
+    ip3d.render(path, 2 * PX, 2 * PX)
     # where the bead lands in the picture, for the glow
     from bpy_extras.object_utils import world_to_camera_view
     v = world_to_camera_view(s, c, bead)
-    return (v.x * PX, (1 - v.y) * PX)
+    return (v.x * 2 * PX, (1 - v.y) * 2 * PX)
 
 def main():
     tmp = "/tmp/appicon_fg.png"
     bx, by = shoot(tmp)
     fg = Image.open(tmp).convert("RGBA")
+    # fitted, not framed by the camera: the pair (bead and rod included) fills a fixed share of the square, centred a
+    # touch below the middle (the eye weighs the heavier bodies low), so it reads at home-screen size (60 pt)
+    box = fg.getchannel("A").point(lambda a: 255 if a > 8 else 0).getbbox()
+    fg = fg.crop(box)
+    k = FILL * PX / max(fg.width, fg.height)
+    fg = fg.resize((round(fg.width * k), round(fg.height * k)), Image.LANCZOS)
+    c = Image.new("RGBA", (PX, PX), (0, 0, 0, 0))
+    c.alpha_composite(fg, ((PX - fg.width) // 2, (PX - fg.height) // 2 + round(PX * 0.02)))
+    fg = c
     # the lamp's halo: a warm glow round the bead, under the figures
     g = Image.new("RGBA", fg.size, (0, 0, 0, 0)); d = ImageDraw.Draw(g)
     for i in range(0):   # the lamp is lit only at night: no halo on the icon
@@ -81,7 +91,14 @@ def main():
             bg.paste(g, (0, 0), g)
             m = Image.new("L", (PX, PX), 0); ImageDraw.Draw(m).rounded_rectangle((0, 0, PX, PX), radius=230, fill=255)
             P.paste(bg.resize((520, 520), Image.LANCZOS), (20 + i * 560, 20), m.resize((520, 520)))
-        P.save(out)
+        # and as it is met: on the home screen (60 pt at 2x and 3x), and in Settings and Spotlight (29 pt / 40 pt)
+        Q = Image.new("RGB", (P.width, P.height + 220), "white"); Q.paste(P, (0, 0))
+        x = 20
+        for i in range(2):
+            big = P.crop((20 + i * 560, 20, 540 + i * 560, 540))
+            for sz in (180, 120, 80, 58):
+                Q.paste(big.resize((sz, sz), Image.LANCZOS), (x, P.height + (200 - sz) // 2)); x += sz + 16
+        Q.save(out)
 
 if __name__ == "__main__":
     main()
