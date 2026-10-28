@@ -158,19 +158,26 @@ extension EnvironmentValues {
     @Entry var night: Bool = false
     /// The page is being scrolled: the companions hold still for that moment, so the scroll has the frame budget to
     /// itself (their breathing and glances resume the instant it settles).
-    @Entry var scrolling: Bool = false
+    /// (an object handed down once, so a scroll starting or settling wakes only the companions that read it, not the
+    /// whole page under it as a changed environment value would)
+    @Entry var scrolling: ScrollMotion = .idle
+}
+
+@Observable final class ScrollMotion {
+    var moving = false
+    nonisolated(unsafe) static let idle = ScrollMotion()
 }
 
 /// Marks a page's scroll view so the living things on it rest while it moves (see `scrolling`).
 struct CalmScroll: ViewModifier {
-    @State private var moving = false
+    @State private var motion = ScrollMotion()
     func body(content: Self.Content) -> some View {
         content
             .onScrollPhaseChange { (_: ScrollPhase, phase: ScrollPhase) in
                 let m = phase.isScrolling
-                if m != moving { moving = m }
+                if m != motion.moving { motion.moving = m }
             }
-            .environment(\.scrolling, moving)
+            .environment(\.scrolling, motion)
     }
 }
 extension View { func calmWhileScrolling() -> some View { modifier(CalmScroll()) } }

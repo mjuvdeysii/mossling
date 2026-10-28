@@ -64,7 +64,7 @@ struct Creature: View {
 
     @ViewBuilder private var vinyl: some View {
         // 30 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
-        TimelineView(.animation(minimumInterval: 1.0 / 24, paused: still || !onScreen || scrolling)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 24, paused: still || !onScreen || scrolling.moving)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
         }
         .aspectRatio(1, contentMode: .fit)

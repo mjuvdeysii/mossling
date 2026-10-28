@@ -45,7 +45,7 @@ struct FlatCreature: View {
 
     var body: some View {
         // paused while off screen (a page of them scrolling costs nothing) and drawn off the main thread
-        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still || !onScreen || scrolling)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 60, paused: still || !onScreen || scrolling.moving)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
         }
         .aspectRatio(1, contentMode: .fit)
