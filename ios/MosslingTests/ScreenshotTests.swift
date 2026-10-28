@@ -89,11 +89,16 @@ final class ScreenshotTests: XCTestCase {
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
-    private func wheel(_ m: AppModel, _ month: Int) -> some View {
-        GrowthWheel(month: .constant(month), baby: 6).padding(16).frame(maxHeight: .infinity, alignment: .top).background(Palette.background).environment(m).tint(Palette.accent).fontDesign(.rounded)
+    private func wheel(_ m: AppModel, _ month: Int, night: Bool = false) -> some View {
+        GrowthMap(month: .constant(month), baby: 6) {}.padding(16).frame(maxHeight: .infinity, alignment: .top)
+            .background(night ? Palette.lampPage : Palette.background).environment(m).environment(\.night, night).tint(Palette.accent).fontDesign(.rounded)
     }
-    func test05Wheel() { let m = model(); shot("05_wheel", height: 1300, VStack(spacing: 0) { wheel(m, 1).frame(height: 430); wheel(m, 13).frame(height: 430); wheel(m, 30).frame(height: 430) }) }
-    func test05WheelDark() { let m = model(companion: .otto); shot("05_wheel_dark", dark: true, height: 480, wheel(m, 9)) }
+    func test05Wheel() { let m = model(); shot("05_wheel", height: 1680, VStack(spacing: 0) { wheel(m, 1).frame(height: 560); wheel(m, 6).frame(height: 560); wheel(m, 30).frame(height: 560) }) }
+    func test05WheelDark() { let m = model(companion: .otto); shot("05_wheel_dark", dark: true, height: 1120, VStack(spacing: 0) { wheel(m, 6, night: true).frame(height: 560); wheel(m, 20, night: true).frame(height: 560) }) }
+    func test05Wheel2D() {
+        let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("05_wheel_2d", height: 1680, VStack(spacing: 0) { wheel(m, 1).frame(height: 560); wheel(m, 6).frame(height: 560); wheel(m, 6, night: true).frame(height: 560) })
+    }
     func test06Play() { let m = model(); shot("06_play", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
     func test07Month() { let m = model(); shot("07_month", height: 2600, tabs(m, MonthView(month: 6))) }
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }
