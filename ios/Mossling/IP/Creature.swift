@@ -56,6 +56,7 @@ struct Creature: View {
     @State private var onScreen = true
     @State private var glowStart = Date()
 
+    @Environment(JournalStore.self) private var journal: JournalStore?
     @Environment(\.scrolling) private var scrolling
     private var still: Bool { !alive || reduce || Perf.noCreatures }
 
@@ -85,6 +86,8 @@ struct Creature: View {
         .task(id: still) { await glances() }
         .task(id: kind) { await loadSprites() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
+        // a sleep begins: Otto answers with his slow yawn — the mouth opening tall, the heavy lid coming down with it
+        .onChange(of: journal?.sleepsStarted ?? 0) { _, _ in if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } }
         .onChange(of: notice) { _, _ in
             guard !still else { return }
             if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }

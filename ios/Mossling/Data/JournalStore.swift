@@ -21,6 +21,8 @@ final class JournalStore {
     /// Where confirmed events go for the companions (IP v1.3 event contract). Set by the app; the journal never
     /// waits for, or depends on, what the companions do with them.
     var onEvent: ((MascotEvent) -> Void)?
+    /// Counts the sleeps started, so Otto can answer one with his slow yawn (he knows that tiredness).
+    private(set) var sleepsStarted = 0
 
     init(preview: JournalFile.Body? = nil) {
         if preview == nil { JournalFile.migrateIntoGroup() }
@@ -61,6 +63,7 @@ final class JournalStore {
         // confirmed only when the timer is really in the file (read back), never on the tap alone
         guard JournalFile.read().timers.contains(where: { $0.type == type }) else { failed("计时"); return }
         changed(b); focus = type
+        if type == LogType.sleep { sleepsStarted &+= 1 }
         onEvent?(.recordStartConfirmed)
         let ago = Int(Date().timeIntervalSince(at) / 60)
         say(type, LogType.name(type) + "开始计时" + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (ago >= 1 ? " · 从 \(ago) 分钟前算起" : ""), undo: before)

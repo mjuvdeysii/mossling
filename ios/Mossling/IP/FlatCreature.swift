@@ -40,6 +40,8 @@ struct FlatCreature: View {
     @State private var swingAt = Date.distantPast
     @State private var pattedAt = Date.distantPast
     @State private var pats = 0
+    @State private var yawnAt = Date.distantPast
+    @Environment(JournalStore.self) private var journal: JournalStore?
 
     @State private var onScreen = true
     @Environment(\.scrolling) private var scrolling
@@ -64,6 +66,7 @@ struct FlatCreature: View {
         .task(id: still) { await blinks() }
         .task(id: still) { await glances() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
+        .onChange(of: journal?.sleepsStarted ?? 0) { _, _ in if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } }
         .onChange(of: notice) { _, _ in
             guard !still else { return }
             if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
@@ -142,7 +145,10 @@ struct FlatCreature: View {
 
         let patted = now.timeIntervalSince(pattedAt) < 1.6
         let rest = lid ?? (kind == .otto ? 0.34 : 0)
-        let l = max(rest, still ? 0 : blinkValue(now))
+        // Otto's yawn: slow, the mouth opening tall while the heavy lid comes down, then both back (two seconds)
+        let yt = now.timeIntervalSince(yawnAt)
+        let yawn = still || kind != .otto || yt < 0 || yt > 2.2 ? 0 : Foundation.sin(min(1, yt / 2.2) * .pi)
+        let l = max(rest, still ? 0 : blinkValue(now), yawn * 0.9)
         let face: Mood = patted ? .happy : mood
         let wave: Double = still ? 0 : sin(t * 9) * 16
         let swingK = still ? 0 : Self.bounce(now.timeIntervalSince(swingAt) * 0.45) * 26
@@ -152,7 +158,7 @@ struct FlatCreature: View {
         if squeeze > 0 { ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -88) }
         let pose: Arms = patted ? .rest : arms
         if kind == .moss { drawMoss(&ctx, e, patted ? 1 : l, face, pose, wave, sway: (b - 0.5) * 6 + leaf) }
-        else { drawOtto(&ctx, e, patted ? 1 : l, face, pose, wave, swing: (b - 0.5) * 5 + leaf * 0.4 + swingK) }
+        else { drawOtto(&ctx, e, patted ? 1 : l, face, pose, wave, swing: (b - 0.5) * 5 + leaf * 0.4 + swingK, yawning: yawn) }
 
         // the mint leaves drifting up
         let f = now.timeIntervalSince(fleckAt) / 1.6
@@ -265,7 +271,7 @@ struct FlatCreature: View {
         mouth(&ctx, CGPoint(x: 50.5, y: 68), face)
     }
 
-    private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, swing: Double) {
+    private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, swing: Double, yawning: Double) {
         shadow(&ctx, 23)
         // the rod curves forward and the golden bead hangs from it, as on the icon
         var rod = ctx
@@ -283,7 +289,9 @@ struct FlatCreature: View {
         body(&ctx, Shapes.ottoBody, Palette.rod, under: Shapes.ottoDip, Palette.rodDeep)
         cheeks(&ctx, [CGPoint(x: 64, y: 58)], face)
         eye(&ctx, 51, 44, 12.5, 11.5, look, face == .wow ? 0 : lid, Palette.rod, face)
-        mouth(&ctx, CGPoint(x: 51, y: 64), face)
+        if yawning > 0.02 {
+            ctx.fill(Path(ellipseIn: CGRect(x: 51 - 2.6 * yawning, y: 63 - 4 * yawning, width: 5.2 * yawning, height: 9 * yawning)), with: .color(Palette.ink))
+        } else { mouth(&ctx, CGPoint(x: 51, y: 64), face) }
     }
 }
 
