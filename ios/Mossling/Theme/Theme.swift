@@ -201,8 +201,12 @@ extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)
 /// which UIKit-backed controls follow — and changes nothing by day.
 struct LampPresented: ViewModifier {
     @Environment(\.lamp) private var lamp
-    func body(content: Self.Content) -> some View {
-        content.modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+    @ViewBuilder func body(content: Self.Content) -> some View {
+        let lit = content.modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+        if lamp && ArtStyle.current == .flat {
+            // in 2D, every sheet at night has the page's night behind it (the fireflies), lists and forms included
+            lit.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
+        } else { lit }
     }
 }
 extension View { func lampPresented() -> some View { modifier(LampPresented()) } }
@@ -242,7 +246,8 @@ struct PageBackground: View {
             // night: deep blue, warmed from the top by Otto's lamp
             ZStack {
                 Palette.lampPage
-                LampGlow()
+                // the 2D night is the fireflies (in place of the lamp's glow); the 3D night keeps the lamp's light
+                if ArtStyle.current != .flat { LampGlow() }
                 if !solid { Grain(dark: true); Motes() }
             }
             .ignoresSafeArea().accessibilityHidden(true)
@@ -419,6 +424,21 @@ struct Motes: View {
             TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
                 Canvas(rendersAsynchronously: true) { ctx, size in
                     let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+                    func firefly(_ x: Double, _ y: Double, _ a: Double, _ r: Double) {
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - r * 5, y: y - r * 5, width: r * 10, height: r * 10)),
+                                 with: .radialGradient(Gradient(colors: [Palette.amber.opacity(a * 0.34), Palette.amber.opacity(0)]), center: CGPoint(x: x, y: y), startRadius: 0, endRadius: r * 5))
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Color(hex: 0xFFF1C9).mix(with: Palette.amber, by: 0.35).opacity(a)))
+                    }
+                    // a dozen that linger in the upper part of the page, wandering slowly where the eye first falls
+                    // (the title and the first card), so the night is there the moment the page opens
+                    for i in 0..<12 {
+                        let k = Double(i)
+                        let x = size.width * (0.06 + 0.88 * (k * 0.618 + 0.11).truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.21 + k * 2.1) * 34 * scale
+                        let y = size.height * (0.07 + 0.36 * (0.5 + 0.5 * Foundation.sin(t * 0.07 + k * 1.7)))
+                        let a = 0.3 + 0.6 * (0.5 + 0.5 * Foundation.sin(t * (0.8 + 0.07 * k) + k * 1.9))
+                        firefly(x, y, a, (1.9 + Double(i % 3) * 0.9) * scale)
+                    }
+                    // and more rising through the whole page from below, round and round
                     for i in 0..<26 {
                         let s = Double(i) * 0.618
                         let period = 30.0 + Double(i % 5) * 7
@@ -427,10 +447,7 @@ struct Motes: View {
                         let y = size.height * (1.04 - f * 1.1)
                         let edge = min(1, f * 8) * min(1, (1 - f) * 8)
                         let a = (0.35 + 0.55 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge
-                        let r = (1.7 + Double(i % 4) * 0.9) * scale
-                        ctx.fill(Path(ellipseIn: CGRect(x: x - r * 5, y: y - r * 5, width: r * 10, height: r * 10)),
-                                 with: .radialGradient(Gradient(colors: [Palette.amber.opacity(a * 0.32), Palette.amber.opacity(0)]), center: CGPoint(x: x, y: y), startRadius: 0, endRadius: r * 5))
-                        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Color(hex: 0xFFF1C9).mix(with: Palette.amber, by: 0.35).opacity(a)))
+                        firefly(x, y, a, (1.7 + Double(i % 4) * 0.9) * scale)
                     }
                 }
             }

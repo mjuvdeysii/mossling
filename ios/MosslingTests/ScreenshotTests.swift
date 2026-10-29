@@ -147,6 +147,9 @@ final class ScreenshotTests: XCTestCase {
         shot("24_ready_nurse_while_sleep", TimerScreen(type: LogType.nurse).environment(m).environment(sleeping).tint(Palette.accent).fontDesign(.rounded))
         shot("24_ready_sleep", TimerScreen(type: LogType.sleep).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
         shot("24_ready_sleep_lamp", lamp: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+        // 2D under the lamp: the fireflies on the timer too, in the upper half where the eye falls
+        ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("24_ready_sleep_lamp_2d", lamp: true, TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
     }
     /// 余影, frozen: a second passing (12:04 → 12:05) and a minute turning over (12:59 → 13:00), at four moments of
     /// the afterimage, on the feed's pad colour and on paper.
