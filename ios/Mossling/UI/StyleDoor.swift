@@ -258,12 +258,18 @@ struct Wash: View {
         var shape = outer
         if hr > 1 { shape.addPath(Self.blob(c, hr, seed: seed + 1.3, wobble: 0.1)) }
         let fill = FillStyle(eoFill: true)
-        ctx.fill(shape, with: .color(base), style: fill)
+        if light {
+            // lamp light: warmest where it comes from, paling toward its edge
+            ctx.fill(shape, with: .radialGradient(Gradient(colors: [Color(hex: 0xFFDDA0), Color(hex: 0xFFE9C4), base]),
+                                                  center: c, startRadius: 0, endRadius: max(40, r * 0.9)), style: fill)
+        } else {
+            ctx.fill(shape, with: .color(base), style: fill)
+        }
         // pigment: blooms of colour bleeding in behind the edge, and the colour gathered at the rim
         var tint = ctx
         tint.clip(to: shape, style: fill)
         tint.blendMode = .normal
-        let tints: [Color] = light ? [Color(hex: 0xFFE2A6), Color(hex: 0xFFD27A), Color(hex: 0xFFF6E2)] : Self.pigments
+        let tints: [Color] = light ? [Color(hex: 0xF5B45F), Color(hex: 0xF2A07A), Color(hex: 0xFFD27A)] : Self.pigments
         for (i, col) in tints.enumerated() {
             let a: CGFloat = CGFloat(i) * 2.1 + 0.6
             let lag: CGFloat = Self.ease((t - 0.06 * Double(i + 1)) / Self.covered)

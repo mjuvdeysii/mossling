@@ -101,6 +101,18 @@ def finish():
     dt.ellipse((g.width * 0.04, feet - g.height * 0.05, g.width * 0.96, feet + g.height * 0.07), fill=(122, 82, 48, 46))
     table = table.filter(ImageFilter.GaussianBlur(26))
     table.save(os.path.join(assets, "table.png"))
+    # by day (the light icon): the window's light falling from the upper left onto Moss, behind the pair — day is Moss's
+    # time as night is Otto's, so the light that holds him by night with the lamp holds him by day from the window
+    # (drawn as a mask and blurred alone, so the light stays the light's colour at its soft edge, never greyed)
+    mask = Image.new("L", g.size, 0); dd = ImageDraw.Draw(mask)
+    top = float(np.percentile(gy, 1))
+    for k, al in ((1.0, 80), (0.6, 120)):
+        rx, ry = mw * 0.9 * k, (mb - top) * 0.8 * k
+        cx, cy = mx - mw * 0.08, top + (mb - top) * 0.5
+        dd.ellipse((cx - rx, cy - ry, cx + rx, cy + ry), fill=al)
+    mask = mask.filter(ImageFilter.GaussianBlur(70))
+    day = Image.new("RGBA", g.size, (255, 251, 240, 255)); day.putalpha(mask)
+    day.save(os.path.join(assets, "day.png"))
     # the pair for tinting: its own shading kept, lifted into the light half
     lum = ImageOps.grayscale(g.convert("RGB"))
     lum = lum.point(lambda v: int(60 + 195 * (v / 255) ** 0.35))   # bodies light (the tinted dark dims them), eyes still darker
@@ -121,6 +133,8 @@ def finish():
                  "hidden-specializations": [{"value": True}, {"appearance": "tinted", "value": False}]},
                 {"image-name": "glow.png", "name": "The lamp lit", "glass": False, "position": pos,
                  "hidden-specializations": [{"value": True}, {"appearance": "dark", "value": False}]},
+                {"image-name": "day.png", "name": "The window light", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": False}, {"appearance": "dark", "value": True}, {"appearance": "tinted", "value": True}]},
                 {"image-name": "table.png", "name": "The table", "glass": False, "position": pos,
                  "hidden-specializations": [{"value": False}, {"appearance": "tinted", "value": True}]},
             ],
