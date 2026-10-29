@@ -330,6 +330,8 @@ struct Duo: View {
     var label: String? = nil
     /// Something new in front of them: Moss blinks twice, Otto looks round to it.
     var notice = 0
+    /// Otto lights his lamp now, by day too (to light the way somewhere).
+    var lit = false
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(MascotDirector.self) private var mascot: MascotDirector?
     @State private var beat = 0
@@ -356,7 +358,7 @@ struct Duo: View {
 
     var body: some View {
         if ArtStyle.current == .flat {
-            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night, notice: notice)
+            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night, notice: notice, lit: lit)
         } else { vinyl }
     }
 
@@ -369,12 +371,12 @@ struct Duo: View {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees - (primary.other == .otto ? 6 : 0) : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, glowFor: briefLamp ? 4.5 : nil, notice: notice)
+                     arms: cheering ? .cheer : .rest, glow: (night || lit) && primary.other == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: Self.apart(primary, size), y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
-                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto, glowFor: briefLamp ? 4.5 : nil, notice: notice)
+                     label: label, arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: Self.apart(primary, size) + small, height: max(size, small + lift), alignment: .bottomLeading)

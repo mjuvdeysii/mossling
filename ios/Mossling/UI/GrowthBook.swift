@@ -220,11 +220,10 @@ private struct BookPageView: View {
             .buttonStyle(.toy)
 
             if !page.plays.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 220 : 140), spacing: 8, alignment: .top)], alignment: .leading, spacing: 8) {
-                    ForEach(page.plays, id: \.play.code) { x in
-                        NavigationLink(value: Route.play(x.play.code, min(m, 36))) { PlayStamp(play: x.play, times: x.times) }
-                            .buttonStyle(.toy)
-                    }
+                // two to a row; an odd last one takes the whole row rather than leave half of it empty
+                EvenRows(items: page.plays, id: \.play.code, per: type.isAccessibilitySize ? 1 : 2) { x in
+                    NavigationLink(value: Route.play(x.play.code, min(m, 36))) { PlayStamp(play: x.play, times: x.times) }
+                        .buttonStyle(.toy)
                 }
             }
 
@@ -232,9 +231,7 @@ private struct BookPageView: View {
 
             let facts = self.facts
             if !facts.isEmpty {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 220 : 140), spacing: 8)], alignment: .leading, spacing: 8) {
-                    ForEach(facts, id: \.label) { f in FactChip(fact: f) }
-                }
+                EvenRows(items: facts, id: \.label, per: type.isAccessibilitySize ? 1 : 2) { f in FactChip(fact: f) }
                 if page.days > 0 {
                     Text("照护为有记录的 \(page.days) 天的每日平均").font(.caption2).foregroundStyle(.tertiary).padding(.leading, 2)
                 }
@@ -332,6 +329,24 @@ private struct FactChip: View {
         .padding(.horizontal, 8).padding(.vertical, 7)
         .background(fact.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Items laid out a few to a row, each row's items sharing its width, so a short last row is filled, never half empty.
+struct EvenRows<Item, ID: Hashable, Cell: View>: View {
+    let items: [Item]
+    let id: KeyPath<Item, ID>
+    var per = 2
+    var spacing: CGFloat = 8
+    @ViewBuilder let cell: (Item) -> Cell
+    var body: some View {
+        VStack(spacing: spacing) {
+            ForEach(Array(stride(from: 0, to: items.count, by: max(1, per))), id: \.self) { i in
+                HStack(alignment: .top, spacing: spacing) {
+                    ForEach(items[i..<min(i + max(1, per), items.count)], id: id) { x in cell(x).frame(maxWidth: .infinity) }
+                }
+            }
+        }
     }
 }
 

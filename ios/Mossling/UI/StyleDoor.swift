@@ -316,15 +316,17 @@ struct Wash: View {
 // MARK: the story's own door
 
 extension View {
-    /// Tap the two and they hop (`hops` goes up); the third quick tap opens what is behind them. VoiceOver users get
-    /// the same way in as a named action, since they cannot find it by touch.
-    func storyKnock(hops: Binding<Int>, open: @escaping () -> Void) -> some View {
-        modifier(StoryKnock(hops: hops, open: open))
+    /// Tap the two and they hop (`hops` goes up); on the second quick tap Otto lights his lamp (`lamp`), and the third
+    /// goes in by its light to what is behind them — 孩子摸索，大人点灯, done rather than said. VoiceOver users get the same
+    /// way in as a named action, since they cannot find it by touch.
+    func storyKnock(hops: Binding<Int>, lamp: Binding<Bool>, open: @escaping () -> Void) -> some View {
+        modifier(StoryKnock(hops: hops, lamp: lamp, open: open))
     }
 }
 
 private struct StoryKnock: ViewModifier {
     @Binding var hops: Int
+    @Binding var lamp: Bool
     let open: () -> Void
     @State private var count = 0
     @State private var last = Date.distantPast
@@ -336,9 +338,21 @@ private struct StoryKnock: ViewModifier {
                 count = now.timeIntervalSince(last) < 1.1 ? count + 1 : 1
                 last = now
                 hops += 1
+                if count == 2 {
+                    withAnimation(.easeOut(duration: 0.3)) { lamp = true }
+                    // left there, the lamp goes out again
+                    let stamp = now
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(2200))
+                        if last == stamp { withAnimation(.easeIn(duration: 0.5)) { lamp = false } }
+                    }
+                }
                 if count >= 3 {
                     count = 0
-                    Task { @MainActor in try? await Task.sleep(for: .milliseconds(380)); open() }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(380)); open()
+                        try? await Task.sleep(for: .milliseconds(600)); lamp = false
+                    }
                 }
             })
             .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.5), trigger: hops)

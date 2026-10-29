@@ -319,6 +319,7 @@ struct FlatDuo: View {
     /// Night: Otto's bead is a lamp, and Moss sleeps unless Moss is the one in front.
     var night = false
     var notice = 0
+    var lit = false
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var beat = 0
     @State private var cheering = false
@@ -329,12 +330,12 @@ struct FlatDuo: View {
         ZStack(alignment: .bottomLeading) {
             FlatCreature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, notice: notice)
+                     arms: cheering ? .cheer : .rest, glow: (night || lit) && primary.other == .otto, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
             FlatCreature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: night && primary == .otto, notice: notice)
+                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)

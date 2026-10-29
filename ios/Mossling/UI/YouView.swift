@@ -400,6 +400,7 @@ struct AboutView: View {
     @Environment(AppModel.self) private var app
     @State private var replay = false
     @State private var hops = 0
+    @State private var lamp = false
     @State private var story = false
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
@@ -410,8 +411,8 @@ struct AboutView: View {
             Section {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .bottom, spacing: 14) {
-                        Duo(primary: app.companion, size: 64, cheer: hops)
-                            .storyKnock(hops: $hops) { story = true }
+                        Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
+                            .storyKnock(hops: $hops, lamp: $lamp) { story = true }
                         VStack(alignment: .leading, spacing: 2) {
                             Text("摸索台灯").font(.title2.weight(.bold))
                             Text("孩子摸索，大人点灯").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)

@@ -268,10 +268,11 @@ private struct HomeFooter: View {
     @Environment(AppModel.self) private var app
     let open: () -> Void
     @State private var hops = 0
+    @State private var lamp = false
     var body: some View {
         VStack(spacing: 6) {
-            Duo(primary: app.companion, size: 40, poke: false, cheer: hops)
-                .storyKnock(hops: $hops, open: open)
+            Duo(primary: app.companion, size: 40, poke: false, cheer: hops, lit: lamp)
+                .storyKnock(hops: $hops, lamp: $lamp, open: open)
             Text("孩子摸索，大人点灯").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
         }
         .frame(maxWidth: .infinity).padding(.top, 24).padding(.bottom, 8)
