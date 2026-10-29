@@ -442,10 +442,18 @@ private struct WeekStones: View {
                     }
                 }
                 .frame(width: 10, height: 10)
+                // the stone a play just lit gives a little hop (the week's path answering, nothing more)
+                .keyframeAnimator(initialValue: CGFloat(0), trigger: played) { v, y in
+                    v.offset(y: i == played - 1 ? y : 0).scaleEffect(i == played - 1 ? 1 - y / 30 : 1)
+                } keyframes: { _ in
+                    CubicKeyframe(-5, duration: 0.14)
+                    SpringKeyframe(0, duration: 0.4, spring: .bouncy)
+                }
             }
             Text("\(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
                 .padding(.leading, 2)
         }
+        .sensoryFeedback(.increase, trigger: played)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("本周玩过 \(played) / \(total)")
     }
