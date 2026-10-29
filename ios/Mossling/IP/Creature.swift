@@ -368,7 +368,7 @@ struct Duo: View {
         ZStack(alignment: .bottomLeading) {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
-                     lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
+                     lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees - (primary.other == .otto ? 6 : 0) : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
                      arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, glowFor: briefLamp ? 4.5 : nil, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: Self.apart(primary, size), y: -lift)

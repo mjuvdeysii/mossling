@@ -328,7 +328,7 @@ struct FlatDuo: View {
         let asleep = mood == .sleep
         ZStack(alignment: .bottomLeading) {
             FlatCreature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
-                     look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : 0, alive: !reduce, poke: poke,
+                     look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
                      arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
