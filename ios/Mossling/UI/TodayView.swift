@@ -47,7 +47,7 @@ struct TodayView: View {
                 PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
                 MonthParts(month: m)
                 Topics()
-                HomeFooter()
+                HomeFooter { path.append(Route.story) }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -256,19 +256,19 @@ struct Topics: View {
     }
 }
 
-/// The end of the page: the two of them and the line the app is named for, a way into its story.
+/// The end of the page: the two of them and the line the app is named for. Nothing says there is more: tap them and
+/// they hop; keep tapping and on the third they take you into their story.
 private struct HomeFooter: View {
     @Environment(AppModel.self) private var app
+    let open: () -> Void
+    @State private var hops = 0
     var body: some View {
-        NavigationLink(value: Route.story) {
-            VStack(spacing: 6) {
-                Duo(primary: app.companion, size: 40, poke: false)
-                Text("孩子摸索，大人点灯").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-            }
-            .frame(maxWidth: .infinity).padding(.top, 24).padding(.bottom, 8)
+        VStack(spacing: 6) {
+            Duo(primary: app.companion, size: 40, poke: false, cheer: hops)
+                .storyKnock(hops: $hops, open: open)
+            Text("孩子摸索，大人点灯").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
         }
-        .buttonStyle(.toy)
-        .accessibilityLabel("摸索台灯的故事")
+        .frame(maxWidth: .infinity).padding(.top, 24).padding(.bottom, 8)
     }
 }
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }

@@ -80,6 +80,14 @@ final class ScreenshotTests: XCTestCase {
     }
     /// 摸索台灯的故事: the name told (docs/IP.md).
     func test37Story() { let m = model(); shot("37_story", height: 1900, settle: 6, tabs(m, StoryView())) }
+    /// The way into the paper world, held still: the wash spreading from the story picture, then drying back.
+    func test37Wash() {
+        let m = model()
+        let pic = CGRect(x: 16, y: 120, width: 361, height: 180)
+        for (n, t, light) in [("37_wash_spread", 0.32, false), ("37_wash_dry", 1.1, false), ("37_wash_light", 0.4, true)] {
+            shot(n, settle: 0.8, ZStack { tabs(m, AboutView()); Wash(start: .now, frame: pic, impact: CGPoint(x: 0.4, y: 0.5), light: light, at: t).ignoresSafeArea() })
+        }
+    }
     func test01OnboardingOpening() {
         // the opening, mid-way: the lamp on, Moss reaching for the rings
         let m = model(birth: nil); m.onboarded = false

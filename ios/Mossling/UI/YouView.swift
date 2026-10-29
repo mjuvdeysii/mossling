@@ -399,24 +399,32 @@ private var stamp: String { let d = Day.today; return String(format: "%04d%02d%0
 struct AboutView: View {
     @Environment(AppModel.self) private var app
     @State private var replay = false
+    @State private var hops = 0
+    @State private var story = false
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
         List {
+            // the two and the name in one row, the line about the app under them; tap the two and they hop, and on
+            // the third tap they take you into their story (the page names no way in)
             Section {
-                VStack(spacing: 6) {
-                    Duo(primary: app.companion, size: 96)
-                    Text("摸索台灯").font(.title.weight(.bold)).padding(.top, 8)
-                    Text("孩子摸索，大人点灯").font(.headline).foregroundStyle(Palette.accent)
-                    Text("Moss & Otto · 版本 \(v)（\(b)）").font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .bottom, spacing: 14) {
+                        Duo(primary: app.companion, size: 64, cheer: hops)
+                            .storyKnock(hops: $hops) { story = true }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("摸索台灯").font(.title2.weight(.bold))
+                            Text("孩子摸索，大人点灯").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
+                            Text("Moss & Otto · 版本 \(v)（\(b)）").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                        }
+                        .padding(.bottom, 4)
+                        Spacer(minLength: 0)
+                    }
+                    Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。不打分，不比较，不催促。")
+                        .font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 8)
                 .listRowBackground(Color.clear)
-            }
-            Section {
-                row(Route.story, "摸索台灯的故事", "lamp.desk.fill", Crayon.sunflower)
-            } footer: {
-                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。不打分，不比较，不催促。")
+                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 4))
             }
             Section {
                 row(Route.sources, "内容来源", "books.vertical.fill", Crayon.caramel)
@@ -449,7 +457,9 @@ struct AboutView: View {
                 .padding(.top, 4)
             }
         }
+        .listSectionSpacing(.compact)
         .scrollContentBackground(.hidden).pageBackground()
+        .navigationDestination(isPresented: $story) { StoryView() }
         .navigationTitle("关于摸索台灯").navigationBarTitleDisplayMode(.inline)
     }
 
@@ -465,7 +475,7 @@ struct StoryView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                // the hidden door between the two worlds: tap this picture five times and it shatters into the 2D
+                // the hidden door between the two worlds: tap this picture ten times quickly and colour runs from it into the 2D
                 // world of build 196; in it, keep a finger moving on the picture for three seconds to come back
                 StyleDoor {
                     LampScene(play: true)
