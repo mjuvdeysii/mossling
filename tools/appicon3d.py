@@ -89,7 +89,7 @@ def finish():
     glow.save(os.path.join(assets, "glow.png"))
     # the pair for tinting: its own shading kept, lifted into the light half
     lum = ImageOps.grayscale(g.convert("RGB"))
-    lum = lum.point(lambda v: int(40 + 215 * (v / 255) ** 0.5))   # bodies light, eyes still dark
+    lum = lum.point(lambda v: int(60 + 195 * (v / 255) ** 0.35))   # bodies light (the tinted dark dims them), eyes still darker
     tint = Image.merge("RGBA", (lum, lum, lum, g.getchannel("A")))
     tint.save(os.path.join(assets, "duo_tint.png"))
     pos = {"scale": 1, "translation-in-points": [0, 0]}

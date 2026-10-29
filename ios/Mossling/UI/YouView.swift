@@ -175,9 +175,11 @@ private struct BabyPortrait: View {
             let s = min(g.size.width, g.size.height)
             ZStack {
                 Circle().fill(RadialGradient(colors: [tone.opacity(lamp ? 0.5 : 0.32), tone.opacity(lamp ? 0.22 : 0.14)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 0, endRadius: s * 0.6))
+                // the figures carry a margin: the child is drawn larger so it fills the round, sitting on its lower edge
                 GrowingChild(month: month, giggle: giggle)
-                    .frame(width: s * 0.86, height: s * 0.86)
-                    .offset(y: s * 0.08)
+                    .frame(width: s * 1.15, height: s * 1.15)
+                    .offset(y: s * 0.12)
+                    .frame(width: s, height: s)
                     .clipShape(Circle())
                 Circle().strokeBorder(Color.white.opacity(lamp ? 0.25 : 0.9), lineWidth: 2.5)
             }
