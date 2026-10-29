@@ -88,8 +88,8 @@
       "lighting": "individual",
       "specular": false,
       "shadow": {
-        "kind": "neutral",
-        "opacity": 0.3
+        "kind": "layer-color",
+        "opacity": 0.4
       },
       "translucency": {
         "enabled": false,

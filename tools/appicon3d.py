@@ -117,7 +117,7 @@ def finish():
                  "hidden-specializations": [{"value": True}, {"appearance": "dark", "value": False}]},
             ],
             "lighting": "individual", "specular": False,
-            "shadow": {"kind": "neutral", "opacity": 0.3},
+            "shadow": {"kind": "layer-color", "opacity": 0.4},   # a shadow in the figures' own colour, softer and warmer than grey
             "translucency": {"enabled": False, "value": 0.5},
         }],
         "supported-platforms": {"squares": ["iOS"]},
