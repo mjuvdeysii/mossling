@@ -145,7 +145,7 @@ private struct MonthCard: View {
         Button(action: open) {
             HStack(spacing: 14) {
                 // the map in small: the child's hill and path, Moss on his stone (by night, home asleep)
-                MapVignette(month: month, baby: baby)
+                MapVignette(month: month, baby: baby, festive: month == baby && app.age?.days == 0 && app.age != nil)
                 .frame(width: 104, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))

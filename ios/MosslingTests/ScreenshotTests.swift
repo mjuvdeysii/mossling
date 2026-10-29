@@ -97,6 +97,8 @@ final class ScreenshotTests: XCTestCase {
         let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
         shot("39_firsts_2d", height: 1500, tabs(m, FirstsView()))
     }
+    /// The day the child turns another month: flags across the month card's sky.
+    func test02TodayMonthday() { let m = model(birth: Day(y: 2026, m: 4, d: 19)); shot("02_today_monthday", height: 900, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test02Today() { let m = model(); shot("02_today", height: 2500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test02Today2D() {
         let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }

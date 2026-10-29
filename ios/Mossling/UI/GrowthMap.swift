@@ -608,6 +608,8 @@ struct MapVignette: View {
     /// The grown-up beside the child by day too (the family on 我的), not only by night.
     var otto = false
     var giggle = 0
+    /// The day the child turns another month (满 N 个月): a string of little flags across the sky, by day only.
+    var festive = false
     @Environment(\.night) private var nightTab
     @Environment(\.lamp) private var lamp
     /// Night by the home tab's clock or under the lamp (夜灯) on any page.
@@ -651,6 +653,20 @@ struct MapVignette: View {
                             for (dx, dy, r) in [(-12.0, 3.0, 8.0), (0.0, -1.0, 11.0), (13.0, 3.0, 8.0)] { cl.addEllipse(in: CGRect(x: cc.x + dx * k - r * k, y: cc.y + dy * k - r * k, width: 2 * r * k, height: 2 * r * k)) }
                             cl.addRoundedRect(in: CGRect(x: cc.x - 20 * k, y: cc.y, width: 40 * k, height: 10 * k), cornerSize: CGSize(width: 5 * k, height: 5 * k))
                             ctx.fill(cl, with: .color(dusk ? Color(hex: 0xF6C9B8).opacity(0.75) : .white.opacity(flat ? 1 : 0.92)))
+                        }
+                        // 满月 day: bunting strung across the sky, little flags in the app's colours, nothing said about it
+                        if festive {
+                            let y0 = size.height * 0.1, sag = size.height * 0.12
+                            var line = Path(); line.move(to: CGPoint(x: -4, y: y0)); line.addQuadCurve(to: CGPoint(x: size.width + 4, y: y0), control: CGPoint(x: size.width / 2, y: y0 + sag * 2))
+                            ctx.stroke(line, with: .color(Color(hex: 0x8A6A4A).opacity(0.6)), lineWidth: 1)
+                            let tones: [UInt32] = [0xF29BB0, 0xFFC94A, 0x7CC8A0, 0x8EC5F0]
+                            let n = max(5, Int(size.width / 18))
+                            for f in 0..<n {
+                                let t = (Double(f) + 0.5) / Double(n), x = size.width * t
+                                let y = y0 + sag * 4 * t * (1 - t)
+                                var flag = Path(); flag.move(to: CGPoint(x: x - 4.5, y: y)); flag.addLine(to: CGPoint(x: x + 4.5, y: y)); flag.addLine(to: CGPoint(x: x, y: y + 8)); flag.closeSubpath()
+                                ctx.fill(flag, with: .color(Color(hex: tones[f % tones.count])))
+                            }
                         }
                     }
                     // the next year's hill, far behind
