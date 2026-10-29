@@ -15,7 +15,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ICON = os.path.join(HERE, "..", "ios", "Mossling", "Resources", "AppIcon.icon")
 PX = 1024
-FILL = 0.8   # the pair's larger side as a share of the icon (Apple's grid keeps the subject inside about 0.8)
+FILL = 0.84   # the pair's larger side as a share of the icon (Apple's grid keeps the subject inside about 0.8)
 
 def scene():
     s = ip3d.reset(); s.render.film_transparent = True
