@@ -412,8 +412,30 @@ struct Motes: View {
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
-        // risen by Core Animation at the display's full frame rate, off the main thread
-        if !reduce && ArtStyle.current == .flat { AirEmitter(kind: .night, scale: scale).allowsHitTesting(false) }
+        // the lamp's first fireflies, drawn as they were then (a Canvas, off the main thread): each a warm core in a
+        // wide soft halo, rising slowly through the whole page from below to the top and round again, swaying, glowing
+        // and dimming as it goes — every one always somewhere on its way, so the page is never left without them
+        if ArtStyle.current == .flat {
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
+                Canvas(rendersAsynchronously: true) { ctx, size in
+                    let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
+                    for i in 0..<26 {
+                        let s = Double(i) * 0.618
+                        let period = 30.0 + Double(i % 5) * 7
+                        let f = (t / period + s).truncatingRemainder(dividingBy: 1)
+                        let x = size.width * (0.05 + 0.9 * (s * 1.3).truncatingRemainder(dividingBy: 1)) + Foundation.sin(t * 0.35 + Double(i)) * 26 * scale
+                        let y = size.height * (1.04 - f * 1.1)
+                        let edge = min(1, f * 8) * min(1, (1 - f) * 8)
+                        let a = (0.35 + 0.55 * (0.5 + 0.5 * Foundation.sin(t * 1.1 + Double(i) * 1.3))) * edge
+                        let r = (1.7 + Double(i % 4) * 0.9) * scale
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - r * 5, y: y - r * 5, width: r * 10, height: r * 10)),
+                                 with: .radialGradient(Gradient(colors: [Palette.amber.opacity(a * 0.32), Palette.amber.opacity(0)]), center: CGPoint(x: x, y: y), startRadius: 0, endRadius: r * 5))
+                        ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)), with: .color(Color(hex: 0xFFF1C9).mix(with: Palette.amber, by: 0.35).opacity(a)))
+                    }
+                }
+            }
+            .allowsHitTesting(false)
+        }
     }
 }
 
