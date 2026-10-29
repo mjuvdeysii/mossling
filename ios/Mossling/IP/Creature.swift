@@ -11,6 +11,18 @@ import SwiftUI
 ///
 /// `look` is where the eyes point (each axis −1…1, y down); `lid` ≥ 0.8 shuts the eyes. A tap makes it hop; a long
 /// press is a pat — eyes close happily, a soft tap of haptics. Five quick taps on Moss send mint leaves drifting up.
+/// The moments a companion answers (something new, a sleep begun, a save that failed), gathered in one modifier.
+struct CreatureCues: ViewModifier {
+    let notice: Int, sleeps: Int, setbacks: Int
+    let onNotice: () -> Void, onSleep: () -> Void, onSetback: () -> Void
+    func body(content: Self.Content) -> some View {
+        content
+            .onChange(of: notice) { _, _ in onNotice() }
+            .onChange(of: sleeps) { _, _ in onSleep() }
+            .onChange(of: setbacks) { _, _ in onSetback() }
+    }
+}
+
 /// Everything is computed from time, so it stays still when Reduce Motion is on.
 struct Creature: View {
     let kind: Kind
@@ -88,15 +100,16 @@ struct Creature: View {
         .task(id: still) { await glances() }
         .task(id: kind) { await loadSprites() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
-        // a sleep begins: Otto answers with his slow yawn — the mouth opening tall, the heavy lid coming down with it
-        .onChange(of: journal?.sleepsStarted ?? 0) { _, _ in if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } }
-        // a save that failed: Moss, thwarted, presses flat to the ground, "a stone again", and comes back up
-        .onChange(of: director?.setbacks ?? 0) { _, _ in if kind == .moss && !still { stoneAt = Date() } }
-        .onChange(of: notice) { _, _ in
-            guard !still else { return }
-            if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
-            else { glanceTo = CGPoint(x: -0.8, y: 0.45); glanceAt = Date() }
-        }
+        .modifier(CreatureCues(notice: notice, sleeps: journal?.sleepsStarted ?? 0, setbacks: director?.setbacks ?? 0,
+            onNotice: {
+                guard !still else { return }
+                if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
+                else { glanceTo = CGPoint(x: -0.8, y: 0.45); glanceAt = Date() }
+            },
+            // a sleep begins: Otto answers with his slow yawn — the mouth opening tall, the heavy lid coming down
+            onSleep: { if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } },
+            // a save that failed: Moss, thwarted, presses flat to the ground, "a stone again", and comes back up
+            onSetback: { if kind == .moss && !still { stoneAt = Date() } }))
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
         .onAppear { glowStart = Date() }
@@ -137,6 +150,13 @@ struct Creature: View {
     // MARK: curves
 
     private static func ease(_ x: Double) -> Double { let t = max(0, min(1, x)); return t * t * (3 - 2 * t) }
+    /// Pressed flat (0…1) at `t` seconds after a setback: down quickly, held, up again over 1.5 s.
+    static func stoneValue(_ t: Double) -> Double {
+        if t < 0 || t > 1.5 { return 0 }
+        if t < 0.18 { return t / 0.18 }
+        if t < 0.9 { return 1 }
+        return 1 - ease((t - 0.9) / 0.6)
+    }
     /// A damped bounce: 0 → up → settles, over about 0.7 s.
     private static func bounce(_ t: Double) -> Double { t < 0 || t > 1.2 ? 0 : exp(-5 * t) * sin(t * 11) }
 
@@ -212,9 +232,10 @@ struct Creature: View {
         shadow(&ctx, kind == .moss ? 30 : 22, lift: hop)
         ctx.translateBy(x: 0, y: -hop * 7)
         // squash and stretch from the feet; thwarted, Moss presses flat for a moment ("a stone again")
-        let st = now.timeIntervalSince(stoneAt)
-        let stone = still || st < 0 || st > 1.5 ? 0 : (st < 0.18 ? st / 0.18 : st < 0.9 ? 1 : 1 - Self.ease((st - 0.9) / 0.6))
-        ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: (1 - b * amp * 0.5) * (1 + 0.12 * stone), y: (1 + b * amp) * (1 - 0.2 * stone)); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
+        let stone = Self.stoneValue(still ? -1 : now.timeIntervalSince(stoneAt))
+        let sx: Double = (1 - b * amp * 0.5) * (1 + 0.12 * stone)
+        let sy: Double = (1 + b * amp) * (1 - 0.2 * stone)
+        ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: sx, y: sy); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
 
         let patted = now.timeIntervalSince(pattedAt) < 1.6
         // the resting lids are part of the figures (Moss half-lidded, Otto heavier); only a real blink or a shut lid swaps
