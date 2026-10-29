@@ -37,24 +37,29 @@ struct Bead: View {
 /// One month as a chapter: the cover picture, then the month in order — points, plays, the month's parts, topics.
 struct MonthView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int
 
     var body: some View {
         let mo = app.content.month(month), m = month
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                if let f = ArtIndex.shared.cover(m) {
-                    ArtView(name: f, label: "满 \(m) 个月：\(mo.title)", radius: 26).padding(.horizontal, 16).padding(.top, 4)
-                }
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(mo.title).font(.title2.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                    if let b = app.birth {
-                        Label(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : ""), systemImage: "calendar")
-                            .font(.subheadline).foregroundStyle(Palette.secondaryText)
+                // the month's picture beside its title, as on the month card (not a screen-wide picture above it)
+                HStack(alignment: .center, spacing: 14) {
+                    if let f = ArtIndex.shared.cover(m) {
+                        ArtView(name: f, label: "满 \(m) 个月：\(mo.title)", radius: 18).frame(width: type.isAccessibilitySize ? 112 : 148)
                     }
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                        if let b = app.birth {
+                            Label(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : ""), systemImage: "calendar")
+                                .font(.caption).foregroundStyle(Palette.secondaryText)
+                        }
+                    }
+                    Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 20).padding(.top, 14)
-                MonthBody(month: m).padding(.horizontal, 16).padding(.top, 8)
+                .padding(.horizontal, 16).padding(.top, 4)
+                MonthBody(month: m).padding(.horizontal, 16).padding(.top, 14)
             }
             .padding(.bottom, 40)
         }
@@ -334,7 +339,7 @@ struct RhythmView: View {
 
 /// A play in the month's grid: its first picture, its name, its age.
 struct PlayTile: View {
-    enum Form { case lead, cell, row }
+    enum Form { case lead, cell, row, mini }
     let play: Play
     let times: Int
     var form: Form = .cell
@@ -343,6 +348,29 @@ struct PlayTile: View {
         let pic = ArtIndex.shared.steps(play.code).first
         Group {
             switch form {
+            case .mini:
+                // two to a row and short: its first picture small at the left, the words beside it (a month's plays
+                // in a few lines of the page, not a screen of pictures)
+                HStack(alignment: .top, spacing: 8) {
+                    ZStack(alignment: .topTrailing) {
+                        if let pic { ArtFill(name: pic).aspectRatio(1, contentMode: .fill) } else { Palette.fill }
+                    }
+                    .frame(width: 58, height: 58)
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(alignment: .bottomTrailing) { if times > 0 { badge.scaleEffect(0.8).offset(x: 6, y: 6) } }
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 3) {
+                            IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 14)
+                            Text(play.domains.first ?? "").font(.caption2.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+                        }
+                        Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        Text(play.age).font(.caption2).foregroundStyle(Palette.secondaryText)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(8)
+                .background(Palette.area(key).opacity(0.08))
             case .row:
                 // compact: the tray of materials at the left, the words at the right
                 HStack(spacing: 12) {
