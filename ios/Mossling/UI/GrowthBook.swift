@@ -370,22 +370,22 @@ struct GrowthBookCard: View {
                         Group {
                             if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, radius: 4) } else { Palette.fill }
                         }
-                        .frame(width: 64).padding(3)
+                        .frame(width: 46).padding(2.5)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color.white))
                         .shadow(color: Color(hex: 0x6B4A2B).opacity(0.18), radius: 3, y: 2)
                         .rotationEffect(.degrees(Double(i) * 7 - 4))
-                        .offset(x: Double(i) * 9, y: Double(i) * -2)
+                        .offset(x: Double(i) * 7, y: Double(i) * -2)
                     }
                 }
-                .frame(width: 92, height: 72)
-                VStack(alignment: .leading, spacing: 3) {
+                .frame(width: 70, height: 50)
+                VStack(alignment: .leading, spacing: 1) {
                     Text("成长册").font(.headline).foregroundStyle(.primary)
                     Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 个月 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
             }
-            .padding(14)
+            .padding(.horizontal, 14).padding(.vertical, 9)
             .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
             .printCard(radius: 24)
         }

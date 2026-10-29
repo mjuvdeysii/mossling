@@ -15,7 +15,7 @@ struct YouView: View {
         @Bindable var app = app
         ScrollView {
             // the whole page in one screen: the family, the book, then one card of settings and one of data
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 12) {
                 // the family: the child (Moss) and the grown-up (Otto) on the child's own hill, beside who the child is
                 FamilyCard { editing = true }
 
@@ -38,7 +38,7 @@ struct YouView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .padding(.horizontal, 14).padding(.vertical, 7)
                         Divider().padding(.leading, 52)
                         SwitchRow(title: "晚上自动开夜灯", detail: "19:00–6:00", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
                         Divider().padding(.leading, 52)
@@ -61,13 +61,17 @@ struct YouView: View {
                         NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
                         Divider().padding(.leading, 58)
                         Button(role: .destructive) { clearing = true } label: {
-                            HStack { Text("清除全部数据").font(.subheadline.weight(.semibold)); Spacer() }
-                                .foregroundStyle(Palette.danger).padding(.horizontal, 16).padding(.vertical, 12).contentShape(Rectangle())
+                            HStack(alignment: .firstTextBaseline) {
+                                Text("清除全部数据").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.danger)
+                                Spacer(minLength: 8)
+                                // where the records live, said beside the one thing that removes them
+                                Text("所有记录只保存在这台手机上").font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.trailing)
+                            }
+                            .padding(.horizontal, 16).padding(.vertical, 10).contentShape(Rectangle())
                         }
                     }
                     .buttonStyle(.toy)
                     .printCard(radius: 22)
-                    Text("所有记录只保存在这台手机上。").font(.caption).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -101,9 +105,9 @@ private struct FamilyCard: View {
 
     var body: some View {
         let baby = app.babyMonth ?? 0
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             // the scene beside who the child is, not over it (the growth map is the big picture of the hill)
-            HStack(alignment: .center, spacing: 14) {
+            HStack(alignment: .top, spacing: 12) {
                 MapVignette(month: baby, baby: baby, otto: true, giggle: giggles)
                     .frame(width: type.isAccessibilitySize ? 120 : 136, height: type.isAccessibilitySize ? 86 : 98)
                     .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
@@ -111,29 +115,33 @@ private struct FamilyCard: View {
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
                     .accessibilityElement().accessibilityLabel("Moss 和 Otto 在家").accessibilityAddTraits(.isImage)
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                        Spacer(minLength: 4)
+                        Button(action: edit) {
+                            Label("编辑", systemImage: "pencil").font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+                        .controlSize(.small)
+                        .accessibilityLabel("编辑宝宝信息")
+                    }
                     if let a = app.age {
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Ticking(text: "\(a.months)").font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                            Ticking(text: "\(a.months)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
                             Text("个月").font(.subheadline.weight(.semibold)).fixedSize()
                             if a.days > 0 {
-                                Ticking(text: "\(a.days)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
+                                Ticking(text: "\(a.days)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
                                 Text("天").font(.subheadline.weight(.semibold)).fixedSize()
                             }
                         }
                         .fixedSize()
                         .foregroundStyle(Palette.accent)
                     }
-                    Button(action: edit) {
-                        Label("编辑", systemImage: "pencil").font(.footnote.weight(.semibold))
-                    }
-                    .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
-                    .accessibilityLabel("编辑宝宝信息")
+                    if !type.isAccessibilitySize { facts }
                 }
-                Spacer(minLength: 0)
             }
-            facts
+            if type.isAccessibilitySize { facts }
             Divider()
             // the two side by side (one column at the largest text sizes)
             let roles = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
@@ -152,7 +160,7 @@ private struct FamilyCard: View {
         let lived = app.age.map { "第 \($0.lived) 天" }
         let sex = app.sex == "boy" ? "男孩" : app.sex == "girl" ? "女孩" : nil
         let stage = app.age.map { _ in "这一段：" + Self.stretch[GrowingChild.stage(app.babyMonth ?? 0)] }
-        return FlowRow(spacing: 6) {
+        return FlowRow(spacing: 4) {
             if let birth { chip(birth, "calendar") } else {
                 Button(action: edit) { chip("填写出生日期", "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
             }
@@ -167,10 +175,10 @@ private struct FamilyCard: View {
     private func chip(_ t: String, _ symbol: String, strong: Bool = false) -> some View {
         HStack(spacing: 4) {
             Image(systemName: symbol).font(.caption2.weight(.bold))
-            Text(t).font(.caption.weight(.semibold)).fixedSize()
+            Text(t).font(.caption2.weight(.semibold)).fixedSize()
         }
         .foregroundStyle(strong ? Palette.accent : Palette.secondaryText)
-        .padding(.horizontal, 10).padding(.vertical, 5)
+        .padding(.horizontal, 7).padding(.vertical, 3)
         .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : Palette.outline.opacity(0.3)))
     }
 
@@ -293,7 +301,7 @@ private struct SwitchRow: View {
             }
         }
         .tint(Palette.accent)
-        .padding(.horizontal, 14).padding(.vertical, 8)
+        .padding(.horizontal, 14).padding(.vertical, 6)
     }
 }
 
@@ -310,7 +318,7 @@ private struct DataRow: View {
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
+        .padding(.horizontal, 16).padding(.vertical, 8).contentShape(Rectangle())
     }
 }
 
