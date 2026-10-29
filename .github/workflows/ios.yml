@@ -102,6 +102,15 @@ jobs:
           plutil -p "$APP/Info.plist" | grep -A8 CFBundleIcons | tr '\n' ' ' | sed 's/^/::notice title=Icons::/'; echo
           ls "$APP" | grep -i -E "icon|Assets.car" | tr '\n' ' ' | sed 's/^/::notice title=Bundle::/'; echo
           grep -iE "AppIcon|actool.*warning|\.icon" ios/build.log | head -8 | while IFS= read -r l; do echo "::notice title=actool::$l"; done
+          # the icon as the system draws it (Icon Composer's own renderer), light, dark and tinted, with the screens
+          mkdir -p ios/shots; cp "$APP/AppIcon60x60@2x.png" ios/shots/icon_compiled_60@2x.png 2>/dev/null || true
+          IC=$(find /Applications/Xcode*.app -name ictool -type f 2>/dev/null | head -1); echo "::notice title=ictool::${IC:-none}"
+          if [ -n "$IC" ]; then
+            "$IC" --help 2>&1 | head -30 > ios/shots/icon_ictool_help.txt || true
+            for r in Default Dark TintedLight TintedDark ClearLight ClearDark; do
+              "$IC" ios/Mossling/Resources/AppIcon.icon --export-image --output-file "ios/shots/icon_$r.png" --platform iOS --rendition "$r" --width 1024 --height 1024 --scale 1 >> ios/shots/icon_ictool_help.txt 2>&1 || true
+            done
+          fi
       - name: Report errors
         if: failure()
         working-directory: ios
