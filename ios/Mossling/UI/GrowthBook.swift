@@ -33,7 +33,6 @@ struct GrowthBookView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle("成长册")
-        .toolbar { firstsLink }
         .navigationSubtitle(subtitle)
     }
 
@@ -49,12 +48,6 @@ struct GrowthBookView: View {
         }
         flush()
         return out
-    }
-
-    private var firstsLink: some ToolbarContent {
-        ToolbarItem(placement: .topBarTrailing) {
-            NavigationLink(value: JournalRoute.firsts) { Label("第一次", systemImage: "star") }
-        }
     }
 
     private var subtitle: String {
@@ -168,20 +161,32 @@ private struct BookTotals: View {
             item("\(plays)", "次玩耍")
             Divider().frame(height: 30)
             item("\(kinds)", "种教具")
-            if firsts > 0 { Divider().frame(height: 30); item("\(firsts)", "个第一次") }
+            Divider().frame(height: 30)
+            // the firsts open from their own count: the timeline of every 第一次, and a new one kept there
+            NavigationLink(value: JournalRoute.firsts) {
+                VStack(spacing: 1) {
+                    Text("\(firsts)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.bead.mix(with: .black, by: 0.18))
+                    HStack(spacing: 2) {
+                        Text("个第一次").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.tertiary)
+                    }
+                }
+                .frame(maxWidth: .infinity).contentShape(Rectangle())
+            }
+            .buttonStyle(.toy)
+            .accessibilityLabel("\(firsts) 个第一次，打开第一次时间线")
         }
         .padding(.vertical, 12)
         .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.08)], startPoint: .leading, endPoint: .trailing))
         .printCard(radius: 22)
         .padding(.top, 4)
-        .accessibilityElement(children: .combine)
     }
     private func item(_ n: String, _ unit: String) -> some View {
         VStack(spacing: 1) {
             Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.accent)
             Text(unit).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
         }
-        .frame(maxWidth: .infinity)
+        .frame(maxWidth: .infinity).accessibilityElement(children: .combine)
     }
 }
 
