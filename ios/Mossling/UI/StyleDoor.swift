@@ -320,7 +320,7 @@ private struct StoryKnock: ViewModifier {
     let open: () -> Void
     @State private var count = 0
     @State private var last = Date.distantPast
-    func body(content: Content) -> some View {
+    func body(content: Self.Content) -> some View {
         content
             .contentShape(Rectangle())
             .simultaneousGesture(TapGesture().onEnded {
