@@ -15,7 +15,7 @@ struct YouView: View {
         ScrollView {
             // the whole page in one screen: the family, the book, then one card of settings and one of data
             VStack(alignment: .leading, spacing: 10) {
-                // the family: the child (Moss) and the grown-up (Otto) on the child's own hill, beside who the child is
+                // the family: the child's own portrait and who the child is, then the companion (Moss or Otto) to choose
                 FamilyCard { editing = true }
 
                 // the growth book: a page for every month lived, from what is already recorded
@@ -90,13 +90,11 @@ private struct FamilyCard: View {
         VStack(alignment: .leading, spacing: 10) {
             // the scene beside who the child is, not over it (the growth map is the big picture of the hill)
             HStack(alignment: .top, spacing: 12) {
-                MapVignette(month: baby, baby: baby, otto: true, giggle: giggles)
-                    .frame(width: type.isAccessibilitySize ? 120 : 136, height: type.isAccessibilitySize ? 86 : 98)
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .contentShape(Rectangle())
+                BabyPortrait(month: baby, sex: app.sex, giggle: giggles)
+                    .frame(width: type.isAccessibilitySize ? 84 : 96, height: type.isAccessibilitySize ? 84 : 96)
+                    .contentShape(Circle())
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
-                    .accessibilityElement().accessibilityLabel("Moss 和 Otto 在家").accessibilityAddTraits(.isImage)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
@@ -127,12 +125,8 @@ private struct FamilyCard: View {
             }
             if type.isAccessibilitySize { facts }
             Divider()
-            // the two side by side (one column at the largest text sizes)
-            let roles = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
-            roles {
-                role(.moss, "宝宝", Kind.moss.trait)
-                role(.otto, "大人", Kind.otto.trait)
-            }
+            // who keeps the child company in the app: Moss or Otto, chosen here (tap the chosen one and it answers)
+            CompanionPicker()
         }
         .padding(14)
         .printCard(radius: 28)
@@ -166,24 +160,83 @@ private struct FamilyCard: View {
         .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : .clear))
     }
 
-    private func role(_ k: Kind, _ who: String, _ trait: String) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && night ? 0.5 : nil, alive: true, poke: true, glow: k == .otto && night)
-                .frame(width: 34 * k.scale, height: 34 * k.scale)
-                .frame(width: 40, height: 40)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: 6) {
-                    Text(k.rawValue).font(.subheadline.weight(.bold))
-                    Text(who).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        .padding(.horizontal, 6).padding(.vertical, 1)
-                        .background(Capsule().strokeBorder(Palette.outline, lineWidth: 1))
-                }
-                Text(trait).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+}
+
+/// The child's own portrait: the child at this stage of growing, framed in a round of the child's colour — a rosy pink
+/// with a small flower for a girl, a sky blue with a little boat for a boy, a warm gold when not said. (The growth map
+/// is the landscape; this is the face.) Tapped, the child giggles.
+private struct BabyPortrait: View {
+    let month: Int, sex: String?, giggle: Int
+    @Environment(\.lamp) private var lamp
+    var body: some View {
+        let girl = sex == "girl", boy = sex == "boy"
+        let tone = girl ? Crayon.pink : boy ? Crayon.sky : Crayon.sunflower
+        GeometryReader { g in
+            let s = min(g.size.width, g.size.height)
+            ZStack {
+                Circle().fill(RadialGradient(colors: [tone.opacity(lamp ? 0.5 : 0.32), tone.opacity(lamp ? 0.22 : 0.14)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 0, endRadius: s * 0.6))
+                GrowingChild(month: month, giggle: giggle)
+                    .frame(width: s * 0.86, height: s * 0.86)
+                    .offset(y: s * 0.08)
+                    .clipShape(Circle())
+                Circle().strokeBorder(Color.white.opacity(lamp ? 0.25 : 0.9), lineWidth: 2.5)
             }
-            Spacer(minLength: 0)
+            .frame(width: s, height: s)
+            .overlay(alignment: .topTrailing) {
+                if girl || boy {
+                    Image(systemName: girl ? "camera.macro" : "sailboat.fill")
+                        .font(.system(size: s * 0.14, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: s * 0.3, height: s * 0.3)
+                        .background(Circle().fill(tone))
+                        .overlay(Circle().strokeBorder(Color.white, lineWidth: 2))
+                        .offset(x: 2, y: -2)
+                        .accessibilityHidden(true)
+                }
+            }
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .accessibilityElement(children: .combine)
+        .accessibilityElement().accessibilityAddTraits(.isImage)
+        .accessibilityLabel(sex == "girl" ? "女宝宝" : sex == "boy" ? "男宝宝" : "宝宝")
+    }
+}
+
+/// The companion for the app — the one at the child's side on the pages, in the records and on the widgets: Moss or
+/// Otto, side by side in one row, each with a word on their way of being. The chosen one stands on a spot of light;
+/// tapping the other brings it forward, tapping the chosen one makes it answer.
+private struct CompanionPicker: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.lamp) private var lamp
+    @State private var cheer = 0
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Kind.allCases, id: \.self) { k in
+                let on = app.companion == k
+                Button {
+                    if on { cheer += 1 } else { withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) { app.companion = k }; cheer += 1 }
+                } label: {
+                    HStack(alignment: .center, spacing: 6) {
+                        Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
+                                 alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
+                            .frame(width: (on ? 40 : 32) * k.scale, height: (on ? 40 : 32) * k.scale)
+                            .frame(width: 44, height: 44, alignment: .bottom)
+                            .background(alignment: .bottom) {
+                                if on { Ellipse().fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 24)).frame(width: 46, height: 10).offset(y: 3) }
+                            }
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
+                            Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                    }
+                    .padding(6)
+                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? Palette.accent.opacity(lamp ? 0.18 : 0.08) : .clear))
+                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel("陪伴伙伴 \(k.rawValue)，\(k.trait)").accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .sensoryFeedback(.impact(weight: .light), trigger: cheer)
     }
 }
 
