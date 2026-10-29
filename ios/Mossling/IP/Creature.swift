@@ -50,6 +50,8 @@ struct Creature: View {
     @State private var lastTap = Date.distantPast
     @State private var pattedAt = Date.distantPast
     @State private var pats = 0
+    @State private var stoneAt = Date.distantPast
+    @Environment(MascotDirector.self) private var director: MascotDirector?
     @State private var yawnAt = Date.distantPast
     @State private var sprites: [String: UIImage] = [:]
     /// Off screen in a scroll view: nothing to animate (the frame clock stops until it scrolls back).
@@ -88,6 +90,8 @@ struct Creature: View {
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
         // a sleep begins: Otto answers with his slow yawn — the mouth opening tall, the heavy lid coming down with it
         .onChange(of: journal?.sleepsStarted ?? 0) { _, _ in if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } }
+        // a save that failed: Moss, thwarted, presses flat to the ground, "a stone again", and comes back up
+        .onChange(of: director?.setbacks ?? 0) { _, _ in if kind == .moss && !still { stoneAt = Date() } }
         .onChange(of: notice) { _, _ in
             guard !still else { return }
             if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
@@ -207,8 +211,10 @@ struct Creature: View {
         ctx.scaleBy(x: s, y: s)
         shadow(&ctx, kind == .moss ? 30 : 22, lift: hop)
         ctx.translateBy(x: 0, y: -hop * 7)
-        // squash and stretch from the feet
-        ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: 1 - b * amp * 0.5, y: 1 + b * amp); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
+        // squash and stretch from the feet; thwarted, Moss presses flat for a moment ("a stone again")
+        let st = now.timeIntervalSince(stoneAt)
+        let stone = still || st < 0 || st > 1.5 ? 0 : (st < 0.18 ? st / 0.18 : st < 0.9 ? 1 : 1 - Self.ease((st - 0.9) / 0.6))
+        ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: (1 - b * amp * 0.5) * (1 + 0.12 * stone), y: (1 + b * amp) * (1 - 0.2 * stone)); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
 
         let patted = now.timeIntervalSince(pattedAt) < 1.6
         // the resting lids are part of the figures (Moss half-lidded, Otto heavier); only a real blink or a shut lid swaps

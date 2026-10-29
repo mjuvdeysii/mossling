@@ -100,6 +100,8 @@ final class MascotDirector {
     private(set) var acknowledgements = 0
     /// Counts the looks at something that changed.
     private(set) var observations = 0
+    /// Counts the saves that failed: Moss, thwarted, flattens to "a stone again" for a moment (the character bible).
+    private(set) var setbacks = 0
     private(set) var night = false
     /// Whether a feed or a sleep is being timed.
     var timing = false
@@ -117,6 +119,7 @@ final class MascotDirector {
         state = MascotMachine.next(state, e, night: night, timing: timing)
         if state == .acknowledge && e == .recordPersistSuccess { acknowledgements &+= 1 }
         if state == .observing && old != .observing { observations &+= 1 }
+        if e == .recordPersistFailure { setbacks &+= 1 }
         if state == .acknowledge || state == .observing {
             let style = MascotStyle.of(companion)
             let ms = state == .acknowledge ? style.acknowledgeMs : style.observeMs

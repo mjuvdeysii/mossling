@@ -41,6 +41,8 @@ struct FlatCreature: View {
     @State private var pattedAt = Date.distantPast
     @State private var pats = 0
     @State private var yawnAt = Date.distantPast
+    @State private var stoneAt = Date.distantPast
+    @Environment(MascotDirector.self) private var director: MascotDirector?
     @Environment(JournalStore.self) private var journal: JournalStore?
 
     @State private var onScreen = true
@@ -66,6 +68,7 @@ struct FlatCreature: View {
         .task(id: still) { await blinks() }
         .task(id: still) { await glances() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
+        .onChange(of: director?.setbacks ?? 0) { _, _ in if kind == .moss && !still { stoneAt = Date() } }
         .onChange(of: journal?.sleepsStarted ?? 0) { _, _ in if kind == .otto && !still { yawnAt = Date().addingTimeInterval(0.3) } }
         .onChange(of: notice) { _, _ in
             guard !still else { return }
@@ -141,7 +144,9 @@ struct FlatCreature: View {
         ctx.translateBy(x: (size.width - 100 * s) / 2, y: (size.height - 100 * s) / 2 - hop * 7 * s)
         ctx.scaleBy(x: s, y: s)
         // squash and stretch from the feet
-        ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 - b * amp * 0.5, y: 1 + b * amp); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -88)
+        let st = now.timeIntervalSince(stoneAt)
+        let stone = still || st < 0 || st > 1.5 ? 0 : (st < 0.18 ? st / 0.18 : st < 0.9 ? 1 : 1 - Self.ease((st - 0.9) / 0.6))
+        ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: (1 - b * amp * 0.5) * (1 + 0.12 * stone), y: (1 + b * amp) * (1 - 0.2 * stone)); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -88)
 
         let patted = now.timeIntervalSince(pattedAt) < 1.6
         let rest = lid ?? (kind == .otto ? 0.34 : 0)
