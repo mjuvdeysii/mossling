@@ -106,6 +106,12 @@ final class ScreenshotTests: XCTestCase {
         let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
         shot("06_play_2d", height: 2000, tabs(m, PlayView(play: m.content.play("A11")!, month: 6)))
     }
+    /// The 2D world under the lamp: fireflies over the page (behind the cards), and 2D by day for the drifting air.
+    func test31Lamp2D() {
+        let m = model(); m.journal = true; ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
+        shot("31_lamp_home_2d", height: 1200, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("31_lamp_journal_2d", height: 1200, lamp: true, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true)))
+    }
     func test15Journal2D() {
         let m = model(); m.journal = true; ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
         shot("15_journal_2d", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()))))
