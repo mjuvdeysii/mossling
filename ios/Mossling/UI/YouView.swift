@@ -102,10 +102,12 @@ private struct FamilyCard: View {
                         Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
                         Spacer(minLength: 4)
                         Button(action: edit) {
-                            Label("编辑", systemImage: "pencil").font(.caption.weight(.semibold))
+                            Label("编辑", systemImage: "pencil").font(.caption.weight(.semibold)).foregroundStyle(.white)
+                                .padding(.horizontal, 10).padding(.vertical, 5)
+                                .background(Capsule().fill(Palette.accentFill))
+                                .contentShape(Capsule().inset(by: -8))
                         }
-                        .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
-                        .controlSize(.small)
+                        .buttonStyle(.toy)
                         .accessibilityLabel("编辑宝宝信息")
                     }
                     if let a = app.age {
@@ -142,7 +144,7 @@ private struct FamilyCard: View {
         let lived = app.age.map { "第 \($0.lived) 天" }
         let sex = app.sex == "boy" ? "男孩" : app.sex == "girl" ? "女孩" : nil
         let stage = app.age.map { _ in "这一段：" + Self.stretch[GrowingChild.stage(app.babyMonth ?? 0)] }
-        return FlowRow(spacing: 4) {
+        return FlowRow(spacing: 10, lineSpacing: 3) {
             if let birth { chip(birth, "calendar") } else {
                 Button(action: edit) { chip("填写出生日期", "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
             }
@@ -160,8 +162,8 @@ private struct FamilyCard: View {
             Text(t).font(.caption2.weight(.semibold)).fixedSize()
         }
         .foregroundStyle(strong ? Palette.accent : Palette.secondaryText)
-        .padding(.horizontal, 7).padding(.vertical, 3)
-        .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : Palette.outline.opacity(0.3)))
+        .padding(.horizontal, strong ? 7 : 0).padding(.vertical, strong ? 3 : 1)
+        .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : .clear))
     }
 
     private func role(_ k: Kind, _ who: String, _ trait: String) -> some View {
@@ -188,12 +190,13 @@ private struct FamilyCard: View {
 /// Chips laid out in lines that wrap, left to right.
 private struct FlowRow: Layout {
     var spacing: CGFloat = 6
+    var lineSpacing: CGFloat = 6
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let w = proposal.width ?? .infinity
         var x: CGFloat = 0, y: CGFloat = 0, line: CGFloat = 0, widest: CGFloat = 0
         for v in subviews {
             let s = v.sizeThatFits(.unspecified)
-            if x > 0 && x + s.width > w { y += line + spacing; x = 0; line = 0 }
+            if x > 0 && x + s.width > w { y += line + lineSpacing; x = 0; line = 0 }
             x += s.width + spacing; line = max(line, s.height); widest = max(widest, x - spacing)
         }
         return CGSize(width: proposal.width ?? widest, height: y + line)
@@ -202,7 +205,7 @@ private struct FlowRow: Layout {
         var x = b.minX, y = b.minY, line: CGFloat = 0
         for v in subviews {
             let s = v.sizeThatFits(.unspecified)
-            if x > b.minX && x + s.width > b.maxX { y += line + spacing; x = b.minX; line = 0 }
+            if x > b.minX && x + s.width > b.maxX { y += line + lineSpacing; x = b.minX; line = 0 }
             v.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(s))
             x += s.width + spacing; line = max(line, s.height)
         }
@@ -233,19 +236,23 @@ private struct Swatch: View {
     let pick: () -> Void
     var body: some View {
         Button(action: pick) {
-            VStack(spacing: 3) {
+            ZStack(alignment: .bottom) {
                 preview
-                    .frame(height: 34)
+                    .frame(height: 38)
                     .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
                     .overlay(alignment: .topTrailing) {
                         if on { Image(systemName: "checkmark.circle.fill").font(.caption2).foregroundStyle(.white, Palette.accentFill).padding(3) }
                     }
-                HStack(spacing: 4) {
+                // the name on the window itself, on a small plate that reads on day and night alike
+                HStack(spacing: 2) {
                     Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
-                        .font(.caption2).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
-                    Text(mode.label).font(.caption2.weight(on ? .bold : .medium)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
+                        .font(.system(size: 8, weight: .bold)).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
+                    Text(mode.label).font(.caption2.weight(on ? .bold : .semibold)).foregroundStyle(.primary)
                 }
+                .padding(.horizontal, 5).padding(.vertical, 1)
+                .background(.thinMaterial, in: Capsule())
+                .padding(.bottom, 3)
             }
             .frame(maxWidth: .infinity)
         }
