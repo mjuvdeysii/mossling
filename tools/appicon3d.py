@@ -32,7 +32,7 @@ def scene():
     bead = bpy.data.objects["otto_bead"].matrix_world.translation
     # a rim of light from behind and above, so both read against the night fill as well as the day one
     bpy.ops.object.light_add(type="AREA", location=(0.3, 3.0, 2.6)); r = bpy.context.object
-    r.data.energy = 260; r.data.size = 3.0; r.data.color = hexcol("#FFE2B8")[:3]
+    r.data.energy = 360; r.data.size = 3.0; r.data.color = hexcol("#FFE2B8")[:3]
     r.rotation_euler = (math.radians(-130), 0, 0)
     return s, bead
 
