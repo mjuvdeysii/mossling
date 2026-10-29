@@ -137,7 +137,7 @@ struct AirEmitter: UIViewRepresentable {
                 pulse.contents = Self.firefly().cgImage
                 pulse.birthRate = 0.55; pulse.lifetime = 2.2; pulse.lifetimeRange = 0.8
                 pulse.velocity = 0; pulse.scale = 0.42 * z; pulse.scaleSpeed = -0.14 * z
-                pulse.alpha = 0.9; pulse.alphaSpeed = -0.42
+                pulse.alphaRange = 0.1; pulse.alphaSpeed = -0.42
                 c.emitterCells = [pulse]
                 cells = [c]
                 emitter.renderMode = .additive
