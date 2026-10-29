@@ -129,6 +129,9 @@ def leaf(name, at, rot, length, material, width=0.55):
     o.location = at; o.rotation_euler = rot
     o.data.materials.append(material); return o
 
+# the young pair at the tip, as a share of its usual size (the app icon draws it larger, so both pairs read small)
+YOUNG = 1.0
+
 def sprig(top, material_big, material_small, perk=0.0):
     """Moss's mint sprig, as on the icon: a stem, two big leaves at a node (left and right), and at the tip two small
     young leaves turned a quarter (mint leaves grow in opposite pairs, each pair crossing the one below)."""
@@ -141,8 +144,8 @@ def sprig(top, material_big, material_small, perk=0.0):
     return [stem,
             leaf("moss_leafL", n1, Euler((-roll, -up_big, math.radians(185))), 0.33, material_big, width=0.62),
             leaf("moss_leafR", n1, Euler((roll, -up_big, math.radians(-5))), 0.35, material_big, width=0.62),
-            leaf("moss_leafF", n2, Euler((-roll, -up_small, math.radians(160))), 0.14, material_small, width=0.6),
-            leaf("moss_leafB", n2, Euler((roll, -up_small, math.radians(20))), 0.13, material_small, width=0.6)]
+            leaf("moss_leafF", n2, Euler((-roll, -up_small, math.radians(160))), 0.14 * YOUNG, material_small, width=0.6),
+            leaf("moss_leafB", n2, Euler((roll, -up_small, math.radians(20))), 0.13 * YOUNG, material_small, width=0.6)]
 
 def tube(name, points, radius, material):
     cd = bpy.data.curves.new(name, "CURVE"); cd.dimensions = "3D"; cd.bevel_depth = radius; cd.bevel_resolution = 6

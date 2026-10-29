@@ -23,6 +23,8 @@ def scene():
     ip3d.materials(); ip3d.sprite_lights()
     # Moss: the main one, a little in front of the middle; Otto at his side (centres 1.12 apart: Moss reaches 0.57,
     # Otto 0.42 at this scale, so a clear gap between them)
+    # Moss's sprig is two pairs of mint leaves (the character bible): at icon size the young pair at the tip must read
+    ip3d.YOUNG = 1.55
     m = build_moss(lid=0.0, er=0.13, pupil=0.5, perk=1.0, look=(0.55, 0.35))
     m.location = (-0.5, 0.0, 0.0); m.rotation_euler = (0, 0, math.radians(14))
     o = build_otto(lid=0.42, look=(-0.7, -0.25), slouch=0.4, droop=0.0, bags=True, glow=0.0)
