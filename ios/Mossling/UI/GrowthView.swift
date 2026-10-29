@@ -170,29 +170,17 @@ struct StatsView: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dynamicTypeSize) private var type
     var body: some View {
-        let days = (0..<7).reversed().map { app.today.plus(days: -$0) }
-        let rows = days.map { d -> (Day, Int, Double, Int, Double, Double) in
-            let l = j.logs(on: d)
-            return (d, l.feedCount(from: d.date.timeIntervalSince1970 * 1000),
-                    l.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) } / 3600,
-                    l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count,
-                    // minutes on the breast (pauses left out) and millilitres from the bottle
-                    l.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) } / 60,
-                    Double(l.filter { $0.type == LogType.bottle && !$0.carriedOver(into: d) }.reduce(0) { $0 + ($1.amount ?? 0) }))
-        }
+        let rows = week()
         ScrollView {
             // two small charts to a row (one at the largest text sizes): the week of every kind in one screen; when the
             // count is odd the last one takes the whole row, so no half row stands empty
-            let charts: [(String, String, String, [(Day, Double)])] = [("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })]
-                + (rows.contains(where: { $0.4 > 0 }) ? [("亲喂时长", "分钟", LogType.nurse, rows.map { ($0.0, $0.4) })] : [])
-                + (rows.contains(where: { $0.5 > 0 }) ? [("瓶喂奶量", "毫升", LogType.bottle, rows.map { ($0.0, $0.5) })] : [])
-                + [("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) }), ("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })]
+            let charts = Self.charts(rows)
             let per = type.isAccessibilitySize ? 1 : 2
             VStack(spacing: 12) {
                 ForEach(Array(stride(from: 0, to: charts.count, by: per)), id: \.self) { i in
                     HStack(alignment: .top, spacing: 12) {
                         ForEach(i..<min(i + per, charts.count), id: \.self) { k in
-                            chart(charts[k].0, charts[k].1, charts[k].2, charts[k].3).frame(maxWidth: .infinity)
+                            chart(charts[k].title, charts[k].unit, charts[k].type, charts[k].data).frame(maxWidth: .infinity)
                         }
                     }
                 }
@@ -203,6 +191,33 @@ struct StatsView: View {
         }
         .pageBackground()
         .navigationTitle("最近七天")
+    }
+    /// Each of the last seven days: feeds, hours asleep, nappies, minutes at the breast (pauses left out), bottle ml.
+    private func week() -> [(Day, Int, Double, Int, Double, Double)] {
+        var out: [(Day, Int, Double, Int, Double, Double)] = []
+        for back in stride(from: 6, through: 0, by: -1) {
+            let d: Day = app.today.plus(days: -back)
+            let l = j.logs(on: d)
+            let feeds: Int = l.feedCount(from: d.date.timeIntervalSince1970 * 1000)
+            let sleep: Double = l.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) } / 3600
+            let nappies: Int = l.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count
+            let nursed: Double = l.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) } / 60
+            let ml: Int = l.filter { $0.type == LogType.bottle && !$0.carriedOver(into: d) }.reduce(0) { $0 + ($1.amount ?? 0) }
+            out.append((d, feeds, sleep, nappies, nursed, Double(ml)))
+        }
+        return out
+    }
+    private struct Spec { let title: String; let unit: String; let type: String; let data: [(Day, Double)] }
+    /// The charts there is something for: feeds, minutes at the breast and bottle millilitres when any were recorded,
+    /// sleep, nappies.
+    private static func charts(_ rows: [(Day, Int, Double, Int, Double, Double)]) -> [Spec] {
+        var out: [Spec] = []
+        out.append(Spec(title: "喂奶", unit: "次", type: LogType.nurse, data: rows.map { ($0.0, Double($0.1)) }))
+        if rows.contains(where: { $0.4 > 0 }) { out.append(Spec(title: "亲喂时长", unit: "分钟", type: LogType.nurse, data: rows.map { ($0.0, $0.4) })) }
+        if rows.contains(where: { $0.5 > 0 }) { out.append(Spec(title: "瓶喂奶量", unit: "毫升", type: LogType.bottle, data: rows.map { ($0.0, $0.5) })) }
+        out.append(Spec(title: "睡眠", unit: "小时", type: LogType.sleep, data: rows.map { ($0.0, $0.2) }))
+        out.append(Spec(title: "尿布", unit: "片", type: LogType.diaper, data: rows.map { ($0.0, Double($0.3)) }))
+        return out
     }
     private func chart(_ t: String, _ unit: String, _ type: String, _ data: [(Day, Double)]) -> some View {
         let had = data.filter { $0.1 > 0 }
