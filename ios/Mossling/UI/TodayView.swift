@@ -234,18 +234,18 @@ struct Topics: View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题", detail: "照护参考")
-            // two to a row: the five topics in three short rows
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 10) {
+            // three to a row: the five topics in two short rows
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 3), spacing: 8) {
                 ForEach(items) { x in
                     NavigationLink(value: Route.topic(x.t.id)) {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 28)
-                            Text(x.t.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                .multilineTextAlignment(.leading).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        HStack(spacing: 6) {
+                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 22)
+                            Text(x.t.title).font(.footnote.weight(.semibold)).foregroundStyle(.primary)
+                                .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
                             Spacer(minLength: 0)
                         }
-                        .padding(.horizontal, 12).padding(.vertical, 10)
-                        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
+                        .padding(.horizontal, 8).padding(.vertical, 8)
+                        .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
                         .printCard(radius: 18)
                         .contentShape(Rectangle())
                     }
@@ -358,6 +358,8 @@ struct ShelfView: View {
                                 .padding(.horizontal, 7).padding(.vertical, 3)
                                 .vinylSurface(Palette.accentFill, radius: 10, strong: true).fixedSize()
                         }
+                        // how many times, on the same line (three lines to a compartment, not four)
+                        if !big { Spacer(minLength: 4); BeadCount(times: times) }
                     }
                     Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                         .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
@@ -365,7 +367,7 @@ struct ShelfView: View {
                         Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
                             .lineLimit(big ? 3 : 1).multilineTextAlignment(.leading)
                     }
-                    BeadCount(times: times).padding(.top, 1)
+                    if big { BeadCount(times: times).padding(.top, 1) }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
