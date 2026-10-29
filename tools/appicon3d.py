@@ -67,14 +67,47 @@ def main():
     assets = os.path.join(ICON, "Assets")
     for f in os.listdir(assets): os.remove(os.path.join(assets, f))
     g.save(os.path.join(assets, "duo.png"))
+    finish()
+    preview(g)
+
+def finish():
+    """The layers made from the rendered pair, and the icon's description. By night (the dark icon) Otto's lamp is lit:
+    a warm glow round the bead, under the pair. Tinted (the system's one-colour icons), the pair in light tones: the
+    system tints by lightness, and the dark blue Otto disappeared into the tinted dark."""
+    from PIL import ImageOps, ImageChops
+    import numpy as np
+    assets = os.path.join(ICON, "Assets")
+    g = Image.open(os.path.join(assets, "duo.png")).convert("RGBA")
+    a = np.asarray(g).astype(int)
+    bead = (a[..., 3] > 200) & (a[..., 0] > 200) & (a[..., 1] > 120) & (a[..., 1] < 200) & (a[..., 2] < 80)
+    ys, xs = np.nonzero(bead); bx, by = float(xs.mean()), float(ys.mean())
+    # the lamp's glow: a soft warm light round the bead and a pool falling below it
+    glow = Image.new("RGBA", g.size, (0, 0, 0, 0)); d = ImageDraw.Draw(glow)
+    for r, al in ((210, 40), (140, 70), (80, 120), (40, 190)):
+        d.ellipse((bx - r, by - r, bx + r, by + r), fill=(255, 196, 110, al))
+    glow = glow.filter(ImageFilter.GaussianBlur(46))
+    glow.save(os.path.join(assets, "glow.png"))
+    # the pair for tinting: its own shading kept, lifted into the light half
+    lum = ImageOps.grayscale(g.convert("RGB"))
+    lum = lum.point(lambda v: int(40 + 215 * (v / 255) ** 0.5))   # bodies light, eyes still dark
+    tint = Image.merge("RGBA", (lum, lum, lum, g.getchannel("A")))
+    tint.save(os.path.join(assets, "duo_tint.png"))
+    pos = {"scale": 1, "translation-in-points": [0, 0]}
     spec = {
         "fill-specializations": [
             {"value": {"linear-gradient": ["display-p3:1.00000,0.96500,0.90500,1.00000", "display-p3:0.98000,0.86500,0.72000,1.00000"]}},
             {"appearance": "dark", "value": {"linear-gradient": ["display-p3:0.29000,0.20500,0.14500,1.00000", "display-p3:0.13000,0.09000,0.06000,1.00000"]}},
         ],
         "groups": [{
-            "layers": [{"image-name": "duo.png", "name": "Moss and Otto", "glass": False, "hidden": False,
-                        "position": {"scale": 1, "translation-in-points": [0, 0]}}],
+            # first is front: the pair (or its tinting version), then the lamp's glow behind it at night
+            "layers": [
+                {"image-name": "duo.png", "name": "Moss and Otto", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": False}, {"appearance": "tinted", "value": True}]},
+                {"image-name": "duo_tint.png", "name": "Moss and Otto (tinted)", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": True}, {"appearance": "tinted", "value": False}]},
+                {"image-name": "glow.png", "name": "The lamp lit", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": True}, {"appearance": "dark", "value": False}]},
+            ],
             "lighting": "individual", "specular": False,
             "shadow": {"kind": "neutral", "opacity": 0.3},
             "translucency": {"enabled": False, "value": 0.5},
@@ -82,6 +115,8 @@ def main():
         "supported-platforms": {"squares": ["iOS"]},
     }
     json.dump(spec, open(os.path.join(ICON, "icon.json"), "w"), indent=2)
+
+def preview(g):
     if len(sys.argv) > 3:
         out = sys.argv[3]; P = Image.new("RGB", (2 * 560, 560), "white")
         for i, (a, b) in enumerate((((255, 246, 231), (250, 221, 184)), ((74, 52, 37), (33, 23, 15)))):
@@ -101,4 +136,4 @@ def main():
         Q.save(out)
 
 if __name__ == "__main__":
-    main()
+    finish() if "--finish" in sys.argv else main()

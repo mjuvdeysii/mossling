@@ -25,14 +25,64 @@
           "image-name": "duo.png",
           "name": "Moss and Otto",
           "glass": false,
-          "hidden": false,
           "position": {
             "scale": 1,
             "translation-in-points": [
               0,
               0
             ]
-          }
+          },
+          "hidden-specializations": [
+            {
+              "value": false
+            },
+            {
+              "appearance": "tinted",
+              "value": true
+            }
+          ]
+        },
+        {
+          "image-name": "duo_tint.png",
+          "name": "Moss and Otto (tinted)",
+          "glass": false,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          },
+          "hidden-specializations": [
+            {
+              "value": true
+            },
+            {
+              "appearance": "tinted",
+              "value": false
+            }
+          ]
+        },
+        {
+          "image-name": "glow.png",
+          "name": "The lamp lit",
+          "glass": false,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          },
+          "hidden-specializations": [
+            {
+              "value": true
+            },
+            {
+              "appearance": "dark",
+              "value": false
+            }
+          ]
         }
       ],
       "lighting": "individual",
