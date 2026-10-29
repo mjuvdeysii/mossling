@@ -247,12 +247,14 @@ private struct DayCompanion: View {
     @Environment(MascotDirector.self) private var mascot: MascotDirector?
     let lamp: Bool
     let empty: Bool
+    /// The baby is asleep (a sleep is being timed): the companion dozes too, eyes shut, keeping quiet.
+    var hush = false
     @State private var answering = false
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         let k = app.companion
-        Creature(kind: k, mood: answering ? .happy : .open, look: CGPoint(x: -0.6, y: 0.3),
-                 lid: lamp && !answering ? 0.5 : nil, alive: answering || lamp, glow: lamp && k == .otto)
+        Creature(kind: k, mood: answering ? .happy : hush ? .sleep : .open, look: CGPoint(x: -0.6, y: 0.3),
+                 lid: lamp && !answering && !hush ? 0.5 : nil, alive: answering || lamp || hush, glow: lamp && k == .otto && !hush)
             .frame(width: 50, height: 50)
             .accessibilityHidden(true)
             .onChange(of: mascot?.acknowledgements ?? 0) { _, _ in
@@ -289,7 +291,7 @@ private struct DayPage: View {
                     Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer()
-                DayCompanion(lamp: lamp, empty: logs.isEmpty)
+                DayCompanion(lamp: lamp, empty: logs.isEmpty, hush: day == today && timers.contains { $0.type == LogType.sleep && $0.pausedAt == nil })
             }
             // every number on the page is a way in: tap a total (or one of the other kinds) to see only that kind
             Totals(logs: logs, day: day, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
