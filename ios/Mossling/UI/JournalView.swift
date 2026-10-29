@@ -153,7 +153,7 @@ private struct StickerSheet: View {
     let tap: (String) -> Void
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { tl in
-            Grid(horizontalSpacing: 4, verticalSpacing: 14) {
+            Grid(horizontalSpacing: 4, verticalSpacing: 10) {
                 ForEach(0..<2, id: \.self) { r in
                     GridRow {
                         ForEach(LogType.buttons[(r * 5)..<min(LogType.buttons.count, r * 5 + 5)], id: \.self) { t in
@@ -164,7 +164,7 @@ private struct StickerSheet: View {
                     }
                 }
             }
-            .padding(.vertical, 16).padding(.horizontal, 8)
+            .padding(.vertical, 12).padding(.horizontal, 8)
             .printCard(radius: 26)
         }
         // five across must fit the narrowest phone: past the largest standard size the stickers stop growing and a
@@ -281,7 +281,7 @@ private struct DayPage: View {
 
     var body: some View {
         let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
                 Text("\(day.d)").font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .bold))
                 VStack(alignment: .leading, spacing: 0) {
@@ -298,16 +298,18 @@ private struct DayPage: View {
             DayRibbon(day: day, logs: logs, timers: timers, only: only)
             if day == today { ForEach(timers.filter { t in only.map { JournalKinds.matches(t.type, $0) } ?? true }, id: \.type) { t in RunningRow(timer: t) } }
             if logs.isEmpty && (day != today || timers.isEmpty) {
-                VStack(spacing: 8) {
-                    Duo(primary: app.companion, size: 56, mood: lamp ? .open : .sleep, night: lamp)
-                    Text("这一页还空着").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                // an empty day: the two dozing beside one line, not a stage of its own
+                HStack(spacing: 10) {
+                    Duo(primary: app.companion, size: 40, mood: lamp ? .open : .sleep, night: lamp)
+                    Text("这一页还空着，点上面的贴纸就能记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Spacer(minLength: 0)
                 }
-                .frame(maxWidth: .infinity).padding(.vertical, 12)
+                .padding(.vertical, 2)
             } else if !logs.isEmpty {
                 DayTimeline(day: day, today: today, logs: shown, all: j.logs, edit: edit, delete: delete, gaps: only == nil)
             }
         }
-        .padding(18)
+        .padding(16)
         .background { DotPaper() }
         .printCard(radius: 26)
         // the chosen kind stays when the day changes: flip through the week and compare feeds day by day
