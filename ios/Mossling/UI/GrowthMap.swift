@@ -430,10 +430,17 @@ struct GrowthMap: View {
                 let side: CGFloat = preview < baby && MapGeo.row(preview) == MapGeo.row(baby) ? MapGeo.facing(baby) : -MapGeo.facing(baby)
                 let want = home.x + side * 54
                 let ox = want < 20 || want > w - 20 ? home.x - side * 54 : want
+                // wherever Moss goes, Otto's light follows half a beat late (his way: he turns the lamp, never himself) —
+                // the pool slides after Moss, and his eye and lean come round more slowly still
+                let toMoss = CGPoint(x: at.x - ox, y: at.y - (home.y - 19))
+                let reach = max(1, hypot(toMoss.x, toMoss.y))
                 Ellipse().fill(RadialGradient(colors: [Palette.amber.opacity(night ? 0.42 : 0.2), .clear], center: .center, startRadius: 0, endRadius: 34))
-                    .frame(width: 76, height: 30).position(x: home.x, y: home.y + 2)
+                    .frame(width: 76, height: 30).position(x: at.x, y: at.y + 2)
+                    .animation(reduce ? nil : .easeInOut(duration: 0.7).delay(dragging ? 0.12 : 0.25), value: preview)
                     .allowsHitTesting(false)
-                Creature(kind: .otto, look: CGPoint(x: (home.x - ox) / 54 * 0.7, y: 0.3), lid: night ? 0.5 : nil, poke: true, glow: night, glowFor: night ? 4.5 : nil)
+                Creature(kind: .otto, look: CGPoint(x: toMoss.x / reach * 0.85, y: max(-0.2, min(0.6, toMoss.y / reach * 0.85 + 0.25))),
+                         lid: night ? 0.5 : nil, lean: toMoss.x > 8 ? 9 : toMoss.x < -8 ? -9 : 0,
+                         poke: true, glow: night, glowFor: night ? 4.5 : nil, lookSeconds: 0.85)
                     .frame(width: 48, height: 48)
                     .position(x: ox, y: home.y - 19)
                     .allowsHitTesting(false)
