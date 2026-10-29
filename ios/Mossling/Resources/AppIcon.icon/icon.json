@@ -83,6 +83,27 @@
               "value": false
             }
           ]
+        },
+        {
+          "image-name": "table.png",
+          "name": "The table",
+          "glass": false,
+          "position": {
+            "scale": 1,
+            "translation-in-points": [
+              0,
+              0
+            ]
+          },
+          "hidden-specializations": [
+            {
+              "value": false
+            },
+            {
+              "appearance": "tinted",
+              "value": true
+            }
+          ]
         }
       ],
       "lighting": "individual",

@@ -95,6 +95,12 @@ def finish():
         d.ellipse((mx - rx, mb - ry, mx + rx, mb + ry), fill=(255, 190, 105, al))
     glow = glow.filter(ImageFilter.GaussianBlur(46))
     glow.save(os.path.join(assets, "glow.png"))
+    # the low table they stand on (their world): a soft warm band of shade along the feet line, by day and by night
+    feet = float(np.percentile(np.nonzero(a[..., 3] > 200)[0], 99.6))
+    table = Image.new("RGBA", g.size, (0, 0, 0, 0)); dt = ImageDraw.Draw(table)
+    dt.ellipse((g.width * 0.04, feet - g.height * 0.05, g.width * 0.96, feet + g.height * 0.07), fill=(122, 82, 48, 46))
+    table = table.filter(ImageFilter.GaussianBlur(26))
+    table.save(os.path.join(assets, "table.png"))
     # the pair for tinting: its own shading kept, lifted into the light half
     lum = ImageOps.grayscale(g.convert("RGB"))
     lum = lum.point(lambda v: int(60 + 195 * (v / 255) ** 0.35))   # bodies light (the tinted dark dims them), eyes still darker
@@ -115,6 +121,8 @@ def finish():
                  "hidden-specializations": [{"value": True}, {"appearance": "tinted", "value": False}]},
                 {"image-name": "glow.png", "name": "The lamp lit", "glass": False, "position": pos,
                  "hidden-specializations": [{"value": True}, {"appearance": "dark", "value": False}]},
+                {"image-name": "table.png", "name": "The table", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": False}, {"appearance": "tinted", "value": True}]},
             ],
             "lighting": "individual", "specular": False,
             "shadow": {"kind": "layer-color", "opacity": 0.4},   # a shadow in the figures' own colour, softer and warmer than grey
