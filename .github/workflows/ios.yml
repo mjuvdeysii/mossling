@@ -106,9 +106,9 @@ jobs:
           mkdir -p ios/shots; cp "$APP/AppIcon60x60@2x.png" ios/shots/icon_compiled_60@2x.png 2>/dev/null || true
           IC=$(find /Applications/Xcode*.app -name ictool -type f 2>/dev/null | head -1); echo "::notice title=ictool::${IC:-none}"
           if [ -n "$IC" ]; then
-            "$IC" --help 2>&1 | head -30 > ios/shots/icon_ictool_help.txt || true
-            for r in Default Dark TintedLight TintedDark ClearLight ClearDark; do
-              "$IC" ios/Mossling/Resources/AppIcon.icon --export-image --output-file "ios/shots/icon_$r.png" --platform iOS --rendition "$r" --width 1024 --height 1024 --scale 1 >> ios/shots/icon_ictool_help.txt 2>&1 || true
+            : > ios/shots/icon_ictool.txt
+            for r in Light Dark TintedLight TintedDark ClearLight ClearDark; do
+              "$IC" ios/Mossling/Resources/AppIcon.icon --export-preview iOS "$r" 512 512 1 "ios/shots/icon_$r.png" >> ios/shots/icon_ictool.txt 2>&1 || true
             done
           fi
       - name: Report errors
