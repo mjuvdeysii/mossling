@@ -140,7 +140,7 @@ struct AirEmitter: UIViewRepresentable {
                 pulse.alphaRange = 0.1; pulse.alphaSpeed = -0.42
                 c.emitterCells = [pulse]
                 cells = [c]
-                emitter.renderMode = .additive
+                emitter.renderMode = .unordered   // the glow is in the drawing; additive layers also never reach a snapshot
             case .rise(let images):
                 let v: CGFloat = max(12, h / 8)
                 let life = Float((h + 20) / v)
