@@ -409,15 +409,15 @@ struct StoryView: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 14) {
                 // the hidden door between the two worlds: tap this picture five times and it shatters into the 2D
                 // world of build 196; in it, keep a finger moving on the picture for three seconds to come back
                 StyleDoor {
                     LampScene(play: true)
-                        .frame(height: 260)
+                        .frame(height: 180)
                         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 }
-                Text("孩子摸索，大人点灯").font(.title.weight(.bold))
+                Text("孩子摸索，大人点灯").font(.title2.weight(.bold))
                 pair("摸索", "孩子", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
                 pair("台灯", "大人", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
                 VStack(alignment: .leading, spacing: 12) {
@@ -426,9 +426,9 @@ struct StoryView: View {
                     thing("leaf.fill", Crayon.leaf, "看他长大", "0–36 个月，一个月一站，共 37 站；成长地图和成长册留下每一站的样子。")
                     thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来（可选）", "喂奶、睡眠、尿布一点即记，只保存在这部手机里。")
                 }
-                .card(Palette.card, radius: 24, padding: 18)
+                .card(Palette.card, radius: 22, padding: 14)
                 Text("这里不打分，不比较，也不催促。每个孩子都按自己的节奏，一个月长出一点新的样子。")
-                    .font(.body).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                    .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 StoryGoesOn(primary: app.companion)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -439,16 +439,16 @@ struct StoryView: View {
 
     private func pair(_ word: String, _ who: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
         HStack(alignment: .top, spacing: 14) {
-            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 60 * k.scale, height: 60 * k.scale).frame(width: 72, height: 72, alignment: .bottom).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
+            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 46 * k.scale, height: 46 * k.scale).frame(width: 54, height: 54, alignment: .bottom).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(word).font(.title2.weight(.bold)).foregroundStyle(c)
-                    Text("属于" + who).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(word).font(.title3.weight(.bold)).foregroundStyle(c)
+                    Text("属于" + who).font(.footnote).foregroundStyle(Palette.secondaryText)
                 }
-                Text(text).font(.body).fixedSize(horizontal: false, vertical: true)
+                Text(text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
             }
         }
-        .card(Palette.card, radius: 24, padding: 16)
+        .card(Palette.card, radius: 22, padding: 14)
         .accessibilityElement(children: .combine)
     }
 
