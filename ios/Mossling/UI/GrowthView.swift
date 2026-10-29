@@ -93,6 +93,15 @@ struct GrowthView: View {
                     LineMark(x: .value("月龄", p.1), y: .value("值", p.2), series: .value("百分位", "child")).foregroundStyle(ind.tint).lineStyle(StrokeStyle(lineWidth: 2.4))
                     PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(ind.tint).symbolSize(picked?.id == p.0.id ? 140 : 60)
                 }
+                // the companion sits on the child's newest point, on his own line (left alone while a point is picked)
+                if picked == nil, let p = pts.max(by: { $0.1 < $1.1 }) {
+                    PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(.clear)
+                        .annotation(position: .top, spacing: 0) {
+                            Creature(kind: app.companion, look: CGPoint(x: -0.5, y: 0.6), alive: true)
+                                .frame(width: 26 * app.companion.scale, height: 26 * app.companion.scale)
+                                .accessibilityHidden(true)
+                        }
+                }
                 if let m = picked, let p = pts.first(where: { $0.0.id == m.id }) {
                     PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(.clear)
                         .annotation(position: .top) {

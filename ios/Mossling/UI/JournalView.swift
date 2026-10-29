@@ -262,6 +262,12 @@ private struct DayCompanion: View {
                 answering = true
                 Task { try? await Task.sleep(for: .milliseconds(MascotStyle.of(k).acknowledgeMs)); answering = false }
             }
+            // the baby wakes: the companion, dozing with him, wakes too — bright for a moment
+            .onChange(of: hush) { was, now in
+                guard was, !now, !reduce else { return }
+                answering = true
+                Task { try? await Task.sleep(for: .milliseconds(900)); answering = false }
+            }
     }
 }
 

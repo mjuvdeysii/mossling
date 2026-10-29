@@ -258,10 +258,33 @@ struct PageBackground: View {
                     LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
                     RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
                 }
+                // two faint pools of watercolour soaked into the paper, their rims a little deeper where the pigment dried
+                if !solid { PaperPools(tone: tone ?? Crayon.sunflower) }
                 if !solid { Grain(dark: false); DayAir(tone: tone ?? Crayon.sunflower) }
             }
             .ignoresSafeArea().accessibilityHidden(true)
         }
+    }
+}
+
+/// Two faint pools of watercolour in the paper — one in the page's own colour high on the left, a pale sage low on
+/// the right — each with the darker rim watercolour leaves as it dries. Drawn once; nothing moves.
+struct PaperPools: View {
+    var tone: Color
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width, h = size.height
+            let pools: [(CGPoint, CGFloat, Color, CGFloat)] = [
+                (CGPoint(x: w * 0.08, y: h * 0.16), w * 0.62, tone, 0.7),
+                (CGPoint(x: w * 0.96, y: h * 0.74), w * 0.55, Color(hex: 0x8FB39A), 2.9),
+            ]
+            for (c, r, col, seed) in pools {
+                let blob = Wash.blob(c, r, seed: seed, wobble: 0.09)
+                ctx.fill(blob, with: .radialGradient(Gradient(colors: [col.opacity(0.03), col.opacity(0.07)]), center: c, startRadius: 0, endRadius: r))
+                ctx.stroke(blob, with: .color(col.opacity(0.11)), lineWidth: 1.2)
+            }
+        }
+        .allowsHitTesting(false)
     }
 }
 
