@@ -86,6 +86,13 @@ def finish():
     glow = Image.new("RGBA", g.size, (0, 0, 0, 0)); d = ImageDraw.Draw(glow)
     for r, al in ((210, 40), (140, 70), (80, 120), (40, 190)):
         d.ellipse((bx - r, by - r, bx + r, by + r), fill=(255, 196, 110, al))
+    # and the circle of light it throws over Moss (the bright state: the light holds Moss), on the table round his feet
+    green = (a[..., 3] > 200) & (a[..., 1] > a[..., 0] + 12) & (a[..., 1] > a[..., 2] + 12)
+    gy, gx = np.nonzero(green)
+    mx, mw, mb = float(gx.mean()), float(gx.max() - gx.min()), float(np.percentile(gy, 99.5))
+    for k, al in ((1.0, 55), (0.7, 70)):
+        rx, ry = mw * 0.85 * k, mw * 0.16 * k
+        d.ellipse((mx - rx, mb - ry, mx + rx, mb + ry), fill=(255, 190, 105, al))
     glow = glow.filter(ImageFilter.GaussianBlur(46))
     glow.save(os.path.join(assets, "glow.png"))
     # the pair for tinting: its own shading kept, lifted into the light half
