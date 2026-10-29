@@ -230,26 +230,32 @@ let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.k
 struct Topics: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    private func tile(_ x: TopicItem) -> some View {
+        NavigationLink(value: Route.topic(x.t.id)) {
+            HStack(spacing: 6) {
+                IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 22)
+                Text(x.t.title).font(.footnote.weight(.semibold)).foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8).padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+            .printCard(radius: 18)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.toy)
+    }
     var body: some View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题", detail: "照护参考")
-            // three to a row: the five topics in two short rows
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 3), spacing: 8) {
-                ForEach(items) { x in
-                    NavigationLink(value: Route.topic(x.t.id)) {
-                        HStack(spacing: 6) {
-                            IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 22)
-                            Text(x.t.title).font(.footnote.weight(.semibold)).foregroundStyle(.primary)
-                                .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 8).padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-                        .printCard(radius: 18)
-                        .contentShape(Rectangle())
+            // three to a row: the five topics in two short rows, the short last row's tiles widening to fill it
+            let per = type.isAccessibilitySize ? 1 : 3
+            VStack(spacing: 8) {
+                ForEach(Array(stride(from: 0, to: items.count, by: per)), id: \.self) { i in
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(items[i..<min(i + per, items.count)]) { x in tile(x) }
                     }
-                    .buttonStyle(.toy)
                 }
             }
         }

@@ -83,23 +83,26 @@ def finish():
     bead = (a[..., 3] > 200) & (a[..., 0] > 200) & (a[..., 1] > 120) & (a[..., 1] < 200) & (a[..., 2] < 80)
     ys, xs = np.nonzero(bead); bx, by = float(xs.mean()), float(ys.mean())
     # the lamp's glow: a soft warm light round the bead and a pool falling below it
-    glow = Image.new("RGBA", g.size, (0, 0, 0, 0)); d = ImageDraw.Draw(glow)
+    # (drawn as a mask and blurred alone, then given the lamp's colour: blurring coloured shapes on a clear ground pulls
+    # the clear ground's black into the soft edge and dims the light to brown)
+    glow = Image.new("L", g.size, 0); d = ImageDraw.Draw(glow)
     for r, al in ((210, 40), (140, 70), (80, 120), (40, 190)):
-        d.ellipse((bx - r, by - r, bx + r, by + r), fill=(255, 196, 110, al))
+        d.ellipse((bx - r, by - r, bx + r, by + r), fill=al)
     # and the circle of light it throws over Moss (the bright state: the light holds Moss), on the table round his feet
     green = (a[..., 3] > 200) & (a[..., 1] > a[..., 0] + 12) & (a[..., 1] > a[..., 2] + 12)
     gy, gx = np.nonzero(green)
     mx, mw, mb = float(gx.mean()), float(gx.max() - gx.min()), float(np.percentile(gy, 99.5))
     for k, al in ((1.0, 55), (0.7, 70)):
         rx, ry = mw * 0.85 * k, mw * 0.16 * k
-        d.ellipse((mx - rx, mb - ry, mx + rx, mb + ry), fill=(255, 190, 105, al))
-    glow = glow.filter(ImageFilter.GaussianBlur(46))
+        d.ellipse((mx - rx, mb - ry, mx + rx, mb + ry), fill=al)
+    mask = glow.filter(ImageFilter.GaussianBlur(46))
+    glow = Image.new("RGBA", g.size, (255, 194, 108, 255)); glow.putalpha(mask)
     glow.save(os.path.join(assets, "glow.png"))
     # the low table they stand on (their world): a soft warm band of shade along the feet line, by day and by night
     feet = float(np.percentile(np.nonzero(a[..., 3] > 200)[0], 99.6))
-    table = Image.new("RGBA", g.size, (0, 0, 0, 0)); dt = ImageDraw.Draw(table)
-    dt.ellipse((g.width * 0.04, feet - g.height * 0.05, g.width * 0.96, feet + g.height * 0.07), fill=(122, 82, 48, 46))
-    table = table.filter(ImageFilter.GaussianBlur(26))
+    tm = Image.new("L", g.size, 0); dt = ImageDraw.Draw(tm)
+    dt.ellipse((g.width * 0.04, feet - g.height * 0.05, g.width * 0.96, feet + g.height * 0.07), fill=46)
+    table = Image.new("RGBA", g.size, (122, 82, 48, 255)); table.putalpha(tm.filter(ImageFilter.GaussianBlur(26)))
     table.save(os.path.join(assets, "table.png"))
     # by day (the light icon): the window's light falling from the upper left onto Moss, behind the pair — day is Moss's
     # time as night is Otto's, so the light that holds him by night with the lamp holds him by day from the window

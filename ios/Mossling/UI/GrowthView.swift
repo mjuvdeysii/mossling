@@ -181,13 +181,21 @@ struct StatsView: View {
                     Double(l.filter { $0.type == LogType.bottle && !$0.carriedOver(into: d) }.reduce(0) { $0 + ($1.amount ?? 0) }))
         }
         ScrollView {
-            // two small charts to a row (one at the largest text sizes): the week of every kind in one screen
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 12, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 12) {
-                chart("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })
-                if rows.contains(where: { $0.4 > 0 }) { chart("亲喂时长", "分钟", LogType.nurse, rows.map { ($0.0, $0.4) }) }
-                if rows.contains(where: { $0.5 > 0 }) { chart("瓶喂奶量", "毫升", LogType.bottle, rows.map { ($0.0, $0.5) }) }
-                chart("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) })
-                chart("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })
+            // two small charts to a row (one at the largest text sizes): the week of every kind in one screen; when the
+            // count is odd the last one takes the whole row, so no half row stands empty
+            let charts: [(String, String, String, [(Day, Double)])] = [("喂奶", "次", LogType.nurse, rows.map { ($0.0, Double($0.1)) })]
+                + (rows.contains(where: { $0.4 > 0 }) ? [("亲喂时长", "分钟", LogType.nurse, rows.map { ($0.0, $0.4) })] : [])
+                + (rows.contains(where: { $0.5 > 0 }) ? [("瓶喂奶量", "毫升", LogType.bottle, rows.map { ($0.0, $0.5) })] : [])
+                + [("睡眠", "小时", LogType.sleep, rows.map { ($0.0, $0.2) }), ("尿布", "片", LogType.diaper, rows.map { ($0.0, Double($0.3)) })]
+            let per = type.isAccessibilitySize ? 1 : 2
+            VStack(spacing: 12) {
+                ForEach(Array(stride(from: 0, to: charts.count, by: per)), id: \.self) { i in
+                    HStack(alignment: .top, spacing: 12) {
+                        ForEach(i..<min(i + per, charts.count), id: \.self) { k in
+                            chart(charts[k].0, charts[k].1, charts[k].2, charts[k].3).frame(maxWidth: .infinity)
+                        }
+                    }
+                }
             }
             .padding(.horizontal, 16).padding(.bottom, 8)
             Text("每格是一天，最右是今天；数字是有记录的日子的平均。").font(.caption).foregroundStyle(Palette.secondaryText)
