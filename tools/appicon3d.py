@@ -116,6 +116,21 @@ def finish():
     mask = mask.filter(ImageFilter.GaussianBlur(70))
     day = Image.new("RGBA", g.size, (255, 251, 240, 255)); day.putalpha(mask)
     day.save(os.path.join(assets, "day.png"))
+    # paper (the app's own ground, 纸面): a faint grain and a few long fibres over the whole square, behind the pair
+    rng = np.random.default_rng(0x9A9E2)
+    n = rng.random((g.height, g.width))
+    grain = np.zeros((g.height, g.width, 4), dtype=np.uint8)
+    grain[..., 0], grain[..., 1], grain[..., 2] = 120, 92, 62
+    grain[..., 3] = (np.clip((n - 0.55) / 0.45, 0, 1) ** 2 * 34).astype(np.uint8)
+    paper = Image.fromarray(grain, "RGBA").filter(ImageFilter.GaussianBlur(0.6))
+    fib = Image.new("L", g.size, 0); df = ImageDraw.Draw(fib)
+    for _ in range(70):
+        x, y = rng.random() * g.width, rng.random() * g.height
+        a0, ln = rng.random() * math.pi, 18 + rng.random() * 46
+        df.line((x, y, x + math.cos(a0) * ln, y + math.sin(a0) * ln), fill=int(16 + rng.random() * 14), width=1)
+    fibres = Image.new("RGBA", g.size, (120, 92, 62, 255)); fibres.putalpha(fib.filter(ImageFilter.GaussianBlur(0.5)))
+    paper.alpha_composite(fibres)
+    paper.save(os.path.join(assets, "paper.png"))
     # the pair for tinting: its own shading kept, lifted into the light half
     lum = ImageOps.grayscale(g.convert("RGB"))
     lum = lum.point(lambda v: int(60 + 195 * (v / 255) ** 0.35))   # bodies light (the tinted dark dims them), eyes still darker
@@ -139,6 +154,8 @@ def finish():
                 {"image-name": "day.png", "name": "The window light", "glass": False, "position": pos,
                  "hidden-specializations": [{"value": False}, {"appearance": "dark", "value": True}, {"appearance": "tinted", "value": True}]},
                 {"image-name": "table.png", "name": "The table", "glass": False, "position": pos,
+                 "hidden-specializations": [{"value": False}, {"appearance": "tinted", "value": True}]},
+                {"image-name": "paper.png", "name": "The paper", "glass": False, "position": pos,
                  "hidden-specializations": [{"value": False}, {"appearance": "tinted", "value": True}]},
             ],
             "lighting": "individual", "specular": False,

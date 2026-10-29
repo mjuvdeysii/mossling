@@ -236,6 +236,8 @@ struct FirstsView: View {
     @Environment(\.lamp) private var lamp
     @State private var editing: First?
     @State private var adding = false
+    /// The first just kept: its bead on the thread blooms like a drop of colour on wet paper, once.
+    @State private var fresh: First.ID?
 
     var body: some View {
         ScrollView {
@@ -248,7 +250,7 @@ struct FirstsView: View {
                 }
                 VStack(spacing: 0) {
                     ForEach(j.firsts) { f in
-                        Button { editing = f } label: { FirstRow(first: f, birth: app.birth, last: false) }
+                        Button { editing = f } label: { FirstRow(first: f, birth: app.birth, last: false, fresh: fresh == f.id) }
                             .buttonStyle(.toy)
                     }
                     if let b = app.birth { BirthRow(birth: b) }
@@ -258,6 +260,11 @@ struct FirstsView: View {
         }
         .pageBackground(tone: Palette.bead)
         .navigationTitle("第一次")
+        .onChange(of: j.firsts.map(\.id)) { old, new in
+            guard let n = new.first(where: { !old.contains($0) }) else { return }
+            fresh = n
+            Task { @MainActor in try? await Task.sleep(for: .milliseconds(2200)); if fresh == n { fresh = nil } }
+        }
         .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("记一个第一次", systemImage: "plus") { adding = true } } }
         .sheet(item: $editing) { f in FirstSheet(first: f, isNew: false).lampPresented() }
         .sheet(isPresented: $adding) { FirstSheet(first: First(at: ms(Date()), title: ""), isNew: true).lampPresented() }
@@ -290,12 +297,14 @@ private struct FirstRow: View {
     let first: First
     let birth: Day?
     let last: Bool
+    var fresh = false
     @Environment(\.lamp) private var lamp
     var body: some View {
         let c = Firsts.color(first)
         HStack(alignment: .top, spacing: 12) {
             Thread(top: true, bottom: true) {
                 IconTile(symbol: Firsts.symbol(first), color: c, size: 30, round: true)
+                    .background { if fresh { InkBloom(color: c) } }
             }
             .frame(width: 40)
             VStack(alignment: .leading, spacing: 6) {
@@ -319,6 +328,29 @@ private struct FirstRow: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityHint("改这个第一次")
+    }
+}
+
+/// A drop of colour spreading on wet paper and fading as it goes: the soft edge wanders, the pigment gathers at the
+/// rim. Once, when it appears; nothing under Reduce Motion.
+struct InkBloom: View {
+    let color: Color
+    var size: CGFloat = 120
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var spread = false
+    var body: some View {
+        Canvas { ctx, sz in
+            let c = CGPoint(x: sz.width / 2, y: sz.height / 2)
+            let blob = Wash.blob(c, sz.width * 0.4, seed: 1.3, wobble: 0.12)
+            ctx.fill(blob, with: .radialGradient(Gradient(colors: [color.opacity(0.18), color.opacity(0.42)]), center: c, startRadius: 0, endRadius: sz.width * 0.42))
+            ctx.stroke(blob, with: .color(color.opacity(0.5)), lineWidth: 1.5)
+        }
+        .frame(width: size, height: size)
+        .scaleEffect(spread ? 1 : 0.15)
+        .opacity(reduce ? 0 : spread ? 0 : 0.9)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+        .onAppear { withAnimation(.easeOut(duration: 1.6)) { spread = true } }
     }
 }
 

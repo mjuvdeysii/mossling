@@ -485,15 +485,19 @@ struct StoryView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
                 }
                 Text("孩子摸索，大人点灯").font(.title2.weight(.bold))
-                pair("摸索", "孩子", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
-                pair("台灯", "大人", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("在这里做的三件事").font(.headline)
-                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
-                    thing("leaf.fill", Crayon.leaf, "看他长大", "0–36 个月，一个月一站，共 37 站；成长地图和成长册留下每一站的样子。")
-                    thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来（可选）", "喂奶、睡眠、尿布一点即记，只保存在这部手机里。")
+                // the two names as two cards to turn over: each face shows who it is and a line; turned, the whole of it
+                HStack(alignment: .top, spacing: 10) {
+                    pair("摸索", "孩子", "用手、用嘴、用眼睛摸索世界", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
+                    pair("台灯", "大人", "不替人走路，只把桌面照亮", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
                 }
-                .card(Palette.card, radius: 22, padding: 14)
+                .fixedSize(horizontal: false, vertical: true)   // both cards as tall as the taller
+                // what is done here: three small cards, a line on the face, the whole of it on the back
+                HStack(alignment: .top, spacing: 8) {
+                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "一步步的图", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
+                    thing("leaf.fill", Crayon.leaf, "看他长大", "一月一站", "0–36 个月，一个月一站，共 37 站；成长地图和成长册留下每一站的样子。")
+                    thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来", "可选 · 只存本机", "喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。")
+                }
+                .fixedSize(horizontal: false, vertical: true)
                 Text("这里不打分，不比较，也不催促。每个孩子都按自己的节奏，一个月长出一点新的样子。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 StoryGoesOn(primary: app.companion)
@@ -504,30 +508,62 @@ struct StoryView: View {
         .navigationTitle("摸索台灯的故事").navigationBarTitleDisplayMode(.inline)
     }
 
-    private func pair(_ word: String, _ who: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
-        HStack(alignment: .top, spacing: 14) {
-            Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true).frame(width: 46 * k.scale, height: 46 * k.scale).frame(width: 54, height: 54, alignment: .bottom).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+    private func pair(_ word: String, _ who: String, _ line: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
+        TurnCard(label: "\(word)，属于\(who)。\(text)") {
+            VStack(spacing: 6) {
+                Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true)
+                    .frame(width: 58 * k.scale, height: 58 * k.scale).frame(height: 64, alignment: .bottom)
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(word).font(.title3.weight(.bold)).foregroundStyle(c)
-                    Text("属于" + who).font(.footnote).foregroundStyle(Palette.secondaryText)
+                    Text("属于" + who).font(.caption).foregroundStyle(Palette.secondaryText)
                 }
-                Text(text).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+                Text(line).font(.footnote).foregroundStyle(.primary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity)
+        } back: {
+            Text(text).font(.footnote).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .card(Palette.card, radius: 22, padding: 14)
-        .accessibilityElement(children: .combine)
     }
 
-    private func thing(_ sym: String, _ c: Color, _ t: String, _ d: String) -> some View {
-        HStack(alignment: .top, spacing: 12) {
-            IconTile(symbol: sym, color: c, size: 34)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(t).font(.subheadline.weight(.semibold))
-                Text(d).font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+    private func thing(_ sym: String, _ c: Color, _ t: String, _ line: String, _ d: String) -> some View {
+        TurnCard(label: "\(t)。\(d)", radius: 18, padding: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                IconTile(symbol: sym, color: c, size: 30)
+                Text(t).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(line).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        } back: {
+            Text(d).font(.caption).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .accessibilityElement(children: .combine)
+    }
+}
+
+/// A card that turns over when tapped: a picture and a line on its face, the whole of it on the back — the page says
+/// little until it is touched. Both faces take the size of the larger; under Reduce Motion it simply changes face.
+struct TurnCard<Front: View, Back: View>: View {
+    let label: String
+    var radius: CGFloat = 22
+    var padding: CGFloat = 14
+    @ViewBuilder let front: Front
+    @ViewBuilder let back: Back
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var turned = false
+    var body: some View {
+        ZStack {
+            front.opacity(turned ? 0 : 1)
+            back.opacity(turned ? 1 : 0).rotation3DEffect(.degrees(reduce ? 0 : 180), axis: (x: 0, y: 1, z: 0))
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .card(Palette.card, radius: radius, padding: padding)
+        .rotation3DEffect(.degrees(turned && !reduce ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.45)
+        .contentShape(Rectangle())
+        .onTapGesture { withAnimation(reduce ? nil : .spring(duration: 0.55, bounce: 0.2)) { turned.toggle() } }
+        .sensoryFeedback(.selection, trigger: turned)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(label)
     }
 }
 

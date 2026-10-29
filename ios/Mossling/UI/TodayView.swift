@@ -192,9 +192,7 @@ struct PlaysLeadGrid: View {
         if type.isAccessibilitySize {
             VStack(spacing: 10) { ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .row) } }
         } else {
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
-                ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .mini) }
-            }
+            EvenRows(items: ordered, id: \.code, spacing: 10) { PlayTileLink(play: $0, month: month, form: .mini) }
         }
     }
 }
@@ -214,9 +212,7 @@ private struct PlaysGrid: View {
                 if plays.count <= 2 || type.isAccessibilitySize {
                     VStack(spacing: 10) { ForEach(plays) { PlayTileLink(play: $0, month: month, form: .row) } }
                 } else {
-                    LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                        ForEach(plays) { PlayTileLink(play: $0, month: month) }
-                    }
+                    EvenRows(items: plays, id: \.code, spacing: 12) { PlayTileLink(play: $0, month: month) }
                 }
             }
         }

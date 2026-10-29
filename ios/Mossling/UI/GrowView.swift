@@ -117,8 +117,8 @@ struct MonthParts: View {
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "这个月")
             // one kind of tile, three to a row (one at the largest text sizes): the month's six parts in two rows
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 3), spacing: 8) {
-                ForEach(parts, id: \.title) { p in
+            // a short last row (five parts) widens its tiles to fill the row
+            EvenRows(items: parts, id: \.title, per: type.isAccessibilitySize ? 1 : 3) { p in
                     let label = VStack(alignment: .leading, spacing: 6) {
                         HStack(alignment: .top) {
                             IconTile(symbol: p.symbol, color: p.color, size: 32)
@@ -135,7 +135,6 @@ struct MonthParts: View {
                     .accessibilityElement(children: .combine)
                     if let r = p.route { NavigationLink(value: r) { label }.buttonStyle(.toy) }
                     else { NavigationLink(value: JournalRoute.growth) { label }.buttonStyle(.toy) }
-                }
             }
         }
     }
@@ -431,8 +430,9 @@ struct ObserveView: View {
                     // each area's things as small tick tiles, two to a row: the month's whole list in one screen
                     VStack(alignment: .leading, spacing: 8) {
                         SectionTitle(title: g.area)
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: type.isAccessibilitySize ? 1 : 2), spacing: 8) {
-                            ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
+                        // two to a row; an odd last one takes the whole row
+                        EvenRows(items: Array(g.items.enumerated()), id: \.offset, per: type.isAccessibilitySize ? 1 : 2) { x in
+                                let ii = x.offset, t = x.element
                                 let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
                                 Button { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) } label: {
                                     HStack(alignment: .top, spacing: 8) {
@@ -450,7 +450,6 @@ struct ObserveView: View {
                                 .buttonStyle(.toy)
                                 .sensoryFeedback(.selection, trigger: on)
                                 .accessibilityAddTraits(on ? .isSelected : [])
-                            }
                         }
                     }
                 }
