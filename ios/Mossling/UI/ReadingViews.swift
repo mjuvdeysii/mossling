@@ -48,7 +48,19 @@ struct SearchView: View {
                 Section("专题") { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
             }
             if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty {
-                ContentUnavailableView.search(text: t)
+                // nothing found: the companion looks this way and that for it
+                VStack(spacing: 8) {
+                    TimelineView(.periodic(from: .now, by: 1.3)) { tl in
+                        let side: Double = Int(tl.date.timeIntervalSinceReferenceDate / 1.3) % 2 == 0 ? -0.9 : 0.9
+                        Creature(kind: app.companion, look: CGPoint(x: side, y: 0.1), alive: true, lookSeconds: 0.5)
+                            .frame(width: 64 * app.companion.scale, height: 64 * app.companion.scale)
+                    }
+                    .frame(height: 72).accessibilityHidden(true)
+                    Text("没有找到「\(t)」").font(.headline)
+                    Text("试试活动的名字、月份或专题").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 24)
+                .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
