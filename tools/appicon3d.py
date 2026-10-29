@@ -26,7 +26,8 @@ def scene():
     m = build_moss(lid=0.0, er=0.13, pupil=0.5, perk=1.0, look=(0.55, 0.35))
     m.location = (-0.5, 0.0, 0.0); m.rotation_euler = (0, 0, math.radians(14))
     o = build_otto(lid=0.42, look=(-0.7, -0.25), slouch=0.4, droop=0.0, bags=True, glow=0.0)
-    o.location = (0.64, 0.35, 0.0); o.rotation_euler = (0, 0, math.radians(-12))   # true scale: the grown-up is much taller
+    # Otto leans toward Moss, as he always does (10–15°, the character bible), the lamp reaching over him
+    o.location = (0.64, 0.35, 0.0); o.rotation_euler = (0, math.radians(-11), math.radians(-12))   # true scale: the grown-up is much taller
     bpy.context.view_layer.update()
     bead = bpy.data.objects["otto_bead"].matrix_world.translation
     # a rim of light from behind and above, so both read against the night fill as well as the day one

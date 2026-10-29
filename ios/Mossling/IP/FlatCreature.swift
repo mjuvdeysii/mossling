@@ -18,6 +18,8 @@ struct FlatCreature: View {
     var arms: Arms = .rest
     /// Otto's bead lit as a lamp (at night).
     var glow: Bool = false
+    /// Something new in front of them (see Creature.notice).
+    var notice: Int = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.colorScheme) private var scheme
@@ -62,6 +64,11 @@ struct FlatCreature: View {
         .task(id: still) { await blinks() }
         .task(id: still) { await glances() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
+        .onChange(of: notice) { _, _ in
+            guard !still else { return }
+            if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
+            else { glanceTo = CGPoint(x: -0.8, y: 0.45); glanceAt = Date() }
+        }
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
     }
@@ -294,6 +301,7 @@ struct FlatDuo: View {
     var cheer = 0
     /// Night: Otto's bead is a lamp, and Moss sleeps unless Moss is the one in front.
     var night = false
+    var notice = 0
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var beat = 0
     @State private var cheering = false
@@ -304,12 +312,12 @@ struct FlatDuo: View {
         ZStack(alignment: .bottomLeading) {
             FlatCreature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto)
+                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
             FlatCreature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: night && primary == .otto)
+                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: night && primary == .otto, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)

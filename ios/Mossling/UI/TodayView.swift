@@ -330,7 +330,8 @@ struct ShelfView: View {
             .printCard(radius: 24)
             .overlay(alignment: .topTrailing) {
                 // the two of them, sitting on the card's top edge
-                Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true)
+                // a play put on the shelf is something new in front of them: Moss blinks twice, Otto looks round
+                Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true, notice: s.plays.count)
                     .offset(x: -16, y: -40)
             }
             .padding(.top, 30)

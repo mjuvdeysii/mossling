@@ -29,6 +29,9 @@ struct Creature: View {
     var glowFor: Double? = nil
     /// How long a change of `look` takes (MascotStyle.glanceMs: Moss quick, Otto slow).
     var lookSeconds: Double = 0.42
+    /// Change it when something new arrives in front of them: Moss blinks twice before going closer (his habit, and
+    /// only for something new); Otto's eyes come slowly round to it.
+    var notice: Int = 0
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.colorScheme) private var scheme
@@ -58,7 +61,7 @@ struct Creature: View {
 
     var body: some View {
         if ArtStyle.current == .flat {
-            FlatCreature(kind: kind, mood: mood, look: look, lid: lid, lean: lean, alive: alive, poke: poke, label: label, arms: arms, glow: glow)
+            FlatCreature(kind: kind, mood: mood, look: look, lid: lid, lean: lean, alive: alive, poke: poke, label: label, arms: arms, glow: glow, notice: notice)
         } else { vinyl }
     }
 
@@ -82,6 +85,11 @@ struct Creature: View {
         .task(id: still) { await glances() }
         .task(id: kind) { await loadSprites() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
+        .onChange(of: notice) { _, _ in
+            guard !still else { return }
+            if kind == .moss { doubleBlink = true; blinkAt = Date().addingTimeInterval(0.08) }
+            else { glanceTo = CGPoint(x: -0.8, y: 0.45); glanceAt = Date() }
+        }
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
         .onAppear { glowStart = Date() }
@@ -290,6 +298,8 @@ struct Duo: View {
     var reacts = false
     /// Read by VoiceOver only when it says something the page does not.
     var label: String? = nil
+    /// Something new in front of them: Moss blinks twice, Otto looks round to it.
+    var notice = 0
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(MascotDirector.self) private var mascot: MascotDirector?
     @State private var beat = 0
@@ -316,7 +326,7 @@ struct Duo: View {
 
     var body: some View {
         if ArtStyle.current == .flat {
-            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night)
+            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night, notice: notice)
         } else { vinyl }
     }
 
@@ -329,12 +339,12 @@ struct Duo: View {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, glowFor: briefLamp ? 4.5 : nil)
+                     arms: cheering ? .cheer : .rest, glow: night && primary.other == .otto, glowFor: briefLamp ? 4.5 : nil, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: Self.apart(primary, size), y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
-                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto, glowFor: briefLamp ? 4.5 : nil)
+                     label: label, arms: cheering ? .cheer : .rest, glow: night && primary == .otto, glowFor: briefLamp ? 4.5 : nil, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: Self.apart(primary, size) + small, height: max(size, small + lift), alignment: .bottomLeading)
