@@ -458,6 +458,7 @@ struct AboutView: View {
             }
         }
         .listSectionSpacing(.compact)
+        .contentMargins(.top, 0, for: .scrollContent)
         .scrollContentBackground(.hidden).pageBackground()
         .navigationDestination(isPresented: $story) { StoryView() }
         .navigationTitle("关于摸索台灯").navigationBarTitleDisplayMode(.inline)

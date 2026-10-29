@@ -262,7 +262,7 @@ struct Wash: View {
         // pigment: blooms of colour bleeding in behind the edge, and the colour gathered at the rim
         var tint = ctx
         tint.clip(to: shape, style: fill)
-        tint.blendMode = light ? .normal : .multiply
+        tint.blendMode = .normal
         let tints: [Color] = light ? [Color(hex: 0xFFE2A6), Color(hex: 0xFFD27A), Color(hex: 0xFFF6E2)] : Self.pigments
         for (i, col) in tints.enumerated() {
             let a: CGFloat = CGFloat(i) * 2.1 + 0.6
@@ -270,8 +270,10 @@ struct Wash: View {
             let pr: CGFloat = far * 0.55 * lag
             guard pr > 2 else { continue }
             let pc = CGPoint(x: c.x + cos(a) * far * 0.28 * lag, y: c.y + sin(a) * far * 0.22 * lag)
-            tint.fill(Self.blob(pc, pr, seed: CGFloat(i) * 2 + seed, wobble: 0.14),
-                      with: .radialGradient(Gradient(colors: [col.opacity(0.30), col.opacity(0.05)]), center: pc, startRadius: 0, endRadius: pr))
+            // each bloom pale in the middle and deeper at its edge, where watercolour pigment settles as it dries
+            let bloom = Self.blob(pc, pr, seed: CGFloat(i) * 2 + seed, wobble: 0.14)
+            tint.fill(bloom, with: .radialGradient(Gradient(colors: [col.opacity(0.07), col.opacity(0.16), col.opacity(0.30)]), center: pc, startRadius: 0, endRadius: pr * 1.05))
+            tint.stroke(bloom, with: .color(col.opacity(0.38)), lineWidth: 1.4)
         }
         // paper grain, faint
         if !light {
