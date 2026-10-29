@@ -7,7 +7,6 @@ struct YouView: View {
     @Environment(AppModel.self) private var app
     @Binding var path: NavigationPath
     @State private var editing = false
-    @State private var clearing = false
     @Environment(JournalStore.self) private var j
     @State private var message: String?
 
@@ -15,7 +14,7 @@ struct YouView: View {
         @Bindable var app = app
         ScrollView {
             // the whole page in one screen: the family, the book, then one card of settings and one of data
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 // the family: the child (Moss) and the grown-up (Otto) on the child's own hill, beside who the child is
                 FamilyCard { editing = true }
 
@@ -25,7 +24,7 @@ struct YouView: View {
                 // settings, as rows of one card: how the app looks (日光 / 夜灯 / 自动 as small living windows), the lamp
                 // coming on by itself at night, and the two features
                 let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
-                Section2(title: "设置") {
+                Group {
                     VStack(spacing: 0) {
                         HStack(spacing: 10) {
                             IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
@@ -51,28 +50,14 @@ struct YouView: View {
                     .printCard(radius: 22)
                 }
 
-                // data and about: rows of one card, as Settings lists them; the destructive one last, in red, behind a
-                // confirmation
-                Section2(title: "数据") {
-                    VStack(spacing: 0) {
-                        // export and import have their own page (no menu popping out of a card)
-                        NavigationLink(value: Route.data) { DataRow(title: "导出与导入", detail: "给医生或 AI 看的记录 · 完整备份 · 表格", symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
-                        Divider().padding(.leading, 58)
-                        NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
-                        Divider().padding(.leading, 58)
-                        Button(role: .destructive) { clearing = true } label: {
-                            HStack(alignment: .firstTextBaseline) {
-                                Text("清除全部数据").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.danger)
-                                Spacer(minLength: 8)
-                                // where the records live, said beside the one thing that removes them
-                                Text("所有记录只保存在这台手机上").font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.trailing)
-                            }
-                            .padding(.horizontal, 16).padding(.vertical, 10).contentShape(Rectangle())
-                        }
-                    }
-                    .buttonStyle(.toy)
-                    .printCard(radius: 22)
+                // data and about, as two rows of one card (export, import and clearing are on the 数据 page)
+                VStack(spacing: 0) {
+                    NavigationLink(value: Route.data) { DataRow(title: "数据", detail: "导出 · 导入 · 清除；记录只存在这台手机上", symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
+                    Divider().padding(.leading, 58)
+                    NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
                 }
+                .buttonStyle(.toy)
+                .printCard(radius: 22)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -81,9 +66,6 @@ struct YouView: View {
         .navigationTitle("我的")
         .sheet(isPresented: $editing) { ProfileSheet() }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
-        .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
-            Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
-        } message: { Text("清除后无法恢复。") }
     }
 
 }

@@ -13,6 +13,7 @@ struct DataView: View {
     @State private var importing = false
     @State private var message: String?
     @State private var confirmImport: URL?
+    @State private var clearing = false
 
     enum Export: String, CaseIterable, Identifiable {
         case summary, backup, table
@@ -81,9 +82,18 @@ struct DataView: View {
             } header: { Text("导入") } footer: {
                 Text("导入会用备份里的内容替换这台手机上现有的记录和设置。")
             }
+            // the one thing that removes everything, last, in red, behind a confirmation
+            Section {
+                Button(role: .destructive) { clearing = true } label: {
+                    Text("清除全部数据").font(.body.weight(.semibold)).foregroundStyle(Palette.danger)
+                }
+            } footer: { Text("所有记录只保存在这台手机上。清除前可以先导出一份完整备份。") }
         }
         .scrollContentBackground(.hidden).pageBackground(tone: Crayon.lilac)
-        .navigationTitle("导出与导入").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle("数据").navigationBarTitleDisplayMode(.inline)
+        .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
+            Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
+        } message: { Text("清除后无法恢复。") }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
             if case let .success(url) = r { confirmImport = url }
         }
