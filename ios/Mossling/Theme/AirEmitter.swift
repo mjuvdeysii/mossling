@@ -110,31 +110,34 @@ struct AirEmitter: UIViewRepresentable {
                     return c
                 }
                 // build 189's size (about 1.7 times the drawn particle) and a fuller air: some thirty in view at once
+                // a fuller, brighter air in daylight: some forty in view, the petals in the tab's colour clearly so
                 cells = [
-                    cell(Self.seed(), rate: 0.42, spin: 0.8, size: 1.6),
-                    cell(Self.petal(tone), rate: 0.38, spin: 2.0, size: 1.6),
-                    cell(Self.leaf(), rate: 0.32, spin: 1.6, size: 1.6),
-                    cell(Self.pollen(), rate: 0.36, spin: 0, size: 1.5),
+                    cell(Self.seed(), rate: 0.55, spin: 0.8, size: 1.8),
+                    cell(Self.petal(tone), rate: 0.55, spin: 2.0, size: 1.9),
+                    cell(Self.leaf(), rate: 0.42, spin: 1.6, size: 1.8),
+                    cell(Self.pollen(), rate: 0.5, spin: 0, size: 1.7),
                 ]
                 emitter.renderMode = .unordered
             case .night:
                 // up the page in thirty-five to fifty seconds, glowing and dimming as they go
                 let v: CGFloat = (h + 40) / (preview ? 14 : 40)
                 let life = Float((h + 60) / v)
+                // fireflies, as the lamp's first night had them: a bright warm core in a wide soft halo, some twenty-five
+                // in view, wandering up as they glow and fade
                 let c = CAEmitterCell()
-                c.contents = Self.mote().cgImage
-                c.birthRate = (preview ? 1.4 : 0.85) * share
+                c.contents = Self.firefly().cgImage
+                c.birthRate = (preview ? 1.6 : 1.0) * share
                 c.lifetime = life; c.lifetimeRange = life * 0.12
-                c.velocity = v; c.velocityRange = v * 0.4
-                c.emissionLongitude = -.pi / 2; c.emissionRange = .pi / 12
-                c.scale = 1.35 * z / 3; c.scaleRange = 0.6 * z / 3
-                c.alphaRange = 0.45
-                // a firefly breathes: its glow swells and fades again and again on the way up
+                c.velocity = v; c.velocityRange = v * 0.45
+                c.emissionLongitude = -.pi / 2; c.emissionRange = .pi / 9
+                c.scale = 0.26 * z; c.scaleRange = 0.12 * z      // a 120-pixel drawing: some 17 to 45 points of glow across
+                c.alphaRange = 0.5
+                // a firefly breathes: its halo swells bright and fades again and again on the way up
                 let pulse = CAEmitterCell()
-                pulse.contents = Self.mote().cgImage
-                pulse.birthRate = 0.7; pulse.lifetime = 1.8; pulse.lifetimeRange = 0.6
-                pulse.velocity = 0; pulse.scale = 1.9 * z / 3; pulse.scaleSpeed = -0.5 * z / 3
-                pulse.alphaSpeed = -0.5
+                pulse.contents = Self.firefly().cgImage
+                pulse.birthRate = 0.55; pulse.lifetime = 2.2; pulse.lifetimeRange = 0.8
+                pulse.velocity = 0; pulse.scale = 0.42 * z; pulse.scaleSpeed = -0.14 * z
+                pulse.alpha = 0.9; pulse.alphaSpeed = -0.42
                 c.emitterCells = [pulse]
                 cells = [c]
                 emitter.renderMode = .additive
@@ -187,7 +190,7 @@ struct AirEmitter: UIViewRepresentable {
         }
         private static func petal(_ tone: UIColor) -> UIImage {
             draw(CGSize(width: 12, height: 8)) { c in
-                c.setFillColor(tone.withAlphaComponent(0.6).cgColor)
+                c.setFillColor(tone.withAlphaComponent(0.85).cgColor)
                 c.fillEllipse(in: CGRect(x: 1, y: 1.4, width: 10, height: 5.2))
                 c.setFillColor(UIColor.white.withAlphaComponent(0.35).cgColor)
                 c.fillEllipse(in: CGRect(x: 3, y: 2.2, width: 4, height: 1.6))
@@ -199,7 +202,7 @@ struct AirEmitter: UIViewRepresentable {
                 path.move(to: CGPoint(x: 1.5, y: 4.5))
                 path.addQuadCurve(to: CGPoint(x: 11.5, y: 4.5), controlPoint: CGPoint(x: 6.5, y: 0))
                 path.addQuadCurve(to: CGPoint(x: 1.5, y: 4.5), controlPoint: CGPoint(x: 6.5, y: 9))
-                c.setFillColor(UIColor(red: 0.42, green: 0.75, blue: 0.43, alpha: 0.6).cgColor)
+                c.setFillColor(UIColor(red: 0.42, green: 0.75, blue: 0.43, alpha: 0.8).cgColor)
                 c.addPath(path.cgPath); c.fillPath()
                 c.setStrokeColor(UIColor(red: 0.25, green: 0.56, blue: 0.29, alpha: 0.45).cgColor); c.setLineWidth(0.6)
                 c.move(to: CGPoint(x: 2.5, y: 4.5)); c.addLine(to: CGPoint(x: 10.5, y: 4.5)); c.strokePath()
@@ -211,6 +214,16 @@ struct AirEmitter: UIViewRepresentable {
                 c.fillEllipse(in: CGRect(x: 1, y: 1, width: 12, height: 12))
                 c.setFillColor(UIColor(red: 1, green: 0.76, blue: 0.24, alpha: 0.75).cgColor)
                 c.fillEllipse(in: CGRect(x: 5.2, y: 5.2, width: 3.6, height: 3.6))
+            }
+        }
+        /// A firefly: a small near-white warm core, an amber glow round it and a wide faint halo.
+        private static func firefly() -> UIImage {
+            draw(CGSize(width: 40, height: 40)) { c in
+                let amber = UIColor(Palette.amber), core = UIColor(red: 1, green: 0.95, blue: 0.78, alpha: 1)
+                let g = CGGradient(colorsSpace: CGColorSpaceCreateDeviceRGB(),
+                                   colors: [core.cgColor, amber.withAlphaComponent(0.75).cgColor, amber.withAlphaComponent(0.22).cgColor, amber.withAlphaComponent(0.07).cgColor, amber.withAlphaComponent(0).cgColor] as CFArray,
+                                   locations: [0, 0.09, 0.22, 0.55, 1])!
+                c.drawRadialGradient(g, startCenter: CGPoint(x: 20, y: 20), startRadius: 0, endCenter: CGPoint(x: 20, y: 20), endRadius: 20, options: [])
             }
         }
         private static func mote() -> UIImage {
