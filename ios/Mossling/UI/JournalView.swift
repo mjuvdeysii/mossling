@@ -871,7 +871,7 @@ struct TimerAccessory: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Ticking(text: clock(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Palette.secondaryText)
+                            Ticking(text: span(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Palette.secondaryText)
                         }
                     }
                     Spacer(minLength: 0)
@@ -885,7 +885,7 @@ struct TimerAccessory: View {
                     HStack(spacing: 6) {
                         IconTile(symbol: LogType.symbol(o.type), color: LogType.color(o.type), size: 24, round: true)
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Text(clock(o.total(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).monospacedDigit()
+                            Text(span(o.total(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).monospacedDigit()
                         }
                     }
                 }

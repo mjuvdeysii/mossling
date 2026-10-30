@@ -351,6 +351,13 @@ func clock(_ s: TimeInterval) -> String {
     let n = Int(max(0, s)); let h = n / 3600
     return h > 0 ? String(format: "%d:%02d:%02d", h, n / 60 % 60, n % 60) : String(format: "%02d:%02d", n / 60, n % 60)
 }
+/// A length of time read as one, never as a time of day: "45 秒", "12 分 01 秒", "1 小时 15 分".
+func span(_ s: TimeInterval) -> String {
+    let n = Int(max(0, s))
+    if n < 60 { return "\(n) 秒" }
+    if n < 3600 { return String(format: "%d 分 %02d 秒", n / 60, n % 60) }
+    return "\(n / 3600) 小时 \(n / 60 % 60) 分"
+}
 func minutesText(_ s: TimeInterval) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
 
 // MARK: navigation

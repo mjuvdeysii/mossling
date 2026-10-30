@@ -34,14 +34,9 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 22) {
                     CareStage(type: type)
                     LastLine(type: type)
-                    if vinyl {
-                        WhenChips(ago: $ago, exact: $when, tint: LogType.color(type))
-                    } else {
-                        DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                            .padding(.horizontal, 16).padding(.vertical, 10)
-                            .printCard(radius: 20)
-                    }
-                    content
+                    // what is being recorded first (the amount, the temperature, the food), when second — it is
+                    // 现在 almost always; a nappy is saved by its choice, so its time comes before it
+                    if type == LogType.diaper { when_; content } else { content; when_ }
                     if failed { SaveFailed() }
                 }
                 .padding(20)
@@ -55,6 +50,16 @@ struct AskSheet: View {
         .sensoryFeedback(.success, trigger: saved)
         .onAppear { if let on { ago = nil; when = on } }
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
+    }
+
+    @ViewBuilder private var when_: some View {
+        if vinyl {
+            WhenChips(ago: $ago, exact: $when, tint: LogType.color(type))
+        } else {
+            DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                .padding(.horizontal, 16).padding(.vertical, 10)
+                .printCard(radius: 20)
+        }
     }
 
     @ViewBuilder private var content: some View {

@@ -75,7 +75,6 @@ private struct DueCard: View {
                         Text("还有 \(total - done + earlier) 项" + (earlier > 0 ? "（含之前没勾的 \(earlier) 项）" : " · 共 \(total) 项")).font(.caption).foregroundStyle(Crayon.ink(Crayon.pink)).monospacedDigit()
                     }
                     Spacer(minLength: 0)
-                    Ring(done: done, total: total, color: Crayon.pink, size: 22)
                     Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                 }
                 .padding(12).printCard(radius: 20)
@@ -239,33 +238,17 @@ let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.k
 /// The topics, as one card of rows: a mark, the title, where it comes from, a chevron.
 struct Topics: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
-    private func tile(_ x: TopicItem) -> some View {
-        NavigationLink(value: Route.topic(x.t.id)) {
-            HStack(spacing: 6) {
-                IconTile(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, size: 22)
-                Text(x.t.title).font(.footnote.weight(.semibold)).foregroundStyle(.primary)
-                    .multilineTextAlignment(.leading).lineLimit(3).fixedSize(horizontal: false, vertical: true)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 8).padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-            .printCard(radius: 18)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.toy)
-    }
     var body: some View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "专题", detail: "照护参考")
-            // three to a row: the five topics in two short rows, the short last row's tiles widening to fill it
-            let per = type.isAccessibilitySize ? 1 : 3
-            VStack(spacing: 8) {
-                ForEach(Array(stride(from: 0, to: items.count, by: per)), id: \.self) { i in
-                    HStack(alignment: .top, spacing: 8) {
-                        ForEach(items[i..<min(i + per, items.count)]) { x in tile(x) }
+            // one card of rows: each title whole on its line, nothing wrapped mid-word, no row half filled
+            Box {
+                ForEach(items) { x in
+                    NavigationLink(value: Route.topic(x.t.id)) {
+                        BoxRow(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, title: x.t.title, last: x.i == items.count - 1, opens: true)
                     }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -470,7 +453,7 @@ private struct WeekStones: View {
                     SpringKeyframe(0, duration: 0.4, spring: .bouncy)
                 }
             }
-            Text("\(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+            Text("本周玩过 \(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
                 .padding(.leading, 2)
         }
         .sensoryFeedback(.increase, trigger: played)

@@ -494,11 +494,11 @@ struct StoryView: View {
                 // what is done here: three small cards, a line on the face, the whole of it on the back
                 HStack(alignment: .top, spacing: 8) {
                     thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "一步步的图", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
-                    thing("leaf.fill", Crayon.leaf, "看他长大", "一月一站", "0–36 个月，一个月一站，共 37 站；成长地图和成长册留下每一站的样子。")
+                    thing("leaf.fill", Crayon.leaf, "看\(app.ta)长大", "一月一站", "0–36 个月，一个月一站，共 37 站；成长册留下每一站的样子。")
                     thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来", "可选 · 只存本机", "喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。")
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。")
+                Text("陪 0–3 岁的孩子一起玩，看\(app.ta == "孩子" ? "着" : app.ta)一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 StoryGoesOn(primary: app.companion)
             }

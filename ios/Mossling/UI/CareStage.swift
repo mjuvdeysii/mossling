@@ -24,23 +24,24 @@ struct CareStage: View {
                 .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
                 .accessibilityHidden(true)
             HStack(alignment: .bottom, spacing: 0) {
-                VStack(alignment: .leading, spacing: 6) {
-                    IconTile(symbol: LogType.symbol(type), color: c, size: 46, round: true)
-                    Text(LogType.name(type)).font(.title2.weight(.bold))
+                // a band, not a poster: the kind and the companion in one low row, so what is recorded starts high
+                HStack(spacing: 10) {
+                    IconTile(symbol: LogType.symbol(type), color: c, size: 38, round: true)
+                    Text(LogType.name(type)).font(.title3.weight(.bold))
                 }
-                .padding(18)
+                .padding(.horizontal, 16).padding(.vertical, 12)
                 Spacer(minLength: 0)
                 // mostly still: the chosen companion, quiet; resting under the lamp (Otto's bead glows), asleep
                 // beside a sleep; a wave only when tapped
                 Creature(kind: kind, mood: type == LogType.sleep && !lamp ? .sleep : .open,
                          look: CGPoint(x: -0.7, y: -0.1), lid: lamp && !waving ? 0.5 : nil, poke: true,
                          arms: waving ? .wave : .rest, glow: lamp && kind == .otto)
-                    .frame(width: 104, height: 104)
-                    .padding(.trailing, 12).padding(.bottom, 4)
+                    .frame(width: 70, height: 70)
+                    .padding(.trailing, 12).padding(.bottom, 2)
                     .onTapGesture { wave() }
             }
         }
-        .frame(minHeight: 156)
+        .frame(minHeight: 84)
         .accessibilityElement(children: .combine)
     }
 
@@ -187,6 +188,8 @@ struct LastLine: View {
                     Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
                         .font(.subheadline.weight(.semibold)).monospacedDigit().fixedSize(horizontal: false, vertical: true)
                 }
+                // more than two days back, the date says it; a count of days is no help
+                let recent = gap < 48 * 3600
                 let since = VStack(alignment: big ? .leading : .trailing, spacing: 0) {
                     Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
@@ -197,7 +200,7 @@ struct LastLine: View {
                     if big {
                         HStack(alignment: .top, spacing: 10) {
                             Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
-                            VStack(alignment: .leading, spacing: 6) { when; since }
+                            VStack(alignment: .leading, spacing: 6) { when; if recent { since } }
                             Spacer(minLength: 0)
                         }
                     } else {
@@ -205,7 +208,7 @@ struct LastLine: View {
                             Image(systemName: "clock.arrow.circlepath").font(.footnote.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                             when
                             Spacer(minLength: 6)
-                            since
+                            if recent { since }
                         }
                     }
                 }

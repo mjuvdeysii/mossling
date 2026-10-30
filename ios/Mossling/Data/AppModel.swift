@@ -73,6 +73,8 @@ final class AppModel {
     var age: Age? { birth.map { Age.on(birth: $0, today: today) } }
     var babyMonth: Int? { age?.bookMonth }
     var girl: Bool { sex == "girl" }
+    /// The child, in a sentence: 她 or 他 when the parent has said, 孩子 until then.
+    var ta: String { sex == "girl" ? "她" : sex == "boy" ? "他" : "孩子" }
     var drawsGirl: Bool { (look ?? (sex == "girl" ? "girl" : "boy")) == "girl" }
 
     func ticked(_ m: Int, _ kind: String, _ id: String) -> Bool { ticks[tickKey(m, kind, id)] != nil }

@@ -179,14 +179,14 @@ struct TimerScreen: View {
                         // a sleep shows its length once, in the moon; here, when it began instead
                         if type == LogType.sleep {
                             Button { picking = true } label: {
-                                Stat(title: "睡着于", value: hm(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
+                                Stat(title: "睡着于", value: whenLabel(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
                             }
                             .buttonStyle(.toy).accessibilityHint("改开始时间")
                         } else {
-                            Stat(title: "合计", value: clock(t.total(now)), strong: true, tint: Crayon.ink(c))
+                            Stat(title: "合计", value: span(t.total(now)), strong: true, tint: Crayon.ink(c))
                         }
                         Divider().frame(height: 34)
-                        Stat(title: "暂停", value: t.paused(now) >= 1 ? clock(t.paused(now)) : "—", strong: false)
+                        Stat(title: "暂停", value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                     }
                     .padding(.vertical, 12)
                     .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))

@@ -153,25 +153,15 @@ struct MonthParts: View {
         let parts = parts(mo, m)
         VStack(alignment: .leading, spacing: 10) {
             SectionTitle(title: "这个月")
-            // one kind of tile, three to a row (one at the largest text sizes): the month's six parts in two rows
-            // a short last row (five parts) widens its tiles to fill the row
-            EvenRows(items: parts, id: \.title, per: type.isAccessibilitySize ? 1 : 3) { p in
-                    let label = VStack(alignment: .leading, spacing: 6) {
-                        HStack(alignment: .top) {
-                            IconTile(symbol: p.symbol, color: p.color, size: 32)
-                            Spacer(minLength: 0)
-                            if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 20) }
-                        }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(p.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
-                            Text(p.note).font(.caption).foregroundStyle(p.total > 0 ? Crayon.ink(p.color) : Palette.secondaryText).monospacedDigit().lineLimit(1)
-                        }
+            // one card of rows, whatever their number: the mark, the part, what it holds, its progress where it has one
+            Box {
+                ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
+                    let row = BoxRow(symbol: p.symbol, color: p.color, title: p.title, text: p.note, last: i == parts.count - 1, opens: true) {
+                        if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 22) }
                     }
-                    .padding(10).frame(maxWidth: .infinity, minHeight: 84, alignment: .topLeading)
-                    .printCard(radius: 18)
-                    .accessibilityElement(children: .combine)
-                    if let r = p.route { NavigationLink(value: r) { label }.buttonStyle(.toy) }
-                    else { NavigationLink(value: JournalRoute.growth) { label }.buttonStyle(.toy) }
+                    if let r = p.route { NavigationLink(value: r) { row }.buttonStyle(.plain) }
+                    else { NavigationLink(value: JournalRoute.growth) { row }.buttonStyle(.plain) }
+                }
             }
         }
     }
@@ -496,30 +486,13 @@ struct ObserveView: View {
         let mo = app.content.month(month)
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                // each area a list of ticks, as 接种与儿保: one line each, no tile stretched round a short line
                 ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
-                    // each area's things as small tick tiles, two to a row: the month's whole list in one screen
-                    VStack(alignment: .leading, spacing: 8) {
-                        SectionTitle(title: g.area)
-                        // two to a row; an odd last one takes the whole row
-                        EvenRows(items: Array(g.items.enumerated()), id: \.offset, per: type.isAccessibilitySize ? 1 : 2) { x in
-                                let ii = x.offset, t = x.element
-                                let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
-                                Button { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) } label: {
-                                    HStack(alignment: .top, spacing: 8) {
-                                        Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.body)
-                                            .foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
-                                            .contentTransition(.symbolEffect(.replace))
-                                        Text(t).font(.subheadline).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                                            .fixedSize(horizontal: false, vertical: true)
-                                        Spacer(minLength: 0)
-                                    }
-                                    .padding(10).frame(maxWidth: .infinity, minHeight: 54, alignment: .topLeading)
-                                    .printCard(radius: 16)
-                                    .contentShape(Rectangle())
-                                }
-                                .buttonStyle(.toy)
+                    Box(title: g.area) {
+                        ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
+                            let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
+                            CheckRow(text: t, on: on, last: ii == g.items.count - 1) { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) }
                                 .sensoryFeedback(.selection, trigger: on)
-                                .accessibilityAddTraits(on ? .isSelected : [])
                         }
                     }
                 }

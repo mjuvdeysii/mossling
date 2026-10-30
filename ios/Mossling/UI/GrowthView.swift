@@ -175,7 +175,8 @@ struct StatsView: View {
             // two small charts to a row (one at the largest text sizes): the week of every kind in one screen; when the
             // count is odd the last one takes the whole row, so no half row stands empty
             let charts = Self.charts(rows)
-            let per = type.isAccessibilitySize ? 1 : 2
+            // each chart the page's whole width: a week of days needs the width to name them
+            let per = 1
             VStack(spacing: 12) {
                 ForEach(Array(stride(from: 0, to: charts.count, by: per)), id: \.self) { i in
                     HStack(alignment: .top, spacing: 12) {
@@ -221,13 +222,13 @@ struct StatsView: View {
     }
     private func chart(_ t: String, _ unit: String, _ type: String, _ data: [(Day, Double)]) -> some View {
         // the average is of whole days: today, still going, is left out (unless it is the only day there is)
-        let whole = data.filter { $0.1 > 0 && $0.0 != app.today }
-        let had = whole.isEmpty ? data.filter { $0.1 > 0 } : whole
+        let had = data.filter { $0.1 > 0 && $0.0 != app.today }
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
         return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
                 // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
-                if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7) }
+                if had.isEmpty { Text("—").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)); Text("满一整天后显示平均").font(.caption2).foregroundStyle(Palette.secondaryText) }
+                else if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7) }
                 else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 22) }
             }
             Chart(data, id: \.0) { d in

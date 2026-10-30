@@ -242,7 +242,7 @@ struct OnboardingView: View {
             VStack(spacing: 6) {
                 Text("摸索台灯").font(.largeTitle.weight(.bold))
                 Text("孩子摸索，大人点灯").font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
-                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。")
+                Text("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 // who the two are, in one line (their parts as child and grown-up are for the pictures only)
                 Text("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴")
