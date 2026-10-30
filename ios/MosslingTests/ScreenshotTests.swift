@@ -88,6 +88,12 @@ final class ScreenshotTests: XCTestCase {
             shot(n, settle: 0.8, ZStack { tabs(m, AboutView()); Wash(start: .now, frame: pic, impact: CGPoint(x: 0.4, y: 0.5), light: light, at: t).ignoresSafeArea() })
         }
     }
+    /// The month's parts for the early months (fewer parts): rows spread evenly, no tile stretched alone.
+    func test07MonthParts() {
+        let m = model()
+        let v = ScrollView { VStack(spacing: 24) { ForEach([0, 1, 2, 3], id: \.self) { k in MonthParts(month: k) } }.padding(16) }
+        shot("07_month_parts_early", height: 1300, tabs(m, v))
+    }
     func test01OnboardingOpening() {
         // the opening, mid-way: the lamp on, Moss reaching for the rings
         let m = model(birth: nil); m.onboarded = false
