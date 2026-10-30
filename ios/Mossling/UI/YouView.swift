@@ -40,7 +40,9 @@ struct YouView: View {
                         }
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         Divider().padding(.leading, 52)
-                        SwitchRow(title: "晚上自动开夜灯", detail: "19:00–6:00", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
+                        // it belongs to 自动: under 日光 or 夜灯 the choice is already made, so the switch rests and says so
+                        SwitchRow(title: "晚上自动开夜灯", detail: app.theme == .system ? "19:00–6:00" : "外观选「自动」时生效", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
+                            .disabled(app.theme != .system).opacity(app.theme == .system ? 1 : 0.55)
                         Divider().padding(.leading, 52)
                         SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
                         if face {

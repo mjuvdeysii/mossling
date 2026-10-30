@@ -29,7 +29,8 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     /// Whether it is night now (7 pm – 6 am), checked every minute while the app is open.
     @State private var night = Daylight.isNight()
-    @State private var tab = 0
+    /// The tab open last time: the app comes back where the parent left it (a night of feeds opens on 记录)
+    @SceneStorage("tab") private var tab = 0
     @State private var todayPath = NavigationPath()
     @State private var growPath = NavigationPath()
     @State private var youPath = NavigationPath()
@@ -55,6 +56,8 @@ struct RootView: View {
             }
             if app.lock && locked { LockView { unlock() } }
         }
+        // a tab that is no longer there (记录 turned off) falls back to 本月
+        .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
         .onChange(of: phase) { _, p in
             if p == .active { app.today = .today; journal.reload(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
             if p == .background { locked = true; mascot.send(.appBackground) }
@@ -93,7 +96,8 @@ struct RootView: View {
         // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
         .onOpenURL { url in open(url) }
         .modifier(LampScope(on: scheme == .dark))
-        .preferredColorScheme(app.nightLight && night ? .dark : app.theme.scheme)
+        // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone
+        .preferredColorScheme(app.theme == .system && app.nightLight && night ? .dark : app.theme.scheme)
     }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.

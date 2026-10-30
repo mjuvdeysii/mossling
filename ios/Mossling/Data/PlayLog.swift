@@ -22,9 +22,9 @@ extension AppModel {
     }
     /// Records one time played; false (and nothing ticked, nothing cheered) when it could not be saved.
     @discardableResult func didPlay(_ p: Play, month: Int, _ j: JournalStore) -> Bool {
-        guard j.add(LogEntry(type: LogType.play, start: JournalFile.now(), detail: "\(p.code) \(p.name)")) else { return false }
+        // said back like every record, with 撤销
+        guard j.record(LogEntry(type: LogType.play, start: JournalFile.now(), detail: "\(p.code) \(p.name)")) else { return false }
         if !ticked(month, TickKind.did, p.code) { toggle(month, TickKind.did, p.code, p.name) }
-        j.onEvent?(.recordPersistSuccess)
         return true
     }
     func undoPlay(_ p: Play, month: Int, _ j: JournalStore) {

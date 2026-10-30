@@ -195,7 +195,7 @@ struct StatsView: View {
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 8)
-            Text("每格是一天，最右是今天；数字是有记录的日子的平均。").font(.caption).foregroundStyle(Palette.secondaryText)
+            Text("每格是一天，最右是今天；数字是有记录的整天的平均（今天还没过完，不算在内）。").font(.caption).foregroundStyle(Palette.secondaryText)
                 .padding(.horizontal, 20).padding(.bottom, 32).frame(maxWidth: .infinity, alignment: .leading)
         }
         .pageBackground()
@@ -229,7 +229,9 @@ struct StatsView: View {
         return out
     }
     private func chart(_ t: String, _ unit: String, _ type: String, _ data: [(Day, Double)]) -> some View {
-        let had = data.filter { $0.1 > 0 }
+        // the average is of whole days: today, still going, is left out (unless it is the only day there is)
+        let whole = data.filter { $0.1 > 0 && $0.0 != app.today }
+        let had = whole.isEmpty ? data.filter { $0.1 > 0 } : whole
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
         return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
@@ -241,7 +243,8 @@ struct StatsView: View {
                 BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1))
                     .foregroundStyle(LogType.color(type).opacity(d.0 == app.today ? 1 : 0.55).gradient).cornerRadius(4)
             }
-            .chartXAxis(.hidden)
+            // the day under each bar (a week's bars read without counting along them); today named
+            .chartXAxis { AxisMarks { v in AxisValueLabel { if let t = v.as(String.self) { Text(t).font(.system(size: 9)) } } } }
             .chartYAxis {
                 // counts in whole numbers only (no "0.5 次")
                 AxisMarks(position: .trailing) { v in
@@ -252,7 +255,7 @@ struct StatsView: View {
                     }
                 }
             }
-            .frame(height: 84)
+            .frame(height: 98)
         }
     }
 }

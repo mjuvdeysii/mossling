@@ -85,9 +85,10 @@ struct TimerScreen: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text("开始时间").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     WrapLayout(spacing: 8) {
-                        ForEach([0, 5, 10, 15, 30], id: \.self) { m in
+                        // the same choices as every record's time: 现在, 5, 10, 15, 30 minutes, an hour
+                        ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
-                            Button(m == 0 ? "现在" : "\(m) 分钟前") { startAt = nil; startAgo = m }
+                            Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { startAt = nil; startAgo = m }
                                 .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }

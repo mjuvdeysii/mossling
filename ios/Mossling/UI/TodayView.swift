@@ -1,52 +1,43 @@
 import SwiftUI
 import TipKit
 
-/// The home, in the order of how often it is needed (ios/DESIGN.md §5): the month as one compact card that opens into
-/// the growth wheel in place; this week's shelf, the everyday reason to open the app; the month's other plays; the
-/// month's parts and the topics as small tiles. Turning the wheel changes the month and everything below follows.
+/// The home holds only what is needed every day, in that order: who the child is now (the month card — tapping it
+/// opens the month's own page, where everything read once lives: its points, its parts, all its plays, the topics,
+/// and the way to other months); what is due this month, only while something is; what is happening now, from the
+/// records; and this week's shelf, the everyday reason to open the app. It reads in about one screen.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
-    @State private var chosen: Int?
-    @State private var wheel = false
     private let shelfTip = ShelfTip()
     private let recordsTip = RecordsTip()
 
     var body: some View {
         let baby = app.babyMonth ?? 0
-        let m = chosen ?? baby
         ScrollView {
-            // the order of the page: who the child is now (the month), what is happening now (records, when on), what to
-            // play this week (the shelf, the heart), the month's other plays, the month's parts, the topics, the story
             VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
-                if wheel {
-                    GrowthMap(month: Binding(get: { m }, set: { chosen = $0 == baby ? nil : $0 }), baby: baby) { withAnimation(.snappy) { wheel = false } }
-                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
-                } else {
-                    MonthCard(month: m, baby: baby) { withAnimation(.snappy) { wheel = true } }
-                        .transition(.opacity)
-                }
+                MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
+                if app.age != nil { DueCard(month: baby) }
                 if app.journal && app.age != nil { NowCard(month: baby) }
                 if app.age != nil {
                     TipView(recordsTip) { action in
                         if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
                     }
                 }
-                if m >= 36 { StoryGoesOn(primary: app.companion) }
-                if m == baby && app.age != nil {
+                if app.age != nil {
                     TipView(shelfTip)
-                    ShelfView(month: m) { arranging = true }
+                    ShelfView(month: baby) { arranging = true }
+                } else {
+                    // before the birth date is known there is no week yet: the first month's plays, to look at
+                    PlaysGrid(month: baby, hideShelf: false)
                 }
-                PlaysGrid(month: m, hideShelf: m == baby && app.age != nil)
-                MonthParts(month: m)
-                Topics()
+                if baby >= 36 { StoryGoesOn(primary: app.companion) }
                 HomeFooter { path.append(Route.story) }
             }
             .padding(.horizontal, 16)
@@ -58,16 +49,38 @@ struct TodayView: View {
         .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
-            if chosen != nil {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("回到本月", systemImage: "arrow.uturn.backward") { withAnimation(.snappy) { chosen = nil } }
-                }
-            }
             ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel("搜索") }
         }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
-        .onChange(of: app.babyMonth) { _, _ in chosen = nil }
+    }
+}
+
+/// What is due this month and not yet done — vaccines and check-ups — as one line that opens them; shown only while
+/// something is left, so the home is quiet when nothing is.
+private struct DueCard: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var body: some View {
+        let mo = app.content.month(month)
+        let total = mo.vaccines.count + mo.checkups.count
+        let done = app.count(month, TickKind.vaccine) + app.count(month, TickKind.checkup)
+        if total > done {
+            NavigationLink(value: Route.care(month)) {
+                HStack(spacing: 12) {
+                    IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text("这个月的接种与儿保").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                        Text("还有 \(total - done) 项 · 共 \(total) 项").font(.caption).foregroundStyle(Crayon.ink(Crayon.pink)).monospacedDigit()
+                    }
+                    Spacer(minLength: 0)
+                    Ring(done: done, total: total, color: Crayon.pink, size: 22)
+                    Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                }
+                .padding(12).printCard(radius: 20)
+            }
+            .buttonStyle(.toy)
+        }
     }
 }
 
@@ -133,8 +146,8 @@ private struct NowCard: View {
     }
 }
 
-/// The month, folded: the child at this age on a small patch of sky, the month and its title. Tapping it opens the
-/// growth wheel in place.
+/// The month: the child at this age on a small patch of sky, the month and its title, the way to the next. Tapping it
+/// opens the month's own page.
 private struct MonthCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
@@ -164,7 +177,7 @@ private struct MonthCard: View {
                 }
                 .foregroundStyle(.primary)
                 Spacer(minLength: 0)
-                Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+                Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
             }
             .padding(10).padding(.trailing, 6)
             .background(LinearGradient(colors: [Crayon.sunflower.opacity(night ? 0.06 : 0.12), Crayon.sky.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -172,7 +185,7 @@ private struct MonthCard: View {
         }
         .buttonStyle(.toy)
         .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
-        .accessibilityHint("打开成长地图，选择月份")
+        .accessibilityHint("打开这个月的全部内容")
     }
 }
 

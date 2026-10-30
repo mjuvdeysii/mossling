@@ -383,6 +383,8 @@ struct GrowthMap: View {
     var close: (() -> Void)? = nil
     @State private var preview: Int
     @State private var dragging = false
+    /// Which way the current drag went first: along the path (sideways) walks Moss; up or down is the page scrolling.
+    @State private var sideways: Bool?
     @State private var giggles = 0
     @State private var arrived = 0
 
@@ -464,17 +466,27 @@ struct GrowthMap: View {
                 }
             }
             .contentShape(Rectangle())
-            .gesture(DragGesture(minimumDistance: 0)
+            // a tap picks the stone under the finger; a drag that starts sideways walks Moss along the path. An up or
+            // down drag is left to the page, so scrolling over the map never changes the month
+            .onTapGesture(coordinateSpace: .local) { loc in
+                let m = MapGeo.month(near: loc, width: w)
+                if m == preview { giggles += 1 }   // a tap on Moss's own stone makes him giggle
+                preview = m
+                if m != month { month = m }
+                if m == baby { arrived += 1 }
+            }
+            .simultaneousGesture(DragGesture(minimumDistance: 12)
                 .onChanged { v in
+                    if sideways == nil { sideways = abs(v.translation.width) > abs(v.translation.height) * 1.2 }
+                    guard sideways == true else { return }
                     dragging = true
                     let m = MapGeo.month(near: v.location, width: w)
                     if m != preview { preview = m }
                 }
                 .onEnded { v in
-                    dragging = false
+                    defer { sideways = nil; dragging = false }
+                    guard sideways == true else { return }
                     let m = MapGeo.month(near: v.location, width: w)
-                    // a tap on Moss's own stone makes him giggle
-                    if m == preview && hypot(v.translation.width, v.translation.height) < 6 { giggles += 1 }
                     preview = m
                     if m != month { month = m }
                     if m == baby { arrived += 1 }

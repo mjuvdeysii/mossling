@@ -84,7 +84,12 @@ final class JournalStore {
         onEvent?(.recordPersistSuccess)
         if let e = b.logs.last, e.type == type { say(type, "已记下 " + LogType.name(type) + " · " + durationValue(e.activeSeconds) + "，到 " + hm(e.endDate ?? Date()), undo: before) }
     }
-    func discard(_ type: String) { changed(JournalFile.discard(type)); onEvent?(.timerEnded) }
+    /// Drops a running timer; said back with 撤销, like every change that loses something.
+    func discard(_ type: String) {
+        let before = JournalFile.read()
+        changed(JournalFile.discard(type)); onEvent?(.timerEnded)
+        say(type, "没有记这一次" + LogType.name(type), undo: before)
+    }
 
     @discardableResult func add(_ e: LogEntry) -> Bool { edit { $0.logs.append(e) } }
     /// Adds an entry and says so ("已记下 尿布 · 湿 · 14:05"), with 撤销 for a few seconds. False when it could not be
@@ -106,9 +111,18 @@ final class JournalStore {
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
     @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } }
-    func delete(_ e: LogEntry) { edit { $0.logs.removeAll { $0.id == e.id } } }
+    /// Deleting is one tap (no confirmation to tap through at night): it is said back with 撤销 instead.
+    func delete(_ e: LogEntry) {
+        let before = JournalFile.read()
+        guard edit({ $0.logs.removeAll { $0.id == e.id } }) else { return }
+        say(e.type, "已删除 " + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
+    }
     func saveMeasure(_ m: Measure) { edit { b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } } }
-    func deleteMeasure(_ m: Measure) { edit { $0.measures.removeAll { $0.id == m.id } } }
+    func deleteMeasure(_ m: Measure) {
+        let before = JournalFile.read()
+        guard edit({ $0.measures.removeAll { $0.id == m.id } }) else { return }
+        say(LogType.growth, "已删除这次测量 · " + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+    }
     /// Keeps a first (new or changed) and says so; false when it could not be saved.
     @discardableResult func saveFirst(_ f: First) -> Bool {
         let isNew = !firsts.contains { $0.id == f.id }
@@ -118,7 +132,11 @@ final class JournalStore {
         if isNew { toast = Toast(type: LogType.note, text: "记下了第一次：" + f.title + " · " + whenLabelDay(f.date), restore: before) }
         return true
     }
-    func deleteFirst(_ f: First) { edit { $0.firsts.removeAll { $0.id == f.id } } }
+    func deleteFirst(_ f: First) {
+        let before = JournalFile.read()
+        guard edit({ $0.firsts.removeAll { $0.id == f.id } }) else { return }
+        say(LogType.note, "已删除第一次：" + f.title, undo: before)
+    }
     func replaceAll(_ body: JournalFile.Body) { JournalFile.write(body); changed(body) }
 
     func last(_ type: String) -> Date? { logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate } }

@@ -10,6 +10,9 @@ struct JournalView: View {
     /// A kind to show alone when the page opens (screenshots); the page's own chips change it.
     var only: String? = nil
     @State private var day: Day = .today
+    @Environment(\.scenePhase) private var phase
+    @State private var leftAt: Date?
+    @State private var pickingDay = false
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
     @State private var newFirst: First?
@@ -21,7 +24,15 @@ struct JournalView: View {
                 TipView(StickerTip())
                 StickerSheet(timers: j.timers, month: app.babyMonth, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
-                DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only)
+                // any day: tap its date for a calendar, or swipe the page sideways for the day before or after
+                DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only, pick: { pickingDay = true })
+                    .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
+                        let dx = v.translation.width, dy = v.translation.height
+                        guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
+                        let next = day.plus(days: dx < 0 ? 1 : -1)
+                        guard next.epochDay <= app.today.epochDay, app.birth.map({ next.epochDay >= $0.epochDay }) ?? true else { return }
+                        withAnimation(.snappy) { day = next }
+                    })
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
                     NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).count }) } }.buttonStyle(.toy)
@@ -34,6 +45,9 @@ struct JournalView: View {
         .pageBackground(tone: Crayon.pink)
         .navigationTitle("记录")
         .toolbar {
+            if day != app.today {
+                ToolbarItem(placement: .topBarLeading) { Button("今天") { withAnimation(.snappy) { day = app.today } } }
+            }
             ToolbarItem(placement: .topBarTrailing) {
                 // the rarer records live behind +, not on the page: an entry after the fact, a first, a measurement
                 Menu {
@@ -46,12 +60,27 @@ struct JournalView: View {
                 .accessibilityLabel("补记、第一次、测量")
             }
         }
-        .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id).lampPresented() }
+        .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
+        .sheet(isPresented: $pickingDay) {
+            NavigationStack {
+                DatePicker("哪一天", selection: Binding(get: { day.date }, set: { day = Day($0); pickingDay = false }),
+                           in: (app.birth?.date ?? .distantPast)...Date(), displayedComponents: .date)
+                    .datePickerStyle(.graphical).padding(.horizontal, 16)
+                    .navigationTitle("看哪一天").navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { pickingDay = false } } }
+            }
+            .presentationDetents([.medium]).lampPresented()
+        }
         .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }).lampPresented() }
         .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
+        // the day chosen stays chosen across the stats, the growth curve and the other tabs; it goes back to today
+        // when the date turns, or when the app comes back after a while away (half an hour)
         .onChange(of: app.today) { _, t in day = t }
-        .onAppear { day = app.today }
+        .onChange(of: phase) { _, p in
+            if p == .background { leftAt = Date() }
+            if p == .active, let l = leftAt, Date().timeIntervalSince(l) > 1800 { day = app.today; leftAt = nil }
+        }
     }
 
     /// A way into a deeper page that already shows a glimpse of it: the week's bars, the last measurement.
@@ -74,10 +103,12 @@ struct JournalView: View {
         if t == LogType.growth { measuring = Measure(at: Date().timeIntervalSince1970 * 1000); return }
         // a feed or a sleep has its own page: it opens, and starts only from there
         if LogType.timed.contains(t) { j.focus = t; return }
-        // a bath is one tap: recorded now, said back with 撤销
-        if t == LogType.bath { j.record(LogEntry(type: t, start: JournalFile.now())); return }
+        // a bath is one tap: recorded now (or at noon of the past day on the page), said back with 撤销
+        if t == LogType.bath { j.record(LogEntry(type: t, start: day == app.today ? JournalFile.now() : ms(pastNoon))); return }
         j.ask = t
     }
+    /// Noon of the day on the page, for a record made while looking at a past day.
+    private var pastNoon: Date { day.date.addingTimeInterval(12 * 3600) }
     private func defaultTime() -> Double { day == app.today ? JournalFile.now() : day.date.addingTimeInterval(12 * 3600).timeIntervalSince1970 * 1000 }
 }
 
@@ -312,10 +343,11 @@ private struct DayPage: View {
     let timers: [RunningTimer]
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
+    var pick: () -> Void = {}
     /// One kind to look at alone ("feed" = breast and bottle together), or nil for the whole day.
     @State private var only: String?
-    init(day: Day, today: Day, logs: [LogEntry], timers: [RunningTimer], edit: @escaping (LogEntry) -> Void, delete: @escaping (LogEntry) -> Void, only: String? = nil) {
-        self.day = day; self.today = today; self.logs = logs; self.timers = timers; self.edit = edit; self.delete = delete
+    init(day: Day, today: Day, logs: [LogEntry], timers: [RunningTimer], edit: @escaping (LogEntry) -> Void, delete: @escaping (LogEntry) -> Void, only: String? = nil, pick: @escaping () -> Void = {}) {
+        self.day = day; self.today = today; self.logs = logs; self.timers = timers; self.edit = edit; self.delete = delete; self.pick = pick
         _only = State(initialValue: only)
     }
 
@@ -323,11 +355,21 @@ private struct DayPage: View {
         let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
-                Text("\(day.d)").font(Typeface.numerals(36, relativeTo: .largeTitle, weight: .bold))
-                VStack(alignment: .leading, spacing: 0) {
-                    Text("\(day.m)月 \(day.weekday)").font(.headline)
-                    Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                Button(action: pick) {
+                    HStack(alignment: .center, spacing: 12) {
+                        Text("\(day.d)").font(Typeface.numerals(36, relativeTo: .largeTitle, weight: .bold))
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack(spacing: 4) {
+                                Text("\(day.m)月 \(day.weekday)").font(.headline)
+                                Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
+                            }
+                            Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                        }
+                    }
+                    .foregroundStyle(.primary)
                 }
+                .buttonStyle(.toy)
+                .accessibilityHint("选另一天")
                 Spacer()
                 DayCompanion(lamp: lamp, empty: logs.isEmpty, hush: day == today && timers.contains { $0.type == LogType.sleep && $0.pausedAt == nil })
             }

@@ -8,6 +8,8 @@ struct AskSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
     let type: String
+    /// Opened from a past day's page: the time starts on that day (noon), not now.
+    var on: Date? = nil
     @State private var when = Date()
     @State private var ml = 120.0
     @State private var temp = 368
@@ -44,12 +46,14 @@ struct AskSheet: View {
                 }
                 .padding(20)
             }
+            .safeAreaBar(edge: .bottom) { saveBar }
             .navigationBarTitleDisplayMode(.inline)   // the name is on the stage
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
             .background { PageBackground(tone: LogType.color(type)) }
         }
         .presentationDetents(vinyl ? [.large] : [.fraction(0.72), .large])
         .sensoryFeedback(.success, trigger: saved)
+        .onAppear { if let on { ago = nil; when = on } }
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
     }
 
@@ -75,7 +79,6 @@ struct AskSheet: View {
             }
             .padding(16)
             .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
-            save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
         case LogType.diaper where vinyl:
             Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 10) {
@@ -105,7 +108,6 @@ struct AskSheet: View {
             }
             .padding(16)
             .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
-            save { j.record(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
         case LogType.bottle:
             // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
             HStack(spacing: 12) {
@@ -134,7 +136,6 @@ struct AskSheet: View {
                 Stepper("奶量", value: $ml, in: 5...300, step: 5).labelsHidden()
             }
             FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
-            save { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) }
         case LogType.diaper:
             Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 12) {
@@ -153,7 +154,6 @@ struct AskSheet: View {
                 Spacer()
                 Stepper("体温", value: $temp, in: 340...425).labelsHidden()
             }
-            save { j.record(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) }
         default:
             let (title, hint, chips): (String, String, [String]) = type == LogType.solid ? ("吃了什么", "食物和大概的量", ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
                 : type == LogType.medicine ? ("用了什么药", "药名与剂量，按医嘱或说明书", ["维生素 D", "维生素 AD"]) : ("备注", "发生了什么", [])
@@ -163,17 +163,31 @@ struct AskSheet: View {
             if !chips.isEmpty {
                 FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
             }
-            save(enabled: !text.trimmingCharacters(in: .whitespaces).isEmpty || type == LogType.solid) {
-                typing = false
-                return j.record(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
-            }
         }
     }
 
-    /// Saves and closes; if the save fails the page stays open with everything as typed, and says so.
-    private func save(enabled: Bool = true, _ f: @escaping () -> Bool) -> some View {
-        Button { if f() { saved += 1; dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
-            .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!enabled)
+    /// What 记下 saves for this kind, and whether it can yet (a nappy saves on its own choice, so has none).
+    private var submit: (enabled: Bool, run: () -> Bool)? {
+        switch type {
+        case LogType.diaper: return nil
+        case LogType.bottle: return (true, { j.record(LogEntry(type: LogType.bottle, start: ms(at), amount: Int(ml), detail: milk)) })
+        case LogType.temp: return (true, { j.record(LogEntry(type: LogType.temp, start: ms(at), amount: temp)) })
+        default:
+            return (!text.trimmingCharacters(in: .whitespaces).isEmpty || type == LogType.solid, {
+                typing = false
+                return j.record(LogEntry(type: type, start: ms(at), detail: text.trimmingCharacters(in: .whitespacesAndNewlines)))
+            })
+        }
+    }
+
+    /// Saves and closes; if the save fails the page stays open with everything as typed, and says so. It stays in
+    /// view at the foot of the sheet whatever is above it — a one-handed parent never scrolls to find it.
+    @ViewBuilder private var saveBar: some View {
+        if let s = submit {
+            Button { if s.run() { saved += 1; dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
+                .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!s.enabled)
+                .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
+        }
     }
 }
 
@@ -360,15 +374,20 @@ struct MeasureSheet: View {
     @State private var h = ""
 
     var body: some View {
-        let wg = Double(w).flatMap { (1...30).contains($0) ? Int(($0 * 1000).rounded()) : nil }
+        // a weight typed in grams (7850) is read as grams and said so; anything else out of range is said under its field
+        let wv = Double(w).map { $0 > 300 ? $0 / 1000 : $0 }
+        let wg = wv.flatMap { (1...30).contains($0) ? Int(($0 * 1000).rounded()) : nil }
         let lm = Double(l).flatMap { (35...120).contains($0) ? Int(($0 * 10).rounded()) : nil }
         let hm = Double(h).flatMap { (25...60).contains($0) ? Int(($0 * 10).rounded()) : nil }
         NavigationStack {
             Form {
                 DatePicker("日期", selection: $day, in: ...Date(), displayedComponents: .date)
-                Section { field("体重", "千克", $w, "scalemass.fill", Indicator.weight) } footer: { Text("精确到 0.01 千克，如 7.85") }
-                Section { field("身长 / 身高", "厘米", $l, "ruler.fill", Indicator.length) } footer: { Text("精确到 0.1 厘米；2 岁前躺着量身长") }
-                Section { field("头围", "厘米", $h, "circle.dashed", Indicator.head) } footer: { Text("精确到 0.1 厘米，经眉上缘与后脑最突出处") }
+                Section { field("体重", "千克", $w, "scalemass.fill", Indicator.weight) } footer: {
+                    note(w, ok: wg != nil, base: "精确到 0.01 千克，如 7.85", bad: "体重请在 1–30 千克之间",
+                         extra: (Double(w) ?? 0) > 300 && wg != nil ? "已按克换算为 " + String(format: "%.2f", Double(wg!) / 1000) + " 千克" : nil)
+                }
+                Section { field("身长 / 身高", "厘米", $l, "ruler.fill", Indicator.length) } footer: { note(l, ok: lm != nil, base: "精确到 0.1 厘米；2 岁前躺着量身长", bad: "身长请在 35–120 厘米之间") }
+                Section { field("头围", "厘米", $h, "circle.dashed", Indicator.head) } footer: { note(h, ok: hm != nil, base: "精确到 0.1 厘米，经眉上缘与后脑最突出处", bad: "头围请在 25–60 厘米之间") }
                 if !isNew { Section { Button("删除这次测量", role: .destructive) { j.deleteMeasure(measure); dismiss() } } }
             }
             .scrollContentBackground(.hidden)
@@ -393,6 +412,12 @@ struct MeasureSheet: View {
         }
     }
 
+    /// Under a field: how to measure; when what is typed cannot be kept, why, in the warning colour.
+    @ViewBuilder private func note(_ v: String, ok: Bool, base: String, bad: String, extra: String? = nil) -> some View {
+        if !v.trimmingCharacters(in: .whitespaces).isEmpty && !ok { Text(bad).foregroundStyle(Palette.danger) }
+        else if let extra { Text(extra) }
+        else { Text(base) }
+    }
     private func field(_ t: String, _ unit: String, _ v: Binding<String>, _ s: String, _ i: Indicator) -> some View {
         HStack {
             IconTile(symbol: s, color: i.tint, size: 32, round: true)

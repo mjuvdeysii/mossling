@@ -35,10 +35,12 @@ struct Bead: View {
 }
 
 /// One month as a chapter: the cover picture, then the month in order — points, plays, the month's parts, topics.
+/// Other months are a step away: ‹ › at the top, or the month list from the title.
 struct MonthView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
-    let month: Int
+    @State private var month: Int
+    init(month: Int) { _month = State(initialValue: month) }
 
     var body: some View {
         let mo = app.content.month(month), m = month
@@ -67,6 +69,48 @@ struct MonthView: View {
         .pageBackground()
         .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
         .navigationBarTitleDisplayMode(.large)
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button("上个月", systemImage: "chevron.left") { withAnimation(.snappy) { month -= 1 } }.disabled(m <= 0)
+                Menu {
+                    ForEach(0...36, id: \.self) { k in
+                        Button { withAnimation(.snappy) { month = k } } label: {
+                            Text((k == 0 ? "出生" : "满 \(k) 个月") + (k == app.babyMonth ? " · 宝宝在这里" : ""))
+                        }
+                    }
+                } label: { Image(systemName: "calendar") }
+                .accessibilityLabel("选一个月")
+                Button("下个月", systemImage: "chevron.right") { withAnimation(.snappy) { month += 1 } }.disabled(m >= 36)
+            }
+        }
+        .sensoryFeedback(.selection, trigger: month)
+    }
+}
+
+/// The month at a glance — what to focus on, what to look out for — as one card. Folded (on 本月), each point shows
+/// two lines and the card opens in place to the whole of them; a point that only names a play is left to the plays.
+struct MonthPoints: View {
+    @Environment(AppModel.self) private var app
+    let month: Int
+    var folded = true
+    @State private var open = false
+    var body: some View {
+        let c = app.content, mo = c.month(month)
+        let points = mo.highlights.filter { c.play($0.anchor ?? "") == nil }
+        if !points.isEmpty {
+            let shut = folded && !open
+            Button { if folded { withAnimation(.snappy) { open.toggle() } } } label: {
+                Box {
+                    ForEach(Array(points.enumerated()), id: \.offset) { i, h in
+                        let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
+                        BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1) { EmptyView() }
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .disabled(!folded)
+            .accessibilityHint(folded ? (open ? "收起" : "展开全文") : "")
+        }
     }
 }
 
@@ -76,16 +120,7 @@ private struct MonthBody: View {
     var body: some View {
         let c = app.content, mo = c.month(month), m = month
         VStack(alignment: .leading, spacing: 18) {
-            // the month at a glance; a point that only names a play is already among the plays below
-            let points = mo.highlights.filter { c.play($0.anchor ?? "") == nil }
-            if !points.isEmpty {
-                Box {
-                    ForEach(Array(points.enumerated()), id: \.offset) { i, h in
-                        let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
-                        BoxRow(symbol: sym, color: col, title: h.kind, text: h.text, last: i == points.count - 1)
-                    }
-                }
-            }
+            MonthPoints(month: m, folded: false)
 
             let plays = c.plays(of: m)
             if !plays.isEmpty {
