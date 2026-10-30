@@ -69,7 +69,7 @@ struct DataView: View {
                 }
             }
             Section {
-                Button { importing = true } label: {
+                Button { if app.mayKeep() { importing = true } } label: {
                     HStack(spacing: 12) {
                         IconTile(symbol: "square.and.arrow.down.on.square.fill", color: Crayon.lilac, size: 34)
                         VStack(alignment: .leading, spacing: 3) {

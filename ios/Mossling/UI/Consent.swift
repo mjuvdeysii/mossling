@@ -59,6 +59,8 @@ struct ConsentSheet: View {
     private func answer(_ yes: Bool) {
         app.consent = yes ? Consent.version : "declined"
         app.askConsent = false
+        // declined: nothing more about the child is kept — the records (and the widgets' quick logging) are turned off
+        if !yes { app.journal = false }
     }
 
     private func docLink(_ title: String, _ name: String) -> some View {
