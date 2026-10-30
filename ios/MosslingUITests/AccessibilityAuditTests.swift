@@ -20,22 +20,29 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private var lines: [String] = [], unlabeled: [String] = []
 
-    /// The part of the screen the reader actually sees: below the navigation bar and above the tab bar. Text scrolled
-    /// under a bar is drawn through its glass, so a contrast reading there measures the bar, not the page.
-    private func viewport(_ app: XCUIApplication) -> ClosedRange<CGFloat> {
+    /// The bars, and what they hold. Page text that has scrolled under a bar is drawn through its glass, so a contrast
+    /// reading there measures the bar, not the page; those are skipped (and counted). The bars' own titles, buttons and
+    /// tab labels are kept: their contrast is real.
+    private func bars(_ app: XCUIApplication) -> (frames: [CGRect], own: Set<String>) {
         let nav = app.navigationBars.firstMatch, tab = app.tabBars.firstMatch
-        let top = nav.exists ? nav.frame.maxY + 8 : 0
-        let bottom = tab.exists ? tab.frame.minY - 24 : app.frame.maxY
-        return top...max(top, bottom)
+        var frames: [CGRect] = [], own = Set<String>()
+        for bar in [nav, tab] where bar.exists {
+            frames.append(bar.frame)
+            for e in bar.descendants(matching: .any).allElementsBoundByIndex { own.insert(Self.key(e.label, e.frame)) }
+        }
+        return (frames, own)
     }
+    private static func key(_ label: String, _ f: CGRect) -> String { "\(label)@\(Int(f.minX)),\(Int(f.minY))" }
+    private var skipped = 0
 
     private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
-        let seen = viewport(app)
+        let under = bars(app)
         shoot(app, place)
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
-                if issue.auditType == .contrast, let f = e?.frame, !(seen.contains(f.minY) && seen.contains(f.maxY)) { return true }
+                if issue.auditType == .contrast, let e, under.frames.contains(where: { $0.intersects(e.frame) }),
+                   !under.own.contains(Self.key(e.label, e.frame)) { self.skipped += 1; return true }
                 let who = e.map { "\($0.elementType.rawValue) “\($0.label)” id=\($0.identifier) \(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))×\(Int($0.frame.height))" } ?? "—"
                 self.lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who) · \(issue.detailedDescription)")
                 if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { self.unlabeled.append("[\(place)] \(who)") }
@@ -72,7 +79,7 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private func run(_ size: String?, file: String) {
         let app = launch(size)
-        lines = []; unlabeled = []
+        lines = []; unlabeled = []; skipped = 0
         sizeTag = size == nil ? "default" : "xxxl"
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
@@ -95,7 +102,7 @@ final class AccessibilityAuditTests: XCTestCase {
             if seen[body] == nil { order.append(body) }
             seen[body, default: []].append(place)
         }
-        let text = "\(order.count) issues (\(size ?? "default size"))\n\n" + order.map { b in "\(b)  @ \(seen[b]?.joined(separator: ", ") ?? "")" }.joined(separator: "\n") + "\n"
+        let text = "\(order.count) issues (\(size ?? "default size")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in "\(b)  @ \(seen[b]?.joined(separator: ", ") ?? "")" }.joined(separator: "\n") + "\n"
         try? text.write(toFile: (dir as NSString).appendingPathComponent(file), atomically: true, encoding: .utf8)
         // reported, not failed: the list is reviewed from the published file (a missing label is fixed in the next build)
         if !unlabeled.isEmpty { print("A11Y unlabeled: \(unlabeled.count)") }

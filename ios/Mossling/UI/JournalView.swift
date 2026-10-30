@@ -274,7 +274,7 @@ private struct Sticker: View {
         .sensoryFeedback(.impact(weight: .light), trigger: running)
         .accessibilityLabel(running ? "\(LogType.name(type))进行中，打开计时" : LogType.name(type))
         .accessibilityHint(running ? "" : LogType.timed.contains(type) ? "打开计时页" : type == LogType.bath ? "点按即记下一次" : "")
-        .accessibilityValue(running ? "" : since ?? "未记")
+        .accessibilityValue(running ? (paused ? "已暂停 " : "") + (since ?? "") : since ?? "未记")
         .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
     }
 }

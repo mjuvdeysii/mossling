@@ -44,7 +44,7 @@ enum Palette {
     static let text = Color.primary
     /// Secondary text. The system's secondary label is 60 % of the primary, about 3.4:1 on white and under 3:1 on the
     /// tinted cards — below WCAG's 4.5:1 for the small captions that carry it here (the accessibility audit flagged
-    /// them). A solid grey instead: 6.3:1 on white, ≥ 5.3:1 on every tinted card; by lamplight ≥ 6.8:1.
+    /// them). A solid grey instead: 8.3:1 on white, 7.8:1 on the paper; by lamplight ≥ 6.8:1.
     static let secondaryText = Color.dyn(0x4D4E55, 0xB8BED4)
     static let outline = Color(uiColor: .separator)
     static let danger = Crayon.cherry
