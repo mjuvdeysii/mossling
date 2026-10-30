@@ -179,7 +179,7 @@ private struct LockView: View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
             Text("摸索台灯已锁定").font(.title2.weight(.bold))
-            Button("解锁", systemImage: "faceid", action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+            Button("解锁", systemImage: Biometry.symbol, action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()

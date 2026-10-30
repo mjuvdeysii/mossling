@@ -73,6 +73,7 @@ private struct DueCard: View {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("这个月的接种与儿保").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                        Text("中国大陆程序").font(.caption2).foregroundStyle(Palette.secondaryText)
                         Text("本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : "")).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     }
                     Spacer(minLength: 0)

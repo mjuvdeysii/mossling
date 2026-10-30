@@ -98,6 +98,12 @@ struct AskSheet: View {
                     ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
                         .foregroundStyle(temp >= 380 ? Palette.danger : lamp ? Palette.lampInk : .primary)
                     Text("点按或上下拖动体温计").font(.footnote).foregroundStyle(Palette.secondaryText)
+                    // a fever is not only a red number: what to do is said under it (from the topic 什么时候要找医生)
+                    if temp >= 380 {
+                        Text("达到 38 °C：未满 3 个月请尽快联系医生；其他情况可看专题「什么时候要找医生」。")
+                            .font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     NudgeButtons(value: tempC, range: 34...42.5, step: 0.1, tint: temp >= 380 ? Palette.danger : c)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

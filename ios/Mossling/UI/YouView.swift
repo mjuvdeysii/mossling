@@ -51,7 +51,7 @@ struct YouView: View {
                         SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
                         if face {
                             Divider().padding(.leading, 52)
-                            SwitchRow(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
+                            SwitchRow(title: Biometry.name, detail: "打开时解锁", symbol: Biometry.symbol, color: Crayon.leaf, on: $app.lock)
                         }
                     }
                     .printCard(radius: Radius.card)
@@ -159,7 +159,7 @@ private struct FamilyCard: View {
 
     private func chip(_ t: String, _ symbol: String, strong: Bool = false) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: symbol).font(.caption2.weight(.bold))
+            Image(systemName: symbol).font(.caption2.weight(.bold)).accessibilityHidden(true)
             Text(t).font(.caption2.weight(.semibold)).fixedSize()
         }
         .foregroundStyle(strong ? Palette.accent : Palette.secondaryText)
@@ -669,5 +669,20 @@ struct LicensesView: View {
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
         VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }
+    }
+}
+
+/// What the phone unlocks with, named as the phone names it: 面容 ID, 触控 ID, or the passcode.
+enum Biometry {
+    private static var type: LABiometryType {
+        let c = LAContext()
+        _ = c.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+        return c.biometryType
+    }
+    static var name: String {
+        switch type { case .faceID: "面容 ID"; case .touchID: "触控 ID"; case .opticID: "视控 ID"; default: "密码" }
+    }
+    static var symbol: String {
+        switch type { case .faceID: "faceid"; case .touchID: "touchid"; case .opticID: "opticid"; default: "lock.fill" }
     }
 }

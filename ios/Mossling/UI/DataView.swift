@@ -22,7 +22,7 @@ struct DataView: View {
         var detail: String {
             switch self {
             case .summary: "孩子的资料、生长测量与百分位、每天的喂奶睡眠尿布汇总、每月记下的事、全部记录，按时间排好的一份文档"
-            case .backup: "全部设置与记录，包括正在进行的计时；可以导回本应用或安卓版"
+            case .backup: "全部设置与记录，包括正在进行的计时；可以导回摸索台灯"
             case .table: "每一条记录一行，可用 Numbers 或 Excel 打开"
             }
         }
@@ -74,7 +74,7 @@ struct DataView: View {
                         IconTile(symbol: "square.and.arrow.down.on.square.fill", color: Crayon.lilac, size: 34)
                         VStack(alignment: .leading, spacing: 3) {
                             Text("导入完整备份").font(.body.weight(.semibold)).foregroundStyle(.primary)
-                            Text("从摸索台灯（iOS 或安卓）导出的备份文件").font(.footnote).foregroundStyle(Palette.secondaryText)
+                            Text("从摸索台灯导出的完整备份文件").font(.footnote).foregroundStyle(Palette.secondaryText)
                         }
                     }
                     .padding(.vertical, 4)
