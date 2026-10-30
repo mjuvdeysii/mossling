@@ -1,0 +1,21 @@
+19 issues (0 by measurement; UICTContentSizeCategoryAccessibilityXXXL, 日光); 9 contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)
+
+contrast: Contrast failed — 48 “满 7 个月” id= 144,713 118×51 · Contrast failed for SwiftUI.AccessibilityNode  @ 本月
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “中国大陆程序” id= 94,733 151×96 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 本月 ↓
+contrast: Contrast failed — 48 “这个月的接种与儿保” id= 94,557 184×174 · Contrast failed for SwiftUI.AccessibilityNode  @ 本月 ↓
+contrast: Contrast failed — 48 “28 天后” id= 144,419 145×51 · Contrast failed for SwiftUI.AccessibilityNode  @ 本月 ↓
+contrast: Contrast failed — 48 “满 7 个月” id= 144,470 118×51 · Contrast failed for SwiftUI.AccessibilityNode  @ 本月 ↓
+clipped: Text clipped — 48 “瓶喂、尿布等点贴纸记下，时间可改；亲喂和睡眠会打开计时页。记错了，在顶部提示条点「撤销」，或在下面的时间线里改。” id=TipView 30,332 326×522 · Text of this SwiftUI.AccessibilityNode may be clipped at larger Dynamic Type sizes.  @ 记录
+contrast: Contrast failed — — · Contrast failed for SwiftUI.AccessibilityNode  @ 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓
+clipped: Text clipped — 48 “瓶喂、尿布等点贴纸记下，时间可改；亲喂和睡眠会打开计时页。记错了，在顶部提示条点「撤销」，或在下面的时间线里改。” id=TipView 30,88 326×522 · Text of this SwiftUI.AccessibilityNode may be clipped at larger Dynamic Type sizes.  @ 记录 ↓
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “精力用不完，什么都要先看一眼” id= 86,707 228×144 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “精力用不完，什么都要先看一眼” id= 86,634 228×144 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “2026年4月27日出生” id= 85,331 375×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “第 187 天” id= 86,386 160×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “女孩” id= 75,443 75×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “这一段：坐起来看” id= 83,498 304×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “编辑” id= 249,128 130×128 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “个月” id= 165,260 92×58 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “天” id= 299,260 46×58 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “6” id= 126,252 37×67 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “3” id= 263,258 33×60 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓

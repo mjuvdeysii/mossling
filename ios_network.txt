@@ -1,0 +1,63 @@
+Network events from the app's processes during the simulator tests (     114 log lines)
+-- connections and requests --
+-- every line, deduplicated (timestamps and ids removed) --
+   2 Df Mossling [com.apple.network:activity] Unset the global parent activity
+   2 Db Mossling [com.apple.network:activity] No threshold for app_launch:extended_app_launch, returning NW_ACTIVITY_DURATION_INVALID
+   2 Db Mossling [com.apple.network:activity] No threshold for app_launch:app_launch, returning NW_ACTIVITY_DURATION_INVALID
+   1 Timestamp               Ty Process[PID:TID]
+   1 getpwuid_r did not find a match for uid 501
+   1 Filtering the log data using "process BEGINSWITH "Mossling" AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")"
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [0EA3AB53-06E0-4293-BEB0-E0E32B933D1B] (global parent) (reporting strategy default) complete (rea
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] Unset the global parent activity
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] Set activity <nw_activity 50:1 [0EA3AB53-06E0-4293-BEB0-E0E32B933D1B] (reporting strategy default)> as the global parent
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [8B1BFF3A-30F7-4239-A226-B13797380567] (reporting strategy default)>
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [0EA3AB53-06E0-4293-BEB0-E0E32B933D1B] (reporting strategy default)>
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] <nw_activity 50:2 [8B1BFF3A-30F7-4239-A226-B13797380567] (reporting strategy default) complete (reason success)> complete with reason 2 (success), durat
+   1 Df MosslingUITests-Runner[25282:1282e] [com.apple.network:activity] <nw_activity 50:1 [0EA3AB53-06E0-4293-BEB0-E0E32B933D1B] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [2BC21FFD-FAFC-475A-85DC-B1845B20E238] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] Set activity <nw_activity 50:1 [2BC21FFD-FAFC-475A-85DC-B1845B20E238] (reporting strategy default)> as the global parent
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [7A9AB92A-9DB0-49F4-9B88-94FC63B99736] (reporting strategy default)>
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [2BC21FFD-FAFC-475A-85DC-B1845B20E238] (reporting strategy default)>
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] <nw_activity 50:2 [7A9AB92A-9DB0-49F4-9B88-94FC63B99736] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 7091ms
+   1 Df Mossling[74109:2e0fb] [com.apple.network:activity] <nw_activity 50:1 [2BC21FFD-FAFC-475A-85DC-B1845B20E238] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [D8F76BDB-B4CF-45F0-AB1C-6A4DF0C3D8A5] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] Set activity <nw_activity 50:1 [D8F76BDB-B4CF-45F0-AB1C-6A4DF0C3D8A5] (reporting strategy default)> as the global parent
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [6CC5ABB0-1FEB-451F-BD10-21E17E028CC6] (reporting strategy default)>
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [D8F76BDB-B4CF-45F0-AB1C-6A4DF0C3D8A5] (reporting strategy default)>
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] <nw_activity 50:2 [6CC5ABB0-1FEB-451F-BD10-21E17E028CC6] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 5504ms
+   1 Df Mossling[72572:2d0fc] [com.apple.network:activity] <nw_activity 50:1 [D8F76BDB-B4CF-45F0-AB1C-6A4DF0C3D8A5] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [74959B5B-49FE-450A-B454-FB25EABDD2E8] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] Set activity <nw_activity 50:1 [74959B5B-49FE-450A-B454-FB25EABDD2E8] (reporting strategy default)> as the global parent
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [61957CA3-804B-47F0-AAB8-BE9EDC88D17B] (reporting strategy default)>
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [74959B5B-49FE-450A-B454-FB25EABDD2E8] (reporting strategy default)>
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] <nw_activity 50:2 [61957CA3-804B-47F0-AAB8-BE9EDC88D17B] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 7232ms
+   1 Df Mossling[70263:2ba8f] [com.apple.network:activity] <nw_activity 50:1 [74959B5B-49FE-450A-B454-FB25EABDD2E8] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [3ED9E582-0FC4-4A85-A5A0-18874D22B53F] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] Set activity <nw_activity 50:1 [3ED9E582-0FC4-4A85-A5A0-18874D22B53F] (reporting strategy default)> as the global parent
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [BA7CE517-180B-4CBD-A406-01791DFB0573] (reporting strategy default)>
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [3ED9E582-0FC4-4A85-A5A0-18874D22B53F] (reporting strategy default)>
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] <nw_activity 50:2 [BA7CE517-180B-4CBD-A406-01791DFB0573] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 10246ms
+   1 Df Mossling[67294:29f00] [com.apple.network:activity] <nw_activity 50:1 [3ED9E582-0FC4-4A85-A5A0-18874D22B53F] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [5B4BF315-1E13-47D1-9A68-0B830D990D4F] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] Set activity <nw_activity 50:1 [5B4BF315-1E13-47D1-9A68-0B830D990D4F] (reporting strategy default)> as the global parent
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [2EC9CB86-9382-4E1C-9F30-F0DB0A2B7F88] (reporting strategy default)>
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [5B4BF315-1E13-47D1-9A68-0B830D990D4F] (reporting strategy default)>
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] <nw_activity 50:2 [2EC9CB86-9382-4E1C-9F30-F0DB0A2B7F88] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 38176ms
+   1 Df Mossling[39878:1b09b] [com.apple.network:activity] <nw_activity 50:1 [5B4BF315-1E13-47D1-9A68-0B830D990D4F] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [4AEE2F65-12B7-4061-9506-0B0A201A60AB] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] Set activity <nw_activity 50:1 [4AEE2F65-12B7-4061-9506-0B0A201A60AB] (reporting strategy default)> as the global parent
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [90631AAF-A7C1-48C4-9564-1AEF408FD1B9] (reporting strategy default)>
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [4AEE2F65-12B7-4061-9506-0B0A201A60AB] (reporting strategy default)>
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] <nw_activity 50:2 [90631AAF-A7C1-48C4-9564-1AEF408FD1B9] (reporting strategy default) complete (reason success)> complete with reason 2 (success), duration 10127ms
+   1 Df Mossling[28111:131a4] [com.apple.network:activity] <nw_activity 50:1 [4AEE2F65-12B7-4061-9506-0B0A201A60AB] (global parent) (reporting strategy default) complete (reason success)> complete with reason 2 (success), dur
+   1 Df Mossling[16546:bf34] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [79643EA1-6291-4854-94B2-F1E2C92BA59A] (global parent) (reporting strategy default) complete (reason success)>
+   1 Df Mossling[16546:bf34] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[16546:bf34] [com.apple.network:activity] Set activity <nw_activity 50:1 [79643EA1-6291-4854-94B2-F1E2C92BA59A] (reporting strategy default)> as the global parent
+   1 Df Mossling[16546:bf34] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [C1836915-8895-42B2-B284-8525726EF582] (reporting strategy default)>
+   1 Df Mossling[16546:bf34] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [79643EA1-6291-4854-94B2-F1E2C92BA59A] (reporting strategy default)>
