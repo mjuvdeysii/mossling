@@ -858,6 +858,8 @@ private struct TimelineRow: View {
 struct TimerAccessory: View {
     @Environment(JournalStore.self) private var j
     let timer: RunningTimer
+    /// A second clock running at once (a feed during a nap): its mark and time beside the first, one tap to open it.
+    var also: RunningTimer? = nil
     var body: some View {
         let c = LogType.color(timer.type)
         HStack(spacing: 12) {
@@ -876,6 +878,18 @@ struct TimerAccessory: View {
             }
             .buttonStyle(.toy)
             .accessibilityLabel("打开\(LogType.name(timer.type))计时")
+            if let o = also {
+                Button { j.focus = o.type } label: {
+                    HStack(spacing: 6) {
+                        IconTile(symbol: LogType.symbol(o.type), color: LogType.color(o.type), size: 24, round: true)
+                        TimelineView(.periodic(from: .now, by: 1)) { tl in
+                            Text(clock(o.total(tl.date.timeIntervalSince1970 * 1000))).font(Typeface.numerals(13, relativeTo: .footnote)).monospacedDigit()
+                        }
+                    }
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel("打开\(LogType.name(o.type))计时")
+            }
             Button { j.togglePause(timer.type) } label: { Image(systemName: timer.pausedAt == nil ? "pause.fill" : "play.fill") }
                 .accessibilityLabel(timer.pausedAt == nil ? "暂停" : "继续")
         }

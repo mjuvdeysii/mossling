@@ -104,7 +104,7 @@ struct RootView: View {
     @ViewBuilder private var tabs: some View {
         if #available(iOS 26.2, *) {
             tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
-                if let t = journal.timers.first { TimerAccessory(timer: t) }
+                if let t = journal.timers.first { TimerAccessory(timer: t, also: journal.timers.dropFirst().first) }
             }
         } else {
             tabView
