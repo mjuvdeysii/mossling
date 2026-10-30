@@ -35,8 +35,12 @@ struct YouView: View {
                                 ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
                                     Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
                                         .frame(width: 58)
+                                        .accessibilityShowsLargeContentViewer { Text(t.label) }
                                 }
                             }
+                            // three small windows with a word in each: past the standard sizes they keep their size (a
+                            // long press shows the word large) rather than stack the word letter by letter
+                            .dynamicTypeSize(...DynamicTypeSize.xLarge)
                         }
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         Divider().padding(.leading, 52)

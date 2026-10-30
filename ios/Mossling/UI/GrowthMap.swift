@@ -580,9 +580,14 @@ struct MonthProgress: View {
         Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             .lineLimit(1).fixedSize()
     }
+    /// Large text: two whole phrases on two lines ("14 天后" / "满 7 个月"), never a break inside 7 个月.
     private var wrappingWords: some View {
-        Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
-            .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 0) {
+            Text("\(toNext) 天后").lineLimit(1)
+            Text("满 \(next) 个月").lineLimit(1)
+        }
+        .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        .accessibilityElement(children: .combine)
     }
     private func bar(_ k: Double) -> some View {
         GeometryReader { g in

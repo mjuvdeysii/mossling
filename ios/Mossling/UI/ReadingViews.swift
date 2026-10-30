@@ -79,9 +79,17 @@ struct PlanView: View {
         let codes = current.plays.map(\.code)
         List {
             Section {
+                // arranging is putting on and taking off: each row says which, with its own button (no swipe to find,
+                // no page pushed inside the sheet)
                 ForEach(current.plays) { p in
-                    NavigationLink(value: Route.play(p.code, m)) { playLabel(p) }
-                        .swipeActions { Button("拿下", systemImage: "minus.circle", role: .destructive) { app.setShelf(codes.filter { $0 != p.code }) } }
+                    HStack {
+                        playLabel(p)
+                        Spacer()
+                        Button { withAnimation(.snappy) { app.setShelf(codes.filter { $0 != p.code }) } } label: {
+                            Image(systemName: "minus.circle.fill").font(.title2).foregroundStyle(Palette.danger.opacity(0.85))
+                        }
+                        .buttonStyle(.plain).accessibilityLabel("从架子上拿下")
+                    }
                 }
                 if current.stale {
                     Button("换上新的一周", systemImage: "arrow.triangle.2.circlepath") { app.setShelf(Shelf.suggest(app.content, m, last: codes)) }
@@ -92,7 +100,7 @@ struct PlanView: View {
                     HStack {
                         playLabel(p)
                         Spacer()
-                        Button { app.setShelf(codes + [p.code]) } label: { Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(Palette.accent) }.buttonStyle(.plain)
+                        Button { withAnimation(.snappy) { app.setShelf(codes + [p.code]) } } label: { Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(Palette.accent) }.buttonStyle(.plain)
                             .disabled(codes.count >= Shelf.max).opacity(codes.count >= Shelf.max ? 0.3 : 1).accessibilityLabel("放上架子")
                     }
                 }

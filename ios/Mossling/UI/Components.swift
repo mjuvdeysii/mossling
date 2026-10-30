@@ -303,13 +303,17 @@ struct TableBlock: View {
 /// In dark mode the pictures' paper is toned down so it does not glare during night feeds.
 struct NightDim: View {
     @Environment(\.colorScheme) private var scheme
-    // at night a picture is printed on the same paper under the same lamp: the lamp's blue multiplied in (the paper
-    // ground goes dusky instead of glaring as a pale box), then a breath of amber light over it
+    // at night a picture is seen by the lamp: its middle lit warm, its edges going down into the night's own blue —
+    // so it sits in the dark page instead of standing on it as a pale grey box (an even wash of blue made the paper
+    // ground muddy)
     var body: some View {
         if scheme == .dark {
             ZStack {
-                Palette.lampPage.opacity(0.5).blendMode(.multiply)
-                Palette.amber.opacity(0.1).blendMode(.softLight)
+                EllipticalGradient(stops: [.init(color: Color(hex: 0xF2E3C8), location: 0), .init(color: Color(hex: 0xC9B79B), location: 0.45),
+                                           .init(color: Palette.lampPage, location: 1)],
+                                   center: UnitPoint(x: 0.5, y: 0.42), startRadiusFraction: 0, endRadiusFraction: 0.78)
+                    .blendMode(.multiply)
+                Palette.amber.opacity(0.12).blendMode(.softLight)
             }
             .allowsHitTesting(false)
         }
