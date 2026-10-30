@@ -20,14 +20,17 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private var lines: [String] = [], unlabeled: [String] = []
 
-    /// The bars, and what they hold. Page text that has scrolled under a bar is drawn through its glass, so a contrast
+    /// The bars, and what they hold. Page text that has scrolled under a bar, or into the fade beside it, is drawn through its glass, so a contrast
     /// reading there measures the bar, not the page; those are skipped (and counted). The bars' own titles, buttons and
     /// tab labels are kept: their contrast is real.
     private func bars(_ app: XCUIApplication) -> (frames: [CGRect], own: Set<String>) {
         let nav = app.navigationBars.firstMatch, tab = app.tabBars.firstMatch
         var frames: [CGRect] = [], own = Set<String>()
+        // each bar with the strip where iOS 26 fades the page into it (the scroll edge effect): from the top of the
+        // screen to 8 points under the navigation bar, and from 24 points above the tab bar to the bottom
+        if nav.exists { frames.append(CGRect(x: 0, y: 0, width: app.frame.width, height: nav.frame.maxY + 8)) }
+        if tab.exists { frames.append(CGRect(x: 0, y: tab.frame.minY - 24, width: app.frame.width, height: app.frame.maxY - tab.frame.minY + 24)) }
         for bar in [nav, tab] where bar.exists {
-            frames.append(bar.frame)
             for e in bar.descendants(matching: .any).allElementsBoundByIndex { own.insert(Self.key(e.label, e.frame)) }
         }
         return (frames, own)
