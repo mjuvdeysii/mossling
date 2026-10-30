@@ -480,6 +480,7 @@ struct Ticking: View {
         .animation(reduce ? nil : .easeOut(duration: 0.9), value: text)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(text)
+        .accessibilityAddTraits(.isStaticText)
     }
 }
 

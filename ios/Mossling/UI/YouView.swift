@@ -27,21 +27,7 @@ struct YouView: View {
                 let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
                 Group {
                     VStack(spacing: 0) {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
-                            Text("外观").font(.subheadline.weight(.semibold))
-                            Spacer(minLength: 4)
-                            HStack(spacing: 6) {
-                                ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
-                                    Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
-                                        .frame(width: 58)
-                                        .accessibilityShowsLargeContentViewer { Text(t.label) }
-                                }
-                            }
-                            // three small windows with a word in each: past the standard sizes they keep their size (a
-                            // long press shows the word large) rather than stack the word letter by letter
-                            .dynamicTypeSize(...DynamicTypeSize.xLarge)
-                        }
+                        AppearanceRow()
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         Divider().padding(.leading, 52)
                         // it belongs to 自动: under 日光 or 夜灯 the choice is already made, so the switch rests and says so
@@ -126,6 +112,10 @@ private struct FamilyCard: View {
                         }
                         .fixedSize()
                         .foregroundStyle(Palette.accent)
+                        // one element for VoiceOver and the audit: "7 个月 12 天", not four separate pieces
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(a.days > 0 ? "\(a.months) 个月 \(a.days) 天" : "\(a.months) 个月")
+                        .accessibilityAddTraits(.isStaticText)
                     }
                     if !type.isAccessibilitySize { facts }
                 }
@@ -313,7 +303,7 @@ private struct Swatch: View {
                     Text(mode.label).font(.caption2.weight(on ? .bold : .semibold)).foregroundStyle(.primary)
                 }
                 .padding(.horizontal, 5).padding(.vertical, 1)
-                .background(.thinMaterial, in: Capsule())
+                .background(Palette.card.opacity(0.94), in: Capsule())
                 .padding(.bottom, 3)
             }
             .frame(maxWidth: .infinity)
@@ -706,5 +696,34 @@ enum Owner {
             .filter { !($0.contains("{{DEVELOPER}}") && developer.isEmpty) }
             .map { $0.replacingOccurrences(of: "{{DEVELOPER}}", with: developer).replacingOccurrences(of: "{{CONTACT}}", with: contact) }
             .joined(separator: "\n")
+    }
+}
+
+/// 外观: three small living windows (日光 / 夜灯 / 自动). At the standard sizes they sit beside the word; at the
+/// accessibility sizes they move to their own line and grow with the text, so nothing is shrunk or cut off.
+private struct AppearanceRow: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
+    private var swatches: some View {
+        HStack(spacing: 6) {
+            ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
+                Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
+                    .frame(width: type.isAccessibilitySize ? nil : 58)
+                    .frame(maxWidth: type.isAccessibilitySize ? .infinity : nil)
+            }
+        }
+    }
+    private var label: some View {
+        HStack(spacing: 10) {
+            IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
+            Text("外观").font(.subheadline.weight(.semibold))
+        }
+    }
+    var body: some View {
+        if type.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) { label; swatches }
+        } else {
+            HStack(spacing: 10) { label; Spacer(minLength: 4); swatches }
+        }
     }
 }

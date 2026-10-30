@@ -72,7 +72,7 @@ struct Creature: View {
 
     @Environment(JournalStore.self) private var journal: JournalStore?
     @Environment(\.scrolling) private var scrolling
-    private var still: Bool { !alive || reduce || Perf.noCreatures }
+    private var still: Bool { !alive || reduce || Perf.noCreatures || Perf.still }
 
     var body: some View {
         if ArtStyle.current == .flat {

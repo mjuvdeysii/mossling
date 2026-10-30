@@ -47,7 +47,7 @@ struct FlatCreature: View {
 
     @State private var onScreen = true
     @Environment(\.scrolling) private var scrolling
-    private var still: Bool { !alive || reduce }
+    private var still: Bool { !alive || reduce || Perf.still }
 
     var body: some View {
         // paused while off screen (a page of them scrolling costs nothing) and drawn off the main thread

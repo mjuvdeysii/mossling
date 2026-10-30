@@ -141,7 +141,7 @@ private struct WeekBars: View {
                     VStack(spacing: 3) {
                         Capsule().fill(i == 6 ? Crayon.lilac : Crayon.lilac.opacity(0.35))
                             .frame(height: max(5, 26 * CGFloat(n[i]) / CGFloat(top)))
-                        Text(String(d.weekday.suffix(1))).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                        Text(String(d.weekday.suffix(1))).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     }
                     .frame(maxWidth: .infinity)
                 }
@@ -186,13 +186,22 @@ private struct StickerSheet: View {
     let month: Int?
     let last: (String) -> Date?
     let tap: (String) -> Void
+    @Environment(\.dynamicTypeSize) private var size
+    /// At the accessibility sizes the stickers wrap three to a row instead of shrinking to fit one.
+    @ViewBuilder private func row<C: View>(_ spacing: CGFloat, @ViewBuilder _ content: () -> C) -> some View {
+        if size.isAccessibilitySize {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: 3), spacing: 10, content: content)
+        } else {
+            HStack(alignment: .top, spacing: spacing, content: content)
+        }
+    }
     var body: some View {
         let eating = (month ?? 0) >= 6
         let often = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper] + (eating ? [LogType.solid] : [])
         let rarely = LogType.buttons.filter { !often.contains($0) }
         TimelineView(.periodic(from: .now, by: 60)) { tl in
             VStack(spacing: 10) {
-                HStack(alignment: .top, spacing: 4) {
+                row(4) {
                     ForEach(often, id: \.self) { t in
                         let run = timers.first { $0.type == t }
                         Sticker(type: t, running: run != nil, paused: run?.pausedAt != nil,
@@ -201,16 +210,13 @@ private struct StickerSheet: View {
                     }
                 }
                 Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1).padding(.horizontal, 6)
-                HStack(alignment: .top, spacing: 2) {
+                row(2) {
                     ForEach(rarely, id: \.self) { t in SmallSticker(type: t) { tap(t) } }
                 }
             }
             .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
             .printCard(radius: Radius.card)
         }
-        // one row must fit the narrowest phone: past the largest standard size the stickers stop growing and a
-        // long press shows the large-content viewer instead
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 
@@ -225,7 +231,7 @@ private struct SmallSticker: View {
             VStack(spacing: 3) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 30, round: true)
                     .phaseAnimator([1.0, 0.86, 1.0], trigger: pops) { v, k in v.scaleEffect(k, anchor: .bottom) } animation: { _ in .snappy(duration: 0.14) }
-                Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+                Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
             }
             .frame(maxWidth: .infinity)
         }
@@ -259,8 +265,8 @@ private struct Sticker: View {
                         SpringKeyframe(on ? 1.08 : 1, duration: 0.16, spring: .snappy)
                         SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                     }
-                Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Ticking(text: running ? (paused ? "已暂停" : "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
+                Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
+                Ticking(text: running ? (paused ? "已暂停" : "进行中") : since ?? "未记", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -268,7 +274,7 @@ private struct Sticker: View {
         .sensoryFeedback(.impact(weight: .light), trigger: running)
         .accessibilityLabel(running ? "\(LogType.name(type))进行中，打开计时" : LogType.name(type))
         .accessibilityHint(running ? "" : LogType.timed.contains(type) ? "打开计时页" : type == LogType.bath ? "点按即记下一次" : "")
-        .accessibilityValue(since ?? "")
+        .accessibilityValue(running ? "" : since ?? "未记")
         .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
     }
 }
@@ -280,7 +286,7 @@ private struct WeekStrip: View {
     @Binding var day: Day
     var body: some View {
         let end = min(day.plus(days: 3), today)
-        HStack(spacing: 6) {
+        strip {
             ForEach((0...6).reversed(), id: \.self) { i in
                 let d = end.plus(days: -i), on = d == day, isToday = d == today
                 Button { withAnimation(.snappy) { day = d } } label: {
@@ -299,7 +305,15 @@ private struct WeekStrip: View {
                 .accessibilityShowsLargeContentViewer { Text("\(d.md) \(d.weekday)") }
             }
         }
-        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // seven across must fit
+    }
+    @Environment(\.dynamicTypeSize) private var typeSize
+    /// Seven across at the standard sizes; at the accessibility sizes four to a row, so the days keep their size.
+    @ViewBuilder private func strip<C: View>(@ViewBuilder _ content: () -> C) -> some View {
+        if typeSize.isAccessibilitySize {
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 6, content: content)
+        } else {
+            HStack(spacing: 6, content: content)
+        }
     }
 }
 
@@ -663,7 +677,7 @@ private struct Totals: View {
             .lineLimit(1).minimumScaleFactor(0.7)
             // the details in full: on one line when they fit, otherwise one piece per line — never cut off with "…"
             ViewThatFits(in: .horizontal) {
-                Text(sub.isEmpty ? " " : sub.joined(separator: sep)).fixedSize()
+                Text(sub.isEmpty ? " " : sub.joined(separator: sep)).fixedSize().accessibilityHidden(sub.isEmpty)
                 VStack(alignment: .leading, spacing: 0) { ForEach(sub, id: \.self) { Text($0).lineLimit(1).minimumScaleFactor(0.85) } }
             }
             .font(.caption2).foregroundStyle(Palette.secondaryText)

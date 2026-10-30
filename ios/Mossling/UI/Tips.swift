@@ -48,3 +48,31 @@ struct SideTip: Tip {
     var message: Text? { Text("计时中再点同一侧是暂停，点另一侧是换边。开始时间可以选「5 分钟前」等，补上已经开始的一段。") }
     var image: Image? { Image(systemName: "timer") }
 }
+
+/// The tips on paper: the app's own card, text in the app's ink at full Dynamic Type, and a 44-point close button,
+/// rather than the system popover's translucent material (which the accessibility audit flags for contrast).
+struct PaperTipStyle: TipViewStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            configuration.image?.font(.title3).foregroundStyle(Palette.accent).accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                configuration.title?.font(.headline).foregroundStyle(.primary)
+                configuration.message?.font(.subheadline).foregroundStyle(Palette.secondaryText)
+                ForEach(configuration.actions) { action in
+                    Button(action: action.handler) { action.label().font(.subheadline.weight(.semibold)) }
+                        .frame(minHeight: 44)
+                }
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+            Button { configuration.tip.invalidate(reason: .tipClosed) } label: {
+                Image(systemName: "xmark").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
+                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            }
+            .padding(.top, -10).padding(.trailing, -10)
+            .accessibilityLabel("关闭提示")
+        }
+        .padding(14)
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+    }
+}

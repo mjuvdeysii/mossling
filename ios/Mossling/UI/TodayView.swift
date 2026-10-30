@@ -345,7 +345,7 @@ struct TodayPlayCard: View {
                     HStack(alignment: .center, spacing: 8) {
                         GoldBead(size: 10)
                         Text(title(asleep: asleep, now: tl.date)).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
-                            .lineLimit(1).minimumScaleFactor(0.7)
+                            .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         if week.count > 1 {
                             Button { withAnimation(.snappy) { app.anotherToday(month, j) } } label: {

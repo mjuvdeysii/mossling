@@ -31,8 +31,9 @@ enum Palette {
     static let beadLight = Color(hex: 0xEDCB6A)
     static let stone = Color(uiColor: .systemGray4)
 
-    /// Teal: links, tints and controls. Deep enough for text on paper (4.7:1) and for white on a filled button (5:1).
-    static let accent = Color.dyn(0x0B7D74, 0x4FD8CB)
+    /// Teal: links, tints and controls. Deep enough for small text on paper and on a tinted page (≥ 5.9:1: on paper
+    /// 6.3, on the sunflower-washed home 5.9, on white 6.7).
+    static let accent = Color.dyn(0x08675F, 0x4FD8CB)
     /// The fill behind white text on prominent buttons, in both modes.
     static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
@@ -44,7 +45,7 @@ enum Palette {
     /// Secondary text. The system's secondary label is 60 % of the primary, about 3.4:1 on white and under 3:1 on the
     /// tinted cards — below WCAG's 4.5:1 for the small captions that carry it here (the accessibility audit flagged
     /// them). A solid grey instead: 6.3:1 on white, ≥ 5.3:1 on every tinted card; by lamplight ≥ 6.8:1.
-    static let secondaryText = Color.dyn(0x5E5F66, 0xAEB4CC)
+    static let secondaryText = Color.dyn(0x4D4E55, 0xB8BED4)
     static let outline = Color(uiColor: .separator)
     static let danger = Crayon.cherry
     /// An area's colour deep enough for text.
@@ -335,10 +336,10 @@ struct DayAir: View {
             // seeds, petals, leaves and pollen drifting down over the whole page, animated by Core Animation off the
             // main thread at the display's full frame rate
             // only in the flat (2D) world: the vinyl world's page is still air
-            if !reduce && ArtStyle.current == .flat { AirEmitter(kind: .day(UIColor(tone)), scale: scale) }
+            if !reduce && !Perf.still && ArtStyle.current == .flat { AirEmitter(kind: .day(UIColor(tone)), scale: scale) }
         }
         .allowsHitTesting(false)
-        .onAppear { if !reduce { withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { breath = true } } }
+        .onAppear { if !reduce && !Perf.still { withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { breath = true } } }
     }
 
     private func sunDisc(_ ctx: inout GraphicsContext, _ size: CGSize) {
@@ -419,6 +420,9 @@ enum Perf {
     static let noCreatures = UserDefaults.standard.bool(forKey: "perfNoCreatures")
     static let plainCards = UserDefaults.standard.bool(forKey: "perfPlainCards")
     static let noArt = UserDefaults.standard.bool(forKey: "perfNoArt")
+    /// The accessibility audit's launch argument: decorative motion (the companions, the page's light and motes) holds
+    /// still, as under Reduce Motion, so the audit can read a settled page. Everything it checks is the same.
+    static let still = UserDefaults.standard.bool(forKey: "auditStill")
 }
 
 struct Grain: View {
@@ -465,7 +469,7 @@ struct Motes: View {
         // wide soft halo, rising slowly through the whole page from below to the top and round again, swaying, glowing
         // and dimming as it goes — every one always somewhere on its way, so the page is never left without them
         if ArtStyle.current == .flat {
-            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce)) { tl in
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce || Perf.still)) { tl in
                 Canvas(rendersAsynchronously: true) { ctx, size in
                     let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
                     func firefly(_ x: Double, _ y: Double, _ a: Double, _ r: Double) {
@@ -514,7 +518,7 @@ struct LampGlow: View {
         }
         // the flame's slow breath: one change of opacity, composited by the system, nothing redrawn
         .opacity(bright ? 1 : 0.8)
-        .onAppear { if !reduce { withAnimation(.easeInOut(duration: 4.5).repeatForever(autoreverses: true)) { bright = true } } }
+        .onAppear { if !reduce && !Perf.still { withAnimation(.easeInOut(duration: 4.5).repeatForever(autoreverses: true)) { bright = true } } }
         .allowsHitTesting(false)
     }
 }
@@ -689,7 +693,7 @@ struct VinylSurface: ViewModifier {
         } else {
         content.background {
             shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
-                .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? 0.26 : (dark ? 0.06 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? 0 : (dark ? 0.06 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
                 .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.14 : 0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 .shadow(color: (strong ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (strong ? 0.3 : 0.08)), radius: strong ? 5 : 2, y: strong ? 3 : 1)
         }
@@ -735,7 +739,7 @@ struct VinylButton: ButtonStyle {
             .frame(minHeight: 44)
             .background {
                 shape.fill(body)
-                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.28 : 0.45), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.06 : 0.45), .white.opacity(0)], startPoint: .top, endPoint: .center)))
                     .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.18 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                     .shadow(color: (prominent ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (prominent ? 0.28 : 0.10)), radius: prominent ? 6 : 3, y: prominent ? 3 : 2)
             }

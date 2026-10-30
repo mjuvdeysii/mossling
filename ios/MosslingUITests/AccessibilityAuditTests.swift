@@ -11,7 +11,7 @@ final class AccessibilityAuditTests: XCTestCase {
         let app = XCUIApplication()
         // a six-month-old, records on; settings come in through the argument domain of UserDefaults
         let birth = Int(Date().timeIntervalSince1970 / 86_400) - 186
-        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO",
+        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO", "-auditStill", "YES",
                                "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         if let size { app.launchArguments += ["-UIPreferredContentSizeCategoryName", size] }
         app.launch()
@@ -20,12 +20,24 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private var lines: [String] = [], unlabeled: [String] = []
 
+    /// The part of the screen the reader actually sees: below the navigation bar and above the tab bar. Text scrolled
+    /// under a bar is drawn through its glass, so a contrast reading there measures the bar, not the page.
+    private func viewport(_ app: XCUIApplication) -> ClosedRange<CGFloat> {
+        let nav = app.navigationBars.firstMatch, tab = app.tabBars.firstMatch
+        let top = nav.exists ? nav.frame.maxY + 8 : 0
+        let bottom = tab.exists ? tab.frame.minY - 24 : app.frame.maxY
+        return top...max(top, bottom)
+    }
+
     private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
+        let seen = viewport(app)
+        shoot(app, place)
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
+                if issue.auditType == .contrast, let f = e?.frame, !(seen.contains(f.minY) && seen.contains(f.maxY)) { return true }
                 let who = e.map { "\($0.elementType.rawValue) “\($0.label)” id=\($0.identifier) \(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))×\(Int($0.frame.height))" } ?? "—"
-                self.lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who)")
+                self.lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who) · \(issue.detailedDescription)")
                 if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { self.unlabeled.append("[\(place)] \(who)") }
                 return true   // recorded, reviewed from the list
             }
@@ -34,6 +46,16 @@ final class AccessibilityAuditTests: XCTestCase {
             if again { sleep(3); audit(app, place, again: false) } else { lines.append("[\(place)] audit failed: \((error as NSError).localizedDescription)") }
         }
     }
+
+    /// A picture of each audited screen, published beside the list, so an issue can be found by its coordinates.
+    private func shoot(_ app: XCUIApplication, _ place: String) {
+        let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
+        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+        let slug = place.replacingOccurrences(of: " ↓", with: "_down")
+        let name = "ios_a11y_\(sizeTag)_\(slug).png"
+        try? app.screenshot().pngRepresentation.write(to: URL(fileURLWithPath: (dir as NSString).appendingPathComponent(name)))
+    }
+    private var sizeTag = "default"
 
     private static func name(_ t: XCUIAccessibilityAuditType) -> String {
         switch t {
@@ -51,6 +73,7 @@ final class AccessibilityAuditTests: XCTestCase {
     private func run(_ size: String?, file: String) {
         let app = launch(size)
         lines = []; unlabeled = []
+        sizeTag = size == nil ? "default" : "xxxl"
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
         for tab in ["本月", "记录", "我的"] {
