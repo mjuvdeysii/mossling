@@ -264,12 +264,6 @@ private struct BookPageView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(alignment: .topTrailing) {
-            // a faint page number in the corner, like a printed album
-            Text(m == 0 ? "0" : "\(m)").font(Typeface.numerals(64, relativeTo: .largeTitle, weight: .heavy))
-                .foregroundStyle(Crayon.caramel.opacity(0.09)).padding(.trailing, 14).padding(.top, 2)
-                .accessibilityHidden(true)
-        }
         .printCard(radius: 26)
     }
 

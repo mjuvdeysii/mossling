@@ -148,7 +148,7 @@ private struct LastMeasure: View {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(String(format: "%.1f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
                     Text("千克").font(.caption.weight(.semibold))
-                    if let l = m.lengthMm { Text("· \(l / 10) 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
+                    if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + " 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
                 }
                 .fixedSize()
                 let d = Date(timeIntervalSince1970: m.at / 1000)
@@ -550,7 +550,7 @@ private struct DayRibbon: View {
             VStack(spacing: 6) {
                 Canvas { ctx, size in paint(&ctx, size, d0: d0, span: span, now: now) }
                     .frame(height: 30)
-                HStack { ForEach(["0:00", "6:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
+                HStack { ForEach(["00:00", "06:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
             }
         }
         .accessibilityElement().accessibilityLabel("这一天的串珠：\(logs.count) 颗")
@@ -836,7 +836,7 @@ private struct TimelineRow: View {
             .joined(separator: " · ").components(separatedBy: " · ").map(unbroken).joined(separator: " · ")
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(entry.carriedOver(into: day) ? "0:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                Text(entry.carriedOver(into: day) ? "00:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                 if let e = entry.endDate, bar > 24 {
                     Spacer(minLength: 0)
                     Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(Palette.secondaryText)

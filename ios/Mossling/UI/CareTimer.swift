@@ -408,13 +408,16 @@ private struct SleepPad: View {
                     }
                     .font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold))
                     .lineLimit(1).minimumScaleFactor(0.6)
-                    HStack(spacing: 4) {
-                        Image(systemName: paused ? "play.fill" : "pause.fill")
-                        Text(ready ? "点按开始计时" : paused ? "点按继续" : "点按暂停").lineLimit(1)
-                    }
+                    // before it starts the moon already says 开始睡觉: no second line saying it again
+                    if !ready {
+                        HStack(spacing: 4) {
+                            Image(systemName: paused ? "play.fill" : "pause.fill")
+                            Text(paused ? "点按继续" : "点按暂停").lineLimit(1)
+                        }
                         .font(.caption.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Capsule().fill(paused && !ready ? color.opacity(0.16) : Color.white.opacity(0.18)))
+                        .background(Capsule().fill(paused ? color.opacity(0.16) : Color.white.opacity(0.18)))
+                    }
                 }
                 .frame(width: 170)
                 .foregroundStyle(ink)

@@ -156,9 +156,7 @@ struct MonthParts: View {
             // one card of rows, whatever their number: the mark, the part, what it holds, its progress where it has one
             Box {
                 ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
-                    let row = BoxRow(symbol: p.symbol, color: p.color, title: p.title, text: p.note, last: i == parts.count - 1, opens: true) {
-                        if p.total > 0 { Ring(done: p.done, total: p.total, color: p.color, size: 22) }
-                    }
+                    let row = BoxRow(symbol: p.symbol, color: p.color, title: p.title, text: p.note, last: i == parts.count - 1, opens: true)
                     if let r = p.route { NavigationLink(value: r) { row }.buttonStyle(.plain) }
                     else { NavigationLink(value: JournalRoute.growth) { row }.buttonStyle(.plain) }
                 }
@@ -498,7 +496,7 @@ struct ObserveView: View {
                         }
                     }
                 }
-                Text("每个孩子有自己的节奏。没看到的项目不代表落后；如有疑虑，请咨询儿童保健医生。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                Text("这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }

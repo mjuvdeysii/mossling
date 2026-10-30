@@ -215,12 +215,8 @@ struct LastLine: View {
                 .padding(.horizontal, 14).padding(.vertical, 10)
                 .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .accessibilityElement(children: .combine)
-            } else {
-                Text("还没有" + LogType.name(type) + "的记录").font(.footnote).foregroundStyle(Palette.secondaryText)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 14).padding(.vertical, 10)
-                    .background(LogType.color(type).opacity(0.08), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
             }
+            // nothing recorded before: nothing to say (an empty strip only took room, and stayed while timing)
         }
     }
 }

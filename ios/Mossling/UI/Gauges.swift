@@ -159,11 +159,11 @@ struct WhenChips: View {
             WrapLayout(spacing: 8) {
                 ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                     let on = ago == m
-                    Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分前") { withAnimation(.snappy) { ago = m } }
+                    Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { withAnimation(.snappy) { ago = m } }
                         .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
                         .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                 }
-                Button(ago == nil ? "其他 ✓" : "其他…") { picking = true }
+                Button(ago == nil ? "其他时间 ✓" : "其他时间…") { picking = true }
                     .buttonStyle(.vinyl(ago == nil ? tint : Color(hex: 0x8A8279)))
                     .fontWeight(ago == nil ? .semibold : .regular)
             }

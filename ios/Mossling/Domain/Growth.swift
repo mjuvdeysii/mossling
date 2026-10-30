@@ -51,5 +51,5 @@ struct Growth {
 func pctText(_ p: Double) -> String {
     if p < 3 { return "低于第 3 百分位" }
     if p > 97 { return "高于第 97 百分位" }
-    return "第 \(max(3, min(97, Int(p)))) 百分位"
+    return "约第 \(max(3, min(97, Int(p.rounded())))) 百分位"
 }
