@@ -285,8 +285,10 @@ private struct BookPageView: View {
         .padding(.vertical, 6).padding(.leading, 2)
     }
 
+    /// The days the page covers; the month still being lived runs to 至今 (not to a day that has not come).
     private var range: String {
         let a = Day(page.from), b = Day(page.to.addingTimeInterval(-1))
+        if page.to > Date() { return "\(a.y)年\(a.md) – 至今" }
         return a.y == b.y ? "\(a.y)年\(a.md) – \(b.md)" : "\(a.y)年\(a.md) – \(b.y)年\(b.md)"
     }
 
