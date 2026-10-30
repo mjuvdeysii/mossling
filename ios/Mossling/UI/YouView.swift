@@ -301,8 +301,8 @@ private struct Swatch: View {
             ZStack(alignment: .bottom) {
                 preview
                     .frame(height: 38)
-                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
                     .overlay(alignment: .topTrailing) {
                         if on { Image(systemName: "checkmark.circle.fill").font(.caption2).foregroundStyle(.white, Palette.accentFill).padding(3) }
                     }
@@ -495,7 +495,7 @@ struct StoryView: View {
                 StyleDoor {
                     LampScene(play: true)
                         .frame(height: 180)
-                        .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 }
                 Text("孩子摸索，大人点灯").font(.title2.weight(.bold))
                 // the two names as two cards to turn over: each face shows who it is and a line; turned, the whole of it

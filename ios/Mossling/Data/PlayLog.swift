@@ -50,15 +50,32 @@ extension AppModel {
         if !codes.contains(p.code) && codes.count < Shelf.max { setShelf(codes + [p.code]) }
         pick = Shelf.formatPick(p.code, today: today)
     }
-    /// Records one time played; false (and nothing ticked, nothing cheered) when it could not be saved.
+    /// The plays done in the child's month `m` (by the dates of their entries — the records are the one source; a
+    /// mark from before plays were dated counts only for a play that has no entries at all), in the order first done.
+    func played(in m: Int, _ j: JournalStore) -> [String] {
+        var out: [String] = []
+        if let b = birth {
+            let a = b.plus(months: m).date, z = b.plus(months: m + 1).date
+            for l in j.logs.reversed() where l.type == LogType.play && l.startDate >= a && l.startDate < z {
+                if let c = (l.detail ?? "").split(separator: " ").first.map(String.init), !out.contains(c) { out.append(c) }
+            }
+        }
+        for t in ticks.values.sorted(by: { $0.at < $1.at }) where t.month == m && t.kind == TickKind.did {
+            let c = String(t.key.split(separator: ":").last ?? "")
+            if !out.contains(c) && j.plays(c).isEmpty { out.append(c) }
+        }
+        return out
+    }
+    /// Records one time played (an entry in the records — the only place a play is counted); false when it could
+    /// not be saved.
     @discardableResult func didPlay(_ p: Play, month: Int, _ j: JournalStore) -> Bool {
         // said back like every record, with 撤销
         guard j.record(LogEntry(type: LogType.play, start: JournalFile.now(), detail: "\(p.code) \(p.name)")) else { return false }
-        if !ticked(month, TickKind.did, p.code) { toggle(month, TickKind.did, p.code, p.name) }
         return true
     }
     func undoPlay(_ p: Play, month: Int, _ j: JournalStore) {
-        if let e = j.plays(p.code).first { j.delete(e) }
-        if j.plays(p.code).isEmpty && ticked(month, TickKind.did, p.code) { toggle(month, TickKind.did, p.code, p.name) }
+        if let e = j.plays(p.code).first { j.delete(e); return }
+        // a play marked done before plays were dated has no entry to take back: its mark goes instead
+        if ticked(month, TickKind.did, p.code) { toggle(month, TickKind.did, p.code, p.name) }
     }
 }

@@ -193,7 +193,25 @@ struct EntrySheet: View {
     @State var entry: LogEntry
     @State private var failed = false
     let isNew: Bool
-    init(entry: LogEntry, isNew: Bool) { _entry = State(initialValue: entry); self.isNew = isNew }
+    /// A breast feed of two sides is opened whole: its sides, oldest first, one of them being edited (`entry`).
+    @State private var parts: [LogEntry]
+    @State private var sel: Int
+    private let original: [LogEntry]
+    init(entry: LogEntry, isNew: Bool, feed: [LogEntry] = []) {
+        let ps = feed.count > 1 ? feed : [entry]
+        _entry = State(initialValue: entry); self.isNew = isNew
+        _parts = State(initialValue: ps); original = ps
+        _sel = State(initialValue: ps.firstIndex { $0.id == entry.id } ?? 0)
+    }
+    private var whole: Bool { parts.count > 1 }
+    /// The sides as they stand now, the one being edited included.
+    private var current: [LogEntry] { var p = parts; if p.indices.contains(sel) { p[sel] = entry }; return p }
+    private func choose(_ i: Int) { var p = parts; p[sel] = entry; parts = p; sel = i; entry = p[i] }
+    private func save() -> Bool {
+        if isNew { return j.record(entry) }
+        for (e, o) in zip(current, original) where e != o { if !j.update(e) { return false } }
+        return true
+    }
 
     var body: some View {
         NavigationStack {
@@ -205,8 +223,17 @@ struct EntrySheet: View {
                         IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 52, round: true)
                         VStack(alignment: .leading, spacing: 2) {
                             Text(LogType.name(entry.type)).font(.title3.weight(.bold))
-                            Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
-                                .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                            if whole {
+                                // the whole feed, as on the time line: its start and length, then each side
+                                let c = current
+                                Text(hm(c[0].startDate) + " · " + durationValue(c.reduce(0) { $0 + $1.activeSeconds }))
+                                    .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                                Text(c.map { ($0.side == "r" ? "右侧 " : "左侧 ") + durationValue($0.activeSeconds) }.joined(separator: " · "))
+                                    .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                            } else {
+                                Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
+                                    .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                            }
                         }
                         Spacer(minLength: 0)
                     }
@@ -222,6 +249,14 @@ struct EntrySheet: View {
                         if !LogType.timed.contains(t) { entry.end = nil }
                     }
                 }
+                if whole {
+                    // which side is being changed: each keeps its own times and side
+                    Picker("修改", selection: Binding(get: { sel }, set: { choose($0) })) {
+                        ForEach(parts.indices, id: \.self) { i in Text("第 \(i + 1) 段 · " + (current[i].side == "r" ? "右侧" : "左侧")).tag(i) }
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowBackground(Color.clear)
+                }
                 Section {
                     DatePicker(entry.end != nil ? "开始" : "时间", selection: Binding(get: { entry.startDate }, set: { d in
                         let delta = ms(d) - entry.start; entry.start = ms(d); if let e = entry.end { entry.end = e + delta }
@@ -233,7 +268,8 @@ struct EntrySheet: View {
                 }
                 Section { fields }
                 if !isNew {
-                    Section { Button("删除这条", role: .destructive) { j.delete(entry); dismiss() } }
+                    // a feed of two sides goes whole: one change, one 撤销
+                    Section { Button(whole ? "删除这一顿" : "删除这条", role: .destructive) { if whole { j.delete(original) } else { j.delete(entry) }; dismiss() } }
                 }
             }
             .scrollContentBackground(.hidden)
@@ -241,7 +277,7 @@ struct EntrySheet: View {
             .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { let ok = isNew ? j.record(entry) : j.update(entry); if ok { dismiss() } else { failed = true } } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if save() { dismiss() } else { failed = true } } }
             }
         }
     }
@@ -381,7 +417,7 @@ struct SaveFailed: View {
             icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger) }
             .font(.subheadline)
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-            .background(Palette.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(Palette.danger.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
             .accessibilityElement(children: .combine)
     }
 }

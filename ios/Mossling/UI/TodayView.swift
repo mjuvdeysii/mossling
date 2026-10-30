@@ -107,7 +107,7 @@ private struct NowCard: View {
                 Button { j.focus = LogType.sleep } label: {
                     card(tint: Crayon.lilac) {
                         Duo(primary: app.companion, size: 44, mood: .sleep, night: true)
-                        words(sleep.pausedAt != nil ? "睡眠 · 已暂停" : "宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下")
+                        words(sleep.pausedAt != nil ? timerState(LogType.sleep, side: nil, paused: true) : "宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下")
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                     }
@@ -117,7 +117,7 @@ private struct NowCard: View {
                 Button { j.focus = LogType.nurse } label: {
                     card(tint: Crayon.pink) {
                         IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
-                        words(feed.pausedAt != nil ? "亲喂 · 已暂停" : "正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
+                        words(feed.pausedAt != nil ? timerState(LogType.nurse, side: feed.side, paused: true) : "正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                     }

@@ -129,7 +129,7 @@ struct TodayFace: View {
         HStack(spacing: 8) {
             ArtImage(name: WidgetArt.sticker(t.type)).frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 0) {
-                Text(LogType.name(t.type) + (t.side == "l" ? " · 左" : t.side == "r" ? " · 右" : "") + (t.pausedAt != nil ? " · 暂停" : ""))
+                Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil)).lineLimit(1).minimumScaleFactor(0.8)
                     .font(.caption2.weight(.semibold)).foregroundStyle(Crayon.ink(LogType.color(t.type)))
                 if let p = t.pausedAt { Text(minutesOf(t.total(p))).font(WidgetInk.numerals(17)) }
                 else { Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(20)) }
@@ -235,7 +235,7 @@ struct TimerFace: View {
             HStack(spacing: 10) {
                 ArtImage(name: WidgetArt.sticker(type)).frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(LogType.name(type) + TimerFace.side(s.side) + (s.pausedAt != nil ? " · 暂停中" : ""))
+                    Text(timerState(type, side: s.side, paused: s.pausedAt != nil))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                     TimerFace.elapsed(s).font(WidgetInk.numerals(34)).foregroundStyle(.primary)
                     if let n = s.note { Text(n).font(.caption.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit() }

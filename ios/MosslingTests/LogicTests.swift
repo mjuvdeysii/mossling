@@ -373,4 +373,22 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(m.todayPlay(6, JournalStore(preview: b))?.code, "N04")
         XCTAssertEqual(m.weekShelf(6).plays.count, 4)
     }
+
+    func testAPlayIsCountedFromTheRecordsOnly() {
+        let d = UserDefaults(suiteName: "played-\(UUID().uuidString)")!
+        let m = AppModel(defaults: d)
+        m.today = Day(y: 2026, m: 10, d: 21)
+        m.birth = Day(y: 2026, m: 4, d: 2)
+        let in6 = (Day(y: 2026, m: 10, d: 10).date.timeIntervalSince1970 + 3600) * 1000
+        let j = JournalStore(preview: { var b = JournalFile.Body(); b.logs = [LogEntry(type: LogType.play, start: in6, detail: "A09 安全镜面表情互动")]; return b }())
+        XCTAssertEqual(m.played(in: 6, j), ["A09"])
+        XCTAssertEqual(m.played(in: 5, j), [], "a play counts in the child's month of its date")
+        // an entry taken back leaves nothing behind: no mark keeps it counted
+        let none = JournalStore(preview: JournalFile.Body())
+        XCTAssertEqual(m.played(in: 6, none), [])
+        XCTAssertEqual(m.record(m.content.play("A09")!, none).count, 0)
+        // a mark from before plays were dated still counts, for a play with no entries
+        m.toggle(6, TickKind.did, "A11", "双手物品传递机会")
+        XCTAssertEqual(m.played(in: 6, j), ["A09", "A11"])
+    }
 }

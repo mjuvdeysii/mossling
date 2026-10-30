@@ -61,10 +61,9 @@ private struct QuietMonths: View {
     let pages: [BookPage]
     @Environment(\.dynamicTypeSize) private var type
     var body: some View {
-        let ms = pages.map(\.month)
-        let lo = ms.min() ?? 0, hi = ms.max() ?? 0
+        // the months are named once, under their pictures (newest first, as the book): the line only says what is so
         VStack(alignment: .leading, spacing: 10) {
-            Text((lo == hi ? (lo == 0 ? "出生" : "满 \(lo) 个月") : (lo == 0 ? "出生–\(hi) 个月" : "满 \(lo)–\(hi) 个月")) + " · 没有留下记录")
+            Text(pages.count == 1 ? "这个月没有留下记录" : "这几个月没有留下记录")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 96 : 60), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(pages, id: \.month) { p in
@@ -129,13 +128,8 @@ struct BookPage {
             // care, as daily averages over the days that have records
             let care = logs.filter { [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper].contains($0.type) }
             let days = Set(care.map { Day($0.startDate) }).count
-            var feeds = 0, lastNurseEnd: Double = -.infinity
-            for l in care.reversed() where l.type == LogType.nurse || l.type == LogType.bottle {
-                // the two sides of one feed are two entries; count them once
-                if l.type == LogType.nurse, l.start - lastNurseEnd < 5 * 60_000 { lastNurseEnd = l.end ?? l.start; continue }
-                feeds += 1
-                if l.type == LogType.nurse { lastNurseEnd = l.end ?? l.start }
-            }
+            // feeds by the one definition (Feed): the two sides of one feed count once, as everywhere
+            let feeds = care.feeds().count
             let sleep = care.filter { $0.type == LogType.sleep }.reduce(0) { $0 + $1.activeSeconds }
             let diapers = care.filter { $0.type == LogType.diaper }.count
             let d = Double(max(days, 1))

@@ -163,6 +163,11 @@ struct LastFact {
     func phrase(now: Date, precise: Bool = false) -> String { label + " " + ago(at, now: now, precise: precise) }
 }
 
+/// A running timer's state, one way everywhere (widget, Live Activity, home, records): 「亲喂 · 右侧 · 已暂停」.
+func timerState(_ type: String, side: String?, paused: Bool) -> String {
+    LogType.name(type) + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (paused ? " · 已暂停" : "")
+}
+
 /// One way to write a length of time everywhere (app, widget, Live Activity): "18 分钟", "1 小时 5 分", "2 小时".
 func minutesOf(_ s: Double) -> String {
     let m = Int((max(0, s) / 60).rounded(.down))

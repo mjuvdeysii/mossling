@@ -286,8 +286,8 @@ private struct Check: View {
             .font(.subheadline.weight(.semibold)).controlSize(.large)
         }
         .padding(14)
-        .background(Palette.card, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(Crayon.ink(color).opacity(0.5), lineWidth: 1.5))
+        .background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Crayon.ink(color).opacity(0.5), lineWidth: 1.5))
         .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
@@ -335,13 +335,13 @@ private struct SidePad: View {
             .aspectRatio(1, contentMode: .fit)
             .frame(maxWidth: .infinity)
             .background {
-                RoundedRectangle(cornerRadius: 34, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
                     .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
                              : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
                     .overlay {
                         // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
                         if ArtStyle.current == .vinyl {
-                            let shape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+                            let shape = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
                             shape.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
                             shape.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
                         }
@@ -349,7 +349,7 @@ private struct SidePad: View {
                     .overlay {
                         // paused: the side stays coloured (it is still this side's feed) with a solid rim
                         if state == .paused {
-                            RoundedRectangle(cornerRadius: 34, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
+                            RoundedRectangle(cornerRadius: Radius.stage, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
                         }
                     }
             }

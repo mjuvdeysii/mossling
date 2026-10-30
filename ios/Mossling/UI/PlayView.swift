@@ -18,6 +18,8 @@ struct PlayView: View {
     @State private var before = false
     /// What to watch for and when to stop is safety: open from the start, not folded away.
     @State private var during = true
+    /// A time already recorded on this visit (记一次, or the last step).
+    @State private var recorded = false
 
     var body: some View {
         let rec = app.record(play, j)
@@ -104,6 +106,8 @@ struct PlayView: View {
             UIApplication.shared.isIdleTimerDisabled = true   // playing along: the phone lies on the floor
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
+        // the steps done, the screen may sleep again
+        .onChange(of: open) { _, o in if o >= play.steps.count { UIApplication.shared.isIdleTimerDisabled = false } }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -116,14 +120,15 @@ struct PlayView: View {
 
     private func record() {
         // the reply only after the time played is really saved
-        withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1 } }
+        withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1; recorded = true } }
     }
 
     private func go(_ i: Int, _ proxy: ScrollViewProxy) {
         if i >= play.steps.count {
             // the last step done: that is a time played — recorded, cheered, and the steps fold away
             withAnimation(.snappy) { open = play.steps.count }
-            record()
+            // one time played is one entry: if 记一次 already said it on this page, the last step does not again
+            if recorded { cheer += 1 } else { record() }
             withAnimation(.smooth.delay(0.15)) { proxy.scrollTo("finished", anchor: .center) }
             return
         }
@@ -196,8 +201,9 @@ private struct StepCard: View {
                             Text(text).font(.title3.weight(.semibold)).fixedSize(horizontal: false, vertical: true)
                         }
                         HStack(alignment: .bottom) {
-                            // in the 2D world (build 196) the two are inside the pictures, as they were then
-                            if true { Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived) }
+                            // the two are already in the step's picture (one pair to a card); only a step without a
+                            // picture has them here, hopping as it opens
+                            if art == nil { Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived) }
                             Spacer(minLength: 8)
                             Button(action: next) {
                                 Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")

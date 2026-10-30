@@ -223,6 +223,8 @@ extension Crayon {
 /// Four corner radii, nested outside-in: a card, a surface inside a card, a tile, a chip. Every rounded surface is one
 /// of these — the eye reads the sameness as care, and a stray 26 beside a 24 as carelessness.
 enum Radius {
+    /// The one large surface of a page: the record stage, the timer's pads.
+    static let stage: CGFloat = 32
     static let card: CGFloat = 22
     static let inner: CGFloat = 18
     static let tile: CGFloat = 14

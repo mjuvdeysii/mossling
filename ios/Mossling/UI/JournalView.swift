@@ -76,7 +76,11 @@ struct JournalView: View {
             }
             .presentationDetents([.medium]).lampPresented()
         }
-        .sheet(item: $editing) { e in EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }).lampPresented() }
+        // a side of a two-sided feed opens the whole feed (that side chosen)
+        .sheet(item: $editing) { e in
+            EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id },
+                       feed: j.logs.feeds().first { f in f.entries.contains { $0.id == e.id } }?.entries ?? []).lampPresented()
+        }
         .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
         // the day chosen stays chosen across the stats, the growth curve and the other tabs; it goes back to today
@@ -191,7 +195,7 @@ private struct StickerSheet: View {
                 HStack(alignment: .top, spacing: 4) {
                     ForEach(often, id: \.self) { t in
                         let run = timers.first { $0.type == t }
-                        Sticker(type: t, running: run != nil,
+                        Sticker(type: t, running: run != nil, paused: run?.pausedAt != nil,
                                 since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { ago($0, now: tl.date) },
                                 size: often.count > 4 ? 50 : 56) { tap(t) }
                     }
@@ -233,7 +237,9 @@ private struct SmallSticker: View {
 }
 
 private struct Sticker: View {
-    let type: String, running: Bool, since: String?
+    let type: String, running: Bool
+    var paused = false
+    let since: String?
     var size: CGFloat = 48
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
@@ -254,7 +260,7 @@ private struct Sticker: View {
                         SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                     }
                 Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Ticking(text: running ? "进行中" : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
+                Ticking(text: running ? (paused ? "已暂停" : "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -453,7 +459,7 @@ private struct FocusLine: View {
             Button("全部", action: clear).buttonStyle(.vinyl(c))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
         .transition(.opacity.combined(with: .move(edge: .top)))
     }
     /// Facts only, from the day's records: how many, and for feeds the usual gap between them; for sleep how many
@@ -515,7 +521,7 @@ private struct RunningRow: View {
                 }
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12).padding(.vertical, 10)
-                .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
             }
         }
         .buttonStyle(.toy)
@@ -668,6 +674,54 @@ private struct Totals: View {
 
 /// A short phrase that must not break across lines ("共 8 小时 30 分", "到 06:30"): its spaces become no-break spaces
 /// and its characters are joined with word joiners. A long free text (a note) is left to wrap as usual.
+/// Pieces of a line separated by dots (subviews alternate: piece, dot, piece, …): pieces wrap as whole words, and a
+/// dot is drawn only between two pieces on the same line — never at a line's end or start.
+struct DotFlow: Layout {
+    var spacing: CGFloat = 4, lineSpacing: CGFloat = 1
+    private func lines(_ subviews: Subviews, width: CGFloat) -> [[(index: Int, size: CGSize)]] {
+        var out: [[(index: Int, size: CGSize)]] = [[]], x: CGFloat = 0
+        var i = 0
+        while i < subviews.count {
+            let piece = subviews[i].sizeThatFits(ProposedViewSize(width: width, height: nil))
+            if i == 0 { out[0].append((i, piece)); x = piece.width; i += 1; continue }
+            // a dot (i) and the piece after it (i + 1)
+            let dot = subviews[i].sizeThatFits(.unspecified)
+            guard i + 1 < subviews.count else { break }
+            let next = subviews[i + 1].sizeThatFits(ProposedViewSize(width: width, height: nil))
+            if x + spacing + dot.width + spacing + next.width <= width {
+                out[out.count - 1].append((i, dot)); out[out.count - 1].append((i + 1, next))
+                x += spacing + dot.width + spacing + next.width
+            } else {
+                out.append([(i + 1, next)]); x = next.width
+            }
+            i += 2
+        }
+        return out
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let w = proposal.width ?? .infinity
+        let ls = lines(subviews, width: w)
+        let h = ls.map { $0.map(\.size.height).max() ?? 0 }.reduce(0, +) + lineSpacing * CGFloat(max(0, ls.count - 1))
+        let used = ls.map { l in l.map(\.size.width).reduce(0, +) + spacing * CGFloat(max(0, l.count - 1)) }.max() ?? 0
+        return CGSize(width: proposal.width ?? used, height: h)
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let ls = lines(subviews, width: bounds.width)
+        var shown = Set<Int>(), y = bounds.minY
+        for l in ls {
+            var x = bounds.minX
+            let h = l.map(\.size.height).max() ?? 0
+            for (i, size) in l {
+                subviews[i].place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(size))
+                shown.insert(i); x += size.width + spacing
+            }
+            y += h + lineSpacing
+        }
+        // dots that fell at a line break are not drawn
+        for i in subviews.indices where !shown.contains(i) { subviews[i].place(at: CGPoint(x: -10_000, y: -10_000), proposal: .zero) }
+    }
+}
+
 func unbroken(_ s: String) -> String {
     guard s.count <= 14 else { return s }
     return s.map { $0 == " " ? "\u{00A0}" : String($0) }.joined(separator: "\u{2060}")
@@ -813,7 +867,7 @@ private struct GapRow: View {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
                 .frame(width: 28, height: 28)
-            Text("相隔 " + durationValue(seconds)).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            Text(unbroken("相隔 " + durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -844,8 +898,8 @@ private struct TimelineRow: View {
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
-        let meta = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }
-            .joined(separator: " · ").components(separatedBy: " · ").map(unbroken).joined(separator: " · ")
+        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }
+            .joined(separator: " · ").components(separatedBy: " · ")
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.carriedOver(into: day) ? "00:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
@@ -880,10 +934,22 @@ private struct TimelineRow: View {
                         Text(value).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
                     }
                 }
-                if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize(horizontal: false, vertical: true) }
+                // the details as pieces: a line breaks only between them, and the · only stands between two on a line
+                if !meta.isEmpty {
+                    DotFlow {
+                        ForEach(Array(meta.enumerated()), id: \.offset) { i, piece in
+                            if i > 0 { Text("·") }
+                            Text(unbroken(piece)).fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    .accessibilityElement(children: .ignore).accessibilityLabel(meta.joined(separator: "，"))
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 3)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
     }

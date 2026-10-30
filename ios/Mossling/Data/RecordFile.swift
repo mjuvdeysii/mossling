@@ -161,18 +161,37 @@ enum RecordFile {
             }
         }
 
-        // month records
+        // month records: what was marked, and the plays — from the records (a play's entries, by the child's month
+        // on their date); a play marked done before plays were dated, only when it has no entries
         let ticks = app.ticks.values.sorted { $0.month != $1.month ? $0.month < $1.month : $0.at < $1.at }
-        let kinds: [(String, String)] = [(TickKind.observed, "留意到的表现"), (TickKind.vaccine, "已完成的接种"), (TickKind.checkup, "已完成的儿保"), (TickKind.did, "一起玩过的活动")]
-        if !ticks.isEmpty {
+        let kinds: [(String, String)] = [(TickKind.observed, "留意到的表现"), (TickKind.vaccine, "已完成的接种"), (TickKind.checkup, "已完成的儿保")]
+        let playLogs = j.logs.filter { $0.type == LogType.play }.sorted { $0.start < $1.start }
+        let codeOf = { (l: LogEntry) in (l.detail ?? "").split(separator: " ").first.map(String.init) ?? "" }
+        var playedIn: [Int: [String]] = [:]
+        if let b = app.birth {
+            for l in playLogs {
+                guard let m = (0...60).first(where: { l.startDate >= b.plus(months: $0).date && l.startDate < b.plus(months: $0 + 1).date }) else { continue }
+                let name = app.content.play(codeOf(l))?.name ?? String((l.detail ?? "").drop { $0 != " " }.dropFirst())
+                if !(playedIn[m] ?? []).contains(name) { playedIn[m, default: []].append(name) }
+            }
+        }
+        let logged = Set(playLogs.map(codeOf))
+        for t in ticks where t.kind == TickKind.did {
+            let code = String(t.key.split(separator: ":").last ?? "")
+            let name = t.label.isEmpty ? code : t.label
+            if !logged.contains(code) && !(playedIn[t.month] ?? []).contains(name) { playedIn[t.month, default: []].append(name) }
+        }
+        let months = Set(ticks.filter { $0.kind != TickKind.did }.map(\.month)).union(playedIn.keys).sorted()
+        if !months.isEmpty {
             o += "\n## 每个月记下的事\n"
-            for m in Set(ticks.map(\.month)).sorted() {
+            for m in months {
                 o += "\n### \(m == 0 ? "出生" : "满 \(m) 个月")\n\n"
                 for (k, name) in kinds {
                     let items = ticks.filter { $0.month == m && $0.kind == k }
                     let labels: [String] = items.map { (t: Tick) -> String in t.label.isEmpty ? t.key : t.label }
                     if !items.isEmpty { o += "- \(name)：\(labels.joined(separator: "；"))\n" }
                 }
+                if let p = playedIn[m], !p.isEmpty { o += "- 一起玩过的活动：\(p.joined(separator: "；"))\n" }
             }
         }
 

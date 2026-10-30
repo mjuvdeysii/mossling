@@ -118,6 +118,7 @@ struct MonthPoints: View {
 
 private struct MonthBody: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     let month: Int
     var body: some View {
         let c = app.content, mo = c.month(month), m = month
@@ -127,7 +128,9 @@ private struct MonthBody: View {
             let plays = c.plays(of: m)
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(title: "一起玩", detail: "本月玩过 \(app.count(m, TickKind.did)) / \(plays.count)")
+                    // how many were played, not a list to complete: the four cards themselves show how many there are
+                    let done = Set(app.played(in: m, j)).intersection(plays.map(\.code)).count
+                    SectionTitle(title: "一起玩", detail: done > 0 ? "这个月玩过 \(done) 个" : nil)
                     PlaysLeadGrid(plays: plays, month: m)
                 }
             }
@@ -419,7 +422,7 @@ struct PlayTile: View {
                         if let pic { ArtFill(name: pic).aspectRatio(1, contentMode: .fill) } else { Palette.fill }
                     }
                     .frame(width: 58, height: 58)
-                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                     .overlay(alignment: .bottomTrailing) { if times > 0 { badge.scaleEffect(0.8).offset(x: 6, y: 6) } }
                     VStack(alignment: .leading, spacing: 2) {
                         HStack(spacing: 3) {

@@ -17,11 +17,11 @@ struct CareStage: View {
         let c = LogType.color(type)
         let kind: Kind = app.companion
         ZStack(alignment: .bottomLeading) {
-            RoundedRectangle(cornerRadius: 30, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
                 .fill(LinearGradient(colors: [c.opacity(lamp ? 0.3 : 0.28), c.opacity(lamp ? 0.1 : 0.08)], startPoint: .topTrailing, endPoint: .bottomLeading))
-                .background(lamp ? Palette.lampCard : Color.clear, in: RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .background(lamp ? Palette.lampCard : Color.clear, in: RoundedRectangle(cornerRadius: Radius.stage, style: .continuous))
             Drift(kind: Drift.kind(of: type), color: c, still: reduce)
-                .clipShape(RoundedRectangle(cornerRadius: 30, style: .continuous))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.stage, style: .continuous))
                 .accessibilityHidden(true)
             HStack(alignment: .bottom, spacing: 0) {
                 // a band, not a poster: the kind and the companion in one low row, so what is recorded starts high
