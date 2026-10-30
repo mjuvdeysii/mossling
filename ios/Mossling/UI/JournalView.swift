@@ -724,8 +724,14 @@ struct DotFlow: Layout {
 
 /// "3 小时 50 分" → each number stays with its unit; a line may still break between "3 小时" and "50 分".
 func keepUnits(_ s: String) -> String {
-    let t = s.split(separator: " ").map(String.init)
-    return stride(from: 0, to: t.count, by: 2).map { i in i + 1 < t.count ? t[i] + "\u{00A0}" + t[i + 1] : t[i] }.joined(separator: " ")
+    let t: [String] = s.split(separator: " ").map(String.init)
+    var pairs: [String] = []
+    var i = 0
+    while i < t.count {
+        if i + 1 < t.count { pairs.append(t[i] + "\u{00A0}" + t[i + 1]) } else { pairs.append(t[i]) }
+        i += 2
+    }
+    return pairs.joined(separator: " ")
 }
 
 func unbroken(_ s: String) -> String {
