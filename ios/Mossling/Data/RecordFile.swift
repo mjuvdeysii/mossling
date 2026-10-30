@@ -163,7 +163,7 @@ enum RecordFile {
 
         // month records
         let ticks = app.ticks.values.sorted { $0.month != $1.month ? $0.month < $1.month : $0.at < $1.at }
-        let kinds: [(String, String)] = [(TickKind.observed, "留意到的表现"), (TickKind.vaccine, "已完成的接种"), (TickKind.checkup, "已完成的儿保"), (TickKind.did, "一起玩过的活动")]
+        let kinds: [(String, String)] = [(TickKind.observed, "留意到的表现"), (TickKind.vaccine, "已完成的接种"), (TickKind.checkup, "已完成的儿保"), (TickKind.did, "一起玩过的教具")]
         if !ticks.isEmpty {
             o += "\n## 每个月记下的事\n"
             for m in Set(ticks.map(\.month)).sorted() {

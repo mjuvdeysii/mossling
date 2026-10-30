@@ -127,7 +127,7 @@ private struct MonthBody: View {
             let plays = c.plays(of: m)
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
-                    SectionTitle(title: "一起玩", detail: "做过 \(app.count(m, TickKind.did)) / \(plays.count)")
+                    SectionTitle(title: "一起玩", detail: "本月玩过 \(app.count(m, TickKind.did)) / \(plays.count)")
                     PlaysLeadGrid(plays: plays, month: m)
                 }
             }
@@ -252,7 +252,7 @@ struct PlayActions: View {
     var body: some View {
         let rec = app.record(play, j)
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
-        Button(rec.count == 0 ? "做过了" : "又做了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) }
+        Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) }
         if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         if shelf.contains(play.code) {
             Button("从架子上拿下", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
@@ -462,7 +462,7 @@ struct PlayTile: View {
             Ticking(text: "×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                 .padding(.horizontal, 8).frame(height: 24)
                 .background(Capsule().fill(Palette.bead))
-                .accessibilityLabel("做过 \(times) 次")
+                .accessibilityLabel("玩过 \(times) 次")
         }
     }
     private func words(_ key: String, title: Font) -> some View {

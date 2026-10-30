@@ -44,7 +44,7 @@ struct PlayView: View {
                         Button { record() } label: { Label("记一次", systemImage: "plus") }
                             .buttonStyle(.vinyl)
                             .overlay { BeadBurst(trigger: cheer) }
-                            .accessibilityLabel("做过了，记一次")
+                            .accessibilityLabel("玩过了，记一次")
                     }
                 }
                 .padding(.horizontal, 4).padding(.bottom, 8)
@@ -267,10 +267,10 @@ struct DoneCount: View {
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
             VStack(alignment: .leading, spacing: 1) {
                 if record.count == 0 {
-                    Text("还没做过").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Text("还没玩过").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                 } else {
                     HStack(spacing: 0) {
-                        Text("做过 ")
+                        Text("玩过 ")
                         Ticking(text: "\(record.count)", tint: Palette.bead)
                         Text(" 次")
                     }

@@ -158,7 +158,7 @@ private struct BookTotals: View {
         HStack(spacing: 0) {
             item("\(pages.count)", "页")
             Divider().frame(height: 30)
-            item("\(plays)", "次玩耍")
+            item("\(plays)", "次玩过")
             Divider().frame(height: 30)
             item("\(kinds)", "种教具")
             Divider().frame(height: 30)

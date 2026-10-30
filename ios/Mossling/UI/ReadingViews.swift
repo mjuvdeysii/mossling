@@ -31,7 +31,7 @@ struct SearchView: View {
         let topics = t.isEmpty ? [] : c.topics.filter { $0.title.contains(t) || $0.blocks.contains { ($0.text ?? "").contains(t) || ($0.items ?? []).contains { $0.contains(t) } } }
         List {
             if !plays.isEmpty {
-                Section("活动") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
+                Section("教具") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
                     PlayRowLabel(play: p) } } }
             }
             if !months.isEmpty {
@@ -57,14 +57,14 @@ struct SearchView: View {
                     }
                     .frame(height: 72).accessibilityHidden(true)
                     Text("没有找到「\(t)」").font(.headline)
-                    Text("试试活动的名字、月份或专题").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text("试试教具的名字、月份或专题").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
                 .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "活动、月份、专题")
+        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "教具、月份、专题")
         .navigationTitle("搜索")
     }
     /// A topic with its own mark, as on the month's page.
