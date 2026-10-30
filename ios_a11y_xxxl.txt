@@ -1,0 +1,21 @@
+19 issues (UICTContentSizeCategoryAccessibilityXXXL)
+
+contrast: Contrast failed — — · Contrast failed for SwiftUI.AccessibilityNode  @ 本月 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓, 记录 ↓
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “中国大陆程序” id= 94,720 151×96 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 本月 ↓
+contrast: Contrast failed — 48 “Moss” id= 86,648 96×116 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “个月” id= 165,333 92×58 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “Otto” id= 261,725 97×58 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “3” id= 263,331 33×60 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “小满” id= 126,203 104×65 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “天” id= 299,333 46×58 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “编辑” id= 249,201 130×128 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “Moss” id= 86,648 96×116 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “6” id= 126,325 37×67 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+contrast: Contrast failed — 48 “小满” id= 126,130 104×65 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “2026年4月27日出生” id= 85,331 375×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “第 187 天” id= 86,386 160×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “这一段：坐起来看” id= 83,498 304×48 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “个月” id= 165,260 92×58 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “天” id= 299,260 46×58 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “Otto” id= 261,652 97×58 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
+contrast: Contrast failed — 48 “6” id= 126,252 37×67 · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓
