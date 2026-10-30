@@ -660,6 +660,12 @@ private struct Totals: View {
         .accessibilityHint(on ? "显示全部" : "只看这一类")
         .accessibilityAddTraits(on ? .isSelected : [])
     }
+    private func details(_ sub: [String], _ sep: String) -> some View {
+        ViewThatFits(in: .horizontal) {
+            Text(sub.joined(separator: sep)).fixedSize()
+            VStack(alignment: .leading, spacing: 0) { ForEach(sub, id: \.self) { Text($0).lineLimit(1).minimumScaleFactor(0.85) } }
+        }
+    }
     private func stamp(_ t: String, _ name: String, _ parts: [(String, String)], _ sub: [String], _ sep: String = " · ") -> some View {
         let c = LogType.color(t)
         return VStack(alignment: .leading, spacing: 2) {
@@ -676,9 +682,9 @@ private struct Totals: View {
             }
             .lineLimit(1).minimumScaleFactor(0.7)
             // the details in full: on one line when they fit, otherwise one piece per line — never cut off with "…"
-            ViewThatFits(in: .horizontal) {
-                Text(sub.isEmpty ? " " : sub.joined(separator: sep)).fixedSize().accessibilityHidden(sub.isEmpty)
-                VStack(alignment: .leading, spacing: 0) { ForEach(sub, id: \.self) { Text($0).lineLimit(1).minimumScaleFactor(0.85) } }
+            // nothing to add: an invisible line keeps the three tiles the same height (hidden, so nothing is read or audited)
+            Group {
+                if sub.isEmpty { Text("0").hidden() } else { details(sub, sep) }
             }
             .font(.caption2).foregroundStyle(Palette.secondaryText)
         }

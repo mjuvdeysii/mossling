@@ -31,8 +31,8 @@ struct YouView: View {
                         .padding(.horizontal, 14).padding(.vertical, 10)
                         Divider().padding(.leading, 52)
                         // it belongs to 自动: under 日光 or 夜灯 the choice is already made, so the switch rests and says so
-                        SwitchRow(title: "晚上自动开夜灯", detail: app.theme == .system ? "19:00–06:00" : "外观选「自动」时生效", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
-                            .disabled(app.theme != .system).opacity(app.theme == .system ? 1 : 0.55)
+                        SwitchRow(title: "晚上自动开夜灯", detail: app.theme == .system ? "19:00–06:00" : "外观选「自动」时生效", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight, resting: app.theme != .system)
+                            .disabled(app.theme != .system)
                         Divider().padding(.leading, 52)
                         SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
                         if face {
@@ -334,10 +334,12 @@ private struct Swatch: View {
 private struct SwitchRow: View {
     let title: String, detail: String, symbol: String, color: Color
     @Binding var on: Bool
+    /// Resting (the choice is made elsewhere): the icon and the switch fade, the words stay readable — the detail says why.
+    var resting = false
     var body: some View {
         Toggle(isOn: $on) {
             HStack(spacing: 10) {
-                IconTile(symbol: symbol, color: color, size: 28, round: true)
+                IconTile(symbol: symbol, color: color, size: 28, round: true).opacity(resting ? 0.45 : 1)
                 VStack(alignment: .leading, spacing: 0) {
                     Text(title).font(.subheadline.weight(.semibold))
                     Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
