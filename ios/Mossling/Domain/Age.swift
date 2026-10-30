@@ -3,7 +3,18 @@ import Foundation
 /// Calendar days, as the content counts them (no time of day, no time zone surprises).
 struct Day: Hashable, Comparable, Codable {
     let y: Int, m: Int, d: Int
-    static var cal: Calendar { var c = Calendar(identifier: .gregorian); c.timeZone = .current; return c }
+    static var cal: Calendar {
+        var c = Calendar(identifier: .gregorian)
+        c.timeZone = .current
+        #if DEBUG
+        if let z = testZone { c.timeZone = z }
+        #endif
+        return c
+    }
+    #if DEBUG
+    /// Screenshots read the clock in a zone of their own (the same morning whenever they are made).
+    nonisolated(unsafe) static var testZone: TimeZone?
+    #endif
     init(y: Int, m: Int, d: Int) { self.y = y; self.m = m; self.d = d }
     init(_ date: Date) { let c = Day.cal.dateComponents([.year, .month, .day], from: date); self.init(y: c.year!, m: c.month!, d: c.day!) }
     static var today: Day { Day(Date()) }

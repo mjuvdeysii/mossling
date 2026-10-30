@@ -622,7 +622,7 @@ private struct Totals: View {
         // the whole sleep, as on its line; when it began the day before, said so (it can be longer than the day's part)
         let longestSleep: LogEntry? = logs.filter { $0.type == LogType.sleep && $0.end != nil }.max { $0.activeSeconds < $1.activeSeconds }
         let longest: Double = longestSleep?.activeSeconds ?? 0
-        let longestLine: [String] = longest >= 60 ? ["最长一觉", durationValue(longest)] + ((longestSleep?.carriedOver(into: day) ?? false) ? ["· 接昨天"] : []) : []
+        let longestLine: [String] = longest >= 60 ? ["最长一觉", durationValue(longest)] + ((longestSleep?.carriedOver(into: day) ?? false) ? ["（接昨天）"] : []) : []
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {

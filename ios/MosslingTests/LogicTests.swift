@@ -433,5 +433,7 @@ final class LogicTests: XCTestCase {
         let plays = try XCTUnwrap(Shelf.parse(next)).codes.compactMap { c.play($0) }
         XCTAssertFalse(plays.isEmpty)
         XCTAssertTrue(plays.allSatisfy { $0.from <= 2 && 2 <= $0.to }, "nothing the child has not reached yet")
+        // a week that suits the month (one brought by a record file) stays as it is
+        XCTAssertNil(Shelf.roll(c, 6, stored: old, today: d, fresh: true))
     }
 }

@@ -34,9 +34,16 @@ enum Shelf {
     }
     /// The week as it should stand today: last week's turned into a new one, and anything the child has outgrown
     /// (the month changed mid-week) replaced. Nil when it already stands right. The stored form never changes.
-    /// `fresh`: the birth date was changed — the week is chosen anew for the month the child is now in.
+    /// `fresh`: the birth date was changed (or a record file brought one) — plays the child has not reached yet or has
+    /// outgrown are replaced for the month the child is now in; a week that suits it (an imported one) stays.
     static func roll(_ c: Content, _ m: Int, stored: String, today: Day, played: (String) -> Int = { _ in 0 }, fresh: Bool = false) -> String? {
-        if fresh { return format(today, suggest(c, m, last: [], played: played)) }
+        if fresh, let st = parse(stored) {
+            let codes = st.codes.filter { c.play($0) != nil }
+            let fit = codes.filter { code in c.play(code).map { $0.from <= m && m <= $0.to } ?? false }
+            if !codes.isEmpty && fit.count == codes.count { return nil }
+            let more = suggest(c, m, last: [], played: played).filter { !fit.contains($0) }
+            return format(today, fit + more.prefix(Swift.max(0, 3 - fit.count)))
+        }
         let st = parse(stored)
         let codes = (st?.codes ?? []).filter { c.play($0) != nil }
         if st == nil || codes.isEmpty || st!.week != today.monday {

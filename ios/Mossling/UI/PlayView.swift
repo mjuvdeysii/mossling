@@ -73,7 +73,7 @@ struct PlayView: View {
         .onAppear {
             if let p = app.playing, p.play.code == play.code { open = p.step }
             before = rec.count == 0
-            if base == nil { base = rec.count }
+            if base == nil { base = j.plays(play.code).count }
             keepAwake(open < play.steps.count)
         }
         .onDisappear { keepAwake(false) }
@@ -96,20 +96,22 @@ struct PlayView: View {
         withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1 } }
     }
     /// Whether this visit has recorded a time (the count is above what it was when the page opened).
-    private var recordedHere: Bool { app.record(play, j).count > (base ?? Int.max) }
+    /// Counted in entries (a mark from before plays were dated would hide the first entry).
+    private var recordedHere: Bool { j.plays(play.code).count > (base ?? Int.max) }
     private func keepAwake(_ on: Bool) { UIApplication.shared.isIdleTimerDisabled = on }
     private func countChanged(_ old: Int, _ new: Int) {
         guard new < old else { return }
-        base = min(base ?? new, new)
+        base = min(base ?? Int.max, j.plays(play.code).count)
         if open >= play.steps.count { withAnimation(.snappy) { open = max(0, play.steps.count - 1) } }
     }
 
     private func go(_ i: Int, _ proxy: ScrollViewProxy) {
         if i >= play.steps.count {
             // the last step done: that is a time played — recorded, cheered, and the steps fold away
+            // one time played is one entry: if 记一次 already said it on this page, the last step does not again;
+            // the steps fold away only once the time is really saved (a failed save leaves the last step open)
+            if recordedHere { cheer += 1 } else if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1 } else { return }
             withAnimation(.snappy) { open = play.steps.count }
-            // one time played is one entry: if 记一次 already said it on this page, the last step does not again
-            if recordedHere { cheer += 1 } else { record() }
             withAnimation(.smooth.delay(0.15)) { proxy.scrollTo("finished", anchor: .center) }
             return
         }

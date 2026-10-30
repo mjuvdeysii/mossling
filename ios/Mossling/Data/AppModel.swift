@@ -93,8 +93,8 @@ final class AppModel {
     func rollWeek(played: (String) -> Int = { _ in 0 }, fresh: Bool = false) {
         guard let m = babyMonth, let next = Shelf.roll(content, m, stored: shelf, today: today, played: played, fresh: fresh) else { return }
         shelf = next
-        // a week chosen anew: a play picked for today from the old one no longer stands
-        if fresh { pick = "" }
+        // a week chosen anew: a play picked for today that is not in it no longer stands
+        if fresh, let c = Shelf.pick(pick, today: today), !(Shelf.parse(next)?.codes.contains(c) ?? false) { pick = "" }
     }
 
     /// The play in progress, if any.
