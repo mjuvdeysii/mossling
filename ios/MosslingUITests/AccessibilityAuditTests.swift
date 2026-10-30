@@ -13,7 +13,7 @@ final class AccessibilityAuditTests: XCTestCase {
         let app = XCUIApplication()
         // a six-month-old, records on; settings come in through the argument domain of UserDefaults
         let birth = Int(Date().timeIntervalSince1970 / 86_400) - 186
-        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO", "-auditStill", "YES", "-theme", theme, "-nightLight", "NO",
+        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31b", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO", "-auditStill", "YES", "-theme", theme, "-nightLight", "NO",
                                "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         if let size { app.launchArguments += ["-UIPreferredContentSizeCategoryName", size] }
         app.launch()

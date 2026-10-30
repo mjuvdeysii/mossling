@@ -350,7 +350,7 @@ struct CareView: View {
                     }
                 }
                 // whose schedule this is: China's; elsewhere, the local health authority's (1.4.1 — say where data applies)
-                Text("按中国国家免疫规划疫苗儿童免疫程序（2026 年版）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                Text("按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }

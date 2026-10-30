@@ -141,6 +141,7 @@ final class AppModel {
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+        theme = .system; companion = .moss; nightLight = true
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

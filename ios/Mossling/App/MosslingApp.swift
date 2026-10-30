@@ -72,6 +72,8 @@ struct RootView: View {
         }
         // a tab that is no longer there (记录 turned off) falls back to 本月
         .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
+        // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
+        .onChange(of: app.lock) { _, on in if on { locked = false } }
         .onChange(of: phase) { _, p in
             if p == .active { app.today = .today; journal.reload(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
             if p == .background { locked = true; mascot.send(.appBackground) }

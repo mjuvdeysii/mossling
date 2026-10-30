@@ -35,7 +35,7 @@ struct DataView: View {
     var body: some View {
         List {
             Section {
-                Text("摸索台灯不做发育评测。记下的一切都可以完整导出：交给儿科医生，或交给你信任的 AI 助手帮你整理和提问。导出的文件含孩子的出生日期、生长和健康记录；交给他人或其他应用（包括 AI 助手）后，如何处理由接收方负责，请只交给你信任的对象。")
+                Text("摸索台灯不做发育评测。记下的一切都可以完整导出：交给儿科医生，或交给你信任的 AI 助手帮你整理和提问。导出的文件含孩子的出生日期、生长和健康记录；交给他人或其他应用（包括 AI 助手）后，如何处理由接收方负责，请只交给你信任的对象。文件发送或复制到这台手机以外后不再受本应用保护。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                     .listRowBackground(Color.clear)
             }
@@ -99,11 +99,11 @@ struct DataView: View {
         .scrollContentBackground(.hidden).pageBackground(tone: Crayon.lilac)
         .navigationTitle("数据").navigationBarTitleDisplayMode(.inline)
         .confirmationDialog("清除这台手机上的全部数据？", isPresented: $clearing, titleVisibility: .visible) {
-            Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
+            Button("全部清除", role: .destructive) { app.clearAll(); j.reload(); saved = nil }
         } message: { Text("包括孩子资料、全部记录、设置和「导出」文件夹里的文件。清除后无法恢复。") }
         .confirmationDialog("撤回同意，并清除这台手机上的全部数据？", isPresented: $withdrawing, titleVisibility: .visible) {
-            Button("撤回并清除", role: .destructive) { app.clearAll(); app.consent = "declined"; app.onboarded = true; j.reload() }
-        } message: { Text("撤回后不再保存孩子的信息，已保存的会全部删除，无法恢复；仍可浏览全部玩法和月龄内容。以后需要时，可以再次选择同意。") }
+            Button("撤回并清除", role: .destructive) { app.clearAll(); app.consent = "declined"; app.onboarded = true; j.reload(); saved = nil }
+        } message: { Text("撤回后不再保存孩子的信息，已保存的会全部删除，无法恢复；需要保留的，请先在上面导出完整备份。仍可浏览全部玩法和月龄内容。以后需要时，可以再次选择同意。") }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
             if case let .success(url) = r { confirmImport = url }
         }

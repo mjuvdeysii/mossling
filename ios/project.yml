@@ -12,7 +12,7 @@ settings:
     MOSSLING_ICP: ""
     # the developer named in the privacy policy, terms and disclaimer (the same as the App filing), and the contact
     # email for questions, complaints and the children's information officer; until set, the documents point to the
-    # project's issue page and leave the developer line out
+    # developer name and 「App 支持」 link on the App Store page, and 反馈问题 is hidden
     MOSSLING_DEVELOPER: ""
     MOSSLING_EMAIL: ""
     CURRENT_PROJECT_VERSION: "1"
