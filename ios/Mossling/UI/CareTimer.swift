@@ -99,7 +99,7 @@ struct TimerScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             }
             .padding(.horizontal, 20).padding(.bottom, 24)
         }
@@ -127,8 +127,8 @@ struct TimerScreen: View {
     }
 
     private var lastLine: String {
-        guard let d = j.last(type) else { return "还没有记录" }
-        var s = "上次" + (type == LogType.sleep ? "醒来 " : "喂奶 ") + agoShort(d)
+        guard let s0 = LastLine.phrase(type, in: j.logs, now: Date()) else { return "还没有记录" }
+        var s = s0
         if type == LogType.nurse, let side = lastNurseSide { s += side == "l" ? " · 左侧" : " · 右侧" }
         return s
     }
@@ -189,7 +189,7 @@ struct TimerScreen: View {
                         Stat(title: "暂停", value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                     }
                     .padding(.vertical, 12)
-                    .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
 
                     if type != LogType.sleep {
                         Button { picking = true } label: {
@@ -313,10 +313,10 @@ private struct SidePad: View {
 
     var body: some View {
         let on = state == .running || state == .ready(suggested: true)
-        let ink = on ? Color.white : Crayon.ink(color)
+        let ink = on ? (lamp ? Palette.lampInk : Color.white) : Crayon.ink(color)
         Button(action: tap) {
             ZStack {
-                Dial(seconds: seconds, color: on ? .white : color)
+                Dial(seconds: seconds, color: on ? (lamp ? Palette.lampInk : .white) : color)
                     .padding(8)
                     .opacity(state == .other || isReady ? 0.55 : 1)
                 VStack(spacing: 2) {
@@ -333,7 +333,7 @@ private struct SidePad: View {
                     }
                         .font(.caption2.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Capsule().fill(on ? Color.white.opacity(0.18) : color.opacity(0.16)))
+                        .background(Capsule().fill(on ? (lamp ? Palette.lampInk : Color.white).opacity(0.18) : color.opacity(0.16)))
                         .padding(.top, 4)
                 }
                 .foregroundStyle(ink)
@@ -396,50 +396,70 @@ private struct SleepPad: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.lamp) private var lamp
 
+    /// Under the lamp the moon's figures are a warm, dimmed cream, not white: at 3 a.m. the brightest thing on the
+    /// screen should be no brighter than the lamp itself.
+    private var light: Color { lamp ? Palette.lampInk : .white }
+
     var body: some View {
-        let ink = paused && !ready ? Crayon.ink(color) : Color.white
-        Button(action: tap) {
-            ZStack {
-                Dial(seconds: seconds, color: paused && !ready ? color : .white).padding(10)
-                VStack(spacing: 6) {
-                    IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
-                    Group {
-                        if ready { Text("开始睡觉") } else { Ticking(text: clock(seconds)) }
-                    }
-                    .font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold))
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    // before it starts the moon already says 开始睡觉: no second line saying it again
-                    if !ready {
+        // The moon starts a sleep; once it runs, the moon only shows it. Pausing is its own small button, so a hand
+        // that brushes the screen in the dark does not stop the count.
+        if ready {
+            Button(action: tap) { face }
+                .buttonStyle(.toy)
+                .accessibilityLabel("开始睡觉")
+                .accessibilityHint("点按开始计时")
+        } else {
+            face
+                .accessibilityElement(children: .contain)
+        }
+    }
+
+    private var face: some View {
+        let ink = paused && !ready ? Crayon.ink(color) : light
+        return ZStack {
+            Dial(seconds: seconds, color: paused && !ready ? color : light).padding(10)
+            VStack(spacing: 6) {
+                IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
+                Group {
+                    if ready { Text("开始睡觉") } else { Ticking(text: clock(seconds)) }
+                }
+                .font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold))
+                .lineLimit(1).minimumScaleFactor(0.6)
+                .accessibilityLabel(ready ? "开始睡觉" : "睡眠 " + minutesOf(seconds))
+                // before it starts the moon already says 开始睡觉: no second line saying it again
+                if !ready {
+                    Button(action: tap) {
                         HStack(spacing: 4) {
                             Image(systemName: paused ? "play.fill" : "pause.fill")
-                            Text(paused ? "点按继续" : "点按暂停").lineLimit(1)
+                            Text(paused ? "继续" : "暂停").lineLimit(1)
                         }
-                        .font(.caption.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
-                        .padding(.horizontal, 10).padding(.vertical, 5)
-                        .background(Capsule().fill(paused ? color.opacity(0.16) : Color.white.opacity(0.18)))
+                        .font(.subheadline.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                        .padding(.horizontal, 16)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(paused ? color.opacity(0.16) : light.opacity(0.18)))
+                        .contentShape(Capsule())
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(paused ? "继续睡眠计时" : "暂停睡眠计时")
+                }
+            }
+            .frame(width: 170)
+            .foregroundStyle(ink)
+        }
+        .frame(width: 250, height: 250)
+        .background {
+            Circle().fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
+                          : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
+                .overlay {
+                    if ArtStyle.current == .vinyl {
+                        Circle().fill(LinearGradient(colors: [.white.opacity(paused && !ready ? (lamp ? 0.05 : 0.45) : 0.24), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                        Circle().strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
                     }
                 }
-                .frame(width: 170)
-                .foregroundStyle(ink)
-            }
-            .frame(width: 250, height: 250)
-            .background {
-                Circle().fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
-                              : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
-                    .overlay {
-                        if ArtStyle.current == .vinyl {
-                            Circle().fill(LinearGradient(colors: [.white.opacity(paused && !ready ? (lamp ? 0.05 : 0.45) : 0.24), .white.opacity(0)], startPoint: .top, endPoint: .center))
-                            Circle().strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
-                        }
-                    }
-            }
-            .modifier(Breathe(on: !paused && !reduce, amount: 1.02, period: 2.1))   // slow, like a sleeping breath
-            .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
-            .frame(maxWidth: .infinity)
         }
-        .buttonStyle(.toy)
-        .accessibilityLabel(ready ? "开始睡觉" : "睡眠 " + minutesOf(seconds))
-        .accessibilityHint(ready ? "点按开始计时" : paused ? "点按继续" : "点按暂停")
+        .modifier(Breathe(on: !paused && !reduce, amount: 1.02, period: 2.1))   // slow, like a sleeping breath
+        .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
+        .frame(maxWidth: .infinity)
     }
 }
 

@@ -113,11 +113,11 @@ struct FirstSheet: View {
                                 .padding(.horizontal, 16).padding(.bottom, 12)
                         }
                     }
-                    .printCard(radius: 20, fill: lamp ? Palette.lampCard : Palette.card)
+                    .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
                     VStack(alignment: .leading, spacing: 8) {
                         Text("想留下的话（可选）").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                         TextField("当时的样子、在哪里、谁在身边", text: Binding(get: { first.note ?? "" }, set: { first.note = String($0.prefix(200)) }), axis: .vertical)
-                            .lineLimit(2...6).padding(14).printCard(radius: 18, fill: lamp ? Palette.lampCard : Palette.card)
+                            .lineLimit(2...6).padding(14).printCard(radius: Radius.inner, fill: lamp ? Palette.lampCard : Palette.card)
                     }
                     Button { save() } label: { Text(isNew ? "记下这个第一次" : "保存").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Crayon.fill(Palette.bead, lamp), prominent: true, large: true))
@@ -156,7 +156,7 @@ struct FirstSheet: View {
                 } else { first.key = "icon:" + mark; named = true }
             }))
                 .font(.title3.weight(.semibold)).focused($typing).submitLabel(.done)
-                .padding(14).printCard(radius: 18, fill: lamp ? Palette.lampCard : Palette.card)
+                .padding(14).printCard(radius: Radius.inner, fill: lamp ? Palette.lampCard : Palette.card)
             if Firsts.kind(first.key) == nil {
                 // a mark for it, from a small set
                 WrapLayout(spacing: 8) {
@@ -287,7 +287,7 @@ struct FirstsView: View {
                 .accessibilityLabel("记一个第一次")
         }
         .padding(14)
-        .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
+        .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         .padding(.top, 4)
     }
 }
@@ -323,7 +323,7 @@ private struct FirstRow: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .printCard(radius: 20, fill: lamp ? Palette.lampCard : Palette.card)
+            .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
             .padding(.bottom, 12)
         }
         .accessibilityElement(children: .combine)
@@ -411,7 +411,7 @@ struct FirstStamps: View {
                             Text(Day(f.date).md).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
-                        .vinylSurface(Palette.bead, radius: 14)
+                        .vinylSurface(Palette.bead, radius: Radius.tile)
                     }
                     .buttonStyle(.toy)
                 }

@@ -58,7 +58,7 @@ struct AskSheet: View {
         } else {
             DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
                 .padding(.horizontal, 16).padding(.vertical, 10)
-                .printCard(radius: 20)
+                .printCard(radius: Radius.card)
         }
     }
 
@@ -82,7 +82,7 @@ struct AskSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
+            .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         case LogType.diaper where vinyl:
             Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 10) {
@@ -111,7 +111,7 @@ struct AskSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .printCard(radius: 24, fill: lamp ? Palette.lampCard : Palette.card)
+            .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         case LogType.bottle:
             // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
             HStack(spacing: 12) {
@@ -126,7 +126,7 @@ struct AskSheet: View {
                         }
                         .padding(12)
                         .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.card))
-                        .vinylSurface(on ? c : .white, radius: 20)
+                        .vinylSurface(on ? c : .white, radius: Radius.inner)
                         .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(on ? Crayon.ink(c) : Color.clear, lineWidth: 2))
                         .contentShape(Rectangle())
                     }

@@ -199,7 +199,7 @@ private struct BigPart: View {
             }
         }
         .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(0.12)).printCard(radius: 22)
+        .background(color.opacity(0.12)).printCard(radius: Radius.card)
         .accessibilityElement(children: .combine)
     }
 }
@@ -221,7 +221,7 @@ struct MonthTile<Accessory: View>: View {
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 20)
+        .printCard(radius: Radius.card)
         .accessibilityElement(children: .combine)
     }
 }

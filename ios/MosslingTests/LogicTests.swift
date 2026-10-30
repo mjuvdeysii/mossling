@@ -267,4 +267,29 @@ final class LogicTests: XCTestCase {
         b = JournalFile.tappingSide(b, LogType.nurse, "l", now: t(19, 10, 10) + 15_000)
         XCTAssertEqual(b.timers[0].side, "l"); XCTAssertNil(b.timers[0].pausedAt); XCTAssertEqual(b.logs.count, 1)
     }
+
+    func testTheShelfCountsOneWeekOneWay() {
+        let monday = Date(timeIntervalSince1970: 1_760_918_400)   // a Monday 00:00 UTC
+        let times = [monday.addingTimeInterval(-60), monday, monday.addingTimeInterval(3_600 * 30)]
+        XCTAssertEqual(Shelf.week(times, since: monday), 2, "last Sunday does not count; Monday at midnight does")
+        XCTAssertEqual(Shelf.week([], since: monday), 0)
+        // 先玩这件: fewest this week, then fewest in all, then shelf order
+        let week = ["A": 1, "B": 0, "C": 0], total = ["A": 1, "B": 5, "C": 2]
+        XCTAssertEqual(Shelf.first(["A", "B", "C"], week: { week[$0]! }, total: { total[$0]! }), "C")
+        XCTAssertEqual(Shelf.first(["A", "B"], week: { _ in 0 }, total: { _ in 0 }), "A")
+        XCTAssertNil(Shelf.first([], week: { _ in 0 }, total: { _ in 0 }))
+    }
+
+    func testHowLongAgoIsSaidOneWay() {
+        let now = Date(timeIntervalSince1970: 1_760_990_000)
+        XCTAssertEqual(ago(now.addingTimeInterval(-30), now: now), "刚刚")
+        XCTAssertEqual(ago(now.addingTimeInterval(-25 * 60), now: now), "25 分前")
+        XCTAssertEqual(ago(now.addingTimeInterval(-(3 * 60 + 20) * 60), now: now), "3 小时前")
+        XCTAssertEqual(ago(now.addingTimeInterval(-23 * 3600), now: now), "23 小时前", "earlier today is never 天前")
+        XCTAssertEqual(ago(now.addingTimeInterval(-50 * 3600), now: now), "2 天前")
+        // the last-time sentence names what was done, the same on the stage, the timer and the night card
+        let logs = [LogEntry(type: LogType.diaper, start: (now.timeIntervalSince1970 - 600) * 1000, detail: "wet")]
+        XCTAssertEqual(LastLine.phrase(LogType.diaper, in: logs, now: now), "上次换尿布 10 分前")
+        XCTAssertNil(LastLine.phrase(LogType.sleep, in: logs, now: now))
+    }
 }

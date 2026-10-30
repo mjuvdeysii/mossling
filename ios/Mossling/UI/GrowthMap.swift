@@ -399,7 +399,7 @@ struct GrowthMap: View {
             map
             info
         }
-        .printCard(radius: 30)
+        .printCard(radius: Radius.card)
         .onChange(of: month) { _, v in if preview != v { preview = v } }
         // a new month since the map was last opened: Moss is on last month's stone, and hops on to the new one
         .task {

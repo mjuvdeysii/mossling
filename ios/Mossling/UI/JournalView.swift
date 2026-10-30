@@ -100,7 +100,7 @@ struct JournalView: View {
         }
         .padding(14)
         .background(LinearGradient(colors: [c.opacity(0.12), .clear], startPoint: .top, endPoint: .bottom))
-        .printCard(radius: 22)
+        .printCard(radius: Radius.card)
     }
 
     private func tap(_ t: String) {
@@ -125,17 +125,25 @@ private struct WeekBars: View {
     var body: some View {
         let days = (0...6).reversed().map { today.plus(days: -$0) }
         let n = days.map(count), top = max(n.max() ?? 0, 1)
-        HStack(alignment: .bottom, spacing: 4) {
-            ForEach(Array(days.enumerated()), id: \.offset) { i, d in
-                VStack(spacing: 3) {
-                    Capsule().fill(i == 6 ? Crayon.lilac : Crayon.lilac.opacity(0.35))
-                        .frame(height: max(5, 30 * CGFloat(n[i]) / CGFloat(top)))
-                    Text(String(d.weekday.suffix(1))).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+        // the bars compare; one line says the numbers: today against the days before it that have records
+        let before = n.dropLast().filter { $0 > 0 }
+        let mean = before.isEmpty ? nil : Int((Double(before.reduce(0, +)) / Double(before.count)).rounded())
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .bottom, spacing: 4) {
+                ForEach(Array(days.enumerated()), id: \.offset) { i, d in
+                    VStack(spacing: 3) {
+                        Capsule().fill(i == 6 ? Crayon.lilac : Crayon.lilac.opacity(0.35))
+                            .frame(height: max(5, 26 * CGFloat(n[i]) / CGFloat(top)))
+                        Text(String(d.weekday.suffix(1))).font(.system(size: 9, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                    }
+                    .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
             }
+            Text("今天 \(n[6]) 条" + (mean.map { " · 日均 \($0) 条" } ?? ""))
+                .font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                .lineLimit(1).minimumScaleFactor(0.8)
         }
-        .accessibilityElement().accessibilityLabel("最近七天共记录 \(n.reduce(0, +)) 次")
+        .accessibilityElement().accessibilityLabel("最近七天共记录 \(n.reduce(0, +)) 条，今天 \(n[6]) 条" + (mean.map { "，日均 \($0) 条" } ?? ""))
     }
 }
 
@@ -161,18 +169,9 @@ private struct LastMeasure: View {
 }
 struct Wrap: Identifiable { let id: String }
 
-/// "刚刚", "25 分钟前", "1 小时 20 分前".
-func ago(_ then: Date, _ now: Date = Date()) -> String {
-    let m = Int(now.timeIntervalSince(then) / 60)
-    if m < 2 { return "刚刚" }
-    if m < 60 { return "\(m) 分钟前" }
-    if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
-    if m < 48 * 60 { return "\(m / 60) 小时前" }
-    return "\(m / 1440) 天前"
-}
-
-/// "刚刚", "25 分前", "3 小时前", "2 天前": always short, so every sticker reads the same (as the widgets).
-func agoShort(_ then: Date, _ now: Date = Date()) -> String {
+/// "刚刚", "25 分前", "3 小时前", "2 天前" — the one way the app says how long ago, on every sticker, card and line
+/// (as the widgets). The clock is passed in, never read here, so a test can say what time it is.
+func ago(_ then: Date, now: Date) -> String {
     let m = Int(now.timeIntervalSince(then) / 60)
     if m < 2 { return "刚刚" }
     if m < 60 { return "\(m) 分前" }
@@ -199,7 +198,7 @@ private struct StickerSheet: View {
                     ForEach(often, id: \.self) { t in
                         let run = timers.first { $0.type == t }
                         Sticker(type: t, running: run != nil,
-                                since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) },
+                                since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { ago($0, now: tl.date) },
                                 size: often.count > 4 ? 50 : 56) { tap(t) }
                     }
                 }
@@ -209,7 +208,7 @@ private struct StickerSheet: View {
                 }
             }
             .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
-            .printCard(radius: 26)
+            .printCard(radius: Radius.card)
         }
         // one row must fit the narrowest phone: past the largest standard size the stickers stop growing and a
         // long press shows the large-content viewer instead
@@ -396,7 +395,7 @@ private struct DayPage: View {
         }
         .padding(16)
         .background { DotPaper() }
-        .printCard(radius: 26)
+        .printCard(radius: Radius.card)
         // the chosen kind stays when the day changes: flip through the week and compare feeds day by day
         .sensoryFeedback(.selection, trigger: only)
     }
@@ -429,7 +428,7 @@ private struct OtherKinds: View {
                             Ticking(text: "\(n)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Crayon.ink(c))
                         }
                         .padding(.leading, 6).padding(.trailing, 10).padding(.vertical, 5)
-                        .vinylSurface(c, radius: 15)
+                        .vinylSurface(c, radius: Radius.tile)
                         .overlay(Capsule().strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 1.5))
                         .opacity(only == nil || on ? 1 : 0.5)
                     }
@@ -765,7 +764,7 @@ private struct DayTimeline: View {
                         let gap = (max(newer.start, d0) - reached[i]) / 1000
                         if gaps && gap >= 3 * 3600 { GapRow(seconds: gap, timeWidth: timeWidth) }
                     }
-                    TimelineRow(entry: e, day: day, isToday: day == today, now: tl.date, timeWidth: timeWidth, since: feedInterval(e))
+                    TimelineRow(entry: e, day: day, isToday: day == today && i == 0, now: tl.date, timeWidth: timeWidth, since: feedInterval(e))
                         .transition(.opacity.combined(with: .move(edge: .leading)))
                         .contentShape(Rectangle())
                         .onTapGesture { edit(e) }
@@ -820,6 +819,7 @@ private struct GapRow: View {
 private struct TimelineRow: View {
     let entry: LogEntry
     let day: Day
+    /// The newest row of today: only it says how long ago (the rest read by their clock times).
     let isToday: Bool
     let now: Date
     let timeWidth: CGFloat
@@ -841,7 +841,7 @@ private struct TimelineRow: View {
                     Spacer(minLength: 0)
                     Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(Palette.secondaryText)
                 } else if isToday {
-                    Text(agoShort(entry.endDate ?? entry.startDate, now)).font(.caption2).foregroundStyle(Palette.secondaryText)
+                    Text(ago(entry.endDate ?? entry.startDate, now: now)).font(.caption2).foregroundStyle(Palette.secondaryText)
                 }
             }
             .frame(width: timeWidth, height: bar > 24 ? 24 + bar : nil, alignment: .topLeading)

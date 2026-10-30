@@ -170,7 +170,7 @@ struct WhenChips: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 22, fill: lamp ? Palette.lampCard : Palette.card)
+        .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         .sensoryFeedback(.selection, trigger: ago)
         .sheet(isPresented: $picking) {
             TimeSheet(title: "时间", initial: ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? exact) { d in exact = d; withAnimation(.snappy) { ago = nil } }
@@ -205,7 +205,7 @@ struct ChoiceTile: View {
             .foregroundStyle(on ? Crayon.ink(tint) : Color.primary)
             .frame(maxWidth: .infinity, minHeight: height)
             .padding(.vertical, 8)
-            .vinylSurface(on ? tint : Color(hex: 0xB9AFA4), radius: 24)
+            .vinylSurface(on ? tint : Color(hex: 0xB9AFA4), radius: Radius.card)
             .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(on ? Crayon.ink(tint) : .clear, lineWidth: 2))
             .overlay(alignment: .topTrailing) {
                 if on {

@@ -77,7 +77,7 @@ struct PlayView: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(14).printCard(radius: 22)
+                    .padding(14).printCard(radius: Radius.card)
                     .overlay { BeadBurst(trigger: cheer) }
                     .transition(.scale(scale: 0.9).combined(with: .opacity))
                     .id("finished")
@@ -163,7 +163,7 @@ struct Fold<Content: View>: View {
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .printCard(radius: 22)
+        .printCard(radius: Radius.card)
         .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
     }
 }
@@ -209,7 +209,7 @@ private struct StepCard: View {
                     }
                     .padding(16)
                 }
-                .printCard(radius: 26)
+                .printCard(radius: Radius.card)
                 .transition(.opacity)
             } else {
                 Button(action: tap) {
@@ -226,7 +226,7 @@ private struct StepCard: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.toy)
-                .printCard(radius: 18)
+                .printCard(radius: Radius.inner)
             }
         }
         .accessibilityElement(children: .combine)

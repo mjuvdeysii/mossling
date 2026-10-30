@@ -29,4 +29,16 @@ enum Shelf {
         if codes.isEmpty { return (suggest(c, m, last: []).compactMap { c.play($0) }, false) }
         return (codes.compactMap { c.play($0) }, st!.week != today.monday)
     }
+
+    /// The one weekly count: how many of these times fall in the week that began at `since`. The shelf's beads, its
+    /// stones and 先玩这件 all read this — never a second definition.
+    static func week(_ times: [Date], since: Date) -> Int { times.filter { $0 >= since }.count }
+
+    /// 先玩这件: the one played least this week; between equals, the one played least in all; then shelf order.
+    static func first(_ codes: [String], week: (String) -> Int, total: (String) -> Int) -> String? {
+        codes.enumerated().min { a, b in
+            let x = (week(a.element), total(a.element), a.offset), y = (week(b.element), total(b.element), b.offset)
+            return x < y
+        }?.element
+    }
 }

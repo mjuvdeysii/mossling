@@ -122,7 +122,7 @@ struct Box<Content: View>: View {
             if let title { SectionTitle(title: title, detail: detail) }
             VStack(alignment: .leading, spacing: 0) { content }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .printCard(radius: 26)
+                .printCard(radius: Radius.card)
             if let footer { Text(footer).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16) }
         }
     }
@@ -292,7 +292,7 @@ struct TableBlock: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .printCard(radius: 22)
+                .printCard(radius: Radius.card)
             }
         }
         .onAppear { if !seeded, let mine { open = [mine]; seeded = true } }

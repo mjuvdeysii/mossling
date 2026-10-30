@@ -220,6 +220,23 @@ extension Crayon {
     }
 }
 
+/// Four corner radii, nested outside-in: a card, a surface inside a card, a tile, a chip. Every rounded surface is one
+/// of these — the eye reads the sameness as care, and a stray 26 beside a 24 as carelessness.
+enum Radius {
+    static let card: CGFloat = 22
+    static let inner: CGFloat = 18
+    static let tile: CGFloat = 14
+    static let chip: CGFloat = 10
+}
+
+/// Timing, said once. A tap answers at once; a page settles on one spring; the ambient things (the companions, the
+/// air) move at film rate — smooth enough to read as alive, half the work of 60 frames.
+enum Motion {
+    static let tap: Double = 0.18
+    static let page = Animation.spring(duration: 0.4)
+    static let creatureFPS: Double = 24
+}
+
 extension Palette {
     static let lampPage = Color(hex: 0x0E1430)
     static let lampCard = Color(hex: 0x19213F)
@@ -229,6 +246,8 @@ extension Palette {
     /// selected day or a prominent button, it gives 1.8:1. This deeper amber keeps ≥ 3:1 under white (large and bold
     /// text, controls) and ≥ 4.6:1 as text on every lamp surface (page 6.0, card 5.2, grouped cell 4.6).
     static let lampTint = Color(hex: 0xCF8420)
+    /// Figures under the lamp: a warm cream in place of white — ≥ 9:1 on every lamp fill, a little softer on the eye.
+    static let lampInk = Color(hex: 0xF2E2C4)
 }
 
 /// The page behind everything: plain paper. Colour belongs to the pictures and the materials, not the page
@@ -525,7 +544,7 @@ struct Card<Content: View>: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 26)
+        .printCard(radius: Radius.card)
         .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
     }
 }
@@ -632,7 +651,7 @@ struct PrintCard: ViewModifier {
 }
 
 extension View {
-    func printCard(radius: CGFloat = 24, fill: Color = Palette.card) -> some View { modifier(PrintCard(radius: radius, fill: fill)) }
+    func printCard(radius: CGFloat = Radius.card, fill: Color = Palette.card) -> some View { modifier(PrintCard(radius: radius, fill: fill)) }
 
     /// A plain rounded card on the page.
     func card(_ color: Color = Palette.card, radius: CGFloat = 26, padding: CGFloat = 16) -> some View {
@@ -676,7 +695,7 @@ struct VinylSurface: ViewModifier {
     }
 }
 extension View {
-    func vinylSurface(_ tint: Color, radius: CGFloat = 14, strong: Bool = false) -> some View { modifier(VinylSurface(tint: tint, radius: radius, strong: strong)) }
+    func vinylSurface(_ tint: Color, radius: CGFloat = Radius.tile, strong: Bool = false) -> some View { modifier(VinylSurface(tint: tint, radius: radius, strong: strong)) }
 }
 
 /// A button made like the characters and the icons' tokens: a pill of matte soft vinyl. Soft (the default): a light

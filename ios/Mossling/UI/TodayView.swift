@@ -76,12 +76,12 @@ private struct DueCard: View {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("这个月的接种与儿保").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                        Text("本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : "")).font(.caption).foregroundStyle(Crayon.ink(Crayon.pink)).monospacedDigit()
+                        Text("本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : "")).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                 }
-                .padding(12).printCard(radius: 20)
+                .padding(12).printCard(radius: Radius.card)
             }
             .buttonStyle(.toy)
         }
@@ -123,7 +123,7 @@ private struct NowCard: View {
                 }
                 .buttonStyle(.toy)
             } else if let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end, now - woke < 6 * 3_600_000, !night {
-                let play = app.weekShelf(month).plays.min { app.record($0, j).count < app.record($1, j).count }
+                let play = app.shelfFirst(month, j)
                 NavigationLink(value: play.map { Route.play($0.code, month) } ?? Route.month(month)) {
                     card(tint: Crayon.sunflower) {
                         if let p = play { Figure(name: "tray_\(p.code.lowercased()).webp").frame(width: 72, height: 54) }
@@ -155,12 +155,12 @@ private struct NowCard: View {
                     IconTile(symbol: LogType.symbol(type), color: c, size: 20, round: true)
                     Text(f?.label ?? ("上次" + LogType.name(type))).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 }
-                Text(f.map { agoShort($0.at, now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                Text(f.map { ago($0.at, now: now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(10)
-            .background(c.opacity(0.14)).printCard(radius: 18)
+            .background(c.opacity(0.14)).printCard(radius: Radius.inner)
         }
         .buttonStyle(.toy)
         .accessibilityHint("记下一次" + LogType.name(type))
@@ -174,7 +174,7 @@ private struct NowCard: View {
     private func card<C: View>(tint: Color, @ViewBuilder _ c: () -> C) -> some View {
         HStack(spacing: 12) { c() }
             .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.16)).printCard(radius: 22)
+            .background(tint.opacity(0.16)).printCard(radius: Radius.card)
     }
 }
 
@@ -213,7 +213,7 @@ private struct MonthCard: View {
             }
             .padding(10).padding(.trailing, 6)
             .background(LinearGradient(colors: [Crayon.sunflower.opacity(night ? 0.06 : 0.12), Crayon.sky.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .printCard(radius: 26)
+            .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
         .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
@@ -321,9 +321,8 @@ struct ShelfView: View {
     private var flat: Bool { ArtStyle.current == .flat }
     var body: some View {
         let s = app.weekShelf(month)
-        let since = app.today.monday.date
-        let played = s.plays.filter { (app.record($0, j).last ?? .distantPast) >= since }.count
-        let first = s.plays.min { app.record($0, j).count < app.record($1, j).count }?.code
+        let played = s.plays.filter { app.thisWeek($0, j) > 0 }.count
+        let first = app.shelfFirst(month, j)?.code
         let left = Shelf.candidates(app.content, month).filter { c in !s.plays.contains { $0.code == c.code } }.count
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 8) {
@@ -359,7 +358,7 @@ struct ShelfView: View {
             }
             .padding(.vertical, 4)
             .background(alignment: .top) { if night { LampPool() } }
-            .printCard(radius: 24)
+            .printCard(radius: Radius.card)
             .overlay(alignment: .topTrailing) {
                 // the two of them, sitting on the card's top edge
                 // a play put on the shelf is something new in front of them: Moss blinks twice, Otto looks round
@@ -377,8 +376,7 @@ struct ShelfView: View {
     /// One material: its tray on a tile of its area's colour, and beside it what to know before starting.
     private func compartment(_ p: Play, first: Bool) -> some View {
         // the shelf counts this week, as its stones do (the total lives on the play's page and in the book)
-        let since = app.today.monday.date
-        let times = j.plays(p.code).filter { $0.startDate >= since }.count, key = Palette.areaKey(of: p)
+        let times = app.thisWeek(p, j), key = Palette.areaKey(of: p)
         let big = size.isAccessibilitySize
         let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
         return NavigationLink(value: route(p)) {
@@ -393,7 +391,7 @@ struct ShelfView: View {
                         if first {
                             Text("先玩这件").font(.caption2.weight(.bold)).foregroundStyle(.white)
                                 .padding(.horizontal, 7).padding(.vertical, 3)
-                                .vinylSurface(Palette.accentFill, radius: 10, strong: true).fixedSize()
+                                .vinylSurface(Palette.accentFill, radius: Radius.chip, strong: true).fixedSize()
                         }
                         // how many times, on the same line (three lines to a compartment, not four)
                         if !big { Spacer(minLength: 4); BeadCount(times: times) }

@@ -54,7 +54,7 @@ struct YouView: View {
                             SwitchRow(title: "面容 ID", detail: "打开时解锁", symbol: "faceid", color: Crayon.leaf, on: $app.lock)
                         }
                     }
-                    .printCard(radius: 22)
+                    .printCard(radius: Radius.card)
                 }
 
                 // data and about, as two rows of one card (export, import and clearing are on the 数据 page)
@@ -64,7 +64,7 @@ struct YouView: View {
                     NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
                 }
                 .buttonStyle(.toy)
-                .printCard(radius: 22)
+                .printCard(radius: Radius.card)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -136,7 +136,7 @@ private struct FamilyCard: View {
             CompanionPicker()
         }
         .padding(14)
-        .printCard(radius: 28)
+        .printCard(radius: Radius.card)
     }
 
     /// The child's facts as small chips that wrap (never a line that scrolls sideways).

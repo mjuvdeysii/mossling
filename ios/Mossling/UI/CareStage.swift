@@ -51,8 +51,8 @@ struct CareStage: View {
     }
 
     private var last: String {
-        guard let d = j.last(type) else { return "还没有记录" }
-        var s = "上次 " + ago(d)
+        guard let s0 = LastLine.phrase(type, in: j.logs, now: Date()) else { return "还没有记录" }
+        var s = s0
         if type == LogType.nurse, let side = j.logs.filter({ $0.type == LogType.nurse }).max(by: { $0.start < $1.start })?.side {
             s += side == "l" ? " · 左侧" : " · 右侧"
         }
@@ -170,8 +170,13 @@ struct LastLine: View {
             return Fact(label: "上次醒来", at: e, note: "睡了 " + durationValue(s.activeSeconds))
         default:
             guard let e = older.filter({ $0.type == type }).max(by: { $0.start < $1.start }) else { return nil }
-            return Fact(label: "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
+            return Fact(label: type == LogType.diaper ? "上次换尿布" : "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
         }
+    }
+
+    /// 「上次喂奶 25 分前」, 「上次醒来 3 小时前」, 「上次换尿布 刚刚」: the one sentence for the last time, wherever it is said.
+    static func phrase(_ type: String, in logs: [LogEntry], now: Date) -> String? {
+        fact(type, in: logs).map { $0.label + " " + ago($0.at, now: now) }
     }
 
     @Environment(\.dynamicTypeSize) private var typeSize

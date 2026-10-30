@@ -77,17 +77,18 @@ private struct QuietMonths: View {
                             .padding(3)
                             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white))
                             .shadow(color: Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
-                            Text("\(p.month)").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
+                            Text(p.month == 0 ? "出生" : "\(p.month) 个月").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
+                                .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
                     .buttonStyle(.toy)
-                    .accessibilityLabel("满 \(p.month) 个月，没有记录")
+                    .accessibilityLabel((p.month == 0 ? "出生" : "满 \(p.month) 个月") + "，没有记录")
                 }
             }
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 22)
+        .printCard(radius: Radius.card)
     }
 }
 
@@ -178,7 +179,7 @@ private struct BookTotals: View {
         }
         .padding(.vertical, 12)
         .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.08)], startPoint: .leading, endPoint: .trailing))
-        .printCard(radius: 22)
+        .printCard(radius: Radius.card)
         .padding(.top, 4)
     }
     private func item(_ n: String, _ unit: String) -> some View {
@@ -264,7 +265,7 @@ private struct BookPageView: View {
         }
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: 26)
+        .printCard(radius: Radius.card)
     }
 
     /// The month's picture pinned like a photograph: a white border, a slight tilt, a strip of tape.
@@ -422,7 +423,7 @@ struct GrowthBookCard: View {
             }
             .padding(.horizontal, 14).padding(.vertical, 9)
             .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
-            .printCard(radius: 24)
+            .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
         .accessibilityLabel("成长册")
