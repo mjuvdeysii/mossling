@@ -122,7 +122,7 @@ struct DataView: View {
             let dir = DataView.exportFolder
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let url = dir.appendingPathComponent(name)
-            try data.write(to: url, options: .atomic)
+            try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             withAnimation(.snappy) { saved = url }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {

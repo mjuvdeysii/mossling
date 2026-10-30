@@ -472,4 +472,32 @@ final class LogicTests: XCTestCase {
         // a measurement that cannot be saved says false (the sheet stays open)
         XCTAssertFalse(j.saveMeasure(Measure(at: 1_760_000_000_000, weightG: 7400, lengthMm: nil, headMm: nil)))
     }
+
+    func testATickIsKeptOnlyWithConsentAndCanAlwaysBeTakenOff() {
+        let m = AppModel(defaults: UserDefaults(suiteName: "tick-\(UUID().uuidString)")!)
+        m.consent = "declined"
+        m.toggle(2, TickKind.vaccine, "0", "百白破疫苗第1剂")
+        XCTAssertTrue(m.ticks.isEmpty, "declined: a vaccine given is the child's health information and is not kept")
+        XCTAssertTrue(m.askConsent, "the consent card is offered again instead")
+        m.consent = Consent.version; m.askConsent = false
+        m.toggle(2, TickKind.vaccine, "0", "百白破疫苗第1剂")
+        XCTAssertEqual(m.ticks.count, 1)
+        m.consent = "declined"
+        m.toggle(2, TickKind.vaccine, "0", "百白破疫苗第1剂")
+        XCTAssertTrue(m.ticks.isEmpty, "taking a tick off needs no consent")
+    }
+
+    func testClearingRemovesTheChildAndTheExports() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let m = AppModel(defaults: UserDefaults(suiteName: "clear-\(UUID().uuidString)")!)
+        m.consent = Consent.version
+        m.birth = Day(y: 2026, m: 4, d: 2); m.nickname = "小满"
+        m.toggle(2, TickKind.vaccine, "0", "百白破疫苗第1剂")
+        let dir = DataView.exportFolder
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try Data("x".utf8).write(to: dir.appendingPathComponent("test-export.md"))
+        m.clearAll()
+        XCTAssertNil(m.birth); XCTAssertEqual(m.nickname, ""); XCTAssertTrue(m.ticks.isEmpty); XCTAssertEqual(m.consent, "")
+        XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "exports in the Files app hold the child's records: cleared too")
+    }
 }

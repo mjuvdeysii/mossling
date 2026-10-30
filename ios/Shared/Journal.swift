@@ -304,14 +304,14 @@ enum JournalFile {
         if failWrites { return false }
         #endif
         guard let data = try? JSONEncoder().encode(b) else { return false }
-        do { try data.write(to: url, options: .atomic); return true } catch { return false }
+        do { try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); return true } catch { return false }
     }
     #if DEBUG
     /// Tests only: every write fails, to check that nothing celebrates a save that did not happen.
     nonisolated(unsafe) static var failWrites = false
     #endif
     static func snapshot() -> Snapshot? { (try? Data(contentsOf: snapshotURL)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) } }
-    static func writeSnapshot(_ s: Snapshot) { try? JSONEncoder().encode(s).write(to: snapshotURL, options: .atomic) }
+    static func writeSnapshot(_ s: Snapshot) { try? JSONEncoder().encode(s).write(to: snapshotURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
 
     // Timer operations, shared by the app, the Live Activity buttons and the widget.
     static func now() -> Double { Date().timeIntervalSince1970 * 1000 }

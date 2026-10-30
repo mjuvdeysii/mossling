@@ -37,7 +37,7 @@ struct YouView: View {
                         SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
                         if face {
                             Divider().padding(.leading, 52)
-                            SwitchRow(title: Biometry.name, detail: "打开时解锁", symbol: Biometry.symbol, color: Crayon.leaf, on: $app.lock)
+                            SwitchRow(title: Biometry.name, detail: "打开时解锁", symbol: Biometry.symbol, color: Crayon.leaf, on: Binding(get: { app.lock }, set: { on in Biometry.turn(on) { app.lock = $0 } }))
                         }
                     }
                     .printCard(radius: Radius.card)
@@ -678,6 +678,14 @@ enum Biometry {
     }
     static var name: String {
         switch type { case .faceID: "面容 ID"; case .touchID: "触控 ID"; case .opticID: "视控 ID"; default: "密码" }
+    }
+    /// The lock is turned on only after the owner of the phone confirms once (Face ID is asked when it is first used,
+    /// with its purpose in NSFaceIDUsageDescription); turning it off needs nothing.
+    static func turn(_ on: Bool, _ set: @escaping (Bool) -> Void) {
+        guard on else { set(false); return }
+        LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "打开应用锁") { ok, _ in
+            DispatchQueue.main.async { set(ok) }
+        }
     }
     static var symbol: String {
         switch type { case .faceID: "faceid"; case .touchID: "touchid"; case .opticID: "opticid"; default: "lock.fill" }
