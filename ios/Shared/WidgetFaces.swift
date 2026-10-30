@@ -69,13 +69,13 @@ struct TodayFace: View {
         if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
         return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
     }
-    /// The narrow cards' form: "25 分前", "3时20分前", "5 时前" (the long form was cut to "3 小时 20…").
+    /// The narrow cards' form, the same as the app's stickers: "25 分前", "3 小时前", "2 天前" — one way of saying it
+    /// everywhere (the long form was cut to "3 小时 20…"; "3时20分前" read as a time).
     private func agoCard(_ d: Date) -> String {
         let m = Int(date.timeIntervalSince(d) / 60)
         if m < 2 { return "刚刚" }
         if m < 60 { return "\(m) 分前" }
-        if m < 600 && m % 60 != 0 { return "\(m / 60)时\(m % 60)分前" }
-        return m < 48 * 60 ? "\(m / 60) 时前" : "\(m / 1440) 天前"
+        return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
     }
     private var journal: Bool { snap?.journal == true }
 

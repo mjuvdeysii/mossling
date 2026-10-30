@@ -171,12 +171,12 @@ func ago(_ then: Date, _ now: Date = Date()) -> String {
     return "\(m / 1440) 天前"
 }
 
-/// "刚刚", "25 分前", "3 时前", "2 天前": always short, so every sticker reads the same.
+/// "刚刚", "25 分前", "3 小时前", "2 天前": always short, so every sticker reads the same (as the widgets).
 func agoShort(_ then: Date, _ now: Date = Date()) -> String {
     let m = Int(now.timeIntervalSince(then) / 60)
     if m < 2 { return "刚刚" }
     if m < 60 { return "\(m) 分前" }
-    if m < 48 * 60 { return "\(m / 60) 时前" }
+    if m < 48 * 60 { return "\(m / 60) 小时前" }
     return "\(m / 1440) 天前"
 }
 
