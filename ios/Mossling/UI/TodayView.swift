@@ -316,6 +316,7 @@ struct TodayPlayCard: View {
         let rest = week.filter { $0.code != today?.code }
         let asleep = j.timers.contains { $0.type == LogType.sleep }
         if let p = today {
+            let noticed: Int = (week.firstIndex(of: p) ?? 0) + week.count * 10
             TimelineView(.periodic(from: .now, by: 60)) { tl in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .center, spacing: 8) {
@@ -359,7 +360,7 @@ struct TodayPlayCard: View {
                         // while the sleep card above has them, they are not here.
                         if !asleep {
                             Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true,
-                                notice: week.firstIndex(of: p).map { $0 + week.count * 10 } ?? 0)
+                                notice: noticed)
                                 .offset(x: -16, y: -40)
                         }
                     }
@@ -385,40 +386,15 @@ struct TodayPlayCard: View {
 
     /// Today's play: the picture of its first step, and what to know before starting.
     private func lead(_ p: Play) -> some View {
-        let key = Palette.areaKey(of: p), big = size.isAccessibilitySize
-        let rec = app.record(p, j), times = app.thisWeek(p, j)
-        let last = rec.last.map { Day($0) == app.today ? "今天玩过" : "上次 " + Day($0).md } ?? "第一次玩"
+        let big = size.isAccessibilitySize
+        let times: Int = app.thisWeek(p, j)
+        let last: String = lastPlayed(p)
+        let label: String = "今天一起玩，" + p.name + "，" + (p.domains.first ?? "") + "，\(p.steps.count) 步，" + last + (times > 0 ? "，这周玩过 \(times) 次" : "")
         let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return NavigationLink(value: route(p)) {
             layout {
-                Group {
-                    if let art = ArtIndex.shared.steps(p.code).first {
-                        ArtView(name: art, radius: Radius.tile).aspectRatio(4 / 3, contentMode: .fit)
-                    } else {
-                        TrayTile(code: p.code, color: Palette.area(key), flat: flat)
-                    }
-                }
-                .frame(width: big ? 200 : 112, height: big ? 150 : 84)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-                .zoomSource(route(p))
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 5) {
-                        IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
-                        Text((p.domains.first ?? "") + " · \(p.steps.count) 步").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
-                    }
-                    Text(p.name).font(.headline).foregroundStyle(.primary)
-                        .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                    if let step = p.steps.first {
-                        Text("第 1 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
-                            .lineLimit(big ? 4 : 2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                    }
-                    HStack(spacing: 6) {
-                        Text(last).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        if times > 0 { BeadCount(times: times) }
-                    }
-                    .padding(.top, 1)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                leadArt(p, big: big)
+                leadWords(p, last: last, times: times, big: big)
             }
             .padding(14)
             .contentShape(Rectangle())
@@ -426,8 +402,50 @@ struct TodayPlayCard: View {
         .buttonStyle(.toy)
         .contextMenu { PlayActions(play: p, month: month) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("今天一起玩，" + p.name + "，" + (p.domains.first ?? "") + "，\(p.steps.count) 步，" + last + (times > 0 ? "，这周玩过 \(times) 次" : ""))
+        .accessibilityLabel(label)
         .accessibilityHint("打开，一步步跟着图玩")
+    }
+
+    private func lastPlayed(_ p: Play) -> String {
+        guard let d = app.record(p, j).last else { return "第一次玩" }
+        return Day(d) == app.today ? "今天玩过" : "上次 " + Day(d).md
+    }
+
+    @ViewBuilder private func leadArt(_ p: Play, big: Bool) -> some View {
+        let key = Palette.areaKey(of: p)
+        Group {
+            if let art = ArtIndex.shared.steps(p.code).first {
+                ArtView(name: art, radius: Radius.tile).aspectRatio(4 / 3, contentMode: .fit)
+            } else {
+                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+            }
+        }
+        .frame(width: big ? 200 : 112, height: big ? 150 : 84)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        .zoomSource(route(p))
+    }
+
+    private func leadWords(_ p: Play, last: String, times: Int, big: Bool) -> some View {
+        let key = Palette.areaKey(of: p)
+        let area: String = (p.domains.first ?? "") + " · \(p.steps.count) 步"
+        return VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
+                Text(area).font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+            }
+            Text(p.name).font(.headline).foregroundStyle(.primary)
+                .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            if let step = p.steps.first {
+                Text("第 1 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
+                    .lineLimit(big ? 4 : 2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            }
+            HStack(spacing: 6) {
+                Text(last).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                if times > 0 { BeadCount(times: times) }
+            }
+            .padding(.top, 1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// One of the week's others: its tray, its name, its beads this week (nothing while there are none).
@@ -450,7 +468,11 @@ struct TodayPlayCard: View {
         .buttonStyle(.toy)
         .contextMenu { PlayActions(play: p, month: month) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(p.name + "，" + (p.domains.first ?? "") + (times > 0 ? "，这周玩过 \(times) 次" : ""))
+        .accessibilityLabel(otherLabel(p, times))
+    }
+    private func otherLabel(_ p: Play, _ times: Int) -> String {
+        let area: String = p.domains.first ?? ""
+        return p.name + "，" + area + (times > 0 ? "，这周玩过 \(times) 次" : "")
     }
 }
 
