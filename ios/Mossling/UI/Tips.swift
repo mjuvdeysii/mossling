@@ -53,26 +53,27 @@ struct SideTip: Tip {
 /// rather than the system popover's translucent material (which the accessibility audit flags for contrast).
 struct PaperTipStyle: TipViewStyle {
     func makeBody(configuration: Configuration) -> some View {
-        HStack(alignment: .top, spacing: 10) {
-            configuration.image?.font(.title3).foregroundStyle(Palette.accent).accessibilityHidden(true)
-            VStack(alignment: .leading, spacing: 4) {
-                configuration.title?.font(.headline).foregroundStyle(.primary)
-                configuration.message?.font(.subheadline).foregroundStyle(Palette.secondaryText)
-                ForEach(configuration.actions) { action in
-                    Button(action: action.handler) { action.label().font(.subheadline.weight(.semibold)) }
-                        .frame(minHeight: 44)
+        VStack(alignment: .leading, spacing: 4) {
+            // the icon, the title and the close button share the top line; the message and actions take the full width
+            HStack(alignment: .top, spacing: 8) {
+                configuration.image?.font(.title3).foregroundStyle(Palette.accent).accessibilityHidden(true)
+                configuration.title?.font(.headline).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                Button { configuration.tip.invalidate(reason: .tipClosed) } label: {
+                    Image(systemName: "xmark").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
+                        .frame(width: 44, height: 44).contentShape(Rectangle())
                 }
+                .padding(.top, -10).padding(.trailing, -10)
+                .accessibilityLabel("关闭提示")
             }
-            .fixedSize(horizontal: false, vertical: true)
-            Spacer(minLength: 0)
-            Button { configuration.tip.invalidate(reason: .tipClosed) } label: {
-                Image(systemName: "xmark").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
-                    .frame(width: 44, height: 44).contentShape(Rectangle())
+            configuration.message?.font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+            ForEach(configuration.actions) { action in
+                Button(action: action.handler) { action.label().font(.subheadline.weight(.semibold)) }
+                    .frame(minHeight: 44)
             }
-            .padding(.top, -10).padding(.trailing, -10)
-            .accessibilityLabel("关闭提示")
         }
         .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
         .background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }

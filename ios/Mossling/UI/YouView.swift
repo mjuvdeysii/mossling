@@ -206,8 +206,11 @@ private struct CompanionPicker: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
     @State private var cheer = 0
+    @Environment(\.dynamicTypeSize) private var type
+    /// Side by side at the standard sizes; one above the other at the accessibility sizes, so a name is never broken.
+    private var layout: AnyLayout { type.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8)) }
     var body: some View {
-        HStack(spacing: 8) {
+        layout {
             ForEach(Kind.allCases, id: \.self) { k in
                 let on = app.companion == k
                 Button {
