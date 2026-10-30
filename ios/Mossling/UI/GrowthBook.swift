@@ -332,22 +332,41 @@ private struct FactChip: View {
     }
 }
 
-/// Items laid out a few to a row, each row's items sharing its width, so a short last row is filled, never half empty.
+/// Items laid out a few to a row, spread evenly over the rows they need: rows differ by at most one, the fuller
+/// rows first (four in rows of three become two and two, five become three and two, seven three, two and two), and
+/// each row's items share its width — so no row is a lone tile pulled across the page. When one must stand alone
+/// (an odd count two to a row), it is told so through `aloneInRow`, and a cell that has a wide form uses it rather
+/// than stretching the narrow one.
 struct EvenRows<Item, ID: Hashable, Cell: View>: View {
     let items: [Item]
     let id: KeyPath<Item, ID>
     var per = 2
     var spacing: CGFloat = 8
     @ViewBuilder let cell: (Item) -> Cell
+    /// Where each row starts and ends.
+    static func rows(_ n: Int, per: Int) -> [Range<Int>] {
+        guard n > 0 else { return [] }
+        let p = max(1, per), r = (n + p - 1) / p, base = n / r, extra = n % r
+        var out: [Range<Int>] = [], at = 0
+        for k in 0..<r { let len = base + (k < extra ? 1 : 0); out.append(at..<(at + len)); at += len }
+        return out
+    }
     var body: some View {
         VStack(spacing: spacing) {
-            ForEach(Array(stride(from: 0, to: items.count, by: max(1, per))), id: \.self) { i in
+            ForEach(Self.rows(items.count, per: per), id: \.lowerBound) { r in
                 HStack(alignment: .top, spacing: spacing) {
-                    ForEach(items[i..<min(i + max(1, per), items.count)], id: id) { x in cell(x).frame(maxWidth: .infinity) }
+                    ForEach(items[r], id: id) { x in
+                        cell(x).frame(maxWidth: .infinity).environment(\.aloneInRow, r.count == 1 && per > 1)
+                    }
                 }
             }
         }
     }
+}
+
+extension EnvironmentValues {
+    /// This cell stands alone across a row meant for several: use a wide form if there is one.
+    @Entry var aloneInRow: Bool = false
 }
 
 /// A play in the book, as a chip beside the month's facts: its own tray on its area's tile, its name, how many times.

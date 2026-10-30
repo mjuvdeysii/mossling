@@ -205,11 +205,14 @@ struct MonthTile<Accessory: View>: View {
 struct PlayTileLink: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.aloneInRow) private var alone
     let play: Play, month: Int
     var form: PlayTile.Form = .cell
     var body: some View {
         let route = Route.play(play.code, month)
-        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count, form: form) }
+        // alone across a row: the wide form (picture beside the words), not a tile pulled out of shape
+        let f: PlayTile.Form = alone && (form == .cell || form == .mini) ? .row : form
+        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count, form: f) }
             .buttonStyle(.toy)
             .zoomSource(route)
             .contextMenu { PlayActions(play: play, month: month) }
