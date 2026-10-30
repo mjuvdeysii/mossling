@@ -10,6 +10,11 @@ settings:
     MARKETING_VERSION: "1.0.0"
     # the App filing number (工信部 App 备案), shown in 关于 once set; empty until the filing is done
     MOSSLING_ICP: ""
+    # the developer named in the privacy policy, terms and disclaimer (the same as the App filing), and the contact
+    # email for questions, complaints and the children's information officer; until set, the documents point to the
+    # project's issue page and leave the developer line out
+    MOSSLING_DEVELOPER: ""
+    MOSSLING_EMAIL: ""
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""
     TARGETED_DEVICE_FAMILY: "1"

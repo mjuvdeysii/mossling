@@ -37,6 +37,12 @@ final class AppModel {
     var nickname: String { didSet { d.set(nickname, forKey: "nickname") } }
     var lock: Bool { didSet { d.set(lock, forKey: "lock") } }
     var shelf: String { didSet { d.set(shelf, forKey: "shelf") } }
+    /// The guardian's choice on the privacy policy and the children's information rules: the version agreed to
+    /// (Consent.version), "declined", or "" before the first answer.
+    var consent: String { didSet { d.set(consent, forKey: "consent") } }
+    /// Set when something that keeps the child's information is asked for before the guardian has agreed: the consent
+    /// card comes up (once per ask, never on its own).
+    var askConsent = false
     var journal: Bool { didSet { d.set(journal, forKey: "journal") } }
     /// 夜灯: from 7 pm to 6 am the records and the timer turn into Otto's lamp — dim warm light on deep blue.
     var nightLight: Bool { didSet { d.set(nightLight, forKey: "nightLight") } }
@@ -64,6 +70,7 @@ final class AppModel {
         nickname = d.string(forKey: "nickname") ?? ""
         lock = d.bool(forKey: "lock")
         shelf = d.string(forKey: "shelf") ?? ""
+        consent = d.string(forKey: "consent") ?? ""
         journal = d.bool(forKey: "journal")
         nightLight = (d.object(forKey: "nightLight") as? Bool) ?? true
         session = d.string(forKey: "session") ?? ""
@@ -119,9 +126,18 @@ final class AppModel {
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(today.epochDay)" }
 
     func clearAll() {
-        for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
+        for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         Guide.replayNextLaunch()
-        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+    }
+
+    /// Whether the guardian has agreed to the current rules (the child's information may be kept).
+    var consented: Bool { consent == Consent.version }
+    /// Call before keeping anything about the child: true when it may go ahead; otherwise the consent card is asked for.
+    func mayKeep() -> Bool {
+        if consented { return true }
+        askConsent = true
+        return false
     }
 }

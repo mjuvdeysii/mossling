@@ -10,6 +10,7 @@ struct TopicView: View {
                 if !topic.sourceTitle.isEmpty {
                     Label(topic.sourceTitle, systemImage: "books.vertical").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.top, 8)
                 }
+                Text(HealthNote.text).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 40)
         }
@@ -141,4 +142,9 @@ struct PlayRowLabel: View {
             }
         }
     }
+}
+
+/// Under health guidance (还要知道, 专题): what it is and what it is not.
+enum HealthNote {
+    static let text = "以上为公开指南的摘要，不针对具体的孩子。药品和补充剂的品种、剂量请遵医嘱或药品说明书；孩子身体不适时，以医生的判断为准。"
 }

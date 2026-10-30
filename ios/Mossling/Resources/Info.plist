@@ -27,6 +27,8 @@
 	<key>UIFileSharingEnabled</key><true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key><true/>
 	<key>MosslingICP</key><string>$(MOSSLING_ICP)</string>
+	<key>MosslingDeveloper</key><string>$(MOSSLING_DEVELOPER)</string>
+	<key>MosslingEmail</key><string>$(MOSSLING_EMAIL)</string>
 	<key>CFBundleLocalizations</key><array><string>zh-Hans</string></array>
 </dict>
 </plist>

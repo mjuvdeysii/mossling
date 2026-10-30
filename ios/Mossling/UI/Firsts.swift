@@ -219,6 +219,7 @@ struct FirstSheet: View {
 
     private func save() {
         typing = false
+        guard app.mayKeep() else { return }
         var f = first
         f.title = f.title.trimmingCharacters(in: .whitespacesAndNewlines)
         f.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)

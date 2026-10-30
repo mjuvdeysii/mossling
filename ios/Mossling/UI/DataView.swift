@@ -26,7 +26,7 @@ struct DataView: View {
             case .table: "每一条记录一行，可用 Numbers 或 Excel 打开"
             }
         }
-        var symbol: String { switch self { case .summary: "stethoscope"; case .backup: "externaldrive.fill"; case .table: "tablecells.fill" } }
+        var symbol: String { switch self { case .summary: "doc.text.fill"; case .backup: "externaldrive.fill"; case .table: "tablecells.fill" } }
         var color: Color { switch self { case .summary: Crayon.pink; case .backup: Crayon.sky; case .table: Crayon.leaf } }
         var ext: String { switch self { case .summary: "md"; case .backup: "json"; case .table: "csv" } }
     }
@@ -34,7 +34,7 @@ struct DataView: View {
     var body: some View {
         List {
             Section {
-                Text("摸索台灯不做发育评测。记下的一切都可以完整导出：交给儿科医生，或交给你信任的 AI 助手帮你整理和提问。")
+                Text("摸索台灯不做发育评测。记下的一切都可以完整导出：交给儿科医生，或交给你信任的 AI 助手帮你整理和提问。导出的文件含孩子的出生日期、生长和健康记录；交给他人或其他应用（包括 AI 助手）后，如何处理由接收方负责，请只交给你信任的对象。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                     .listRowBackground(Color.clear)
             }

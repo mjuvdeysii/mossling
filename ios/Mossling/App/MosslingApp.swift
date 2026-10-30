@@ -50,6 +50,13 @@ struct RootView: View {
     /// What the widget shows changes with the settings and with each play recorded (today's play may follow).
     private var widgetKey: String { app.publishKey + "|" + String(journal.logs.filter { $0.type == LogType.play }.count) }
 
+    /// The consent card: on the first run (and after 清除全部数据, or when the rules change), and whenever something that
+    /// keeps the child's information is asked for before the guardian agreed.
+    private var consentShown: Binding<Bool> {
+        Binding(get: { (app.consent.isEmpty || app.askConsent || (app.consent != "declined" && !app.consented)) },
+                set: { if !$0 { app.askConsent = false } })
+    }
+
     var body: some View {
         ZStack {
             if !app.onboarded {
@@ -101,6 +108,7 @@ struct RootView: View {
         // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
         // system's own bars, pickers and sheets follow
         .toasts()
+        .sheet(isPresented: consentShown) { ConsentSheet() }
         // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
         .onOpenURL { url in open(url) }
         .modifier(LampScope(on: scheme == .dark))
@@ -261,13 +269,13 @@ struct OnboardingView: View {
             .padding(.top, 14).padding(.horizontal, 24)
 
             VStack(spacing: 10) {
-                Button { askBirth = true } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                Button { if app.mayKeep() { askBirth = true } } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
                 Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
                 // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
                 VStack(spacing: 6) {
-                    Text("继续使用即表示已阅读并同意以下文件。本应用陪伴家庭养育，不能替代医生的诊断和建议。")
+                    Text("本应用陪伴家庭养育，不能替代医生的诊断和建议。")
                         .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
                     HStack(spacing: 16) {
                         ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in

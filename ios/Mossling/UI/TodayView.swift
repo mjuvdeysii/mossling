@@ -20,7 +20,7 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
-                    Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
+                    Button { if app.mayKeep() { askBirth = true } } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
                 // a feed or a sleep being timed is what matters most while it runs: it leads the page
@@ -31,7 +31,7 @@ struct TodayView: View {
                 if !running && app.journal && app.age != nil { NowCard(month: baby) }
                 if app.age != nil {
                     TipView(recordsTip) { action in
-                        if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
+                        if action.id == "on" && app.mayKeep() { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
                     }
                 }
                 if app.age != nil { TipView(shelfTip) }

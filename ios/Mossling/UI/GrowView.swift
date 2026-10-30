@@ -258,7 +258,7 @@ struct PlayActions: View {
     var body: some View {
         let rec = app.record(play, j)
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
-        if !inPage { Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) } }
+        if !inPage { Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { if app.mayKeep() { app.didPlay(play, month: month, j) } } }
         if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         let m = app.babyMonth ?? month
         if app.todayPlay(m, j)?.code != play.code {
@@ -373,6 +373,9 @@ struct NotesView: View {
                         Text(rich(n.text)).font(.body).fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                // health guidance is a summary of public guidance, never advice for one child
+                Text(HealthNote.text).font(.footnote).foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 4)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }

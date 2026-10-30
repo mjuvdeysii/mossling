@@ -17,7 +17,7 @@ struct YouView: View {
             // one card of settings and one of data
             VStack(alignment: .leading, spacing: 14) {
                 // the family: the child's own portrait and who the child is, then the companion (Moss or Otto) to choose
-                FamilyCard { editing = true }
+                FamilyCard { if app.mayKeep() { editing = true } }
 
                 // the growth book: a page for every month lived, from what is already recorded
                 if app.birth != nil { GrowthBookCard() }
@@ -48,7 +48,7 @@ struct YouView: View {
                         SwitchRow(title: "晚上自动开夜灯", detail: app.theme == .system ? "19:00–06:00" : "外观选「自动」时生效", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
                             .disabled(app.theme != .system).opacity(app.theme == .system ? 1 : 0.55)
                         Divider().padding(.leading, 52)
-                        SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: $app.journal)
+                        SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
                         if face {
                             Divider().padding(.leading, 52)
                             SwitchRow(title: Biometry.name, detail: "打开时解锁", symbol: Biometry.symbol, color: Crayon.leaf, on: $app.lock)
@@ -456,7 +456,7 @@ struct AboutView: View {
                     Label { Text("重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
                 }
                 .tint(.primary).disabled(replay)
-                Link(destination: URL(string: "https://github.com/mjuvdeysii/mossling/issues")!) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
+                Link(destination: Owner.contactURL) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
                     .tint(.primary)
             } header: { Text("帮助") } footer: {
                 // the page's small print lives where it belongs (who made it → 许可与致谢; where the content comes from →
@@ -586,7 +586,7 @@ struct DocView: View {
     var body: some View {
         let raw = (Bundle.main.url(forResource: name, withExtension: "md").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "读取不到这份文件。")
             .replacingOccurrences(of: "安卓应用", with: "应用")
-        let lines = raw.components(separatedBy: "\n")
+        let lines = Owner.fill(raw).components(separatedBy: "\n")
         // a table's first row (the one followed by |---|) names the columns; it is not an entry
         let heads = Set(lines.indices.filter { i in i + 1 < lines.count && lines[i].hasPrefix("|") && lines[i + 1].replacingOccurrences(of: " ", with: "").hasPrefix("|---") })
         ScrollView {
@@ -684,5 +684,27 @@ enum Biometry {
     }
     static var symbol: String {
         switch type { case .faceID: "faceid"; case .touchID: "touchid"; case .opticID: "opticid"; default: "lock.fill" }
+    }
+}
+
+/// Who stands behind the app, from the build settings (MOSSLING_DEVELOPER, MOSSLING_EMAIL): named in the documents
+/// and reached by 反馈问题. Until they are set, the developer line is left out and the contact is the project's
+/// issue page — never a placeholder shown to a parent.
+enum Owner {
+    private static func value(_ key: String) -> String {
+        (Bundle.main.infoDictionary?[key] as? String ?? "").trimmingCharacters(in: .whitespaces)
+    }
+    static var developer: String { value("MosslingDeveloper") }
+    static var email: String { value("MosslingEmail") }
+    static let issues = "https://github.com/mjuvdeysii/mossling/issues"
+    /// How to reach the developer, as the documents say it.
+    static var contact: String { email.isEmpty ? "本应用项目主页 " + issues : "电子邮件 " + email }
+    static var contactURL: URL { URL(string: email.isEmpty ? issues : "mailto:" + email) ?? URL(string: issues)! }
+    /// A document with the developer and the contact put in; a line naming the developer is left out until there is one.
+    static func fill(_ text: String) -> String {
+        text.components(separatedBy: "\n")
+            .filter { !($0.contains("{{DEVELOPER}}") && developer.isEmpty) }
+            .map { $0.replacingOccurrences(of: "{{DEVELOPER}}", with: developer).replacingOccurrences(of: "{{CONTACT}}", with: contact) }
+            .joined(separator: "\n")
     }
 }

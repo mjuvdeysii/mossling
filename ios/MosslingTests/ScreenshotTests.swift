@@ -14,6 +14,7 @@ final class ScreenshotTests: XCTestCase {
         m.companion = companion
         m.nickname = "小满"
         m.sex = "girl"
+        m.consent = Consent.version
         m.toggle(6, TickKind.did, "A11", "双手物品传递机会")
         return m
     }
@@ -112,6 +113,8 @@ final class ScreenshotTests: XCTestCase {
         let m = model(birth: nil); m.onboarded = false
         shot("01_onboarding_opening", settle: 2.9, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
+    /// The guardian's choice on first run: two buttons of equal weight, the documents one tap away.
+    func test01Consent() { let m = model(birth: nil); m.consent = ""; shot("01_consent", ConsentSheet().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test01Onboarding() { let m = model(birth: nil); m.onboarded = false; shot("01_onboarding", OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded)) }
     func test39Firsts() {
         let m = model()
