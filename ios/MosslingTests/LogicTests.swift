@@ -349,4 +349,28 @@ final class LogicTests: XCTestCase {
         XCTAssertNil(Shelf.pick(s, today: d.plus(days: 1)))
         XCTAssertNil(Shelf.pick("6:1", today: d), "the old form is ignored")
     }
+
+    func testTodaysPlayStaysTodaysOncePlayed() {
+        let d = UserDefaults(suiteName: "today-\(UUID().uuidString)")!
+        let m = AppModel(defaults: d)
+        m.today = Day(y: 2026, m: 10, d: 21)
+        m.birth = Day(y: 2026, m: 4, d: 2)
+        m.setShelf(["A11", "A09", "A15"])
+        let at = { (day: Day, h: Double) in LogEntry(type: LogType.play, start: (day.date.timeIntervalSince1970 + h * 3600) * 1000, detail: "A11 双手物品传递机会") }
+        // A11 played on Monday: today's is the least played this week before today — A09
+        let monday = JournalStore(preview: { var b = JournalFile.Body(); b.logs = [at(Day(y: 2026, m: 10, d: 19), 10)]; return b }())
+        XCTAssertEqual(m.todayPlay(6, monday)?.code, "A09")
+        // A09 played this morning: it is still today's (it does not jump to the next one)
+        var b = JournalFile.Body()
+        b.logs = [LogEntry(type: LogType.play, start: (m.today.date.timeIntervalSince1970 + 9 * 3600) * 1000, detail: "A09 安全镜面表情互动"), at(Day(y: 2026, m: 10, d: 19), 10)]
+        XCTAssertEqual(m.todayPlay(6, JournalStore(preview: b))?.code, "A09")
+        // 换一个 moves on, and holds for the day
+        m.anotherToday(6, JournalStore(preview: b))
+        XCTAssertEqual(m.todayPlay(6, JournalStore(preview: b))?.code, "A15")
+        // a play chosen from another month is today's, even with a full week; the week is not cut
+        m.setShelf(["A11", "A09", "A15", "A08"])
+        m.playToday(m.content.play("N04")!, 6)
+        XCTAssertEqual(m.todayPlay(6, JournalStore(preview: b))?.code, "N04")
+        XCTAssertEqual(m.weekShelf(6).plays.count, 4)
+    }
 }

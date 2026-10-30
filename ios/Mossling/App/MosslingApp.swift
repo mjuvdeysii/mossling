@@ -57,10 +57,10 @@ struct RootView: View {
         // a tab that is no longer there (记录 turned off) falls back to 本月
         .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
         .onChange(of: phase) { _, p in
-            if p == .active { app.today = .today; journal.reload(); app.rollWeek(played: { c in journal.plays(c).count }); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+            if p == .active { app.today = .today; journal.reload(); app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
             if p == .background { locked = true; mascot.send(.appBackground) }
         }
-        .task { if app.lock { unlock() }; app.rollWeek(played: { c in journal.plays(c).count }); app.publish(journal) }
+        .task { if app.lock { unlock() }; app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }); app.publish(journal) }
         // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
         // flows back into the journal
         .task {
@@ -83,6 +83,8 @@ struct RootView: View {
             }
         }
         // a play recorded changes today's play (the least played comes next), so its count is part of the key
+        // a birth date just given: this week is written at once (not at the next time the app comes forward)
+        .onChange(of: app.birth) { _, _ in app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }) }
         .onChange(of: app.publishKey + "|\(journal.logs.filter { $0.type == LogType.play }.count)") { _, _ in app.publish(journal) }
         // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
         // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are

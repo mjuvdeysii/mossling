@@ -105,7 +105,7 @@ struct PlanView: View {
                     }
                 }
                 Button("重新推荐", systemImage: "arrow.triangle.2.circlepath") {
-                    withAnimation(.snappy) { app.setShelf(Shelf.suggest(app.content, m, last: codes, played: { c in j.plays(c).count })) }
+                    withAnimation(.snappy) { app.setShelf(Shelf.suggest(app.content, m, last: codes, played: { c in app.content.play(c).map { app.record($0, j).count } ?? 0 })) }
                 }
             } header: { Text("这周 · \(codes.count) / \(Shelf.max) 个") } footer: { Text("观察、准备、示范、重复、轮换。每周三四个，孩子想重复就重复。") }
             if !lastWeek.isEmpty {

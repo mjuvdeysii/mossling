@@ -40,8 +40,9 @@ enum Shelf {
         if st == nil || codes.isEmpty || st!.week != today.monday {
             return format(today, suggest(c, m, last: codes, played: played))
         }
-        let fit = Set(candidates(c, m).map(\.code))
-        let kept = codes.filter { fit.contains($0) }
+        // only what the child has outgrown goes (past its last month); a play the parent added from another month
+        // stays for the week they put it there
+        let kept = codes.filter { c.play($0).map { m <= $0.to } ?? false }
         if kept.count == codes.count { return nil }
         let more = suggest(c, m, last: codes, played: played).filter { !kept.contains($0) }
         return format(today, kept + more.prefix(Swift.max(0, 3 - kept.count)))

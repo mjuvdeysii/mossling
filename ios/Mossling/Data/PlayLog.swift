@@ -22,25 +22,32 @@ extension AppModel {
     }
     /// Times this play was done this week (the shelf's one weekly count).
     func thisWeek(_ p: Play, _ j: JournalStore) -> Int { Shelf.week(j.plays(p.code).map(\.startDate), since: today.monday.date) }
-    /// 今天一起玩: the one play for today — the one chosen with 换一个 today, else the week's least played this week
-    /// (then least played in all, then the week's order). The home page, its header and the widget all read this.
+    /// 今天一起玩: the one play for today — the one chosen today (换一个, 今天玩这个), else the week's least played this
+    /// week (then least played in all, then the week's order), counted up to the start of today: so playing it does
+    /// not swap it for another — it stays today's, and says 今天玩过. The home page, its header and the widget all read
+    /// this.
     func todayPlay(_ month: Int, _ j: JournalStore) -> Play? {
         let s = weekShelf(month).plays
-        if let c = Shelf.pick(pick, today: today), let p = s.first(where: { $0.code == c }) { return p }
-        let code = Shelf.first(s.map(\.code), week: { c in s.first { $0.code == c }.map { thisWeek($0, j) } ?? 0 },
-                               total: { c in s.first { $0.code == c }.map { record($0, j).count } ?? 0 })
+        if let c = Shelf.pick(pick, today: today), let p = content.play(c) { return p }
+        let start = today.date
+        let before = { (p: Play) in j.plays(p.code).map(\.startDate).filter { $0 < start } }
+        let code = Shelf.first(s.map(\.code),
+                               week: { c in s.first { $0.code == c }.map { Shelf.week(before($0), since: self.today.monday.date) } ?? 0 },
+                               total: { c in s.first { $0.code == c }.map { p in before(p).count + (self.record(p, j).count > 0 && before(p).isEmpty && j.plays(p.code).isEmpty ? 1 : 0) } ?? 0 })
         return s.first { $0.code == code }
     }
     /// 换一个: the next of the week's plays after today's, for the rest of the day.
     func anotherToday(_ month: Int, _ j: JournalStore) {
         let s = weekShelf(month).plays
-        guard s.count > 1, let now = todayPlay(month, j), let i = s.firstIndex(of: now) else { return }
+        guard s.count > 1, let now = todayPlay(month, j) else { return }
+        let i = s.firstIndex(of: now) ?? -1
         pick = Shelf.formatPick(s[(i + 1) % s.count].code, today: today)
     }
-    /// Choose a play for today (from its page's menu); it joins the week if it is not in it and there is room.
+    /// Choose a play for today (from its page's menu). It joins the week when there is room; when the week is full it
+    /// is today's all the same, and the week stays as it is (nothing taken off without asking).
     func playToday(_ p: Play, _ month: Int) {
         let codes = weekShelf(month).plays.map(\.code)
-        if !codes.contains(p.code) { setShelf(Array((codes.count < Shelf.max ? codes : Array(codes.dropLast())) + [p.code])) }
+        if !codes.contains(p.code) && codes.count < Shelf.max { setShelf(codes + [p.code]) }
         pick = Shelf.formatPick(p.code, today: today)
     }
     /// Records one time played; false (and nothing ticked, nothing cheered) when it could not be saved.

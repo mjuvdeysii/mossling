@@ -364,7 +364,8 @@ struct TodayPlayCard: View {
                                 .offset(x: -16, y: -40)
                         }
                     }
-                    .padding(.top, 30)
+                    // room above the card for the pair on its edge; while they are on the sleep card, none
+                    .padding(.top, asleep ? 0 : 30)
                 }
             }
         }
@@ -407,7 +408,9 @@ struct TodayPlayCard: View {
     }
 
     private func lastPlayed(_ p: Play) -> String {
-        guard let d = app.record(p, j).last else { return "第一次玩" }
+        let rec = app.record(p, j)
+        // a play ticked done before plays were dated: played, but when is not known
+        guard let d = rec.last else { return rec.count > 0 ? "玩过" : "第一次玩" }
         return Day(d) == app.today ? "今天玩过" : "上次 " + Day(d).md
     }
 
