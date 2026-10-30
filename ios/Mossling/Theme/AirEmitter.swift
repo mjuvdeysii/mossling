@@ -96,7 +96,7 @@ struct AirEmitter: UIViewRepresentable {
                 // across the page in fifteen to twenty-five seconds, sinking about a hundred points on the way
                 let v: CGFloat = (w + 60) / (preview ? 9 : 19)
                 let life = Float((w + 70) / v * 1.25)
-                func cell(_ img: UIImage, rate: Float, spin: CGFloat, size: CGFloat) -> CAEmitterCell {
+                func cell(_ img: UIImage, rate: Float, spin: CGFloat, size: CGFloat, alpha: Float) -> CAEmitterCell {
                     let c = CAEmitterCell()
                     c.contents = img.cgImage
                     c.birthRate = rate * share * (preview ? 2.2 : 1)
@@ -105,17 +105,19 @@ struct AirEmitter: UIViewRepresentable {
                     c.emissionLongitude = 0.06; c.emissionRange = 0.16           // with the air, a little down
                     c.yAcceleration = preview ? 0.8 : 0.5
                     c.spin = 0; c.spinRange = spin
-                    c.scale = size * z / 3; c.scaleRange = c.scale * 0.3          // images are drawn at 3×
-                    c.alphaRange = 0.2
+                    c.scale = size * z / 3; c.scaleRange = c.scale * 0.25         // images are drawn at 3×
+                    c.color = UIColor(white: 1, alpha: CGFloat(alpha)).cgColor     // light: the paper shows through
+                    c.alphaRange = 0.12
                     return c
                 }
-                // build 189's size (about 1.7 times the drawn particle) and a fuller air: some thirty in view at once
-                // a fuller, brighter air in daylight: some forty in view, the petals in the tab's colour clearly so
+                // a light air, not a busy one: a dozen things in view at once, small and half see-through. The seeds
+                // float upright as dandelion seeds do — fluff up, seed hanging below — only rocking a little; the
+                // leaves turn slowly; a few petals in the tab's colour; a little pollen
                 cells = [
-                    cell(Self.seed(), rate: 0.55, spin: 0.8, size: 1.8),
-                    cell(Self.petal(tone), rate: 0.55, spin: 2.0, size: 1.9),
-                    cell(Self.leaf(), rate: 0.42, spin: 1.6, size: 1.8),
-                    cell(Self.pollen(), rate: 0.5, spin: 0, size: 1.7),
+                    cell(Self.seed(), rate: 0.16, spin: 0.1, size: 1.0, alpha: 0.75),
+                    cell(Self.petal(tone), rate: 0.14, spin: 1.2, size: 1.0, alpha: 0.6),
+                    cell(Self.leaf(), rate: 0.08, spin: 0.9, size: 0.95, alpha: 0.55),
+                    cell(Self.pollen(), rate: 0.18, spin: 0, size: 1.0, alpha: 0.6),
                 ]
                 emitter.renderMode = .unordered
             case .night:
@@ -170,22 +172,41 @@ struct AirEmitter: UIViewRepresentable {
             let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 3; fmt.opaque = false
             return UIGraphicsImageRenderer(size: size, format: fmt).image { f($0.cgContext) }
         }
-        /// A dandelion seed: a fluff of fine rays on a short stalk, with a faint warm edge so it reads on paper.
+        /// A dandelion seed as it floats: a parasol of very fine rays opening upward from the top of a thin beak, each
+        /// ray ending in a faint tuft, and the small brown seed hanging at the bottom — drawn upright, so it flies the
+        /// right way up. Soft white with the faintest warm edge, so it reads on paper without standing out.
         private static func seed() -> UIImage {
-            draw(CGSize(width: 18, height: 20)) { c in
-                let p = CGPoint(x: 9, y: 9)
-                for (w, col) in [(CGFloat(1.6), UIColor(red: 0.62, green: 0.52, blue: 0.38, alpha: 0.35)), (CGFloat(0.9), UIColor.white)] {
-                    c.setStrokeColor(col.cgColor); c.setLineWidth(w); c.setLineCap(.round)
-                    for k in 0..<9 {
-                        let q: CGFloat = CGFloat(k) / 8 * .pi + .pi
-                        c.move(to: p); c.addLine(to: CGPoint(x: p.x + cos(q) * 7, y: p.y + sin(q) * 7))
+            draw(CGSize(width: 22, height: 26)) { c in
+                let hub = CGPoint(x: 11, y: 10)
+                let warm = UIColor(red: 0.66, green: 0.57, blue: 0.43, alpha: 0.22)
+                // the rays: a wide fan above the hub, gently curving outward, longest in the middle of the fan
+                let rays = 15
+                for pass in 0..<2 {
+                    c.setStrokeColor((pass == 0 ? warm : UIColor.white.withAlphaComponent(0.92)).cgColor)
+                    c.setLineWidth(pass == 0 ? 0.9 : 0.45); c.setLineCap(.round)
+                    for k in 0..<rays {
+                        let t = CGFloat(k) / CGFloat(rays - 1)
+                        let a = .pi + 0.18 + t * (.pi - 0.36)                  // from left-up round to right-up
+                        let len: CGFloat = 7.2 + 1.6 * sin(t * .pi)
+                        let tip = CGPoint(x: hub.x + cos(a) * len, y: hub.y + sin(a) * len)
+                        let mid = CGPoint(x: hub.x + cos(a - 0.08) * len * 0.55, y: hub.y + sin(a - 0.08) * len * 0.55)
+                        c.move(to: hub); c.addQuadCurve(to: tip, control: mid)
                     }
                     c.strokePath()
                 }
-                c.setFillColor(UIColor.white.cgColor)
-                for k in 0..<9 { let q: CGFloat = CGFloat(k) / 8 * .pi + .pi; c.fillEllipse(in: CGRect(x: p.x + cos(q) * 7 - 1.1, y: p.y + sin(q) * 7 - 1.1, width: 2.2, height: 2.2)) }
-                c.setStrokeColor(UIColor(red: 0.72, green: 0.63, blue: 0.44, alpha: 0.85).cgColor); c.setLineWidth(1)
-                c.move(to: p); c.addLine(to: CGPoint(x: p.x, y: p.y + 9)); c.strokePath()
+                // a faint tuft at each tip
+                c.setFillColor(UIColor.white.withAlphaComponent(0.7).cgColor)
+                for k in 0..<rays {
+                    let t = CGFloat(k) / CGFloat(rays - 1)
+                    let a = .pi + 0.18 + t * (.pi - 0.36)
+                    let len: CGFloat = 7.2 + 1.6 * sin(t * .pi)
+                    c.fillEllipse(in: CGRect(x: hub.x + cos(a) * len - 0.7, y: hub.y + sin(a) * len - 0.7, width: 1.4, height: 1.4))
+                }
+                // the beak, thin and pale, and the seed at its foot
+                c.setStrokeColor(UIColor(red: 0.78, green: 0.71, blue: 0.56, alpha: 0.75).cgColor); c.setLineWidth(0.5)
+                c.move(to: hub); c.addLine(to: CGPoint(x: hub.x, y: hub.y + 9)); c.strokePath()
+                c.setFillColor(UIColor(red: 0.55, green: 0.42, blue: 0.28, alpha: 0.8).cgColor)
+                c.fillEllipse(in: CGRect(x: hub.x - 0.9, y: hub.y + 8.6, width: 1.8, height: 4.2))
             }
         }
         private static func petal(_ tone: UIColor) -> UIImage {

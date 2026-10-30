@@ -13,8 +13,9 @@ struct YouView: View {
     var body: some View {
         @Bindable var app = app
         ScrollView {
-            // the whole page in one screen: the family, the book, then one card of settings and one of data
-            VStack(alignment: .leading, spacing: 10) {
+            // the whole page in one screen, filling it down to the tab bar without crowding: the family, the book, then
+            // one card of settings and one of data
+            VStack(alignment: .leading, spacing: 14) {
                 // the family: the child's own portrait and who the child is, then the companion (Moss or Otto) to choose
                 FamilyCard { editing = true }
 
@@ -37,7 +38,7 @@ struct YouView: View {
                                 }
                             }
                         }
-                        .padding(.horizontal, 14).padding(.vertical, 7)
+                        .padding(.horizontal, 14).padding(.vertical, 10)
                         Divider().padding(.leading, 52)
                         SwitchRow(title: "晚上自动开夜灯", detail: "19:00–6:00", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight)
                         Divider().padding(.leading, 52)
@@ -345,7 +346,7 @@ private struct SwitchRow: View {
             }
         }
         .tint(Palette.accent)
-        .padding(.horizontal, 14).padding(.vertical, 6)
+        .padding(.horizontal, 14).padding(.vertical, 9)
     }
 }
 
@@ -362,7 +363,7 @@ private struct DataRow: View {
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 16).padding(.vertical, 8).contentShape(Rectangle())
+        .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
     }
 }
 
@@ -409,7 +410,7 @@ struct AboutView: View {
             // the two and the name in one row, the line about the app under them; tap the two and they hop, and on
             // the third tap they take you into their story (the page names no way in)
             Section {
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 0) {
                     HStack(alignment: .bottom, spacing: 14) {
                         Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
                             .storyKnock(hops: $hops, lamp: $lamp) { story = true }
@@ -421,8 +422,6 @@ struct AboutView: View {
                         .padding(.bottom, 4)
                         Spacer(minLength: 0)
                     }
-                    Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。不打分，不比较，不催促。")
-                        .font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
                 .listRowBackground(Color.clear)
                 .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 4))
@@ -430,9 +429,7 @@ struct AboutView: View {
             Section {
                 row(Route.sources, "内容来源", "books.vertical.fill", Crayon.caramel)
                 row(Route.licenses, "许可与致谢", "checkmark.seal.fill", Crayon.aqua)
-            } header: { Text("制作") } footer: {
-                Text("摸索台灯由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。育儿内容整理自公开发布的机构资料，每一条都注明来源。")
-            }
+            } header: { Text("制作") }
             Section("文件") {
                 row(Route.doc("TERMS"), "使用条款", "doc.text.fill", Crayon.pebble)
                 row(Route.doc("PRIVACY"), "隐私政策", "hand.raised.fill", Crayon.sky)
@@ -447,9 +444,10 @@ struct AboutView: View {
                 Link(destination: URL(string: "https://github.com/mjuvdeysii/mossling/issues")!) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
                     .tint(.primary)
             } header: { Text("帮助") } footer: {
+                // the page's small print lives where it belongs (who made it → 许可与致谢; where the content comes from →
+                // 内容来源; that it is not medical advice → 免责声明 and the first launch); here only what answers a tap
                 VStack(alignment: .leading, spacing: 6) {
                     if replay { Text("下次打开应用时，使用提示会重新出现。") }
-                    Text("本应用陪伴家庭养育，不构成医疗诊断或治疗建议。对孩子的健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。")
                     // the App filing number, shown where the filing rules ask (设置 / 关于), once there is one
                     if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
                         Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!).font(.footnote.weight(.semibold))
@@ -498,7 +496,7 @@ struct StoryView: View {
                     thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来", "可选 · 只存本机", "喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。")
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                Text("这里不打分，不比较，也不催促。每个孩子都按自己的节奏，一个月长出一点新的样子。")
+                Text("陪 0–3 岁的孩子一起玩，看他一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。")
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 StoryGoesOn(primary: app.companion)
             }
@@ -629,7 +627,9 @@ struct SourcesView: View {
                     Text("WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准").font(.subheadline)
                     Text("2006").font(.caption).foregroundStyle(Palette.secondaryText)
                 }
-            } header: { Text("参考文献 · \(app.content.sources.count + 1) 项") }
+            } header: { Text("参考文献 · \(app.content.sources.count + 1) 项") } footer: {
+                Text("育儿内容整理自公开发布的机构资料，每一条都注明来源。")
+            }
         }
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("内容来源")
@@ -639,6 +639,9 @@ struct SourcesView: View {
 struct LicensesView: View {
     var body: some View {
         List {
+            Section("制作") {
+                row("摸索台灯", "由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。", "Moss & Otto")
+            }
             Section("数据") {
                 row("WHO Child Growth Standards", "按世界卫生组织的使用条款引用", "© World Health Organization")
             }

@@ -42,7 +42,7 @@ struct TimerScreen: View {
             }
             .navigationTitle(LogType.name(type))
             .navigationBarTitleDisplayMode(.inline)
-            .toasts()
+            .toasts(bottom: true)
         }
     }
 

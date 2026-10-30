@@ -2,20 +2,24 @@ import SwiftUI
 
 /// What was just recorded or started, said back at the top of the screen for a few seconds: the kind's sticker, one
 /// line ("已记下 尿布 · 湿 · 14:05"), and 撤销. A one-tap record never happens silently.
+/// On the timer page it sits at the foot instead, just above the button that ends — the top of that page is where the
+/// two keep watch, and they are not to be covered.
 struct ToastHost: ViewModifier {
+    var bottom = false
     func body(content: Self.Content) -> some View {
-        content.overlay(alignment: .top) { ToastSlot() }
+        content.overlay(alignment: bottom ? .bottom : .top) { ToastSlot(bottom: bottom).padding(.bottom, bottom ? 84 : 0) }
     }
 }
 
 private struct ToastSlot: View {
+    var bottom = false
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         ZStack {
             if let t = j.toast {
                 ToastBar(toast: t)
-                    .transition(reduce ? AnyTransition.opacity : AnyTransition.move(edge: .top).combined(with: .opacity))
+                    .transition(reduce ? AnyTransition.opacity : AnyTransition.move(edge: bottom ? .bottom : .top).combined(with: .opacity))
                     .id(t.id)
             }
         }
@@ -40,7 +44,7 @@ private struct ToastBar: View {
         }
         .padding(.leading, 10).padding(.trailing, 16).padding(.vertical, 10)
         .glassEffect(.regular, in: Capsule())
-        .padding(.horizontal, 16).padding(.top, 6)
+        .padding(.horizontal, 16).padding(.vertical, 6)
         .onTapGesture { j.toast = nil }
         .task(id: toast.id) {
             UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
@@ -53,5 +57,5 @@ private struct ToastBar: View {
 }
 
 extension View {
-    func toasts() -> some View { modifier(ToastHost()) }
+    func toasts(bottom: Bool = false) -> some View { modifier(ToastHost(bottom: bottom)) }
 }
