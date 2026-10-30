@@ -34,7 +34,9 @@ enum Shelf {
     }
     /// The week as it should stand today: last week's turned into a new one, and anything the child has outgrown
     /// (the month changed mid-week) replaced. Nil when it already stands right. The stored form never changes.
-    static func roll(_ c: Content, _ m: Int, stored: String, today: Day, played: (String) -> Int = { _ in 0 }) -> String? {
+    /// `fresh`: the birth date was changed — the week is chosen anew for the month the child is now in.
+    static func roll(_ c: Content, _ m: Int, stored: String, today: Day, played: (String) -> Int = { _ in 0 }, fresh: Bool = false) -> String? {
+        if fresh { return format(today, suggest(c, m, last: [], played: played)) }
         let st = parse(stored)
         let codes = (st?.codes ?? []).filter { c.play($0) != nil }
         if st == nil || codes.isEmpty || st!.week != today.monday {

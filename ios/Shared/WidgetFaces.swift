@@ -247,7 +247,6 @@ struct TimerFace: View {
         }
         .padding(16)
     }
-    static func side(_ s: String?) -> String { s == "l" ? " · 左侧" : s == "r" ? " · 右侧" : "" }
     @ViewBuilder static func elapsed(_ s: TimerAttributes.ContentState) -> some View {
         if let p = s.pausedAt { Text(minutesOf(p.timeIntervalSince(s.start))) }
         else { Text(timerInterval: s.start...Date.distantFuture, countsDown: false).monospacedDigit() }

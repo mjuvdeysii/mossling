@@ -18,38 +18,17 @@ struct PlayView: View {
     @State private var before = false
     /// What to watch for and when to stop is safety: open from the start, not folded away.
     @State private var during = true
-    /// A time already recorded on this visit (记一次, or the last step).
-    @State private var recorded = false
+    /// The count when the page was opened: a count above it means this visit already recorded a time (by 记一次,
+    /// the menu, or the last step) — derived from the records, not kept beside them.
+    @State private var base: Int?
 
     var body: some View {
         let rec = app.record(play, j)
         let art = ArtIndex.shared.steps(play.code)
-        let key = Palette.areaKey(of: play)
         ScrollViewReader { proxy in
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                VStack(alignment: .leading, spacing: 10) {
-                    // the area and, under it, the age it suits — its own line, wrapping, never cut at the edge
-                    HStack(alignment: .center, spacing: 10) {
-                        IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
-                            Text(play.age).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
-                    // how many times, and — for a time played without following the steps here — a small 记一次
-                    HStack {
-                        DoneCount(record: rec, cheer: cheer)
-                        Spacer(minLength: 8)
-                        Button { record() } label: { Label("记一次", systemImage: "plus") }
-                            .buttonStyle(.vinyl)
-                            .overlay { BeadBurst(trigger: cheer) }
-                            .accessibilityLabel("玩过了，记一次")
-                    }
-                }
-                .padding(.horizontal, 4).padding(.bottom, 8)
+                PlayHeader(play: play, record: rec, cheer: cheer) { record() }
                 .onScrollVisibilityChange(threshold: 0.2) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
 
                 if !play.prepare.isEmpty || !play.safety.isEmpty {
@@ -71,18 +50,9 @@ struct PlayView: View {
 
                 // finishing the last step records the time: the companions come out to cheer, here, in the page
                 if open >= play.steps.count {
-                    HStack(spacing: 14) {
-                        Duo(primary: app.companion, size: 56, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
-                        VStack(alignment: .leading, spacing: 3) {
-                            Text("做完了").font(.headline)
-                            Text("记下了第 \(rec.count) 次" + (rec.count >= 3 ? "，越来越熟练" : "")).font(.subheadline).foregroundStyle(Palette.secondaryText)
-                        }
-                        Spacer(minLength: 0)
-                    }
-                    .padding(14).printCard(radius: Radius.card)
-                    .overlay { BeadBurst(trigger: cheer) }
-                    .transition(.scale(scale: 0.9).combined(with: .opacity))
-                    .id("finished")
+                    FinishedCard(companion: app.companion, count: rec.count, cheer: cheer)
+                        .transition(.scale(scale: 0.9).combined(with: .opacity))
+                        .id("finished")
                 }
 
                 if !play.observe.isEmpty || !play.pause.isEmpty {
@@ -103,27 +73,35 @@ struct PlayView: View {
         .onAppear {
             if let p = app.playing, p.play.code == play.code { open = p.step }
             before = rec.count == 0
-            // playing along: the phone lies on the floor (not when the steps are already done)
-            if open < play.steps.count { UIApplication.shared.isIdleTimerDisabled = true }
+            if base == nil { base = rec.count }
+            keepAwake(open < play.steps.count)
         }
-        .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
-        // the steps done, the screen may sleep again
-        .onChange(of: open) { _, o in if o >= play.steps.count { UIApplication.shared.isIdleTimerDisabled = false } }
-        // a time taken back (撤销) is no longer recorded here: finishing the steps records it again
-        .onChange(of: app.record(play, j).count) { old, new in if new < old { recorded = false } }
+        .onDisappear { keepAwake(false) }
+        // the screen stays on while a step is open (the phone lies on the floor), and may sleep once they are done
+        .onChange(of: open) { _, o in keepAwake(o < play.steps.count) }
+        // a time taken back (撤销): the finished card goes and the last step opens again, to be finished anew
+        .onChange(of: rec.count) { old, new in countChanged(old, new) }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItem(placement: .principal) { Text(play.name).font(.headline).lineLimit(1).opacity(scrolled ? 1 : 0) }
             ToolbarItem(placement: .topBarTrailing) {
-                Menu { PlayActions(play: play, month: month) } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
+                Menu { PlayActions(play: play, month: month, inPage: true) } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
             }
         }
     }
 
     private func record() {
         // the reply only after the time played is really saved
-        withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1; recorded = true } }
+        withAnimation(.snappy) { if app.didPlay(play, month: month, j) { app.finishPlaying(); cheer += 1 } }
+    }
+    /// Whether this visit has recorded a time (the count is above what it was when the page opened).
+    private var recordedHere: Bool { app.record(play, j).count > (base ?? Int.max) }
+    private func keepAwake(_ on: Bool) { UIApplication.shared.isIdleTimerDisabled = on }
+    private func countChanged(_ old: Int, _ new: Int) {
+        guard new < old else { return }
+        base = min(base ?? new, new)
+        if open >= play.steps.count { withAnimation(.snappy) { open = max(0, play.steps.count - 1) } }
     }
 
     private func go(_ i: Int, _ proxy: ScrollViewProxy) {
@@ -131,7 +109,7 @@ struct PlayView: View {
             // the last step done: that is a time played — recorded, cheered, and the steps fold away
             withAnimation(.snappy) { open = play.steps.count }
             // one time played is one entry: if 记一次 already said it on this page, the last step does not again
-            if recorded { cheer += 1 } else { record() }
+            if recordedHere { cheer += 1 } else { record() }
             withAnimation(.smooth.delay(0.15)) { proxy.scrollTo("finished", anchor: .center) }
             return
         }
@@ -323,5 +301,58 @@ struct BeadBurst: View {
                 }
                 .allowsHitTesting(false)
         }
+    }
+}
+
+/// The play's head: its area and age, its name, how many times, and 记一次.
+private struct PlayHeader: View {
+    let play: Play
+    let record: PlayRecord
+    let cheer: Int
+    let add: () -> Void
+    var body: some View {
+        let key: String = Palette.areaKey(of: play)
+        VStack(alignment: .leading, spacing: 10) {
+            // the area and, under it, the age it suits — its own line, wrapping, never cut at the edge
+            HStack(alignment: .center, spacing: 10) {
+                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
+                    Text(play.age).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 0)
+            }
+            Text(play.name).font(.largeTitle.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+            // how many times, and — for a time played without following the steps here — a small 记一次
+            HStack {
+                DoneCount(record: record, cheer: cheer)
+                Spacer(minLength: 8)
+                Button(action: add) { Label("记一次", systemImage: "plus") }
+                    .buttonStyle(.vinyl)
+                    .overlay { BeadBurst(trigger: cheer) }
+                    .accessibilityLabel("玩过了，记一次")
+            }
+        }
+        .padding(.horizontal, 4).padding(.bottom, 8)
+    }
+}
+
+/// The steps finished: the companions come out to cheer, here, in the page, with the count.
+private struct FinishedCard: View {
+    let companion: Kind
+    let count: Int
+    let cheer: Int
+    var body: some View {
+        let line: String = "记下了第 \(count) 次" + (count >= 3 ? "，越来越熟练" : "")
+        HStack(spacing: 14) {
+            Duo(primary: companion, size: 56, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
+            VStack(alignment: .leading, spacing: 3) {
+                Text("做完了").font(.headline)
+                Text(line).font(.subheadline).foregroundStyle(Palette.secondaryText)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14).printCard(radius: Radius.card)
+        .overlay { BeadBurst(trigger: cheer) }
     }
 }

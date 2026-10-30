@@ -102,9 +102,7 @@ final class MascotTests: XCTestCase {
     }
 
     func testATimerStartsOnlyWhenItIsInTheFile() {
-        let saved = JournalFile.read()
-        defer { JournalFile.failWrites = false; JournalFile.write(saved) }
-        JournalFile.write(JournalFile.Body())
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
         let (j, box) = store()
         JournalFile.failWrites = true
         j.start(LogType.sleep)
@@ -114,10 +112,8 @@ final class MascotTests: XCTestCase {
     }
 
     func testEndingTwiceKeepsOneEntryAndOneReply() {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
         let (j, box) = store()
-        let saved = JournalFile.read()
-        defer { JournalFile.write(saved) }
-        JournalFile.write(JournalFile.Body())
         j.reload()
         j.start(LogType.sleep, at: Date().addingTimeInterval(-600))
         XCTAssertEqual(box.events, [.recordStartConfirmed])

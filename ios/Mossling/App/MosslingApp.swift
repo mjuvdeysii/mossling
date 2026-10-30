@@ -44,7 +44,9 @@ struct RootView: View {
     @Namespace private var zoomYou
 
     /// Turns the week when it has gone by, counting each play's times from the records.
-    private func roll() { app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }) }
+    private func roll(fresh: Bool = false) {
+        app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }, fresh: fresh)
+    }
     /// What the widget shows changes with the settings and with each play recorded (today's play may follow).
     private var widgetKey: String { app.publishKey + "|" + String(journal.logs.filter { $0.type == LogType.play }.count) }
 
@@ -89,7 +91,7 @@ struct RootView: View {
         }
         // a play recorded changes today's play (the least played comes next), so its count is part of the key
         // a birth date just given: this week is written at once (not at the next time the app comes forward)
-        .onChange(of: app.birth) { _, _ in roll() }
+        .onChange(of: app.birth) { _, _ in roll(fresh: true) }
         .onChange(of: widgetKey) { _, _ in app.publish(journal) }
         // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
         // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are

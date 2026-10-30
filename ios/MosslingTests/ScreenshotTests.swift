@@ -238,6 +238,15 @@ final class ScreenshotTests: XCTestCase {
     /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
     /// asks for. The five screens a parent meets first.
     func test35StoreScreens() {
+        // the same morning whenever CI runs: the clock read in a time zone where it is about 10:30 now, so the last
+        // hours' records never cross midnight and the home says the same thing every time
+        let saved = NSTimeZone.default
+        defer { NSTimeZone.default = saved }
+        let utc: Int = Int(Date().timeIntervalSince1970) % 86_400
+        var offset: Int = (10 * 3600 + 1800 - utc) % 86_400
+        if offset > 14 * 3600 { offset -= 86_400 }
+        if offset < -12 * 3600 { offset += 86_400 }
+        NSTimeZone.default = TimeZone(secondsFromGMT: offset) ?? saved
         // a day as it is when the screenshots are taken: today, a baby of six and a half months, records of the last hours
         let m = model(birth: Day.today.plus(days: -200)); m.today = .today; m.journal = true
         let n = ms(Date()), h = 3_600_000.0

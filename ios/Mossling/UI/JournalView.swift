@@ -472,7 +472,7 @@ private struct FocusLine: View {
             var s = "只看喂奶 · \(logs.feedCount(from: d0)) 次"
             if starts.count >= 2 {
                 let gaps = zip(starts.dropFirst(), starts).map { ($0 - $1) / 1000 }
-                s += " · 平均间隔 " + durationValue(gaps.reduce(0, +) / Double(gaps.count))
+                s += " · 平均间隔 " + keepUnits(durationValue(gaps.reduce(0, +) / Double(gaps.count)))
             }
             return s
         case LogType.sleep:
@@ -619,12 +619,15 @@ private struct Totals: View {
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
         let dirty = nappies.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map { $0.activeSeconds }.max() ?? 0   // the whole sleep, as on its line
+        // the whole sleep, as on its line; when it began the day before, said so (it can be longer than the day's part)
+        let longestSleep: LogEntry? = logs.filter { $0.type == LogType.sleep && $0.end != nil }.max { $0.activeSeconds < $1.activeSeconds }
+        let longest: Double = longestSleep?.activeSeconds ?? 0
+        let longestLine: [String] = longest >= 60 ? ["最长一觉", durationValue(longest)] + ((longestSleep?.carriedOver(into: day) ?? false) ? ["· 接昨天"] : []) : []
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
             tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], feedLine))
-            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longest >= 60 ? ["最长一觉", durationValue(longest)] : [], " "))
+            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longestLine, " "))
             // what a doctor asks: how many wet, how many dirty
             tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? [] : ["湿 \(wet)", "便 \(dirty)"]))
         }
@@ -910,7 +913,7 @@ private struct TimelineRow: View {
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
-        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }
+        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + keepUnits(durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: " · ").components(separatedBy: " · ").filter { !$0.isEmpty }
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
@@ -951,7 +954,8 @@ private struct TimelineRow: View {
                     DotFlow {
                         ForEach(Array(meta.enumerated()), id: \.offset) { i, piece in
                             if i > 0 { Text("·") }
-                            Text(unbroken(piece)).fixedSize(horizontal: false, vertical: true)
+                            // a piece already kept by units (距上一顿 3 小时 30 分) may break between them; others stay whole
+                            Text(piece.contains("\u{00A0}") ? piece : unbroken(piece)).fixedSize(horizontal: false, vertical: true)
                         }
                     }
                     .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()

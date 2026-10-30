@@ -391,4 +391,47 @@ final class LogicTests: XCTestCase {
         m.toggle(6, TickKind.did, "A11", "双手物品传递机会")
         XCTAssertEqual(m.played(in: 6, j), ["A09", "A11"])
     }
+
+    func testDidPlayWritesOnlyTheRecordsAndUndoLeavesNothing() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let m = AppModel(defaults: UserDefaults(suiteName: "didplay-\(UUID().uuidString)")!)
+        m.birth = Day(y: 2026, m: 4, d: 2)
+        let j = JournalStore(preview: JournalFile.Body())
+        let p = try XCTUnwrap(m.content.play("A09"))
+        XCTAssertTrue(m.didPlay(p, month: 6, j))
+        XCTAssertEqual(j.plays("A09").count, 1)
+        XCTAssertFalse(m.ticks.values.contains { $0.kind == TickKind.did }, "a play is an entry in the records, no mark beside it")
+        let t = try XCTUnwrap(j.toast)
+        j.undo(t)
+        XCTAssertEqual(m.record(p, j).count, 0)
+        XCTAssertTrue((0...36).allSatisfy { m.played(in: $0, j).isEmpty })
+    }
+
+    func testTwoSidesAreChangedTogetherOrNotAtAll() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let l = LogEntry(type: LogType.nurse, start: t(19, 16, 10), end: t(19, 16, 28), side: "l")
+        let r = LogEntry(type: LogType.nurse, start: t(19, 16, 28), end: t(19, 16, 40), side: "r")
+        var b = JournalFile.Body(); b.logs = [l, r]
+        JournalFile.write(b)
+        let j = JournalStore(preview: b)
+        var l2 = l, r2 = r
+        l2.end = t(19, 16, 25); r2.start = t(19, 16, 26)
+        JournalFile.failWrites = true
+        XCTAssertFalse(j.update([l2, r2]))
+        XCTAssertEqual(JournalFile.read().logs.first { $0.id == l.id }?.end, l.end, "nothing half-written")
+        JournalFile.failWrites = false
+        XCTAssertTrue(j.update([l2, r2]))
+        XCTAssertEqual(JournalFile.read().logs.first { $0.id == r.id }?.start, t(19, 16, 26))
+        XCTAssertNotNil(j.toast?.restore, "one 撤销 for the change")
+    }
+
+    func testANewBirthDateChoosesTheWeekAnew() throws {
+        let c = try Content.load()
+        let d = Day(y: 2026, m: 10, d: 21)
+        let old = Shelf.format(d, ["A11", "A09", "A15"])           // a 6-month week
+        let next = try XCTUnwrap(Shelf.roll(c, 2, stored: old, today: d, fresh: true))
+        let plays = try XCTUnwrap(Shelf.parse(next)).codes.compactMap { c.play($0) }
+        XCTAssertFalse(plays.isEmpty)
+        XCTAssertTrue(plays.allSatisfy { $0.from <= 2 && 2 <= $0.to }, "nothing the child has not reached yet")
+    }
 }

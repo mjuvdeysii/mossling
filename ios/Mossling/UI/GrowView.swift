@@ -129,8 +129,9 @@ private struct MonthBody: View {
             if !plays.isEmpty {
                 VStack(alignment: .leading, spacing: 10) {
                     // how many were played, not a list to complete: the four cards themselves show how many there are
-                    let done = Set(app.played(in: m, j)).intersection(plays.map(\.code)).count
-                    SectionTitle(title: "一起玩", detail: done > 0 ? "这个月玩过 \(done) 个" : nil)
+                    // counted as the cards are: a card with its ×N is a play counted here
+                    let done: Int = plays.filter { app.record($0, j).count > 0 }.count
+                    SectionTitle(title: "一起玩", detail: done > 0 ? "其中 \(done) 个玩过" : nil)
                     PlaysLeadGrid(plays: plays, month: m)
                 }
             }
@@ -252,10 +253,12 @@ struct PlayActions: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     let play: Play, month: Int
+    /// On the play's own page, which has 记一次 by its count: the menu does not record a second way.
+    var inPage = false
     var body: some View {
         let rec = app.record(play, j)
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
-        Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) }
+        if !inPage { Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) } }
         if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         let m = app.babyMonth ?? month
         if app.todayPlay(m, j)?.code != play.code {

@@ -111,6 +111,16 @@ final class JournalStore {
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
     @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } }
+    /// Several entries changed at once (the sides of one feed): one write — all or none — said back with 撤销.
+    @discardableResult func update(_ es: [LogEntry]) -> Bool {
+        guard let first = es.min(by: { $0.start < $1.start }) else { return true }
+        let before = JournalFile.read()
+        let ok = edit { b in
+            for e in es { if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } }
+        }
+        if ok { say(first.type, "已修改这一顿" + LogType.name(first.type) + " · " + hm(first.startDate), undo: before) }
+        return ok
+    }
     /// Deleting is one tap (no confirmation to tap through at night): it is said back with 撤销 instead.
     func delete(_ e: LogEntry) {
         let before = JournalFile.read()

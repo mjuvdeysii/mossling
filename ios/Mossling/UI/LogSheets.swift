@@ -209,8 +209,10 @@ struct EntrySheet: View {
     private func choose(_ i: Int) { var p = parts; p[sel] = entry; parts = p; sel = i; entry = p[i] }
     private func save() -> Bool {
         if isNew { return j.record(entry) }
-        for (e, o) in zip(current, original) where e != o { if !j.update(e) { return false } }
-        return true
+        if !whole { return j.update(entry) }
+        // the sides of one feed are written together: all or none, with one 撤销
+        let changed: [LogEntry] = zip(current, original).filter { $0.0 != $0.1 }.map(\.0)
+        return changed.isEmpty ? true : j.update(changed)
     }
 
     var body: some View {

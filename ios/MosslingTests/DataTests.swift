@@ -31,7 +31,7 @@ final class DataTests: XCTestCase {
         XCTAssertEqual((m["timers"] as? [Any])?.count, 1)
         XCTAssertEqual((m["logs"] as? [Any])?.count, 3); XCTAssertEqual((m["ticks"] as? [Any])?.count, 2)
 
-        let saved = JournalFile.read(); defer { JournalFile.write(saved) }
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
         let b = model(); b.shelf = ""; b.theme = .system
         let j = JournalStore(preview: JournalFile.Body())
         try RecordFile.load(data, into: b, journal: j)

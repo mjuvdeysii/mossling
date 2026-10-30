@@ -90,9 +90,11 @@ final class AppModel {
     func setShelf(_ codes: [String]) { shelf = Shelf.format(today, codes) }
     /// Turns the week by itself when it has gone by, and replaces what the child has outgrown — done when the app
     /// comes forward, never while a page is being drawn.
-    func rollWeek(played: (String) -> Int = { _ in 0 }) {
-        guard let m = babyMonth, let next = Shelf.roll(content, m, stored: shelf, today: today, played: played) else { return }
+    func rollWeek(played: (String) -> Int = { _ in 0 }, fresh: Bool = false) {
+        guard let m = babyMonth, let next = Shelf.roll(content, m, stored: shelf, today: today, played: played, fresh: fresh) else { return }
         shelf = next
+        // a week chosen anew: a play picked for today from the old one no longer stands
+        if fresh { pick = "" }
     }
 
     /// The play in progress, if any.

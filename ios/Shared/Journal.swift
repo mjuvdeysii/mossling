@@ -245,9 +245,26 @@ struct Snapshot: Codable {
 enum JournalFile {
     static let group = "group.app.mossling"
     static var dir: URL {
-        FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+        #if DEBUG
+        if let t = testDir { return t }
+        #endif
+        return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
+    #if DEBUG
+    /// Tests write their journal here, a folder of their own — never the real one.
+    nonisolated(unsafe) static var testDir: URL?
+    /// A fresh, empty folder for a test's journal; call `endTest()` after.
+    static func beginTest() {
+        let u = FileManager.default.temporaryDirectory.appendingPathComponent("journal-\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: u, withIntermediateDirectories: true)
+        testDir = u
+    }
+    static func endTest() {
+        if let u = testDir { try? FileManager.default.removeItem(at: u) }
+        testDir = nil; failWrites = false
+    }
+    #endif
     static var url: URL { dir.appendingPathComponent("journal.json") }
     static var snapshotURL: URL { dir.appendingPathComponent("snapshot.json") }
 
