@@ -19,7 +19,7 @@ struct JournalView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 TipView(StickerTip())
-                StickerSheet(timers: j.timers, last: { j.last($0) }, tap: tap)
+                StickerSheet(timers: j.timers, month: app.babyMonth, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only)
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
@@ -145,36 +145,68 @@ func agoShort(_ then: Date, _ now: Date = Date()) -> String {
     return "\(m / 1440) 天前"
 }
 
-/// The sheet of stickers: one round sticker per kind, stuck on with a print shadow; tap to record. How long ago the
-/// last one was sits under each, always in the same short form.
+/// The sheet of stickers, in two tiers by how often they are used. Above, the few recorded many times a day — 亲喂,
+/// 瓶喂, 睡觉, 尿布, and 辅食 once the child is eating it (from six months) — as large stickers with how long ago the
+/// last one was. Below a hairline, the rest — a bath, a temperature, a medicine, a measurement, a note — as one row of
+/// small stickers, named but without times: things done once a day or less need finding, not watching.
 private struct StickerSheet: View {
     let timers: [RunningTimer]
+    let month: Int?
     let last: (String) -> Date?
     let tap: (String) -> Void
     var body: some View {
+        let eating = (month ?? 0) >= 6
+        let often = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper] + (eating ? [LogType.solid] : [])
+        let rarely = LogType.buttons.filter { !often.contains($0) }
         TimelineView(.periodic(from: .now, by: 60)) { tl in
-            Grid(horizontalSpacing: 4, verticalSpacing: 10) {
-                ForEach(0..<2, id: \.self) { r in
-                    GridRow {
-                        ForEach(LogType.buttons[(r * 5)..<min(LogType.buttons.count, r * 5 + 5)], id: \.self) { t in
-                            let run = timers.first { $0.type == t }
-                            Sticker(type: t, running: run != nil,
-                                    since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) }) { tap(t) }
-                        }
+            VStack(spacing: 10) {
+                HStack(alignment: .top, spacing: 4) {
+                    ForEach(often, id: \.self) { t in
+                        let run = timers.first { $0.type == t }
+                        Sticker(type: t, running: run != nil,
+                                since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { agoShort($0, tl.date) },
+                                size: often.count > 4 ? 50 : 56) { tap(t) }
                     }
                 }
+                Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1).padding(.horizontal, 6)
+                HStack(alignment: .top, spacing: 2) {
+                    ForEach(rarely, id: \.self) { t in SmallSticker(type: t) { tap(t) } }
+                }
             }
-            .padding(.vertical, 12).padding(.horizontal, 8)
+            .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
             .printCard(radius: 26)
         }
-        // five across must fit the narrowest phone: past the largest standard size the stickers stop growing and a
+        // one row must fit the narrowest phone: past the largest standard size the stickers stop growing and a
         // long press shows the large-content viewer instead
         .dynamicTypeSize(...DynamicTypeSize.xxxLarge)
     }
 }
 
+/// A sticker of the second tier: small, named, no time.
+private struct SmallSticker: View {
+    let type: String
+    let action: () -> Void
+    @State private var pops = 0
+    var body: some View {
+        let c = LogType.color(type)
+        Button { pops += 1; action() } label: {
+            VStack(spacing: 3) {
+                IconTile(symbol: LogType.symbol(type), color: c, size: 30, round: true)
+                    .phaseAnimator([1.0, 0.86, 1.0], trigger: pops) { v, k in v.scaleEffect(k, anchor: .bottom) } animation: { _ in .snappy(duration: 0.14) }
+                Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel(LogType.name(type))
+        .accessibilityHint(type == LogType.bath ? "点按即记下一次" : "")
+        .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
+    }
+}
+
 private struct Sticker: View {
     let type: String, running: Bool, since: String?
+    var size: CGFloat = 48
     let action: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var pops = 0
@@ -183,7 +215,7 @@ private struct Sticker: View {
         let on = !reduce
         Button { pops += 1; action() } label: {
             VStack(spacing: 4) {
-                IconTile(symbol: LogType.symbol(type), color: c, size: 48, round: true)
+                IconTile(symbol: LogType.symbol(type), color: c, size: size, round: true)
                     .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
                     // 3D: the sticker squashes into the page and springs back up, like a soft toy pressed
                     .keyframeAnimator(initialValue: CGFloat(1), trigger: pops) { v, k in
@@ -193,7 +225,7 @@ private struct Sticker: View {
                         SpringKeyframe(on ? 1.08 : 1, duration: 0.16, spring: .snappy)
                         SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                     }
-                Text(LogType.name(type)).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
+                Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
                 Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
@@ -291,7 +323,7 @@ private struct DayPage: View {
         let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .center, spacing: 12) {
-                Text("\(day.d)").font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .bold))
+                Text("\(day.d)").font(Typeface.numerals(36, relativeTo: .largeTitle, weight: .bold))
                 VStack(alignment: .leading, spacing: 0) {
                     Text("\(day.m)月 \(day.weekday)").font(.headline)
                     Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
