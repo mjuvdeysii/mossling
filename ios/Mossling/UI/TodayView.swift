@@ -208,6 +208,46 @@ private struct MonthCard: View {
 }
 
 /// The month's plays as picture cards: the one done least (the natural next one) leads, full width.
+/// Two to a row, each cell half the width (a lone last cell the whole width). Its ideal width is twice the widest
+/// cell's: inside ViewThatFits it is chosen only when every cell — every name — fits whole in its half.
+struct PairGrid: Layout {
+    var spacing: CGFloat = 10
+    private func widest(_ subviews: Subviews) -> CGFloat { subviews.map { $0.sizeThatFits(.unspecified).width }.max() ?? 0 }
+    private func cellWidths(_ n: Int, _ width: CGFloat) -> [CGFloat] {
+        let half: CGFloat = (width - spacing) / 2
+        return (0..<n).map { i in (i == n - 1 && n % 2 == 1) ? width : half }
+    }
+    private func rowHeights(_ subviews: Subviews, _ width: CGFloat) -> [CGFloat] {
+        let w = cellWidths(subviews.count, width)
+        var out: [CGFloat] = []
+        var i = 0
+        while i < subviews.count {
+            let pair: Bool = i + 1 < subviews.count
+            var h: CGFloat = subviews[i].sizeThatFits(ProposedViewSize(width: w[i], height: nil)).height
+            if pair { h = max(h, subviews[i + 1].sizeThatFits(ProposedViewSize(width: w[i + 1], height: nil)).height) }
+            out.append(h)
+            i += pair ? 2 : 1
+        }
+        return out
+    }
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let ideal: CGFloat = widest(subviews) * 2 + spacing
+        let width: CGFloat = proposal.width.map { $0.isFinite ? $0 : ideal } ?? ideal
+        let hs = rowHeights(subviews, width)
+        return CGSize(width: width, height: hs.reduce(0, +) + spacing * CGFloat(max(0, hs.count - 1)))
+    }
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let w = cellWidths(subviews.count, bounds.width), hs = rowHeights(subviews, bounds.width)
+        var y = bounds.minY, i = 0, r = 0
+        while i < subviews.count {
+            let pair = i + 1 < subviews.count
+            subviews[i].place(at: CGPoint(x: bounds.minX, y: y), proposal: ProposedViewSize(width: w[i], height: hs[r]))
+            if pair { subviews[i + 1].place(at: CGPoint(x: bounds.minX + w[i] + spacing, y: y), proposal: ProposedViewSize(width: w[i + 1], height: hs[r])) }
+            y += hs[r] + spacing; i += pair ? 2 : 1; r += 1
+        }
+    }
+}
+
 struct PlaysLeadGrid: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -227,7 +267,7 @@ struct PlaysLeadGrid: View {
             list
         } else {
             ViewThatFits(in: .horizontal) {
-                EvenRows(items: ordered, id: \.code, spacing: 10) { PlayTileLink(play: $0, month: month, form: .mini) }
+                PairGrid(spacing: 10) { ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .mini) } }
                 list
             }
         }

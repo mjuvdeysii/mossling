@@ -39,9 +39,22 @@ final class ScreenshotTests: XCTestCase {
                 sheet.drawHierarchy(in: sheet.convert(sheet.bounds, to: nil), afterScreenUpdates: true)
             } else { host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
         }
+        // an empty picture is a failed shot, not a pass (a page taller than the renderer's 8192-pixel limit draws nothing)
+        XCTAssertTrue(Self.drewSomething(img), "ios_\(name) came out empty")
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? img.pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios_\(name).png"))
         window.isHidden = true
+    }
+
+    /// Whether any of a grid of sample points is not fully transparent.
+    static func drewSomething(_ img: UIImage) -> Bool {
+        guard let cg = img.cgImage else { return false }
+        let w = 32, h = 32
+        var px = [UInt8](repeating: 0, count: w * h * 4)
+        guard let ctx = CGContext(data: &px, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4,
+                                  space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        ctx.draw(cg, in: CGRect(x: 0, y: 0, width: w, height: h))
+        return stride(from: 3, to: px.count, by: 4).contains { px[$0] > 0 }
     }
 
     private func at(_ h: Int, _ mi: Int) -> Double { ms(Day.cal.date(bySettingHour: h, minute: mi, second: 0, of: Day(y: 2026, m: 10, d: 19).date)!) }
@@ -333,7 +346,7 @@ final class ScreenshotTests: XCTestCase {
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
     // the largest everyday text size: nothing may run off the side or need sideways scrolling
     func test25BigTextHome() { let m = model(); shot("25_bigtext_home", height: 1800, settle: 3, tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
-    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 3000, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2700, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextYou() { let m = model(); shot("25_bigtext_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextTimer() { let m = model(); shot("25_bigtext_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2)) }
     // records on: the Now card (a feed is running in the test journal)

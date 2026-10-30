@@ -213,7 +213,7 @@ struct EntrySheet: View {
         if !whole { return entry == original.first ? true : j.update([entry]) }
         // the sides of one feed are written together: all or none, with one 撤销
         let changed: [LogEntry] = zip(current, original).filter { $0.0 != $0.1 }.map(\.0)
-        return changed.isEmpty ? true : j.update(changed)
+        return changed.isEmpty ? true : j.update(changed, feed: true)
     }
 
     var body: some View {

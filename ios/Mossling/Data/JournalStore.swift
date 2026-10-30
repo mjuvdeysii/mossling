@@ -109,20 +109,26 @@ final class JournalStore {
     func undo(_ t: Toast) {
         guard let b = t.restore else { return }
         // 已撤销 only when it is really back in the file
-        guard JournalFile.write(b) else { failed("撤销"); return }
+        guard JournalFile.write(b) else {
+            // not written: said so, and 撤销 stays on the toast to try again
+            reload()
+            toast = Toast(type: t.type, text: "没有撤销成功，点「撤销」再试一次", restore: b, failed: true)
+            onEvent?(.recordPersistFailure)
+            return
+        }
         changed(b)
         toast = Toast(type: t.type, text: "已撤销", restore: nil)
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
     @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } }
     /// Several entries changed at once (the sides of one feed): one write — all or none — said back with 撤销.
-    @discardableResult func update(_ es: [LogEntry]) -> Bool {
+    @discardableResult func update(_ es: [LogEntry], feed: Bool = false) -> Bool {
         guard let first = es.min(by: { $0.start < $1.start }) else { return true }
         let before = JournalFile.read()
         let ok = edit { b in
             for e in es { if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } }
         }
-        let what: String = es.count > 1 ? "已修改这一顿" + LogType.name(first.type) : "已修改 " + LogType.name(first.type)
+        let what: String = feed || es.count > 1 ? "已修改这一顿" + LogType.name(first.type) : "已修改 " + LogType.name(first.type)
         if ok { say(first.type, what + " · " + hm(first.startDate), undo: before) }
         return ok
     }
