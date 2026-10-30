@@ -526,18 +526,27 @@ struct BirthSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
+    /// Asked the first time only: whether to keep the day's records too (the 记录 tab), so a parent of a newborn has
+    /// the feeds, sleeps and nappies from the start rather than finding them later behind a switch.
+    @State private var first = false
+    @State private var records = true
     var body: some View {
         NavigationStack {
             Form {
                 DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                     .datePickerStyle(.graphical)
+                if first {
+                    Section {
+                        Toggle("也记录喂奶、睡眠、尿布", isOn: $records)
+                    } footer: { Text("打开后多一个「记录」页；以后在「我的」里随时可以开关。") }
+                }
             }
             .navigationTitle("出生日期").navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { app.birth = Day(date); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if first { app.journal = records }; app.birth = Day(date); dismiss() } }
             }
-            .onAppear { if let b = app.birth { date = b.date } }
+            .onAppear { if let b = app.birth { date = b.date }; first = !app.onboarded && app.birth == nil }
         }
         .presentationDetents([.large])
     }
