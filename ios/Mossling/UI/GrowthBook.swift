@@ -233,7 +233,7 @@ private struct BookPageView: View {
             if !facts.isEmpty {
                 EvenRows(items: facts, id: \.label, per: type.isAccessibilitySize ? 1 : 2) { f in FactChip(fact: f) }
                 if page.days > 0 {
-                    Text("照护为有记录的 \(page.days) 天的每日平均").font(.caption2).foregroundStyle(.tertiary).padding(.leading, 2)
+                    Text("照护：按有记录的 \(page.days) 天平均").font(.caption2).foregroundStyle(.tertiary).padding(.leading, 2)
                 }
             }
 
@@ -294,7 +294,7 @@ private struct BookPageView: View {
 
     private var facts: [Fact] {
         var f: [Fact] = []
-        if let w = page.measure?.weightG { f.append(Fact(symbol: "scalemass.fill", color: Crayon.leaf, value: String(format: "%.1f", Double(w) / 1000), unit: "千克", label: "体重")) }
+        if let w = page.measure?.weightG { f.append(Fact(symbol: "scalemass.fill", color: Crayon.leaf, value: String(format: "%.2f", Double(w) / 1000), unit: "千克", label: "体重")) }
         if let l = page.measure?.lengthMm { f.append(Fact(symbol: "ruler.fill", color: Crayon.aqua, value: String(format: "%.1f", Double(l) / 10), unit: "厘米", label: "身长")) }
         if let h = page.measure?.headMm { f.append(Fact(symbol: "circle.dashed", color: Crayon.sky, value: String(format: "%.1f", Double(h) / 10), unit: "厘米", label: "头围")) }
         if let s = page.sleepHours { f.append(Fact(symbol: LogType.symbol(LogType.sleep), color: LogType.color(LogType.sleep), value: String(format: "%.1f", s), unit: "小时", label: "每天睡眠")) }

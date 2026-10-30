@@ -128,7 +128,7 @@ struct TimerScreen: View {
 
     private var lastLine: String {
         guard let d = j.last(type) else { return "还没有记录" }
-        var s = "上次" + (type == LogType.sleep ? "醒来 " : "喂完 ") + ago(d)
+        var s = "上次" + (type == LogType.sleep ? "醒来 " : "喂奶 ") + agoShort(d)
         if type == LogType.nurse, let side = lastNurseSide { s += side == "l" ? " · 左侧" : " · 右侧" }
         return s
     }
@@ -320,7 +320,7 @@ private struct SidePad: View {
                     .padding(8)
                     .opacity(state == .other || isReady ? 0.55 : 1)
                 VStack(spacing: 2) {
-                    Text(side == "l" ? "L" : "R").font(Typeface.numerals(30, weight: .heavy))
+                    Text(side == "l" ? "左" : "右").font(Typeface.numerals(28, weight: .heavy))
                     Group {
                         if isReady { Text(side == "l" ? "左侧" : "右侧") }
                         else { Ticking(text: seconds >= 1 ? clock(seconds) : "—") }   // 余影: each second leaves an afterimage

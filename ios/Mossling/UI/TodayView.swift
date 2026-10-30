@@ -376,7 +376,9 @@ struct ShelfView: View {
 
     /// One material: its tray on a tile of its area's colour, and beside it what to know before starting.
     private func compartment(_ p: Play, first: Bool) -> some View {
-        let times = app.record(p, j).count, key = Palette.areaKey(of: p)
+        // the shelf counts this week, as its stones do (the total lives on the play's page and in the book)
+        let since = app.today.monday.date
+        let times = j.plays(p.code).filter { $0.startDate >= since }.count, key = Palette.areaKey(of: p)
         let big = size.isAccessibilitySize
         let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
         return NavigationLink(value: route(p)) {
@@ -485,7 +487,7 @@ private struct WeekStones: View {
                     SpringKeyframe(0, duration: 0.4, spring: .bouncy)
                 }
             }
-            Text("本周玩过 \(played)/\(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+            Text("本周玩过 \(played) / \(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
                 .padding(.leading, 2)
         }
         .sensoryFeedback(.increase, trigger: played)

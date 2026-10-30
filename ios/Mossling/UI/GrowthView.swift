@@ -103,7 +103,7 @@ struct GrowthView: View {
             }
             .chartXScale(domain: 0...span)
             .chartYScale(domain: yDomain(outer.map(\.lo) + pts.map(\.2), outer.map(\.hi) + pts.map(\.2)))
-            .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text("\(Int(d))月") } } } }
+            .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text("\(Int(d)) 个月") } } } }
             .chartYAxis { AxisMarks(position: .leading) }
             .chartOverlay { proxy in
                 GeometryReader { geo in
@@ -135,7 +135,7 @@ struct GrowthView: View {
     @ViewBuilder private func values(_ m: Measure) -> some View {
         ForEach(Indicator.allCases) { x in
             if let v = value(m, x) {
-                HStack(alignment: .firstTextBaseline, spacing: 2) { Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
+                HStack(alignment: .firstTextBaseline, spacing: 2) { Text(x.short).font(.caption2).foregroundStyle(Palette.secondaryText).padding(.trailing, 1); Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
                     .foregroundStyle(x == ind ? x.tint : .primary)
                     .fixedSize()
             }
@@ -224,10 +224,16 @@ struct StatsView: View {
         // the average is of whole days: today, still going, is left out (unless it is the only day there is)
         let had = data.filter { $0.1 > 0 && $0.0 != app.today }
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
-        return Card(title: t, symbol: LogType.symbol(type), color: LogType.color(type)) {
+        return Card(title: t + "（" + unit + "）", symbol: LogType.symbol(type), color: LogType.color(type)) {
             VStack(alignment: .leading, spacing: 0) {
                 // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
-                if had.isEmpty { Text("—").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)); Text("满一整天后显示平均").font(.caption2).foregroundStyle(Palette.secondaryText) }
+                // no whole day yet: today's own figure, said as today's, rather than a row of dashes
+                if had.isEmpty {
+                    let today = data.first { $0.0 == app.today }?.1 ?? 0
+                    let v = unit == "小时" || unit == "分钟" ? durationValue(today * (unit == "小时" ? 3600 : 60)) : String(format: "%.0f", today) + " " + unit
+                    Text("今天 " + v).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
+                    Text("满一整天后显示平均").font(.caption2).foregroundStyle(Palette.secondaryText)
+                }
                 else if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7) }
                 else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 22) }
             }

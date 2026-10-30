@@ -146,13 +146,13 @@ private struct LastMeasure: View {
         if let m, let w = m.weightG {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(String(format: "%.1f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
+                    Text(String(format: "%.2f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
                     Text("千克").font(.caption.weight(.semibold))
                     if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + " 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
                 }
                 .fixedSize()
                 let d = Date(timeIntervalSince1970: m.at / 1000)
-                Text("最近一次 " + d.formatted(.dateTime.month(.defaultDigits).day()) ).font(.caption2).foregroundStyle(Palette.secondaryText)
+                Text("最近一次 " + Day(d).md).font(.caption2).foregroundStyle(Palette.secondaryText)
             }
         } else {
             Text("还没有量过，点进去记下第一次").font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
@@ -261,7 +261,7 @@ private struct Sticker: View {
                         SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                     }
                 Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.7)
-                Ticking(text: running ? (since ?? "进行中") : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
+                Ticking(text: running ? "进行中" : since ?? "—", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
@@ -628,7 +628,7 @@ private struct Totals: View {
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
         let dirty = nappies.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map { $0.seconds(on: day) }.max() ?? 0
+        let longest = logs.filter { $0.type == LogType.sleep && $0.end != nil }.map { $0.activeSeconds }.max() ?? 0   // the whole sleep, as on its line
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {

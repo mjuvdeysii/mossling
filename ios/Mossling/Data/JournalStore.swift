@@ -139,7 +139,11 @@ final class JournalStore {
     }
     func replaceAll(_ body: JournalFile.Body) { JournalFile.write(body); changed(body) }
 
-    func last(_ type: String) -> Date? { logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate } }
+    /// When the last one was: a feed by when it began (feeds are counted start to start), anything else — a sleep
+    /// above all — by when it ended (when the baby woke).
+    func last(_ type: String) -> Date? {
+        logs.first { $0.type == type }.map { [LogType.nurse, LogType.bottle].contains(type) ? $0.startDate : ($0.endDate ?? $0.startDate) }
+    }
     /// The entries of a day: those that start on it, and those that run into it from the day before (a night's sleep
     /// belongs to both days, each counting its own part).
     func logs(on day: Day) -> [LogEntry] {
