@@ -14,6 +14,7 @@ struct DataView: View {
     @State private var message: String?
     @State private var confirmImport: URL?
     @State private var clearing = false
+    @State private var withdrawing = false
 
     enum Export: String, CaseIterable, Identifiable {
         case summary, backup, table
@@ -87,13 +88,22 @@ struct DataView: View {
                 Button(role: .destructive) { clearing = true } label: {
                     Text("清除全部数据").font(.body.weight(.semibold)).foregroundStyle(Palette.danger)
                 }
-            } footer: { Text("所有记录只保存在这台手机上。清除前可以先导出一份完整备份。") }
+                // 个人信息保护法 第15条: consent can be withdrawn as easily as it was given
+                if app.consented {
+                    Button(role: .destructive) { withdrawing = true } label: {
+                        Text("撤回同意").font(.body.weight(.semibold)).foregroundStyle(Palette.danger)
+                    }
+                }
+            } footer: { Text("所有记录只保存在这台手机上。清除会删除孩子资料、全部记录、设置，以及存在「导出」文件夹里的文件；已经发送到其他地方的文件不受影响。清除前可以先导出一份完整备份。撤回同意会同时清除以上全部数据，之后仍可浏览全部内容。") }
         }
         .scrollContentBackground(.hidden).pageBackground(tone: Crayon.lilac)
         .navigationTitle("数据").navigationBarTitleDisplayMode(.inline)
-        .confirmationDialog("清除这台手机上的全部记录和设置？", isPresented: $clearing, titleVisibility: .visible) {
+        .confirmationDialog("清除这台手机上的全部数据？", isPresented: $clearing, titleVisibility: .visible) {
             Button("全部清除", role: .destructive) { app.clearAll(); j.reload() }
-        } message: { Text("清除后无法恢复。") }
+        } message: { Text("包括孩子资料、全部记录、设置和「导出」文件夹里的文件。清除后无法恢复。") }
+        .confirmationDialog("撤回同意，并清除这台手机上的全部数据？", isPresented: $withdrawing, titleVisibility: .visible) {
+            Button("撤回并清除", role: .destructive) { app.clearAll(); app.consent = "declined"; app.onboarded = true; j.reload() }
+        } message: { Text("撤回后不再保存孩子的信息，已保存的会全部删除，无法恢复；仍可浏览全部玩法和月龄内容。以后需要时，可以再次选择同意。") }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
             if case let .success(url) = r { confirmImport = url }
         }

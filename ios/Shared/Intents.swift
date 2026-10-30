@@ -52,17 +52,3 @@ struct TimerIntent: LiveActivityIntent {
     }
 }
 
-/// A one-tap entry from the widget (a nappy).
-struct QuickLogIntent: AppIntent {
-    static var title: LocalizedStringResource = "记一笔"
-    static var isDiscoverable = false
-    @Parameter(title: "类型") var type: String
-    @Parameter(title: "详情") var detail: String
-    init() {}
-    init(type: String, detail: String) { self.type = type; self.detail = detail }
-    func perform() async throws -> some IntentResult {
-        JournalFile.add(LogEntry(type: type, start: JournalFile.now(), detail: detail.isEmpty ? nil : detail))
-        WidgetCenter.shared.reloadAllTimelines()
-        return .result()
-    }
-}

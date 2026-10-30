@@ -5,6 +5,7 @@ import SwiftUI
 /// page, TimerScreen.)
 struct AskSheet: View {
     @Environment(JournalStore.self) private var j
+    @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
     let type: String
@@ -98,9 +99,10 @@ struct AskSheet: View {
                     ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
                         .foregroundStyle(temp >= 380 ? Palette.danger : lamp ? Palette.lampInk : .primary)
                     Text("点按或上下拖动体温计").font(.footnote).foregroundStyle(Palette.secondaryText)
-                    // a fever is not only a red number: what to do is said under it (from the topic 什么时候要找医生)
+                    // a fever is not only a red number: what to do is said under it, in the sourced words of 发热就医
+                    // (AAP, checked 2026-10-17), and the doctor has the last word
                     if temp >= 380 {
-                        Text("达到 38 °C：未满 3 个月请尽快联系医生；其他情况可看专题「什么时候要找医生」。")
+                        Text((app.content.health.first { $0.topic == "发热就医" }?.text ?? "未满3个月体温达到或超过38.0°C，应立即联系医生或就医。") + "以医生的判断为准。")
                             .font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
                             .fixedSize(horizontal: false, vertical: true)
                     }

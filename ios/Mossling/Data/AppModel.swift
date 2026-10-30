@@ -88,7 +88,9 @@ final class AppModel {
     func ticked(_ m: Int, _ kind: String, _ id: String) -> Bool { ticks[tickKey(m, kind, id)] != nil }
     func toggle(_ m: Int, _ kind: String, _ id: String, _ label: String) {
         let k = tickKey(m, kind, id)
-        if ticks[k] != nil { ticks[k] = nil } else { ticks[k] = Tick(key: k, month: m, kind: kind, label: label, at: Date().timeIntervalSince1970 * 1000) }
+        // a tick is the child's own record (a vaccine given, a check-up done, a milestone seen): kept only with consent;
+        // taking one off is always allowed
+        if ticks[k] != nil { ticks[k] = nil } else if !mayKeep() { return } else { ticks[k] = Tick(key: k, month: m, kind: kind, label: label, at: Date().timeIntervalSince1970 * 1000) }
     }
     func count(_ m: Int, _ kind: String) -> Int { ticks.values.filter { $0.month == m && $0.kind == kind }.count }
 
@@ -126,8 +128,17 @@ final class AppModel {
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(today.epochDay)" }
 
     func clearAll() {
-        for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent"] { d.removeObject(forKey: k) }
+        for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
+                  "artStyle", "nightLight", "mapSeenMonth"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
+        // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
+        // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil))
+        WidgetCenter.shared.reloadAllTimelines()
+        let fm = FileManager.default
+        try? fm.removeItem(at: DataView.exportFolder)
+        try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
+        Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
     }

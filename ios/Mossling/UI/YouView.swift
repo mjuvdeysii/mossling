@@ -451,8 +451,10 @@ struct AboutView: View {
                     Label { Text("重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
                 }
                 .tint(.primary).disabled(replay)
-                Link(destination: Owner.contactURL) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
-                    .tint(.primary)
+                if let url = Owner.contactURL {
+                    Link(destination: url) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
+                        .tint(.primary)
+                }
             } header: { Text("帮助") } footer: {
                 // the page's small print lives where it belongs (who made it → 许可与致谢; where the content comes from →
                 // 内容来源; that it is not medical advice → 免责声明 and the first launch); here only what answers a tap
@@ -683,24 +685,22 @@ enum Biometry {
 }
 
 /// Who stands behind the app, from the build settings (MOSSLING_DEVELOPER, MOSSLING_EMAIL): named in the documents
-/// and reached by 反馈问题. Until they are set, the developer line is left out and the contact is the project's
-/// issue page — never a placeholder shown to a parent.
+/// and reached by 反馈问题. Until they are set, the documents point to what every App Store page has — the
+/// developer's name and its 「App 支持」 link — never a placeholder, and never a site that needs an account.
 enum Owner {
     private static func value(_ key: String) -> String {
         (Bundle.main.infoDictionary?[key] as? String ?? "").trimmingCharacters(in: .whitespaces)
     }
     static var developer: String { value("MosslingDeveloper") }
     static var email: String { value("MosslingEmail") }
-    static let issues = "https://github.com/mjuvdeysii/mossling/issues"
     /// How to reach the developer, as the documents say it.
-    static var contact: String { email.isEmpty ? "本应用项目主页 " + issues : "电子邮件 " + email }
-    static var contactURL: URL { URL(string: email.isEmpty ? issues : "mailto:" + email) ?? URL(string: issues)! }
-    /// A document with the developer and the contact put in; a line naming the developer is left out until there is one.
+    static var contact: String { email.isEmpty ? "本应用 App Store 页面上的「App 支持」链接" : "电子邮件 " + email }
+    /// 反馈问题 opens mail; with no address yet there is no button (the documents name the App Store page instead).
+    static var contactURL: URL? { email.isEmpty ? nil : URL(string: "mailto:" + email) }
+    static var developerName: String { developer.isEmpty ? "本应用 App Store 页面上显示的开发者" : developer }
+    /// A document with the developer and the contact put in.
     static func fill(_ text: String) -> String {
-        text.components(separatedBy: "\n")
-            .filter { !($0.contains("{{DEVELOPER}}") && developer.isEmpty) }
-            .map { $0.replacingOccurrences(of: "{{DEVELOPER}}", with: developer).replacingOccurrences(of: "{{CONTACT}}", with: contact) }
-            .joined(separator: "\n")
+        text.replacingOccurrences(of: "{{DEVELOPER}}", with: developerName).replacingOccurrences(of: "{{CONTACT}}", with: contact)
     }
 }
 
