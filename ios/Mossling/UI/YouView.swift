@@ -382,15 +382,24 @@ struct ProfileSheet: View {
     var body: some View {
         NavigationStack {
             Form {
+                // the child's own portrait at the head of the sheet, as on 我的
                 Section {
-                    TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) }))
+                    HStack { Spacer(); BabyPortrait(month: app.babyMonth ?? 0, sex: app.sex, giggle: 0).frame(width: 92, height: 92); Spacer() }
+                        .listRowBackground(Color.clear)
+                }
+                Section {
+                    LabeledContent("小名") {
+                        TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
+                    }
                     DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                         .onChange(of: date) { _, _ in hasBirth = true }
                     Picker("性别", selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
                         Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
                     }
-                } footer: { Text("性别只用于选择 WHO 生长曲线。") }
+                } footer: { Text("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。") }
             }
+            .scrollContentBackground(.hidden)
+            .pageBackground(tone: Crayon.lilac)
             .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
             .onAppear { if let b = app.birth { date = b.date } }
