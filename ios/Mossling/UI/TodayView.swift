@@ -65,13 +65,14 @@ private struct DueCard: View {
         let mo = app.content.month(month)
         let total = mo.vaccines.count + mo.checkups.count
         let done = app.count(month, TickKind.vaccine) + app.count(month, TickKind.checkup)
-        if total > done {
+        let earlier = app.duePending(before: month).count
+        if total > done || earlier > 0 {
             NavigationLink(value: Route.care(month)) {
                 HStack(spacing: 12) {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
                     VStack(alignment: .leading, spacing: 1) {
                         Text("这个月的接种与儿保").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                        Text("还有 \(total - done) 项 · 共 \(total) 项").font(.caption).foregroundStyle(Crayon.ink(Crayon.pink)).monospacedDigit()
+                        Text("还有 \(total - done + earlier) 项" + (earlier > 0 ? "（含之前没勾的 \(earlier) 项）" : " · 共 \(total) 项")).font(.caption).foregroundStyle(Crayon.ink(Crayon.pink)).monospacedDigit()
                     }
                     Spacer(minLength: 0)
                     Ring(done: done, total: total, color: Crayon.pink, size: 22)

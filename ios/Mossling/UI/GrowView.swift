@@ -296,6 +296,26 @@ struct AreasView: View {
 }
 
 /// The month's vaccinations and check-ups, to tick off.
+/// A vaccine or check-up not yet ticked, and the month it belongs to.
+struct DueItem { let month: Int; let kind: String; let key: String; let text: String }
+
+extension AppModel {
+    /// The vaccines and check-ups of `month` not yet ticked.
+    func duePending(in month: Int) -> [DueItem] {
+        guard month >= 0 else { return [] }
+        let mo = content.month(month)
+        let v = mo.vaccines.enumerated().map { DueItem(month: month, kind: TickKind.vaccine, key: "\($0.offset)", text: $0.element) }
+        let c = mo.checkups.enumerated().map { DueItem(month: month, kind: TickKind.checkup, key: "\($0.offset)", text: $0.element) }
+        return (v + c).filter { !ticked(month, $0.kind, $0.key) }
+    }
+    /// What the two months before `month` left unticked (further back is history, not a reminder).
+    func duePending(before month: Int) -> [DueItem] {
+        guard month > 0 else { return [] }
+        let months = (max(0, month - 2)..<month).filter { k in content.months.contains { $0.month == k } }
+        return months.flatMap { duePending(in: $0) }
+    }
+}
+
 struct CareView: View {
     @Environment(AppModel.self) private var app
     let month: Int
@@ -314,6 +334,16 @@ struct CareView: View {
                     Box(title: "儿童保健") {
                         ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
                             CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
+                        }
+                    }
+                }
+                // what the two months before left unticked, so nothing falls away when the month turns; ticked here,
+                // it is kept under its own month
+                let earlier = app.duePending(before: m)
+                if !earlier.isEmpty {
+                    Box(title: "之前没勾的") {
+                        ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
+                            CheckRow(text: d.text + " · 满 \(d.month) 个月", on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
                         }
                     }
                 }
