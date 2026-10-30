@@ -99,17 +99,19 @@ struct MonthPoints: View {
         let points = mo.highlights.filter { c.play($0.anchor ?? "") == nil }
         if !points.isEmpty {
             let shut = folded && !open
-            Button { if folded { withAnimation(.snappy) { open.toggle() } } } label: {
-                Box {
-                    ForEach(Array(points.enumerated()), id: \.offset) { i, h in
-                        let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
-                        BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1) { EmptyView() }
-                    }
+            let box = Box {
+                ForEach(Array(points.enumerated()), id: \.offset) { i, h in
+                    let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
+                    BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1)
                 }
             }
-            .buttonStyle(.plain)
-            .disabled(!folded)
-            .accessibilityHint(folded ? (open ? "收起" : "展开全文") : "")
+            if folded {
+                Button { withAnimation(.snappy) { open.toggle() } } label: { box }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(open ? "收起" : "展开全文")
+            } else {
+                box
+            }
         }
     }
 }

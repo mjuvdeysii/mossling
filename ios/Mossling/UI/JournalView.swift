@@ -13,6 +13,7 @@ struct JournalView: View {
     @Environment(\.scenePhase) private var phase
     @State private var leftAt: Date?
     @State private var pickingDay = false
+    @State private var opened = false
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
     @State private var newFirst: First?
@@ -77,6 +78,7 @@ struct JournalView: View {
         // the day chosen stays chosen across the stats, the growth curve and the other tabs; it goes back to today
         // when the date turns, or when the app comes back after a while away (half an hour)
         .onChange(of: app.today) { _, t in day = t }
+        .onAppear { if !opened { day = app.today; opened = true } }   // the first time only
         .onChange(of: phase) { _, p in
             if p == .background { leftAt = Date() }
             if p == .active, let l = leftAt, Date().timeIntervalSince(l) > 1800 { day = app.today; leftAt = nil }
