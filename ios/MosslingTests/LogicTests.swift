@@ -436,4 +436,40 @@ final class LogicTests: XCTestCase {
         // a week that suits the month (one brought by a record file) stays as it is
         XCTAssertNil(Shelf.roll(c, 6, stored: old, today: d, fresh: true))
     }
+
+    func testANewBirthDateKeepsWhatSuitsAndTurnsAnOldWeek() throws {
+        let c = try Content.load()
+        let d = Day(y: 2026, m: 10, d: 21)
+        // A15 (6–18) suits 13 months; A11 (6–12) and A09 (4–12) do not: A15 stays, two others join it
+        let mixed = try XCTUnwrap(Shelf.roll(c, 13, stored: Shelf.format(d, ["A11", "A09", "A15"]), today: d, fresh: true))
+        let codes = try XCTUnwrap(Shelf.parse(mixed)).codes
+        XCTAssertTrue(codes.contains("A15")); XCTAssertEqual(codes.count, 3)
+        XCTAssertTrue(codes.compactMap { c.play($0) }.allSatisfy { $0.from <= 13 && 13 <= $0.to })
+        // a week that suits but is last week's turns into this week's
+        let last = Shelf.format(d.plus(days: -7), ["A11", "A09", "A15"])
+        let turned = try XCTUnwrap(Shelf.roll(c, 6, stored: last, today: d, fresh: true))
+        XCTAssertEqual(Shelf.parse(turned)?.week, d.monday)
+    }
+
+    func testDurationsKeepTheirUnits() {
+        let s = labeled("距上一顿", "3 小时 30 分")
+        // the only ordinary space is between the two pairs
+        XCTAssertEqual(s.filter { $0 == " " }.count, 1)
+        XCTAssertTrue(s.contains("\u{2060}"))
+        XCTAssertEqual(s.replacingOccurrences(of: "\u{2060}", with: "").replacingOccurrences(of: "\u{00A0}", with: " "), "距上一顿 3 小时 30 分")
+    }
+
+    func testAFailedUndoSaysSo() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let j = JournalStore(preview: JournalFile.Body())
+        XCTAssertTrue(j.record(LogEntry(type: LogType.diaper, start: 1_760_000_000_000, detail: "wet")))
+        let t = try XCTUnwrap(j.toast)
+        JournalFile.failWrites = true
+        j.undo(t)
+        XCTAssertEqual(j.toast?.failed, true)
+        XCTAssertFalse(j.toast?.text.contains("已撤销") ?? true)
+        XCTAssertEqual(j.logs.count, 1, "the entry is still there, as the file says")
+        // a measurement that cannot be saved says false (the sheet stays open)
+        XCTAssertFalse(j.saveMeasure(Measure(at: 1_760_000_000_000, weightG: 7400, lengthMm: nil, headMm: nil)))
+    }
 }

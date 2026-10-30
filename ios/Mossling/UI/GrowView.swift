@@ -432,8 +432,9 @@ struct PlayTile: View {
                             IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 14)
                             Text(play.domains.first ?? "").font(.caption2.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
                         }
-                        Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                            .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        // the name on one line: a grid that cannot hold every name whole gives way to a list
+                        // (PlaysLeadGrid), never a name cut in the middle of a word
+                        Text(play.name).font(.footnote.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
                         Text(play.age).font(.caption2).foregroundStyle(Palette.secondaryText)
                     }
                     Spacer(minLength: 0)

@@ -209,7 +209,8 @@ struct EntrySheet: View {
     private func choose(_ i: Int) { var p = parts; p[sel] = entry; parts = p; sel = i; entry = p[i] }
     private func save() -> Bool {
         if isNew { return j.record(entry) }
-        if !whole { return j.update(entry) }
+        // nothing changed: nothing written, nothing said
+        if !whole { return entry == original.first ? true : j.update([entry]) }
         // the sides of one feed are written together: all or none, with one 撤销
         let changed: [LogEntry] = zip(current, original).filter { $0.0 != $0.1 }.map(\.0)
         return changed.isEmpty ? true : j.update(changed)
@@ -349,6 +350,7 @@ struct MeasureSheet: View {
     @State private var w = ""
     @State private var l = ""
     @State private var h = ""
+    @State private var failed = false
 
     var body: some View {
         // a weight typed in grams (7850) is read as grams and said so; anything else out of range is said under its field
@@ -358,6 +360,7 @@ struct MeasureSheet: View {
         let hm = Double(h).flatMap { (25...60).contains($0) ? Int(($0 * 10).rounded()) : nil }
         NavigationStack {
             Form {
+                if failed { Section { SaveFailed() } }
                 DatePicker("日期", selection: $day, in: ...Date(), displayedComponents: .date)
                 Section { field("体重", "千克", $w, "scalemass.fill", Indicator.weight) } footer: {
                     note(w, ok: wg != nil, base: "精确到 0.01 千克，如 7.85", bad: "体重请在 1–30 千克之间",
@@ -375,7 +378,7 @@ struct MeasureSheet: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("完成", systemImage: "checkmark") {
                         var m = measure; m.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day); m.weightG = wg; m.lengthMm = lm; m.headMm = hm
-                        j.saveMeasure(m); dismiss()
+                        if j.saveMeasure(m) { dismiss() } else { failed = true }
                     }
                     .disabled(wg == nil && lm == nil && hm == nil)
                 }

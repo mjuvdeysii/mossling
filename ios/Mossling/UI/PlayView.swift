@@ -80,7 +80,7 @@ struct PlayView: View {
         // the screen stays on while a step is open (the phone lies on the floor), and may sleep once they are done
         .onChange(of: open) { _, o in keepAwake(o < play.steps.count) }
         // a time taken back (撤销): the finished card goes and the last step opens again, to be finished anew
-        .onChange(of: rec.count) { old, new in countChanged(old, new) }
+        .onChange(of: j.plays(play.code).count) { old, new in countChanged(old, new) }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

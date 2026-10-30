@@ -472,7 +472,7 @@ private struct FocusLine: View {
             var s = "只看喂奶 · \(logs.feedCount(from: d0)) 次"
             if starts.count >= 2 {
                 let gaps = zip(starts.dropFirst(), starts).map { ($0 - $1) / 1000 }
-                s += " · 平均间隔 " + keepUnits(durationValue(gaps.reduce(0, +) / Double(gaps.count)))
+                s += " · " + labeled("平均间隔", durationValue(gaps.reduce(0, +) / Double(gaps.count)))
             }
             return s
         case LogType.sleep:
@@ -731,11 +731,18 @@ func keepUnits(_ s: String) -> String {
     var pairs: [String] = []
     var i = 0
     while i < t.count {
-        if i + 1 < t.count { pairs.append(t[i] + "\u{00A0}" + t[i + 1]) } else { pairs.append(t[i]) }
+        if i + 1 < t.count { pairs.append(glue(t[i] + "\u{00A0}" + t[i + 1])) } else { pairs.append(glue(t[i])) }
         i += 2
     }
     return pairs.joined(separator: " ")
 }
+
+/// A run of text that never breaks inside (Chinese may otherwise break between any two characters).
+func glue(_ s: String) -> String { s.map(String.init).joined(separator: "\u{2060}") }
+
+/// 「距上一顿 3 小时 30 分」: the label stays with the first number, each number with its unit; a line may break only
+/// between "3 小时" and "30 分".
+func labeled(_ label: String, _ duration: String) -> String { glue(label) + "\u{00A0}" + keepUnits(duration) }
 
 func unbroken(_ s: String) -> String {
     guard s.count <= 14 else { return s }
@@ -882,7 +889,7 @@ private struct GapRow: View {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
                 .frame(width: 28, height: 28)
-            Text("相隔 " + keepUnits(durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            Text(labeled("相隔", durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -913,7 +920,7 @@ private struct TimelineRow: View {
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
-        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + keepUnits(durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
+        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { labeled("距上一顿", durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: " · ").components(separatedBy: " · ").filter { !$0.isEmpty }
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {

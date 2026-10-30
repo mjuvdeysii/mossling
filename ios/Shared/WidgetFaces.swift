@@ -115,12 +115,13 @@ struct TodayFace: View {
         }
     }
 
-    /// Today's play: its tray from the shelf and its name — the picture first.
+    /// Today's play (今天一起玩): its tray and its name — the picture first.
     @ViewBuilder private var play: some View {
         if let code = snap?.playCode, let name = snap?.playName {
-            HStack(alignment: .center, spacing: 8) {
+            // the tray, and under it the name on one line across the column (never broken mid-word)
+            VStack(alignment: .leading, spacing: 4) {
                 ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
-                Text(name).font(.footnote.weight(.semibold)).lineLimit(2).minimumScaleFactor(0.85)
+                Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
             }
         }
     }

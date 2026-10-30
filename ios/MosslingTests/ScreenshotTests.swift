@@ -238,11 +238,11 @@ final class ScreenshotTests: XCTestCase {
     /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
     /// asks for. The five screens a parent meets first.
     func test35StoreScreens() {
-        // the same morning whenever CI runs: the clock read in a time zone where it is about 10:30 now, so the last
+        // the same morning whenever CI runs: the clock read in a time zone where it is 11:00 now (the night sleep from 00:30), so the last
         // hours' records never cross midnight and the home says the same thing every time
         defer { Day.testZone = nil }
         let utc: Int = Int(Date().timeIntervalSince1970) % 86_400
-        var offset: Int = (10 * 3600 + 1800 - utc) % 86_400
+        var offset: Int = (11 * 3600 - utc) % 86_400
         if offset > 14 * 3600 { offset -= 86_400 }
         if offset < -12 * 3600 { offset += 86_400 }
         Day.testZone = TimeZone(secondsFromGMT: offset)
@@ -328,12 +328,12 @@ final class ScreenshotTests: XCTestCase {
         shot("36_growth_book_dark", dark: true, height: 1400, NavigationStack { GrowthBookView() }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
     }
     func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }
-    func test17Stats() { let m = model(); shot("17_stats", height: 900, tabs(m, StatsView())) }
+    func test17Stats() { let m = model(); shot("17_stats", height: 1700, tabs(m, StatsView())) }
     func test18Ask() { let m = model(); shot("18_ask_bottle", tabs(m, AskSheet(type: LogType.bottle))) }
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
     // the largest everyday text size: nothing may run off the side or need sideways scrolling
     func test25BigTextHome() { let m = model(); shot("25_bigtext_home", height: 1800, settle: 3, tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
-    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2200, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 3000, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextYou() { let m = model(); shot("25_bigtext_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextTimer() { let m = model(); shot("25_bigtext_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2)) }
     // records on: the Now card (a feed is running in the test journal)

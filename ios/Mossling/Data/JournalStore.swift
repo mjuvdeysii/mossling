@@ -87,7 +87,9 @@ final class JournalStore {
     /// Drops a running timer; said back with 撤销, like every change that loses something.
     func discard(_ type: String) {
         let before = JournalFile.read()
-        changed(JournalFile.discard(type)); onEvent?(.timerEnded)
+        // said only once it is really dropped (a failed save says so, with nothing to take back)
+        guard edit({ $0.timers.removeAll { $0.type == type } }) else { return }
+        onEvent?(.timerEnded)
         say(type, "没有记这一次" + LogType.name(type), undo: before)
     }
 
@@ -106,7 +108,9 @@ final class JournalStore {
     /// Takes back what the toast describes: the journal as it was just before.
     func undo(_ t: Toast) {
         guard let b = t.restore else { return }
-        JournalFile.write(b); changed(b)
+        // 已撤销 only when it is really back in the file
+        guard JournalFile.write(b) else { failed("撤销"); return }
+        changed(b)
         toast = Toast(type: t.type, text: "已撤销", restore: nil)
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
@@ -118,7 +122,8 @@ final class JournalStore {
         let ok = edit { b in
             for e in es { if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } }
         }
-        if ok { say(first.type, "已修改这一顿" + LogType.name(first.type) + " · " + hm(first.startDate), undo: before) }
+        let what: String = es.count > 1 ? "已修改这一顿" + LogType.name(first.type) : "已修改 " + LogType.name(first.type)
+        if ok { say(first.type, what + " · " + hm(first.startDate), undo: before) }
         return ok
     }
     /// Deleting is one tap (no confirmation to tap through at night): it is said back with 撤销 instead.
@@ -135,7 +140,13 @@ final class JournalStore {
         guard edit({ $0.logs.removeAll { ids.contains($0.id) } }) else { return }
         say(e.type, "已删除这一顿" + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
     }
-    func saveMeasure(_ m: Measure) { edit { b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } } }
+    /// Keeps a measurement and says so, with 撤销; false when it could not be saved (the sheet keeps what was typed).
+    @discardableResult func saveMeasure(_ m: Measure) -> Bool {
+        let before = JournalFile.read()
+        guard edit({ b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } }) else { return false }
+        say(LogType.growth, "已记下测量 · " + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+        return true
+    }
     func deleteMeasure(_ m: Measure) {
         let before = JournalFile.read()
         guard edit({ $0.measures.removeAll { $0.id == m.id } }) else { return }

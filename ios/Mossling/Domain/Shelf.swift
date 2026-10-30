@@ -40,7 +40,11 @@ enum Shelf {
         if fresh, let st = parse(stored) {
             let codes = st.codes.filter { c.play($0) != nil }
             let fit = codes.filter { code in c.play(code).map { $0.from <= m && m <= $0.to } ?? false }
-            if !codes.isEmpty && fit.count == codes.count { return nil }
+            // a week that suits the month stays — if it is this week's; last week's turns as any other
+            if !codes.isEmpty && fit.count == codes.count {
+                if st.week == today.monday { return nil }
+                return format(today, suggest(c, m, last: codes, played: played))
+            }
             let more = suggest(c, m, last: [], played: played).filter { !fit.contains($0) }
             return format(today, fit + more.prefix(Swift.max(0, 3 - fit.count)))
         }

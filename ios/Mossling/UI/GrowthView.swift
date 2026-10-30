@@ -225,18 +225,7 @@ struct StatsView: View {
         let had = data.filter { $0.1 > 0 && $0.0 != app.today }
         let avg = had.isEmpty ? 0 : had.map(\.1).reduce(0, +) / Double(had.count)
         return Card(title: t + "（" + unit + "）", symbol: LogType.symbol(type), color: LogType.color(type)) {
-            VStack(alignment: .leading, spacing: 0) {
-                // sleep as a length of time ("13 小时 20 分"), counts as whole numbers
-                // no whole day yet: today's own figure, said as today's, rather than a row of dashes
-                if had.isEmpty {
-                    let today = data.first { $0.0 == app.today }?.1 ?? 0
-                    let v = unit == "小时" || unit == "分钟" ? durationValue(today * (unit == "小时" ? 3600 : 60)) : String(format: "%.0f", today) + " " + unit
-                    Text("今天 " + v).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
-                    Text("满一整天后显示平均").font(.caption2).foregroundStyle(Palette.secondaryText)
-                }
-                else if unit == "小时" || unit == "分钟" { Text(durationValue(avg * (unit == "小时" ? 3600 : 60))).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).lineLimit(1).minimumScaleFactor(0.7) }
-                else { ValueText(parts: [(String(format: "%.0f", avg), unit)], size: 22) }
-            }
+            StatHead(unit: unit, avg: avg, days: had.count, today: data.first { $0.0 == app.today }?.1 ?? 0)
             Chart(data, id: \.0) { d in
                 BarMark(x: .value("日", d.0 == app.today ? "今天" : "\(d.0.m)/\(d.0.d)"), y: .value(t, d.1))
                     .foregroundStyle(LogType.color(type).opacity(d.0 == app.today ? 1 : 0.55).gradient).cornerRadius(4)
@@ -254,6 +243,33 @@ struct StatsView: View {
                 }
             }
             .frame(height: 98)
+        }
+    }
+}
+
+/// A week's card head: the conclusion first — 「日均 2 小时」 over the whole days that have records (how many, said
+/// under it) — and today's own figure beside it, never in its place. With no whole day yet, today's figure alone.
+private struct StatHead: View {
+    let unit: String
+    let avg: Double
+    let days: Int
+    let today: Double
+    private var isTime: Bool { unit == "小时" || unit == "分钟" }
+    private func value(_ v: Double) -> String {
+        if isTime { return durationValue(v * (unit == "小时" ? 3600 : 60)) }
+        return String(format: "%.0f", v) + " " + unit
+    }
+    var body: some View {
+        VStack(alignment: .leading, spacing: 1) {
+            if days == 0 {
+                Text("今天 " + value(today)).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
+                Text("满一整天后显示日均").font(.caption2).foregroundStyle(Palette.secondaryText)
+            } else {
+                Text("日均 " + value(avg)).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+                Text("按有记录的 \(days) 天" + (today > 0 ? " · 今天 " + value(today) : ""))
+                    .font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            }
         }
     }
 }

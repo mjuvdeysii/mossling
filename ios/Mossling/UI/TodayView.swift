@@ -34,13 +34,10 @@ struct TodayView: View {
                         if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
                     }
                 }
-                if app.age != nil {
-                    TipView(shelfTip)
-                    TodayPlayCard(month: baby) { arranging = true }
-                } else {
-                    // before the birth date is known there is no week yet: the first month's plays, to look at
-                    PlaysGrid(month: baby, hideShelf: false)
-                }
+                if app.age != nil { TipView(shelfTip) }
+                // before the birth date is known too: the same 今天一起玩, from the first month's plays (the week is
+                // chosen anew for the child's month once the date is given)
+                TodayPlayCard(month: baby) { arranging = true }
                 if baby >= 36 { StoryGoesOn(primary: app.companion) }
                 HomeFooter { path.append(Route.story) }
             }
@@ -223,35 +220,20 @@ struct PlaysLeadGrid: View {
             return x != y ? x < y : a.offset < b.offset
         }.map(\.element)
         // two to a row, all alike (no full-width lead picture): a month's plays read in one screen
+        // two to a row when every name fits whole on its line; otherwise one under the other (a Chinese name broken
+        // in the middle of a word reads wrong, and the phone's width decides, not the content)
+        let list = VStack(spacing: 10) { ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .row) } }
         if type.isAccessibilitySize {
-            VStack(spacing: 10) { ForEach(ordered) { PlayTileLink(play: $0, month: month, form: .row) } }
+            list
         } else {
-            EvenRows(items: ordered, id: \.code, spacing: 10) { PlayTileLink(play: $0, month: month, form: .mini) }
-        }
-    }
-}
-
-/// The month's plays as picture cards, two by two; this month's shelf is shown above, so its plays are not repeated.
-private struct PlaysGrid: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
-    let month: Int
-    let hideShelf: Bool
-    var body: some View {
-        let shelf = hideShelf ? app.weekShelf(month).plays.map(\.code) : []
-        let plays = app.content.plays(of: month).filter { !shelf.contains($0.code) }
-        if !plays.isEmpty {
-            VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的活动", detail: "\(plays.count) 个")
-                if plays.count <= 2 || type.isAccessibilitySize {
-                    VStack(spacing: 10) { ForEach(plays) { PlayTileLink(play: $0, month: month, form: .row) } }
-                } else {
-                    EvenRows(items: plays, id: \.code, spacing: 12) { PlayTileLink(play: $0, month: month) }
-                }
+            ViewThatFits(in: .horizontal) {
+                EvenRows(items: ordered, id: \.code, spacing: 10) { PlayTileLink(play: $0, month: month, form: .mini) }
+                list
             }
         }
     }
 }
+
 
 /// The topics' marks: all five are care topics, so one colour (the care area's), told apart by their symbols.
 let topicMarks: [(String, Color)] = ["moon.zzz.fill", "bed.double.fill", "fork.knife", "mouth.fill", "cross.case.fill"].map { ($0, Palette.area("F")) }
