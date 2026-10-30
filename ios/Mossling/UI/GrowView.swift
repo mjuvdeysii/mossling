@@ -273,7 +273,9 @@ struct AreasView: View {
         let mo = app.content.month(month)
         ScrollView {
             VStack(spacing: 12) {
-                ForEach(Array(mo.domains.enumerated()), id: \.offset) { _, d in
+                // the month's focus first, then the rest in their usual order
+                let ordered = mo.domains.filter { $0.key == mo.focus } + mo.domains.filter { $0.key != mo.focus }
+                ForEach(Array(ordered.enumerated()), id: \.offset) { _, d in
                     Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), detail: d.key == mo.focus ? "本月重点" : nil) {
                         Text(rich(d.text)).font(.body).fixedSize(horizontal: false, vertical: true)
                     }

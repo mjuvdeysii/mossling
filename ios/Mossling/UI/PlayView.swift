@@ -16,7 +16,8 @@ struct PlayView: View {
     @State private var cheer = 0
     @State private var open = 0
     @State private var before = false
-    @State private var during = false
+    /// What to watch for and when to stop is safety: open from the start, not folded away.
+    @State private var during = true
 
     var body: some View {
         let rec = app.record(play, j)
