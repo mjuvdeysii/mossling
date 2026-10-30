@@ -19,8 +19,8 @@ enum Guide {
 
 /// 本月 · this week's shelf.
 struct ShelfTip: Tip {
-    var title: Text { Text("本周的教具") }
-    var message: Text? { Text("点开一件，跟着图一步步和孩子玩，做完最后一步会自动记一次。点月份卡可以看这个月的全部内容，也能翻到其他月份；「整理」可以换成别的教具。") }
+    var title: Text { Text("今天一起玩") }
+    var message: Text? { Text("点开跟着图一步步玩，做完最后一步会自动记一次。「换一个」在这周的几个活动里换；「调整」可以换这周的活动。点月份卡看这个月的全部内容。") }
     var image: Image? { Image(systemName: "hand.tap") }
 }
 

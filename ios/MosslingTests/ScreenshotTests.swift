@@ -148,7 +148,36 @@ final class ScreenshotTests: XCTestCase {
     func test07Month() { let m = model(); shot("07_month", height: 2600, tabs(m, MonthView(month: 6))) }
     func test07MonthDark() { let m = model(); shot("07_month_dark", dark: true, height: 1400, tabs(m, MonthView(month: 6))) }
     func test21Search() { let m = model(); shot("21_search", tabs(m, SearchView(path: .constant(NavigationPath())))) }
-    func test22Shelf() { let m = model(); shot("22_shelf_editor", ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    func test22Shelf() { let m = model(); shot("22_week_editor", ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
+    /// 今天一起玩 when the records say the baby woke 40 minutes ago: the header says so (no card of its own).
+    func test02TodayAwake() {
+        let m = model(); m.journal = true
+        var b = JournalFile.Body()
+        let n = ms(Date())
+        b.logs = [LogEntry(type: LogType.sleep, start: n - 160 * 60_000, end: n - 40 * 60_000),
+                  LogEntry(type: LogType.nurse, start: n - 35 * 60_000, end: n - 22 * 60_000, side: "l"),
+                  LogEntry(type: LogType.nurse, start: n - 21 * 60_000, end: n - 12 * 60_000, side: "r")]
+        let j = JournalStore(preview: b)
+        shot("02_today_awake", height: 1400, NavigationStack { TodayView(path: .constant(NavigationPath())) }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+    }
+    /// While a sleep is timed: the sleep card leads with the companions; 今天一起玩 says 醒来后一起玩, without them.
+    func test02TodayAsleep() {
+        let m = model(); m.journal = true
+        var b = JournalFile.Body()
+        b.timers = [RunningTimer(type: LogType.sleep, start: ms(Date()) - 50 * 60_000)]
+        let j = JournalStore(preview: b)
+        shot("02_today_asleep", height: 1400, NavigationStack { TodayView(path: .constant(NavigationPath())) }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+    }
+    /// The nursing page after a feed of two sides: the last line lists them in order (左侧 → 右侧).
+    func test24ReadyNurseBothSides() {
+        let m = model(); m.journal = true
+        var b = JournalFile.Body()
+        let n = ms(Date())
+        b.logs = [LogEntry(type: LogType.nurse, start: n - 150 * 60_000, end: n - 132 * 60_000, side: "l"),
+                  LogEntry(type: LogType.nurse, start: n - 131 * 60_000, end: n - 120 * 60_000, side: "r")]
+        let j = JournalStore(preview: b)
+        shot("24_ready_nurse_both", TimerScreen(type: LogType.nurse).environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+    }
     func test23Timer() { let m = model(); shot("23_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
     /// Tapping 亲喂 or 睡觉 opens the page not yet running: pick a side (the one not fed last time is suggested) and when
     /// it began; another clock still running is said here.

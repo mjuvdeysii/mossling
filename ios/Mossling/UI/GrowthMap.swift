@@ -556,7 +556,7 @@ struct GrowthMap: View {
                     let k = Palette.areaKey(of: p)
                     IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k), size: 26)
                 }
-                Text("\(plays.count) 个教具").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
+                Text("\(plays.count) 个活动").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                 Spacer(minLength: 0)
             }
         }

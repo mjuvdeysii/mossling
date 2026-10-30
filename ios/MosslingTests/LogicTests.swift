@@ -317,4 +317,36 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(early.feedSides(before: t(19, 16, 41))["r"] ?? 0, 12 * 60, accuracy: 0.5)
         XCTAssertEqual(ago(Date(timeIntervalSince1970: t(19, 16, 10) / 1000), now: Date(timeIntervalSince1970: t(19, 18, 40) / 1000), precise: true), "2 小时 30 分前")
     }
+
+    func testTheWeekTurnsByItselfAndSpreadsItsAreas() throws {
+        let c = try Content.load()
+        // three plays from three areas: 6 months is not two of a kind; at 0 months 趴卧 (N04) is among them
+        let six = Shelf.suggest(c, 6, last: [])
+        XCTAssertEqual(six, ["A11", "A09", "A15"])
+        XCTAssertEqual(Set(six.compactMap { c.play($0) }.map { Palette.areaKey(of: $0) }).count, 3)
+        XCTAssertTrue(Shelf.suggest(c, 0, last: []).contains("N04"))
+        // not yet played comes before played
+        XCTAssertFalse(Shelf.suggest(c, 6, last: [], played: { $0 == "A11" ? 2 : 0 }).first == "A11")
+        // a new week: none of last week's, the stored form unchanged
+        let mon = Day(y: 2026, m: 10, d: 19), next = Day(y: 2026, m: 10, d: 27)
+        let stored = Shelf.format(mon, six)
+        XCTAssertNil(Shelf.roll(c, 6, stored: stored, today: Day(y: 2026, m: 10, d: 22)), "the same week stands")
+        let rolled = try XCTUnwrap(Shelf.roll(c, 6, stored: stored, today: next))
+        let st = try XCTUnwrap(Shelf.parse(rolled))
+        XCTAssertEqual(st.week, next.monday)
+        XCTAssertTrue(Set(st.codes).isDisjoint(with: six))
+        XCTAssertTrue(rolled.hasPrefix("\(next.monday.epochDay)|"))
+        // the child turns 13 months mid-week: A11 (6–12 months) is replaced, the rest stays
+        let outgrown = try XCTUnwrap(Shelf.roll(c, 13, stored: Shelf.format(mon, ["A11", "A15"]), today: Day(y: 2026, m: 10, d: 21)))
+        let codes = try XCTUnwrap(Shelf.parse(outgrown)).codes
+        XCTAssertFalse(codes.contains("A11")); XCTAssertTrue(codes.contains("A15")); XCTAssertEqual(codes.count, 3)
+    }
+
+    func testTodaysPickLastsTheDay() {
+        let d = Day(y: 2026, m: 10, d: 21)
+        let s = Shelf.formatPick("A09", today: d)
+        XCTAssertEqual(Shelf.pick(s, today: d), "A09")
+        XCTAssertNil(Shelf.pick(s, today: d.plus(days: 1)))
+        XCTAssertNil(Shelf.pick("6:1", today: d), "the old form is ignored")
+    }
 }

@@ -161,7 +161,7 @@ private struct BookTotals: View {
             Divider().frame(height: 30)
             item("\(plays)", "次玩过")
             Divider().frame(height: 30)
-            item("\(kinds)", "种教具")
+            item("\(kinds)", "个活动")
             Divider().frame(height: 30)
             // the firsts open from their own count: the timeline of every 第一次, and a new one kept there
             NavigationLink(value: JournalRoute.firsts) {
@@ -259,7 +259,7 @@ private struct BookPageView: View {
             }
 
             if page.empty {
-                Text(current ? "这个月的记录会出现在这里：玩过的教具、测量和照护。" : "这一站没有留下记录。")
+                Text(current ? "这个月的记录会出现在这里：玩过的活动、测量和照护。" : "这一站没有留下记录。")
                     .font(.footnote).foregroundStyle(Palette.secondaryText)
             }
         }

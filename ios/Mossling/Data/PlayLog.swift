@@ -22,12 +22,26 @@ extension AppModel {
     }
     /// Times this play was done this week (the shelf's one weekly count).
     func thisWeek(_ p: Play, _ j: JournalStore) -> Int { Shelf.week(j.plays(p.code).map(\.startDate), since: today.monday.date) }
-    /// 先玩这件 on this week's shelf — the same pick on the shelf and on the 醒了 card.
-    func shelfFirst(_ month: Int, _ j: JournalStore) -> Play? {
+    /// 今天一起玩: the one play for today — the one chosen with 换一个 today, else the week's least played this week
+    /// (then least played in all, then the week's order). The home page, its header and the widget all read this.
+    func todayPlay(_ month: Int, _ j: JournalStore) -> Play? {
         let s = weekShelf(month).plays
+        if let c = Shelf.pick(pick, today: today), let p = s.first(where: { $0.code == c }) { return p }
         let code = Shelf.first(s.map(\.code), week: { c in s.first { $0.code == c }.map { thisWeek($0, j) } ?? 0 },
                                total: { c in s.first { $0.code == c }.map { record($0, j).count } ?? 0 })
         return s.first { $0.code == code }
+    }
+    /// 换一个: the next of the week's plays after today's, for the rest of the day.
+    func anotherToday(_ month: Int, _ j: JournalStore) {
+        let s = weekShelf(month).plays
+        guard s.count > 1, let now = todayPlay(month, j), let i = s.firstIndex(of: now) else { return }
+        pick = Shelf.formatPick(s[(i + 1) % s.count].code, today: today)
+    }
+    /// Choose a play for today (from its page's menu); it joins the week if it is not in it and there is room.
+    func playToday(_ p: Play, _ month: Int) {
+        let codes = weekShelf(month).plays.map(\.code)
+        if !codes.contains(p.code) { setShelf(Array((codes.count < Shelf.max ? codes : Array(codes.dropLast())) + [p.code])) }
+        pick = Shelf.formatPick(p.code, today: today)
     }
     /// Records one time played; false (and nothing ticked, nothing cheered) when it could not be saved.
     @discardableResult func didPlay(_ p: Play, month: Int, _ j: JournalStore) -> Bool {

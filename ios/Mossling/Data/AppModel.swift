@@ -28,8 +28,8 @@ final class AppModel {
     /// How the pictures and icons are drawn: 立体 (3D vinyl, the default) or 平面 (the picture book's 2D drawings).
     var artStyle: ArtStyle { didSet { d.set(artStyle.rawValue, forKey: "artStyle"); ArtStyle.current = artStyle } }
     var onboarded: Bool { didSet { d.set(onboarded, forKey: "onboarded") } }
-    var skipDay: Int { didSet { d.set(skipDay, forKey: "skipDay") } }
-    var pick: String { didSet { d.set(pick, forKey: "pick") } }
+    /// Today's play when the parent chose another with 换一个: "<epoch day>|CODE", good for that day only.
+    var pick: String { didSet { d.set(pick, forKey: "todayPick") } }
     var sex: String? { didSet { d.set(sex, forKey: "sex") } }
     /// How the child is drawn in the pictures: "boy" or "girl"; until chosen, it follows `sex`. Independent of the
     /// companion.
@@ -56,8 +56,9 @@ final class AppModel {
         artStyle = style
         ArtStyle.current = style
         onboarded = d.bool(forKey: "onboarded")
-        skipDay = (d.object(forKey: "skipDay") as? Int) ?? -1
-        pick = d.string(forKey: "pick") ?? ""
+        pick = d.string(forKey: "todayPick") ?? ""
+        // old keys nothing reads any more (they were never in the record file)
+        d.removeObject(forKey: "pick"); d.removeObject(forKey: "skipDay")
         sex = d.string(forKey: "sex")
         look = d.string(forKey: "look")
         nickname = d.string(forKey: "nickname") ?? ""
@@ -84,18 +85,15 @@ final class AppModel {
     }
     func count(_ m: Int, _ kind: String) -> Int { ticks.values.filter { $0.month == m && $0.kind == kind }.count }
 
-    /// This week's shelf for the child's month, and whether it is time to rotate.
+    /// This week's plays for the child's month.
     func weekShelf(_ m: Int) -> (plays: [Play], stale: Bool) { Shelf.current(content, m, stored: shelf, today: today) }
     func setShelf(_ codes: [String]) { shelf = Shelf.format(today, codes) }
-
-    /// Today's play: from this week's shelf, or the month's own when the shelf is empty.
-    func todaysPlays(_ m: Int) -> [Play] { let s = weekShelf(m).plays; return s.isEmpty ? content.plays(of: m) : s }
-    var pickIndex: Int {
-        let p = pick.split(separator: ":"); guard p.count == 2, Int(p[0]) == babyMonth else { return 0 }
-        return Int(p[1]) ?? 0
+    /// Turns the week by itself when it has gone by, and replaces what the child has outgrown — done when the app
+    /// comes forward, never while a page is being drawn.
+    func rollWeek(played: (String) -> Int = { _ in 0 }) {
+        guard let m = babyMonth, let next = Shelf.roll(content, m, stored: shelf, today: today, played: played) else { return }
+        shelf = next
     }
-    func another() { if let m = babyMonth { pick = "\(m):\(pickIndex + 1)" } }
-    var skippedToday: Bool { skipDay == today.epochDay }
 
     /// The play in progress, if any.
     var playing: (play: Play, month: Int, step: Int)? {
@@ -109,18 +107,19 @@ final class AppModel {
     func replaceTicks(_ l: [Tick]) { ticks = Dictionary(l.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a }) }
 
     /// What the widget shows, written whenever it changes.
-    func publish() {
-        var code: String?, name: String?
-        if let m = babyMonth, !skippedToday { let ps = todaysPlays(m); if !ps.isEmpty { let p = ps[pickIndex % ps.count]; code = p.code; name = p.name } }
+    func publish(_ j: JournalStore) {
+        // the widget says the play the home page says
+        let p = babyMonth.flatMap { todayPlay($0, j) }
+        let code = p?.code, name = p?.name
         JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name))
         WidgetCenter.shared.reloadAllTimelines()
     }
-    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(skipDay)|\(today.epochDay)" }
+    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(today.epochDay)" }
 
     func clearAll() {
-        for k in ["birth", "companion", "theme", "onboarded", "skipDay", "pick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
+        for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         Guide.replayNextLaunch()
-        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; skipDay = -1; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
     }
 }

@@ -506,7 +506,7 @@ struct StoryView: View {
                 .fixedSize(horizontal: false, vertical: true)   // both cards as tall as the taller
                 // what is done here: three small cards, a line on the face, the whole of it on the back
                 HStack(alignment: .top, spacing: 8) {
-                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "一步步的图", "本周的架子上放着这个月可以摸索的教具，点开就是一步步的图。")
+                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "一步步的图", "首页每天推荐一个这个月适合的活动，点开就是一步步的图。")
                     thing("leaf.fill", Crayon.leaf, "看\(app.ta)长大", "一月一站", "0–36 个月，一个月一站，共 37 站；成长册留下每一站的样子。")
                     thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来", "可选 · 只存本机", "喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。")
                 }

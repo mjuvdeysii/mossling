@@ -57,10 +57,10 @@ struct RootView: View {
         // a tab that is no longer there (记录 turned off) falls back to 本月
         .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
         .onChange(of: phase) { _, p in
-            if p == .active { app.today = .today; journal.reload(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+            if p == .active { app.today = .today; journal.reload(); app.rollWeek(played: { c in journal.plays(c).count }); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
             if p == .background { locked = true; mascot.send(.appBackground) }
         }
-        .task { if app.lock { unlock() }; app.publish() }
+        .task { if app.lock { unlock() }; app.rollWeek(played: { c in journal.plays(c).count }); app.publish(journal) }
         // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
         // flows back into the journal
         .task {
@@ -82,7 +82,8 @@ struct RootView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
-        .onChange(of: app.publishKey) { _, _ in app.publish() }
+        // a play recorded changes today's play (the least played comes next), so its count is part of the key
+        .onChange(of: app.publishKey + "|\(journal.logs.filter { $0.type == LogType.play }.count)") { _, _ in app.publish(journal) }
         // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
         // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
         // drawn by the system from the window's appearance, and stayed black on the lamp's blue when only the views

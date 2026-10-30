@@ -4,7 +4,7 @@ import TipKit
 /// The home holds only what is needed every day, in that order: who the child is now (the month card — tapping it
 /// opens the month's own page, where everything read once lives: its points, its parts, all its plays, the topics,
 /// and the way to other months); what is due this month, only while something is; what is happening now, from the
-/// records; and this week's shelf, the everyday reason to open the app. It reads in about one screen.
+/// records; and 今天一起玩, the everyday reason to open the app. It reads in about one screen.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -36,7 +36,7 @@ struct TodayView: View {
                 }
                 if app.age != nil {
                     TipView(shelfTip)
-                    ShelfView(month: baby) { arranging = true }
+                    TodayPlayCard(month: baby) { arranging = true }
                 } else {
                     // before the birth date is known there is no week yet: the first month's plays, to look at
                     PlaysGrid(month: baby, hideShelf: false)
@@ -90,8 +90,9 @@ private struct DueCard: View {
 
 /// Now: what the baby is doing, from the parent's own records, and what that means for play — the one place where
 /// the care log and the picture book meet. Asleep: the companions sleep too, and one tap says the baby woke. Feeding:
-/// how long, and the timer. Awake (after a recorded sleep): how long awake, and the shelf's next play to do now, while
-/// the baby is awake and calm. Only facts from the records; no predictions. Hidden when there is nothing to say.
+/// how long, and the timer. Awake: said in 今天一起玩's own header (醒了 40 分钟 · 一起玩), not in a card of its own.
+/// At night, the last feed, waking and nappy. Only facts from the records; no predictions. Hidden when there is
+/// nothing to say.
 private struct NowCard: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -117,18 +118,6 @@ private struct NowCard: View {
                     card(tint: Crayon.pink) {
                         IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
                         words(feed.pausedAt != nil ? "亲喂 · 已暂停" : "正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
-                    }
-                }
-                .buttonStyle(.toy)
-            } else if let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end, now - woke < 6 * 3_600_000, !night {
-                let play = app.shelfFirst(month, j)
-                NavigationLink(value: play.map { Route.play($0.code, month) } ?? Route.month(month)) {
-                    card(tint: Crayon.sunflower) {
-                        if let p = play { Figure(name: "tray_\(p.code.lowercased()).webp").frame(width: 72, height: 54) }
-                        else { Duo(primary: app.companion, size: 44) }
-                        words("醒了 " + durationValue((now - woke) / 1000), play.map { "现在玩：" + $0.name } ?? "醒着的时候，一起玩一会儿")
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                     }
@@ -253,7 +242,7 @@ private struct PlaysGrid: View {
         let plays = app.content.plays(of: month).filter { !shelf.contains($0.code) }
         if !plays.isEmpty {
             VStack(alignment: .leading, spacing: 10) {
-                SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的教具", detail: "\(plays.count) 个")
+                SectionTitle(title: hideShelf ? "这个月还能玩" : "这个月的活动", detail: "\(plays.count) 个")
                 if plays.count <= 2 || type.isAccessibilitySize {
                     VStack(spacing: 10) { ForEach(plays) { PlayTileLink(play: $0, month: month, form: .row) } }
                 } else {
@@ -305,13 +294,14 @@ private struct HomeFooter: View {
 }
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
-/// This week's shelf — the heart of the app when nothing is recorded (docs/IP.md §3): the three or four materials
-/// out this week, in the app's own language — one card on the paper (soft vinyl in 3D, cut paper in 2D), each
-/// material a tray on a tile of its area's colour, with what the parent needs to begin: the area, the name, how many
-/// steps and the first one, and gold beads for the times it was played (a count, never a score). The least-played one
-/// carries 「先玩这件」. The week's progress is a short path of stones, as on the growth map. Moss and Otto sit on the
-/// card's top edge; at night Otto's lamp throws a warm pool over it.
-struct ShelfView: View {
+/// 今天一起玩 — the heart of the app when nothing is recorded (docs/IP.md §3). The header is the answer: one play for
+/// today, large — the picture of its first step, its area and how many steps, its name, the first step, when it was
+/// last played — and under it the week's others (「这周还有」), each a tray and its gold beads for the times played
+/// this week (a count, never a score). The week turns by itself; 换一个 takes the next of the week for the rest of the
+/// day; 调整 changes the week. When the records say the baby is awake the header says so — 醒了 40 分钟 · 一起玩 — and
+/// while a sleep is being timed, 醒来后一起玩: facts from the records, no predictions. Moss and Otto sit on the card's
+/// top edge (not while the sleep card above already has them); at night Otto's lamp throws a warm pool over it.
+struct TodayPlayCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
     @Environment(\.dynamicTypeSize) private var size
@@ -319,121 +309,148 @@ struct ShelfView: View {
     let month: Int
     let arrange: () -> Void
     private var flat: Bool { ArtStyle.current == .flat }
+
     var body: some View {
-        let s = app.weekShelf(month)
-        let played = s.plays.filter { app.thisWeek($0, j) > 0 }.count
-        let first = app.shelfFirst(month, j)?.code
-        let left = Shelf.candidates(app.content, month).filter { c in !s.plays.contains { $0.code == c.code } }.count
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 8) {
-                GoldBead(size: 10)
-                Text("本周的架子").font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                // at the largest text sizes the stones go on their own line (the header never pushes the page wider)
-                if !s.plays.isEmpty && !s.stale && !size.isAccessibilitySize { WeekStones(played: played, total: s.plays.count) }
-                Spacer(minLength: 4)
-                Button(action: arrange) {
-                    // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
-                    Text(s.stale ? "换上新的一周" : "整理").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+        let week = app.weekShelf(month).plays
+        let today = app.todayPlay(month, j)
+        let rest = week.filter { $0.code != today?.code }
+        let asleep = j.timers.contains { $0.type == LogType.sleep }
+        if let p = today {
+            TimelineView(.periodic(from: .now, by: 60)) { tl in
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(alignment: .center, spacing: 8) {
+                        GoldBead(size: 10)
+                        Text(title(asleep: asleep, now: tl.date)).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
+                            .lineLimit(1).minimumScaleFactor(0.7)
+                        Spacer(minLength: 4)
+                        if week.count > 1 {
+                            Button { withAnimation(.snappy) { app.anotherToday(month, j) } } label: {
+                                // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
+                                Text("换一个").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                            }
+                            .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
+                            .accessibilityHint("在这周的几个活动里换一个")
+                        }
+                    }
+                    .padding(.horizontal, 4).padding(.top, 20)
+                    VStack(spacing: 0) {
+                        lead(p)
+                        if !rest.isEmpty {
+                            Divider().padding(.horizontal, 14)
+                            HStack {
+                                Text("这周还有").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
+                                Spacer(minLength: 4)
+                                Button(action: arrange) { Text("调整").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }
+                                    .font(.footnote.weight(.semibold)).padding(.vertical, -12)
+                                    .accessibilityHint("换这周的活动")
+                            }
+                            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 2)
+                            ForEach(rest) { other($0) }
+                        } else {
+                            Button(action: arrange) { Text("调整这周的活动").font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44) }
+                        }
+                    }
+                    .padding(.bottom, 4)
+                    .background(alignment: .top) { if night { LampPool() } }
+                    .printCard(radius: Radius.card)
+                    .overlay(alignment: .topTrailing) {
+                        // the two of them on the card's top edge; when today's play changes (换一个, a new week)
+                        // Moss blinks twice and looks at it — the change said without a word. One pair to a screen:
+                        // while the sleep card above has them, they are not here.
+                        if !asleep {
+                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true,
+                                notice: week.firstIndex(of: p).map { $0 + week.count * 10 } ?? 0)
+                                .offset(x: -16, y: -40)
+                        }
+                    }
+                    .padding(.top, 30)
                 }
-                .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
             }
-            .padding(.horizontal, 4).padding(.top, 20)
-            if !s.plays.isEmpty && !s.stale && size.isAccessibilitySize { WeekStones(played: played, total: s.plays.count).padding(.horizontal, 4) }
-            if s.stale || s.plays.isEmpty {
-                Text(s.stale ? "上周的教具还在架子上，可以换上这个月新的几件。" : "架子还空着。点「整理」，从这个月的 \(left) 件里挑三四件放上来。")
-                    .font(.subheadline).foregroundStyle(Palette.secondaryText).padding(.horizontal, 4)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            VStack(spacing: 0) {
-                ForEach(Array(s.plays.enumerated()), id: \.element.code) { i, p in
-                    if i > 0 { Divider().padding(.leading, size.isAccessibilitySize ? 16 : 102) }
-                    compartment(p, first: p.code == first && s.plays.count > 1)
-                }
-                if s.plays.count < Shelf.max {
-                    if !s.plays.isEmpty { Divider().padding(.leading, size.isAccessibilitySize ? 16 : 102) }
-                    Button(action: arrange) { empty(room: Shelf.max - s.plays.count, left: left) }
-                        .buttonStyle(.toy).accessibilityLabel("放一件教具").accessibilityHint("这个月还有 \(left) 件可选")
-                }
-            }
-            .padding(.vertical, 4)
-            .background(alignment: .top) { if night { LampPool() } }
-            .printCard(radius: Radius.card)
-            .overlay(alignment: .topTrailing) {
-                // the two of them, sitting on the card's top edge
-                // a play put on the shelf is something new in front of them: Moss blinks twice, Otto looks round
-                // and when every play on the shelf has been played this week, the two brighten and hop, once
-                Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), cheer: !s.plays.isEmpty && played == s.plays.count ? 1 : 0,
-                    night: night, reacts: true, notice: s.plays.count)
-                    .offset(x: -16, y: -40)
-            }
-            .padding(.top, 30)
         }
+    }
+
+    /// 今天一起玩; 醒了 40 分钟 · 一起玩 while the records say the baby woke within six hours (by day, records on);
+    /// 醒来后一起玩 while a sleep is being timed.
+    private func title(asleep: Bool, now: Date) -> String {
+        guard app.journal else { return "今天一起玩" }
+        if asleep { return "醒来后一起玩" }
+        if !night, let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end {
+            let s = (now.timeIntervalSince1970 * 1000 - woke) / 1000
+            if s >= 0 && s < 6 * 3600 { return "醒了 " + durationValue(s) + " · 一起玩" }
+        }
+        return "今天一起玩"
     }
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
 
-    /// One material: its tray on a tile of its area's colour, and beside it what to know before starting.
-    private func compartment(_ p: Play, first: Bool) -> some View {
-        // the shelf counts this week, as its stones do (the total lives on the play's page and in the book)
-        let times = app.thisWeek(p, j), key = Palette.areaKey(of: p)
-        let big = size.isAccessibilitySize
-        let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+    /// Today's play: the picture of its first step, and what to know before starting.
+    private func lead(_ p: Play) -> some View {
+        let key = Palette.areaKey(of: p), big = size.isAccessibilitySize
+        let rec = app.record(p, j), times = app.thisWeek(p, j)
+        let last = rec.last.map { Day($0) == app.today ? "今天玩过" : "上次 " + Day($0).md } ?? "第一次玩"
+        let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return NavigationLink(value: route(p)) {
             layout {
-                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
-                    .frame(width: big ? 120 : 76, height: big ? 90 : 60)
-                    .zoomSource(route(p))
+                Group {
+                    if let art = ArtIndex.shared.steps(p.code).first {
+                        ArtView(name: art, radius: Radius.tile).aspectRatio(4 / 3, contentMode: .fit)
+                    } else {
+                        TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+                    }
+                }
+                .frame(width: big ? 200 : 112, height: big ? 150 : 84)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                .zoomSource(route(p))
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 5) {
                         IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
-                        Text(p.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
-                        if first {
-                            Text("先玩这件").font(.caption2.weight(.bold)).foregroundStyle(.white)
-                                .padding(.horizontal, 7).padding(.vertical, 3)
-                                .vinylSurface(Palette.accentFill, radius: Radius.chip, strong: true).fixedSize()
-                        }
-                        // how many times, on the same line (three lines to a compartment, not four)
-                        if !big { Spacer(minLength: 4); BeadCount(times: times) }
+                        Text((p.domains.first ?? "") + " · \(p.steps.count) 步").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
                     }
-                    Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                    Text(p.name).font(.headline).foregroundStyle(.primary)
                         .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     if let step = p.steps.first {
-                        Text("共 \(p.steps.count) 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
-                            .lineLimit(big ? 3 : 1).multilineTextAlignment(.leading)
+                        Text("第 1 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
+                            .lineLimit(big ? 4 : 2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                     }
-                    if big { BeadCount(times: times).padding(.top, 1) }
+                    HStack(spacing: 6) {
+                        Text(last).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        if times > 0 { BeadCount(times: times) }
+                    }
+                    .padding(.top, 1)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
-                    .opacity(big ? 0 : 1)
             }
-            .padding(.horizontal, 14).padding(.vertical, 9)
+            .padding(14)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
         .contextMenu { PlayActions(play: p, month: month) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(p.name + (first ? "，先玩这件" : "") + (times > 0 ? "，本周玩过 \(times) 次" : "，本周还没玩"))
-        .accessibilityHint((p.domains.first ?? "") + "，\(p.steps.count) 步")
+        .accessibilityLabel("今天一起玩，" + p.name + "，" + (p.domains.first ?? "") + "，\(p.steps.count) 步，" + last + (times > 0 ? "，这周玩过 \(times) 次" : ""))
+        .accessibilityHint("打开，一步步跟着图玩")
     }
 
-    /// The one free place: a dashed tile and how much room is left.
-    private func empty(room: Int, left: Int) -> some View {
-        HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
-                .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Palette.accent))
-                .frame(width: 76, height: 44)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("放一件").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text("还能放 \(room) 件 · 这个月有 \(left) 件可选").font(.caption).foregroundStyle(Palette.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+    /// One of the week's others: its tray, its name, its beads this week (nothing while there are none).
+    private func other(_ p: Play) -> some View {
+        let key = Palette.areaKey(of: p), times = app.thisWeek(p, j)
+        return NavigationLink(value: route(p)) {
+            HStack(spacing: 12) {
+                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+                    .frame(width: 44, height: 33)
+                    .zoomSource(route(p))
+                Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                    .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                if times > 0 { BeadCount(times: times) }
+                Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
             }
-            Spacer(minLength: 0)
+            .padding(.horizontal, 14).padding(.vertical, 7)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 14).padding(.vertical, 8)
-        .contentShape(Rectangle())
+        .buttonStyle(.toy)
+        .contextMenu { PlayActions(play: p, month: month) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(p.name + "，" + (p.domains.first ?? "") + (times > 0 ? "，这周玩过 \(times) 次" : ""))
     }
 }
 
@@ -462,46 +479,12 @@ struct TrayTile: View {
     }
 }
 
-/// The week's progress as a short path of stones, like the growth map's: gold for the materials played this week.
-private struct WeekStones: View {
-    let played: Int, total: Int
-    var body: some View {
-        HStack(spacing: 4) {
-            ForEach(0..<total, id: \.self) { i in
-                ZStack {
-                    if i < played {
-                        Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
-                    } else {
-                        Circle().fill(Palette.card)
-                        Circle().strokeBorder(Palette.bead.opacity(0.55), lineWidth: 1.5)
-                    }
-                }
-                .frame(width: 10, height: 10)
-                // the stone a play just lit gives a little hop (the week's path answering, nothing more)
-                .keyframeAnimator(initialValue: CGFloat(0), trigger: played) { v, y in
-                    v.offset(y: i == played - 1 ? y : 0).scaleEffect(i == played - 1 ? 1 - y / 30 : 1)
-                } keyframes: { _ in
-                    CubicKeyframe(-5, duration: 0.14)
-                    SpringKeyframe(0, duration: 0.4, spring: .bouncy)
-                }
-            }
-            Text("本周玩过 \(played) / \(total)").font(Typeface.numerals(12, relativeTo: .footnote, weight: .semibold)).foregroundStyle(Palette.secondaryText)
-                .padding(.leading, 2)
-        }
-        .sensoryFeedback(.increase, trigger: played)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("本周玩过 \(played) / \(total)")
-    }
-}
-
 /// Times played, as gold beads on a short string (Montessori's golden bead): up to five, then the number.
 private struct BeadCount: View {
     let times: Int
     var body: some View {
         HStack(spacing: 3) {
-            if times == 0 {
-                Text("本周还没玩").font(.caption2).foregroundStyle(Palette.secondaryText)
-            } else {
+            if times > 0 {
                 ForEach(0..<min(times, 5), id: \.self) { _ in
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
                         .frame(width: 9, height: 9)

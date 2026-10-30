@@ -254,10 +254,14 @@ struct PlayActions: View {
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
         Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { app.didPlay(play, month: month, j) }
         if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
+        let m = app.babyMonth ?? month
+        if app.todayPlay(m, j)?.code != play.code {
+            Button("今天玩这个", systemImage: "sun.max") { withAnimation(.snappy) { app.playToday(play, m) } }
+        }
         if shelf.contains(play.code) {
-            Button("从架子上拿下", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
+            Button("从这周拿掉", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
         } else if shelf.count < Shelf.max {
-            Button("放上本周的架子", systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
+            Button("加到这周", systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
         }
         ShareLink(item: "\(play.name)（\(play.code)）\n" + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label("分享", systemImage: "square.and.arrow.up") }
     }

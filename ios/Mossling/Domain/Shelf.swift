@@ -1,7 +1,8 @@
 import Foundation
 
-/// The week's shelf: three or four materials for the whole week, rotated when the week turns.
-/// Stored as "<epoch day of the week's Monday>|CODE,CODE" — the same as on Android.
+/// The week's plays (「这周一起玩」): three or four for the whole week, turned by themselves when the week turns; one of
+/// them is today's (「今天一起玩」). Stored as "<epoch day of the week's Monday>|CODE,CODE" — the same as on Android
+/// (where it is still called the shelf).
 enum Shelf {
     static let max = 4
     struct State { let week: Day; let codes: [String] }
@@ -18,17 +19,47 @@ enum Shelf {
         let codes = Set(own.map(\.code))
         return own + c.activities.filter { (m >= $0.from && m <= $0.to) && !codes.contains($0.code) }
     }
-    static func suggest(_ c: Content, _ m: Int, last: [String]) -> [String] {
-        let all = candidates(c, m).map(\.code)
-        return Array((all.filter { !last.contains($0) } + all.filter { last.contains($0) }).prefix(3))
+    /// A new week's plays: three, from as many areas as the month offers, those not played before first, last
+    /// week's last of all — so the week turns by itself and does not leave out a whole area (at 0 months 趴卧 is
+    /// among them, not crowded out by two of a kind).
+    static func suggest(_ c: Content, _ m: Int, last: [String], played: (String) -> Int = { _ in 0 }) -> [String] {
+        let all = candidates(c, m)
+        let fresh = all.filter { !last.contains($0.code) }, old = all.filter { last.contains($0.code) }
+        // stable: the month's own first, then not yet played before played
+        let order = fresh.filter { played($0.code) == 0 } + fresh.filter { played($0.code) > 0 } + old
+        var out: [Play] = [], areas = Set<String>()
+        for p in order where out.count < 3 && !areas.contains(Palette.areaKey(of: p)) { out.append(p); areas.insert(Palette.areaKey(of: p)) }
+        for p in order where out.count < 3 && !out.contains(p) { out.append(p) }
+        return out.map(\.code)
     }
-    /// This week's shelf, and whether it is last week's (time to rotate).
+    /// The week as it should stand today: last week's turned into a new one, and anything the child has outgrown
+    /// (the month changed mid-week) replaced. Nil when it already stands right. The stored form never changes.
+    static func roll(_ c: Content, _ m: Int, stored: String, today: Day, played: (String) -> Int = { _ in 0 }) -> String? {
+        let st = parse(stored)
+        let codes = (st?.codes ?? []).filter { c.play($0) != nil }
+        if st == nil || codes.isEmpty || st!.week != today.monday {
+            return format(today, suggest(c, m, last: codes, played: played))
+        }
+        let fit = Set(candidates(c, m).map(\.code))
+        let kept = codes.filter { fit.contains($0) }
+        if kept.count == codes.count { return nil }
+        let more = suggest(c, m, last: codes, played: played).filter { !kept.contains($0) }
+        return format(today, kept + more.prefix(Swift.max(0, 3 - kept.count)))
+    }
+    /// This week's plays (as stored; a week not yet rolled reads as the one it would become).
     static func current(_ c: Content, _ m: Int, stored: String, today: Day) -> (plays: [Play], stale: Bool) {
         let st = parse(stored)
         let codes = (st?.codes ?? []).filter { c.play($0) != nil }
         if codes.isEmpty { return (suggest(c, m, last: []).compactMap { c.play($0) }, false) }
         return (codes.compactMap { c.play($0) }, st!.week != today.monday)
     }
+    /// Today's pick, stored as "<epoch day>|CODE": a choice made with 换一个 lasts the day it was made.
+    static func pick(_ stored: String, today: Day) -> String? {
+        let p = stored.split(separator: "|")
+        guard p.count == 2, Int(p[0]) == today.epochDay else { return nil }
+        return String(p[1])
+    }
+    static func formatPick(_ code: String, today: Day) -> String { "\(today.epochDay)|\(code)" }
 
     /// The one weekly count: how many of these times fall in the week that began at `since`. The shelf's beads, its
     /// stones and 先玩这件 all read this — never a second definition.

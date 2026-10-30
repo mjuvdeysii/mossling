@@ -31,7 +31,7 @@ struct SearchView: View {
         let topics = t.isEmpty ? [] : c.topics.filter { $0.title.contains(t) || $0.blocks.contains { ($0.text ?? "").contains(t) || ($0.items ?? []).contains { $0.contains(t) } } }
         List {
             if !plays.isEmpty {
-                Section("教具") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
+                Section("活动") { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
                     PlayRowLabel(play: p) } } }
             }
             if !months.isEmpty {
@@ -44,7 +44,7 @@ struct SearchView: View {
             // before typing: what is on the shelf this week and the topics, so the page opens on something to read
             if t.isEmpty {
                 let m = app.babyMonth ?? 0
-                Section("本周的架子") { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
+                Section("这周一起玩") { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
                 Section("专题") { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
             }
             if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty {
@@ -57,14 +57,14 @@ struct SearchView: View {
                     }
                     .frame(height: 72).accessibilityHidden(true)
                     Text("没有找到「\(t)」").font(.headline)
-                    Text("试试教具的名字、月份或专题").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text("试试活动的名字、月份或专题").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
                 .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "教具、月份、专题")
+        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "活动、月份、专题")
         .navigationTitle("搜索")
     }
     /// A topic with its own mark, as on the month's page.
@@ -74,18 +74,26 @@ struct SearchView: View {
     }
 }
 
-/// This week's shelf: three or four plays for the whole week, chosen for this month, rotated when the week turns.
+/// 这周一起玩: the three or four plays of the week, chosen for this month, turned by themselves when the week turns.
+/// Here the parent changes them: takes one off, adds one this month suits, puts back one played last week, or asks
+/// for a new week.
 struct PlanView: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
     var body: some View {
         let m = app.babyMonth ?? 0
         let current = app.weekShelf(m)
         let codes = current.plays.map(\.code)
+        let full = codes.count >= Shelf.max
+        // played last week (from the records) and not in this week: one tap puts it back
+        let monday = app.today.monday.date, before = app.today.monday.plus(days: -7).date
+        let lastWeek = app.content.activities.filter { p in !codes.contains(p.code) && j.plays(p.code).contains { $0.startDate >= before && $0.startDate < monday } }
+        let more = Shelf.candidates(app.content, m).filter { p in !codes.contains(p.code) && !lastWeek.contains(p) }
         List {
             Section {
-                // arranging is putting on and taking off: each row says which, with its own button (no swipe to find,
-                // no page pushed inside the sheet)
+                // changing the week is taking off and adding: each row says which, with its own button (no swipe to
+                // find, no page pushed inside the sheet)
                 ForEach(current.plays) { p in
                     HStack {
                         playLabel(p)
@@ -93,31 +101,33 @@ struct PlanView: View {
                         Button { withAnimation(.snappy) { app.setShelf(codes.filter { $0 != p.code }) } } label: {
                             Image(systemName: "minus.circle.fill").font(.title2).foregroundStyle(Palette.danger.opacity(0.85))
                         }
-                        .buttonStyle(.plain).accessibilityLabel("从架子上拿下")
+                        .buttonStyle(.plain).accessibilityLabel("从这周拿掉")
                     }
                 }
-                if current.stale {
-                    Button("换上新的一周", systemImage: "arrow.triangle.2.circlepath") { app.setShelf(Shelf.suggest(app.content, m, last: codes)) }
+                Button("重新推荐", systemImage: "arrow.triangle.2.circlepath") {
+                    withAnimation(.snappy) { app.setShelf(Shelf.suggest(app.content, m, last: codes, played: { c in j.plays(c).count })) }
                 }
-            } header: { Text("本周 · \(codes.count) / \(Shelf.max) 件") } footer: { Text("观察、准备、示范、重复、轮换。每周三到四件，孩子想重复就重复。") }
-            Section("适合这个月") {
-                ForEach(Shelf.candidates(app.content, m).filter { !codes.contains($0.code) }) { p in
-                    HStack {
-                        playLabel(p)
-                        Spacer()
-                        Button { withAnimation(.snappy) { app.setShelf(codes + [p.code]) } } label: { Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(Palette.accent) }.buttonStyle(.plain)
-                            .disabled(codes.count >= Shelf.max).opacity(codes.count >= Shelf.max ? 0.3 : 1).accessibilityLabel("放上架子")
-                    }
-                }
+            } header: { Text("这周 · \(codes.count) / \(Shelf.max) 个") } footer: { Text("观察、准备、示范、重复、轮换。每周三四个，孩子想重复就重复。") }
+            if !lastWeek.isEmpty {
+                Section("上周玩过") { ForEach(lastWeek) { p in addRow(p, codes: codes, full: full) } }
             }
+            Section("这个月还可以玩 · \(more.count) 个") { ForEach(more) { p in addRow(p, codes: codes, full: full) } }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .navigationTitle("本周的架子")
+        .navigationTitle("这周一起玩")
+    }
+    private func addRow(_ p: Play, codes: [String], full: Bool) -> some View {
+        HStack {
+            playLabel(p)
+            Spacer()
+            Button { withAnimation(.snappy) { app.setShelf(codes + [p.code]) } } label: { Image(systemName: "plus.circle.fill").font(.title2).foregroundStyle(Palette.accent) }.buttonStyle(.plain)
+                .disabled(full).opacity(full ? 0.3 : 1).accessibilityLabel("加到这周")
+        }
     }
     private func playLabel(_ p: Play) -> some View { PlayRowLabel(play: p) }
 }
 
-/// A play in a list: its own tray on its area's tile (as on the home shelf), the name and the age range.
+/// A play in a list: its own tray on its area's tile (as on the home page), the name and the age range.
 struct PlayRowLabel: View {
     let play: Play
     @ScaledMetric(relativeTo: .body) private var w: CGFloat = 60
