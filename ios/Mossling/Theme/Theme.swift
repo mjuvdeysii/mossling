@@ -566,7 +566,8 @@ struct SectionTitle: View {
 struct GoldBead: View {
     var size: CGFloat = 10
     var body: some View {
-        if ArtStyle.current != .flat { bead }
+        // the same mark in both worlds: a glossy bead in 3D, a flat gold dot of paper in 2D
+        if ArtStyle.current != .flat { bead } else { Circle().fill(Palette.bead).frame(width: size, height: size).accessibilityHidden(true) }
     }
     private var bead: some View {
         Circle()

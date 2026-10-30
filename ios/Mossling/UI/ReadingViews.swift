@@ -39,13 +39,13 @@ struct SearchView: View {
                     Label { VStack(alignment: .leading, spacing: 2) { Text(m.month == 0 ? "出生" : "满 \(m.month) 个月"); Text(m.title).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { Bead(month: m.month, here: false, past: true).scaleEffect(0.9) } } } }
             }
             if !topics.isEmpty {
-                Section("专题") { ForEach(topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
+                Section("专题") { ForEach(topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
             }
             // before typing: what is on the shelf this week and the topics, so the page opens on something to read
             if t.isEmpty {
                 let m = app.babyMonth ?? 0
                 Section("本周的架子") { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
-                Section("专题") { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { Label { Text(tp.title) } icon: { IconTile(symbol: "book.pages.fill", color: Crayon.caramel) } } } }
+                Section("专题") { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
             }
             if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty {
                 // nothing found: the companion looks this way and that for it
@@ -66,6 +66,11 @@ struct SearchView: View {
         .scrollContentBackground(.hidden).pageBackground()
         .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: "活动、月份、专题")
         .navigationTitle("搜索")
+    }
+    /// A topic with its own mark, as on the month's page.
+    private func topicLabel(_ tp: Topic) -> some View {
+        let i = app.content.topics.firstIndex { $0.id == tp.id } ?? 0
+        return Label { Text(tp.title) } icon: { IconTile(symbol: topicMarks[i % topicMarks.count].0, color: topicMarks[i % topicMarks.count].1) }
     }
 }
 

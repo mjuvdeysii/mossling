@@ -32,10 +32,8 @@ struct RootView: View {
     /// The tab open last time: the app comes back where the parent left it (a night of feeds opens on 记录)
     @SceneStorage("tab") private var tab = 0
     @State private var todayPath = NavigationPath()
-    @State private var growPath = NavigationPath()
     @State private var youPath = NavigationPath()
     @State private var journalPath = NavigationPath()
-    @State private var searchPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
     @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
@@ -50,7 +48,7 @@ struct RootView: View {
             if !app.onboarded {
                 OnboardingView()
             } else {
-                // the system tab bar (Liquid Glass): it shrinks while reading; search is its own tab; a running feed or
+                // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
                 // sleep rides above it on every tab
                 tabs
             }
