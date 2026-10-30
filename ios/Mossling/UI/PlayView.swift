@@ -103,11 +103,14 @@ struct PlayView: View {
         .onAppear {
             if let p = app.playing, p.play.code == play.code { open = p.step }
             before = rec.count == 0
-            UIApplication.shared.isIdleTimerDisabled = true   // playing along: the phone lies on the floor
+            // playing along: the phone lies on the floor (not when the steps are already done)
+            if open < play.steps.count { UIApplication.shared.isIdleTimerDisabled = true }
         }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
         // the steps done, the screen may sleep again
         .onChange(of: open) { _, o in if o >= play.steps.count { UIApplication.shared.isIdleTimerDisabled = false } }
+        // a time taken back (撤销) is no longer recorded here: finishing the steps records it again
+        .onChange(of: app.record(play, j).count) { old, new in if new < old { recorded = false } }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {

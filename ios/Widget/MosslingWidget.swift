@@ -71,7 +71,7 @@ struct TimerLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 30, height: 30)
-                        Text(LogType.name(ctx.attributes.type) + TimerFace.side(ctx.state.side)).font(.headline).foregroundStyle(c)
+                        Text(timerState(ctx.attributes.type, side: ctx.state.side, paused: ctx.state.pausedAt != nil)).font(.headline).foregroundStyle(c).lineLimit(1).minimumScaleFactor(0.7)
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) { TimerFace.elapsed(ctx.state).font(WidgetInk.numerals(24)).foregroundStyle(.white) }

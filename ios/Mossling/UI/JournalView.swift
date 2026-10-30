@@ -722,6 +722,12 @@ struct DotFlow: Layout {
     }
 }
 
+/// "3 小时 50 分" → each number stays with its unit; a line may still break between "3 小时" and "50 分".
+func keepUnits(_ s: String) -> String {
+    let t = s.split(separator: " ").map(String.init)
+    return stride(from: 0, to: t.count, by: 2).map { i in i + 1 < t.count ? t[i] + "\u{00A0}" + t[i + 1] : t[i] }.joined(separator: " ")
+}
+
 func unbroken(_ s: String) -> String {
     guard s.count <= 14 else { return s }
     return s.map { $0 == " " ? "\u{00A0}" : String($0) }.joined(separator: "\u{2060}")
@@ -867,7 +873,7 @@ private struct GapRow: View {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
                 .frame(width: 28, height: 28)
-            Text(unbroken("相隔 " + durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            Text("相隔 " + keepUnits(durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -899,7 +905,7 @@ private struct TimelineRow: View {
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
         let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { "距上一顿 " + durationValue($0) }].compactMap { $0 }.filter { !$0.isEmpty }
-            .joined(separator: " · ").components(separatedBy: " · ")
+            .joined(separator: " · ").components(separatedBy: " · ").filter { !$0.isEmpty }
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
                 Text(entry.carriedOver(into: day) ? "00:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
