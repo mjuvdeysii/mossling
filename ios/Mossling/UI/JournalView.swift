@@ -23,6 +23,8 @@ struct JournalView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 TipView(StickerTip())
+                // what is running comes first on the page, above the stickers — at night it is what is looked for
+                ForEach(j.timers, id: \.type) { t in RunningRow(timer: t) }
                 StickerSheet(timers: j.timers, month: app.babyMonth, last: { j.last($0) }, tap: tap)
                 WeekStrip(today: app.today, day: $day)
                 // any day: tap its date for a calendar, or swipe the page sideways for the day before or after
@@ -380,7 +382,6 @@ private struct DayPage: View {
             OtherKinds(logs: logs, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
             if let k = only { FocusLine(kind: k, logs: shown, all: j.logs, day: day) { withAnimation(.snappy) { only = nil } } }
             DayRibbon(day: day, logs: logs, timers: timers, only: only)
-            if day == today { ForEach(timers.filter { t in only.map { JournalKinds.matches(t.type, $0) } ?? true }, id: \.type) { t in RunningRow(timer: t) } }
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 // an empty day: the two dozing beside one line, not a stage of its own
                 HStack(spacing: 10) {
@@ -505,14 +506,27 @@ private struct RunningRow: View {
         let c = LogType.color(timer.type)
         Button { j.focus = timer.type } label: {
             TimelineView(.periodic(from: .now, by: 30)) { tl in
-                HStack(spacing: 12) {
-                    Text(hm(Date(timeIntervalSince1970: timer.start / 1000))).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
-                    IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
-                    Text(LogType.name(timer.type)).font(.body).fixedSize()
-                    Spacer(minLength: 8)
-                    Ticking(text: (timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c))
-                        .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
-                    Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                let state = (timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000))
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 12) {
+                        Text(hm(Date(timeIntervalSince1970: timer.start / 1000))).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                        IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
+                        Text(LogType.name(timer.type)).font(.body).fixedSize()
+                        Spacer(minLength: 8)
+                        Ticking(text: state, tint: Crayon.ink(c))
+                            .font(Typeface.numerals(15, relativeTo: .body, weight: .semibold)).foregroundStyle(Crayon.ink(c))
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
+                    // large text: the kind and its state one under the other
+                    HStack(spacing: 10) {
+                        IconTile(symbol: LogType.symbol(timer.type), color: c, size: 28, round: true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(LogType.name(timer.type) + " · " + hm(Date(timeIntervalSince1970: timer.start / 1000))).font(.body)
+                            Text(state).font(.body.weight(.semibold)).foregroundStyle(Crayon.ink(c))
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+                    }
                 }
                 .foregroundStyle(.primary)
                 .padding(.horizontal, 12).padding(.vertical, 10)
@@ -841,10 +855,18 @@ private struct TimelineRow: View {
             }
             .frame(width: 28)
             VStack(alignment: .leading, spacing: 2) {
-                HStack(alignment: .firstTextBaseline) {
-                    Text(LogType.name(entry.type)).font(.body)
-                    Spacer(minLength: 8)
-                    Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
+                // the kind and its value on one line when they fit; at large text, one under the other (never wider than
+                // the screen)
+                ViewThatFits(in: .horizontal) {
+                    HStack(alignment: .firstTextBaseline) {
+                        Text(LogType.name(entry.type)).font(.body)
+                        Spacer(minLength: 8)
+                        Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
+                    }
+                    VStack(alignment: .leading, spacing: 0) {
+                        Text(LogType.name(entry.type)).font(.body)
+                        Text(entry.value(on: day)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                    }
                 }
                 if !meta.isEmpty { Text(meta).font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit().fixedSize(horizontal: false, vertical: true) }
             }

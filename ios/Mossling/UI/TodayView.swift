@@ -22,9 +22,12 @@ struct TodayView: View {
                     Button { askBirth = true } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
+                // a feed or a sleep being timed is what matters most while it runs: it leads the page
+                let running = !j.timers.isEmpty
+                if running && app.journal && app.age != nil { NowCard(month: baby) }
                 MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
                 if app.age != nil { DueCard(month: baby) }
-                if app.journal && app.age != nil { NowCard(month: baby) }
+                if !running && app.journal && app.age != nil { NowCard(month: baby) }
                 if app.age != nil {
                     TipView(recordsTip) { action in
                         if action.id == "on" { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }

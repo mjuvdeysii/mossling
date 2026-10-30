@@ -315,6 +315,16 @@ struct CareView: View {
         let mo = app.content.month(month), m = month
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                // first: what the two months before left unticked (overdue is the most pressing); ticked here,
+                // it is kept under its own month
+                let earlier = app.duePending(before: m)
+                if !earlier.isEmpty {
+                    Box(title: "之前没勾的") {
+                        ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
+                            CheckRow(text: d.text + " · 满 \(d.month) 个月", on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
+                        }
+                    }
+                }
                 if !mo.vaccines.isEmpty {
                     Box(title: "接种") {
                         ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
@@ -326,16 +336,6 @@ struct CareView: View {
                     Box(title: "儿童保健") {
                         ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
                             CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
-                        }
-                    }
-                }
-                // what the two months before left unticked, so nothing falls away when the month turns; ticked here,
-                // it is kept under its own month
-                let earlier = app.duePending(before: m)
-                if !earlier.isEmpty {
-                    Box(title: "之前没勾的") {
-                        ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
-                            CheckRow(text: d.text + " · 满 \(d.month) 个月", on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
                         }
                     }
                 }

@@ -77,7 +77,6 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ValueText(parts: [("\(Int(ml))", "毫升")], size: 52)
                     Text("点按或上下拖动奶瓶").font(.footnote).foregroundStyle(Palette.secondaryText)
-                    NudgeButtons(value: $ml, range: 5...300, step: 5, tint: c)
                     FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in withAnimation(.snappy) { ml = Double(v) } }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)

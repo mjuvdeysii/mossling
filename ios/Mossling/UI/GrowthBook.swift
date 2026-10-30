@@ -156,7 +156,7 @@ private struct BookTotals: View {
         let kinds = Set(pages.flatMap { $0.plays.map(\.play.code) }).count
         let firsts = pages.reduce(0) { $0 + $1.firsts.count }
         HStack(spacing: 0) {
-            item("\(pages.count)", "个月")
+            item("\(pages.count)", "页")
             Divider().frame(height: 30)
             item("\(plays)", "次玩耍")
             Divider().frame(height: 30)
@@ -302,8 +302,8 @@ private struct BookPageView: View {
         if let l = page.measure?.lengthMm { f.append(Fact(symbol: "ruler.fill", color: Crayon.aqua, value: String(format: "%.1f", Double(l) / 10), unit: "厘米", label: "身长")) }
         if let h = page.measure?.headMm { f.append(Fact(symbol: "circle.dashed", color: Crayon.sky, value: String(format: "%.1f", Double(h) / 10), unit: "厘米", label: "头围")) }
         if let s = page.sleepHours { f.append(Fact(symbol: LogType.symbol(LogType.sleep), color: LogType.color(LogType.sleep), value: String(format: "%.1f", s), unit: "小时", label: "每天睡眠")) }
-        if let x = page.feeds { f.append(Fact(symbol: LogType.symbol(LogType.nurse), color: LogType.color(LogType.nurse), value: String(format: "%.1f", x), unit: "次", label: "每天喂奶")) }
-        if let x = page.diapers { f.append(Fact(symbol: LogType.symbol(LogType.diaper), color: LogType.color(LogType.diaper), value: String(format: "%.1f", x), unit: "片", label: "每天尿布")) }
+        if let x = page.feeds { f.append(Fact(symbol: LogType.symbol(LogType.nurse), color: LogType.color(LogType.nurse), value: String(format: "%.0f", x.rounded()), unit: "次", label: "每天喂奶")) }
+        if let x = page.diapers { f.append(Fact(symbol: LogType.symbol(LogType.diaper), color: LogType.color(LogType.diaper), value: String(format: "%.0f", x.rounded()), unit: "片", label: "每天尿布")) }
         if page.observed > 0 { f.append(Fact(symbol: "eye.fill", color: Crayon.tangerine, value: "\(page.observed)", unit: "项", label: "留意到")) }
         return f
     }
@@ -419,7 +419,7 @@ struct GrowthBookCard: View {
                 .frame(width: 70, height: 50)
                 VStack(alignment: .leading, spacing: 1) {
                     Text("成长册").font(.headline).foregroundStyle(.primary)
-                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 个月 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 页 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
