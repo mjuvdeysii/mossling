@@ -414,7 +414,7 @@ struct ShelfView: View {
         .buttonStyle(.toy)
         .contextMenu { PlayActions(play: p, month: month) }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(p.name + (first ? "，先玩这件" : "") + (times > 0 ? "，玩过 \(times) 次" : "，还没玩过"))
+        .accessibilityLabel(p.name + (first ? "，先玩这件" : "") + (times > 0 ? "，本周玩过 \(times) 次" : "，本周还没玩"))
         .accessibilityHint((p.domains.first ?? "") + "，\(p.steps.count) 步")
     }
 
@@ -500,7 +500,7 @@ private struct BeadCount: View {
     var body: some View {
         HStack(spacing: 3) {
             if times == 0 {
-                Text("还没玩过").font(.caption2).foregroundStyle(Palette.secondaryText)
+                Text("本周还没玩").font(.caption2).foregroundStyle(Palette.secondaryText)
             } else {
                 ForEach(0..<min(times, 5), id: \.self) { _ in
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))

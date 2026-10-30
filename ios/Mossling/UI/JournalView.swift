@@ -41,6 +41,8 @@ struct JournalView: View {
                     NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
                     NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
                 }
+                // the two tiles side by side are one height: top and bottom edges line up
+                .fixedSize(horizontal: false, vertical: true)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
@@ -98,6 +100,7 @@ struct JournalView: View {
             }
             preview().frame(maxWidth: .infinity, minHeight: 40, alignment: .bottomLeading)
         }
+        .frame(maxHeight: .infinity, alignment: .top)
         .padding(14)
         .background(LinearGradient(colors: [c.opacity(0.12), .clear], startPoint: .top, endPoint: .bottom))
         .printCard(radius: Radius.card)

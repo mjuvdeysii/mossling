@@ -462,11 +462,13 @@ private struct Stat: View {
     let value: String
     let strong: Bool
     var tint: Color? = nil
+    @Environment(\.lamp) private var lamp
     var body: some View {
         VStack(spacing: 2) {
             Text(title).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            // under the lamp the figures are the lamp's cream, as in the dial above
             Ticking(text: value, tint: tint).font(Typeface.numerals(strong ? 26 : 20, relativeTo: .title2, weight: .bold))
-                .foregroundStyle(strong ? Color.primary : Palette.secondaryText)
+                .foregroundStyle(strong ? (lamp ? Palette.lampInk : Color.primary) : Palette.secondaryText)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)

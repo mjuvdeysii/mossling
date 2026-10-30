@@ -67,7 +67,7 @@ struct AskSheet: View {
                            tint: c, liquid: milk == "breastmilk" ? Color(hex: 0xFFF6E2) : Color(hex: 0xF6E2BC))
                     .frame(width: 112, height: 252)
                 VStack(alignment: .leading, spacing: 12) {
-                    ValueText(parts: [("\(Int(ml))", "毫升")], size: 52)
+                    ValueText(parts: [("\(Int(ml))", "毫升")], size: 52).foregroundStyle(lamp ? Palette.lampInk : Color.primary)
                     Text("点按或上下拖动奶瓶").font(.footnote).foregroundStyle(Palette.secondaryText)
                     FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in withAnimation(.snappy) { ml = Double(v) } }
                 }
@@ -96,7 +96,7 @@ struct AskSheet: View {
                     .frame(width: 96, height: 268)
                 VStack(alignment: .leading, spacing: 12) {
                     ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
-                        .foregroundStyle(temp >= 380 ? Palette.danger : .primary)
+                        .foregroundStyle(temp >= 380 ? Palette.danger : lamp ? Palette.lampInk : .primary)
                     Text("点按或上下拖动体温计").font(.footnote).foregroundStyle(Palette.secondaryText)
                     NudgeButtons(value: tempC, range: 34...42.5, step: 0.1, tint: temp >= 380 ? Palette.danger : c)
                 }

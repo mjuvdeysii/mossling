@@ -545,7 +545,7 @@ struct Card<Content: View>: View {
         .padding(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .printCard(radius: Radius.card)
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 
@@ -654,7 +654,7 @@ extension View {
     func printCard(radius: CGFloat = Radius.card, fill: Color = Palette.card) -> some View { modifier(PrintCard(radius: radius, fill: fill)) }
 
     /// A plain rounded card on the page.
-    func card(_ color: Color = Palette.card, radius: CGFloat = 26, padding: CGFloat = 16) -> some View {
+    func card(_ color: Color = Palette.card, radius: CGFloat = Radius.card, padding: CGFloat = 16) -> some View {
         self.padding(padding).frame(maxWidth: .infinity, alignment: .leading).background(color, in: RoundedRectangle(cornerRadius: radius, style: .continuous))
     }
 }

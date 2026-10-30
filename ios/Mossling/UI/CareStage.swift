@@ -49,16 +49,6 @@ struct CareStage: View {
         waving = true
         Task { try? await Task.sleep(for: .milliseconds(1300)); waving = false }
     }
-
-    private var last: String {
-        guard let s0 = LastLine.phrase(type, in: j.logs, now: Date()) else { return "还没有记录" }
-        var s = s0
-        // the sides of the last breast feed, in the order fed — the reason the next one starts where it is suggested
-        if type == LogType.nurse, let f = j.logs.filter({ $0.type == LogType.nurse }).feeds().last {
-            s += " · " + f.sides.map { $0.side == "l" ? "左侧" : "右侧" }.joined(separator: " → ")
-        }
-        return s
-    }
 }
 
 /// Little things drifting up behind the stage.
