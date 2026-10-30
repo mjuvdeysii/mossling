@@ -7,11 +7,13 @@ import XCTest
 final class AccessibilityAuditTests: XCTestCase {
     override func setUp() { continueAfterFailure = true }
 
-    private func launch(_ size: String?) -> XCUIApplication {
+    /// The look is pinned, so a run in the evening is not silently audited by lamplight (自动 turns the lamp on
+    /// 19:00–06:00): 日光 at both sizes, and 夜灯 at the default size as its own list.
+    private func launch(_ size: String?, theme: String = "light") -> XCUIApplication {
         let app = XCUIApplication()
         // a six-month-old, records on; settings come in through the argument domain of UserDefaults
         let birth = Int(Date().timeIntervalSince1970 / 86_400) - 186
-        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO", "-auditStill", "YES",
+        app.launchArguments = ["-onboarded", "YES", "-consent", "2026-10-31", "-birth", "\(birth)", "-journal", "YES", "-nickname", "小满", "-sex", "girl", "-lock", "NO", "-auditStill", "YES", "-theme", theme, "-nightLight", "NO",
                                "-AppleLanguages", "(zh-Hans)", "-AppleLocale", "zh_CN"]
         if let size { app.launchArguments += ["-UIPreferredContentSizeCategoryName", size] }
         app.launch()
@@ -37,10 +39,21 @@ final class AccessibilityAuditTests: XCTestCase {
     }
     private static func key(_ label: String, _ f: CGRect) -> String { "\(label)@\(Int(f.minX)),\(Int(f.minY))" }
     private var skipped = 0
+    /// Text heights by label, measured on each audited screen: the default-size run keeps them, the largest-size run
+    /// compares — a text that has not grown to at least 1.3× its default height does not follow Dynamic Type. This is
+    /// the measured check beside Apple's heuristic one.
+    private var heights: [String: CGFloat] = [:]
+    private static var defaultHeights: [String: CGFloat] = [:]
+    private func measure(_ app: XCUIApplication) {
+        for t in app.staticTexts.allElementsBoundByIndex where !t.label.trimmingCharacters(in: .whitespaces).isEmpty && t.frame.height > 0 {
+            if heights[t.label] == nil { heights[t.label] = t.frame.height }
+        }
+    }
 
     private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
         let under = bars(app)
         shoot(app, place)
+        measure(app)
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
@@ -80,10 +93,10 @@ final class AccessibilityAuditTests: XCTestCase {
         }
     }
 
-    private func run(_ size: String?, file: String) {
-        let app = launch(size)
-        lines = []; unlabeled = []; skipped = 0
-        sizeTag = size == nil ? "default" : "xxxl"
+    private func run(_ size: String?, file: String, theme: String = "light") {
+        let app = launch(size, theme: theme)
+        lines = []; unlabeled = []; skipped = 0; heights = [:]
+        sizeTag = (size == nil ? "default" : "xxxl") + (theme == "dark" ? "_dark" : "")
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
         for tab in ["本月", "记录", "我的"] {
@@ -105,12 +118,21 @@ final class AccessibilityAuditTests: XCTestCase {
             if seen[body] == nil { order.append(body) }
             seen[body, default: []].append(place)
         }
-        let text = "\(order.count) issues (\(size ?? "default size")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in "\(b)  @ \(seen[b]?.joined(separator: ", ") ?? "")" }.joined(separator: "\n") + "\n"
+        if size == nil && theme == "light" { Self.defaultHeights = heights }
+        var measured: [String] = []
+        if size != nil {
+            for (label, h) in heights.sorted(by: { $0.key < $1.key }) {
+                if let base = Self.defaultHeights[label], h < base * 1.3 { measured.append("measured: “\(label)” \(Int(base))pt → \(Int(h))pt") }
+            }
+            order += measured
+        }
+        let text = "\(order.count) issues (\(measured.count) by measurement; \(size ?? "default size"), \(theme == "dark" ? "夜灯" : "日光")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in "\(b)  @ \(seen[b]?.joined(separator: ", ") ?? "")" }.joined(separator: "\n") + "\n"
         try? text.write(toFile: (dir as NSString).appendingPathComponent(file), atomically: true, encoding: .utf8)
         // reported, not failed: the list is reviewed from the published file (a missing label is fixed in the next build)
         if !unlabeled.isEmpty { print("A11Y unlabeled: \(unlabeled.count)") }
     }
 
     func testAuditDefaultSize() { run(nil, file: "ios_a11y_default.txt") }
+    func testAuditLamplight() { run(nil, file: "ios_a11y_dark.txt", theme: "dark") }
     func testAuditLargestText() { run("UICTContentSizeCategoryAccessibilityXXXL", file: "ios_a11y_xxxl.txt") }
 }

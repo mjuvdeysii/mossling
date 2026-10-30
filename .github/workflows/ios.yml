@@ -63,10 +63,10 @@ jobs:
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
       - name: Accessibility audit
         # Xcode's accessibility audit on each tab (default and largest text); the findings go out with the screens.
-        # It reports, never blocks; it runs only when asked for (it takes about 20 minutes), so a build ships fast.
+        # It reports, never blocks; it runs only when asked for (it takes about 20–25 minutes), so a build ships fast.
         if: success() && inputs.audit
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 30
         working-directory: ios
         run: |
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \
