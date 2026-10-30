@@ -72,7 +72,7 @@ final class AppModel {
         shelf = d.string(forKey: "shelf") ?? ""
         consent = d.string(forKey: "consent") ?? ""
         journal = d.bool(forKey: "journal")
-        nightLight = (d.object(forKey: "nightLight") as? Bool) ?? true
+        nightLight = d.object(forKey: "nightLight") == nil ? true : d.bool(forKey: "nightLight")
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })

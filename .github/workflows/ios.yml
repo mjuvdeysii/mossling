@@ -62,11 +62,11 @@ jobs:
             -skip-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
       - name: Accessibility audit
-        # Xcode's accessibility audit on each tab (default and largest text); the findings go out with the screens.
+        # Xcode's accessibility audit on each tab (日光 at the default and largest text, 夜灯 at the default); the findings go out with the screens.
         # It reports, never blocks; it runs only when asked for (it takes about 20–25 minutes), so a build ships fast.
         if: success() && inputs.audit
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 40
         working-directory: ios
         run: |
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$(cat sim.txt)" \

@@ -42,22 +42,27 @@ final class AccessibilityAuditTests: XCTestCase {
     /// Text heights by label, measured on each audited screen: the default-size run keeps them, the largest-size run
     /// compares — a text that has not grown to at least 1.3× its default height does not follow Dynamic Type. This is
     /// the measured check beside Apple's heuristic one.
-    private var heights: [String: CGFloat] = [:]
-    private static var defaultHeights: [String: CGFloat] = [:]
-    private func measure(_ app: XCUIApplication) {
-        for t in app.staticTexts.allElementsBoundByIndex where !t.label.trimmingCharacters(in: .whitespaces).isEmpty && t.frame.height > 0 {
-            if heights[t.label] == nil { heights[t.label] = t.frame.height }
+    /// Only labels seen exactly once in a run are compared (a short label such as a number could be two different
+    /// texts), and the bars' own titles and tab labels are left out (they keep their size by design).
+    private var heights: [String: CGFloat] = [:], repeated = Set<String>()
+    private static var defaultHeights: [String: CGFloat]?
+    private func recordHeights(_ app: XCUIApplication, skip own: Set<String>) {
+        for t in app.staticTexts.allElementsBoundByIndex {
+            let label = t.label, f = t.frame
+            guard !label.trimmingCharacters(in: .whitespaces).isEmpty, f.height > 0, !own.contains(Self.key(label, f)) else { continue }
+            if heights[label] == nil { heights[label] = f.height } else { repeated.insert(label) }
         }
     }
+    private var measuring = true
 
     private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
         let under = bars(app)
         shoot(app, place)
-        measure(app)
+        if measuring { recordHeights(app, skip: under.own) }
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
                 let e = issue.element
-                if issue.auditType == .contrast, let e, under.frames.contains(where: { $0.intersects(e.frame) }),
+                if issue.auditType == .contrast, let e, under.frames.contains(where: { $0.contains(CGPoint(x: e.frame.midX, y: e.frame.midY)) }),
                    !under.own.contains(Self.key(e.label, e.frame)) { self.skipped += 1; return true }
                 let who = e.map { "\($0.elementType.rawValue) “\($0.label)” id=\($0.identifier) \(Int($0.frame.minX)),\(Int($0.frame.minY)) \(Int($0.frame.width))×\(Int($0.frame.height))" } ?? "—"
                 self.lines.append("[\(place)] \(Self.name(issue.auditType)): \(issue.compactDescription) — \(who) · \(issue.detailedDescription)")
@@ -95,7 +100,8 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private func run(_ size: String?, file: String, theme: String = "light") {
         let app = launch(size, theme: theme)
-        lines = []; unlabeled = []; skipped = 0; heights = [:]
+        lines = []; unlabeled = []; skipped = 0; heights = [:]; repeated = []
+        measuring = theme == "light"
         sizeTag = (size == nil ? "default" : "xxxl") + (theme == "dark" ? "_dark" : "")
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
@@ -118,15 +124,23 @@ final class AccessibilityAuditTests: XCTestCase {
             if seen[body] == nil { order.append(body) }
             seen[body, default: []].append(place)
         }
-        if size == nil && theme == "light" { Self.defaultHeights = heights }
-        var measured: [String] = []
-        if size != nil {
-            for (label, h) in heights.sorted(by: { $0.key < $1.key }) {
-                if let base = Self.defaultHeights[label], h < base * 1.3 { measured.append("measured: “\(label)” \(Int(base))pt → \(Int(h))pt") }
+        if size == nil && theme == "light" { Self.defaultHeights = heights.filter { !repeated.contains($0.key) } }
+        var measured: [String] = [], measureNote = "measurement not run"
+        if size != nil, let base = Self.defaultHeights, !base.isEmpty {
+            var compared = 0
+            for (label, h) in heights.sorted(by: { $0.key < $1.key }) where !repeated.contains(label) {
+                guard let b = base[label] else { continue }
+                compared += 1
+                if h < b * 1.3 { measured.append("measured: “\(label)” \(Int(b))pt → \(Int(h))pt") }
             }
             order += measured
+            measureNote = "\(measured.count) of \(compared) texts did not grow by measurement"
+        } else if size != nil {
+            measureNote = "measurement not run (no default-size baseline)"
+        } else {
+            measureNote = "baseline for the measured check"
         }
-        let text = "\(order.count) issues (\(measured.count) by measurement; \(size ?? "default size"), \(theme == "dark" ? "夜灯" : "日光")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in "\(b)  @ \(seen[b]?.joined(separator: ", ") ?? "")" }.joined(separator: "\n") + "\n"
+        let text = "\(order.count) issues (\(measureNote); \(size ?? "default size"), \(theme == "dark" ? "夜灯" : "日光")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in seen[b].map { "\(b)  @ \($0.joined(separator: ", "))" } ?? b }.joined(separator: "\n") + "\n"
         try? text.write(toFile: (dir as NSString).appendingPathComponent(file), atomically: true, encoding: .utf8)
         // reported, not failed: the list is reviewed from the published file (a missing label is fixed in the next build)
         if !unlabeled.isEmpty { print("A11Y unlabeled: \(unlabeled.count)") }

@@ -684,7 +684,7 @@ private struct Totals: View {
             // the details in full: on one line when they fit, otherwise one piece per line — never cut off with "…"
             // nothing to add: an invisible line keeps the three tiles the same height (hidden, so nothing is read or audited)
             Group {
-                if sub.isEmpty { Text("0").hidden() } else { details(sub, sep) }
+                if sub.isEmpty { Text(verbatim: "0").hidden() } else { details(sub, sep) }
             }
             .font(.caption2).foregroundStyle(Palette.secondaryText)
         }
