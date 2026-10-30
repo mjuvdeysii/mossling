@@ -1,0 +1,8 @@
+6 issues (UICTContentSizeCategoryAccessibilityXXXL)
+
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “中国大陆程序” id= 94,719 151×96 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 本月 ↓
+clipped: Text clipped — 48 “瓶喂、尿布等点贴纸记下，时间可改；亲喂和睡眠会打开计时页。记错了，在顶部提示条点「撤销」，或在下面的时间线里改。” id=TipView 30,332 326×522 · Text of this SwiftUI.AccessibilityNode may be clipped at larger Dynamic Type sizes.  @ 记录
+clipped: Text clipped — 48 “瓶喂、尿布等点贴纸记下，时间可改；亲喂和睡眠会打开计时页。记错了，在顶部提示条点「撤销」，或在下面的时间线里改。” id=TipView 30,88 326×522 · Text of this SwiftUI.AccessibilityNode may be clipped at larger Dynamic Type sizes.  @ 记录 ↓
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “精力用不完，什么都要先看一眼” id= 86,707 228×144 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的
+contrast: Contrast failed — — · Contrast failed for SwiftUI.AccessibilityNode  @ 我的 ↓, 我的 ↓, 我的 ↓, 我的 ↓
+dynamic type: Dynamic Type font sizes are partially unsupported — 48 “精力用不完，什么都要先看一眼” id= 86,634 228×144 · User will not be able to change the font size of this SwiftUI.AccessibilityNode  @ 我的 ↓
