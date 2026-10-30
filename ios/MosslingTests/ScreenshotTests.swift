@@ -342,6 +342,11 @@ final class ScreenshotTests: XCTestCase {
         shot("31_lamp_month", height: 1400, lamp: true, tabs(m, MonthView(month: 6).lamp(true)))
     }
     func test27NightHome() { let m = model(); shot("27_night_home", height: 1200, tabs(m, TodayView(path: .constant(NavigationPath())).environment(\.night, true))) }
+    /// Night with the records on and nothing running: the last feed, waking and nappy lead the page.
+    func test27NightFacts() {
+        let m = model(); m.journal = true
+        shot("27_night_facts", height: 1100, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+    }
     func test14Month36() { let m = model(); shot("14_month36", height: 2600, tabs(m, MonthView(month: 36))) }
 
     /// The widget and the Live Activity faces (ios/Shared/WidgetFaces.swift) at their Home Screen and Lock Screen
