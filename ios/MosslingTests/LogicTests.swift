@@ -292,4 +292,29 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(LastLine.phrase(LogType.diaper, in: logs, now: now), "上次换尿布 10 分前")
         XCTAssertNil(LastLine.phrase(LogType.sleep, in: logs, now: now))
     }
+
+    func testOneFeedIsDefinedOnce() {
+        // 16:10–16:28 left, 16:28–16:40 right: one feed, begun at 16:10, one row on the time line
+        let l = LogEntry(type: LogType.nurse, start: t(19, 16, 10), end: t(19, 16, 28), side: "l")
+        let r = LogEntry(type: LogType.nurse, start: t(19, 16, 28), end: t(19, 16, 40), side: "r")
+        let bottle = LogEntry(type: LogType.bottle, start: t(19, 19, 40), amount: 120)
+        let nursed = LogEntry(type: LogType.nurse, start: t(19, 19, 41), end: t(19, 19, 50), side: "l")
+        let nappy = LogEntry(type: LogType.diaper, start: t(19, 18, 5), detail: "wet")
+        let logs = [r, nappy, l, bottle, nursed]
+        let feeds = logs.feeds()
+        XCTAssertEqual(feeds.count, 3, "a breast feed a minute after a bottle is a feed of its own")
+        XCTAssertEqual(feeds[0].start, t(19, 16, 10))
+        XCTAssertEqual(feeds[0].sides.map(\.side), ["l", "r"])
+        XCTAssertEqual(feeds[0].sides[0].seconds, 18 * 60, accuracy: 0.5)
+        XCTAssertEqual(feeds[0].sides[1].seconds, 12 * 60, accuracy: 0.5)
+        XCTAssertEqual(logs.feedCount(), 3)
+        XCTAssertEqual(logs.rows().count, 4, "five entries, four rows: the two sides are one row")
+        XCTAssertEqual(logs.rows().filter { $0.count == 2 }.first?.map(\.id), [l.id, r.id])
+        // the last breast feed began with its first side, and says its sides in order
+        let early = [l, r]
+        XCTAssertEqual(LastFact.of(LogType.nurse, in: early)?.at, l.startDate)
+        XCTAssertEqual(LastFact.of(LogType.nurse, in: early)?.note, "亲喂 · 左侧 → 右侧")
+        XCTAssertEqual(early.feedSides(before: t(19, 16, 41))["r"] ?? 0, 12 * 60, accuracy: 0.5)
+        XCTAssertEqual(ago(Date(timeIntervalSince1970: t(19, 16, 10) / 1000), now: Date(timeIntervalSince1970: t(19, 18, 40) / 1000), precise: true), "2 小时 30 分前")
+    }
 }

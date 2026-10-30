@@ -34,7 +34,7 @@ struct LogEntry: Codable, Identifiable, Hashable {
 
     var summary: String {
         switch type {
-        case LogType.nurse: return [side == "l" ? "左边" : side == "r" ? "右边" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
+        case LogType.nurse: return [side == "l" ? "左侧" : side == "r" ? "右侧" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
         case LogType.sleep: return end.map { _ in minutesOf(activeSeconds) } ?? "进行中"
         case LogType.bottle: return [milk, "\(amount ?? 0) 毫升"].compactMap { $0 }.joined(separator: " ")
         case LogType.diaper: return ["wet": "湿", "dirty": "便", "both": "湿和便"][detail ?? ""] ?? ""
@@ -73,31 +73,94 @@ extension LogEntry {
     func carriedOver(into day: Day) -> Bool { start < day.date.timeIntervalSince1970 * 1000 }
 }
 
-extension Array where Element == LogEntry {
-    /// The number of feeds: a bottle is one feed; nursing on one side then the other, entry right after entry (within
-    /// two minutes), is one feed.
-    /// Pass `from` to count only feeds that began at or after it (a day's feeds: a feed begun before midnight and
-    /// carried on after it belongs to the day before).
-    func feedCount(from: Double = -.infinity) -> Int {
-        let nurses = filter { $0.type == LogType.nurse }.sorted { $0.start < $1.start }
-        var n = filter { $0.type == LogType.bottle && $0.start >= from }.count
-        var lastEnd: Double?
-        for e in nurses {
-            if let l = lastEnd, e.start - l <= 120_000 { } else if e.start >= from { n += 1 }
-            lastEnd = e.end ?? e.start
-        }
-        return n
+/// One feed: a bottle, or a breast feed — one side, or one side then the other, each entry starting within two
+/// minutes of the one before ending. The one definition of 「一顿」: every count, interval, last-feed line, side list and
+/// widget reads feeds from here.
+struct Feed: Hashable {
+    /// How close the next side must follow for it to be the same feed.
+    static let join: Double = 120_000
+    /// The entries of the feed, oldest first (a bottle has one).
+    var entries: [LogEntry]
+    var start: Double { entries[0].start }
+    var end: Double? { entries[entries.count - 1].end }
+    var isBottle: Bool { entries[0].type == LogType.bottle }
+    var first: LogEntry { entries[0] }
+    /// The sides in the order fed, with their seconds (a side fed twice is listed twice, as it happened).
+    var sides: [(side: String, seconds: Double)] {
+        entries.filter { $0.type == LogType.nurse }.map { ($0.side ?? "l", $0.activeSeconds) }
     }
-    /// The sides of the feed that ends where `start` begins, walking back entry by entry: seconds per side.
-    func feedSides(before start: Double) -> [String: Double] {
-        var out: [String: Double] = [:]
-        var t = start
-        while let e = first(where: { $0.type == LogType.nurse && $0.end.map { abs($0 - t) <= 120_000 } == true && $0.start < t }) {
-            out[e.side ?? "l", default: 0] += e.activeSeconds
-            t = e.start
+    var activeSeconds: Double { entries.reduce(0) { $0 + $1.activeSeconds } }
+    var pausedSeconds: Double { entries.reduce(0) { $0 + $1.pausedSeconds } }
+    var startDate: Date { Date(timeIntervalSince1970: start / 1000) }
+}
+
+extension Array where Element == LogEntry {
+    /// The feeds among these entries, oldest first.
+    func feeds() -> [Feed] {
+        var out: [Feed] = []
+        for e in filter({ $0.type == LogType.nurse || $0.type == LogType.bottle }).sorted(by: { $0.start < $1.start }) {
+            if e.type == LogType.nurse, let p = out.last?.entries.last, p.type == LogType.nurse, e.start - (p.end ?? p.start) <= Feed.join {
+                out[out.count - 1].entries.append(e)
+            } else {
+                out.append(Feed(entries: [e]))
+            }
         }
         return out
     }
+    /// The rows of a time line: one per entry, except the sides of one breast feed, which make one row (one feed, one
+    /// row — so the rows a parent counts are the feeds the summary counts). Each row's entries are oldest first.
+    func rows() -> [[LogEntry]] {
+        let joined = feeds().filter { $0.entries.count > 1 }
+        let inFeed = Set(joined.flatMap { $0.entries.map(\.id) })
+        return joined.map(\.entries) + filter { !inFeed.contains($0.id) }.map { [$0] }
+    }
+    /// The number of feeds. Pass `from` to count only feeds that began at or after it (a day's feeds: a feed begun
+    /// before midnight and carried on after it belongs to the day before).
+    func feedCount(from: Double = -.infinity) -> Int { feeds().filter { $0.start >= from }.count }
+    /// The sides of the breast feed that ends where `start` begins (a timer carrying on that feed): seconds per side.
+    func feedSides(before start: Double) -> [String: Double] {
+        guard let f = feeds().last(where: { !$0.isBottle && $0.start < start && $0.end.map { abs($0 - start) <= Feed.join } == true }) else { return [:] }
+        return f.sides.reduce(into: [:]) { $0[$1.side, default: 0] += $1.seconds }
+    }
+}
+
+/// "刚刚", "25 分前", "3 小时前", "2 天前" — the one way the app and its widgets say how long ago. `precise` keeps the
+/// minutes past the hour for the first ten hours ("2 小时 30 分前"), where a glance at a widget needs them. The clock is
+/// passed in, never read here, so a test can say what time it is.
+func ago(_ then: Date, now: Date, precise: Bool = false) -> String {
+    let m = Int(now.timeIntervalSince(then) / 60)
+    if m < 2 { return "刚刚" }
+    if m < 60 { return "\(m) 分前" }
+    if precise && m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
+    if m < 48 * 60 { return "\(m / 60) 小时前" }
+    return "\(m / 1440) 天前"
+}
+
+/// The last time something was done, with what to say about it: a feed by when it began, a sleep by when the baby
+/// woke, anything else by when it happened. Shared by the app and the widgets, so both say the same.
+struct LastFact {
+    let label: String
+    let at: Date
+    let note: String?
+
+    static func of(_ type: String, in logs: [LogEntry], before: Double = .infinity) -> LastFact? {
+        let older = logs.filter { $0.start < before }
+        switch type {
+        case LogType.nurse, LogType.bottle:
+            guard let f = older.feeds().last else { return nil }
+            let note = f.isBottle ? "瓶喂 \(f.first.amount ?? 0) 毫升"
+                : "亲喂 · " + f.sides.map { $0.side == "l" ? "左侧" : "右侧" }.joined(separator: " → ")
+            return LastFact(label: "上次喂奶", at: f.startDate, note: note)
+        case LogType.sleep:
+            guard let s = older.filter({ $0.type == LogType.sleep && $0.end != nil }).max(by: { $0.start < $1.start }), let e = s.endDate else { return nil }
+            return LastFact(label: "上次醒来", at: e, note: "睡了 " + minutesOf(s.activeSeconds))
+        default:
+            guard let e = older.filter({ $0.type == type }).max(by: { $0.start < $1.start }) else { return nil }
+            return LastFact(label: type == LogType.diaper ? "上次换尿布" : "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
+        }
+    }
+    /// 「上次喂奶 25 分前」: the one sentence for the last time, wherever it is said.
+    func phrase(now: Date, precise: Bool = false) -> String { label + " " + ago(at, now: now, precise: precise) }
 }
 
 /// One way to write a length of time everywhere (app, widget, Live Activity): "18 分钟", "1 小时 5 分", "2 小时".
@@ -296,10 +359,8 @@ enum JournalFile {
     static func note(for t: RunningTimer, in logs: [LogEntry]) -> String? {
         let begun = t.start - t.carried - t.carriedPause
         if t.type == LogType.nurse {
-            let feeds = logs.filter { ($0.type == LogType.nurse || $0.type == LogType.bottle) && $0.start < begun }.sorted { $0.start < $1.start }
-            guard var i = feeds.indices.last else { return nil }
-            while i > 0, feeds[i].type == LogType.nurse, feeds[i - 1].type == LogType.nurse, let pe = feeds[i - 1].end, feeds[i].start - pe <= 120_000 { i -= 1 }
-            return "距上一顿 " + minutesOf((begun - feeds[i].start) / 1000)
+            guard let f = logs.filter({ $0.start < begun }).feeds().last else { return nil }
+            return "距上一顿 " + minutesOf((begun - f.start) / 1000)
         }
         if t.type == LogType.sleep, let e = logs.filter({ $0.type == LogType.sleep && ($0.end ?? .infinity) <= begun }).compactMap(\.end).max() {
             return "醒了 " + minutesOf((begun - e) / 1000) + "后入睡"

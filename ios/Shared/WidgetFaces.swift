@@ -61,22 +61,18 @@ struct TodayFace: View {
 
     private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
     private var ageText: String { age.map { $0.days > 0 ? "\($0.months) 个月 \($0.days) 天" : "满 \($0.months) 个月" } ?? "填写出生日期" }
-    private func last(_ t: String) -> Date? { body_.logs.filter { $0.type == t }.max { $0.start < $1.start }.map { Date(timeIntervalSince1970: ($0.end ?? $0.start) / 1000) } }
-    private func agoText(_ d: Date) -> String {
-        let m = Int(date.timeIntervalSince(d) / 60)
-        if m < 2 { return "刚刚" }
-        if m < 60 { return "\(m) 分钟前" }
-        if m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
-        return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
+    /// When it was last done, as the app says it (LastFact): a feed — breast or bottle — by when it began, a sleep by
+    /// when the baby woke.
+    private func last(_ t: String) -> Date? {
+        // a kind's own card (亲喂, 瓶喂): its own last feed, as the app's sticker
+        if t == LogType.nurse || t == LogType.bottle { return body_.logs.filter { $0.type == t }.feeds().last?.startDate }
+        return LastFact.of(t, in: body_.logs)?.at
     }
-    /// The narrow cards' form, the same as the app's stickers: "25 分前", "3 小时前", "2 天前" — one way of saying it
-    /// everywhere (the long form was cut to "3 小时 20…"; "3时20分前" read as a time).
-    private func agoCard(_ d: Date) -> String {
-        let m = Int(date.timeIntervalSince(d) / 60)
-        if m < 2 { return "刚刚" }
-        if m < 60 { return "\(m) 分前" }
-        return m < 48 * 60 ? "\(m / 60) 小时前" : "\(m / 1440) 天前"
-    }
+    /// 喂奶, either kind: the last feed, as the app's 上次喂奶.
+    private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
+    /// The wide faces have room for the minutes past the hour ("2 小时 30 分前"); the narrow cards use the short form.
+    private func agoText(_ d: Date) -> String { ago(d, now: date, precise: true) }
+    private func agoCard(_ d: Date) -> String { ago(d, now: date) }
     private var journal: Bool { snap?.journal == true }
 
     var body: some View {
@@ -91,7 +87,7 @@ struct TodayFace: View {
                         if let p = t.pausedAt { Text(minutesOf(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit() }
                     }.font(.caption)
                 } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1) }
-                if journal, let f = [last(LogType.nurse), last(LogType.bottle)].compactMap({ $0 }).max() { Text("喂奶 \(agoText(f))").font(.caption) }
+                if journal, let f = lastFeed { Text("喂奶 \(agoText(f))").font(.caption) }
             }
         case .medium: medium
         case .small: small
@@ -158,7 +154,7 @@ struct TodayFace: View {
     private var since: some View {
         VStack(alignment: .leading, spacing: 6) {
             ForEach([LogType.nurse, LogType.sleep], id: \.self) { t in
-                let d = t == LogType.nurse ? [last(LogType.nurse), last(LogType.bottle)].compactMap { $0 }.max() : last(t)
+                let d = t == LogType.nurse ? lastFeed : last(t)
                 HStack(spacing: 6) {
                     ArtImage(name: WidgetArt.sticker(t)).frame(width: 24, height: 24)
                     VStack(alignment: .leading, spacing: 0) {

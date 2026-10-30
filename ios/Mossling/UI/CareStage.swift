@@ -53,8 +53,9 @@ struct CareStage: View {
     private var last: String {
         guard let s0 = LastLine.phrase(type, in: j.logs, now: Date()) else { return "还没有记录" }
         var s = s0
-        if type == LogType.nurse, let side = j.logs.filter({ $0.type == LogType.nurse }).max(by: { $0.start < $1.start })?.side {
-            s += side == "l" ? " · 左侧" : " · 右侧"
+        // the sides of the last breast feed, in the order fed — the reason the next one starts where it is suggested
+        if type == LogType.nurse, let f = j.logs.filter({ $0.type == LogType.nurse }).feeds().last {
+            s += " · " + f.sides.map { $0.side == "l" ? "左侧" : "右侧" }.joined(separator: " → ")
         }
         return s
     }
@@ -152,32 +153,10 @@ struct LastLine: View {
     var compact = false
     @Environment(JournalStore.self) private var j
 
-    struct Fact { let label: String; let at: Date; let note: String? }
-
-    static func fact(_ type: String, in logs: [LogEntry], before: Double = .infinity) -> Fact? {
-        let older = logs.filter { $0.start < before }
-        switch type {
-        case LogType.nurse, LogType.bottle:
-            let feeds = older.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.sorted { $0.start < $1.start }
-            guard var i = feeds.indices.last else { return nil }
-            // walk back over the sides of the same feed to its first side
-            while i > 0, feeds[i].type == LogType.nurse, feeds[i - 1].type == LogType.nurse, let pe = feeds[i - 1].end, feeds[i].start - pe <= 120_000 { i -= 1 }
-            let f = feeds[i]
-            let note = f.type == LogType.bottle ? "瓶喂 \(f.amount ?? 0) 毫升" : f.side.map { $0 == "l" ? "亲喂 · 先左侧" : "亲喂 · 先右侧" }
-            return Fact(label: "上次喂奶", at: f.startDate, note: note)
-        case LogType.sleep:
-            guard let s = older.filter({ $0.type == LogType.sleep && $0.end != nil }).max(by: { $0.start < $1.start }), let e = s.endDate else { return nil }
-            return Fact(label: "上次醒来", at: e, note: "睡了 " + durationValue(s.activeSeconds))
-        default:
-            guard let e = older.filter({ $0.type == type }).max(by: { $0.start < $1.start }) else { return nil }
-            return Fact(label: type == LogType.diaper ? "上次换尿布" : "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
-        }
-    }
-
+    typealias Fact = LastFact
+    static func fact(_ type: String, in logs: [LogEntry], before: Double = .infinity) -> Fact? { LastFact.of(type, in: logs, before: before) }
     /// 「上次喂奶 25 分前」, 「上次醒来 3 小时前」, 「上次换尿布 刚刚」: the one sentence for the last time, wherever it is said.
-    static func phrase(_ type: String, in logs: [LogEntry], now: Date) -> String? {
-        fact(type, in: logs).map { $0.label + " " + ago($0.at, now: now) }
-    }
+    static func phrase(_ type: String, in logs: [LogEntry], now: Date) -> String? { fact(type, in: logs)?.phrase(now: now) }
 
     @Environment(\.dynamicTypeSize) private var typeSize
     private var big: Bool { typeSize >= .xxLarge }
@@ -218,7 +197,7 @@ struct LastLine: View {
                     }
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
-                .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
                 .accessibilityElement(children: .combine)
             }
             // nothing recorded before: nothing to say (an empty strip only took room, and stayed while timing)

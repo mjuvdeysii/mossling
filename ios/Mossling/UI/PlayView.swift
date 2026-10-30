@@ -164,7 +164,7 @@ struct Fold<Content: View>: View {
             }
         }
         .printCard(radius: Radius.card)
-        .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 }
 

@@ -117,6 +117,14 @@ final class JournalStore {
         guard edit({ $0.logs.removeAll { $0.id == e.id } }) else { return }
         say(e.type, "已删除 " + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
     }
+    /// A whole breast feed — its sides — at once: one change, one line said back, one 撤销.
+    func delete(_ es: [LogEntry]) {
+        guard let e = es.min(by: { $0.start < $1.start }) else { return }
+        if es.count == 1 { delete(e); return }
+        let before = JournalFile.read(), ids = Set(es.map(\.id))
+        guard edit({ $0.logs.removeAll { ids.contains($0.id) } }) else { return }
+        say(e.type, "已删除这一顿" + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
+    }
     func saveMeasure(_ m: Measure) { edit { b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } } }
     func deleteMeasure(_ m: Measure) {
         let before = JournalFile.read()
@@ -142,7 +150,9 @@ final class JournalStore {
     /// When the last one was: a feed by when it began (feeds are counted start to start), anything else — a sleep
     /// above all — by when it ended (when the baby woke).
     func last(_ type: String) -> Date? {
-        logs.first { $0.type == type }.map { [LogType.nurse, LogType.bottle].contains(type) ? $0.startDate : ($0.endDate ?? $0.startDate) }
+        // a breast feed of two sides began with its first side
+        if type == LogType.nurse || type == LogType.bottle { return logs.filter { $0.type == type }.feeds().last?.startDate }
+        return logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate }
     }
     /// The entries of a day: those that start on it, and those that run into it from the day before (a night's sleep
     /// belongs to both days, each counting its own part).

@@ -238,8 +238,8 @@ private struct CompanionPicker: View {
                         Spacer(minLength: 0)
                     }
                     .padding(6)
-                    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(on ? Palette.accent.opacity(lamp ? 0.18 : 0.08) : .clear))
-                    .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(on ? Palette.accent.opacity(lamp ? 0.18 : 0.08) : .clear))
+                    .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel("陪伴伙伴 \(k.rawValue)，\(k.trait)").accessibilityAddTraits(on ? .isSelected : [])

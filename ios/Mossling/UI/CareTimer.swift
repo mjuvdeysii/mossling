@@ -126,13 +126,6 @@ struct TimerScreen: View {
         }
     }
 
-    private var lastLine: String {
-        guard let s0 = LastLine.phrase(type, in: j.logs, now: Date()) else { return "还没有记录" }
-        var s = s0
-        if type == LogType.nurse, let side = lastNurseSide { s += side == "l" ? " · 左侧" : " · 右侧" }
-        return s
-    }
-
     private func begin(side: String?) {
         withAnimation(.snappy) { j.start(type, side: side, at: min(chosenStart, Date())) }
         startAgo = 0; startAt = nil
@@ -272,7 +265,7 @@ private struct Notice: View {
             Button(action, action: tap).buttonStyle(.vinyl(c))
         }
         .padding(12)
-        .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .background(c.opacity(0.14), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
     }
 }
 
@@ -322,7 +315,8 @@ private struct SidePad: View {
                 VStack(spacing: 2) {
                     Text(side == "l" ? "左" : "右").font(Typeface.numerals(28, weight: .heavy))
                     Group {
-                        if isReady { Text(side == "l" ? "左侧" : "右侧") }
+                        // before it starts the big 左 / 右 already names the side: the line keeps its height, empty
+                        if isReady { Text("00:00").hidden() }
                         else { Ticking(text: seconds >= 1 ? clock(seconds) : "—") }   // 余影: each second leaves an afterimage
                     }
                     .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))

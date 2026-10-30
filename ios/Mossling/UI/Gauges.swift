@@ -206,14 +206,14 @@ struct ChoiceTile: View {
             .frame(maxWidth: .infinity, minHeight: height)
             .padding(.vertical, 8)
             .vinylSurface(on ? tint : Color(hex: 0xB9AFA4), radius: Radius.card)
-            .overlay(RoundedRectangle(cornerRadius: 24, style: .continuous).strokeBorder(on ? Crayon.ink(tint) : .clear, lineWidth: 2))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(on ? Crayon.ink(tint) : .clear, lineWidth: 2))
             .overlay(alignment: .topTrailing) {
                 if on {
                     Image(systemName: "checkmark.circle.fill").font(.title3).symbolRenderingMode(.palette)
                         .foregroundStyle(.white, Crayon.ink(tint)).padding(8).transition(.scale.combined(with: .opacity))
                 }
             }
-            .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
         }
         .buttonStyle(.toy)
         .accessibilityAddTraits(on ? .isSelected : [])

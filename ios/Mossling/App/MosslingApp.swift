@@ -266,7 +266,7 @@ struct OnboardingView: View {
                     }
                 }
                 .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 .padding(.top, 4)
             }
             .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)

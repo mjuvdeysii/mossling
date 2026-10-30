@@ -22,9 +22,7 @@ struct AskSheet: View {
     @State private var saved = 0
     @FocusState private var typing: Bool
 
-    /// The record instruments are the same in both worlds (only their drawing differs).
-    private var vinyl: Bool { true }
-    private var at: Date { vinyl ? (ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? when) : when }
+    private var at: Date { ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? when }
     private var tempC: Binding<Double> { Binding(get: { Double(temp) / 10 }, set: { temp = Int(($0 * 10).rounded()) }) }
 
     var body: some View {
@@ -46,26 +44,20 @@ struct AskSheet: View {
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
             .background { PageBackground(tone: LogType.color(type)) }
         }
-        .presentationDetents(vinyl ? [.large] : [.fraction(0.72), .large])
+        .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: saved)
         .onAppear { if let on { ago = nil; when = on } }
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
     }
 
     @ViewBuilder private var when_: some View {
-        if vinyl {
-            WhenChips(ago: $ago, exact: $when, tint: LogType.color(type))
-        } else {
-            DatePicker("时间", selection: $when, in: ...Date(), displayedComponents: [.date, .hourAndMinute])
-                .padding(.horizontal, 16).padding(.vertical, 10)
-                .printCard(radius: Radius.card)
-        }
+        WhenChips(ago: $ago, exact: $when, tint: LogType.color(type))
     }
 
     @ViewBuilder private var content: some View {
         let c = LogType.color(type)
         switch type {
-        case LogType.bottle where vinyl:
+        case LogType.bottle:
             HStack(spacing: 12) {
                 ChoiceTile(sticker: "ic_heart_fill.webp", symbol: "heart.fill", title: "母乳", on: milk == "breastmilk", tint: Crayon.pink, height: 78) { withAnimation(.snappy) { milk = "breastmilk" } }
                 ChoiceTile(sticker: "ic_waterbottle_fill.webp", symbol: "waterbottle.fill", title: "配方奶", on: milk == "formula", tint: Crayon.peach, height: 78) { withAnimation(.snappy) { milk = "formula" } }
@@ -83,7 +75,7 @@ struct AskSheet: View {
             }
             .padding(16)
             .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
-        case LogType.diaper where vinyl:
+        case LogType.diaper:
             Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 10) {
                 ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
@@ -97,7 +89,7 @@ struct AskSheet: View {
                     }
                 }
             }
-        case LogType.temp where vinyl:
+        case LogType.temp:
             HStack(alignment: .center, spacing: 16) {
                 LevelGauge(vessel: .thermometer, value: tempC, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" },
                            tint: Crayon.tangerine, alarm: 38)
@@ -112,58 +104,12 @@ struct AskSheet: View {
             }
             .padding(16)
             .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
-        case LogType.bottle:
-            // what is in the bottle: breast milk (expressed) or formula — two big choices, the last one kept
-            HStack(spacing: 12) {
-                ForEach([("breastmilk", "母乳", "heart.fill"), ("formula", "配方奶", "waterbottle.fill")], id: \.0) { k, t, sym in
-                    let on = milk == k
-                    Button { withAnimation(.snappy) { milk = k } } label: {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: sym, color: k == "breastmilk" ? Crayon.pink : Crayon.peach, size: 36, round: true)
-                            Text(t).font(.headline).foregroundStyle(on ? Crayon.ink(c) : Color.primary)
-                            Spacer(minLength: 0)
-                            if on { Image(systemName: "checkmark.circle.fill").foregroundStyle(Crayon.ink(c)) }
-                        }
-                        .padding(12)
-                        .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.card))
-                        .vinylSurface(on ? c : .white, radius: Radius.inner)
-                        .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).strokeBorder(on ? Crayon.ink(c) : Color.clear, lineWidth: 2))
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.toy)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            HStack(alignment: .firstTextBaseline) {
-                ValueText(parts: [("\(Int(ml))", "毫升")], size: 44)
-                Spacer()
-                Stepper("奶量", value: $ml, in: 5...300, step: 5).labelsHidden()
-            }
-            FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { ml = Double($0) }
-        case LogType.diaper:
-            Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
-            HStack(spacing: 12) {
-                ForEach([("wet", "湿", "drop.halffull"), ("dirty", "便", "circle.fill"), ("both", "都有", "circle.lefthalf.filled")], id: \.0) { k, t, sym in
-                    Button { if j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)) { dismiss() } else { failed = true } } label: {
-                        VStack(spacing: 8) { Image(systemName: sym).font(.title2); Text(t).font(.subheadline.weight(.semibold)) }
-                            .frame(maxWidth: .infinity, minHeight: 96).foregroundStyle(Crayon.ink(c))
-                            .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: 26, style: .continuous))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        case LogType.temp:
-            HStack(alignment: .firstTextBaseline) {
-                ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 44).foregroundStyle(temp >= 380 ? Palette.danger : .primary)
-                Spacer()
-                Stepper("体温", value: $temp, in: 340...425).labelsHidden()
-            }
         default:
             let (title, hint, chips): (String, String, [String]) = type == LogType.solid ? ("吃了什么", "食物和大概的量", ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
                 : type == LogType.medicine ? ("用了什么药", "药名与剂量，按医嘱或说明书", ["维生素 D", "维生素 AD"]) : ("备注", "发生了什么", [])
             Text(title).font(.headline)
             TextField(hint, text: $text, axis: .vertical).lineLimit(type == LogType.note ? 3...6 : 1...3).focused($typing)
-                .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
             if !chips.isEmpty {
                 FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
             }
@@ -266,7 +212,7 @@ struct EntrySheet: View {
                     }
                     .padding(.vertical, 4)
                 }
-                .listRowBackground(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(LogType.color(entry.type).opacity(0.16)))
+                .listRowBackground(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(LogType.color(entry.type).opacity(0.16)))
                 if isNew {
                     Picker("类型", selection: $entry.type) {
                         ForEach(LogType.buttons.filter { $0 != LogType.growth }, id: \.self) { Text(LogType.name($0)).tag($0) }
@@ -302,9 +248,8 @@ struct EntrySheet: View {
 
     @ViewBuilder private var fields: some View {
         let c = LogType.color(entry.type)
-        let vinyl = true
         switch entry.type {
-        case LogType.bottle where vinyl:
+        case LogType.bottle:
             Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
                 Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
             }
@@ -319,22 +264,23 @@ struct EntrySheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 6)
-        case LogType.nurse where vinyl:
+        case LogType.nurse:
             HStack(spacing: 10) {
-                ForEach([("l", "左侧", "L"), ("r", "右侧", "R")], id: \.0) { k, t, mark in
-                    ChoiceTile(sticker: nil, symbol: k == "l" ? "l.circle.fill" : "r.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: c, height: 76) { withAnimation(.snappy) { entry.side = k } }
-                        .accessibilityLabel(t + mark)
+                // the sides read 左侧 / 右侧, never L / R; the arrow only points the way
+                ForEach([("l", "左侧"), ("r", "右侧")], id: \.0) { k, t in
+                    ChoiceTile(sticker: nil, symbol: k == "l" ? "arrow.left.circle.fill" : "arrow.right.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: c, height: 76) { withAnimation(.snappy) { entry.side = k } }
+                        .accessibilityLabel(t)
                 }
             }
             .padding(.vertical, 4)
-        case LogType.diaper where vinyl:
+        case LogType.diaper:
             HStack(spacing: 10) {
                 ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
                     ChoiceTile(sticker: art, symbol: sym, title: t, on: (entry.detail ?? "wet") == k, tint: c, height: 96) { withAnimation(.snappy) { entry.detail = k } }
                 }
             }
             .padding(.vertical, 4)
-        case LogType.temp where vinyl:
+        case LogType.temp:
             let t = Binding<Double>(get: { Double(entry.amount ?? 368) / 10 }, set: { entry.amount = Int(($0 * 10).rounded()) })
             HStack(spacing: 16) {
                 LevelGauge(vessel: .thermometer, value: t, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" }, tint: Crayon.tangerine, alarm: 38)
@@ -347,17 +293,6 @@ struct EntrySheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(.vertical, 6)
-        case LogType.bottle:
-            Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
-                Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
-            }
-            Stepper(value: Binding(get: { entry.amount ?? 120 }, set: { entry.amount = $0 }), in: 5...300, step: 5) { LabeledContent("奶量", value: "\(entry.amount ?? 120) 毫升") }
-        case LogType.nurse:
-            Picker("哪边", selection: Binding(get: { entry.side ?? "l" }, set: { entry.side = $0 })) { Text("左侧").tag("l"); Text("右侧").tag("r") }.pickerStyle(.segmented)
-        case LogType.diaper:
-            Picker("尿布", selection: Binding(get: { entry.detail ?? "wet" }, set: { entry.detail = $0 })) { Text("湿").tag("wet"); Text("便").tag("dirty"); Text("都有").tag("both") }.pickerStyle(.segmented)
-        case LogType.temp:
-            Stepper(value: Binding(get: { entry.amount ?? 368 }, set: { entry.amount = $0 }), in: 340...425) { LabeledContent("体温", value: String(format: "%.1f °C", Double(entry.amount ?? 368) / 10)) }
         case LogType.solid, LogType.medicine, LogType.note:
             TextField(entry.type == LogType.solid ? "食物和大概的量" : entry.type == LogType.medicine ? "药名与剂量" : "发生了什么",
                       text: Binding(get: { entry.detail ?? "" }, set: { entry.detail = String($0.prefix(120)) }), axis: .vertical)

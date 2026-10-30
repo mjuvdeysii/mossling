@@ -192,8 +192,8 @@ private struct MonthCard: View {
                 // the map in small: the child's hill and path, Moss on his stone (by night, home asleep)
                 MapVignette(month: month, baby: baby, festive: month == baby && app.age?.days == 0 && app.age != nil)
                 .frame(width: 104, height: 112)
-                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: 22, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
@@ -421,7 +421,7 @@ struct ShelfView: View {
     /// The one free place: a dashed tile and how much room is left.
     private func empty(room: Int, left: Int) -> some View {
         HStack(spacing: 12) {
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
+            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                 .strokeBorder(Palette.outline, style: StrokeStyle(lineWidth: 1.5, dash: [5, 5]))
                 .overlay(Image(systemName: "plus").font(.headline.weight(.semibold)).foregroundStyle(Palette.accent))
                 .frame(width: 76, height: 44)
@@ -445,7 +445,7 @@ struct TrayTile: View {
     let flat: Bool
     @Environment(\.colorScheme) private var scheme
     var body: some View {
-        let shape = RoundedRectangle(cornerRadius: 14, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
         let dark = scheme == .dark
         ZStack {
             if flat {

@@ -324,7 +324,7 @@ private struct FactChip: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8).padding(.vertical, 7)
-        .background(fact.color.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(fact.color.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .accessibilityElement(children: .combine)
     }
 }
@@ -384,7 +384,7 @@ private struct PlayStamp: View {
             Spacer(minLength: 0)
         }
         .padding(6)
-        .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .accessibilityElement(children: .combine)
         .accessibilityLabel(play.name + "，玩过 \(times) 次")
     }
