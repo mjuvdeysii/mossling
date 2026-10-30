@@ -8,6 +8,7 @@ import TipKit
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.night) private var night
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
@@ -23,7 +24,7 @@ struct TodayView: View {
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
                 // a feed or a sleep being timed is what matters most while it runs: it leads the page
-                let running = !j.timers.isEmpty
+                let running = !j.timers.isEmpty || night
                 if running && app.journal && app.age != nil { NowCard(month: baby) }
                 MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
                 if app.age != nil { DueCard(month: baby) }
@@ -133,8 +134,36 @@ private struct NowCard: View {
                     }
                 }
                 .buttonStyle(.toy)
+            } else if night && !j.logs.isEmpty {
+                // at night, with nothing running: the three things asked at 2 a.m. — when the last feed was, when the
+                // baby last woke, the last nappy — each one tap from recording the next
+                HStack(spacing: 8) {
+                    fact(LogType.nurse, "care/nurse", tl.date)
+                    fact(LogType.sleep, "care/sleep", tl.date)
+                    fact(LogType.diaper, "log/diaper", tl.date)
+                }
             }
         }
+    }
+    @Environment(\.openURL) private var openURL
+    private func fact(_ type: String, _ link: String, _ now: Date) -> some View {
+        let f = LastLine.fact(type, in: j.logs)
+        let c = LogType.color(type)
+        return Button { if let u = URL(string: "mossling://" + link) { openURL(u) } } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 5) {
+                    IconTile(symbol: LogType.symbol(type), color: c, size: 20, round: true)
+                    Text(f?.label ?? ("上次" + LogType.name(type))).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
+                }
+                Text(f.map { agoShort($0.at, now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                    .lineLimit(1).minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(10)
+            .background(c.opacity(0.14)).printCard(radius: 18)
+        }
+        .buttonStyle(.toy)
+        .accessibilityHint("记下一次" + LogType.name(type))
     }
     private func words(_ a: String, _ b: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
