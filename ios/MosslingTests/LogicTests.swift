@@ -130,6 +130,7 @@ final class LogicTests: XCTestCase {
         b.timers = [RunningTimer(type: LogType.nurse, start: t(19, 10, 0), side: "l", pausedTotal: 60_000)]
         b = JournalFile.switchingSide(b, LogType.nurse, now: t(19, 10, 8))
         let app = AppModel(defaults: UserDefaults(suiteName: "export-\(UUID().uuidString)")!)
+        app.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent
         let root = try JSONSerialization.jsonObject(with: RecordFile.json(app, b)) as! [String: Any]
         let logs = (root["mossling"] as! [String: Any])["logs"] as! [[String: Any]]
         XCTAssertEqual(logs.count, 1)
@@ -353,6 +354,7 @@ final class LogicTests: XCTestCase {
     func testTodaysPlayStaysTodaysOncePlayed() {
         let d = UserDefaults(suiteName: "today-\(UUID().uuidString)")!
         let m = AppModel(defaults: d)
+        m.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent
         m.today = Day(y: 2026, m: 10, d: 21)
         m.birth = Day(y: 2026, m: 4, d: 2)
         m.setShelf(["A11", "A09", "A15"])
@@ -377,6 +379,7 @@ final class LogicTests: XCTestCase {
     func testAPlayIsCountedFromTheRecordsOnly() {
         let d = UserDefaults(suiteName: "played-\(UUID().uuidString)")!
         let m = AppModel(defaults: d)
+        m.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent
         m.today = Day(y: 2026, m: 10, d: 21)
         m.birth = Day(y: 2026, m: 4, d: 2)
         let in6 = (Day(y: 2026, m: 10, d: 10).date.timeIntervalSince1970 + 3600) * 1000
@@ -395,6 +398,7 @@ final class LogicTests: XCTestCase {
     func testDidPlayWritesOnlyTheRecordsAndUndoLeavesNothing() throws {
         JournalFile.beginTest(); defer { JournalFile.endTest() }
         let m = AppModel(defaults: UserDefaults(suiteName: "didplay-\(UUID().uuidString)")!)
+        m.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent
         m.birth = Day(y: 2026, m: 4, d: 2)
         let j = JournalStore(preview: JournalFile.Body())
         let p = try XCTUnwrap(m.content.play("A09"))

@@ -6,6 +6,7 @@ import XCTest
 final class DataTests: XCTestCase {
     private func model() -> AppModel {
         let m = AppModel(defaults: UserDefaults(suiteName: "data-\(UUID().uuidString)")!)
+        m.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent
         m.today = Day(y: 2026, m: 10, d: 19)
         m.birth = Day(y: 2026, m: 4, d: 2); m.sex = "girl"; m.nickname = "小满"; m.companion = .otto
         m.shelf = "6|2026-10-13|A11,A08"; m.theme = .dark; m.look = "girl"
