@@ -265,7 +265,7 @@ struct FirstsView: View {
             fresh = n
             Task { @MainActor in try? await Task.sleep(for: .milliseconds(2200)); if fresh == n { fresh = nil } }
         }
-        .toolbar { ToolbarItem(placement: .topBarTrailing) { Button("记一个第一次", systemImage: "plus") { adding = true } } }
+
         .sheet(item: $editing) { f in FirstSheet(first: f, isNew: false).lampPresented() }
         .sheet(isPresented: $adding) { FirstSheet(first: First(at: ms(Date()), title: ""), isNew: true).lampPresented() }
     }

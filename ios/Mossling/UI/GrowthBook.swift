@@ -64,7 +64,7 @@ private struct QuietMonths: View {
         let ms = pages.map(\.month)
         let lo = ms.min() ?? 0, hi = ms.max() ?? 0
         VStack(alignment: .leading, spacing: 10) {
-            Text(lo == hi ? "满 \(lo) 个月 · 没有留下记录" : "满 \(lo)–\(hi) 个月 · 没有留下记录")
+            Text((lo == hi ? (lo == 0 ? "出生" : "满 \(lo) 个月") : (lo == 0 ? "出生–\(hi) 个月" : "满 \(lo)–\(hi) 个月")) + " · 没有留下记录")
                 .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 96 : 60), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(pages, id: \.month) { p in
