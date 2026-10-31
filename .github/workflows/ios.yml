@@ -126,6 +126,16 @@ jobs:
           mkdir -p ios/store && for f in ios/shots/ios_store_*.png; do [ -f "$f" ] || continue
             sips -s format jpeg -s formatOptions 95 --matchTo "/System/Library/ColorSync/Profiles/sRGB Profile.icc" "$f" --out "ios/store/$(basename "${f%.png}").jpg" >/dev/null
           done; sips -g pixelWidth -g pixelHeight -g hasAlpha ios/store/*.jpg || true
+      - name: App Store screenshots (to a branch)
+        # the same five JPEGs on a branch store-<sha> as well, so they can be fetched with git
+        if: always()
+        continue-on-error: true
+        run: |
+          ls ios/store/*.jpg >/dev/null 2>&1 || exit 0
+          cp ios/store/*.jpg /tmp/ && cd "$(mktemp -d)" && git init -q && cp /tmp/ios_store_*.jpg . && echo "${GITHUB_SHA}" > COMMIT
+          git config user.name "github-actions"; git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A && git commit -qm "store screenshots ${GITHUB_SHA}"
+          git push -q "https://x-access-token:${{ github.token }}@github.com/${{ github.repository }}.git" HEAD:refs/heads/store-${GITHUB_SHA::7}
       - name: App Store screenshots (full size)
         # the five store screens at 1206×2622 (6.3-inch iPhone with Dynamic Island, the size App Store Connect asks for), kept with every run
         # as a download: Actions › this run › Artifacts › appstore-screenshots (upload the .jpg files)
