@@ -118,15 +118,23 @@ jobs:
         working-directory: ios
         run: |
           grep -E "error:|failed|XCTAssert" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::$(echo "$l" | sed 's/%/%25/g')"; done
+      - name: App Store screenshots (flatten)
+        # App Store Connect wants flat RGB pictures with no transparency: each store screen also as a JPEG (sRGB, no alpha)
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p ios/store && for f in ios/shots/ios_store_*.png; do [ -f "$f" ] || continue
+            sips -s format jpeg -s formatOptions 95 --matchTo "/System/Library/ColorSync/Profiles/sRGB Profile.icc" "$f" --out "ios/store/$(basename "${f%.png}").jpg" >/dev/null
+          done; sips -g pixelWidth -g pixelHeight -g hasAlpha ios/store/*.jpg || true
       - name: App Store screenshots (full size)
         # the five store screens at 1320×2868 (6.9-inch iPhone, the size App Store Connect requires), kept with every run
-        # as a download: Actions › this run › Artifacts › appstore-screenshots
+        # as a download: Actions › this run › Artifacts › appstore-screenshots (upload the .jpg files)
         if: always()
         continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: appstore-screenshots
-          path: ios/shots/ios_store_*.png
+          path: ios/store/*.jpg
           if-no-files-found: ignore
           retention-days: 30
       - name: Publish screens
