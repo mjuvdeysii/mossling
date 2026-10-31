@@ -371,7 +371,7 @@ struct TodayPlayCard: View {
                         // Moss blinks twice and looks at it — the change said without a word. One pair to a screen:
                         // while the sleep card above has them, they are not here.
                         if !asleep {
-                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), poke: false, cheer: hops, night: night,
+                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), cheer: hops, night: night,
                                 reacts: true, notice: noticed, lit: lamp)
                                 .storyKnock(hops: $hops, lamp: $lamp, open: story)
                                 .offset(x: -16, y: -40)
@@ -390,7 +390,7 @@ struct TodayPlayCard: View {
         Text("孩子摸索，大人点灯").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, minHeight: 20, alignment: .bottomTrailing)
-            .padding(.trailing, 16 + 72)
+            .padding(.trailing, 16 + 88)   // clear of the widest pair (Moss in front, about 87 pt)
     }
 
     /// 今天一起玩; 醒了 40 分钟 · 一起玩 while the records say the baby woke within six hours (by day, records on);
