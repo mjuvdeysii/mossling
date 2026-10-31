@@ -276,7 +276,7 @@ final class ScreenshotTests: XCTestCase {
         let quiet = JournalStore(preview: b)
         var b2 = b; b2.timers = [RunningTimer(type: LogType.nurse, start: n - 9 * 60_000, side: "r")]
         let feeding = JournalStore(preview: b2)
-        let big: (String, AnyView) -> Void = { name, v in self.shot("store_" + name, height: 956, width: 440, v) }
+        let big: (String, AnyView) -> Void = { name, v in self.shot("store_" + name, height: 874, width: 402, v)   // 1206×2622: the iPhone App Store Connect asks for (6.3-inch, Dynamic Island) }
         let month = m.babyMonth ?? 6
         func on<V: View>(_ j: JournalStore, _ v: V) -> AnyView { AnyView(NavigationStack { v }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded)) }
         big("1_home", on(quiet, TodayView(path: .constant(NavigationPath()))))

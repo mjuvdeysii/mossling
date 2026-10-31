@@ -127,7 +127,7 @@ jobs:
             sips -s format jpeg -s formatOptions 95 --matchTo "/System/Library/ColorSync/Profiles/sRGB Profile.icc" "$f" --out "ios/store/$(basename "${f%.png}").jpg" >/dev/null
           done; sips -g pixelWidth -g pixelHeight -g hasAlpha ios/store/*.jpg || true
       - name: App Store screenshots (full size)
-        # the five store screens at 1320×2868 (6.9-inch iPhone, the size App Store Connect requires), kept with every run
+        # the five store screens at 1206×2622 (6.3-inch iPhone with Dynamic Island, the size App Store Connect asks for), kept with every run
         # as a download: Actions › this run › Artifacts › appstore-screenshots (upload the .jpg files)
         if: always()
         continue-on-error: true
