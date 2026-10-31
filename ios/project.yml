@@ -13,8 +13,8 @@ settings:
     # the developer named in the privacy policy, terms and disclaimer (the same as the App filing), and the contact
     # email for questions, complaints and the children's information officer; until set, the documents point to the
     # developer name and 「App 支持」 link on the App Store page, and 反馈问题 is hidden
-    MOSSLING_DEVELOPER: ""
-    MOSSLING_EMAIL: ""
+    MOSSLING_DEVELOPER: "温树垚"
+    MOSSLING_EMAIL: "yaoleaves@qq.com"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""
     TARGETED_DEVICE_FAMILY: "1"
