@@ -157,7 +157,11 @@ final class AccessibilityAuditTests: XCTestCase {
         if !unlabeled.isEmpty { print("A11Y unlabeled: \(unlabeled.count)") }
     }
 
-    func testAuditDefaultSize() { run(nil, file: "ios_a11y_default.txt") }
+    /// The default size and the largest in one test, in that order: the largest-size run measures its texts against
+    /// the default ones, and test methods are not guaranteed to run in order.
+    func testAuditDefaultThenLargestText() {
+        run(nil, file: "ios_a11y_default.txt")
+        run("UICTContentSizeCategoryAccessibilityXXXL", file: "ios_a11y_xxxl.txt")
+    }
     func testAuditLamplight() { run(nil, file: "ios_a11y_dark.txt", theme: "dark") }
-    func testAuditLargestText() { run("UICTContentSizeCategoryAccessibilityXXXL", file: "ios_a11y_xxxl.txt") }
 }
