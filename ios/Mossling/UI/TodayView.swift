@@ -37,9 +37,8 @@ struct TodayView: View {
                 if app.age != nil { TipView(shelfTip) }
                 // before the birth date is known too: the same 今天一起玩, from the first month's plays (the week is
                 // chosen anew for the child's month once the date is given)
-                TodayPlayCard(month: baby) { arranging = true }
+                TodayPlayCard(month: baby, story: { path.append(Route.story) }) { arranging = true }
                 if baby >= 36 { StoryGoesOn(primary: app.companion) }
-                HomeFooter { path.append(Route.story) }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
@@ -299,22 +298,6 @@ struct Topics: View {
     }
 }
 
-/// The end of the page: the two of them and the line the app is named for. Nothing says there is more: tap them and
-/// they hop; keep tapping and on the third they take you into their story.
-private struct HomeFooter: View {
-    @Environment(AppModel.self) private var app
-    let open: () -> Void
-    @State private var hops = 0
-    @State private var lamp = false
-    var body: some View {
-        VStack(spacing: 6) {
-            Duo(primary: app.companion, size: 40, poke: false, cheer: hops, lit: lamp)
-                .storyKnock(hops: $hops, lamp: $lamp, open: open)
-            Text("孩子摸索，大人点灯").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-        }
-        .frame(maxWidth: .infinity).padding(.top, 24).padding(.bottom, 8)
-    }
-}
 private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: String { t.id } }
 
 /// 今天一起玩 — the heart of the app when nothing is recorded (docs/IP.md §3). The header is the answer: one play for
@@ -330,7 +313,12 @@ struct TodayPlayCard: View {
     @Environment(\.dynamicTypeSize) private var size
     @Environment(JournalStore.self) private var j
     let month: Int
+    /// Their story: nothing says there is more — tap the two on the card's edge and they hop; keep tapping and on the
+    /// third they take you into it.
+    let story: () -> Void
     let arrange: () -> Void
+    @State private var hops = 0
+    @State private var lamp = false
     private var flat: Bool { ArtStyle.current == .flat }
 
     var body: some View {
@@ -357,6 +345,7 @@ struct TodayPlayCard: View {
                         }
                     }
                     .padding(.horizontal, 4).padding(.top, 20)
+                    if !asleep { slogan }
                     VStack(spacing: 0) {
                         lead(p)
                         if !rest.isEmpty {
@@ -382,16 +371,26 @@ struct TodayPlayCard: View {
                         // Moss blinks twice and looks at it — the change said without a word. One pair to a screen:
                         // while the sleep card above has them, they are not here.
                         if !asleep {
-                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), night: night, reacts: true,
-                                notice: noticed)
+                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), poke: false, cheer: hops, night: night,
+                                reacts: true, notice: noticed, lit: lamp)
+                                .storyKnock(hops: $hops, lamp: $lamp, open: story)
                                 .offset(x: -16, y: -40)
                         }
                     }
-                    // room above the card for the pair on its edge; while they are on the sleep card, none
-                    .padding(.top, asleep ? 0 : 30)
+                    // room above the card for the pair on its edge comes from the line beside them; while they are on the
+                    // sleep card, neither
                 }
             }
         }
+    }
+
+    /// 孩子摸索，大人点灯, to the left of the two on the card's edge, resting on the card's top line.
+    /// A row of its own (it grows with the text size), as tall as the room the pair needs above the card.
+    private var slogan: some View {
+        Text("孩子摸索，大人点灯").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
+            .frame(maxWidth: .infinity, minHeight: 20, alignment: .bottomTrailing)
+            .padding(.trailing, 16 + 72)
     }
 
     /// 今天一起玩; 醒了 40 分钟 · 一起玩 while the records say the baby woke within six hours (by day, records on);
