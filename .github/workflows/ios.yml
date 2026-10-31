@@ -118,6 +118,17 @@ jobs:
         working-directory: ios
         run: |
           grep -E "error:|failed|XCTAssert" build.log | sort -u | head -60 | while IFS= read -r l; do echo "::error::$(echo "$l" | sed 's/%/%25/g')"; done
+      - name: App Store screenshots (full size)
+        # the five store screens at 1320×2868 (6.9-inch iPhone, the size App Store Connect requires), kept with every run
+        # as a download: Actions › this run › Artifacts › appstore-screenshots
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: appstore-screenshots
+          path: ios/shots/ios_store_*.png
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Publish screens
         # only when asked for: the screens, made small (600 points wide), to a branch of their own — a few megabytes,
         # pushed in seconds
