@@ -45,7 +45,16 @@ final class AccessibilityAuditTests: XCTestCase {
     /// Only labels seen exactly once in a run are compared (a short label such as a number could be two different
     /// texts), and the bars' own titles and tab labels are left out (they keep their size by design).
     private var heights: [String: CGFloat] = [:], repeated = Set<String>()
-    private static var defaultHeights: [String: CGFloat]?
+    /// The default-size heights are written beside the reports (each test may run in a fresh process, so a static
+    /// does not carry them) and read back by the largest-size run.
+    private static var baselineURL: URL {
+        let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
+        return URL(fileURLWithPath: dir).appendingPathComponent("ios_a11y_heights_default.json")
+    }
+    private static var defaultHeights: [String: CGFloat]? {
+        get { (try? Data(contentsOf: baselineURL)).flatMap { try? JSONDecoder().decode([String: CGFloat].self, from: $0) } }
+        set { if let v = newValue, let d = try? JSONEncoder().encode(v) { try? d.write(to: baselineURL) } }
+    }
     private func recordHeights(_ app: XCUIApplication, skip own: Set<String>) {
         for t in app.staticTexts.allElementsBoundByIndex {
             let label = t.label, f = t.frame
@@ -57,7 +66,6 @@ final class AccessibilityAuditTests: XCTestCase {
 
     private func audit(_ app: XCUIApplication, _ place: String, again: Bool = true) {
         let under = bars(app)
-        shoot(app, place)
         if measuring { recordHeights(app, skip: under.own) }
         do {
             try app.performAccessibilityAudit(for: .all) { issue in
@@ -69,9 +77,12 @@ final class AccessibilityAuditTests: XCTestCase {
                 if issue.auditType == .sufficientElementDescription, (e?.label ?? "").isEmpty { self.unlabeled.append("[\(place)] \(who)") }
                 return true   // recorded, reviewed from the list
             }
+            // the picture after the audit: the audit can nudge a page that was still settling, and the frames in the
+            // list are where the elements were when it read them
+            shoot(app, place)
         } catch {
             // the audit gives up when the page does not settle in time; once more after a pause
-            if again { sleep(3); audit(app, place, again: false) } else { lines.append("[\(place)] audit failed: \((error as NSError).localizedDescription)") }
+            if again { sleep(3); audit(app, place, again: false) } else { shoot(app, place); lines.append("[\(place)] audit failed: \((error as NSError).localizedDescription)") }
         }
     }
 
@@ -138,7 +149,7 @@ final class AccessibilityAuditTests: XCTestCase {
         } else if size != nil {
             measureNote = "measurement not run (no default-size baseline)"
         } else {
-            measureNote = "baseline for the measured check"
+            measureNote = theme == "dark" ? "measured check: at the largest size only" : "baseline for the measured check"
         }
         let text = "\(order.count) issues (\(measureNote); \(size ?? "default size"), \(theme == "dark" ? "夜灯" : "日光")); \(skipped) contrast readings skipped for page text under a bar; decorative motion stilled (as with Reduce Motion)\n\n" + order.map { b in seen[b].map { "\(b)  @ \($0.joined(separator: ", "))" } ?? b }.joined(separator: "\n") + "\n"
         try? text.write(toFile: (dir as NSString).appendingPathComponent(file), atomically: true, encoding: .utf8)
