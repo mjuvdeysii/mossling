@@ -37,7 +37,7 @@ def header(out_dir):
     d.text((x, 470), "摸索台灯", font=font(FONT, 250), fill=INK)
     d.text((x + 8, 800), "孩子摸索，大人点灯", font=font(FONT_M, 104), fill=SOFT)
     d.text((x + 8, 960), "陪 0–3 岁宝宝玩，记下每一步成长", font=font(FONT_M, 72), fill=ACCENT)
-    img.save(os.path.join(out_dir, "header_3840x1646.jpg"), quality=95)
+    img.save(os.path.join(out_dir, "header_3840x1646.png"))   # PNG: App Store Connect refused .jpg here
 
 def phone(path, height):
     """A screenshot as a phone-shaped card: rounded corners and a soft shadow, on the canvas's own colour."""
@@ -71,7 +71,7 @@ def search(out_dir, shots):
         img.paste((120, 100, 80), (x - 80, 600 - 80), sh)
         img.paste(s, (x, 600), m)
         x += s.width + gap
-    img.save(os.path.join(out_dir, "search_3840x2560.jpg"), quality=95)
+    img.save(os.path.join(out_dir, "search_3840x2560.png"))
 
 if __name__ == "__main__":
     out = sys.argv[1]; os.makedirs(out, exist_ok=True)
