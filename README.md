@@ -2,7 +2,7 @@
 
 <p align="center"><img src="docs/images/ios/1_opening.jpg" width="300" alt="摸索台灯：Otto 的灯亮起，Moss 在灯下摸索"></p>
 
-<p align="center"><b>孩子摸索，大人点灯。</b><br>陪 0–3 岁的孩子一起玩、一起长大，把每一天记下来。<br>免费 · 无广告 · 不需要账号 · 记录只保存在手机里</p>
+<p align="center"><b>孩子摸索，大人点灯。</b><br>陪 0–3 岁的孩子一起玩、一起长大，把每一天记下来。<br>一次买断 · 无广告 · 不需要账号 · 记录只保存在手机里</p>
 
 <p align="center"><a href="#ios-版">iOS 版</a> · <a href="#安卓版">安卓版</a> · <a href="docs/IP.md">品牌与 IP</a> · <a href="PRIVACY.md">隐私政策</a> · <a href="TERMS.md">使用条款</a> · <a href="DISCLAIMER.md">免责声明</a></p>
 
