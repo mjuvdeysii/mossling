@@ -305,69 +305,88 @@ private struct SidePad: View {
     @Environment(\.lamp) private var lamp
 
     var body: some View {
-        let on = state == .running || state == .ready(suggested: true)
-        let ink = on ? (lamp ? Palette.lampInk : Color.white) : Crayon.ink(color)
-        Button(action: tap) {
-            ZStack {
-                Dial(seconds: seconds, color: on ? (lamp ? Palette.lampInk : .white) : color)
-                    .padding(8)
-                    .opacity(state == .other || isReady ? 0.55 : 1)
-                VStack(spacing: 2) {
-                    Text(side == "l" ? "左" : "右").font(Typeface.numerals(28, weight: .heavy))
-                    Group {
-                        // before it starts the big 左 / 右 already names the side: the line keeps its height, empty
-                        if isReady { Text("00:00").hidden() }
-                        else { Ticking(text: seconds >= 1 ? clock(seconds) : "—") }   // 余影: each second leaves an afterimage
-                    }
-                    .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
-                    .lineLimit(1).minimumScaleFactor(0.6)
-                    HStack(spacing: 4) {
-                        Image(systemName: isReady ? "play.fill" : on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right")
-                        Text(hint).lineLimit(1).minimumScaleFactor(0.7)
-                    }
-                        .font(.caption2.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
-                        .padding(.horizontal, 8).padding(.vertical, 4)
-                        .background(Capsule().fill(on ? (lamp ? Palette.lampInk : Color.white).opacity(0.18) : color.opacity(0.16)))
-                        .padding(.top, 4)
-                }
-                .foregroundStyle(ink)
-            }
-            .aspectRatio(1, contentMode: .fit)
-            .frame(maxWidth: .infinity)
-            .background {
-                RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
-                    .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
-                             : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
-                    .overlay {
-                        // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
-                        if ArtStyle.current == .vinyl {
-                            let shape = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
-                            shape.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
-                            shape.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
-                        }
-                    }
-                    .overlay {
-                        // paused: the side stays coloured (it is still this side's feed) with a solid rim
-                        if state == .paused {
-                            RoundedRectangle(cornerRadius: Radius.stage, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
-                        }
-                    }
-            }
-            .overlay(alignment: .topTrailing) {
-                if state == .ready(suggested: true) {
-                    Text("建议").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
-                        .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(color)).padding(10)
-                }
-            }
-            .modifier(Breathe(on: state == .running && !reduce, amount: 1.015, period: 1.6))
-            .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
-        }
-        .buttonStyle(.toy)
-        .accessibilityLabel((side == "l" ? "左侧" : "右侧") + (isReady ? "" : " " + minutesOf(seconds)))
-        .accessibilityHint(hint)
-        .accessibilityAddTraits(state == .other || isReady ? [] : .isSelected)
-        .accessibilityValue(state == .ready(suggested: true) ? "建议从这一侧开始" : "")
+        Button(action: tap) { face }
+            .buttonStyle(.toy)
+            .accessibilityLabel((side == "l" ? "左侧" : "右侧") + (isReady ? "" : " " + minutesOf(seconds)))
+            .accessibilityHint(hint)
+            .accessibilityAddTraits(state == .other || isReady ? [] : .isSelected)
+            .accessibilityValue(state == .ready(suggested: true) ? "建议从这一侧开始" : "")
     }
+
+    // Split out of `body`: the whole pad in one expression was more than the type checker would chew through.
+    private var face: some View {
+        ZStack {
+            Dial(seconds: seconds, color: on ? (lamp ? Palette.lampInk : Color.white) : color)
+                .padding(8)
+                .opacity(state == .other || isReady ? 0.55 : 1)
+            label
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .frame(maxWidth: .infinity)
+        .background { pad }
+        .overlay(alignment: .topTrailing) { badge }
+        .modifier(Breathe(on: state == .running && !reduce, amount: 1.015, period: 1.6))
+        .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
+    }
+
+    private var label: some View {
+        VStack(spacing: 2) {
+            Text(side == "l" ? "左" : "右").font(Typeface.numerals(28, weight: .heavy))
+            Group {
+                // before it starts the big 左 / 右 already names the side: the line keeps its height, empty
+                if isReady { Text("00:00").hidden() }
+                else { Ticking(text: seconds >= 1 ? clock(seconds) : "—") }   // 余影: each second leaves an afterimage
+            }
+            .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
+            .lineLimit(1).minimumScaleFactor(0.6)
+            hintRow
+        }
+        .foregroundStyle(ink)
+    }
+
+    private var hintRow: some View {
+        HStack(spacing: 4) {
+            Image(systemName: symbol)
+            Text(hint).lineLimit(1).minimumScaleFactor(0.7)
+        }
+        .font(.caption2.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .padding(.horizontal, 8).padding(.vertical, 4)
+        .background(Capsule().fill(on ? (lamp ? Palette.lampInk : Color.white).opacity(0.18) : color.opacity(0.16)))
+        .padding(.top, 4)
+    }
+
+    @ViewBuilder private var pad: some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
+        shape
+            .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
+                     : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
+            .overlay {
+                // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
+                if ArtStyle.current == .vinyl {
+                    let inner = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
+                    inner.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                    inner.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
+                }
+            }
+            .overlay {
+                // paused: the side stays coloured (it is still this side's feed) with a solid rim
+                if state == .paused {
+                    RoundedRectangle(cornerRadius: Radius.stage, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
+                }
+            }
+    }
+
+    @ViewBuilder private var badge: some View {
+        if state == .ready(suggested: true) {
+            Text("建议").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
+                .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(color)).padding(10)
+        }
+    }
+
+    private var on: Bool { state == .running || state == .ready(suggested: true) }
+    private var ink: Color { on ? (lamp ? Palette.lampInk : Color.white) : Crayon.ink(color) }
+    // named: the nested ternary inside Image(systemName:) made the type checker give up
+    private var symbol: String { isReady ? "play.fill" : on ? "pause.fill" : state == .paused ? "play.fill" : "arrow.left.arrow.right" }
 
     private var isReady: Bool { if case .ready = state { true } else { false } }
     private var hint: String {
