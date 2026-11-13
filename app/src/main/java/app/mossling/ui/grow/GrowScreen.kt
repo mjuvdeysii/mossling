@@ -1,275 +1,339 @@
 package app.mossling.ui.grow
 
-import app.mossling.ui.components.Glyph
-import app.mossling.ui.components.G
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.IconButton
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.ui.platform.testTag
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
-import app.mossling.data.Month
+import app.mossling.data.AreaOverview
+import app.mossling.data.MonthGuide
 import app.mossling.data.Play
 import app.mossling.data.TickKind
+import app.mossling.data.tickKey
+import app.mossling.domain.PlayRecord
+import app.mossling.ui.components.Art
+import app.mossling.ui.components.ArtIndex
 import app.mossling.ui.components.BeadChain
-import app.mossling.ui.components.Plate
-import app.mossling.ui.components.shared
-import app.mossling.ui.components.SandpaperNumber
-import app.mossling.ui.components.Shelf
 import app.mossling.ui.components.ColorTablet
+import app.mossling.ui.components.G
+import app.mossling.ui.components.Glyph
+import app.mossling.ui.components.MorphBlob
+import app.mossling.ui.components.NumberRod
+import app.mossling.ui.components.PinkTower
+import app.mossling.ui.components.Plate
+import app.mossling.ui.components.ProgressRing
+import app.mossling.ui.components.SandpaperNumber
 import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
+import app.mossling.ui.components.Shelf
+import app.mossling.ui.components.Sticker
+import app.mossling.ui.components.TrayArt
 import app.mossling.ui.components.areaColor
+import app.mossling.ui.components.areaGlyph
+import app.mossling.ui.components.areaSticker
+import app.mossling.ui.components.rich
+import app.mossling.ui.components.shared
 import app.mossling.ui.ip.Creature
-import app.mossling.ui.ip.Kind
-import app.mossling.ui.theme.LocalCompanion
+import app.mossling.ui.ip.GrowingChild
+import app.mossling.ui.ip.Mood
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
+import app.mossling.ui.today.SmallCheck
+import app.mossling.ui.you.Blocks
 
 data class GrowActions(
-    val select: (Int) -> Unit = {},
-    val openPlay: (String, Int) -> Unit = { _, _ -> },
-    val tick: (Int, String, String, String) -> Unit = { _, _, _, _ -> },
+    val selectMonth: (Int) -> Unit = {},
+    val openPlay: (String) -> Unit = {},
+    val openTopic: (String) -> Unit = {},
+    val toggle: (String, String, String) -> Unit = { _, _, _ -> },
+    val openGrowth: () -> Unit = {},
     val openMap: () -> Unit = {},
     val openPlan: () -> Unit = {},
-    val openGrowth: () -> Unit = {},
-    val topic: (String) -> Unit = {},
-    val search: () -> Unit = {},
+    val openBook: () -> Unit = {},
 )
 
-/**
- * Browsing the months. Its own job only: the month's picture and title, the chain to move between months, then
- * what the month holds. The child's age, the companion and the week's shelf belong to Today and are not repeated here.
- */
-@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modifier) {
-    val c = ui.content ?: return
-    val baby = ui.babyMonth
-    val companion = LocalCompanion.current
-    val mo = c.month(month)
-    val m = month
-    val play: (String) -> Play? = { c.play(it) }
-    val list = rememberLazyListState()
-    LazyColumn(state = list, contentPadding = PaddingValues(bottom = 40.dp), modifier = modifier.fillMaxSize().testTag("grow")) {
-        item("cover") {
-            val ctx = androidx.compose.ui.platform.LocalContext.current
-            AnimatedContent(month, transitionSpec = {
-                val dir = if (targetState > initialState) 1 else -1
-                (slideInHorizontally(tween(240)) { dir * it / 4 } + fadeIn(tween(240))) togetherWith (slideOutHorizontally(tween(200)) { -dir * it / 4 } + fadeOut(tween(160)))
-            }, label = "month", modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(top = 8.dp)) { mm ->
-                Column(Modifier.padding(horizontal = 16.dp)) {
-                    androidx.compose.runtime.remember(mm) { app.mossling.ui.components.ArtIndex.cover(ctx, mm) }?.let { f ->
-                        app.mossling.ui.components.Art(f, "满 $mm 个月：${c.month(mm).title}", Modifier.fillMaxWidth().clip(RoundedCornerShape(32.dp)))
+fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
+    val content = ui.content ?: return
+    val guide = content.month(month) ?: return
+    val babyMonth = ui.age?.bookMonth
+    val records = remember(ui.ticks, ui.allLogs, month, ui.today) { ui.playRecords(month) }
+    val (primary, also) = content.playsSplit(month)
+    val doneCodes = ui.ticks.values.filter { it.month == month && it.kind == TickKind.Did }.map { it.key.substringAfterLast(":") }.toSet() +
+        records.values.filter { it.total > 0 }.map { it.code }
+    var showAllAlso by rememberSaveable(month) { mutableStateOf(false) }
+
+    LazyColumn(
+        Modifier.fillMaxSize().testTag("grow"),
+        contentPadding = PaddingValues(bottom = 112.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item("chain") {
+            Column(Modifier.statusBarsPadding().padding(top = 6.dp)) {
+                Row(
+                    Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        "0–36 个月 · 滑到哪一颗看哪一站",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (babyMonth != null && babyMonth != month) {
+                        AssistChip(onClick = { a.selectMonth(babyMonth) }, label = { Text("回到满 $babyMonth 个月") })
+                        Spacer(Modifier.width(6.dp))
                     }
-                    Row(Modifier.padding(top = 12.dp, start = 4.dp), verticalAlignment = Alignment.Bottom) {
-                        Text("$mm", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = MaterialTheme.colorScheme.primary)
-                        Text(" 个月", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 6.dp))
-                        if (baby != null && mm != baby) Text(if (mm < baby) " · 以前的月份" else " · 以后的月份", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 8.dp))
+                    TextButton(onClick = a.openBook) { Text("成长册") }
+                    TextButton(onClick = a.openMap) { Text("地图") }
+                }
+                BeadChain(
+                    selected = month,
+                    babyMonth = babyMonth,
+                    onSelect = a.selectMonth,
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                )
+            }
+        }
+
+        item("banner") { MonthBanner(guide, month, babyMonth, ui) }
+
+        item("growth-entry") {
+            val last = ui.measures.maxByOrNull { it.at }
+            val sub = if (last == null) {
+                "体重、身长、头围 · 对照 WHO 生长标准"
+            } else {
+                listOfNotNull(
+                    last.weightG?.let { "${"%.2f".format(it / 1000.0)} kg" },
+                    last.lengthMm?.let { "${"%.1f".format(it / 10.0)} cm" },
+                    last.headMm?.let { "头围 ${"%.1f".format(it / 10.0)} cm" },
+                ).joinToString(" · ")
+            }
+            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp), onClick = a.openGrowth) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    ShapeBadge(G.Ruler, MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, shape = Shapes.Clover, size = 40.dp)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text("生长曲线", style = MaterialTheme.typography.titleMedium)
+                        Text(sub, fontFamily = Numerals, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text(c.month(mm).title, style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 4.dp))
+                    Text("查看", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
-        // the chain stays at the top while the month is read
-        stickyHeader("chain") {
-            Surface(color = MaterialTheme.colorScheme.background) {
-                Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 4.dp, top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = a.search, modifier = Modifier.semantics { contentDescription = "搜索" }) { Glyph(G.Search, size = 22.dp) }
-                    BeadChain(month, baby, a.select, Modifier.weight(1f))
-                    // the way into the growth map: a child growing up, 0 to 3, in a loop
-                    Surface(onClick = a.openMap, shape = RoundedCornerShape(18.dp), color = MaterialTheme.colorScheme.secondaryContainer,
-                        modifier = Modifier.padding(end = 8.dp).semantics { contentDescription = "成长地图" }) {
-                        Column(Modifier.padding(horizontal = 8.dp, vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                            app.mossling.ui.ip.GrowingChild(Modifier.size(40.dp))
-                            Text("地图", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+
+        item("plays") {
+            val donePrimary = primary.count { it.code in doneCodes }
+            SectionTitle(
+                "这个月玩什么",
+                kicker = "推荐 ${primary.size} 个 · 做过 $donePrimary",
+                trailing = {
+                    if (month == (babyMonth ?: 0)) {
+                        TextButton(onClick = a.openPlan) { Text("放上架子") }
+                    }
+                },
+            )
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                NumberRod(donePrimary, primary.size)
+                Shelf(Modifier.fillMaxWidth()) {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        primary.forEach { p ->
+                            PlayRow(
+                                p = p,
+                                done = p.code in doneCodes,
+                                record = records[p.code],
+                                onOpen = { a.openPlay(p.code) },
+                                onToggle = { a.toggle(TickKind.Did, p.code, p.name) },
+                            )
                         }
                     }
                 }
             }
         }
-        if (baby != null && month != baby) item("back") {
-            TextButton(onClick = { a.select(baby) }, modifier = Modifier.padding(start = 12.dp)) { Text("回到满 $baby 个月") }
-        }
-        item("hi") {
-            // the month at a glance: each point as its own card, label above the words, nothing cut short
-            Column(Modifier.padding(horizontal = 16.dp).padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                // a point that only names a play is already on the shelf below, so it is not said twice
-                mo.highlights.filter { h -> c.play(h.anchor ?: "") == null }.forEachIndexed { i, h ->
-                    val (bg, fg) = when (i % 2) {
-                        0 -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
-                        else -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+
+        if (also.isNotEmpty()) {
+            item("also") {
+                SectionTitle("也适合这个月", kicker = "${also.size} 个跨月龄玩法")
+                val visible = if (showAllAlso) also else also.take(4)
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    visible.forEach { p ->
+                        PlayRow(
+                            p = p,
+                            done = p.code in doneCodes,
+                            record = records[p.code],
+                            onOpen = { a.openPlay(p.code) },
+                            onToggle = { a.toggle(TickKind.Did, p.code, p.name) },
+                        )
                     }
-                    Surface(shape = RoundedCornerShape(24.dp), color = bg, contentColor = fg, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalAlignment = Alignment.Top) {
-                            app.mossling.ui.components.ShapeBadge(if (i % 2 == 0) G.Eye else G.Shield, fg.copy(alpha = 0.12f), fg,
-                                shape = if (i % 2 == 0) app.mossling.ui.components.Shapes.Cookie else app.mossling.ui.components.Shapes.Gem, size = 40.dp)
-                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(h.kind, style = MaterialTheme.typography.labelLarge)
-                                Text(h.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 2.dp))
+                    if (also.size > 4) {
+                        TextButton(onClick = { showAllAlso = !showAllAlso }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                            Text(if (showAllAlso) "收起" else "展开其余 ${also.size - 4} 个")
+                        }
+                    }
+                }
+            }
+        }
+
+        if (guide.observe.isNotEmpty()) {
+            item("observe") {
+                val total = guide.observe.sumOf { it.items.size }
+                val done = ui.ticks.values.count { it.month == month && it.kind == TickKind.Observed }
+                SectionTitle("可以留意", kicker = "观察参考，不是考试 · 已记下 $done / $total")
+                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        ProgressRing(done = done, total = total, tint = MaterialTheme.colorScheme.primary)
+                        PinkTower(done, total)
+                        Column(Modifier.weight(1f)) {
+                            Text("$done / $total", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium)
+                            Text(
+                                "粉红塔：每留意到一项就往上叠一块；快慢不一，不作比较",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    guide.observe.forEachIndexed { gi, g ->
+                        if (gi > 0) Spacer(Modifier.height(14.dp))
+                        Text(g.group, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(6.dp))
+                        g.items.forEachIndexed { ii, text ->
+                            val id = "$gi-$ii"
+                            val checked = tickKey(month, TickKind.Observed, id) in ui.ticks
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .clickable { a.toggle(TickKind.Observed, id, text) }
+                                    .padding(vertical = 7.dp),
+                                verticalAlignment = Alignment.Top,
+                            ) {
+                                SmallCheck(checked, Modifier.padding(top = 2.dp))
+                                Spacer(Modifier.width(12.dp))
+                                Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                             }
                         }
                     }
                 }
             }
         }
-        val plays = (listOfNotNull(mo.feature) + mo.activities).distinct().mapNotNull(play)
-        if (plays.isNotEmpty()) item("plays") {
-            SectionTitle("这个月玩什么", kicker = "${plays.size} 个游戏")
-            // every play of the month in view: two to a row on the shelf, nothing hidden off the edge
-            Shelf(Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    plays.chunked(2).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            row.forEach { p -> PlayCard(p, ui.ticked(m, TickKind.Did, p.code), companion, Modifier.weight(1f)) { a.openPlay(p.code, m) } }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
+
+        item("domains") {
+            SectionTitle("六个方面", kicker = "满 $month 个月")
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                guide.domains.forEach { d -> AreaCard(d) }
+            }
+        }
+
+        if (guide.vaccines.isNotEmpty() || guide.checkups.isNotEmpty()) {
+            item("care") {
+                val totalCare = guide.vaccines.size + guide.checkups.size
+                val doneCare = guide.vaccines.indices.count { tickKey(month, TickKind.Vaccine, "$it") in ui.ticks } +
+                    guide.checkups.indices.count { tickKey(month, TickKind.Checkup, "$it") in ui.ticks }
+                SectionTitle(
+                    "接种与儿保",
+                    kicker = "仅供参考，以预防接种证与社区医院为准",
+                    trailing = { ProgressRing(done = doneCare, total = totalCare, size = 38.dp) },
+                )
+                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    if (guide.vaccines.isNotEmpty()) {
+                        Text("疫苗", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(4.dp))
+                        guide.vaccines.forEachIndexed { i, v ->
+                            val id = "$i"
+                            val checked = tickKey(month, TickKind.Vaccine, id) in ui.ticks
+                            CheckLine(v, checked) { a.toggle(TickKind.Vaccine, id, v) }
+                        }
+                    }
+                    if (guide.checkups.isNotEmpty()) {
+                        if (guide.vaccines.isNotEmpty()) Spacer(Modifier.height(12.dp))
+                        Text("儿保", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                        Spacer(Modifier.height(4.dp))
+                        guide.checkups.forEachIndexed { i, c ->
+                            val id = "$i"
+                            val checked = tickKey(month, TickKind.Checkup, id) in ui.ticks
+                            CheckLine(c, checked) { a.toggle(TickKind.Checkup, id, c) }
                         }
                     }
                 }
             }
         }
-        item("areas") {
-            SectionTitle("六个方面", kicker = "家里可以这样做")
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                mo.domains.forEach { d ->
-                    Plate(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            app.mossling.ui.components.ShapeBadge(app.mossling.ui.components.areaGlyph(d.key), areaColor(d.key).copy(alpha = 0.14f), areaColor(d.key),
-                                shape = app.mossling.ui.components.Shapes.all[d.key.first().code % app.mossling.ui.components.Shapes.all.size], size = 40.dp)
-                            Spacer(Modifier.width(12.dp))
-                            Text(d.name, style = MaterialTheme.typography.titleSmall, color = areaColor(d.key))
-                            if (d.key == mo.focus) { Spacer(Modifier.width(8.dp)); Text("本月重点", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary) }
-                        }
-                        Text(d.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
-                    }
-                }
+
+        guide.rhythm?.takeIf { it.isNotEmpty() }?.let { r ->
+            item("rhythm") {
+                SectionTitle("一天的节奏")
+                Blocks(r)
             }
         }
-        if (mo.observe.isNotEmpty()) item("observe") {
-            SectionTitle("可以留意", kicker = "看到了就勾上，不是考核")
-            Column(Modifier.padding(horizontal = 12.dp)) {
-                mo.observe.forEachIndexed { gi, g ->
-                    Text(g.area, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(start = 8.dp, top = 12.dp, bottom = 2.dp))
-                    g.items.forEachIndexed { ii, t ->
-                        val id = "$gi-$ii"
-                        CheckRow(t, ui.ticked(m, TickKind.Observed, id)) { a.tick(m, TickKind.Observed, id, t) }
-                    }
-                }
+
+        if (guide.extra.isNotEmpty()) {
+            item("extra") {
+                SectionTitle("还要知道")
+                Blocks(guide.extra)
             }
         }
-        if (mo.vaccines.isNotEmpty() || mo.checkups.isNotEmpty()) item("care") {
-            SectionTitle("接种与儿保", kicker = null)
-            Column(Modifier.padding(horizontal = 12.dp)) {
-                mo.vaccines.forEachIndexed { i, t -> CheckRow(t, ui.ticked(m, TickKind.Vaccine, "$i"), tag = "接种") { a.tick(m, TickKind.Vaccine, "$i", t) } }
-                mo.checkups.forEachIndexed { i, t -> CheckRow(t, ui.ticked(m, TickKind.Checkup, "$i"), tag = "儿保") { a.tick(m, TickKind.Checkup, "$i", t) } }
-            }
-        }
-        if (mo.notes.isNotEmpty()) item("notes") {
-            SectionTitle("这个月还要知道", kicker = null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                mo.notes.forEach { n ->
-                    Plate(Modifier.fillMaxWidth(), color = MaterialTheme.colorScheme.surfaceContainerLow) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            app.mossling.ui.components.ShapeBadge(G.Idea, app.mossling.ui.theme.Palette.Bead.copy(alpha = 0.16f), MaterialTheme.colorScheme.tertiary, shape = app.mossling.ui.components.Shapes.of(n.topic), size = 40.dp)
-                            Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                                Text(n.topic, style = MaterialTheme.typography.titleSmall)
-                                Text(n.text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 6.dp))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        if (mo.who.isNotBlank()) item("who") {
-            SectionTitle("一天的节奏", kicker = "睡眠、活动与屏幕")
-            // one tile per part of the day, each with its own picture
-            val parts = mo.who.removePrefix("WHO").split('；', ';').map { it.trim().trimEnd('。') }.filter { it.isNotBlank() }
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                parts.forEach { t ->
-                    val (g, col) = when {
-                        "睡" in t -> G.Moon to app.mossling.ui.theme.Palette.Rod
-                        "屏幕" in t -> G.Eye to app.mossling.ui.theme.Palette.RedRod
-                        "活动" in t || "趴" in t || "坐" in t || "久" in t -> G.Walk to app.mossling.ui.theme.Palette.Moss
-                        else -> G.Clock to app.mossling.ui.theme.Palette.Bead
-                    }
-                    Surface(shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-                        Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            app.mossling.ui.components.ShapeBadge(g, col.copy(alpha = 0.14f), col, shape = app.mossling.ui.components.Shapes.Flower, size = 40.dp)
-                            Text(t, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(start = 12.dp))
-                        }
-                    }
-                }
-                Surface(onClick = a.openGrowth, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.secondaryContainer, contentColor = MaterialTheme.colorScheme.onSecondaryContainer, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        app.mossling.ui.components.ShapeBadge(G.Ruler, MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f), MaterialTheme.colorScheme.onSecondaryContainer, shape = app.mossling.ui.components.Shapes.Clover, size = 40.dp)
-                        Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                            Text("生长曲线", style = MaterialTheme.typography.titleSmall)
-                            Text("体重 · 身长 · 头围", style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
-                }
-            }
-        }
-        if (m == 36) item("onward") {
-            app.mossling.ui.ip.StoryGoesOn(companion, Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 20.dp))
-        }
-        if (c.topics.isNotEmpty()) item("topics") {
-            SectionTitle("专题", kicker = null)
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                c.topics.chunked(2).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        row.forEach { t ->
-                            Surface(onClick = { a.topic(t.id) }, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.weight(1f)) {
-                                Column(Modifier.padding(14.dp)) {
-                                    app.mossling.ui.components.ShapeBadge(G.Idea, MaterialTheme.colorScheme.tertiary.copy(alpha = 0.12f), MaterialTheme.colorScheme.tertiary, shape = app.mossling.ui.components.Shapes.of(t.title), size = 34.dp)
-                                    Text(t.title, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(top = 8.dp))
-                                    if (t.sourceTitle.isNotBlank()) Text(t.sourceTitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
-                                }
-                            }
-                        }
-                        if (row.size == 1) Spacer(Modifier.weight(1f))
+
+        item("topics") {
+            SectionTitle("常翻的专题", kicker = "睡眠 · 喂养 · 安全 · 就医信号")
+            FlowRow(
+                Modifier.padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                content.topics.forEach { t ->
+                    Surface(
+                        onClick = { a.openTopic(t.id) },
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                    ) {
+                        Text(t.title, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
                     }
                 }
             }
@@ -278,34 +342,178 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions, modifier: Modifier = Modif
 }
 
 @Composable
-private fun PlayCard(p: Play, did: Boolean, companion: Kind, modifier: Modifier = Modifier, onClick: () -> Unit) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(26.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = modifier) {
-        Column(Modifier.padding(16.dp)) {
-            // the play's own first picture, so each card shows what is actually done
-            val ctx = androidx.compose.ui.platform.LocalContext.current
-            val first = androidx.compose.runtime.remember(p.code) { app.mossling.ui.components.ArtIndex.steps(ctx, p.code).firstOrNull() }
-            if (first != null) app.mossling.ui.components.Art(first, "", Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(16.dp)))
-            else app.mossling.ui.ip.MaterialStill(app.mossling.ui.ip.Family.of(p.domains), Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceContainer))
+private fun MonthBanner(guide: MonthGuide, month: Int, babyMonth: Int?, ui: AppUi) {
+    val ctx = LocalContext.current
+    val cover = remember(month) { ArtIndex.cover(ctx, month) }
+    val tag = when {
+        babyMonth == null -> "第 $month 站"
+        month == babyMonth -> "现在这一站"
+        month < babyMonth -> "走过的第 $month 站"
+        else -> "往前的第 $month 站"
+    }
+    val look = when {
+        babyMonth == null -> Offset(0.5f, 0f)
+        month < babyMonth -> Offset(-0.7f, 0.1f)
+        month > babyMonth -> Offset(0.7f, -0.1f)
+        else -> null
+    }
+    Surface(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(32.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(Modifier.padding(22.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Surface(shape = RoundedCornerShape(12.dp), color = if (companion == Kind.Moss) Palette.Moss else Palette.Rod, modifier = Modifier.shared("code-${p.code}")) {
-                    Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, color = Palette.Paper, modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(tag, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.height(6.dp))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("满 ", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 4.dp))
+                        SandpaperNumber("$month", MaterialTheme.typography.displaySmall)
+                        Text(" 个月", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
+                    }
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        guide.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                Spacer(Modifier.weight(1f))
-                if (did) Text("做过", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Spacer(Modifier.width(8.dp))
+                Box(contentAlignment = Alignment.BottomEnd) {
+                    GrowingChild(month = month, modifier = Modifier.size(92.dp))
+                    Creature(
+                        ui.settings.companion,
+                        Modifier.size(46.dp),
+                        mood = if (month == babyMonth) Mood.Happy else Mood.Calm,
+                        look = look,
+                    )
+                }
             }
-            Text(p.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-            Text(p.age, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (cover != null) {
+                Spacer(Modifier.height(14.dp))
+                Art(
+                    cover,
+                    label = "满 $month 个月：${guide.title}",
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)),
+                )
+            }
         }
     }
 }
 
 @Composable
-fun CheckRow(text: String, on: Boolean, tag: String? = null, onToggle: () -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(16.dp)).clickable(role = Role.Checkbox, onClick = onToggle).padding(end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked = on, onCheckedChange = { onToggle() })
-        Column(Modifier.weight(1f)) {
-            if (tag != null) Text(tag, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
-            Text(text, style = MaterialTheme.typography.bodyMedium)
+private fun PlayRow(
+    p: Play,
+    done: Boolean,
+    record: PlayRecord?,
+    onOpen: () -> Unit,
+    onToggle: () -> Unit,
+) {
+    val count = maxOf(record?.total ?: 0, if (done) 1 else 0)
+    Surface(
+        onClick = onOpen,
+        shape = RoundedCornerShape(22.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLowest,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier
+                    .size(54.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(MaterialTheme.colorScheme.surfaceContainer),
+                contentAlignment = Alignment.Center,
+            ) {
+                TrayArt(p.code, modifier = Modifier.fillMaxSize().padding(4.dp), label = p.name)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        p.code,
+                        fontFamily = Numerals,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.shared("play-code-${p.code}"),
+                    )
+                    p.domains.forEach { d -> ColorTablet(areaColor(d)) }
+                    if (count > 1) {
+                        Text(
+                            "×$count",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                Text(
+                    p.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(top = 2.dp).shared("play-title-${p.code}"),
+                )
+                if (p.prepare.isNotEmpty() && p.prepare != "无") {
+                    Text(p.prepare, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            Spacer(Modifier.width(8.dp))
+            Box(
+                Modifier
+                    .size(48.dp)
+                    .clickable(onClick = onToggle)
+                    .semantics {
+                        role = Role.Checkbox
+                        contentDescription = "记为做过"
+                        stateDescription = if (done) "已做过" else "未做"
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                MorphBlob(
+                    done,
+                    from = Shapes.Circle,
+                    to = Shapes.Burst,
+                    color = if (done) Palette.Bead else MaterialTheme.colorScheme.surfaceContainerHigh,
+                    modifier = Modifier.size(40.dp),
+                )
+                Glyph(G.Check, size = 18.dp, color = if (done) Palette.Ink else MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
+    }
+}
+
+@Composable
+private fun AreaCard(d: AreaOverview) {
+    val c = areaColor(d.key)
+    Plate(Modifier.fillMaxWidth()) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(contentAlignment = Alignment.Center) {
+                ShapeBadge(areaGlyph(d.key), c.copy(alpha = 0.16f), c, shape = Shapes.of(d.key), size = 36.dp)
+                Sticker(areaSticker(d.key), size = 22.dp)
+            }
+            Spacer(Modifier.width(10.dp))
+            ColorTablet(c)
+            Spacer(Modifier.width(8.dp))
+            Text(d.name, style = MaterialTheme.typography.titleMedium)
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(rich(d.text), style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+@Composable
+private fun CheckLine(text: String, checked: Boolean, onClick: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 7.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        SmallCheck(checked, Modifier.padding(top = 2.dp))
+        Spacer(Modifier.width(12.dp))
+        Text(rich(text), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
     }
 }

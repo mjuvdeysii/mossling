@@ -1,118 +1,207 @@
 package app.mossling.ui.ip
 
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.FilterQuality
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.rotate
-import androidx.compose.ui.graphics.drawscope.withTransform
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import app.mossling.ui.components.reducedMotion
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import app.mossling.ui.components.ArtIndex
+import app.mossling.ui.components.LocalArtStyle
 import app.mossling.ui.theme.Palette
-import kotlin.math.PI
-import kotlin.math.sin
 
-private val Skin = Color(0xFFEAC9A1)
-private val Body = Palette.Bead
-private val Limb = Color(0xFFB98A12)
+private val Skin = Color(0xFFF3DFC8)
+private val Cheek = Color(0xFFE7B69B)
+private val Cloth = Color(0xFFD7E3C9)
+private val Blanket = Color(0xFFEAE6DC)
+
+fun childStage(m: Int): Int = when {
+    m < 3 -> 0
+    m < 6 -> 1
+    m < 9 -> 2
+    m < 12 -> 3
+    m < 18 -> 4
+    m < 24 -> 5
+    else -> 6
+}
 
 /**
- * The growth map's icon: the same wooden peg child as in the pictures, growing from 0 to 3 in one loop — lying,
- * on the tummy with the head up, sitting, crawling, standing, walking — a little taller at each stage, then back to
- * the start. About five seconds a loop; still (standing) when animations are off.
+ * The child at each stage of the first three years — swaddled (0–2m), on the belly lifting the head (3–5m),
+ * sitting with a ring (6–8m), crawling (9–11m), first steps (12–17m), stacking (18–23m), and running with
+ * a book (24–36m). Uses the 3D/2D `child_0..6.webp` illustration when available, with vector fallback.
  */
 @Composable
-fun GrowingChild(modifier: Modifier = Modifier) {
-    val still = reducedMotion()
-    val t = if (still) null else rememberInfiniteTransition(label = "grow").animateFloat(
-        0f, 6f, infiniteRepeatable(tween(5400, easing = LinearEasing), RepeatMode.Restart), label = "t",
-    )
-    Canvas(modifier.semantics { contentDescription = "从出生到三岁慢慢长大" }) {
-        val s = size.minDimension / 48f
-        withTransform({ translate((size.width - 48 * s) / 2, (size.height - 48 * s) / 2); scale(s, s, Offset.Zero) }) {
-            // the floor
-            drawLine(Palette.Stone, Offset(4f, 42f), Offset(44f, 42f), 1.6f, StrokeCap.Round)
-            // start in the middle of a pose, never on the hand-over between two
-            val v = t?.value?.let { (it + 0.5f) % 6f } ?: 4.5f
-            val stage = v.toInt().coerceIn(0, 5)
-            val f = v - stage                       // progress inside the stage
-            // ease in and out of each pose: a short fade where one stage hands over to the next
-            val fade = when { f < 0.12f -> 0.25f + 0.75f * f / 0.12f; f > 0.88f -> 0.25f + 0.75f * (1f - f) / 0.12f; else -> 1f }.coerceIn(0f, 1f)
-            val a = if (t == null) 1f else fade
-            when (stage) {
-                0 -> lying(a)
-                1 -> tummy(a, f)
-                2 -> sitting(a, f)
-                3 -> crawling(a, f)
-                4 -> standing(a, f)
-                else -> walking(a, f)
+fun GrowingChild(month: Int, modifier: Modifier = Modifier) {
+    val ctx = LocalContext.current
+    val style = LocalArtStyle.current
+    val st = childStage(month)
+    val file = remember(st, style) { style.resolve("child_$st.webp") }
+    val fallback = remember(st) { "child_$st.webp" }
+    val bmp by produceState(
+        initialValue = remember(file, fallback) {
+            ArtIndex.bitmapSync(ctx, file, 512) ?: ArtIndex.bitmapSync(ctx, fallback, 512)
+        },
+        file,
+        fallback,
+    ) {
+        if (value == null) {
+            value = ArtIndex.bitmap(ctx, file, 512) ?: ArtIndex.bitmap(ctx, fallback, 512)
+        }
+    }
+
+    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
+        val current = bmp
+        if (current != null) {
+            Image(
+                bitmap = current,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Fit,
+                filterQuality = FilterQuality.High,
+            )
+        } else {
+            Canvas(Modifier.fillMaxSize()) {
+                val u = size.minDimension
+                translate((size.width - u) / 2, (size.height - u) / 2) {
+                    drawOval(Color.Black.copy(alpha = 0.07f), Offset(u * 0.16f, u * 0.84f), Size(u * 0.68f, u * 0.08f))
+                    when (st) {
+                        0 -> swaddled(u)
+                        1 -> tummy(u)
+                        2 -> sitting(u)
+                        3 -> crawling(u)
+                        4 -> standing(u)
+                        5 -> building(u)
+                        else -> running(u)
+                    }
+                }
             }
         }
     }
 }
 
-private fun DrawScope.head(c: Offset, r: Float, a: Float) = drawCircle(Skin.copy(alpha = a), r, c)
-private fun DrawScope.limb(p: Offset, q: Offset, w: Float, a: Float) = drawLine(Limb.copy(alpha = a), p, q, w, StrokeCap.Round)
-private fun DrawScope.peg(x: Float, top: Float, bottom: Float, w: Float, a: Float) =
-    drawRoundRect(Body.copy(alpha = a), Offset(x - w / 2, top), Size(w, bottom - top), CornerRadius(w / 2))
-
-private fun DrawScope.lying(a: Float) {
-    drawRoundRect(Body.copy(alpha = a), Offset(16f, 34f), Size(18f, 8f), CornerRadius(4f))
-    head(Offset(12f, 37.5f), 4.6f, a)
-    limb(Offset(30f, 35f), Offset(33f, 30f), 2.2f, a); limb(Offset(26f, 35f), Offset(27f, 30.5f), 2.2f, a)
-}
-
-private fun DrawScope.tummy(a: Float, f: Float) {
-    val lift = sin(f * PI.toFloat()) * 1.6f
-    drawRoundRect(Body.copy(alpha = a), Offset(17f, 35f), Size(19f, 7f), CornerRadius(3.5f))
-    head(Offset(14f, 32.5f - lift), 4.8f, a)
-    limb(Offset(19f, 38f), Offset(12f, 41f), 2.3f, a)
-}
-
-private fun DrawScope.sitting(a: Float, f: Float) {
-    peg(24f, 26f, 41f, 11f, a)
-    limb(Offset(22f, 40.5f), Offset(14f, 41f), 2.6f, a)
-    val wave = sin(f * 2 * PI.toFloat()) * 2f
-    limb(Offset(21f, 31f), Offset(15f, 28f + wave), 2.3f, a)
-    head(Offset(24f, 20.5f), 5.4f, a)
-}
-
-private fun DrawScope.crawling(a: Float, f: Float) {
-    val x = 8f + f * 10f
-    val step = sin(f * 4 * PI.toFloat()) * 1.5f
-    drawRoundRect(Body.copy(alpha = a), Offset(x + 6f, 28f), Size(16f, 8f), CornerRadius(4f))
-    limb(Offset(x + 9f, 34f), Offset(x + 8f + step, 41f), 2.6f, a)
-    limb(Offset(x + 19f, 34f), Offset(x + 21f - step, 41f), 2.6f, a)
-    head(Offset(x + 4f, 27f), 5.2f, a)
-}
-
-private fun DrawScope.standing(a: Float, f: Float) {
-    val sway = sin(f * 2 * PI.toFloat()) * 2f
-    rotate(sway, Offset(24f, 41f)) {
-        limb(Offset(22f, 34f), Offset(21.5f, 41f), 2.8f, a); limb(Offset(26f, 34f), Offset(26.5f, 41f), 2.8f, a)
-        peg(24f, 20f, 36f, 11f, a)
-        limb(Offset(19.5f, 24f), Offset(14f, 18f), 2.4f, a); limb(Offset(28.5f, 24f), Offset(34f, 18f), 2.4f, a)
-        head(Offset(24f, 14f), 5.6f, a)
+/**
+ * "故事仍在继续" footer scene shown at the bottom of the Growth Map and Growth Book (`ios/Mossling/IP/Hug.swift`).
+ */
+@Composable
+fun StoryGoesOn(month: Int, companion: Kind, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 28.dp, horizontal = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy((-8).dp),
+            verticalAlignment = Alignment.Bottom,
+        ) {
+            Creature(Kind.Moss, Modifier.size(56.dp), mood = Mood.Happy, look = Offset(0.6f, 0f), interactive = false)
+            GrowingChild(month = month, modifier = Modifier.size(68.dp))
+            Creature(Kind.Otto, Modifier.size(64.dp), mood = Mood.Calm, look = Offset(-0.6f, 0f), interactive = false)
+        }
+        Text("故事仍在继续", style = MaterialTheme.typography.titleMedium, textAlign = TextAlign.Center)
+        Text(
+            "每一个月都有自己的节奏，不用赶，也不用比。",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 
-private fun DrawScope.walking(a: Float, f: Float) {
-    val x = 18f + f * 12f
-    val swing = sin(f * 4 * PI.toFloat()) * 4f
-    limb(Offset(x - 1.5f, 32f), Offset(x - 1.5f - swing, 41f), 3f, a); limb(Offset(x + 1.5f, 32f), Offset(x + 1.5f + swing, 41f), 3f, a)
-    peg(x, 15f, 34f, 11.5f, a)
-    limb(Offset(x - 4.5f, 20f), Offset(x - 4.5f + swing * 0.8f, 28f), 2.5f, a); limb(Offset(x + 4.5f, 20f), Offset(x + 4.5f - swing * 0.8f, 28f), 2.5f, a)
-    head(Offset(x, 8.6f), 6f, a)
+private fun DrawScope.head(c: Offset, r: Float, awake: Boolean = true) {
+    drawCircle(Skin, r, c)
+    drawCircle(Cheek.copy(alpha = 0.55f), r * 0.20f, c + Offset(-r * 0.45f, r * 0.18f))
+    drawCircle(Cheek.copy(alpha = 0.55f), r * 0.20f, c + Offset(r * 0.45f, r * 0.18f))
+    val curl = Path().apply {
+        moveTo(c.x - r * 0.1f, c.y - r * 0.92f)
+        quadraticTo(c.x + r * 0.18f, c.y - r * 1.22f, c.x + r * 0.28f, c.y - r * 0.88f)
+    }
+    drawPath(curl, Palette.Ink, style = Stroke(r * 0.14f, cap = StrokeCap.Round))
+    if (awake) {
+        drawCircle(Palette.Ink, r * 0.10f, c + Offset(-r * 0.30f, -r * 0.02f))
+        drawCircle(Palette.Ink, r * 0.10f, c + Offset(r * 0.30f, -r * 0.02f))
+    } else {
+        val st = Stroke(r * 0.10f, cap = StrokeCap.Round)
+        drawLine(Palette.Ink, c + Offset(-r * 0.42f, 0f), c + Offset(-r * 0.18f, 0f), r * 0.10f, StrokeCap.Round)
+        drawLine(Palette.Ink, c + Offset(r * 0.18f, 0f), c + Offset(r * 0.42f, 0f), r * 0.10f, StrokeCap.Round)
+        st.width
+    }
+}
+
+private fun DrawScope.swaddled(u: Float) {
+    drawRoundRect(Blanket, Offset(u * 0.20f, u * 0.50f), Size(u * 0.60f, u * 0.34f), CornerRadius(u * 0.17f))
+    drawRoundRect(Cloth, Offset(u * 0.30f, u * 0.52f), Size(u * 0.48f, u * 0.30f), CornerRadius(u * 0.15f))
+    head(Offset(u * 0.32f, u * 0.58f), u * 0.15f, awake = false)
+}
+
+private fun DrawScope.tummy(u: Float) {
+    drawRoundRect(Cloth, Offset(u * 0.22f, u * 0.60f), Size(u * 0.44f, u * 0.22f), CornerRadius(u * 0.11f))
+    drawLine(Skin, Offset(u * 0.60f, u * 0.68f), Offset(u * 0.64f, u * 0.84f), u * 0.07f, StrokeCap.Round)
+    head(Offset(u * 0.66f, u * 0.46f), u * 0.16f)
+    drawCircle(Palette.Bead, u * 0.055f, Offset(u * 0.84f, u * 0.78f))
+}
+
+private fun DrawScope.sitting(u: Float) {
+    drawRoundRect(Cloth, Offset(u * 0.34f, u * 0.48f), Size(u * 0.32f, u * 0.34f), CornerRadius(u * 0.14f))
+    drawRoundRect(Skin, Offset(u * 0.26f, u * 0.74f), Size(u * 0.48f, u * 0.10f), CornerRadius(u * 0.05f))
+    head(Offset(u * 0.50f, u * 0.34f), u * 0.16f)
+    drawCircle(Palette.Wood, u * 0.075f, Offset(u * 0.50f, u * 0.64f), style = Stroke(u * 0.032f))
+}
+
+private fun DrawScope.crawling(u: Float) {
+    drawRoundRect(Cloth, Offset(u * 0.28f, u * 0.52f), Size(u * 0.38f, u * 0.20f), CornerRadius(u * 0.10f))
+    drawLine(Skin, Offset(u * 0.34f, u * 0.68f), Offset(u * 0.30f, u * 0.84f), u * 0.07f, StrokeCap.Round)
+    drawLine(Skin, Offset(u * 0.60f, u * 0.68f), Offset(u * 0.64f, u * 0.84f), u * 0.07f, StrokeCap.Round)
+    head(Offset(u * 0.70f, u * 0.46f), u * 0.15f)
+}
+
+private fun DrawScope.standing(u: Float) {
+    drawLine(Skin, Offset(u * 0.44f, u * 0.66f), Offset(u * 0.42f, u * 0.85f), u * 0.07f, StrokeCap.Round)
+    drawLine(Skin, Offset(u * 0.56f, u * 0.66f), Offset(u * 0.58f, u * 0.85f), u * 0.07f, StrokeCap.Round)
+    drawRoundRect(Cloth, Offset(u * 0.36f, u * 0.42f), Size(u * 0.28f, u * 0.28f), CornerRadius(u * 0.12f))
+    drawLine(Skin, Offset(u * 0.36f, u * 0.48f), Offset(u * 0.22f, u * 0.42f), u * 0.06f, StrokeCap.Round)
+    drawLine(Skin, Offset(u * 0.64f, u * 0.48f), Offset(u * 0.78f, u * 0.42f), u * 0.06f, StrokeCap.Round)
+    head(Offset(u * 0.50f, u * 0.28f), u * 0.15f)
+}
+
+private fun DrawScope.building(u: Float) {
+    standing(u)
+    drawRoundRect(Palette.Rod, Offset(u * 0.74f, u * 0.74f), Size(u * 0.12f, u * 0.12f), CornerRadius(u * 0.02f))
+    drawRoundRect(Palette.Bead, Offset(u * 0.755f, u * 0.64f), Size(u * 0.09f, u * 0.10f), CornerRadius(u * 0.02f))
+}
+
+private fun DrawScope.running(u: Float) {
+    drawLine(Skin, Offset(u * 0.44f, u * 0.66f), Offset(u * 0.34f, u * 0.85f), u * 0.07f, StrokeCap.Round)
+    drawLine(Skin, Offset(u * 0.56f, u * 0.66f), Offset(u * 0.66f, u * 0.82f), u * 0.07f, StrokeCap.Round)
+    drawRoundRect(Cloth, Offset(u * 0.36f, u * 0.40f), Size(u * 0.28f, u * 0.28f), CornerRadius(u * 0.12f))
+    head(Offset(u * 0.52f, u * 0.26f), u * 0.145f)
+    drawRoundRect(Palette.RedRod, Offset(u * 0.64f, u * 0.46f), Size(u * 0.14f, u * 0.16f), CornerRadius(u * 0.02f))
 }

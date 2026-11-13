@@ -1,9 +1,9 @@
 package app.mossling.ui.you
 
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.background
 import android.content.Intent
 import android.net.Uri
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,282 +11,509 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
-import app.mossling.domain.Update
-import app.mossling.ui.components.G
-import app.mossling.ui.components.Glyph
-import app.mossling.ui.ip.Creature
-import app.mossling.ui.ip.Kind
-import app.mossling.ui.ip.Mood
+import app.mossling.AppUi
+import app.mossling.CrashLog
+import app.mossling.domain.Updater
+import app.mossling.ui.components.ArtStyle
+import app.mossling.ui.components.LocalArtStyle
+import app.mossling.ui.components.Plate
+import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.ip.Duo
+import app.mossling.ui.theme.LocalCompanion
 import app.mossling.ui.theme.Numerals
-import kotlinx.coroutines.launch
 
 data class AppAboutActions(
+    val openContentAbout: () -> Unit = {},
+    val openLicenses: () -> Unit = {},
+    val toggleArtStyle: () -> Unit = {},
+    val openStory: () -> Unit = {},
     val back: () -> Unit = {},
-    val sources: () -> Unit = {},
-    val licenses: () -> Unit = {},
-    val doc: (String) -> Unit = {},
 )
 
-/**
- * The app itself: name, version and build, check for updates, what changed, privacy, licences, feedback, and the
- * content sources. The update check is one request when tapped; nothing is checked in the background.
- */
-@Composable
-fun AppAboutScreen(a: AppAboutActions, updater: app.mossling.domain.Updater? = null) {
-    val ctx = LocalContext.current
-    val info = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0) }.getOrNull() }
-    val version = info?.versionName ?: ""
-    val build = info?.let { if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode else @Suppress("DEPRECATION") it.versionCode.toLong() } ?: 0
-    val idle = remember { kotlinx.coroutines.flow.MutableStateFlow<app.mossling.domain.Updater.State>(app.mossling.domain.Updater.State.Idle) }
-    val st by (updater?.state ?: idle).collectAsState()
-    fun open(url: String) = runCatching { ctx.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 48.dp)) {
-        item { Bar("", a.back) }
-        item {
-            Column(Modifier.fillMaxWidth().padding(vertical = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                app.mossling.ui.ip.Duo(app.mossling.ui.theme.LocalCompanion.current, size = 88.dp)
-                Text("摸索台灯", style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
-                Text("孩子摸索，大人点灯", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
-                Text("Moss & Otto · 陪 0–3 岁的孩子一起玩、一起长大", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-                Text("版本 $version · 构建 $build", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-            }
-        }
-        item { UpdateCard(st, updater) { open(it) } }
-        // the name, told (docs/IP.md), and how the app was made
-        item {
-            Column(Modifier.padding(horizontal = 16.dp).padding(bottom = 12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                AboutText("摸索台灯的故事",
-                    "摸索属于孩子：0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。\n\n" +
-                    "台灯属于大人：台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。\n\n" +
-                    "在这里做三件事：一起玩（本周的架子与逐步插画）、看他长大（0–36 个月共 37 站与成长地图）、记下来（可选的记录，只保存在本机）。不打分，不比较，不催促。36 个月以后，故事仍在继续。")
-                AboutText("制作",
-                    "摸索台灯由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。育儿内容整理自公开发布的机构资料，每一条都在「内容来源」中注明。")
-            }
-        }
-        item {
-            var crash by remember { mutableStateOf(app.mossling.CrashLog.read(ctx)) }
-            crash?.let { text ->
-                Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 16.dp)) {
-                    Column(Modifier.padding(16.dp)) {
-                        Text("上次异常退出", style = MaterialTheme.typography.titleMedium)
-                        Text("记录只保存在本机。", style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(top = 4.dp))
-                        Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = {
-                                val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_SUBJECT, "摸索台灯异常退出记录").putExtra(Intent.EXTRA_TEXT, text)
-                                runCatching { ctx.startActivity(Intent.createChooser(send, "分享异常记录")) }
-                            }, shape = RoundedCornerShape(16.dp)) { Text("分享记录") }
-                            androidx.compose.material3.TextButton(onClick = { app.mossling.CrashLog.clear(ctx); crash = null }) { Text("删除") }
-                        }
-                    }
-                }
-            }
-        }
-        item {
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                ListGroup("条款与声明", listOf(
-                    Triple(G.Check, "使用条款") { a.doc("TERMS.md") },
-                    Triple(G.Shield, "隐私政策") { a.doc("PRIVACY.md") },
-                    Triple(G.Idea, "免责声明") { a.doc("DISCLAIMER.md") },
-                ))
-                ListGroup("资料", listOf(
-                    Triple(G.Journal, "内容来源") { a.sources() },
-                    Triple(G.Bead, "开源许可") { a.licenses() },
-                    Triple(G.Clock, "更新日志") { a.doc("CHANGELOG.md") },
-                    Triple(G.Share, "反馈问题") { open("https://github.com/${Update.Repo}/issues"); Unit },
-                ))
-            }
-        }
-        item {
-            Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 20.dp)) {
-                Text("免责声明", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text("本应用陪伴家庭养育，内容仅供参考，不构成医疗诊断或治疗建议。如对儿童健康或发育有疑虑，请咨询儿科医生或当地妇幼保健机构。",
-                    style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-            }
-        }
-    }
+enum class LegalDoc(val title: String) {
+    Privacy("隐私政策与儿童信息规则"),
+    Terms("使用条款"),
+    Disclaimer("医疗免责声明"),
+    Changelog("更新日志"),
 }
 
-@Composable
-private fun AboutText(title: String, body: String) {
-    Column {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-            Text(body, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(16.dp))
-        }
-    }
-}
-
-@Composable
-private fun ListGroup(title: String, rows: List<Triple<G, String, () -> Unit>>) {
-    Column {
-        Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, bottom = 6.dp))
-        Surface(shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
-            Column {
-                rows.forEachIndexed { i, (g, t, f) ->
-                    if (i > 0) androidx.compose.material3.HorizontalDivider(Modifier.padding(start = 56.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f))
-                    Item(g, t, "", f)
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun Item(g: G, title: String, sub: String, onClick: () -> Unit) {
-    Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.heightIn(min = 56.dp).padding(horizontal = 16.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Glyph(g, size = 22.dp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
-                if (sub.isNotBlank()) Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-    }
-}
+private const val REPO = "https://github.com/ViewWay/Mossling"
+private const val ISSUES = "https://github.com/ViewWay/Mossling/issues"
+private const val RELEASES = "https://github.com/ViewWay/Mossling/releases/latest"
+private const val MAIL = "contact@mossling.app"
 
 /**
- * A document from the repository (privacy statement, change log), typeset like a document: one title, numbered
- * section headings, body text at reading size, lists with hanging indents, tables as ruled grids.
+ * Everything about the app itself: version, update check, feedback, privacy & children's info rules,
+ * terms of use, medical disclaimer, open-source licenses, and 5-tap ArtStyle Easter egg (`ios/DESIGN.md` §1).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun DocScreen(name: String, onBack: () -> Unit) {
+fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
     val ctx = LocalContext.current
-    val lines = remember(name) { runCatching { ctx.assets.open(name).bufferedReader().readLines() }.getOrDefault(listOf("读取不到这份文件。")) }
-    // group consecutive table lines into one table
-    val blocks = remember(lines) {
-        val out = mutableListOf<Pair<String, List<String>>>()
-        lines.forEach { l ->
-            val t = l.trimEnd()
-            if (t.startsWith("|")) { if (out.lastOrNull()?.first == "table") out[out.lastIndex] = "table" to (out.last().second + t) else out += "table" to listOf(t) }
-            else out += "line" to listOf(t)
-        }
-        out
-    }
-    val rule = MaterialTheme.colorScheme.outlineVariant
-    LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 40.dp)) {
-        item { Bar("", onBack) }
-        items(blocks.size) { i ->
-            val (kind, ls) = blocks[i]
-            if (kind == "table") {
-                val rows = ls.map { r -> r.trim('|').split("|").map { it.trim() } }.filterNot { r -> r.all { it.matches(Regex(":?-{3,}:?")) } }
-                Surface(shape = RoundedCornerShape(12.dp), color = Color.Transparent, border = androidx.compose.foundation.BorderStroke(1.dp, rule), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                    Column {
-                        rows.forEachIndexed { ri, r ->
-                            if (ri > 0) androidx.compose.material3.HorizontalDivider(color = rule)
-                            Row(Modifier.fillMaxWidth().then(if (ri == 0) Modifier.background(MaterialTheme.colorScheme.surfaceContainer) else Modifier).padding(horizontal = 12.dp, vertical = 8.dp)) {
-                                r.forEachIndexed { ci, c ->
-                                    Text(app.mossling.ui.components.rich(c), style = if (ri == 0) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodySmall,
-                                        modifier = if (ci == 0) Modifier.width(88.dp).padding(end = 8.dp) else Modifier.weight(1f))
-                                }
+    val uri = LocalUriHandler.current
+    val clip = LocalClipboardManager.current
+    val companion = LocalCompanion.current
+    val artStyle = LocalArtStyle.current
+    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "1.3.0" }
+    var doc by remember { mutableStateOf<LegalDoc?>(null) }
+    var crash by remember { mutableStateOf(CrashLog.read(ctx)) }
+    var copied by remember { mutableStateOf(false) }
+    var styleTapCount by remember { mutableIntStateOf(0) }
+    val upState = updater?.state?.collectAsState()?.value ?: Updater.State.Idle
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        item { Bar("关于摸索台灯", a.back) }
+        item {
+            Surface(
+                shape = RoundedCornerShape(32.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Row(
+                    Modifier
+                        .padding(22.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) {
+                            styleTapCount += 1
+                            if (styleTapCount >= 5) {
+                                styleTapCount = 0
+                                a.toggleArtStyle()
                             }
+                        },
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("摸索台灯", style = MaterialTheme.typography.headlineLarge)
+                        Text(
+                            "Moss & Otto · 孩子摸索，大人点灯",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            "版本 $version · 画风：${artStyle.label}（连点 5 次切换）",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp),
+                        )
+                    }
+                    Duo(companion, size = 80.dp)
+                }
+            }
+        }
+        item {
+            SectionTitle("版本与更新", kicker = "平时完全离线；仅在你点下面按钮时连接 GitHub Releases")
+            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                when (upState) {
+                    Updater.State.Idle -> {
+                        Text("当前版本 $version", fontFamily = Numerals, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "点下面按钮查询是否有新版本；若有，会在应用内下载 APK 并交给系统安装器。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 2.dp),
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        FilledTonalButton(onClick = { updater?.check() }, shape = RoundedCornerShape(16.dp)) { Text("检查更新") }
+                    }
+                    Updater.State.Checking -> Text("正在连接 GitHub Releases…", style = MaterialTheme.typography.bodyMedium)
+                    Updater.State.Latest -> {
+                        Text("已是最新版本（$version）", fontFamily = Numerals, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { updater?.check() }) { Text("再查一次") }
+                            TextButton(onClick = { runCatching { uri.openUri(RELEASES) } }) { Text("打开版本页面") }
+                        }
+                    }
+                    is Updater.State.Available -> {
+                        val r = upState.r
+                        Text(
+                            "发现新版本 ${r.version}" + if (r.date.isNotBlank()) " · ${r.date}" else "",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        if (r.notes.isNotBlank()) {
+                            Text(r.notes, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                        }
+                        Spacer(Modifier.height(10.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            if (r.apk != null) {
+                                Button(onClick = { updater?.download(r) }, shape = RoundedCornerShape(16.dp)) { Text("下载并安装") }
+                            }
+                            OutlinedButton(onClick = { runCatching { uri.openUri(r.page.ifBlank { RELEASES }) } }, shape = RoundedCornerShape(16.dp)) { Text("查看发布页") }
+                        }
+                    }
+                    is Updater.State.Downloading -> {
+                        val pct = if (upState.total > 0) ((upState.done * 100) / upState.total).toInt() else null
+                        Text(
+                            "正在下载 ${upState.r.version}" + (pct?.let { " · $it%" } ?: "…"),
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text("下载完成后会自动调起系统安装器。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp))
+                    }
+                    is Updater.State.Ready -> {
+                        Text("${upState.r.version} 已下载", fontFamily = Numerals, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.height(8.dp))
+                        Button(
+                            onClick = {
+                                val u = updater ?: return@Button
+                                ctx.startActivity(if (u.canInstall()) u.installIntent(upState.file) else u.allowInstallIntent())
+                            },
+                            shape = RoundedCornerShape(16.dp),
+                        ) { Text("安装更新") }
+                    }
+                    is Updater.State.Failed -> {
+                        Text("未能完成：${upState.why}", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(onClick = { updater?.check() }, shape = RoundedCornerShape(16.dp)) { Text("重试") }
+                            TextButton(onClick = { runCatching { uri.openUri(RELEASES) } }) { Text("在浏览器打开下载页") }
                         }
                     }
                 }
-            } else {
-                val l = ls.first()
-                when {
-                    l.isBlank() -> Spacer(Modifier.size(4.dp))
-                    l.startsWith("# ") -> Text(l.drop(2), style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-                    l.startsWith("## ") -> Column(Modifier.padding(top = 18.dp, bottom = 6.dp)) {
-                        androidx.compose.material3.HorizontalDivider(color = rule)
-                        Text(l.drop(3), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 14.dp))
-                    }
-                    l.startsWith("### ") -> Text(l.drop(4), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-                    l.startsWith("- ") || l.startsWith("  - ") -> Row(Modifier.padding(start = if (l.startsWith("  ")) 16.dp else 0.dp, top = 3.dp, bottom = 3.dp)) {
-                        Text("•", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.width(16.dp))
-                        Text(app.mossling.ui.components.rich(l.trimStart().drop(2)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    }
-                    Regex("^\\d+\\. ").containsMatchIn(l) -> Row(Modifier.padding(top = 3.dp, bottom = 3.dp)) {
-                        val n = l.substringBefore(". ")
-                        Text("$n.", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, fontFamily = Numerals, modifier = Modifier.width(22.dp))
-                        Text(app.mossling.ui.components.rich(l.substringAfter(". ")), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    }
-                    l.startsWith("适用于") || l.startsWith("生效日期") -> Text(l, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    else -> Text(app.mossling.ui.components.rich(l), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(vertical = 3.dp))
+            }
+        }
+        item {
+            SectionTitle("说明与条款", kicker = "离线可读全文")
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                DocCard("隐私政策与儿童个人信息规则", "不联网、无账号、无 SDK；儿童信息仅存本机，可导出、撤回与彻底删除") { doc = LegalDoc.Privacy }
+                DocCard("医疗免责声明", "本应用提供育儿科普与个人记录工具，不代替医生面诊与医嘱") { doc = LegalDoc.Disclaimer }
+                DocCard("使用条款", "Apache 2.0 开源许可下的使用约定与责任限制") { doc = LegalDoc.Terms }
+                DocCard("更新日志", "这几个版本改了什么") { doc = LegalDoc.Changelog }
+                DocCard("内容来源与分级方法", "权威指南、参考文献与核对过的说法") { a.openContentAbout() }
+                DocCard("开源许可", "字体、组件库与 WHO 生长标准数据的署名与许可证") { a.openLicenses() }
+            }
+        }
+        item {
+            SectionTitle("反馈与支持", kicker = "遇到问题或内容存疑")
+            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text("每一条内容都可以核对出处；若发现笔误、过期指南或界面问题，欢迎告诉我们。", style = MaterialTheme.typography.bodyMedium)
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = { runCatching { uri.openUri(ISSUES) } }, shape = RoundedCornerShape(16.dp)) { Text("提交问题（GitHub）") }
+                    OutlinedButton(
+                        onClick = {
+                            runCatching {
+                                ctx.startActivity(
+                                    Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:$MAIL?subject=${Uri.encode("摸索台灯反馈 ($version)")}"))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            }
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                    ) { Text("写邮件") }
+                }
+                TextButton(onClick = { runCatching { uri.openUri(REPO) } }, modifier = Modifier.padding(top = 2.dp)) {
+                    Text("源代码仓库：$REPO", style = MaterialTheme.typography.labelMedium)
                 }
             }
+        }
+        if (crash != null) {
+            item {
+                SectionTitle("本机崩溃诊断", kicker = "仅保存在本机，不会自动发送")
+                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                    Text(crash!!.take(600), fontFamily = Numerals, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.height(8.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilledTonalButton(onClick = { clip.setText(AnnotatedString(crash!!)); copied = true }, shape = RoundedCornerShape(14.dp)) {
+                            Text(if (copied) "已复制" else "复制诊断信息")
+                        }
+                        TextButton(onClick = { CrashLog.clear(ctx); crash = null }) { Text("清除") }
+                    }
+                }
+            }
+        }
+    }
+
+    doc?.let { LegalSheet(doc = it, onDismiss = { doc = null }) }
+}
+
+/**
+ * Dedicated Data & Privacy Control Screen ("数据", `ios/DESIGN.md` & `docs/REBUILD.md` §3):
+ * Export Doctor/AI Markdown summary, full JSON backup, CSV table, restore from JSON backup,
+ * withdraw guardian consent, or clear all local data.
+ */
+@Composable
+fun DataScreen(
+    ui: AppUi,
+    onShareSummary: () -> Unit,
+    onShareJson: () -> Unit,
+    onShareCsv: () -> Unit,
+    onImportJson: () -> Unit,
+    onWithdrawConsent: () -> Unit,
+    onClearAll: () -> Unit,
+    onBack: () -> Unit,
+) {
+    var askWithdraw by remember { mutableStateOf(false) }
+    var askClear by remember { mutableStateOf(false) }
+    var legalDoc by remember { mutableStateOf<LegalDoc?>(null) }
+
+    val tickCount = ui.ticks.size
+    val logCount = ui.allLogs.size
+    val measureCount = ui.measures.size
+    val firstCount = ui.firsts.size
+
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 48.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        item { Bar("数据与备份", onBack) }
+
+        item {
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+            ) {
+                Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("只保存在这部手机上", style = MaterialTheme.typography.headlineSmall)
+                    Text(
+                        "已记下 $tickCount 项成长与玩法 · $logCount 条手帐 · $measureCount 次生长测量 · $firstCount 个第一次",
+                        fontFamily = Numerals,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Text(
+                        "没有云端账号，卸载或换机前请先导出备份文件。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        item {
+            SectionTitle("导出与恢复", kicker = "随时带走你的全部记录")
+            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text("给儿保医生或 AI 助手看的摘要（Markdown）", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "把孩子的月龄、第一次、生长测量与百分位、每天喂养睡眠汇总整理成一份清晰的 .md 文档，方便门诊或发给 AI 工具参考。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = onShareSummary,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text("导出给医生或 AI 看的记录 (.md)")
+                }
+
+                HorizontalDivider(Modifier.padding(vertical = 14.dp), color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+
+                Text("完整备份与表格", style = MaterialTheme.typography.titleMedium)
+                Text(
+                    "JSON 包含设置、勾选、手帐、生长测量与第一次，可在换机或重装后完整恢复；CSV 可用表格软件打开。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp),
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    FilledTonalButton(onClick = onShareJson, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
+                        Text("导出完整备份 (.json)")
+                    }
+                    FilledTonalButton(onClick = onShareCsv, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
+                        Text("导出表格 (.csv)")
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(
+                    onClick = onImportJson,
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                ) {
+                    Text("从备份文件恢复 (.json)")
+                }
+            }
+        }
+
+        item {
+            SectionTitle("隐私与儿童个人信息控制")
+            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                Text(
+                    "你可以随时查阅《隐私政策与儿童信息规则》，撤回监护人同意（清除出生日期、小名、性别并关闭手帐），或彻底清除本机全部数据。",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextButton(onClick = { legalDoc = LegalDoc.Privacy }) { Text("隐私政策与儿童信息规则") }
+                    TextButton(onClick = { legalDoc = LegalDoc.Disclaimer }) { Text("医疗免责声明") }
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    OutlinedButton(
+                        onClick = { askWithdraw = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
+                        Text("撤回同意")
+                    }
+                    OutlinedButton(
+                        onClick = { askClear = true },
+                        modifier = Modifier.weight(1f),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    ) {
+                        Text("清除全部数据")
+                    }
+                }
+            }
+        }
+    }
+
+    if (askWithdraw) {
+        AlertDialog(
+            onDismissRequest = { askWithdraw = false },
+            title = { Text("撤回监护人同意？", style = MaterialTheme.typography.headlineSmall) },
+            text = { Text("撤回后将清除本机保存的出生日期、性别、小名并关闭手帐，切换为仅浏览科普内容模式。") },
+            confirmButton = {
+                TextButton(onClick = { askWithdraw = false; onWithdrawConsent() }) {
+                    Text("确认撤回", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { askWithdraw = false }) { Text("取消") } },
+        )
+    }
+
+    if (askClear) {
+        AlertDialog(
+            onDismissRequest = { askClear = false },
+            title = { Text("清除全部本地数据？", style = MaterialTheme.typography.headlineSmall) },
+            text = { Text("孩子的出生日期、记下的做过与留意、第一次、生长测量和全部手帐都会从这部手机上彻底移除，无法恢复。") },
+            confirmButton = {
+                TextButton(onClick = { askClear = false; onClearAll() }) {
+                    Text("确认清除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = { TextButton(onClick = { askClear = false }) { Text("取消") } },
+        )
+    }
+
+    legalDoc?.let { LegalSheet(doc = it, onDismiss = { legalDoc = null }) }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun LegalSheet(doc: LegalDoc, onDismiss: () -> Unit) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+    ) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 32.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(doc.title, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                when (doc) {
+                    LegalDoc.Privacy -> PRIVACY_TEXT
+                    LegalDoc.Disclaimer -> DISCLAIMER_TEXT
+                    LegalDoc.Terms -> TERMS_TEXT
+                    LegalDoc.Changelog -> CHANGELOG_TEXT
+                },
+                style = MaterialTheme.typography.bodyMedium,
+            )
         }
     }
 }
 
-/** Check → download (with progress, cancellable) → install, without leaving the app. */
 @Composable
-private fun UpdateCard(st: app.mossling.domain.Updater.State, u: app.mossling.domain.Updater?, open: (String) -> Unit) {
-    val ctx = LocalContext.current
-    Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-        Column(Modifier.padding(18.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("检查更新", style = MaterialTheme.typography.titleMedium)
-                    Text(when (st) {
-                        is app.mossling.domain.Updater.State.Idle -> "点一下，读取最新发布的版本"
-                        is app.mossling.domain.Updater.State.Checking -> "正在检查…"
-                        is app.mossling.domain.Updater.State.Latest -> "已经是最新版本"
-                        is app.mossling.domain.Updater.State.Available -> "有新版本 ${st.r.version}" + if (st.r.date.isNotBlank()) " · ${st.r.date}" else ""
-                        is app.mossling.domain.Updater.State.Downloading -> "正在下载 ${st.r.version}" + if (st.total > 0) " · ${st.done * 100 / st.total}%" else ""
-                        is app.mossling.domain.Updater.State.Ready -> "${st.r.version} 已下载，可以安装"
-                        is app.mossling.domain.Updater.State.Failed -> st.why
-                    }, style = MaterialTheme.typography.bodySmall,
-                        color = if (st is app.mossling.domain.Updater.State.Available || st is app.mossling.domain.Updater.State.Ready) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                when (st) {
-                    is app.mossling.domain.Updater.State.Checking -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                    is app.mossling.domain.Updater.State.Idle, is app.mossling.domain.Updater.State.Latest -> Button(onClick = { u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("检查") }
-                    is app.mossling.domain.Updater.State.Failed -> Button(onClick = { st.r?.let { u?.download(it) } ?: u?.check() }, shape = RoundedCornerShape(16.dp), modifier = Modifier.heightIn(min = 44.dp)) { Text("重试") }
-                    else -> Unit
-                }
-            }
-            val rel = when (st) { is app.mossling.domain.Updater.State.Available -> st.r; is app.mossling.domain.Updater.State.Downloading -> st.r; is app.mossling.domain.Updater.State.Ready -> st.r; else -> null }
-            rel?.let { r ->
-                if (r.notes.isNotBlank()) Surface(shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLowest, modifier = Modifier.fillMaxWidth().padding(top = 12.dp)) {
-                    Text(r.notes.replace("**", "").take(900), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(14.dp))
-                }
-                when (st) {
-                    is app.mossling.domain.Updater.State.Available -> Button(onClick = { u?.download(r) }, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text("下载并安装") }
-                    is app.mossling.domain.Updater.State.Downloading -> {
-                        val f = if (st.total > 0) st.done.toFloat() / st.total else 0f
-                        androidx.compose.material3.LinearProgressIndicator(progress = { f }, modifier = Modifier.fillMaxWidth().padding(top = 14.dp).heightIn(min = 8.dp))
-                        Row(Modifier.fillMaxWidth().padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("%.1f / %.1f MB".format(st.done / 1048576f, st.total.coerceAtLeast(0) / 1048576f), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-                            androidx.compose.material3.TextButton(onClick = { u?.cancel() }) { Text("取消") }
-                        }
-                    }
-                    is app.mossling.domain.Updater.State.Ready -> {
-                        val canInstall = u?.canInstall() ?: false
-                        Button(onClick = { runCatching { ctx.startActivity(if (canInstall) u!!.installIntent(st.file) else u!!.allowInstallIntent()) } },
-                            shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(top = 12.dp).heightIn(min = 52.dp)) { Text(if (canInstall) "安装 ${r.version}" else "允许摸索台灯安装更新") }
-                        Text(if (canInstall) "由系统安装器完成安装，记录不会丢失。" else "Android 需要你允许一次「安装未知应用」，之后回到这里点安装。",
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
-                    }
-                    else -> Unit
-                }
-            }
+private fun DocCard(title: String, sub: String, onClick: () -> Unit) {
+    Surface(onClick = onClick, shape = RoundedCornerShape(22.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(horizontal = 18.dp, vertical = 14.dp)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(sub, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
+
+private const val PRIVACY_TEXT = """生效日期：2026年10月26日
+
+简短结论：摸索台灯不收集、不上传、不共享你或孩子的任何信息。应用不设账号、不嵌第三方统计或广告 SDK；平时完全不联网，仅在你主动点击「关于摸索台灯 › 检查更新」时连接 GitHub Releases 查询版本。
+
+一、我们处理的本地数据
+应用处理的全部数据均由你（父母或其他监护人）在设备本地自愿录入，仅保存在你的手机内部存储中：
+1. 孩子的基本资料（选填）：出生日期、性别（仅用于对照 WHO 生长曲线）、插画形象偏好、小名。
+2. 成长与玩法记录（选填）：你勾选的「做过」「可以留意」「疫苗」「儿保」及「第一次」。
+3. 日常照护手帐（默认关闭，选填）：亲喂、瓶喂、辅食、睡眠、换尿布、洗澡、体温、用药、备注及计时器状态。
+4. 生长测量（选填）：体重、身长/身高、头围数值与测量日期。
+
+二、儿童个人信息保护规则（未满 14 周岁）
+1. 仅限监护人使用：本应用面向婴幼儿的父母或其他监护人，不直接向儿童提供交互服务。
+2. 最小必要与全部选填：不填写出生日期、小名或性别，同样可以完整浏览 0–36 个月的全部内容与玩法。
+3. 查阅、更正、导出、撤回同意与删除：你可以在「我的 › 数据与备份」中随时导出 Markdown 摘要、JSON 完整备份或 CSV 表格，也可以随时撤回同意或点击「清除全部数据」立即从设备中彻底抹除所有记录。"""
+
+private const val DISCLAIMER_TEXT = """重要提示：摸索台灯（Mossling）提供的全部文字、插画、月龄观察、疫苗与儿保时间表、生长百分位曲线及日常记录工具，仅供育儿科普与个人参考，不构成医疗诊断、临床评估或治疗建议，不能替代执业医师的当面诊疗。
+
+1. 关于「可以留意」与发育里程碑：每个孩子的发展节奏都有个体差异。「可以留意」列表不是发育筛查量表或打分考试。如果你对孩子的发育有任何担忧，请直接咨询儿科或儿童保健科医生。
+2. 关于 WHO 生长标准曲线：生长百分位表示孩子在同龄同性别参考人群中的位置，不是「达标分数」。判断生长状况需结合连续趋势与儿保医生的综合评估。
+3. 关于疫苗与儿保：各地接种程序和医院安排可能存在差异，请以孩子手中的《预防接种证》及当地社区卫生服务中心通知为准。
+4. 紧急情况：未满 3 个月婴儿体温 ≥ 38.0 ℃，或任何月龄出现呼吸困难、口唇发紫、抽搐、精神反应极差、持续高热不退或疑似误吞异物等紧急情况，请勿依赖本应用，立即前往医院急诊或拨打急救电话。"""
+
+private const val TERMS_TEXT = """生效日期：2026年10月26日
+
+1. 适用范围：摸索台灯是一款免费的开源本地应用（源代码采用 Apache License 2.0 许可）。使用本应用即表示你同意本条款。
+2. 使用者资格：本应用供成年监护人（父母或其他法定监护人）使用。
+3. 个人记录与备份责任：应用不提供云同步或远程恢复服务。你的所有记录仅保存在本机，卸载应用、清除应用数据、设备丢失或损坏都会导致本地记录丢失。请定期使用「我的 › 数据与备份」自行保存备份。
+4. 非医疗服务：本应用不提供医疗诊断或咨询服务，详见《医疗免责声明》。"""
+
+private const val CHANGELOG_TEXT = """1.3.0（2026-10-26）
+· 双伙伴 IP 升级：小苔（Moss）与奥托（Otto）支持「立体」软胶与「平面」绘本两种画风切换，以及晚间台灯剧场（LampScene）与拥抱头像（HuggedAvatar）。
+· 跟着做模式：玩法详情支持全屏分步「跟着做」，带顶部蒙氏串珠进度条、常亮屏幕与中途续做提醒。
+· 成长册与第一次：新增按月装帧的「成长册」与「第一次」里程碑记录，自动汇总当月玩过的教具托盘、生长测量与日均照护。
+· 亲喂与睡眠计时：支持左右侧分侧计时与一键切换、超时自检提醒，以及体温 ≥ 38.0 ℃ 就医提示。
+· 数据与医生摘要：新增导出给儿保医生或 AI 工具阅读的 Markdown 摘要报告（.md）及独立的数据与隐私控制页。
+
+0.2.0（2026-10-20）
+· 新增 0–36 个月「成长地图」与「本周的架子」。
+· 新增 JSON 备份导入恢复与应用内更新检查。"""

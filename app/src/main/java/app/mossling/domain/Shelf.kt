@@ -1,49 +1,256 @@
 package app.mossling.domain
 
 import app.mossling.data.Content
+import app.mossling.data.LogEntry
+import app.mossling.data.LogType
 import app.mossling.data.Play
-import java.time.DayOfWeek
+import app.mossling.data.Tick
+import app.mossling.data.TickKind
+import app.mossling.data.tickKey
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 
 /**
- * The week's shelf, the Montessori way: a few materials (three or four), chosen for this child at this age, set out
- * on a low shelf for the whole week, repeated as often as the child wants, and rotated when the week turns.
- * Stored as "<epoch day of the week's Monday>|CODE,CODE,CODE".
+ * The week's shelf (`ios/Mossling/Domain/Shelf.swift` & `PlayLog.swift`):
+ * Three plays set out on a low wooden Montessori shelf for the week.
+ * Covers distinct development areas first, favours plays not yet done, and rotates cleanly when a new week begins.
  */
 object Shelf {
-    const val Max = 4
-    data class State(val week: LocalDate, val codes: List<String>)
+    /** Monday-based week number since epoch (1970-01-01 was a Thursday). */
+    fun week(today: LocalDate): Long = (today.toEpochDay() + 3) / 7
 
-    fun weekOf(d: LocalDate): LocalDate = d.with(DayOfWeek.MONDAY)
+    /** Epoch millisecond range `[mondayStart, nextMondayStart)` for the week containing [today]. */
+    fun weekBounds(today: LocalDate, zone: ZoneId = ZoneId.systemDefault()): Pair<Long, Long> {
+        val dow = today.dayOfWeek.value // 1 = Monday .. 7 = Sunday
+        val monday = today.minusDays((dow - 1).toLong())
+        val start = monday.atStartOfDay(zone).toInstant().toEpochMilli()
+        val end = monday.plusDays(7).atStartOfDay(zone).toInstant().toEpochMilli()
+        return start to end
+    }
 
-    fun parse(s: String): State? {
-        val p = s.split("|"); if (p.size != 2) return null
+    /** Saved as `"<week>|A11,A12,N03"`. */
+    fun parse(saved: String): Pair<Long, List<String>>? {
+        val p = saved.split("|", limit = 2)
+        if (p.size != 2) return null
         val w = p[0].toLongOrNull() ?: return null
-        return State(LocalDate.ofEpochDay(w), p[1].split(",").filter { it.isNotBlank() })
+        val codes = p[1].split(",").filter { it.isNotBlank() }
+        return if (codes.isEmpty()) null else w to codes
     }
 
-    fun format(week: LocalDate, codes: List<String>) = "${weekOf(week).toEpochDay()}|" + codes.take(Max).joinToString(",")
+    fun format(week: Long, codes: List<String>): String = "$week|${codes.distinct().take(4).joinToString(",")}"
 
-    /** Plays that fit month [m]: the month's own first (its feature leading), then any play whose age range covers it. */
-    fun candidates(c: Content, m: Int): List<Play> {
-        val mo = c.month(m)
-        val own = (listOfNotNull(mo.feature) + mo.activities).distinct().mapNotNull { c.play(it) }
-        val range = c.activities.filter { m in it.from..it.to && it !in own }
-        return own + range
+    /** Today's explicit pick, saved as `"<epochDay>|A12"`. */
+    fun pick(saved: String, today: LocalDate): String? {
+        val p = saved.split("|", limit = 2)
+        if (p.size != 2) return null
+        val d = p[0].toLongOrNull() ?: return null
+        return if (d == today.toEpochDay()) p[1].ifBlank { null } else null
     }
 
-    /** A fresh shelf for the week: what was not on last week's shelf comes first, so the shelf really rotates. */
-    fun suggest(c: Content, m: Int, last: List<String>): List<String> {
-        val all = candidates(c, m).map { it.code }
-        val fresh = all.filter { it !in last }
-        return (fresh + all.filter { it in last }).take(3)
+    fun formatPick(today: LocalDate, code: String): String = "${today.toEpochDay()}|$code"
+
+    /**
+     * Suggests up to 3 plays for [month]:
+     * 1. One from each development area first (unplayed and not on last week's shelf preferred),
+     * 2. Then unplayed and not on last week's shelf,
+     * 3. Then not on last week's shelf,
+     * 4. Then anything else in the month's pool.
+     */
+    fun suggest(
+        c: Content,
+        month: Int,
+        played: Set<String> = emptySet(),
+        lastWeek: List<String> = emptyList(),
+    ): List<Play> {
+        val pool = c.playsFor(month)
+        if (pool.size <= 3) return pool
+        val last = lastWeek.toSet()
+        val fresh = pool.filter { it.code !in played && it.code !in last }
+        val unseen = pool.filter { it.code !in played }
+        val notLast = pool.filter { it.code !in last }
+
+        val chosen = mutableListOf<Play>()
+        val areas = mutableSetOf<String>()
+
+        fun takeDistinctArea(from: List<Play>) {
+            for (p in from) {
+                if (chosen.size >= 3) return
+                val a = p.domains.firstOrNull() ?: ""
+                if (p !in chosen && a !in areas) {
+                    chosen.add(p)
+                    if (a.isNotEmpty()) areas.add(a)
+                }
+            }
+        }
+
+        fun fill(from: List<Play>) {
+            for (p in from) {
+                if (chosen.size >= 3) return
+                if (p !in chosen) chosen.add(p)
+            }
+        }
+
+        takeDistinctArea(fresh)
+        takeDistinctArea(unseen)
+        takeDistinctArea(notLast)
+        takeDistinctArea(pool)
+        fill(fresh)
+        fill(unseen)
+        fill(notLast)
+        fill(pool)
+        return chosen
     }
 
-    /** The shelf to show this week, and whether it is last week's (time to rotate). */
-    fun current(c: Content, m: Int, stored: String, today: LocalDate): Pair<List<Play>, Boolean> {
-        val st = parse(stored)
-        val codes = st?.codes?.filter { c.play(it) != null }.orEmpty()
-        if (codes.isEmpty()) return suggest(c, m, emptyList()).mapNotNull { c.play(it) } to false
-        return codes.mapNotNull { c.play(it) } to (st!!.week != weekOf(today))
+    /**
+     * The plays on the shelf right now, and whether the user set them for this week (`true`) or they are the default (`false`).
+     */
+    fun current(
+        c: Content,
+        month: Int,
+        saved: String,
+        today: LocalDate,
+        played: Set<String> = emptySet(),
+    ): Pair<List<Play>, Boolean> {
+        val pool = c.playsFor(month)
+        val byCode = pool.associateBy { it.code }
+        val parsed = parse(saved)
+        if (parsed != null && parsed.first == week(today)) {
+            val picked = parsed.second.mapNotNull { byCode[it] }
+            if (picked.isNotEmpty()) return picked to true
+        }
+        return suggest(c, month, played = played, lastWeek = parsed?.second.orEmpty()) to false
     }
+
+    /**
+     * Returns a newly formatted shelf string if the saved shelf needs rotation (new week, empty, or outgrown);
+     * returns `null` when the saved shelf is already valid for this week and month.
+     */
+    fun roll(
+        c: Content,
+        month: Int,
+        saved: String,
+        today: LocalDate,
+        played: Set<String>,
+        fresh: Boolean = false,
+    ): String? {
+        val w = week(today)
+        val pool = c.playsFor(month).map { it.code }.toSet()
+        val parsed = if (fresh) null else parse(saved)
+        if (parsed != null && parsed.first == w && parsed.second.all { it in pool }) {
+            return null
+        }
+        val prev = parsed?.second.orEmpty()
+        val next = suggest(c, month, played = played, lastWeek = prev).map { it.code }
+        return if (next.isEmpty()) null else format(w, next)
+    }
+
+    /**
+     * Picks the hero play on the shelf (`ios/Mossling/Domain/Shelf.swift`):
+     * - Today's manual pick if present on the shelf,
+     * - Otherwise the shelf play done fewest times this week (counted up to start of today so completing today's play
+     *   marks it "今天玩过" rather than immediately swapping it away),
+     * - Tie-broken by fewest times overall, then shelf order.
+     */
+    fun first(
+        shelf: List<Play>,
+        picked: String?,
+        weekBeforeTodayCounts: Map<String, Int>,
+        totalCounts: Map<String, Int>,
+    ): Play? {
+        if (picked != null) {
+            shelf.firstOrNull { it.code == picked }?.let { return it }
+        }
+        return shelf.withIndex().minWithOrNull(
+            compareBy<IndexedValue<Play>> { weekBeforeTodayCounts[it.value.code] ?: 0 }
+                .thenBy { totalCounts[it.value.code] ?: 0 }
+                .thenBy { it.index }
+        )?.value
+    }
+}
+
+/**
+ * Play history for an activity (`ios/Mossling/Data/PlayLog.swift`).
+ */
+data class PlayRecord(
+    val code: String,
+    val total: Int,
+    val thisWeek: Int,
+    val todayCount: Int,
+    val beforeTodayThisWeek: Int,
+    val lastAt: Long?,
+)
+
+fun playCodeOf(detail: String?): String? =
+    detail?.trim()?.substringBefore(" ")?.takeIf { it.isNotBlank() }
+
+fun computePlayRecords(
+    ticks: Map<String, Tick>,
+    logs: List<LogEntry>,
+    month: Int,
+    today: LocalDate,
+    zone: ZoneId = ZoneId.systemDefault(),
+): Map<String, PlayRecord> {
+    val (wStart, wEnd) = Shelf.weekBounds(today, zone)
+    val dStart = today.atStartOfDay(zone).toInstant().toEpochMilli()
+    val dEnd = today.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+
+    val byCode = mutableMapOf<String, MutableList<Long>>()
+    for (e in logs) {
+        if (e.type == LogType.Play) {
+            val code = playCodeOf(e.detail) ?: continue
+            byCode.getOrPut(code) { mutableListOf() }.add(e.start)
+        }
+    }
+    // Include any legacy/direct ticks that don't have a corresponding play log
+    for (t in ticks.values) {
+        if (t.kind == TickKind.Did) {
+            val code = t.key.substringAfterLast(":")
+            val list = byCode.getOrPut(code) { mutableListOf() }
+            if (list.isEmpty()) list.add(t.at)
+        }
+    }
+
+    return byCode.mapValues { (code, times) ->
+        val total = times.size
+        val thisWeek = times.count { it in wStart until wEnd }
+        val todayCount = times.count { it in dStart until dEnd }
+        val beforeToday = times.count { it in wStart until dStart }
+        val lastAt = times.maxOrNull() ?: ticks[tickKey(month, TickKind.Did, code)]?.at
+        PlayRecord(
+            code = code,
+            total = total,
+            thisWeek = thisWeek,
+            todayCount = todayCount,
+            beforeTodayThisWeek = beforeToday,
+            lastAt = lastAt,
+        )
+    }
+}
+
+/**
+ * Activities played during baby's [month], with their play counts (`ios/Mossling/Data/PlayLog.swift` `played(in:)`).
+ */
+fun playedInMonth(
+    content: Content,
+    ticks: Map<String, Tick>,
+    logs: List<LogEntry>,
+    birth: LocalDate?,
+    month: Int,
+    zone: ZoneId = ZoneId.systemDefault(),
+): List<Pair<Play, Int>> {
+    val counts = mutableMapOf<String, Int>()
+    if (birth != null) {
+        val mStart = birth.plusMonths(month.toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+        val mEnd = birth.plusMonths((month + 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+        logs.filter { it.type == LogType.Play && it.start in mStart until mEnd }.forEach { e ->
+            val code = playCodeOf(e.detail) ?: return@forEach
+            counts[code] = (counts[code] ?: 0) + 1
+        }
+    }
+    ticks.values.filter { it.month == month && it.kind == TickKind.Did }.forEach { t ->
+        val code = t.key.substringAfterLast(":")
+        if ((counts[code] ?: 0) == 0) counts[code] = 1
+    }
+    return counts.entries.mapNotNull { (code, n) -> content.play(code)?.let { it to n } }
 }

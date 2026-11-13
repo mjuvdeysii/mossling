@@ -26,7 +26,36 @@ data class Content(
     fun play(code: String): Play? = playIndex[code]
     fun month(m: Int): Month = months[m.coerceIn(0, months.lastIndex)]
     fun source(code: String): Source? = sources.firstOrNull { it.code == code }
+    fun topic(id: String): Topic? = topics.firstOrNull { it.id == id }
+    fun playsSplit(m: Int): Pair<List<Play>, List<Play>> {
+        val primary = month(m).activities.mapNotNull { play(it) }
+        val primaryCodes = primary.map { it.code }.toSet()
+        val also = activities.filter { m in it.from..it.to && it.code !in primaryCodes }
+        return primary to also
+    }
+    fun playsFor(m: Int): List<Play> {
+        val (primary, also) = playsSplit(m)
+        return primary + also
+    }
 }
+
+typealias MonthGuide = Month
+typealias AreaOverview = Area
+
+val AreaNames: Map<String, String> = mapOf(
+    "A" to "语言",
+    "B" to "动作",
+    "C" to "认知",
+    "D" to "关系",
+    "E" to "感官",
+    "F" to "生活",
+    "language" to "语言",
+    "motor" to "动作",
+    "cognitive" to "认知",
+    "social" to "关系",
+    "sensory" to "感官",
+    "care" to "生活",
+)
 
 @Serializable
 data class Month(
@@ -45,11 +74,16 @@ data class Month(
     val vaccines: List<String> = emptyList(),
     val checkups: List<String> = emptyList(),
     val notes: List<Note> = emptyList(),
-)
+) {
+    val rhythm: List<Block>? get() = null
+    val extra: List<Block> get() = emptyList()
+}
 
 @Serializable data class Highlight(val kind: String, val text: String, val anchor: String = "", val tag: String = "")
 @Serializable data class Area(val key: String, val name: String, val text: String, val refs: List<String> = emptyList())
-@Serializable data class ObserveGroup(val area: String, val items: List<String>)
+@Serializable data class ObserveGroup(val area: String, val items: List<String>) {
+    val group: String get() = area
+}
 @Serializable data class Note(val topic: String, val text: String, val refs: List<String> = emptyList())
 
 @Serializable
@@ -66,7 +100,11 @@ data class Play(
     val pause: String = "",
     val safety: String = "",
     val refs: List<String> = emptyList(),
-)
+) {
+    val months: IntRange get() = from..to
+    val stop: String get() = pause
+    val variations: List<String> get() = emptyList()
+}
 
 @Serializable
 data class Block(

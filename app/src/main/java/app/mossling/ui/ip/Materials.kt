@@ -42,6 +42,9 @@ enum class Family(val label: String) {
     }
 }
 
+fun familyOf(domains: List<String>): Family = Family.of(domains)
+fun familyOf(codeOrDomain: String): Family = Family.of(listOf(codeOrDomain))
+
 private val Ink = Palette.Ink
 private val Shade = Palette.Ink.copy(alpha = 0.10f)
 private val Linen = Color(0xFFE9E3D6)

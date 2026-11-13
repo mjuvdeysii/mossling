@@ -1,60 +1,90 @@
 package app.mossling.data
 
-import kotlinx.coroutines.flow.first
+import app.mossling.ui.components.ArtStyle
+import app.mossling.ui.ip.Kind
+import app.mossling.ui.theme.ThemeMode
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.longOrNull
 import java.time.LocalDate
 
+private val json = Json { ignoreUnknownKeys = true }
+private val validTypes = setOf(
+    LogType.Nurse, LogType.Bottle, LogType.Sleep, LogType.Diaper, LogType.Solid,
+    LogType.Bath, LogType.Temp, LogType.Med, LogType.Note, LogType.Play,
+)
+private val validKinds = setOf(TickKind.Did, TickKind.Observed, TickKind.Vaccine, TickKind.Checkup)
+
 /**
- * Reads a record file written by 「导出记录文件」 back in. Nothing is overwritten: a tick already set stays, an entry
- * already present (same kind, same minute) or a measurement on the same day is skipped.
+ * Restores a JSON file exported by `Exporter` or iOS `RecordFile`.
+ * Merges into existing records without duplicating entries; checks every field before writing.
  */
 class Importer(private val dao: RecordDao, private val settings: SettingsRepository) {
-    data class Result(val ticks: Int, val logs: Int, val skipped: Int, val birth: Boolean)
-    class NotOurFile : Exception()
+    suspend fun restore(raw: String): Result<Int> = runCatching {
+        require(raw.length <= 10_000_000) { "文件过大" }
+        val p = json.decodeFromString<ExportPayload>(raw)
+        require(p.app == "Mossling") { "不是摸索台灯的记录文件" }
 
-    private val json = Json { ignoreUnknownKeys = true; isLenient = true }
+        val st = p.settings
+        val birthStr = st?.birth ?: p.birth
+        birthStr?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.let { settings.setBirth(it) }
 
-    suspend fun run(text: String): Result {
-        val root = runCatching { json.parseToJsonElement(text).jsonObject }.getOrNull() ?: throw NotOurFile()
-        val o = root["mossling"] as? JsonObject ?: throw NotOurFile()
-        return own(o)
+        val compStr = st?.companion ?: p.companion
+        runCatching { Kind.valueOf(compStr) }.getOrNull()?.let { settings.setCompanion(it) }
+
+        val themeStr = st?.theme ?: p.theme
+        themeStr?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }?.let { settings.setTheme(it) }
+
+        (st?.nightLight ?: p.nightLight)?.let { settings.setNightLight(it) }
+        (st?.artStyle ?: p.artStyle)?.let { settings.setArtStyle(ArtStyle.fromRaw(it)) }
+        (st?.journal ?: p.journal)?.let { settings.setJournal(it) }
+        (st?.shelf ?: p.shelf)?.takeIf { it.isNotBlank() }?.let { settings.setShelf(it) }
+
+        val sexStr = st?.sex ?: p.sex
+        sexStr?.takeIf { it == "boy" || it == "girl" }?.let { settings.setSex(it) }
+
+        val lookStr = st?.look ?: p.look
+        lookStr?.takeIf { it == "boy" || it == "girl" }?.let { settings.setLook(it) }
+
+        val nickStr = st?.nickname ?: p.nickname
+        nickStr?.takeIf { it.isNotBlank() }?.let { settings.setNickname(it.take(20)) }
+
+        var n = 0
+        p.ticks.filter { it.month in 0..36 && it.kind in validKinds && it.key.length <= 64 && it.label.length <= 200 }.forEach {
+            dao.putTick(it)
+            n++
+        }
+
+        val haveLogs = dao.allLogs().map { Triple(it.type, it.start, it.detail) }.toHashSet()
+        p.logs.filter { it.type in validTypes && it.start > 0 && (it.end == null || it.end >= it.start) }.forEach { e ->
+            if (haveLogs.add(Triple(e.type, e.start, e.detail))) {
+                dao.putLog(e.copy(id = 0, detail = e.detail?.take(500)))
+                n++
+            }
+        }
+
+        val haveM = dao.allMeasures().map { it.at }.toHashSet()
+        p.measures.filter { it.at > 0 && (it.weightG != null || it.lengthMm != null || it.headMm != null) }.forEach { m ->
+            if (haveM.add(m.at)) {
+                dao.putMeasure(m.copy(id = 0))
+                n++
+            }
+        }
+
+        val haveF = dao.allFirsts().map { it.at to it.title }.toHashSet()
+        p.firsts.filter { it.at > 0 && it.title.isNotBlank() }.forEach { f ->
+            if (haveF.add(f.at to f.title)) {
+                dao.putFirst(f.copy(id = 0, title = f.title.take(100), note = f.note?.take(500)))
+                n++
+            }
+        }
+
+        p.timers.filter { (it.type == LogType.Nurse || it.type == LogType.Sleep) && it.start > 0 }.forEach { t ->
+            if (dao.timer(t.type) == null) {
+                dao.putTimer(t)
+                n++
+            }
+        }
+
+        if (p.logs.isNotEmpty() || p.timers.isNotEmpty()) settings.setJournal(true)
+        n
     }
-
-    private suspend fun own(o: JsonObject): Result {
-        fun JsonObject.s(k: String) = (this[k] as? JsonPrimitive)?.content
-        fun JsonObject.l(k: String) = (this[k] as? JsonPrimitive)?.longOrNull
-        fun JsonObject.i(k: String) = (this[k] as? JsonPrimitive)?.intOrNull
-        var birth = false
-        (o["settings"] as? JsonObject)?.let { st ->
-            val cur = settings.settings.first()
-            st.s("birth")?.let { runCatching { LocalDate.parse(it) }.getOrNull() }?.let { if (cur.birth == null) { settings.setBirth(it); birth = true } }
-            st.s("sex")?.let { if (cur.sex == null) settings.setSex(it) }
-            st.s("nickname")?.let { if (cur.nickname.isBlank()) settings.setNickname(it) }
-        }
-        var ticks = 0; var logs = 0; var skipped = 0
-        (o["ticks"] as? JsonArray)?.forEach { el ->
-            val t = el as? JsonObject ?: return@forEach
-            val tick = Tick(t.s("key") ?: return@forEach, t.i("month") ?: return@forEach, t.s("kind") ?: return@forEach, t.s("label") ?: "", t.l("at") ?: 0)
-            if (dao.putTickIfAbsent(tick) != -1L) ticks++
-        }
-        (o["logs"] as? JsonArray)?.forEach { el ->
-            val e = el as? JsonObject ?: return@forEach
-            val x = LogEntry(type = e.s("type") ?: return@forEach, start = e.l("start") ?: return@forEach, end = e.l("end"), amount = e.i("amount"), side = e.s("side"), detail = e.s("detail"))
-            if (dao.sameMinute(x.type, x.start - 60_000, x.start + 60_000) > 0) skipped++ else { dao.putLog(x); logs++ }
-        }
-        val have = dao.allMeasures().map { it.at }.toSet()
-        (o["measures"] as? JsonArray)?.forEach { el ->
-            val m = el as? JsonObject ?: return@forEach
-            val at = m.l("at") ?: return@forEach
-            if (at in have) skipped++ else { dao.putMeasure(Measure(at = at, weightG = m.i("weightG"), lengthMm = m.i("lengthMm"), headMm = m.i("headMm"))); logs++ }
-        }
-        return Result(ticks, logs, skipped, birth)
-    }
-
 }

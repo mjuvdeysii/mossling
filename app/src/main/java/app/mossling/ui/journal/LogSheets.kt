@@ -1,48 +1,37 @@
 package app.mossling.ui.journal
 
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.rememberTimePickerState
-import androidx.compose.material3.rememberDatePickerState
-import androidx.compose.material3.TimePicker
-import androidx.compose.material3.SelectableDates
-import androidx.compose.material3.DatePickerDialog
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.AlertDialog
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.FilledTonalButton
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.Slider
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -53,281 +42,408 @@ import androidx.compose.ui.unit.dp
 import app.mossling.data.LogEntry
 import app.mossling.data.LogType
 import app.mossling.ui.components.G
-import app.mossling.ui.components.Glyph
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
+import app.mossling.ui.components.minutes
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
-import kotlin.math.roundToInt
 
-/** The things that can be logged, in the order they are offered. */
-data class LogKind(val type: String, val name: String, val glyph: G, val tint: Color)
+data class LogKind(val label: String, val glyph: G, val tint: Color, val sticker: String = "ic_pencil.webp")
 
-val LogKinds = listOf(
-    LogKind(LogType.Nurse, "亲喂", G.Nurse, Color(0xFFB8382B)),
-    LogKind(LogType.Bottle, "瓶喂", G.Bottle, Color(0xFFB07B12)),
-    LogKind(LogType.Sleep, "睡觉", G.Sleep, Palette.Rod),
-    LogKind(LogType.Diaper, "尿布", G.Diaper, Palette.MossDeep),
-    LogKind(LogType.Solid, "辅食", G.Solid, Color(0xFF8C6A45)),
-    LogKind(LogType.Bath, "洗澡", G.Bath, Color(0xFF3F7F86)),
-    LogKind(LogType.Temp, "体温", G.Thermo, Color(0xFFB8452E)),
-    LogKind(LogType.Medicine, "用药", G.Pill, Color(0xFF6B5B95)),
-    LogKind(GROWTH, "生长", G.Ruler, Color(0xFF8A6508)),
-    LogKind(LogType.Note, "备注", G.Note, Color(0xFF5A5C55)),
-)
-/** Not a journal entry: opens the measurement sheet (weight, length, head). */
-const val GROWTH = "growth"
-/** Written by marking a play as done, never from a log button. */
-private val PlayKind = LogKind(LogType.Play, "一起玩", G.Play, Palette.Moss)
-fun logKind(type: String) = if (type == LogType.Play) PlayKind else LogKinds.firstOrNull { it.type == type } ?: LogKinds.last()
-
-/** What a tap on a log button asks for, if anything. */
-enum class Ask { None, Side, Amount, Diaper, Temp, Text, Measure }
-
-fun askFor(type: String) = when (type) {
-    LogType.Nurse, LogType.Sleep -> Ask.Side; LogType.Bottle -> Ask.Amount; LogType.Diaper -> Ask.Diaper; LogType.Temp -> Ask.Temp
-    LogType.Solid, LogType.Medicine, LogType.Note -> Ask.Text; GROWTH -> Ask.Measure; else -> Ask.None
+fun logKind(type: String): LogKind = when (type) {
+    LogType.Nurse -> LogKind("亲喂", G.Heart, Color(0xFFC2724F), "ic_circle_bottomhalf_filled.webp")
+    LogType.Bottle -> LogKind("瓶喂", G.Bottle, Palette.Bead, "ic_waterbottle_fill.webp")
+    LogType.Sleep -> LogKind("睡觉", G.Sleep, Palette.Rod, "ic_moon_zzz_fill.webp")
+    LogType.Diaper -> LogKind("尿布", G.Diaper, Palette.Moss, "ic_drop_halffull.webp")
+    LogType.Solid -> LogKind("辅食", G.Solid, Palette.Wood, "ic_fork_knife.webp")
+    LogType.Bath -> LogKind("洗澡", G.Bath, Palette.RodLight, "ic_bathtub_fill.webp")
+    LogType.Temp -> LogKind("体温", G.Thermo, Palette.RedRod, "ic_thermometer_medium.webp")
+    LogType.Med -> LogKind("用药", G.Pill, Palette.RodDeep, "ic_pills_fill.webp")
+    LogType.Play -> LogKind("一起玩", G.Play, Palette.Moss, "ic_puzzlepiece_fill.webp")
+    else -> LogKind("记一笔", G.Note, Palette.MossDeep, "ic_pencil.webp")
 }
 
-/** The small sheet that follows a log button. Each choice is one tap and closes the sheet. */
-@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun AskSheet(ask: Ask, onDismiss: () -> Unit, onSide: (String, Long) -> Unit, onAmount: (Int, Long) -> Unit, onDiaper: (String, Long) -> Unit,
-             type: String = "", onTemp: (Int, Long) -> Unit = { _, _ -> }, onText: (String, Long) -> Unit = { _, _ -> }, lastAmount: Int? = null) {
-    if (ask == Ask.None || ask == Ask.Measure) return
-    // most entries are made a little after the fact: say when, in one tap, before saying what
-    var ago by remember(ask, type) { mutableIntStateOf(0) }
-    var exact by remember(ask, type) { mutableStateOf<Long?>(null) }
-    var choosing by remember { mutableStateOf(false) }
-    fun at() = exact ?: (System.currentTimeMillis() - ago * 60_000L)
-    val kb0 = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
-    val fm0 = androidx.compose.ui.platform.LocalFocusManager.current
-    val close = { fm0.clearFocus(); kb0?.hide(); onDismiss() }
-    ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        // scrolls and keeps clear of the keyboard, so 「记下来」 is always reachable
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Text(if (ask == Ask.Side) "什么时候开始的" else "什么时候", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            FlowRow(Modifier.padding(top = 6.dp, bottom = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(0 to "现在", 5 to "5 分钟前", 15 to "15 分钟前", 30 to "半小时前", 60 to "1 小时前").forEach { (v, t) ->
-                    FilterChip(selected = exact == null && ago == v, onClick = { ago = v; exact = null }, label = { Text(t) })
-                }
-                FilterChip(selected = exact != null, onClick = { choosing = true },
-                    label = { Text(exact?.let { whenLabel(it) } ?: "选择时间…", fontFamily = if (exact != null) Numerals else null) },
-                    leadingIcon = { Glyph(G.Clock, size = 18.dp) })
-            }
-            if (choosing) TimeDialog(if (ask == Ask.Side) "开始时间" else "时间", exact ?: at(), { exact = it }, { choosing = false })
-            when (ask) {
-                Ask.Side -> if (type == LogType.Sleep) {
-                    // a sleep starts only from here, after saying when — never from a single tap elsewhere
-                    Button(onClick = { onSide("", at()) }, modifier = Modifier.fillMaxWidth().height(64.dp), shape = RoundedCornerShape(20.dp)) { Text("开始睡觉计时", style = MaterialTheme.typography.titleMedium) }
-                    Spacer(Modifier.height(8.dp))
-                } else {
-                    Text("从哪一侧开始", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(Modifier.height(20.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                        listOf("l" to "左侧", "r" to "右侧").forEach { (k, t) ->
-                            Surface(onClick = { onSide(k, at()) }, shape = CircleShape, color = Color(0xFFB8382B).copy(alpha = 0.12f), modifier = Modifier.weight(1f).aspectRatio(1f)) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    Text(if (k == "l") "L" else "R", fontFamily = Numerals, style = MaterialTheme.typography.displaySmall, color = Color(0xFFB8382B))
-                                    Text(t, style = MaterialTheme.typography.titleMedium)
-                                }
-                            }
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
-                Ask.Amount -> {
-                    var ml by remember { mutableFloatStateOf((lastAmount ?: 120).toFloat()) }
-                    Text("喝了多少", style = MaterialTheme.typography.headlineSmall)
-                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 12.dp)) {
-                        Text("${ml.roundToInt()}", style = MaterialTheme.typography.displayMedium)
-                        Text(" 毫升", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 10.dp))
-                        Spacer(Modifier.weight(1f))
-                        // 5 ml at a time, as precise as a bottle's markings
-                        FilledTonalButton(onClick = { ml = (ml - 5f).coerceAtLeast(5f) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("−5") }
-                        Spacer(Modifier.width(8.dp))
-                        FilledTonalButton(onClick = { ml = (ml + 5f).coerceAtMost(300f) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("+5") }
-                    }
-                    Slider(ml, { ml = (it / 5).roundToInt() * 5f }, valueRange = 5f..300f, steps = 58)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(60, 90, 120, 150, 180).forEach { v -> FilterChip(selected = ml.roundToInt() == v, onClick = { ml = v.toFloat() }, label = { Text("$v") }) }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onAmount(ml.roundToInt(), at()) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
-                }
-                Ask.Diaper -> {
-                    Text("换尿布", style = MaterialTheme.typography.headlineSmall)
-                    Spacer(Modifier.height(16.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        listOf("wet" to "湿", "dirty" to "便", "both" to "都有").forEach { (k, t) ->
-                            Surface(onClick = { onDiaper(k, at()) }, shape = RoundedCornerShape(24.dp), color = MaterialTheme.colorScheme.primaryContainer, modifier = Modifier.weight(1f).height(96.dp)) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-                                    Glyph(G.Diaper, size = 28.dp, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                                    Text(t, style = MaterialTheme.typography.titleMedium)
-                                }
-                            }
-                        }
-                    }
-                }
-                Ask.Temp -> {
-                    var c by remember { mutableIntStateOf(368) }
-                    Text("体温", style = MaterialTheme.typography.headlineSmall)
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                        FilledTonalButton(onClick = { c = (c - 1).coerceAtLeast(340) }, modifier = Modifier.size(56.dp), contentPadding = PaddingValues(0.dp)) { Text("−", style = MaterialTheme.typography.headlineSmall) }
-                        Text("%.1f".format(c / 10.0), fontFamily = Numerals, style = MaterialTheme.typography.displayMedium, color = if (c >= 380) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                        FilledTonalButton(onClick = { c = (c + 1).coerceAtMost(425) }, modifier = Modifier.size(56.dp), contentPadding = PaddingValues(0.dp)) { Text("+", style = MaterialTheme.typography.headlineSmall) }
-                    }
-                    Text("°C", style = MaterialTheme.typography.titleMedium, modifier = Modifier.align(Alignment.CenterHorizontally))
-                    Spacer(Modifier.height(16.dp))
-                    Button(onClick = { onTemp(c, at()) }, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
-                }
-                Ask.Text -> {
-                    var t by remember { mutableStateOf("") }
-                    val (title, hint, chips) = when (type) {
-                        LogType.Solid -> Triple("吃了什么", "食物和大概的量", listOf("米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"))
-                        LogType.Medicine -> Triple("用了什么药", "药名与剂量，按医嘱或说明书", listOf("维生素 D", "维生素 AD"))
-                        else -> Triple("备注", "发生了什么", emptyList())
-                    }
-                    Text(title, style = MaterialTheme.typography.headlineSmall)
-                    OutlinedTextField(t, { t = it.take(120) }, Modifier.fillMaxWidth().padding(top = 12.dp), placeholder = { Text(hint) }, shape = RoundedCornerShape(16.dp), minLines = if (type == LogType.Note) 3 else 1)
-                    if (chips.isNotEmpty()) FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        chips.forEach { ch -> FilterChip(selected = t.contains(ch), onClick = { t = if (t.isBlank()) ch else "$t、$ch" }, label = { Text(ch) }) }
-                    }
-                    Spacer(Modifier.height(16.dp))
-                    val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
-                    val fm = androidx.compose.ui.platform.LocalFocusManager.current
-                    Button(onClick = { fm.clearFocus(); kb?.hide(); onText(t.trim(), at()) }, enabled = t.isNotBlank() || type == LogType.Solid, modifier = Modifier.fillMaxWidth().height(56.dp), shape = RoundedCornerShape(18.dp)) { Text("记下来") }
-                }
-                Ask.None, Ask.Measure -> Unit
-            }
-            TextButton(onClick = close, modifier = Modifier.align(Alignment.End)) { Text("取消") }
-        }
-    }
-}
-
-fun describe(e: LogEntry): String = when (e.type) {
-    LogType.Nurse -> listOfNotNull(when (e.side) { "l" -> "左侧"; "r" -> "右侧"; else -> null }, e.end?.let { app.mossling.ui.components.minutes(it - e.start) }).joinToString(" · ")
-    LogType.Sleep -> e.end?.let { app.mossling.ui.components.minutes(it - e.start) } ?: "进行中"
-    LogType.Bottle -> "${e.amount ?: 0} 毫升"
-    LogType.Diaper -> when (e.detail) { "wet" -> "湿"; "dirty" -> "便"; "both" -> "湿和便"; else -> "" }
-    LogType.Temp -> e.amount?.let { "%.1f °C".format(it / 10.0) } ?: ""
-    else -> e.detail ?: ""
-}
-
-@Composable
-fun LogButton(k: LogKind, running: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier, since: String? = null) {
-    Surface(onClick = onClick, shape = RoundedCornerShape(24.dp), color = if (running) k.tint else k.tint.copy(alpha = 0.10f), modifier = modifier.heightIn(min = 88.dp)) {
-        Column(Modifier.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Glyph(k.glyph, size = 26.dp, color = if (running) Color.White else k.tint, filled = running)
-            Spacer(Modifier.size(6.dp))
-            Text(if (running) "进行中" else k.name, style = MaterialTheme.typography.labelLarge, color = if (running) Color.White else MaterialTheme.colorScheme.onSurface)
-            // how long ago this was last done — the question a parent asks before every feed
-            if (!running && since != null) Text(since, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 6.dp))
-        }
-    }
-}
-
-/** "刚刚", "25 分钟前", "3 小时前" — short enough to sit under a button. */
-fun ago(then: Long, now: Long = System.currentTimeMillis()): String {
-    val m = ((now - then) / 60_000).toInt()
-    return when { m < 2 -> "刚刚"; m < 60 -> "$m 分钟前"; m < 10 * 60 && m % 60 != 0 -> "${m / 60} 小时 ${m % 60} 分前"; m < 48 * 60 -> "${m / 60} 小时前"; else -> "${m / 1440} 天前" }
-}
-
-/**
- * One entry, to change or to add after the fact: any day and time (tap the date or the time), the amount, side or
- * kind, the text; delete with undo. An entry with id 0 is new ("补记") and is only written when confirmed.
- */
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun EntrySheet(e: LogEntry, onChange: (LogEntry) -> Unit, onDelete: (LogEntry) -> Unit, onDismiss: () -> Unit) {
-    var cur by remember(e.id, e.start) { mutableStateOf(e) }
-    val fresh = e.id == 0L
-    var pick by remember { mutableStateOf<Boolean?>(null) }   // true: start, false: end
+fun QuickLogSheet(
+    type: String,
+    onPickType: (String) -> Unit,
+    onStartTimer: (String, String?) -> Unit,
+    onSave: (LogEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
     val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val fm = androidx.compose.ui.platform.LocalFocusManager.current
     val close = { fm.clearFocus(); kb?.hide(); onDismiss() }
-    ModalBottomSheet(onDismissRequest = { if (!fresh) onChange(cur); close() }, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().imePadding().verticalScroll(androidx.compose.foundation.rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 24.dp).navigationBarsPadding()) {
-            Text((if (fresh) "补记 · " else "") + logKind(cur.type).name, style = MaterialTheme.typography.headlineSmall)
-            if (!fresh) Text(describe(cur), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Spacer(Modifier.height(12.dp))
-            WhenRow(if (cur.end != null) "开始" else "时间", cur.start, { pick = true }) { d -> val ms = d * 60_000L; val n = cur.start + ms
-                if (n <= System.currentTimeMillis()) cur = cur.copy(start = n, end = cur.end?.let { it + ms }) }
-            cur.end?.let { end ->
-                WhenRow("结束", end, { pick = false }) { d -> val n = end + d * 60_000L; if (n > cur.start && n <= System.currentTimeMillis() + 60_000) cur = cur.copy(end = n) }
-                Text("共 " + span(end - cur.start), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
-            }
-            when (cur.type) {
+    ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+        ) {
+            when (type) {
+                "more" -> {
+                    Text("记一笔", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(14.dp))
+                    val more = listOf(LogType.Solid, LogType.Bath, LogType.Temp, LogType.Med, LogType.Note)
+                    FlowRow(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        more.forEach { t ->
+                            val k = logKind(t)
+                            Surface(onClick = { onPickType(t) }, shape = RoundedCornerShape(20.dp), color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                                Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                    ShapeBadge(k.glyph, k.tint.copy(alpha = 0.16f), k.tint, shape = Shapes.of(t), size = 34.dp)
+                                    Spacer(Modifier.width(10.dp))
+                                    Text(k.label, style = MaterialTheme.typography.titleMedium)
+                                }
+                            }
+                        }
+                    }
+                }
+                LogType.Nurse -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var min by remember { mutableIntStateOf(15) }
+                    var side by remember { mutableStateOf("l") }
+                    Text("亲喂", style = MaterialTheme.typography.headlineSmall)
+                    Text("现在开始，就点下面两个大按钮计时；已经喂完了，选时长直接记下来。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+                    Spacer(Modifier.height(14.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = { onStartTimer(LogType.Nurse, "l"); close() }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("左侧 · 开始计时") }
+                        Button(onClick = { onStartTimer(LogType.Nurse, "r"); close() }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("右侧 · 开始计时") }
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text("或者记一次已喂完的", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    WhenRow("结束于", at) { at = it }
+                    SideChips(side) { side = it }
+                    DurationRow(min, listOf(5, 10, 15, 20, 30)) { min = it }
+                    SaveButton { onSave(LogEntry(type = LogType.Nurse, start = at - min * 60_000L, end = at, side = side)); close() }
+                }
+                LogType.Sleep -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var min by remember { mutableIntStateOf(60) }
+                    Text("睡觉", style = MaterialTheme.typography.headlineSmall)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { onStartTimer(LogType.Sleep, null); close() }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                        Text("刚睡着 · 开始计时", style = MaterialTheme.typography.titleMedium)
+                    }
+                    Spacer(Modifier.height(18.dp))
+                    Text("或者记一觉已睡醒的", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    WhenRow("醒来于", at) { at = it }
+                    DurationRow(min, listOf(30, 45, 60, 90, 120), step = 15) { min = it }
+                    SaveButton { onSave(LogEntry(type = LogType.Sleep, start = at - min * 60_000L, end = at)); close() }
+                }
                 LogType.Bottle -> {
-                    var ml by remember(e.id) { mutableFloatStateOf((cur.amount ?: 120).toFloat()) }
-                    Text("${ml.roundToInt()} 毫升", style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(top = 12.dp))
-                    Slider(ml, { ml = (it / 5).roundToInt() * 5f; cur = cur.copy(amount = ml.roundToInt()) }, valueRange = 5f..300f, steps = 58)
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var ml by remember { mutableIntStateOf(120) }
+                    var kind by remember { mutableStateOf("母乳") }
+                    Text("瓶喂 · 喝了多少", style = MaterialTheme.typography.headlineSmall)
+                    WhenRow("时间", at) { at = it }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                        listOf("母乳", "配方奶", "水").forEach { k -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(k) }) }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        OutlinedButton(onClick = { ml = (ml - 10).coerceAtLeast(10) }, shape = RoundedCornerShape(14.dp)) { Text("−10") }
+                        Text("$ml 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp))
+                        OutlinedButton(onClick = { ml = (ml + 10).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp)) { Text("+10") }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(60, 90, 120, 150, 180, 210).forEach { p ->
+                            FilterChip(selected = ml == p, onClick = { ml = p }, label = { Text("$p") })
+                        }
+                    }
+                    SaveButton { onSave(LogEntry(type = LogType.Bottle, start = at, amount = ml, detail = kind)); close() }
                 }
-                LogType.Nurse -> Choice(listOf("l" to "左侧", "r" to "右侧"), cur.side) { cur = cur.copy(side = it) }
-                LogType.Diaper -> Choice(listOf("wet" to "湿", "dirty" to "便", "both" to "都有"), cur.detail) { cur = cur.copy(detail = it) }
-                LogType.Temp -> Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp)) {
-                    val c = cur.amount ?: 368
-                    FilledTonalButton(onClick = { cur = cur.copy(amount = (c - 1).coerceAtLeast(340)) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("−") }
-                    Text("%.1f °C".format(c / 10.0), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
-                    FilledTonalButton(onClick = { cur = cur.copy(amount = (c + 1).coerceAtMost(425)) }, modifier = Modifier.size(48.dp), contentPadding = PaddingValues(0.dp)) { Text("+") }
+                LogType.Diaper -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    Text("换尿布", style = MaterialTheme.typography.headlineSmall)
+                    WhenRow("时间", at) { at = it }
+                    Spacer(Modifier.height(8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        listOf("wet" to "湿了", "dirty" to "便便", "both" to "都有").forEach { (code, label) ->
+                            FilledTonalButton(
+                                onClick = { onSave(LogEntry(type = LogType.Diaper, start = at, detail = code)); close() },
+                                modifier = Modifier.weight(1f).height(56.dp),
+                                shape = RoundedCornerShape(18.dp),
+                            ) { Text(label, style = MaterialTheme.typography.titleMedium) }
+                        }
+                    }
                 }
-                LogType.Solid, LogType.Medicine, LogType.Note ->
-                    OutlinedTextField(cur.detail ?: "", { cur = cur.copy(detail = it.take(120)) }, Modifier.fillMaxWidth().padding(top = 12.dp), shape = RoundedCornerShape(16.dp),
-                        placeholder = { Text(when (cur.type) { LogType.Solid -> "食物和大概的量"; LogType.Medicine -> "药名与剂量"; else -> "发生了什么" }) }, minLines = if (cur.type == LogType.Note) 3 else 1)
-                else -> Unit
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 20.dp)) {
-                if (!fresh) TextButton(onClick = { onDelete(cur); onDismiss() }) { Text("删除这条", color = MaterialTheme.colorScheme.error) }
-                Spacer(Modifier.weight(1f))
-                if (fresh) TextButton(onClick = onDismiss) { Text("取消") }
-                Button(onClick = { onChange(cur); close() }, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text(if (fresh) "记下来" else "好") }
+                LogType.Temp -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var deg by remember { mutableIntStateOf(370) }
+                    Text("体温", style = MaterialTheme.typography.headlineSmall)
+                    WhenRow("时间", at) { at = it }
+                    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                        OutlinedButton(onClick = { deg = (deg - 1).coerceAtLeast(350) }) { Text("−0.1") }
+                        Text("${"%.1f".format(deg / 10.0)} ℃", fontFamily = Numerals, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp))
+                        OutlinedButton(onClick = { deg = (deg + 1).coerceAtMost(420) }) { Text("+0.1") }
+                    }
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        listOf(365, 370, 375, 380, 385, 390).forEach { p ->
+                            FilterChip(selected = deg == p, onClick = { deg = p }, label = { Text("%.1f".format(p / 10.0)) })
+                        }
+                    }
+                    if (deg >= 380) {
+                        FeverMedicalBanner(Modifier.padding(top = 10.dp))
+                    }
+                    SaveButton { onSave(LogEntry(type = LogType.Temp, start = at, amount = deg)); close() }
+                }
+                LogType.Bath -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var note by remember { mutableStateOf("") }
+                    Text("洗澡", style = MaterialTheme.typography.headlineSmall)
+                    WhenRow("时间", at) { at = it }
+                    OutlinedTextField(note, { note = it.take(500) }, label = { Text("备注（选填）") }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), shape = RoundedCornerShape(16.dp))
+                    SaveButton { onSave(LogEntry(type = LogType.Bath, start = at, detail = note.trim().ifEmpty { null })); close() }
+                }
+                else -> {
+                    var at by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                    var text by remember { mutableStateOf("") }
+                    val k = logKind(type)
+                    val presets = when (type) {
+                        LogType.Solid -> listOf("米粉", "菜泥", "果泥", "肉泥", "蛋黄", "面条", "手指食物")
+                        LogType.Med -> listOf("维生素 D 400 IU", "退烧药（对乙酰氨基酚）", "退烧药（布洛芬）", "口服补液盐", "益生菌")
+                        else -> emptyList()
+                    }
+                    Text(k.label, style = MaterialTheme.typography.headlineSmall)
+                    WhenRow("时间", at) { at = it }
+                    if (presets.isNotEmpty()) {
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
+                            presets.forEach { p ->
+                                FilterChip(
+                                    selected = p in text,
+                                    onClick = { text = if (text.isBlank()) p else "$text、$p" },
+                                    label = { Text(p) },
+                                )
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = text,
+                        onValueChange = { text = it.take(500) },
+                        label = {
+                            Text(
+                                when (type) {
+                                    LogType.Solid -> "吃了什么"
+                                    LogType.Med -> "药名与剂量"
+                                    else -> "记下什么"
+                                }
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                        shape = RoundedCornerShape(16.dp),
+                    )
+                    SaveButton { onSave(LogEntry(type = type, start = at, detail = text.trim().ifEmpty { k.label })); close() }
+                }
             }
         }
     }
-    pick?.let { forStart ->
-        TimeDialog(if (forStart) (if (cur.end != null) "开始时间" else "时间") else "结束时间", if (forStart) cur.start else cur.end!!, { n ->
-            cur = if (forStart) cur.copy(start = n, end = cur.end?.let { it + (n - cur.start) }) else cur.copy(end = n)
-        }, { pick = null }, notBefore = if (forStart) null else cur.start)
-    }
 }
 
-/** "1 小时 05 分", "25 分钟". */
-fun span(ms: Long): String { val m = (ms / 60_000).coerceAtLeast(0); return if (m >= 60) "${m / 60} 小时 ${"%02d".format(m % 60)} 分" else "$m 分钟" }
-
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
-private fun WhenRow(label: String, at: Long, onPick: () -> Unit, step: (Int) -> Unit) {
-    Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 10.dp))
-    // the whole day and time on one tonal button; the nudges wrap to the next line when space is short
-    androidx.compose.foundation.layout.FlowRow(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        FilledTonalButton(onClick = onPick, shape = RoundedCornerShape(16.dp), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp), modifier = Modifier.heightIn(min = 52.dp)) {
-            Text(whenLabel(at), fontFamily = Numerals, style = MaterialTheme.typography.titleLarge, softWrap = false)
+fun FeverMedicalBanner(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.errorContainer,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                "体温 ≥ 38.0 ℃ 就医提示（仅供参考，不代替医嘱）",
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
+            Text(
+                "· 未满 3 个月婴儿体温 ≥ 38.0 ℃，建议立即就医（AAP 指南）。\n" +
+                    "· 任何月龄若伴有呼吸急促或费力、精神萎靡、叫不醒、持续哭闹无法安抚、抽搐、口唇发紫或按压不褪色皮疹，请立即就医。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onErrorContainer,
+            )
         }
-        listOf(-5, -1, 1, 5).forEach { s -> FilterChip(selected = false, onClick = { step(s) }, label = { Text(if (s > 0) "+$s 分" else "$s 分") }) }
     }
 }
 
 @Composable
-private fun Choice(options: List<Pair<String, String>>, selected: String?, onPick: (String) -> Unit) {
-    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth().padding(top = 12.dp)) {
-        options.forEachIndexed { i, (k, t) -> SegmentedButton(selected = selected == k, onClick = { onPick(k) }, shape = SegmentedButtonDefaults.itemShape(i, options.size)) { Text(t) } }
+private fun WhenRow(label: String, at: Long, onChange: (Long) -> Unit) {
+    var picking by remember { mutableStateOf(false) }
+    val now = System.currentTimeMillis()
+    val agoMin = ((now - at) / 60_000).toInt()
+    Row(
+        Modifier.fillMaxWidth().padding(top = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Spacer(Modifier.weight(1f))
+        listOf(0 to "刚刚", 15 to "15分前", 30 to "半小时前").forEach { (m, t) ->
+            FilterChip(
+                selected = kotlin.math.abs(agoMin - m) <= 2,
+                onClick = { onChange(System.currentTimeMillis() - m * 60_000L) },
+                label = { Text(t) },
+            )
+        }
+        TextButton(onClick = { picking = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+            Text(whenLabel(at), fontFamily = Numerals, style = MaterialTheme.typography.labelLarge)
+        }
+    }
+    if (picking) TimeDialog(label, at, onChange, { picking = false })
+}
+
+@Composable
+private fun SideChips(side: String, onPick: (String) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        listOf("l" to "左侧", "r" to "右侧", "b" to "双侧").forEach { (c, l) ->
+            FilterChip(selected = side == c, onClick = { onPick(c) }, label = { Text(l) })
+        }
     }
 }
 
-/** Which kind of entry to add after the fact. */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun KindSheet(onPick: (String) -> Unit, onDismiss: () -> Unit) {
-    ModalBottomSheet(onDismissRequest = onDismiss, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp).navigationBarsPadding(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("补记哪一项", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.padding(start = 8.dp, bottom = 8.dp))
-            LogKinds.filter { it.type != GROWTH }.chunked(3).forEach { row ->
+private fun DurationRow(min: Int, presets: List<Int>, step: Int = 5, onChange: (Int) -> Unit) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+        OutlinedButton(onClick = { onChange((min - step).coerceAtLeast(1)) }, shape = RoundedCornerShape(14.dp)) { Text("−$step") }
+        Text(minutes(min * 60_000L), fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 18.dp))
+        OutlinedButton(onClick = { onChange((min + step).coerceAtMost(720)) }, shape = RoundedCornerShape(14.dp)) { Text("+$step") }
+    }
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        presets.forEach { p -> FilterChip(selected = min == p, onClick = { onChange(p) }, label = { Text("${p}分") }) }
+    }
+}
+
+@Composable
+private fun SaveButton(onClick: () -> Unit) {
+    Spacer(Modifier.height(14.dp))
+    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+        Text("记下来", style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+/** Edit or delete any existing entry: start/end time, side, amount, or note. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun EntrySheet(
+    e: LogEntry,
+    onSave: (LogEntry) -> Unit,
+    onDelete: (LogEntry) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val k = logKind(e.type)
+    var start by remember(e.id) { mutableLongStateOf(e.start) }
+    var end by remember(e.id) { mutableStateOf(e.end) }
+    var side by remember(e.id) { mutableStateOf(e.side ?: "l") }
+    var amount by remember(e.id) { mutableIntStateOf(e.amount ?: if (e.type == LogType.Temp) 370 else 120) }
+    var detail by remember(e.id) { mutableStateOf(e.detail ?: "") }
+    var pickStart by remember { mutableStateOf(false) }
+    var pickEnd by remember { mutableStateOf(false) }
+    val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
+    val fm = androidx.compose.ui.platform.LocalFocusManager.current
+    val close = { fm.clearFocus(); kb?.hide(); onDismiss() }
+
+    ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .imePadding()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+                .padding(bottom = 24.dp)
+                .navigationBarsPadding(),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                ShapeBadge(k.glyph, k.tint.copy(alpha = 0.16f), k.tint, shape = Shapes.of(e.type), size = 38.dp)
+                Spacer(Modifier.width(10.dp))
+                Text(k.label, style = MaterialTheme.typography.headlineSmall)
+            }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(if (end != null) "开始时间" else "时间", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                TextButton(onClick = { pickStart = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                    Text(whenLabel(start), fontFamily = Numerals, style = MaterialTheme.typography.titleMedium)
+                }
+            }
+            if (end != null || e.type == LogType.Nurse || e.type == LogType.Sleep) {
+                val endVal = end ?: (start + 15 * 60_000L)
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("结束时间（${minutes((endVal - start).coerceAtLeast(0))}）", style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    TextButton(onClick = { end = endVal; pickEnd = true }, modifier = Modifier.heightIn(min = 48.dp)) {
+                        Text(whenLabel(endVal), fontFamily = Numerals, style = MaterialTheme.typography.titleMedium)
+                    }
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    row.forEach { k -> LogButton(k, false, onClick = { onPick(k.type) }, modifier = Modifier.weight(1f)) }
-                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
+                    Text("时长：", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.align(Alignment.CenterVertically))
+                    listOf(-5, +5, +15).forEach { d ->
+                        OutlinedButton(
+                            onClick = { end = (endVal + d * 60_000L).coerceAtLeast(start + 60_000L).coerceAtMost(System.currentTimeMillis()) },
+                            shape = RoundedCornerShape(12.dp),
+                        ) { Text(if (d > 0) "+${d}分" else "${d}分") }
+                    }
                 }
             }
+            if (e.type == LogType.Nurse) SideChips(side) { side = it }
+            if (e.type == LogType.Bottle) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    OutlinedButton(onClick = { amount = (amount - 10).coerceAtLeast(10) }) { Text("−10") }
+                    Text("$amount 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
+                    OutlinedButton(onClick = { amount = (amount + 10).coerceAtMost(360) }) { Text("+10") }
+                }
+            }
+            if (e.type == LogType.Temp) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                    OutlinedButton(onClick = { amount = (amount - 1).coerceAtLeast(350) }) { Text("−0.1") }
+                    Text("${"%.1f".format(amount / 10.0)} ℃", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
+                    OutlinedButton(onClick = { amount = (amount + 1).coerceAtMost(420) }) { Text("+0.1") }
+                }
+                if (amount >= 380) {
+                    FeverMedicalBanner()
+                }
+            }
+            if (e.type == LogType.Diaper) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("wet" to "湿了", "dirty" to "便便", "both" to "都有").forEach { (c, l) ->
+                        FilterChip(selected = detail == c, onClick = { detail = c }, label = { Text(l) })
+                    }
+                }
+            } else {
+                OutlinedTextField(detail, { detail = it.take(500) }, label = { Text("备注") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp))
+            }
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(
+                    onClick = { onDelete(e); close() },
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(48.dp),
+                ) { Text("删除") }
+                Button(
+                    onClick = {
+                        onSave(
+                            e.copy(
+                                start = start,
+                                end = end?.coerceAtLeast(start),
+                                side = if (e.type == LogType.Nurse) side else e.side,
+                                amount = if (e.type == LogType.Bottle || e.type == LogType.Temp) amount else e.amount,
+                                detail = detail.trim().ifEmpty { null },
+                            )
+                        )
+                        close()
+                    },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(16.dp),
+                ) { Text("保存") }
+            }
         }
+    }
+    if (pickStart) {
+        TimeDialog("开始时间", start, { start = it; if (end != null && end!! < it) end = it + 60_000L }, { pickStart = false })
+    }
+    if (pickEnd) {
+        TimeDialog("结束时间", end ?: start, { end = it }, { pickEnd = false }, notBefore = start)
     }
 }
