@@ -1,9 +1,6 @@
 package app.mossling.ui.grow
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -13,9 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,7 +24,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
@@ -43,25 +37,27 @@ import app.mossling.data.TickKind
 import app.mossling.domain.playedInMonth
 import app.mossling.ui.components.Art
 import app.mossling.ui.components.ArtIndex
+import app.mossling.ui.components.G
+import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SandpaperNumber
-import app.mossling.ui.components.Sticker
-import app.mossling.ui.components.TrayArt
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
+import app.mossling.ui.components.areaColor
+import app.mossling.ui.components.areaGlyph
 import app.mossling.ui.ip.HuggedAvatar
 import app.mossling.ui.ip.StoryGoesOn
 import app.mossling.ui.theme.Numerals
-import app.mossling.ui.theme.Palette
 import app.mossling.ui.you.Bar
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 
 /**
- * The Growth Book ("成长册", `ios/DESIGN.md` §3 & `GrowthBookView`):
+ * The Growth Book ("成长册"):
  * A month-by-month keepsake album (newest lived month first) combining:
- * - Taped month cover illustration & date span
+ * - Month cover illustration & date span
  * - "第一次" milestones recorded in that month
- * - Plays done in that month with wooden tray illustrations & counts
+ * - Plays done in that month with domain badges & counts
  * - Latest growth measurement of that month (weight, length, head circumference)
  * - Daily average care stats (sleep hours, feeds, diapers)
  * - Observed milestones & parent notes
@@ -88,11 +84,8 @@ fun GrowthBookScreen(
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         item("bar") {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f)) { Bar("成长册", onBack) }
-                TextButton(onClick = openFirsts, modifier = Modifier.padding(end = 12.dp)) {
-                    Text("记第一次")
-                }
+            Bar("成长册", onBack) {
+                TextButton(onClick = openFirsts) { Text("记第一次") }
             }
         }
 
@@ -214,34 +207,22 @@ private fun MonthAlbumPage(
             Text("详情 →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
         }
 
-        // Taped cover photo
+        // Cover illustration
         if (cover != null) {
             Spacer(Modifier.height(14.dp))
-            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopCenter) {
-                Art(
-                    name = cover,
-                    label = "满 $month 个月：${guide.title}",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(top = 6.dp)
-                        .clip(RoundedCornerShape(20.dp)),
-                )
-                // Paper masking tape strip across top center
-                Box(
-                    Modifier
-                        .width(68.dp)
-                        .height(16.dp)
-                        .offset(y = 0.dp)
-                        .graphicsLayer { rotationZ = if (month % 2 == 0) -2.5f else 2.5f }
-                        .background(Palette.BeadLight.copy(alpha = 0.65f), RoundedCornerShape(3.dp))
-                )
-            }
+            Art(
+                name = cover,
+                label = "满 $month 个月：${guide.title}",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp)),
+            )
         }
 
         // 1. Firsts in this month
         if (monthFirsts.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
-            SectionSubhead("ic_heart_fill.webp", "第一次")
+            SectionSubhead(G.Heart, "第一次")
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 monthFirsts.forEach { f ->
                     FirstRowChip(f, zone)
@@ -249,10 +230,10 @@ private fun MonthAlbumPage(
             }
         }
 
-        // 2. Played activities with tray illustrations
+        // 2. Played activities with domain badges
         if (played.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
-            SectionSubhead("ic_puzzlepiece_fill.webp", "一起玩过 (${played.size})")
+            SectionSubhead(G.Play, "一起玩过 (${played.size})")
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -266,7 +247,7 @@ private fun MonthAlbumPage(
         // 3. Growth measurement in this month
         if (monthMeasure != null) {
             Spacer(Modifier.height(14.dp))
-            SectionSubhead("ic_ruler_fill.webp", "生长测量")
+            SectionSubhead(G.Ruler, "生长测量")
             MeasureMemoryStrip(monthMeasure)
         }
 
@@ -275,7 +256,7 @@ private fun MonthAlbumPage(
             val careSummary = remember(monthLogs) { computeCareSummary(monthLogs, zone) }
             if (careSummary != null) {
                 Spacer(Modifier.height(14.dp))
-                SectionSubhead("ic_moon_zzz_fill.webp", "日常照护（记录日平均）")
+                SectionSubhead(G.Moon, "日常照护（记录日平均）")
                 Text(
                     careSummary,
                     fontFamily = Numerals,
@@ -288,7 +269,7 @@ private fun MonthAlbumPage(
         // 5. Observed items in this month
         if (observed.isNotEmpty()) {
             Spacer(Modifier.height(14.dp))
-            SectionSubhead("ic_eye_fill.webp", "留意到的变化 (${observed.size})")
+            SectionSubhead(G.Eye, "留意到的变化 (${observed.size})")
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 observed.take(5).forEach { item ->
                     Text("· $item", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -311,12 +292,12 @@ private fun MonthAlbumPage(
 }
 
 @Composable
-private fun SectionSubhead(sticker: String, title: String) {
+private fun SectionSubhead(glyph: G, title: String) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.padding(bottom = 6.dp),
     ) {
-        Sticker(sticker, size = 18.dp)
+        Glyph(glyph, size = 18.dp, color = MaterialTheme.colorScheme.primary)
         Spacer(Modifier.width(6.dp))
         Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
     }
@@ -359,7 +340,9 @@ private fun PlayMemoryChip(play: Play, count: Int, onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TrayArt(play.code, size = 32.dp)
+            val d0 = play.domains.firstOrNull() ?: "A"
+            val dc = areaColor(d0)
+            ShapeBadge(areaGlyph(d0), dc.copy(alpha = 0.16f), dc, shape = Shapes.of(play.code), size = 28.dp)
             Text(play.name, style = MaterialTheme.typography.bodySmall)
             if (count > 1) {
                 Text(

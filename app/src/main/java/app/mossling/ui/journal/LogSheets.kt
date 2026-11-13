@@ -48,19 +48,19 @@ import app.mossling.ui.components.minutes
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
 
-data class LogKind(val label: String, val glyph: G, val tint: Color, val sticker: String = "ic_pencil.webp")
+data class LogKind(val label: String, val glyph: G, val tint: Color)
 
 fun logKind(type: String): LogKind = when (type) {
-    LogType.Nurse -> LogKind("亲喂", G.Heart, Color(0xFFC2724F), "ic_circle_bottomhalf_filled.webp")
-    LogType.Bottle -> LogKind("瓶喂", G.Bottle, Palette.Bead, "ic_waterbottle_fill.webp")
-    LogType.Sleep -> LogKind("睡觉", G.Sleep, Palette.Rod, "ic_moon_zzz_fill.webp")
-    LogType.Diaper -> LogKind("尿布", G.Diaper, Palette.Moss, "ic_drop_halffull.webp")
-    LogType.Solid -> LogKind("辅食", G.Solid, Palette.Wood, "ic_fork_knife.webp")
-    LogType.Bath -> LogKind("洗澡", G.Bath, Palette.RodLight, "ic_bathtub_fill.webp")
-    LogType.Temp -> LogKind("体温", G.Thermo, Palette.RedRod, "ic_thermometer_medium.webp")
-    LogType.Med -> LogKind("用药", G.Pill, Palette.RodDeep, "ic_pills_fill.webp")
-    LogType.Play -> LogKind("一起玩", G.Play, Palette.Moss, "ic_puzzlepiece_fill.webp")
-    else -> LogKind("记一笔", G.Note, Palette.MossDeep, "ic_pencil.webp")
+    LogType.Nurse -> LogKind("亲喂", G.Heart, Color(0xFFC2724F))
+    LogType.Bottle -> LogKind("瓶喂", G.Bottle, Palette.Bead)
+    LogType.Sleep -> LogKind("睡觉", G.Sleep, Palette.Rod)
+    LogType.Diaper -> LogKind("尿布", G.Diaper, Palette.Moss)
+    LogType.Solid -> LogKind("辅食", G.Solid, Palette.Wood)
+    LogType.Bath -> LogKind("洗澡", G.Bath, Palette.RodLight)
+    LogType.Temp -> LogKind("体温", G.Thermo, Palette.RedRod)
+    LogType.Med -> LogKind("用药", G.Pill, Palette.RodDeep)
+    LogType.Play -> LogKind("一起玩", G.Play, Palette.Moss)
+    else -> LogKind("记一笔", G.Note, Palette.MossDeep)
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -148,10 +148,16 @@ fun QuickLogSheet(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 6.dp)) {
                         listOf("母乳", "配方奶", "水").forEach { k -> FilterChip(selected = kind == k, onClick = { kind = k }, label = { Text(k) }) }
                     }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        OutlinedButton(onClick = { ml = (ml - 10).coerceAtLeast(10) }, shape = RoundedCornerShape(14.dp)) { Text("−10") }
-                        Text("$ml 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp))
-                        OutlinedButton(onClick = { ml = (ml + 10).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp)) { Text("+10") }
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    ) {
+                        OutlinedButton(onClick = { ml = (ml - 10).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−10") }
+                        OutlinedButton(onClick = { ml = (ml - 5).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−5") }
+                        Text("$ml 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 8.dp))
+                        OutlinedButton(onClick = { ml = (ml + 5).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+5") }
+                        OutlinedButton(onClick = { ml = (ml + 10).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+10") }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(60, 90, 120, 150, 180, 210).forEach { p ->
@@ -389,10 +395,16 @@ fun EntrySheet(
             }
             if (e.type == LogType.Nurse) SideChips(side) { side = it }
             if (e.type == LogType.Bottle) {
-                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                    OutlinedButton(onClick = { amount = (amount - 10).coerceAtLeast(10) }) { Text("−10") }
-                    Text("$amount 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
-                    OutlinedButton(onClick = { amount = (amount + 10).coerceAtMost(360) }) { Text("+10") }
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                ) {
+                    OutlinedButton(onClick = { amount = (amount - 10).coerceAtLeast(5) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−10") }
+                    OutlinedButton(onClick = { amount = (amount - 5).coerceAtLeast(5) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−5") }
+                    Text("$amount 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 8.dp))
+                    OutlinedButton(onClick = { amount = (amount + 5).coerceAtMost(360) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+5") }
+                    OutlinedButton(onClick = { amount = (amount + 10).coerceAtMost(360) }, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+10") }
                 }
             }
             if (e.type == LogType.Temp) {

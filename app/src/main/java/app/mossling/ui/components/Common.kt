@@ -104,7 +104,7 @@ fun Tagged(
 }
 
 /**
- * Numeral text with a quiet afterimage fade when the number ticks (`ios/Mossling/App/MosslingApp.swift` `Ticking`).
+ * Numeral text with a quiet afterimage fade when the number ticks.
  * Falls back to static [Text] when Reduce Motion is enabled.
  */
 @Composable
@@ -228,14 +228,4 @@ fun areaGlyph(key: String): G = when (key) {
     "D" -> G.Heart
     "E" -> G.Home
     else -> G.Shield
-}
-
-/** Sticker icon filename for each of the six development areas. */
-fun areaSticker(key: String): String = when (key) {
-    "A" -> "ic_bubble_left_and_bubble_right_fill.webp"
-    "B" -> "ic_figure_walk.webp"
-    "C" -> "ic_hand_raised_fingers_spread_fill.webp"
-    "D" -> "ic_face_smiling_inverse.webp"
-    "E" -> "ic_house_fill.webp"
-    else -> "ic_exclamationmark_shield_fill.webp"
 }

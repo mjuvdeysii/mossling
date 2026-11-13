@@ -21,7 +21,6 @@ import app.mossling.domain.Shelf
 import app.mossling.domain.ageOn
 import app.mossling.domain.computePlayRecords
 import app.mossling.domain.playCodeOf
-import app.mossling.ui.components.ArtStyle
 import app.mossling.ui.ip.Kind
 import app.mossling.ui.theme.ThemeMode
 import kotlinx.coroutines.Dispatchers
@@ -149,8 +148,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun setCompanion(k: Kind) = viewModelScope.launch { g.settings.setCompanion(k) }
     fun setTheme(m: ThemeMode) = viewModelScope.launch { g.settings.setTheme(m) }
     fun setNightLight(on: Boolean) = viewModelScope.launch { g.settings.setNightLight(on) }
-    fun setArtStyle(style: ArtStyle) = viewModelScope.launch { g.settings.setArtStyle(style) }
-    fun toggleArtStyle() = viewModelScope.launch { g.settings.toggleArtStyle() }
     fun setJournal(on: Boolean) = viewModelScope.launch { g.settings.setJournal(on) }
     fun setSex(s: String?) = viewModelScope.launch { g.settings.setSex(s) }
     fun setLook(l: String?) = viewModelScope.launch { g.settings.setLook(l) }

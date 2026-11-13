@@ -5,7 +5,6 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
-import app.mossling.ui.components.ArtStyle
 import app.mossling.ui.ip.Kind
 import app.mossling.ui.theme.ThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +22,6 @@ data class Settings(
     val companion: Kind = Kind.Moss,
     val theme: ThemeMode = ThemeMode.System,
     val nightLight: Boolean = true,
-    val artStyle: ArtStyle = ArtStyle.Vinyl,
     val journal: Boolean = false,
     val onboarded: Boolean = false,
     /** "boy" or "girl", for WHO growth curves; null until the user chooses. */
@@ -68,7 +66,6 @@ class SettingsRepository(private val context: Context) {
     private val kComp = stringPreferencesKey("companion")
     private val kTheme = stringPreferencesKey("theme")
     private val kNightLight = booleanPreferencesKey("night_light")
-    private val kArtStyle = stringPreferencesKey("art_style")
     private val kJournal = booleanPreferencesKey("journal")
     private val kOnboard = booleanPreferencesKey("onboarded")
     private val kSex = stringPreferencesKey("sex")
@@ -86,7 +83,6 @@ class SettingsRepository(private val context: Context) {
             companion = p[kComp]?.let { runCatching { Kind.valueOf(it) }.getOrNull() } ?: Kind.Moss,
             theme = p[kTheme]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() } ?: ThemeMode.System,
             nightLight = p[kNightLight] ?: true,
-            artStyle = ArtStyle.fromRaw(p[kArtStyle]),
             journal = p[kJournal] ?: false,
             onboarded = p[kOnboard] ?: false,
             sex = p[kSex]?.takeIf { it == "boy" || it == "girl" },
@@ -122,17 +118,6 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setNightLight(on: Boolean) {
         context.store.edit { it[kNightLight] = on }
-    }
-
-    suspend fun setArtStyle(style: ArtStyle) {
-        context.store.edit { it[kArtStyle] = style.raw }
-    }
-
-    suspend fun toggleArtStyle() {
-        context.store.edit {
-            val cur = ArtStyle.fromRaw(it[kArtStyle])
-            it[kArtStyle] = if (cur == ArtStyle.Vinyl) ArtStyle.Flat.raw else ArtStyle.Vinyl.raw
-        }
     }
 
     suspend fun setJournal(on: Boolean) {

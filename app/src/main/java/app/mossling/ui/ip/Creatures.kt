@@ -11,7 +11,6 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.aspectRatio
@@ -23,7 +22,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
@@ -34,7 +32,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -42,16 +39,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.drawscope.scale
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import app.mossling.ui.components.ArtIndex
-import app.mossling.ui.components.ArtStyle
-import app.mossling.ui.components.LocalArtStyle
 import app.mossling.ui.components.reducedMotion
 import app.mossling.ui.theme.Palette
 import kotlinx.coroutines.delay
@@ -104,7 +95,6 @@ fun Creature(
     stone: Boolean = false,
 ) {
     val still = reducedMotion()
-    val artStyle = LocalArtStyle.current
     val director = LocalMascotDirector.current
     val isDark = MaterialTheme.colorScheme.background.luminance() < 0.2f
     val style = kind.style
@@ -312,118 +302,20 @@ fun Creature(
         )
     }
 
-    val spriteName = remember(kind, activeMood, yawning, hop.value > 0.25f, blink > 0.55f, gx, gy) {
-        spriteFor(kind, activeMood, yawning, hop.value, blink, Offset(gx, gy))
-    }
-    val ctx = LocalContext.current
-    val spriteBitmap by produceState(
-        initialValue = remember(spriteName, artStyle) {
-            if (artStyle == ArtStyle.Vinyl) ArtIndex.bitmapSync(ctx, spriteName, 512) else null
-        },
-        spriteName,
-        artStyle,
-    ) {
-        value = if (artStyle == ArtStyle.Vinyl) {
-            ArtIndex.bitmap(ctx, spriteName, 512)
-        } else null
-    }
-
     BoxWithConstraints(
         modifier = modifier.aspectRatio(1f).then(tapMod),
         contentAlignment = Alignment.Center,
     ) {
-        val currentSprite = spriteBitmap
-        if (artStyle == ArtStyle.Vinyl && currentSprite != null) {
-            val b = (breath - 0.5f) * 2f
-            val amp = if (activeMood == Mood.Sleep) 0.012f else if (kind == Kind.Moss) 0.025f else 0.018f
-            val sx = (1f - b * amp * 0.7f + hop.value * 0.06f) * (1f + stoneVal * 0.10f) * (1f + patVal * 0.06f)
-            val sy = (1f + b * amp - hop.value * 0.05f) * (1f - stoneVal * 0.14f) * (1f - patVal * 0.07f)
-            val dyRatio = (-hop.value * 0.07f - maxOf(0f, b) * 0.01f + stoneVal * 0.03f)
-            val rot = tilt * (1f - stoneVal) + sway.value * 4f
-
-            Canvas(Modifier.fillMaxSize()) {
-                val u = size.minDimension
-                // Contact shadow on tabletop
-                val shadowScale = (1f - hop.value * 0.22f).coerceIn(0.6f, 1.1f)
-                drawOval(
-                    color = Color.Black.copy(alpha = if (isDark) 0.34f else 0.13f),
-                    topLeft = Offset(u * (0.5f - 0.28f * shadowScale), u * 0.85f),
-                    size = Size(u * 0.56f * shadowScale, u * 0.08f * shadowScale),
-                )
-                // Otto's warm night-lamp halo when night mode is active
-                if (kind == Kind.Otto && lamp && isDark) {
-                    val r = u * (0.36f + glow * 0.05f)
-                    val lc = Offset(u * 0.5f, u * 0.17f)
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(Palette.BeadLight.copy(alpha = 0.50f), Palette.Bead.copy(alpha = 0.18f), Color.Transparent),
-                            center = lc,
-                            radius = r,
-                        ),
-                        radius = r,
-                        center = lc,
-                    )
-                }
-            }
-            Image(
-                bitmap = currentSprite,
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                filterQuality = FilterQuality.High,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .graphicsLayer {
-                        scaleX = sx
-                        scaleY = sy
-                        translationY = size.height * dyRatio
-                        rotationZ = rot
-                    },
-            )
-            if (flecks > 0f) {
-                Canvas(Modifier.fillMaxSize()) {
-                    drawMintFlecks(size.minDimension, Offset(size.width * 0.5f, size.height * 0.2f), flecks)
-                }
-            }
-        } else {
-            Canvas(Modifier.fillMaxSize()) {
-                val u = size.minDimension
-                translate((size.width - u) / 2f, (size.height - u) / 2f) {
-                    when (kind) {
-                        Kind.Moss -> drawMoss(u, activeMood, Offset(gx, gy), breath, hop.value, sway.value, tilt, blink, flecks, stoneVal, patVal)
-                        Kind.Otto -> drawOtto(u, activeMood, Offset(gx, gy), breath, glow, hop.value, sway.value, tilt, blink, lamp, flecks, yawning, patVal)
-                    }
+        Canvas(Modifier.fillMaxSize()) {
+            val u = size.minDimension
+            translate((size.width - u) / 2f, (size.height - u) / 2f) {
+                when (kind) {
+                    Kind.Moss -> drawMoss(u, activeMood, Offset(gx, gy), breath, hop.value, sway.value, tilt, blink, flecks, stoneVal, patVal)
+                    Kind.Otto -> drawOtto(u, activeMood, Offset(gx, gy), breath, glow, hop.value, sway.value, tilt, blink, lamp, flecks, yawning, patVal, isDark)
                 }
             }
         }
     }
-}
-
-private fun spriteFor(
-    kind: Kind,
-    mood: Mood,
-    yawning: Boolean,
-    hop: Float,
-    blink: Float,
-    gaze: Offset,
-): String {
-    val prefix = if (kind == Kind.Moss) "ip_moss" else "ip_otto"
-    if (yawning && kind == Kind.Otto) return "ip_otto_yawn.webp"
-    if (hop > 0.25f && kind == Kind.Moss) return "ip_moss_hop.webp"
-    when (mood) {
-        Mood.Sleep -> return "${prefix}_sleep.webp"
-        Mood.Happy -> return "${prefix}_glee.webp"
-        Mood.Wow -> return "${prefix}_wide.webp"
-        Mood.Calm, Mood.Listening -> {}
-    }
-    if (blink > 0.55f) return "${prefix}_blink.webp"
-    if (hypot(gaze.x, gaze.y) > 0.28f) {
-        return if (abs(gaze.x) >= abs(gaze.y)) {
-            if (gaze.x < 0f) "${prefix}_left.webp" else "${prefix}_right.webp"
-        } else {
-            if (gaze.y < 0f) "${prefix}_up.webp" else "${prefix}_down.webp"
-        }
-    }
-    return "${prefix}_idle.webp"
 }
 
 private fun DrawScope.drawMoss(
@@ -563,6 +455,7 @@ private fun DrawScope.drawOtto(
     flecks: Float,
     yawning: Boolean,
     pat: Float,
+    isDark: Boolean,
 ) {
     val b = (breath - 0.5f) * 2f
     val amp = if (mood == Mood.Sleep) 0.012f else 0.022f
@@ -572,7 +465,7 @@ private fun DrawScope.drawOtto(
     val foot = Offset(u * 0.5f, u * 0.89f)
 
     drawOval(
-        color = Color.Black.copy(alpha = 0.11f * (1f - hop * 0.4f)),
+        color = Color.Black.copy(alpha = (if (isDark) 0.28f else 0.11f) * (1f - hop * 0.4f)),
         topLeft = Offset(u * 0.23f, u * 0.86f),
         size = Size(u * 0.54f, u * 0.07f),
     )
@@ -588,10 +481,14 @@ private fun DrawScope.drawOtto(
                 val ctrl = Offset(base.x + sin(rad) * len * 0.35f, base.y - len * 0.55f)
 
                 if (lamp) {
-                    val r = u * (0.22f + glow * 0.04f + hop * 0.05f)
+                    val r = u * ((if (isDark) 0.32f else 0.22f) + glow * 0.04f + hop * 0.05f)
                     drawCircle(
                         brush = Brush.radialGradient(
-                            colors = listOf(Palette.BeadLight.copy(alpha = 0.55f), Palette.Bead.copy(alpha = 0.18f), Color.Transparent),
+                            colors = listOf(
+                                Palette.BeadLight.copy(alpha = if (isDark) 0.68f else 0.55f),
+                                Palette.Bead.copy(alpha = if (isDark) 0.24f else 0.18f),
+                                Color.Transparent,
+                            ),
                             center = bead,
                             radius = r,
                         ),

@@ -2,6 +2,7 @@ package app.mossling.ui.play
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -64,9 +65,11 @@ import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SandpaperNumber
 import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
 import app.mossling.ui.components.Tagged
-import app.mossling.ui.components.TrayArt
 import app.mossling.ui.components.areaColor
+import app.mossling.ui.components.areaGlyph
 import app.mossling.ui.components.shared
 import app.mossling.ui.ip.Creature
 import app.mossling.ui.ip.LocalMascotDirector
@@ -210,11 +213,16 @@ fun PlayScreen(
                             )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Box(contentAlignment = Alignment.BottomEnd) {
-                            TrayArt(play.code, size = 76.dp, label = play.name)
+                        val d0 = play.domains.firstOrNull() ?: "A"
+                        val dc = areaColor(d0)
+                        Row(
+                            verticalAlignment = Alignment.Bottom,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ShapeBadge(areaGlyph(d0), dc.copy(alpha = 0.16f), dc, shape = Shapes.of(play.code), size = 44.dp)
                             Creature(
                                 companion,
-                                Modifier.size(44.dp),
+                                Modifier.size(56.dp),
                                 mood = if (done) Mood.Happy else Mood.Listening,
                                 look = Offset(-0.7f, 0.2f),
                             )
@@ -270,7 +278,7 @@ fun PlayScreen(
         if (pics.isEmpty()) {
             item {
                 MaterialStill(
-                    familyOf(play.code),
+                    familyOf(play.domains),
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp)
@@ -281,10 +289,16 @@ fun PlayScreen(
         }
 
         item {
-            SectionTitle("怎么做", kicker = "一步一步来")
+            SectionTitle("怎么做", kicker = "一步一步来 · 点任意一步直接跟着做")
             Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 play.steps.forEachIndexed { i, s ->
-                    Plate(Modifier.fillMaxWidth()) {
+                    Plate(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            stepIndex = i
+                            following = true
+                        },
+                    ) {
                         pics.getOrNull(i)?.let { pic ->
                             Art(
                                 pic,
@@ -328,7 +342,7 @@ fun PlayScreen(
 }
 
 /**
- * Full-screen interactive step-by-step player ("跟着做", `ios/DESIGN.md` §3):
+ * Full-screen interactive step-by-step player ("跟着做"):
  * - Keeps screen awake while playing with the baby.
  * - Top bead progress chain (completed steps turn gold).
  * - One step per screen with large illustration; tap left for previous, right for next.
@@ -389,13 +403,34 @@ private fun FollowAlongPlayer(
         if (page < play.steps.size) {
             val stepText = play.steps[page]
             val pic = pics.getOrNull(page)
+            val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+            var dragTotal by remember(page) { androidx.compose.runtime.mutableFloatStateOf(0f) }
             Column(
                 Modifier
                     .weight(1f)
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
                     .pointerInput(page) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragTotal = 0f },
+                            onDragEnd = {
+                                if (dragTotal > 64.dp.toPx() && page > 0) {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    onStepChange(page - 1)
+                                } else if (dragTotal < -64.dp.toPx()) {
+                                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
+                                    onStepChange(page + 1)
+                                }
+                                dragTotal = 0f
+                            },
+                            onHorizontalDrag = { _, dragAmount ->
+                                dragTotal += dragAmount
+                            },
+                        )
+                    }
+                    .pointerInput(page) {
                         detectTapGestures { offset ->
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove)
                             if (offset.x < size.width * 0.35f) {
                                 if (page > 0) onStepChange(page - 1)
                             } else {
@@ -418,7 +453,11 @@ private fun FollowAlongPlayer(
                         modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
                     )
                 } else {
-                    TrayArt(play.code, size = 180.dp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                    MaterialStill(
+                        family = familyOf(play.domains),
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(28.dp)),
+                        ground = MaterialTheme.colorScheme.surfaceContainerLow,
+                    )
                 }
                 Plate(Modifier.fillMaxWidth()) {
                     Row(verticalAlignment = Alignment.Top) {
@@ -440,7 +479,7 @@ private fun FollowAlongPlayer(
                     }
                 }
                 Text(
-                    "点左半边回上一步，点右半边去下一步",
+                    "左右滑动，或点左半边回上一步、点右半边去下一步",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -483,7 +522,11 @@ private fun FollowAlongPlayer(
                     verticalAlignment = Alignment.Bottom,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
-                    TrayArt(play.code, size = 84.dp)
+                    MaterialStill(
+                        family = familyOf(play.domains),
+                        modifier = Modifier.width(128.dp).clip(RoundedCornerShape(18.dp)),
+                        ground = MaterialTheme.colorScheme.surfaceContainerLow,
+                    )
                     Creature(companion, Modifier.size(76.dp), mood = Mood.Happy)
                 }
                 Text(play.name, style = MaterialTheme.typography.headlineMedium)

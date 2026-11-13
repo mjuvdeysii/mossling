@@ -279,6 +279,7 @@ fun ConsentSheet(
     }
 }
 
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun BirthDateDialog(initial: LocalDate, onConfirm: (LocalDate) -> Unit, onDismiss: () -> Unit) {
     val today = LocalDate.now()
@@ -290,15 +291,74 @@ fun BirthDateDialog(initial: LocalDate, onConfirm: (LocalDate) -> Unit, onDismis
     val picked = LocalDate.of(year, month, day)
     val valid = !picked.isAfter(today) && !picked.isBefore(today.minusYears(4))
 
+    fun setDate(d: LocalDate) {
+        year = d.year
+        month = d.monthValue
+        day = d.dayOfMonth
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("孩子的出生日期", style = MaterialTheme.typography.headlineSmall) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("支持满 0–36 个月（已满 3 岁会显示第 36 个月）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                StepperRow("年", "$year 年", onMinus = { if (year > today.year - 4) year-- }, onPlus = { if (year < today.year) year++ })
-                StepperRow("月", "$month 月", onMinus = { month = if (month > 1) month - 1 else 12 }, onPlus = { month = if (month < 12) month + 1 else 1 })
-                StepperRow("日", "$day 日", onMinus = { day = if (day > 1) day - 1 else maxDay }, onPlus = { day = if (day < maxDay) day + 1 else 1 })
+                androidx.compose.foundation.layout.FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    listOf(
+                        0L to "刚出生",
+                        3L to "3个月",
+                        6L to "6个月",
+                        12L to "1岁",
+                        18L to "1岁半",
+                        24L to "2岁",
+                    ).forEach { (m, label) ->
+                        val target = today.minusMonths(m)
+                        androidx.compose.material3.FilterChip(
+                            selected = picked == target,
+                            onClick = { setDate(target) },
+                            label = { Text(label) },
+                        )
+                    }
+                }
+                StepperRow(
+                    label = "年",
+                    value = "$year 年",
+                    onMinus = { if (year > today.year - 4) year-- },
+                    onPlus = { if (year < today.year) year++ },
+                )
+                StepperRow(
+                    label = "月",
+                    value = "$month 月",
+                    onMinus = {
+                        if (month > 1) {
+                            month--
+                        } else if (year > today.year - 4) {
+                            year--
+                            month = 12
+                        } else {
+                            month = 12
+                        }
+                    },
+                    onPlus = {
+                        if (month < 12) {
+                            month++
+                        } else if (year < today.year) {
+                            year++
+                            month = 1
+                        } else {
+                            month = 1
+                        }
+                    },
+                )
+                StepperRow(
+                    label = "日",
+                    value = "$day 日",
+                    onMinus = { day = if (day > 1) day - 1 else maxDay },
+                    onPlus = { day = if (day < maxDay) day + 1 else 1 },
+                )
                 if (!valid) Text("不能晚于今天", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             }
         },

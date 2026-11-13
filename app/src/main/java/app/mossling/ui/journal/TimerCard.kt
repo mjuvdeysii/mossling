@@ -41,7 +41,6 @@ import app.mossling.data.RunningTimer
 import app.mossling.journal.Timers
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
-import app.mossling.ui.components.Sticker
 import app.mossling.ui.components.TickingText
 import app.mossling.ui.components.clock
 import app.mossling.ui.components.hm
@@ -190,7 +189,7 @@ fun TimerCard(
 }
 
 /**
- * Full-screen / modal interactive timer sheet (`ios/DESIGN.md` §3):
+ * Full-screen / modal interactive timer sheet:
  * - For **亲喂 (`LogType.Nurse`)**: Tap Left or Right circle directly to start, pause, or switch side; shows per-side and total duration, with a separate bottom "喂完了，记下" button.
  * - For **睡觉 (`LogType.Sleep`)**: Tap Moon circle to pause/resume, with a separate bottom "醒了，记下" button.
  */
@@ -290,7 +289,12 @@ fun TimerModalSheet(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Sticker("ic_moon_zzz_fill.webp", size = 40.dp)
+                        Glyph(
+                            G.Moon,
+                            size = 40.dp,
+                            filled = active,
+                            color = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Spacer(Modifier.height(6.dp))
                         Text(
                             when {

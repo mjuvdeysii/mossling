@@ -16,10 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -29,7 +31,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +78,22 @@ data class JournalActions(
     val openTimerModal: ((String) -> Unit)? = null,
 )
 
+private enum class LogFilter(val label: String) {
+    All("全部"),
+    Feed("喂养"),
+    Sleep("睡眠"),
+    Diaper("尿布"),
+    Other("其他"),
+}
+
+private fun LogEntry.matches(filter: LogFilter): Boolean = when (filter) {
+    LogFilter.All -> true
+    LogFilter.Feed -> type == LogType.Nurse || type == LogType.Bottle || type == LogType.Solid
+    LogFilter.Sleep -> type == LogType.Sleep
+    LogFilter.Diaper -> type == LogType.Diaper
+    LogFilter.Other -> type != LogType.Nurse && type != LogType.Bottle && type != LogType.Solid && type != LogType.Sleep && type != LogType.Diaper
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun JournalScreen(
@@ -89,6 +109,7 @@ fun JournalScreen(
         return
     }
     var nowMs by remember { mutableLongStateOf(now()) }
+    var filter by rememberSaveable(day.toString()) { mutableStateOf(LogFilter.All) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(30_000)
@@ -107,6 +128,7 @@ fun JournalScreen(
 
     val primary = listOf(LogType.Nurse, LogType.Bottle, LogType.Sleep, LogType.Diaper)
     val secondary = listOf(LogType.Solid, LogType.Bath, LogType.Temp, LogType.Med, LogType.Note)
+    val filteredLogs = remember(logs, filter) { logs.filter { it.matches(filter) } }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -204,8 +226,25 @@ fun JournalScreen(
                 }
             }
         } else {
-            item { SectionTitle("这一天", kicker = "${logs.size} 条 · 点任意一条可改时间或删除") }
-            items(logs, key = { it.id }) { e ->
+            item {
+                SectionTitle("这一天", kicker = "${logs.size} 条 · 点任意一条可改时间或删除")
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(LogFilter.entries) { f ->
+                        val c = logs.count { it.matches(f) }
+                        if (f == LogFilter.All || c > 0) {
+                            FilterChip(
+                                selected = filter == f,
+                                onClick = { filter = f },
+                                label = { Text("${f.label} ($c)") },
+                            )
+                        }
+                    }
+                }
+            }
+            items(filteredLogs, key = { it.id }) { e ->
                 LogRow(e, onClick = { a.editEntry(e) }, modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
@@ -221,36 +260,72 @@ private fun DayBar(
     onGrowth: () -> Unit,
     onFirsts: () -> Unit,
 ) {
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
             .statusBarsPadding()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        OutlinedButton(onClick = { onPick(day.minusDays(1)) }, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
-            Text("前一天")
-        }
-        Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(if (day == today) "今天 · ${md(day)}" else md(day), style = MaterialTheme.typography.headlineSmall)
-            Text(weekday(day), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            OutlinedButton(
+                onClick = { onPick(day.minusDays(1)) },
+                shape = RoundedCornerShape(14.dp),
+                contentPadding = PaddingValues(horizontal = 10.dp),
+            ) {
+                Text("前一天")
+            }
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (day == today) "今天 · ${md(day)}" else md(day), style = MaterialTheme.typography.headlineSmall)
+                Text(weekday(day), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            if (day < today) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AssistChip(onClick = { onPick(today) }, label = { Text("回今天") })
+                    OutlinedButton(
+                        onClick = { onPick(day.plusDays(1)) },
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp),
+                    ) {
+                        Text("后一天")
+                    }
+                }
+            } else {
+                Row {
+                    TextButton(onClick = onFirsts, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                        Glyph(G.Heart, size = 16.dp)
+                        Text(" 第一次")
+                    }
+                    TextButton(onClick = onGrowth, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                        Glyph(G.Ruler, size = 16.dp)
+                        Text(" 生长")
+                    }
+                    TextButton(onClick = onStats, contentPadding = PaddingValues(horizontal = 6.dp)) {
+                        Glyph(G.Chart, size = 16.dp)
+                        Text(" 统计")
+                    }
+                }
+            }
         }
         if (day < today) {
-            OutlinedButton(onClick = { onPick(day.plusDays(1)) }, shape = RoundedCornerShape(14.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
-                Text("后一天")
-            }
-        } else {
-            Row {
-                TextButton(onClick = onFirsts, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                    Glyph(G.Heart, size = 16.dp)
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onFirsts, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Glyph(G.Heart, size = 15.dp)
                     Text(" 第一次")
                 }
-                TextButton(onClick = onGrowth, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                    Glyph(G.Ruler, size = 16.dp)
+                TextButton(onClick = onGrowth, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Glyph(G.Ruler, size = 15.dp)
                     Text(" 生长")
                 }
-                TextButton(onClick = onStats, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                    Glyph(G.Chart, size = 16.dp)
+                TextButton(onClick = onStats, contentPadding = PaddingValues(horizontal = 8.dp)) {
+                    Glyph(G.Chart, size = 15.dp)
                     Text(" 统计")
                 }
             }

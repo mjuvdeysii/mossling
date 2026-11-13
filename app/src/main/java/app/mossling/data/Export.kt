@@ -22,7 +22,6 @@ data class ExportSettings(
     val companion: String = "Moss",
     val theme: String = "System",
     val nightLight: Boolean = true,
-    val artStyle: String = "vinyl",
     val journal: Boolean = false,
     val shelf: String = "",
     val birth: String? = null,
@@ -43,7 +42,6 @@ data class ExportPayload(
     val nickname: String? = null,
     val theme: String? = null,
     val nightLight: Boolean? = null,
-    val artStyle: String? = null,
     val journal: Boolean? = null,
     val shelf: String? = null,
     val settings: ExportSettings? = null,
@@ -56,9 +54,9 @@ data class ExportPayload(
 
 /**
  * Exports all local records to:
- * 1. Full JSON backup (`mossling-records-<date>.json`), cross-compatible with iOS `RecordFile`.
+ * 1. Full JSON backup (`mossling-records-<date>.json`).
  * 2. UTF-8 CSV spreadsheet (`mossling-logs-<date>.csv`).
- * 3. Doctor / AI Assistant Markdown report (`mossling-summary-<date>.md`), matching iOS `RecordFile.summary`.
+ * 3. Doctor / AI Assistant Markdown report (`mossling-summary-<date>.md`).
  */
 class Exporter(
     private val context: Context,
@@ -75,7 +73,6 @@ class Exporter(
             companion = s.companion.name,
             theme = s.theme.name,
             nightLight = s.nightLight,
-            artStyle = s.artStyle.raw,
             journal = s.journal,
             shelf = s.shelf,
             birth = s.birth?.toString(),
@@ -92,7 +89,6 @@ class Exporter(
             nickname = s.nickname.ifBlank { null },
             theme = s.theme.name,
             nightLight = s.nightLight,
-            artStyle = s.artStyle.raw,
             journal = s.journal,
             shelf = s.shelf,
             settings = expSettings,

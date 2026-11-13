@@ -2,8 +2,6 @@ package app.mossling.ui.you
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -34,7 +32,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -48,8 +45,6 @@ import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
 import app.mossling.CrashLog
 import app.mossling.domain.Updater
-import app.mossling.ui.components.ArtStyle
-import app.mossling.ui.components.LocalArtStyle
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.ip.Duo
@@ -59,7 +54,6 @@ import app.mossling.ui.theme.Numerals
 data class AppAboutActions(
     val openContentAbout: () -> Unit = {},
     val openLicenses: () -> Unit = {},
-    val toggleArtStyle: () -> Unit = {},
     val openStory: () -> Unit = {},
     val back: () -> Unit = {},
 )
@@ -78,7 +72,7 @@ private const val MAIL = "contact@mossling.app"
 
 /**
  * Everything about the app itself: version, update check, feedback, privacy & children's info rules,
- * terms of use, medical disclaimer, open-source licenses, and 5-tap ArtStyle Easter egg (`ios/DESIGN.md` §1).
+ * terms of use, medical disclaimer, and open-source licenses.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,12 +81,10 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
     val uri = LocalUriHandler.current
     val clip = LocalClipboardManager.current
     val companion = LocalCompanion.current
-    val artStyle = LocalArtStyle.current
     val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "1.3.0" }
     var doc by remember { mutableStateOf<LegalDoc?>(null) }
     var crash by remember { mutableStateOf(CrashLog.read(ctx)) }
     var copied by remember { mutableStateOf(false) }
-    var styleTapCount by remember { mutableIntStateOf(0) }
     val upState = updater?.state?.collectAsState()?.value ?: Updater.State.Idle
 
     LazyColumn(
@@ -108,18 +100,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
             ) {
                 Row(
-                    Modifier
-                        .padding(22.dp)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) {
-                            styleTapCount += 1
-                            if (styleTapCount >= 5) {
-                                styleTapCount = 0
-                                a.toggleArtStyle()
-                            }
-                        },
+                    Modifier.padding(22.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
@@ -129,13 +110,19 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Text(
-                            "版本 $version · 画风：${artStyle.label}（连点 5 次切换）",
-                            fontFamily = Numerals,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = MaterialTheme.colorScheme.primary,
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                             modifier = Modifier.padding(top = 8.dp),
-                        )
+                        ) {
+                            Text(
+                                "版本 $version",
+                                fontFamily = Numerals,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            TextButton(onClick = a.openStory) { Text("它们的故事") }
+                        }
                     }
                     Duo(companion, size = 80.dp)
                 }
@@ -230,7 +217,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
                 Text("每一条内容都可以核对出处；若发现笔误、过期指南或界面问题，欢迎告诉我们。", style = MaterialTheme.typography.bodyMedium)
                 Spacer(Modifier.height(10.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FilledTonalButton(onClick = { runCatching { uri.openUri(ISSUES) } }, shape = RoundedCornerShape(16.dp)) { Text("提交问题（GitHub）") }
+                    FilledTonalButton(onClick = { runCatching { uri.openUri(ISSUES) } }, shape = RoundedCornerShape(16.dp)) { Text("提交问题") }
                     OutlinedButton(
                         onClick = {
                             runCatching {
@@ -242,9 +229,10 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
                         },
                         shape = RoundedCornerShape(16.dp),
                     ) { Text("写邮件") }
-                }
-                TextButton(onClick = { runCatching { uri.openUri(REPO) } }, modifier = Modifier.padding(top = 2.dp)) {
-                    Text("源代码仓库：$REPO", style = MaterialTheme.typography.labelMedium)
+                    OutlinedButton(
+                        onClick = { runCatching { uri.openUri(REPO) } },
+                        shape = RoundedCornerShape(16.dp),
+                    ) { Text("开源代码") }
                 }
             }
         }
@@ -269,7 +257,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
 }
 
 /**
- * Dedicated Data & Privacy Control Screen ("数据", `ios/DESIGN.md` & `docs/REBUILD.md` §3):
+ * Dedicated Data & Privacy Control Screen ("数据"):
  * Export Doctor/AI Markdown summary, full JSON backup, CSV table, restore from JSON backup,
  * withdraw guardian consent, or clear all local data.
  */
@@ -440,6 +428,14 @@ fun DataScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LegalSheet(doc: LegalDoc, onDismiss: () -> Unit) {
+    val raw = when (doc) {
+        LegalDoc.Privacy -> PRIVACY_TEXT
+        LegalDoc.Disclaimer -> DISCLAIMER_TEXT
+        LegalDoc.Terms -> TERMS_TEXT
+        LegalDoc.Changelog -> CHANGELOG_TEXT
+    }
+    val sections = remember(doc) { raw.split("\n\n").map { it.trim() }.filter { it.isNotEmpty() } }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
@@ -454,15 +450,33 @@ fun LegalSheet(doc: LegalDoc, onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(doc.title, style = MaterialTheme.typography.headlineSmall)
-            Text(
-                when (doc) {
-                    LegalDoc.Privacy -> PRIVACY_TEXT
-                    LegalDoc.Disclaimer -> DISCLAIMER_TEXT
-                    LegalDoc.Terms -> TERMS_TEXT
-                    LegalDoc.Changelog -> CHANGELOG_TEXT
-                },
-                style = MaterialTheme.typography.bodyMedium,
-            )
+            sections.forEachIndexed { idx, block ->
+                Surface(
+                    shape = RoundedCornerShape(20.dp),
+                    color = if (idx == 0) MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.55f) else MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        val lines = block.lines()
+                        if (lines.size > 1 && lines.first().length <= 28) {
+                            Text(
+                                lines.first(),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                lines.drop(1).joinToString("\n"),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        } else {
+                            Text(
+                                block,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -508,9 +522,9 @@ private const val TERMS_TEXT = """生效日期：2026年10月26日
 4. 非医疗服务：本应用不提供医疗诊断或咨询服务，详见《医疗免责声明》。"""
 
 private const val CHANGELOG_TEXT = """1.3.0（2026-10-26）
-· 双伙伴 IP 升级：小苔（Moss）与奥托（Otto）支持「立体」软胶与「平面」绘本两种画风切换，以及晚间台灯剧场（LampScene）与拥抱头像（HuggedAvatar）。
+· 原生矢量伙伴升级：小苔（Moss）与奥托（Otto）新增完整的动作状态机、夜灯暖黄光晕、轻拍回应、连点彩蛋，以及晚间台灯剧场（LampScene）与拥抱头像（HuggedAvatar）。
 · 跟着做模式：玩法详情支持全屏分步「跟着做」，带顶部蒙氏串珠进度条、常亮屏幕与中途续做提醒。
-· 成长册与第一次：新增按月装帧的「成长册」与「第一次」里程碑记录，自动汇总当月玩过的教具托盘、生长测量与日均照护。
+· 成长册与第一次：新增按月装帧的「成长册」与「第一次」里程碑记录，自动汇总当月玩过的活动、生长测量与日均照护。
 · 亲喂与睡眠计时：支持左右侧分侧计时与一键切换、超时自检提醒，以及体温 ≥ 38.0 ℃ 就医提示。
 · 数据与医生摘要：新增导出给儿保医生或 AI 工具阅读的 Markdown 摘要报告（.md）及独立的数据与隐私控制页。
 

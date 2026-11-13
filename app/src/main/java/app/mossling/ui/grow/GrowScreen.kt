@@ -1,8 +1,9 @@
 package app.mossling.ui.grow
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,17 +20,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -38,7 +40,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -69,11 +74,8 @@ import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.ShapeBadge
 import app.mossling.ui.components.Shapes
 import app.mossling.ui.components.Shelf
-import app.mossling.ui.components.Sticker
-import app.mossling.ui.components.TrayArt
 import app.mossling.ui.components.areaColor
 import app.mossling.ui.components.areaGlyph
-import app.mossling.ui.components.areaSticker
 import app.mossling.ui.components.rich
 import app.mossling.ui.components.shared
 import app.mossling.ui.ip.Creature
@@ -101,11 +103,15 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
     val content = ui.content ?: return
     val guide = content.month(month) ?: return
     val babyMonth = ui.age?.bookMonth
+    val haptic = LocalHapticFeedback.current
     val records = remember(ui.ticks, ui.allLogs, month, ui.today) { ui.playRecords(month) }
     val (primary, also) = content.playsSplit(month)
     val doneCodes = ui.ticks.values.filter { it.month == month && it.kind == TickKind.Did }.map { it.key.substringAfterLast(":") }.toSet() +
         records.values.filter { it.total > 0 }.map { it.code }
     var showAllAlso by rememberSaveable(month) { mutableStateOf(false) }
+    var selectedGroup by rememberSaveable(month) { mutableStateOf<String?>(null) }
+    var selectedDomainKey by rememberSaveable(month) { mutableStateOf(guide.domains.firstOrNull()?.key ?: "A") }
+    var expandAllDomains by rememberSaveable { mutableStateOf(false) }
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("grow"),
@@ -140,7 +146,21 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
             }
         }
 
-        item("banner") { MonthBanner(guide, month, babyMonth, ui) }
+        item("banner") {
+            MonthBanner(
+                guide = guide,
+                month = month,
+                babyMonth = babyMonth,
+                ui = ui,
+                onSelectMonth = { target ->
+                    val clamped = target.coerceIn(0, 36)
+                    if (clamped != month) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        a.selectMonth(clamped)
+                    }
+                },
+            )
+        }
 
         item("growth-entry") {
             val last = ui.measures.maxByOrNull { it.at }
@@ -186,7 +206,10 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                                 done = p.code in doneCodes,
                                 record = records[p.code],
                                 onOpen = { a.openPlay(p.code) },
-                                onToggle = { a.toggle(TickKind.Did, p.code, p.name) },
+                                onToggle = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    a.toggle(TickKind.Did, p.code, p.name)
+                                },
                             )
                         }
                     }
@@ -205,7 +228,10 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                             done = p.code in doneCodes,
                             record = records[p.code],
                             onOpen = { a.openPlay(p.code) },
-                            onToggle = { a.toggle(TickKind.Did, p.code, p.name) },
+                            onToggle = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                a.toggle(TickKind.Did, p.code, p.name)
+                            },
                         )
                     }
                     if (also.size > 4) {
@@ -224,7 +250,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                 SectionTitle("可以留意", kicker = "观察参考，不是考试 · 已记下 $done / $total")
                 Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     Row(
-                        Modifier.fillMaxWidth().padding(bottom = 14.dp),
+                        Modifier.fillMaxWidth().padding(bottom = 12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
@@ -239,8 +265,29 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                             )
                         }
                     }
+                    if (guide.observe.size > 1) {
+                        FlowRow(
+                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            FilterChip(
+                                selected = selectedGroup == null,
+                                onClick = { selectedGroup = null },
+                                label = { Text("全部 ($total)") },
+                            )
+                            guide.observe.forEach { g ->
+                                FilterChip(
+                                    selected = selectedGroup == g.group,
+                                    onClick = { selectedGroup = if (selectedGroup == g.group) null else g.group },
+                                    label = { Text("${g.group} (${g.items.size})") },
+                                )
+                            }
+                        }
+                    }
                     guide.observe.forEachIndexed { gi, g ->
-                        if (gi > 0) Spacer(Modifier.height(14.dp))
+                        if (selectedGroup != null && selectedGroup != g.group) return@forEachIndexed
+                        if (gi > 0 && selectedGroup == null) Spacer(Modifier.height(14.dp))
                         Text(g.group, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Spacer(Modifier.height(6.dp))
                         g.items.forEachIndexed { ii, text ->
@@ -250,7 +297,10 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                                 Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp))
-                                    .clickable { a.toggle(TickKind.Observed, id, text) }
+                                    .clickable {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        a.toggle(TickKind.Observed, id, text)
+                                    }
                                     .padding(vertical = 7.dp),
                                 verticalAlignment = Alignment.Top,
                             ) {
@@ -264,10 +314,66 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
             }
         }
 
-        item("domains") {
-            SectionTitle("六个方面", kicker = "满 $month 个月")
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                guide.domains.forEach { d -> AreaCard(d) }
+        if (guide.domains.isNotEmpty()) {
+            item("domains") {
+                SectionTitle(
+                    "六个方面",
+                    kicker = "满 $month 个月 · 点色板切换领域",
+                    trailing = {
+                        TextButton(onClick = { expandAllDomains = !expandAllDomains }) {
+                            Text(if (expandAllDomains) "分项查看" else "全部展开")
+                        }
+                    },
+                )
+                if (expandAllDomains) {
+                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        guide.domains.forEach { d -> AreaCard(d) }
+                    }
+                } else {
+                    LazyRow(
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        items(guide.domains, key = { it.key }) { d ->
+                            val selected = d.key == selectedDomainKey
+                            val c = areaColor(d.key)
+                            Surface(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    selectedDomainKey = d.key
+                                },
+                                shape = RoundedCornerShape(18.dp),
+                                color = if (selected) c.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerLow,
+                                border = BorderStroke(
+                                    if (selected) 1.5.dp else 1.dp,
+                                    if (selected) c else MaterialTheme.colorScheme.outlineVariant,
+                                ),
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    ColorTablet(c)
+                                    Text(
+                                        d.name,
+                                        style = MaterialTheme.typography.labelLarge,
+                                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    val activeDomain = guide.domains.firstOrNull { it.key == selectedDomainKey } ?: guide.domains.first()
+                    AnimatedContent(
+                        targetState = activeDomain,
+                        label = "domain-card",
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    ) { d ->
+                        AreaCard(d)
+                    }
+                }
             }
         }
 
@@ -288,7 +394,10 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                         guide.vaccines.forEachIndexed { i, v ->
                             val id = "$i"
                             val checked = tickKey(month, TickKind.Vaccine, id) in ui.ticks
-                            CheckLine(v, checked) { a.toggle(TickKind.Vaccine, id, v) }
+                            CheckLine(v, checked) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                a.toggle(TickKind.Vaccine, id, v)
+                            }
                         }
                     }
                     if (guide.checkups.isNotEmpty()) {
@@ -298,7 +407,10 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                         guide.checkups.forEachIndexed { i, c ->
                             val id = "$i"
                             val checked = tickKey(month, TickKind.Checkup, id) in ui.ticks
-                            CheckLine(c, checked) { a.toggle(TickKind.Checkup, id, c) }
+                            CheckLine(c, checked) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                a.toggle(TickKind.Checkup, id, c)
+                            }
                         }
                     }
                 }
@@ -333,7 +445,14 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                         color = MaterialTheme.colorScheme.surfaceContainerLow,
                         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
                     ) {
-                        Text(t.title, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp))
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Glyph(G.Idea, size = 15.dp, color = MaterialTheme.colorScheme.primary)
+                            Text(t.title, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
@@ -342,9 +461,16 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
 }
 
 @Composable
-private fun MonthBanner(guide: MonthGuide, month: Int, babyMonth: Int?, ui: AppUi) {
+private fun MonthBanner(
+    guide: MonthGuide,
+    month: Int,
+    babyMonth: Int?,
+    ui: AppUi,
+    onSelectMonth: (Int) -> Unit,
+) {
     val ctx = LocalContext.current
     val cover = remember(month) { ArtIndex.cover(ctx, month) }
+    var dragTotal by remember(month) { mutableFloatStateOf(0f) }
     val tag = when {
         babyMonth == null -> "第 $month 站"
         month == babyMonth -> "现在这一站"
@@ -358,14 +484,41 @@ private fun MonthBanner(guide: MonthGuide, month: Int, babyMonth: Int?, ui: AppU
         else -> null
     }
     Surface(
-        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .pointerInput(month) {
+                detectHorizontalDragGestures(
+                    onDragStart = { dragTotal = 0f },
+                    onDragEnd = {
+                        if (dragTotal > 72.dp.toPx() && month > 0) {
+                            onSelectMonth(month - 1)
+                        } else if (dragTotal < -72.dp.toPx() && month < 36) {
+                            onSelectMonth(month + 1)
+                        }
+                        dragTotal = 0f
+                    },
+                ) { _, dragAmount ->
+                    dragTotal += dragAmount
+                }
+            },
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
         Column(Modifier.padding(22.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text(tag, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(tag, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            "左右滑动切月龄",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                     Spacer(Modifier.height(6.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text("满 ", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 4.dp))
@@ -420,15 +573,9 @@ private fun PlayRow(
             Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .size(54.dp)
-                    .clip(RoundedCornerShape(14.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                TrayArt(p.code, modifier = Modifier.fillMaxSize().padding(4.dp), label = p.name)
-            }
+            val d0 = p.domains.firstOrNull() ?: "A"
+            val dc = areaColor(d0)
+            ShapeBadge(areaGlyph(d0), dc.copy(alpha = 0.16f), dc, shape = Shapes.of(p.code), size = 48.dp)
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -488,10 +635,7 @@ private fun AreaCard(d: AreaOverview) {
     val c = areaColor(d.key)
     Plate(Modifier.fillMaxWidth()) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(contentAlignment = Alignment.Center) {
-                ShapeBadge(areaGlyph(d.key), c.copy(alpha = 0.16f), c, shape = Shapes.of(d.key), size = 36.dp)
-                Sticker(areaSticker(d.key), size = 22.dp)
-            }
+            ShapeBadge(areaGlyph(d.key), c.copy(alpha = 0.16f), c, shape = Shapes.of(d.key), size = 36.dp)
             Spacer(Modifier.width(10.dp))
             ColorTablet(c)
             Spacer(Modifier.width(8.dp))

@@ -21,6 +21,15 @@ android {
     // the preview is signed with the same key as the WebView app (written from repository secrets by CI);
     // without it the build falls back to the debug key
     signingConfigs {
+        create("debugConfig") {
+            val ks = file("${rootDir}/debug.keystore")
+            if (ks.exists()) {
+                storeFile = ks
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
         create("release") {
             val f = System.getenv("HB_KEYSTORE_FILE")
             if (f != null) {
@@ -32,6 +41,11 @@ android {
         }
     }
     buildTypes {
+        debug {
+            if (file("${rootDir}/debug.keystore").exists()) {
+                signingConfig = signingConfigs.getByName("debugConfig")
+            }
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

@@ -23,13 +23,15 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import app.mossling.ui.components.Sticker
+import app.mossling.ui.components.G
+import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.reducedMotion
+import app.mossling.ui.theme.Palette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * The child's stage figure cuddled by the chosen companion (`ios/Mossling/IP/Hug.swift`).
+ * The child's stage figure cuddled by the chosen companion.
  * Tapping or changing the companion/look triggers a gentle squeeze and floating heart.
  */
 @Composable
@@ -111,9 +113,11 @@ fun HuggedAvatar(
 
         // Warm floating heart on cuddle
         if (heart > 0.02f) {
-            Sticker(
-                name = "ic_heart_fill.webp",
+            Glyph(
+                g = G.Heart,
                 size = (size.value * 0.24f).dp,
+                color = Palette.RedRod.copy(alpha = 0.90f),
+                filled = true,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(x = 4.dp, y = (-(heart * 8f)).dp)

@@ -143,7 +143,6 @@ fun MosslingRoot(
             mode = ui.settings.theme,
             companion = ui.settings.companion,
             nightLight = ui.settings.nightLight,
-            artStyle = ui.settings.artStyle,
         ) {
             val isNight = LocalNightLamp.current
             LaunchedEffect(isNight) {
@@ -401,7 +400,6 @@ private fun MainShell(
                                 },
                                 setTheme = vm::setTheme,
                                 setNightLight = vm::setNightLight,
-                                setArtStyle = vm::setArtStyle,
                                 setJournal = vm::setJournal,
                                 setSex = vm::setSex,
                                 setLook = vm::setLook,
@@ -426,8 +424,8 @@ private fun MainShell(
                     composable<Route.Play> { entry ->
                         val r = entry.toRoute<Route.Play>()
                         val p = ui.content?.play(r.code) ?: return@composable
-                        val done = tickKey(r.month, TickKind.Did, r.code) in ui.ticks
                         val rec = ui.playRecords(r.month)[r.code]
+                        val done = (tickKey(r.month, TickKind.Did, r.code) in ui.ticks) || ((rec?.total ?: 0) > 0)
                         val savedSessionStep = ui.settings.playing?.takeIf { it.first == r.code }?.third
                         val initStep = r.resumeStep.takeIf { it >= 0 }
                         CompositionLocalProvider(LocalDestination provides this) {
@@ -453,8 +451,14 @@ private fun MainShell(
                     }
                     composable<Route.Topic> { entry ->
                         val r = entry.toRoute<Route.Topic>()
-                        val t = ui.content?.topic(r.id) ?: return@composable
-                        TopicScreen(t) { nav.popBackStack() }
+                        var currentTopicId by rememberSaveable(r.id) { mutableStateOf(r.id) }
+                        val t = ui.content?.topic(currentTopicId) ?: return@composable
+                        TopicScreen(
+                            t = t,
+                            allTopics = ui.content?.topics.orEmpty(),
+                            onSelectTopic = { currentTopicId = it },
+                            onBack = { nav.popBackStack() },
+                        )
                     }
                     composable<Route.About> {
                         val c = ui.content ?: return@composable
@@ -521,13 +525,6 @@ private fun MainShell(
                             a = AppAboutActions(
                                 openContentAbout = { nav.navigate(Route.About) },
                                 openLicenses = { nav.navigate(Route.Licenses) },
-                                toggleArtStyle = {
-                                    vm.toggleArtStyle()
-                                    scope.launch {
-                                        val next = if (ui.settings.artStyle == app.mossling.ui.components.ArtStyle.Vinyl) "平面" else "立体"
-                                        snack.showSnackbar("画风已切换为：$next", duration = SnackbarDuration.Short)
-                                    }
-                                },
                                 openStory = { showStory = true },
                                 back = { nav.popBackStack() },
                             ),

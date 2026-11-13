@@ -73,9 +73,9 @@ import app.mossling.ui.components.ShapeBadge
 import app.mossling.ui.components.Shapes
 import app.mossling.ui.components.Shelf as WoodShelf
 import app.mossling.ui.components.Tagged
-import app.mossling.ui.components.TrayArt
 import app.mossling.ui.components.WorkTray
 import app.mossling.ui.components.areaColor
+import app.mossling.ui.components.areaGlyph
 import app.mossling.ui.components.md
 import app.mossling.ui.components.shared
 import app.mossling.ui.components.weekday
@@ -145,7 +145,7 @@ fun TodayScreen(ui: AppUi, a: TodayActions, now: () -> Long = System::currentTim
         contentPadding = PaddingValues(bottom = 112.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        item("hero") { Hero(ui, age, guide, mood, a.pickBirth, a.openMonth, a.openSearch, a.openMap, now) }
+        item("hero") { Hero(ui, age, guide, mood, a.pickBirth, a.openMonth, a.openSearch, a.openMap, a.openBook, now) }
 
         // Resume in-progress follow-along session if present
         val playing = ui.settings.playing
@@ -175,10 +175,20 @@ fun TodayScreen(ui: AppUi, a: TodayActions, now: () -> Long = System::currentTim
                     onStop = { a.stopTimer(t.type) },
                     onDiscard = { a.discardTimer(t.type) },
                     modifier = Modifier.padding(horizontal = 16.dp),
+                    onExpand = { a.openTimer(t.type) },
                     now = now,
                 )
             }
-            item("quick") { QuickStrip(a.quickLog) }
+            item("quick") {
+                SectionTitle(
+                    "记一下",
+                    kicker = "点一下就能记，也可直接开始计时",
+                    trailing = {
+                        TextButton(onClick = { a.openTimer(LogType.Nurse) }) { Text("专注计时") }
+                    },
+                )
+                QuickStrip(a.quickLog)
+            }
         }
 
         if (todayPlay != null) {
@@ -241,7 +251,9 @@ private fun ResumeSessionBanner(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TrayArt(play.code, size = 44.dp)
+            val d0 = play.domains.firstOrNull() ?: "A"
+            val c = areaColor(d0)
+            ShapeBadge(areaGlyph(d0), c.copy(alpha = 0.16f), c, shape = Shapes.of(play.code), size = 44.dp)
             Column(Modifier.weight(1f)) {
                 Text(
                     "接着做 · 第 ${step + 1} / ${play.steps.size} 步",
@@ -270,6 +282,7 @@ private fun Hero(
     onOpenMonth: (Int) -> Unit,
     onSearch: () -> Unit,
     onMap: () -> Unit,
+    onBook: () -> Unit,
     now: () -> Long,
 ) {
     Surface(
@@ -323,12 +336,38 @@ private fun Hero(
                                 color = MaterialTheme.colorScheme.primary,
                             )
                         }
-                        TextButton(
-                            onClick = onMap,
-                            contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp),
-                            modifier = Modifier.heightIn(min = 32.dp),
+                        Row(
+                            modifier = Modifier.padding(top = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text("0–36 个月成长地图 →", style = MaterialTheme.typography.labelMedium)
+                            Surface(
+                                onClick = onMap,
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Glyph(G.Grow, size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                                    Text("0–36 个月成长地图", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            Surface(
+                                onClick = onBook,
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            ) {
+                                Row(
+                                    Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Glyph(G.Journal, size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                                    Text("成长册", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
                         }
                         if (ui.settings.journal && (ui.lastFeed != null || ui.lastSleep != null || ui.timers.isNotEmpty())) {
                             SinceLine(ui, now)
@@ -342,7 +381,10 @@ private fun Hero(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                         Spacer(Modifier.height(10.dp))
-                        FilledTonalButton(onClick = onPickBirth, shape = RoundedCornerShape(16.dp)) { Text("填写出生日期") }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            FilledTonalButton(onClick = onPickBirth, shape = RoundedCornerShape(16.dp)) { Text("填写出生日期") }
+                            TextButton(onClick = onMap) { Text("0–36 个月成长地图") }
+                        }
                     }
                 }
                 Spacer(Modifier.width(8.dp))
@@ -542,7 +584,7 @@ private fun TodayPlayCard(
             )
         } else {
             MaterialStill(
-                familyOf(play.code),
+                familyOf(play.domains),
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
                 ground = MaterialTheme.colorScheme.surfaceContainer,
             )
@@ -602,12 +644,14 @@ private fun WeekShelf(
                         Box(
                             Modifier
                                 .fillMaxWidth()
-                                .height(68.dp)
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.surfaceContainer),
+                                .clip(RoundedCornerShape(14.dp)),
                             contentAlignment = Alignment.Center,
                         ) {
-                            TrayArt(p.code, modifier = Modifier.fillMaxSize().padding(4.dp), label = p.name)
+                            MaterialStill(
+                                family = familyOf(p.domains),
+                                modifier = Modifier.fillMaxWidth(),
+                                ground = MaterialTheme.colorScheme.surfaceContainer,
+                            )
                             if (weekCount > 0) {
                                 Row(
                                     modifier = Modifier

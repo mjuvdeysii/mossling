@@ -1,6 +1,5 @@
 package app.mossling.data
 
-import app.mossling.ui.components.ArtStyle
 import app.mossling.ui.ip.Kind
 import app.mossling.ui.theme.ThemeMode
 import kotlinx.serialization.json.Json
@@ -34,7 +33,6 @@ class Importer(private val dao: RecordDao, private val settings: SettingsReposit
         themeStr?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }?.let { settings.setTheme(it) }
 
         (st?.nightLight ?: p.nightLight)?.let { settings.setNightLight(it) }
-        (st?.artStyle ?: p.artStyle)?.let { settings.setArtStyle(ArtStyle.fromRaw(it)) }
         (st?.journal ?: p.journal)?.let { settings.setJournal(it) }
         (st?.shelf ?: p.shelf)?.takeIf { it.isNotBlank() }?.let { settings.setShelf(it) }
 

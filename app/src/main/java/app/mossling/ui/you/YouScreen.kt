@@ -24,6 +24,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -43,7 +46,6 @@ import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.selection.toggleable
 import app.mossling.AppUi
-import app.mossling.ui.components.ArtStyle
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SectionTitle
@@ -62,7 +64,6 @@ data class YouActions(
     val setCompanion: (Kind) -> Unit = {},
     val setTheme: (ThemeMode) -> Unit = {},
     val setNightLight: (Boolean) -> Unit = {},
-    val setArtStyle: (ArtStyle) -> Unit = {},
     val setJournal: (Boolean) -> Unit = {},
     val setSex: (String?) -> Unit = {},
     val setLook: (String?) -> Unit = {},
@@ -303,46 +304,19 @@ fun YouScreen(ui: AppUi, a: YouActions) {
                 Spacer(Modifier.height(14.dp))
                 Text("外观", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ThemeMode.entries.forEach { m ->
-                        val selected = ui.settings.theme == m
-                        FilledTonalButton(
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    ThemeMode.entries.forEachIndexed { index, m ->
+                        SegmentedButton(
+                            selected = ui.settings.theme == m,
                             onClick = { a.setTheme(m) },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = if (selected) {
-                                ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                )
-                            } else ButtonDefaults.filledTonalButtonColors(),
-                        ) {
-                            Text(m.label)
-                        }
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
+                            label = { Text(m.label) },
+                        )
                     }
                 }
                 if (ui.settings.theme == ThemeMode.System) {
                     Spacer(Modifier.height(10.dp))
                     ToggleLine("晚上自动开夜灯", "19:00 至次日 06:00 自动切换为暖黄夜灯模式，夜里喂奶不刺眼", ui.settings.nightLight, a.setNightLight)
-                }
-                Spacer(Modifier.height(14.dp))
-                Text("画风", style = MaterialTheme.typography.titleMedium)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    ArtStyle.entries.forEach { style ->
-                        val selected = ui.settings.artStyle == style
-                        FilledTonalButton(
-                            onClick = { a.setArtStyle(style) },
-                            shape = RoundedCornerShape(14.dp),
-                            colors = if (selected) {
-                                ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primary,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                                )
-                            } else ButtonDefaults.filledTonalButtonColors(),
-                        ) {
-                            Text(style.label)
-                        }
-                    }
                 }
             }
         }

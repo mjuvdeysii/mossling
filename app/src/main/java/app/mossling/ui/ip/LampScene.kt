@@ -49,14 +49,13 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import app.mossling.ui.components.Sticker
 import app.mossling.ui.components.reducedMotion
 import app.mossling.ui.theme.Palette
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 /**
- * The 4-second wordless opening scene (`docs/IP.md` §5, `ios/Mossling/IP/LampScene.swift`):
+ * The 4-second wordless opening scene:
  *
  * Evening table; Otto's golden bead lamp lights up with a warm pool of light;
  * Moss wakes up, blinks twice, nudges the wooden ring stacker (the top ring wobbles),
@@ -147,16 +146,19 @@ fun LampScene(
         val w = maxWidth
         val h = maxHeight
 
-        // Night room backdrop image (subtle) + painted window, moon, light cone, and table
-        Sticker(
-            name = "stage_night.webp",
-            modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.32f + lamp * 0.26f },
-            scale = androidx.compose.ui.layout.ContentScale.Crop,
-        )
-
         Canvas(Modifier.fillMaxSize()) {
             val cw = size.width
             val ch = size.height
+
+            // Soft evening room backdrop gradient
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF171E2B), Color(0xFF1E283A)),
+                    startY = 0f,
+                    endY = ch * 0.75f,
+                ),
+                size = Size(cw, ch * 0.75f),
+            )
 
             // Evening window on top-left with crescent moon and stars
             val winX = cw * 0.12f
@@ -357,7 +359,7 @@ private fun WoodenStacker(wobble: Float, lit: Float, modifier: Modifier = Modifi
 }
 
 /**
- * Modal sheet to replay Moss & Otto's story ("小苔与奥托的故事"), matching iOS `StoryRoute` / `showStory`.
+ * Modal sheet to replay Moss & Otto's story ("小苔与奥托的故事").
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

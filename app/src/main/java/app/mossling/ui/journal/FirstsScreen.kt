@@ -51,7 +51,8 @@ import app.mossling.domain.ageOn
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
-import app.mossling.ui.components.Sticker
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
 import app.mossling.ui.ip.Creature
 import app.mossling.ui.ip.Mood
 import app.mossling.ui.theme.Numerals
@@ -62,7 +63,7 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 
 /**
- * Baby's "Firsts" screen ("第一次", `ios/Mossling/Data/JournalStore.swift` & `FirstsView`):
+ * Baby's "Firsts" screen ("第一次"):
  * View, add, edit, and delete special first moments (first smile, roll, tooth, solid food, steps, or custom).
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -114,7 +115,7 @@ fun FirstsScreen(
         item("presets") {
             Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Sticker("ic_heart_fill.webp", size = 20.dp)
+                    Glyph(G.Heart, size = 20.dp, filled = true, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
                     Text("常见的第一次 · 点一下直接记", style = MaterialTheme.typography.titleSmall)
                 }
@@ -186,7 +187,14 @@ fun FirstsScreen(
                         Modifier.padding(18.dp),
                         verticalAlignment = Alignment.Top,
                     ) {
-                        Sticker("ic_heart_fill.webp", size = 24.dp, modifier = Modifier.padding(top = 2.dp))
+                        ShapeBadge(
+                            G.Heart,
+                            MaterialTheme.colorScheme.tertiaryContainer,
+                            MaterialTheme.colorScheme.onTertiaryContainer,
+                            shape = Shapes.Flower,
+                            size = 34.dp,
+                            filled = true,
+                        )
                         Spacer(Modifier.width(12.dp))
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {

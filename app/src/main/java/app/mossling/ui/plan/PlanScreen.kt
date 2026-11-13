@@ -44,12 +44,15 @@ import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.MorphBlob
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.components.ShapeBadge
 import app.mossling.ui.components.Shapes
 import app.mossling.ui.components.Shelf as WoodShelf
-import app.mossling.ui.components.TrayArt
 import app.mossling.ui.components.areaColor
+import app.mossling.ui.components.areaGlyph
 import app.mossling.ui.ip.Creature
+import app.mossling.ui.ip.MaterialStill
 import app.mossling.ui.ip.Mood
+import app.mossling.ui.ip.familyOf
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
 import app.mossling.ui.you.Bar
@@ -64,7 +67,7 @@ data class PlanActions(
 )
 
 /**
- * The week's Montessori shelf (`ios/Mossling/Domain/Shelf.swift`):
+ * The week's Montessori shelf:
  * Three plays set out in the open, repeated as often as the child likes, rotated when a new week begins or when the child loses interest.
  */
 @Composable
@@ -199,15 +202,11 @@ private fun ShelfItemCard(
     ) {
         Column(Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    Modifier
-                        .size(72.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(MaterialTheme.colorScheme.surfaceContainer),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    TrayArt(p.code, modifier = Modifier.fillMaxSize().padding(4.dp), label = p.name)
-                }
+                MaterialStill(
+                    family = familyOf(p.domains),
+                    modifier = Modifier.width(104.dp).clip(RoundedCornerShape(16.dp)),
+                    ground = MaterialTheme.colorScheme.surfaceContainer,
+                )
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -261,15 +260,9 @@ private fun PoolRow(p: Play, totalCount: Int, onPut: () -> Unit, onOpen: () -> U
         modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surfaceContainer),
-                contentAlignment = Alignment.Center,
-            ) {
-                TrayArt(p.code, modifier = Modifier.fillMaxSize().padding(3.dp), label = p.name)
-            }
+            val d0 = p.domains.firstOrNull() ?: "A"
+            val dc = areaColor(d0)
+            ShapeBadge(areaGlyph(d0), dc.copy(alpha = 0.16f), dc, shape = Shapes.of(p.code), size = 44.dp)
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {

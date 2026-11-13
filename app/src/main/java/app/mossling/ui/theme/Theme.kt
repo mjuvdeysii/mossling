@@ -8,8 +8,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.unit.dp
-import app.mossling.ui.components.ArtStyle
-import app.mossling.ui.components.LocalArtStyle
 import app.mossling.ui.ip.Kind
 import java.time.LocalTime
 
@@ -47,7 +45,6 @@ fun MosslingTheme(
     mode: ThemeMode = ThemeMode.System,
     companion: Kind = Kind.Moss,
     nightLight: Boolean = false,
-    artStyle: ArtStyle = ArtStyle.Vinyl,
     content: @Composable () -> Unit,
 ) {
     val sysDark = isSystemInDarkTheme()
@@ -58,7 +55,6 @@ fun MosslingTheme(
     }
     CompositionLocalProvider(
         LocalCompanion provides companion,
-        LocalArtStyle provides artStyle,
         LocalNightLamp provides dark,
     ) {
         MaterialTheme(

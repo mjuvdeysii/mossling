@@ -1,40 +1,29 @@
 package app.mossling.ui.ip
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.FilterQuality
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import app.mossling.ui.components.ArtIndex
-import app.mossling.ui.components.LocalArtStyle
 import app.mossling.ui.theme.Palette
 
 private val Skin = Color(0xFFF3DFC8)
@@ -55,59 +44,30 @@ fun childStage(m: Int): Int = when {
 /**
  * The child at each stage of the first three years — swaddled (0–2m), on the belly lifting the head (3–5m),
  * sitting with a ring (6–8m), crawling (9–11m), first steps (12–17m), stacking (18–23m), and running with
- * a book (24–36m). Uses the 3D/2D `child_0..6.webp` illustration when available, with vector fallback.
+ * a book (24–36m). Drawn cleanly with Android Compose Canvas vectors.
  */
 @Composable
 fun GrowingChild(month: Int, modifier: Modifier = Modifier) {
-    val ctx = LocalContext.current
-    val style = LocalArtStyle.current
     val st = childStage(month)
-    val file = remember(st, style) { style.resolve("child_$st.webp") }
-    val fallback = remember(st) { "child_$st.webp" }
-    val bmp by produceState(
-        initialValue = remember(file, fallback) {
-            ArtIndex.bitmapSync(ctx, file, 512) ?: ArtIndex.bitmapSync(ctx, fallback, 512)
-        },
-        file,
-        fallback,
-    ) {
-        if (value == null) {
-            value = ArtIndex.bitmap(ctx, file, 512) ?: ArtIndex.bitmap(ctx, fallback, 512)
-        }
-    }
-
-    Box(modifier.aspectRatio(1f), contentAlignment = Alignment.Center) {
-        val current = bmp
-        if (current != null) {
-            Image(
-                bitmap = current,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-                filterQuality = FilterQuality.High,
-            )
-        } else {
-            Canvas(Modifier.fillMaxSize()) {
-                val u = size.minDimension
-                translate((size.width - u) / 2, (size.height - u) / 2) {
-                    drawOval(Color.Black.copy(alpha = 0.07f), Offset(u * 0.16f, u * 0.84f), Size(u * 0.68f, u * 0.08f))
-                    when (st) {
-                        0 -> swaddled(u)
-                        1 -> tummy(u)
-                        2 -> sitting(u)
-                        3 -> crawling(u)
-                        4 -> standing(u)
-                        5 -> building(u)
-                        else -> running(u)
-                    }
-                }
+    Canvas(modifier.aspectRatio(1f)) {
+        val u = size.minDimension
+        translate((size.width - u) / 2, (size.height - u) / 2) {
+            drawOval(Color.Black.copy(alpha = 0.07f), Offset(u * 0.16f, u * 0.84f), Size(u * 0.68f, u * 0.08f))
+            when (st) {
+                0 -> swaddled(u)
+                1 -> tummy(u)
+                2 -> sitting(u)
+                3 -> crawling(u)
+                4 -> standing(u)
+                5 -> building(u)
+                else -> running(u)
             }
         }
     }
 }
 
 /**
- * "故事仍在继续" footer scene shown at the bottom of the Growth Map and Growth Book (`ios/Mossling/IP/Hug.swift`).
+ * "故事仍在继续" footer scene shown at the bottom of the Growth Map and Growth Book.
  */
 @Composable
 fun StoryGoesOn(month: Int, companion: Kind, modifier: Modifier = Modifier) {
