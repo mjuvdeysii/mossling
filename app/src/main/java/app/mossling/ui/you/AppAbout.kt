@@ -81,7 +81,7 @@ fun AppAboutScreen(a: AppAboutActions, updater: Updater? = null) {
     val uri = LocalUriHandler.current
     val clip = LocalClipboardManager.current
     val companion = LocalCompanion.current
-    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "1.3.0" }
+    val version = remember { runCatching { ctx.packageManager.getPackageInfo(ctx.packageName, 0).versionName }.getOrNull() ?: "1.4.0" }
     var doc by remember { mutableStateOf<LegalDoc?>(null) }
     var crash by remember { mutableStateOf(CrashLog.read(ctx)) }
     var copied by remember { mutableStateOf(false) }
@@ -521,7 +521,12 @@ private const val TERMS_TEXT = """生效日期：2026年10月26日
 3. 个人记录与备份责任：应用不提供云同步或远程恢复服务。你的所有记录仅保存在本机，卸载应用、清除应用数据、设备丢失或损坏都会导致本地记录丢失。请定期使用「我的 › 数据与备份」自行保存备份。
 4. 非医疗服务：本应用不提供医疗诊断或咨询服务，详见《医疗免责声明》。"""
 
-private const val CHANGELOG_TEXT = """1.3.0（2026-10-26）
+private const val CHANGELOG_TEXT = """1.4.0（2026-11-13）
+· 原生卡片阅读与浏览：全面去网页化，段落、提示、蒙氏列表与对照表改为 Material 3 结构化卡片；专题支持顶部横向速切；内容来源与分级支持三栏分段浏览与证据等级筛选。
+· 成长与跟着做触觉交互：月龄主卡支持左右滑动切月龄；六个方面支持蒙氏色板切换；可以留意支持分组筛选；玩法步骤支持点选直达「跟着做」与左右滑动翻步。
+· 手帐与搜索优化：瓶喂补齐 −5 / +5 毫升微调，手帐支持按分类筛选并保留历史日期导航入口，搜索支持不区分大小写与正文摘要高亮。
+
+1.3.0（2026-10-26）
 · 原生矢量伙伴升级：小苔（Moss）与奥托（Otto）新增完整的动作状态机、夜灯暖黄光晕、轻拍回应、连点彩蛋，以及晚间台灯剧场（LampScene）与拥抱头像（HuggedAvatar）。
 · 跟着做模式：玩法详情支持全屏分步「跟着做」，带顶部蒙氏串珠进度条、常亮屏幕与中途续做提醒。
 · 成长册与第一次：新增按月装帧的「成长册」与「第一次」里程碑记录，自动汇总当月玩过的活动、生长测量与日均照护。
