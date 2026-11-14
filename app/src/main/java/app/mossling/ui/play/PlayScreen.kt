@@ -1,5 +1,11 @@
 package app.mossling.ui.play
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -22,6 +28,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -32,6 +40,9 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,18 +52,23 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.mossling.data.AreaNames
 import app.mossling.data.Play
@@ -80,6 +96,7 @@ import app.mossling.ui.ip.familyOf
 import app.mossling.ui.theme.LocalCompanion
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -137,6 +154,9 @@ fun PlayScreen(
     }
 
     val totalCount = maxOf(record?.total ?: 0, if (done) 1 else 0)
+    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
+    var showAllSteps by rememberSaveable(play.code) { mutableStateOf(false) }
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -289,28 +309,110 @@ fun PlayScreen(
         }
 
         item {
-            SectionTitle("怎么做", kicker = "一步一步来 · 点任意一步直接跟着做")
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                play.steps.forEachIndexed { i, s ->
-                    Plate(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = {
-                            stepIndex = i
-                            following = true
-                        },
-                    ) {
-                        pics.getOrNull(i)?.let { pic ->
-                            Art(
-                                pic,
-                                label = "${play.name}，第 ${i + 1} 步：$s",
-                                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+            SectionTitle(
+                "怎么做",
+                kicker = if (play.steps.size > 1) {
+                    if (showAllSteps) "共 ${play.steps.size} 步 · 点任意一步直接跟着做"
+                    else "左右翻看步骤 · 点卡片直接跟着做"
+                } else {
+                    "点这一步直接跟着做"
+                },
+            )
+            if (play.steps.size > 1) {
+                SingleChoiceSegmentedButtonRow(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 10.dp),
+                ) {
+                    val modes = listOf("卡片翻看" to false, "全部步骤 (${play.steps.size})" to true)
+                    modes.forEachIndexed { idx, (label, isAll) ->
+                        SegmentedButton(
+                            selected = showAllSteps == isAll,
+                            onClick = {
+                                if (showAllSteps != isAll) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    showAllSteps = isAll
+                                }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = idx, count = modes.size),
+                            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        )
+                    }
+                }
+            }
+            AnimatedContent(
+                targetState = showAllSteps || play.steps.size <= 1,
+                transitionSpec = { fadeIn(tween(180)) togetherWith fadeOut(tween(140)) },
+                label = "play-steps-view",
+            ) { allMode ->
+                if (allMode) {
+                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        play.steps.forEachIndexed { i, s ->
+                            StepDeckCard(
+                                play = play,
+                                index = i,
+                                total = play.steps.size,
+                                stepText = s,
+                                pic = pics.getOrNull(i),
+                                active = true,
+                                onClick = {
+                                    stepIndex = i
+                                    following = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
                             )
-                            Spacer(Modifier.height(14.dp))
                         }
-                        Row(verticalAlignment = Alignment.Top) {
-                            SandpaperNumber("${i + 1}", MaterialTheme.typography.titleMedium)
-                            Spacer(Modifier.width(14.dp))
-                            Text(s, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f).padding(top = 2.dp))
+                    }
+                } else {
+                    val pagerState = rememberPagerState(
+                        initialPage = stepIndex.coerceIn(0, (play.steps.size - 1).coerceAtLeast(0)),
+                        pageCount = { play.steps.size },
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        HorizontalPager(
+                            state = pagerState,
+                            contentPadding = PaddingValues(horizontal = 20.dp),
+                            pageSpacing = 12.dp,
+                            verticalAlignment = Alignment.Top,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { page ->
+                            StepDeckCard(
+                                play = play,
+                                index = page,
+                                total = play.steps.size,
+                                stepText = play.steps[page],
+                                pic = pics.getOrNull(page),
+                                active = page == pagerState.currentPage,
+                                onClick = {
+                                    stepIndex = page
+                                    following = true
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 20.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            StepBeadBar(
+                                current = pagerState.currentPage,
+                                total = play.steps.size,
+                                onSelect = { target ->
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    scope.launch { pagerState.animateScrollToPage(target) }
+                                },
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                "${pagerState.currentPage + 1} / ${play.steps.size}",
+                                fontFamily = Numerals,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -318,12 +420,47 @@ fun PlayScreen(
         }
 
         item {
-            SectionTitle("做的时候")
-            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Tagged("准备", play.prepare.ifEmpty { "不需要道具" })
-                if (play.observe.isNotEmpty()) Tagged("看到什么", play.observe)
-                if (play.stop.isNotEmpty()) Tagged("停一下", play.stop)
-                if (play.safety.isNotEmpty()) Tagged("注意", play.safety, tagColor = MaterialTheme.colorScheme.error)
+            SectionTitle("做的时候", kicker = "准备与观察提示")
+            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                CueCard(
+                    glyph = G.Hand,
+                    label = "准备",
+                    text = play.prepare.ifEmpty { "不需要道具" },
+                    container = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    badgeBg = MaterialTheme.colorScheme.primaryContainer,
+                    badgeFg = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                if (play.observe.isNotEmpty()) {
+                    CueCard(
+                        glyph = G.Eye,
+                        label = "看到什么",
+                        text = play.observe,
+                        container = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        badgeBg = MaterialTheme.colorScheme.secondaryContainer,
+                        badgeFg = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+                if (play.stop.isNotEmpty()) {
+                    CueCard(
+                        glyph = G.Clock,
+                        label = "停一下",
+                        text = play.stop,
+                        container = MaterialTheme.colorScheme.surfaceContainerLowest,
+                        badgeBg = MaterialTheme.colorScheme.tertiaryContainer,
+                        badgeFg = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+                if (play.safety.isNotEmpty()) {
+                    CueCard(
+                        glyph = G.Shield,
+                        label = "注意安全",
+                        text = play.safety,
+                        container = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f),
+                        badgeBg = MaterialTheme.colorScheme.errorContainer,
+                        badgeFg = MaterialTheme.colorScheme.onErrorContainer,
+                        labelColor = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
 
@@ -332,10 +469,102 @@ fun PlayScreen(
                 SectionTitle("再来一点", kicker = "换个花样")
                 Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                     play.variations.forEachIndexed { i, v ->
-                        if (i > 0) Spacer(Modifier.height(8.dp))
-                        Text(v, style = MaterialTheme.typography.bodyMedium)
+                        if (i > 0) Spacer(Modifier.height(10.dp))
+                        Row(verticalAlignment = Alignment.Top) {
+                            ShapeBadge(
+                                G.Idea,
+                                MaterialTheme.colorScheme.tertiaryContainer,
+                                MaterialTheme.colorScheme.onTertiaryContainer,
+                                shape = Shapes.Flower,
+                                size = 28.dp,
+                            )
+                            Spacer(Modifier.width(10.dp))
+                            Text(v, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f).padding(top = 2.dp))
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StepDeckCard(
+    play: Play,
+    index: Int,
+    total: Int,
+    stepText: String,
+    pic: String?,
+    active: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = RoundedCornerShape(28.dp),
+        color = if (active) MaterialTheme.colorScheme.surfaceContainerLowest else MaterialTheme.colorScheme.surfaceContainerLow,
+        border = if (active) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)) else null,
+    ) {
+        Column(Modifier.padding(20.dp)) {
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SandpaperNumber("${index + 1}", MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    "第 ${index + 1} 步 / 共 $total 步",
+                    fontFamily = Numerals,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    "从这步跟着做 ›",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (pic != null) {
+                Spacer(Modifier.height(14.dp))
+                Art(
+                    pic,
+                    label = "${play.name}，第 ${index + 1} 步：$stepText",
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(stepText, style = MaterialTheme.typography.bodyLarge)
+        }
+    }
+}
+
+@Composable
+private fun CueCard(
+    glyph: G,
+    label: String,
+    text: String,
+    container: Color,
+    badgeBg: Color,
+    badgeFg: Color,
+    labelColor: Color = MaterialTheme.colorScheme.primary,
+) {
+    Surface(
+        shape = RoundedCornerShape(22.dp),
+        color = container,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.Top,
+        ) {
+            ShapeBadge(glyph, badgeBg, badgeFg, shape = Shapes.of(label), size = 36.dp)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(label, style = MaterialTheme.typography.labelLarge, color = labelColor)
+                Spacer(Modifier.height(2.dp))
+                Text(text, style = MaterialTheme.typography.bodyMedium)
             }
         }
     }
@@ -389,6 +618,9 @@ private fun FollowAlongPlayer(
             StepBeadBar(
                 current = page,
                 total = totalPages,
+                onSelect = { target ->
+                    onStepChange(target)
+                },
                 modifier = Modifier.weight(1f).padding(horizontal = 12.dp),
             )
             Text(
@@ -578,10 +810,30 @@ private fun FollowAlongPlayer(
 }
 
 @Composable
-private fun StepBeadBar(current: Int, total: Int, modifier: Modifier = Modifier) {
+private fun StepBeadBar(
+    current: Int,
+    total: Int,
+    modifier: Modifier = Modifier,
+    onSelect: ((Int) -> Unit)? = null,
+) {
     val line = MaterialTheme.colorScheme.outlineVariant
     val future = MaterialTheme.colorScheme.outline
-    Canvas(modifier.height(24.dp)) {
+    val tapModifier = if (onSelect != null && total > 1) {
+        modifier
+            .height(28.dp)
+            .pointerInput(total, onSelect) {
+                detectTapGestures { offset ->
+                    val pad = 10.dp.toPx()
+                    val w = (size.width - pad * 2).coerceAtLeast(1f)
+                    val frac = ((offset.x - pad) / w).coerceIn(0f, 1f)
+                    val idx = kotlin.math.round(frac * (total - 1)).toInt().coerceIn(0, total - 1)
+                    onSelect(idx)
+                }
+            }
+    } else {
+        modifier.height(28.dp)
+    }
+    Canvas(tapModifier) {
         val n = total.coerceAtLeast(1)
         val pad = 10.dp.toPx()
         val w = (size.width - pad * 2).coerceAtLeast(1f)

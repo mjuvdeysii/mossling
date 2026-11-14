@@ -25,10 +25,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,38 +65,78 @@ import kotlinx.coroutines.launch
 fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
     val c = ui.content ?: return
     val here = ui.age?.bookMonth
-    val stages = listOf(
-        Triple("0–2 个月", "刚来的时候 · 看黑白、趴一会儿、听你说话", 0..2),
-        Triple("3–5 个月", "抬起头看世界 · 翻身、够东西、笑出声", 3..5),
-        Triple("6–8 个月", "坐起来空出双手 · 换手、尝第一口辅食、找藏起的东西", 6..8),
-        Triple("9–11 个月", "自己去想去的地方 · 爬、扶站、捏小东西、指给你看", 9..11),
-        Triple("12–17 个月", "迈出第一步 · 走、投进拿出、说出第一个词", 12..17),
-        Triple("18–23 个月", "我来 · 叠高、配对、把两个词连在一起", 18..23),
-        Triple("24–36 个月", "讲自己的事 · 跑跳、假装游戏、自己穿脱与收拾", 24..36),
-    )
-    val stageHeaderOffsets = remember(stages) {
+    val allStages = remember {
+        listOf(
+            Triple("0–2 个月", "刚来的时候 · 看黑白、趴一会儿、听你说话", 0..2),
+            Triple("3–5 个月", "抬起头看世界 · 翻身、够东西、笑出声", 3..5),
+            Triple("6–8 个月", "坐起来空出双手 · 换手、尝第一口辅食、找藏起的东西", 6..8),
+            Triple("9–11 个月", "自己去想去的地方 · 爬、扶站、捏小东西、指给你看", 9..11),
+            Triple("12–17 个月", "迈出第一步 · 走、投进拿出、说出第一个词", 12..17),
+            Triple("18–23 个月", "我来 · 叠高、配对、把两个词连在一起", 18..23),
+            Triple("24–36 个月", "讲自己的事 · 跑跳、假装游戏、自己穿脱与收拾", 24..36),
+        )
+    }
+    var onlyVisited by rememberSaveable { mutableStateOf(false) }
+    val visibleStages = remember(allStages, onlyVisited, here) {
+        if (onlyVisited && here != null) {
+            allStages.mapNotNull { (title, sub, range) ->
+                if (range.first > here) null
+                else Triple(title, sub, range.first..minOf(range.last, here))
+            }
+        } else {
+            allStages
+        }
+    }
+    val stageHeaderOffsets = remember(visibleStages) {
         var idx = 3 // bar + hero + stage-jump row
-        stages.map { st ->
+        visibleStages.map { st ->
             val current = idx
             idx += 1 + st.third.count()
             current
         }
     }
-    val initialStage = remember(here) {
-        if (here == null) 0 else stages.indexOfFirst { here in it.third }.coerceAtLeast(0)
+    val initialStage = remember(here, visibleStages) {
+        if (here == null) 0 else visibleStages.indexOfFirst { here in it.third }.coerceAtLeast(0)
     }
-    var pickedStage by remember(here) { mutableIntStateOf(initialStage) }
     val startIndex = remember(here) {
-        if (here == null) 0 else stageHeaderOffsets[initialStage]
+        if (here == null) 0 else stageHeaderOffsets.getOrElse(initialStage) { 0 }
     }
     val state = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
+    val stageRowState = rememberLazyListState(initialFirstVisibleItemIndex = initialStage)
+    val activeStage by remember(stageHeaderOffsets) {
+        derivedStateOf {
+            val first = state.firstVisibleItemIndex
+            stageHeaderOffsets.indexOfLast { it <= first + 1 }.coerceAtLeast(0)
+        }
+    }
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val totalPlays = ui.ticks.values.count { it.kind == TickKind.Did }
     val totalWatch = ui.ticks.values.count { it.kind == TickKind.Observed }
 
+    LaunchedEffect(activeStage, onlyVisited) {
+        val hasVisitedChip = here != null && here > 0
+        val targetChip = (activeStage + if (hasVisitedChip) 1 else 0).coerceAtLeast(0)
+        stageRowState.animateScrollToItem(targetChip)
+    }
+
     LazyColumn(Modifier.fillMaxSize(), state = state, contentPadding = PaddingValues(bottom = 48.dp)) {
-        item { Bar("成长地图 · 0–36 个月", onBack) }
+        item {
+            Bar("成长地图 · 0–36 个月", onBack) {
+                if (here != null) {
+                    val targetOffset = stageHeaderOffsets.getOrElse(initialStage) { 0 }
+                    val offsetInStage = (here - visibleStages.getOrNull(initialStage)?.third?.first.let { it ?: here }).coerceAtLeast(0)
+                    androidx.compose.material3.TextButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scope.launch { state.animateScrollToItem(targetOffset + 1 + offsetInStage) }
+                        },
+                    ) {
+                        Text("现在第 $here 站")
+                    }
+                }
+            }
+        }
         item {
             Surface(
                 shape = RoundedCornerShape(28.dp),
@@ -120,15 +163,27 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
         }
         item("stage-jump") {
             LazyRow(
+                state = stageRowState,
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                itemsIndexed(stages) { idx, st ->
+                if (here != null && here > 0) {
+                    item("filter-visited") {
+                        FilterChip(
+                            selected = onlyVisited,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onlyVisited = !onlyVisited
+                            },
+                            label = { Text("已走过 (0–$here 月)") },
+                        )
+                    }
+                }
+                itemsIndexed(visibleStages, key = { _, st -> "chip-${st.first}" }) { idx, st ->
                     FilterChip(
-                        selected = pickedStage == idx,
+                        selected = activeStage == idx,
                         onClick = {
                             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                            pickedStage = idx
                             scope.launch { state.animateScrollToItem(stageHeaderOffsets[idx]) }
                         },
                         label = { Text(st.first) },
@@ -136,7 +191,7 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
                 }
             }
         }
-        stages.forEach { (title, sub, range) ->
+        visibleStages.forEach { (title, sub, range) ->
             item(key = "stage-$title") {
                 Row(
                     Modifier.fillMaxWidth().padding(start = 8.dp, end = 20.dp, top = 16.dp),

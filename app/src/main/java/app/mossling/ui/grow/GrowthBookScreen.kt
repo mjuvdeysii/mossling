@@ -1,6 +1,7 @@
 package app.mossling.ui.grow
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -11,18 +12,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,9 +41,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import app.mossling.AppUi
@@ -103,19 +116,37 @@ fun GrowthBookScreen(
         }
     }
     var onlyRecorded by rememberSaveable { mutableStateOf(false) }
+    var pagerMode by rememberSaveable { mutableStateOf(true) }
     val monthsToShow = remember(allMonths, recordedMonths, onlyRecorded) {
         if (onlyRecorded && recordedMonths.isNotEmpty()) allMonths.filter { it in recordedMonths } else allMonths
     }
     val listState = rememberLazyListState()
+    val jumpRowState = rememberLazyListState()
+    val pagerState = rememberPagerState(pageCount = { monthsToShow.size.coerceAtLeast(1) })
     val scope = rememberCoroutineScope()
     val haptic = LocalHapticFeedback.current
     val hasControls = allMonths.size > 1 || recordedMonths.isNotEmpty()
+    val effectivePagerMode = pagerMode && monthsToShow.size > 1
+
+    LaunchedEffect(monthsToShow) {
+        val maxPage = (monthsToShow.size - 1).coerceAtLeast(0)
+        if (pagerState.currentPage > maxPage) {
+            pagerState.scrollToPage(maxPage)
+        }
+    }
+
+    LaunchedEffect(pagerState.currentPage, effectivePagerMode, monthsToShow) {
+        if (effectivePagerMode && monthsToShow.size > 1) {
+            val offset = if (recordedMonths.isNotEmpty()) 1 else 0
+            jumpRowState.animateScrollToItem((pagerState.currentPage + offset).coerceAtLeast(0))
+        }
+    }
 
     LazyColumn(
         Modifier.fillMaxSize(),
         state = listState,
         contentPadding = PaddingValues(bottom = 56.dp),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item("bar") {
             Bar("成长册", onBack) {
@@ -158,9 +189,33 @@ fun GrowthBookScreen(
             }
         }
 
+        if (monthsToShow.size > 1) {
+            item("mode-switch") {
+                SingleChoiceSegmentedButtonRow(
+                    Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                ) {
+                    val modes = listOf("按月翻页" to true, "时间轴 (${monthsToShow.size})" to false)
+                    modes.forEachIndexed { idx, (label, isPager) ->
+                        SegmentedButton(
+                            selected = pagerMode == isPager,
+                            onClick = {
+                                if (pagerMode != isPager) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    pagerMode = isPager
+                                }
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(index = idx, count = modes.size),
+                            label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        )
+                    }
+                }
+            }
+        }
+
         if (hasControls) {
             item("controls") {
                 LazyRow(
+                    state = jumpRowState,
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
@@ -176,14 +231,19 @@ fun GrowthBookScreen(
                             )
                         }
                     }
-                    if (allMonths.size > 3) {
-                        items(monthsToShow, key = { "jump-$it" }) { m ->
+                    if (monthsToShow.size > 1) {
+                        itemsIndexed(monthsToShow, key = { _, m -> "jump-$m" }) { idx, m ->
+                            val selected = effectivePagerMode && pagerState.currentPage == idx
                             FilterChip(
-                                selected = false,
+                                selected = selected,
                                 onClick = {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    val idx = monthsToShow.indexOf(m)
-                                    if (idx >= 0) scope.launch { listState.animateScrollToItem(idx + 3) }
+                                    if (effectivePagerMode) {
+                                        scope.launch { pagerState.animateScrollToPage(idx) }
+                                    } else {
+                                        val prefixItems = 2 + (if (monthsToShow.size > 1) 1 else 0) + (if (hasControls) 1 else 0)
+                                        scope.launch { listState.animateScrollToItem(idx + prefixItems) }
+                                    }
                                 },
                                 label = { Text("满 ${m} 月") },
                             )
@@ -193,15 +253,98 @@ fun GrowthBookScreen(
             }
         }
 
-        items(monthsToShow, key = { "book-m-$it" }) { m ->
-            val guide = content.month(m) ?: return@items
-            MonthAlbumPage(
-                ui = ui,
-                guide = guide,
-                month = m,
-                onOpenMonth = { openMonth(m) },
-                onOpenPlay = { code -> openPlay(code, m) },
-            )
+        if (effectivePagerMode) {
+            item("book-pager") {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(horizontal = 20.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        val activeMonth = monthsToShow.getOrElse(pagerState.currentPage) { currentMonth }
+                        Text(
+                            "第 ${pagerState.currentPage + 1} / ${monthsToShow.size} 页 · 满 $activeMonth 个月",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Surface(
+                                onClick = {
+                                    if (pagerState.currentPage > 0) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                    }
+                                },
+                                enabled = pagerState.currentPage > 0,
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (pagerState.currentPage > 0) 1f else 0.35f),
+                                modifier = Modifier.size(34.dp).semantics { contentDescription = "上一页" },
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Glyph(
+                                        G.Back,
+                                        size = 16.dp,
+                                        color = if (pagerState.currentPage > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                                    )
+                                }
+                            }
+                            Surface(
+                                onClick = {
+                                    if (pagerState.currentPage < monthsToShow.lastIndex) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                    }
+                                },
+                                enabled = pagerState.currentPage < monthsToShow.lastIndex,
+                                shape = CircleShape,
+                                color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (pagerState.currentPage < monthsToShow.lastIndex) 1f else 0.35f),
+                                modifier = Modifier.size(34.dp).semantics { contentDescription = "下一页" },
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Glyph(
+                                        G.Back,
+                                        size = 16.dp,
+                                        color = if (pagerState.currentPage < monthsToShow.lastIndex) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                                        modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    HorizontalPager(
+                        state = pagerState,
+                        contentPadding = PaddingValues(horizontal = 16.dp),
+                        pageSpacing = 12.dp,
+                        verticalAlignment = Alignment.Top,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { page ->
+                        val m = monthsToShow.getOrNull(page) ?: return@HorizontalPager
+                        val guide = content.month(m) ?: return@HorizontalPager
+                        MonthAlbumPage(
+                            ui = ui,
+                            guide = guide,
+                            month = m,
+                            onOpenMonth = { openMonth(m) },
+                            onOpenPlay = { code -> openPlay(code, m) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        } else {
+            itemsIndexed(monthsToShow, key = { _, m -> "book-m-$m" }) { _, m ->
+                val guide = content.month(m) ?: return@itemsIndexed
+                MonthAlbumPage(
+                    ui = ui,
+                    guide = guide,
+                    month = m,
+                    onOpenMonth = { openMonth(m) },
+                    onOpenPlay = { code -> openPlay(code, m) },
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateItem(),
+                )
+            }
         }
 
         item("footer") {
@@ -218,6 +361,7 @@ private fun MonthAlbumPage(
     month: Int,
     onOpenMonth: () -> Unit,
     onOpenPlay: (String) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val content = ui.content ?: return
     val ctx = LocalContext.current
@@ -253,9 +397,7 @@ private fun MonthAlbumPage(
     }
 
     Plate(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
+        modifier = modifier,
         onClick = onOpenMonth,
     ) {
         // Month header

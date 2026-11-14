@@ -7,6 +7,7 @@ import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -264,6 +265,9 @@ private fun MainShell(
     }
     val onTopTab = tabs.any { dest?.hasRoute(it.route::class) == true }
 
+    val topClasses = remember { setOf(Route.Today::class, Route.Grow::class, Route.Journal::class, Route.You::class) }
+    fun isTop(d: androidx.navigation.NavDestination?): Boolean = d != null && topClasses.any { d.hasRoute(it) }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
@@ -296,10 +300,34 @@ private fun MainShell(
                     navController = nav,
                     startDestination = Route.Today,
                     modifier = Modifier.padding(bottom = pad.calculateBottomPadding()),
-                    enterTransition = { fadeIn(tween(180)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) },
-                    exitTransition = { fadeOut(tween(140)) },
-                    popEnterTransition = { fadeIn(tween(180)) },
-                    popExitTransition = { fadeOut(tween(160)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(200)) },
+                    enterTransition = {
+                        if (isTop(initialState.destination) && isTop(targetState.destination)) {
+                            fadeIn(tween(180)) + scaleIn(initialScale = 0.985f, animationSpec = tween(180))
+                        } else {
+                            fadeIn(tween(180)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(240))
+                        }
+                    },
+                    exitTransition = {
+                        if (isTop(initialState.destination) && isTop(targetState.destination)) {
+                            fadeOut(tween(140))
+                        } else {
+                            fadeOut(tween(140)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.Start, tween(220)) { it / 6 }
+                        }
+                    },
+                    popEnterTransition = {
+                        if (isTop(initialState.destination) && isTop(targetState.destination)) {
+                            fadeIn(tween(180))
+                        } else {
+                            fadeIn(tween(180)) + slideIntoContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220)) { it / 6 }
+                        }
+                    },
+                    popExitTransition = {
+                        if (isTop(initialState.destination) && isTop(targetState.destination)) {
+                            fadeOut(tween(140))
+                        } else {
+                            fadeOut(tween(160)) + slideOutOfContainer(AnimatedContentTransitionScope.SlideDirection.End, tween(220))
+                        }
+                    },
                 ) {
                     composable<Route.Today> {
                         CompositionLocalProvider(LocalDestination provides this) {

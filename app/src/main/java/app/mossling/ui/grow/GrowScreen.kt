@@ -34,16 +34,21 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -121,6 +126,13 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
     var selectedGroup by rememberSaveable(month) { mutableStateOf<String?>(null) }
     var selectedDomainKey by rememberSaveable(month) { mutableStateOf(guide.domains.firstOrNull()?.key ?: "A") }
     var expandAllDomains by rememberSaveable { mutableStateOf(false) }
+    var activeSection by rememberSaveable { mutableIntStateOf(0) }
+
+    val totalObserve = guide.observe.sumOf { it.items.size }
+    val doneObserve = ui.ticks.values.count { it.month == month && it.kind == TickKind.Observed }
+    val totalCare = guide.vaccines.size + guide.checkups.size
+    val doneCare = guide.vaccines.indices.count { tickKey(month, TickKind.Vaccine, "$it") in ui.ticks } +
+        guide.checkups.indices.count { tickKey(month, TickKind.Checkup, "$it") in ui.ticks }
 
     LazyColumn(
         Modifier.fillMaxSize().testTag("grow"),
@@ -199,273 +211,293 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
             }
         }
 
-        item("plays") {
-            val donePrimary = primary.count { it.code in doneCodes }
-            SectionTitle(
-                "这个月玩什么",
-                kicker = "推荐 ${primary.size} 个 · 做过 $donePrimary",
-                trailing = {
-                    if (month == (babyMonth ?: 0)) {
-                        TextButton(onClick = a.openPlan) { Text("放上架子") }
-                    }
-                },
+        item("workspace-tabs") {
+            val sectionLabels = listOf(
+                "玩法 (${primary.size + also.size})",
+                if (totalObserve > 0) "观察·发育 ($doneObserve/$totalObserve)" else "观察·发育",
+                if (totalCare > 0) "照护·节奏 ($doneCare/$totalCare)" else "照护·节奏",
             )
-            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                NumberRod(donePrimary, primary.size)
-                Shelf(Modifier.fillMaxWidth()) {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        primary.forEach { p ->
-                            PlayRow(
-                                p = p,
-                                done = p.code in doneCodes,
-                                record = records[p.code],
-                                onOpen = { a.openPlay(p.code) },
-                                onToggle = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    a.toggle(TickKind.Did, p.code, p.name)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        if (also.isNotEmpty()) {
-            item("also") {
-                SectionTitle("也适合这个月", kicker = "${also.size} 个跨月龄玩法")
-                val visible = if (showAllAlso) also else also.take(4)
-                Column(Modifier.padding(horizontal = 16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    visible.forEach { p ->
-                        PlayRow(
-                            p = p,
-                            done = p.code in doneCodes,
-                            record = records[p.code],
-                            onOpen = { a.openPlay(p.code) },
-                            onToggle = {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                a.toggle(TickKind.Did, p.code, p.name)
-                            },
-                        )
-                    }
-                    if (also.size > 4) {
-                        TextButton(onClick = { showAllAlso = !showAllAlso }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
-                            Text(if (showAllAlso) "收起" else "展开其余 ${also.size - 4} 个")
-                        }
-                    }
-                }
-            }
-        }
-
-        if (guide.observe.isNotEmpty()) {
-            item("observe") {
-                val total = guide.observe.sumOf { it.items.size }
-                val done = ui.ticks.values.count { it.month == month && it.kind == TickKind.Observed }
-                SectionTitle("可以留意", kicker = "观察参考，不是考试 · 已记下 $done / $total")
-                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        ProgressRing(done = done, total = total, tint = MaterialTheme.colorScheme.primary)
-                        PinkTower(done, total)
-                        Column(Modifier.weight(1f)) {
-                            Text("$done / $total", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium)
-                            Text(
-                                "粉红塔：每留意到一项就往上叠一块；快慢不一，不作比较",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    if (guide.observe.size > 1) {
-                        FlowRow(
-                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp),
-                        ) {
-                            FilterChip(
-                                selected = selectedGroup == null,
-                                onClick = { selectedGroup = null },
-                                label = { Text("全部 ($total)") },
-                            )
-                            guide.observe.forEach { g ->
-                                FilterChip(
-                                    selected = selectedGroup == g.group,
-                                    onClick = { selectedGroup = if (selectedGroup == g.group) null else g.group },
-                                    label = { Text("${g.group} (${g.items.size})") },
-                                )
+            SingleChoiceSegmentedButtonRow(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            ) {
+                sectionLabels.forEachIndexed { idx, label ->
+                    SegmentedButton(
+                        selected = activeSection == idx,
+                        onClick = {
+                            if (activeSection != idx) {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                activeSection = idx
                             }
-                        }
-                    }
-                    guide.observe.forEachIndexed { gi, g ->
-                        if (selectedGroup != null && selectedGroup != g.group) return@forEachIndexed
-                        if (gi > 0 && selectedGroup == null) Spacer(Modifier.height(14.dp))
-                        Text(g.group, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(6.dp))
-                        g.items.forEachIndexed { ii, text ->
-                            val id = "$gi-$ii"
-                            val checked = tickKey(month, TickKind.Observed, id) in ui.ticks
-                            Row(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .clickable {
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        a.toggle(TickKind.Observed, id, text)
+                        },
+                        shape = SegmentedButtonDefaults.itemShape(index = idx, count = sectionLabels.size),
+                        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    )
+                }
+            }
+        }
+
+        item("workspace-body") {
+            AnimatedContent(
+                targetState = activeSection,
+                transitionSpec = {
+                    val dir = if (targetState >= initialState) 1 else -1
+                    (slideInHorizontally(tween(200)) { (it / 6) * dir } + fadeIn(tween(180))) togetherWith
+                        (slideOutHorizontally(tween(160)) { -(it / 6) * dir } + fadeOut(tween(140)))
+                },
+                label = "grow-workspace",
+            ) { section ->
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    when (section) {
+                        0 -> {
+                            val donePrimary = primary.count { it.code in doneCodes }
+                            SectionTitle(
+                                "这个月玩什么",
+                                kicker = "推荐 ${primary.size} 个 · 做过 $donePrimary",
+                                trailing = {
+                                    if (month == (babyMonth ?: 0)) {
+                                        TextButton(onClick = a.openPlan) { Text("放上架子") }
                                     }
-                                    .padding(vertical = 7.dp),
-                                verticalAlignment = Alignment.Top,
-                            ) {
-                                SmallCheck(checked, Modifier.padding(top = 2.dp))
-                                Spacer(Modifier.width(12.dp))
-                                Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        if (guide.domains.isNotEmpty()) {
-            item("domains") {
-                SectionTitle(
-                    "六个方面",
-                    kicker = "满 $month 个月 · 点色板切换领域",
-                    trailing = {
-                        TextButton(onClick = { expandAllDomains = !expandAllDomains }) {
-                            Text(if (expandAllDomains) "分项查看" else "全部展开")
-                        }
-                    },
-                )
-                if (expandAllDomains) {
-                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        guide.domains.forEach { d -> AreaCard(d) }
-                    }
-                } else {
-                    LazyRow(
-                        contentPadding = PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        items(guide.domains, key = { it.key }) { d ->
-                            val selected = d.key == selectedDomainKey
-                            val c = areaColor(d.key)
-                            Surface(
-                                onClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                    selectedDomainKey = d.key
                                 },
-                                shape = RoundedCornerShape(18.dp),
-                                color = if (selected) c.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerLow,
-                                border = BorderStroke(
-                                    if (selected) 1.5.dp else 1.dp,
-                                    if (selected) c else MaterialTheme.colorScheme.outlineVariant,
-                                ),
-                            ) {
-                                Row(
-                                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                ) {
-                                    ColorTablet(c)
-                                    Text(
-                                        d.name,
-                                        style = MaterialTheme.typography.labelLarge,
-                                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
+                            )
+                            Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                NumberRod(donePrimary, primary.size)
+                                Shelf(Modifier.fillMaxWidth()) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        primary.forEach { p ->
+                                            PlayRow(
+                                                p = p,
+                                                done = p.code in doneCodes,
+                                                record = records[p.code],
+                                                onOpen = { a.openPlay(p.code) },
+                                                onToggle = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                    a.toggle(TickKind.Did, p.code, p.name)
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                            if (also.isNotEmpty()) {
+                                SectionTitle("也适合这个月", kicker = "${also.size} 个跨月龄玩法")
+                                val visible = if (showAllAlso) also else also.take(4)
+                                Column(Modifier.padding(horizontal = 16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    visible.forEach { p ->
+                                        PlayRow(
+                                            p = p,
+                                            done = p.code in doneCodes,
+                                            record = records[p.code],
+                                            onOpen = { a.openPlay(p.code) },
+                                            onToggle = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                a.toggle(TickKind.Did, p.code, p.name)
+                                            },
+                                        )
+                                    }
+                                    if (also.size > 4) {
+                                        TextButton(onClick = { showAllAlso = !showAllAlso }, modifier = Modifier.align(Alignment.CenterHorizontally)) {
+                                            Text(if (showAllAlso) "收起" else "展开其余 ${also.size - 4} 个")
+                                        }
+                                    }
                                 }
                             }
                         }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    val activeDomain = guide.domains.firstOrNull { it.key == selectedDomainKey } ?: guide.domains.first()
-                    AnimatedContent(
-                        targetState = activeDomain,
-                        label = "domain-card",
-                        modifier = Modifier.padding(horizontal = 16.dp),
-                    ) { d ->
-                        AreaCard(d)
-                    }
-                }
-            }
-        }
 
-        if (guide.vaccines.isNotEmpty() || guide.checkups.isNotEmpty()) {
-            item("care") {
-                val totalCare = guide.vaccines.size + guide.checkups.size
-                val doneCare = guide.vaccines.indices.count { tickKey(month, TickKind.Vaccine, "$it") in ui.ticks } +
-                    guide.checkups.indices.count { tickKey(month, TickKind.Checkup, "$it") in ui.ticks }
-                SectionTitle(
-                    "接种与儿保",
-                    kicker = "仅供参考，以预防接种证与社区医院为准",
-                    trailing = { ProgressRing(done = doneCare, total = totalCare, size = 38.dp) },
-                )
-                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                    if (guide.vaccines.isNotEmpty()) {
-                        Text("疫苗", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                        Spacer(Modifier.height(4.dp))
-                        guide.vaccines.forEachIndexed { i, v ->
-                            val id = "$i"
-                            val checked = tickKey(month, TickKind.Vaccine, id) in ui.ticks
-                            CheckLine(v, checked) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                a.toggle(TickKind.Vaccine, id, v)
+                        1 -> {
+                            if (guide.observe.isNotEmpty()) {
+                                SectionTitle("可以留意", kicker = "观察参考，不是考试 · 已记下 $doneObserve / $totalObserve")
+                                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                    Row(
+                                        Modifier.fillMaxWidth().padding(bottom = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        ProgressRing(done = doneObserve, total = totalObserve, tint = MaterialTheme.colorScheme.primary)
+                                        PinkTower(doneObserve, totalObserve)
+                                        Column(Modifier.weight(1f)) {
+                                            Text("$doneObserve / $totalObserve", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium)
+                                            Text(
+                                                "粉红塔：每留意到一项就往上叠一块；快慢不一，不作比较",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    if (guide.observe.size > 1) {
+                                        FlowRow(
+                                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                        ) {
+                                            FilterChip(
+                                                selected = selectedGroup == null,
+                                                onClick = { selectedGroup = null },
+                                                label = { Text("全部 ($totalObserve)") },
+                                            )
+                                            guide.observe.forEach { g ->
+                                                FilterChip(
+                                                    selected = selectedGroup == g.group,
+                                                    onClick = { selectedGroup = if (selectedGroup == g.group) null else g.group },
+                                                    label = { Text("${g.group} (${g.items.size})") },
+                                                )
+                                            }
+                                        }
+                                    }
+                                    guide.observe.forEachIndexed { gi, g ->
+                                        if (selectedGroup != null && selectedGroup != g.group) return@forEachIndexed
+                                        if (gi > 0 && selectedGroup == null) Spacer(Modifier.height(14.dp))
+                                        Text(g.group, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.height(6.dp))
+                                        g.items.forEachIndexed { ii, text ->
+                                            val id = "$gi-$ii"
+                                            val checked = tickKey(month, TickKind.Observed, id) in ui.ticks
+                                            Row(
+                                                Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .clickable {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        a.toggle(TickKind.Observed, id, text)
+                                                    }
+                                                    .padding(vertical = 7.dp),
+                                                verticalAlignment = Alignment.Top,
+                                            ) {
+                                                SmallCheck(checked, Modifier.padding(top = 2.dp))
+                                                Spacer(Modifier.width(12.dp))
+                                                Text(text, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                            if (guide.domains.isNotEmpty()) {
+                                SectionTitle(
+                                    "六个方面",
+                                    kicker = "满 $month 个月 · 点色板切换领域",
+                                    trailing = {
+                                        TextButton(onClick = { expandAllDomains = !expandAllDomains }) {
+                                            Text(if (expandAllDomains) "分项查看" else "全部展开")
+                                        }
+                                    },
+                                )
+                                if (expandAllDomains) {
+                                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                        guide.domains.forEach { d -> AreaCard(d) }
+                                    }
+                                } else {
+                                    LazyRow(
+                                        contentPadding = PaddingValues(horizontal = 16.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        items(guide.domains, key = { it.key }) { d ->
+                                            val selected = d.key == selectedDomainKey
+                                            val c = areaColor(d.key)
+                                            Surface(
+                                                onClick = {
+                                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                                    selectedDomainKey = d.key
+                                                },
+                                                shape = RoundedCornerShape(18.dp),
+                                                color = if (selected) c.copy(alpha = 0.18f) else MaterialTheme.colorScheme.surfaceContainerLow,
+                                                border = BorderStroke(
+                                                    if (selected) 1.5.dp else 1.dp,
+                                                    if (selected) c else MaterialTheme.colorScheme.outlineVariant,
+                                                ),
+                                            ) {
+                                                Row(
+                                                    Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                ) {
+                                                    ColorTablet(c)
+                                                    Text(
+                                                        d.name,
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        color = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                    val activeDomain = guide.domains.firstOrNull { it.key == selectedDomainKey } ?: guide.domains.first()
+                                    AnimatedContent(
+                                        targetState = activeDomain,
+                                        label = "domain-card",
+                                        modifier = Modifier.padding(horizontal = 16.dp),
+                                    ) { d ->
+                                        AreaCard(d)
+                                    }
+                                }
                             }
                         }
-                    }
-                    if (guide.checkups.isNotEmpty()) {
-                        if (guide.vaccines.isNotEmpty()) Spacer(Modifier.height(12.dp))
-                        Text("儿保", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
-                        Spacer(Modifier.height(4.dp))
-                        guide.checkups.forEachIndexed { i, c ->
-                            val id = "$i"
-                            val checked = tickKey(month, TickKind.Checkup, id) in ui.ticks
-                            CheckLine(c, checked) {
-                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                a.toggle(TickKind.Checkup, id, c)
+
+                        else -> {
+                            if (guide.vaccines.isNotEmpty() || guide.checkups.isNotEmpty()) {
+                                SectionTitle(
+                                    "接种与儿保",
+                                    kicker = "仅供参考，以预防接种证与社区医院为准",
+                                    trailing = { ProgressRing(done = doneCare, total = totalCare, size = 38.dp) },
+                                )
+                                Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+                                    if (guide.vaccines.isNotEmpty()) {
+                                        Text("疫苗", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                                        Spacer(Modifier.height(4.dp))
+                                        guide.vaccines.forEachIndexed { i, v ->
+                                            val id = "$i"
+                                            val checked = tickKey(month, TickKind.Vaccine, id) in ui.ticks
+                                            CheckLine(v, checked) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                a.toggle(TickKind.Vaccine, id, v)
+                                            }
+                                        }
+                                    }
+                                    if (guide.checkups.isNotEmpty()) {
+                                        if (guide.vaccines.isNotEmpty()) Spacer(Modifier.height(12.dp))
+                                        Text("儿保", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.secondary)
+                                        Spacer(Modifier.height(4.dp))
+                                        guide.checkups.forEachIndexed { i, c ->
+                                            val id = "$i"
+                                            val checked = tickKey(month, TickKind.Checkup, id) in ui.ticks
+                                            CheckLine(c, checked) {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                a.toggle(TickKind.Checkup, id, c)
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                        }
-                    }
-                }
-            }
-        }
-
-        guide.rhythm?.takeIf { it.isNotEmpty() }?.let { r ->
-            item("rhythm") {
-                SectionTitle("一天的节奏")
-                Blocks(r)
-            }
-        }
-
-        if (guide.extra.isNotEmpty()) {
-            item("extra") {
-                SectionTitle("还要知道")
-                Blocks(guide.extra)
-            }
-        }
-
-        item("topics") {
-            SectionTitle("常翻的专题", kicker = "睡眠 · 喂养 · 安全 · 就医信号")
-            FlowRow(
-                Modifier.padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                content.topics.forEach { t ->
-                    Surface(
-                        onClick = { a.openTopic(t.id) },
-                        shape = RoundedCornerShape(18.dp),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-                    ) {
-                        Row(
-                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Glyph(G.Idea, size = 15.dp, color = MaterialTheme.colorScheme.primary)
-                            Text(t.title, style = MaterialTheme.typography.labelLarge)
+                            guide.rhythm?.takeIf { it.isNotEmpty() }?.let { r ->
+                                SectionTitle("一天的节奏")
+                                Blocks(r)
+                            }
+                            if (guide.extra.isNotEmpty()) {
+                                SectionTitle("还要知道")
+                                Blocks(guide.extra)
+                            }
+                            SectionTitle("常翻的专题", kicker = "睡眠 · 喂养 · 安全 · 就医信号")
+                            FlowRow(
+                                Modifier.padding(horizontal = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                content.topics.forEach { t ->
+                                    Surface(
+                                        onClick = { a.openTopic(t.id) },
+                                        shape = RoundedCornerShape(18.dp),
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                                    ) {
+                                        Row(
+                                            Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                        ) {
+                                            Glyph(G.Idea, size = 15.dp, color = MaterialTheme.colorScheme.primary)
+                                            Text(t.title, style = MaterialTheme.typography.labelLarge)
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
