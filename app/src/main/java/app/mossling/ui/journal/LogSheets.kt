@@ -1,5 +1,6 @@
 package app.mossling.ui.journal
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -38,6 +39,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import app.mossling.data.LogEntry
 import app.mossling.data.LogType
@@ -74,6 +77,7 @@ fun QuickLogSheet(
 ) {
     val kb = androidx.compose.ui.platform.LocalSoftwareKeyboardController.current
     val fm = androidx.compose.ui.platform.LocalFocusManager.current
+    val haptic = LocalHapticFeedback.current
     val close = { fm.clearFocus(); kb?.hide(); onDismiss() }
     ModalBottomSheet(onDismissRequest = close, containerColor = MaterialTheme.colorScheme.surfaceContainerLowest) {
         Column(
@@ -115,8 +119,24 @@ fun QuickLogSheet(
                     Text("现在开始，就点下面两个大按钮计时；已经喂完了，选时长直接记下来。", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
                     Spacer(Modifier.height(14.dp))
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = { onStartTimer(LogType.Nurse, "l"); close() }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("左侧 · 开始计时") }
-                        Button(onClick = { onStartTimer(LogType.Nurse, "r"); close() }, modifier = Modifier.weight(1f).height(54.dp), shape = RoundedCornerShape(18.dp)) { Text("右侧 · 开始计时") }
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onStartTimer(LogType.Nurse, "l")
+                                close()
+                            },
+                            modifier = Modifier.weight(1f).height(54.dp),
+                            shape = RoundedCornerShape(18.dp),
+                        ) { Text("左侧 · 开始计时") }
+                        Button(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onStartTimer(LogType.Nurse, "r")
+                                close()
+                            },
+                            modifier = Modifier.weight(1f).height(54.dp),
+                            shape = RoundedCornerShape(18.dp),
+                        ) { Text("右侧 · 开始计时") }
                     }
                     Spacer(Modifier.height(18.dp))
                     Text("或者记一次已喂完的", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -130,7 +150,15 @@ fun QuickLogSheet(
                     var min by remember { mutableIntStateOf(60) }
                     Text("睡觉", style = MaterialTheme.typography.headlineSmall)
                     Spacer(Modifier.height(12.dp))
-                    Button(onClick = { onStartTimer(LogType.Sleep, null); close() }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(18.dp)) {
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onStartTimer(LogType.Sleep, null)
+                            close()
+                        },
+                        modifier = Modifier.fillMaxWidth().height(54.dp),
+                        shape = RoundedCornerShape(18.dp),
+                    ) {
                         Text("刚睡着 · 开始计时", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(Modifier.height(18.dp))
@@ -153,11 +181,11 @@ fun QuickLogSheet(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
                     ) {
-                        OutlinedButton(onClick = { ml = (ml - 10).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−10") }
-                        OutlinedButton(onClick = { ml = (ml - 5).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−5") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); ml = (ml - 10).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−10") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); ml = (ml - 5).coerceAtLeast(5) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("−5") }
                         Text("$ml 毫升", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 8.dp))
-                        OutlinedButton(onClick = { ml = (ml + 5).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+5") }
-                        OutlinedButton(onClick = { ml = (ml + 10).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+10") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); ml = (ml + 5).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+5") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); ml = (ml + 10).coerceAtMost(360) }, shape = RoundedCornerShape(14.dp), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp)) { Text("+10") }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(60, 90, 120, 150, 180, 210).forEach { p ->
@@ -187,16 +215,16 @@ fun QuickLogSheet(
                     Text("体温", style = MaterialTheme.typography.headlineSmall)
                     WhenRow("时间", at) { at = it }
                     Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
-                        OutlinedButton(onClick = { deg = (deg - 1).coerceAtLeast(350) }) { Text("−0.1") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); deg = (deg - 1).coerceAtLeast(350) }) { Text("−0.1") }
                         Text("${"%.1f".format(deg / 10.0)} ℃", fontFamily = Numerals, style = MaterialTheme.typography.headlineLarge, modifier = Modifier.padding(horizontal = 20.dp))
-                        OutlinedButton(onClick = { deg = (deg + 1).coerceAtMost(420) }) { Text("+0.1") }
+                        OutlinedButton(onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); deg = (deg + 1).coerceAtMost(420) }) { Text("+0.1") }
                     }
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         listOf(365, 370, 375, 380, 385, 390).forEach { p ->
                             FilterChip(selected = deg == p, onClick = { deg = p }, label = { Text("%.1f".format(p / 10.0)) })
                         }
                     }
-                    if (deg >= 380) {
+                    AnimatedVisibility(visible = deg >= 380) {
                         FeverMedicalBanner(Modifier.padding(top = 10.dp))
                     }
                     SaveButton { onSave(LogEntry(type = LogType.Temp, start = at, amount = deg)); close() }
@@ -326,8 +354,16 @@ private fun DurationRow(min: Int, presets: List<Int>, step: Int = 5, onChange: (
 
 @Composable
 private fun SaveButton(onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
     Spacer(Modifier.height(14.dp))
-    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(18.dp)) {
+    Button(
+        onClick = {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            onClick()
+        },
+        modifier = Modifier.fillMaxWidth().height(52.dp),
+        shape = RoundedCornerShape(18.dp),
+    ) {
         Text("记下来", style = MaterialTheme.typography.titleMedium)
     }
 }
@@ -413,7 +449,7 @@ fun EntrySheet(
                     Text("${"%.1f".format(amount / 10.0)} ℃", fontFamily = Numerals, style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(horizontal = 16.dp))
                     OutlinedButton(onClick = { amount = (amount + 1).coerceAtMost(420) }) { Text("+0.1") }
                 }
-                if (amount >= 380) {
+                AnimatedVisibility(visible = amount >= 380) {
                     FeverMedicalBanner()
                 }
             }

@@ -1,7 +1,9 @@
 package app.mossling.ui.journal
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -18,15 +20,21 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,6 +46,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
@@ -129,6 +141,7 @@ fun JournalScreen(
     val primary = listOf(LogType.Nurse, LogType.Bottle, LogType.Sleep, LogType.Diaper)
     val secondary = listOf(LogType.Solid, LogType.Bath, LogType.Temp, LogType.Med, LogType.Note)
     val filteredLogs = remember(logs, filter) { logs.filter { it.matches(filter) } }
+    val haptic = LocalHapticFeedback.current
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -164,7 +177,10 @@ fun JournalScreen(
                     primary.forEach { t ->
                         val k = logKind(t)
                         Surface(
-                            onClick = { a.openSheet(t) },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                a.openSheet(t)
+                            },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(22.dp),
                             color = MaterialTheme.colorScheme.surfaceContainer,
@@ -193,7 +209,10 @@ fun JournalScreen(
                     secondary.forEach { t ->
                         val k = logKind(t)
                         Surface(
-                            onClick = { a.openSheet(t) },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                a.openSheet(t)
+                            },
                             shape = RoundedCornerShape(16.dp),
                             color = MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {
@@ -251,6 +270,7 @@ fun JournalScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DayBar(
     day: LocalDate,
@@ -260,75 +280,130 @@ private fun DayBar(
     onGrowth: () -> Unit,
     onFirsts: () -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
+    var showCalendar by remember { mutableStateOf(false) }
+
     Column(
         Modifier
             .fillMaxWidth()
             .statusBarsPadding()
             .padding(horizontal = 16.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             OutlinedButton(
-                onClick = { onPick(day.minusDays(1)) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onPick(day.minusDays(1))
+                },
                 shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 10.dp),
+                contentPadding = PaddingValues(horizontal = 12.dp),
             ) {
                 Text("前一天")
             }
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(if (day == today) "今天 · ${md(day)}" else md(day), style = MaterialTheme.typography.headlineSmall)
-                Text(weekday(day), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Surface(
+                onClick = { showCalendar = true },
+                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0f),
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics { contentDescription = "选择手帐日期" },
+            ) {
+                Column(
+                    Modifier.padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(if (day == today) "今天 · ${md(day)}" else md(day), style = MaterialTheme.typography.headlineSmall)
+                    Text("${weekday(day)} · 点选日期", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
             if (day < today) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     AssistChip(onClick = { onPick(today) }, label = { Text("回今天") })
                     OutlinedButton(
-                        onClick = { onPick(day.plusDays(1)) },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onPick(day.plusDays(1))
+                        },
                         shape = RoundedCornerShape(14.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp),
                     ) {
                         Text("后一天")
                     }
                 }
             } else {
-                Row {
-                    TextButton(onClick = onFirsts, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                        Glyph(G.Heart, size = 16.dp)
-                        Text(" 第一次")
-                    }
-                    TextButton(onClick = onGrowth, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                        Glyph(G.Ruler, size = 16.dp)
-                        Text(" 生长")
-                    }
-                    TextButton(onClick = onStats, contentPadding = PaddingValues(horizontal = 6.dp)) {
-                        Glyph(G.Chart, size = 16.dp)
-                        Text(" 统计")
+                OutlinedButton(
+                    onClick = { showCalendar = true },
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp),
+                ) {
+                    Text("选日期")
+                }
+            }
+        }
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            listOf(
+                Triple(G.Heart, "第一次", onFirsts),
+                Triple(G.Ruler, "生长", onGrowth),
+                Triple(G.Chart, "统计", onStats),
+            ).forEach { (glyph, label, action) ->
+                Surface(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        action()
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(14.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                ) {
+                    Row(
+                        Modifier.padding(vertical = 8.dp, horizontal = 10.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Glyph(glyph, size = 15.dp, color = MaterialTheme.colorScheme.primary)
+                        Spacer(Modifier.width(6.dp))
+                        Text(label, style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
         }
-        if (day < today) {
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                TextButton(onClick = onFirsts, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Glyph(G.Heart, size = 15.dp)
-                    Text(" 第一次")
-                }
-                TextButton(onClick = onGrowth, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Glyph(G.Ruler, size = 15.dp)
-                    Text(" 生长")
-                }
-                TextButton(onClick = onStats, contentPadding = PaddingValues(horizontal = 8.dp)) {
-                    Glyph(G.Chart, size = 15.dp)
-                    Text(" 统计")
-                }
-            }
+    }
+
+    if (showCalendar) {
+        val todayUtcMax = remember(today) {
+            today.plusDays(1).atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli() - 1L
+        }
+        val ds = rememberDatePickerState(
+            initialSelectedDateMillis = day.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long) = utcTimeMillis <= todayUtcMax
+            },
+        )
+        DatePickerDialog(
+            onDismissRequest = { showCalendar = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        ds.selectedDateMillis?.let {
+                            val picked = java.time.Instant.ofEpochMilli(it).atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                            if (!picked.isAfter(today)) onPick(picked)
+                        }
+                        showCalendar = false
+                    },
+                ) { Text("好") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCalendar = false }) { Text("取消") }
+            },
+        ) {
+            DatePicker(ds)
         }
     }
 }
@@ -383,6 +458,30 @@ private fun DayRibbon(day: LocalDate, logs: List<LogEntry>) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             listOf("0时", "6时", "12时", "18时", "24时").forEach {
                 Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (logs.isNotEmpty()) {
+            Row(
+                Modifier.padding(top = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                listOf(
+                    LogType.Nurse to "喂养",
+                    LogType.Sleep to "睡眠",
+                    LogType.Diaper to "尿布",
+                    LogType.Solid to "辅食/其他",
+                ).forEach { (type, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            Modifier
+                                .size(7.dp)
+                                .background(logKind(type).tint, CircleShape),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
         }
     }

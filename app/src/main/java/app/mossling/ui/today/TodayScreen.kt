@@ -1,6 +1,7 @@
 package app.mossling.ui.today
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,7 +43,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -305,9 +308,9 @@ private fun Hero(
                             onClick = onSearch,
                             shape = CircleShape,
                             color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            modifier = Modifier.size(36.dp).semantics { contentDescription = "搜索" },
+                            modifier = Modifier.size(44.dp).semantics { contentDescription = "搜索" },
                         ) {
-                            Box(contentAlignment = Alignment.Center) { Glyph(G.Search, size = 18.dp) }
+                            Box(contentAlignment = Alignment.Center) { Glyph(G.Search, size = 20.dp) }
                         }
                     }
                     Spacer(Modifier.height(8.dp))
@@ -459,6 +462,7 @@ private fun SinceLine(ui: AppUi, nowSource: () -> Long) {
 
 @Composable
 private fun QuickStrip(onPick: (String) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     val items = listOf(LogType.Nurse, LogType.Bottle, LogType.Sleep, LogType.Diaper, "more")
     Row(
         Modifier.fillMaxWidth().padding(horizontal = 16.dp),
@@ -471,7 +475,10 @@ private fun QuickStrip(onPick: (String) -> Unit) {
             val bg = k?.tint?.copy(alpha = 0.16f) ?: MaterialTheme.colorScheme.surfaceContainerHighest
             val fg = k?.tint ?: MaterialTheme.colorScheme.onSurface
             Surface(
-                onClick = { onPick(t) },
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onPick(t)
+                },
                 modifier = Modifier.weight(1f),
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -498,6 +505,7 @@ private fun TodayPlayCard(
     onNext: (() -> Unit)? = null,
 ) {
     val ctx = LocalContext.current
+    val haptic = LocalHapticFeedback.current
     val firstPic = remember(play.code) { ArtIndex.steps(ctx, play.code).firstOrNull() }
     val playedToday = (record?.todayCount ?: 0) > 0
     val totalCount = maxOf(record?.total ?: 0, if (done) 1 else 0)
@@ -506,6 +514,7 @@ private fun TodayPlayCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp)
+            .animateContentSize()
             .clickable(onClick = onOpen),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -557,7 +566,10 @@ private fun TodayPlayCard(
             Box(
                 Modifier
                     .size(48.dp)
-                    .clickable(onClick = onToggle)
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onToggle()
+                    }
                     .semantics {
                         role = Role.Checkbox
                         contentDescription = "记为今天做过"
@@ -611,7 +623,12 @@ private fun TodayPlayCard(
                 modifier = Modifier.weight(1f),
             )
             if (onNext != null) {
-                TextButton(onClick = onNext) { Text("换一个") }
+                TextButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onNext()
+                    },
+                ) { Text("换一个") }
                 Spacer(Modifier.width(4.dp))
             }
             Button(onClick = onOpen, shape = RoundedCornerShape(16.dp)) { Text("开始") }
@@ -692,6 +709,7 @@ private fun WeekShelf(
 
 @Composable
 private fun MilestonePeek(guide: MonthGuide, month: Int, ui: AppUi, onToggle: (Int, String, String) -> Unit) {
+    val haptic = LocalHapticFeedback.current
     val all = guide.observe.flatMapIndexed { gi, g -> g.items.mapIndexed { ii, text -> Triple("$gi-$ii", g.group, text) } }
     val done = all.count { (id, _, _) -> tickKey(month, TickKind.Observed, id) in ui.ticks }
     val shown = all.sortedBy { (id, _, _) -> if (tickKey(month, TickKind.Observed, id) in ui.ticks) 1 else 0 }.take(3)
@@ -703,7 +721,10 @@ private fun MilestonePeek(guide: MonthGuide, month: Int, ui: AppUi, onToggle: (I
                 Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(14.dp))
-                    .clickable { onToggle(month, id, text) }
+                    .clickable {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onToggle(month, id, text)
+                    }
                     .padding(vertical = 8.dp),
                 verticalAlignment = Alignment.Top,
             ) {

@@ -40,6 +40,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -226,6 +228,14 @@ private fun MainShell(
         }
     }
 
+    fun undoSnack(message: String, undo: () -> Unit) {
+        scope.launch {
+            snack.currentSnackbarData?.dismiss()
+            val r = snack.showSnackbar(message, actionLabel = "撤销", duration = SnackbarDuration.Short)
+            if (r == SnackbarResult.ActionPerformed) undo()
+        }
+    }
+
     fun startTimer(type: String, side: String?) {
         askNotifications()
         if (type == LogType.Sleep) {
@@ -258,12 +268,14 @@ private fun MainShell(
         snackbarHost = { SnackbarHost(snack) },
         bottomBar = {
             if (onTopTab) {
+                val haptic = LocalHapticFeedback.current
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
                     tabs.forEach { t ->
                         val selected = dest?.hasRoute(t.route::class) == true
                         NavigationBarItem(
                             selected = selected,
                             onClick = {
+                                if (!selected) haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 nav.navigate(t.route) {
                                     popUpTo(nav.graph.findStartDestination().id) { saveState = true }
                                     launchSingleTop = true
@@ -425,7 +437,7 @@ private fun MainShell(
                         val r = entry.toRoute<Route.Play>()
                         val p = ui.content?.play(r.code) ?: return@composable
                         val rec = ui.playRecords(r.month)[r.code]
-                        val done = (tickKey(r.month, TickKind.Did, r.code) in ui.ticks) || ((rec?.total ?: 0) > 0)
+                        val done = tickKey(r.month, TickKind.Did, r.code) in ui.ticks
                         val savedSessionStep = ui.settings.playing?.takeIf { it.first == r.code }?.third
                         val initStep = r.resumeStep.takeIf { it >= 0 }
                         CompositionLocalProvider(LocalDestination provides this) {
@@ -547,7 +559,11 @@ private fun MainShell(
                                 vm.putFirst(it)
                                 director.handle(MascotEvent.RecordPersistSuccess, ui.settings.companion)
                             },
-                            onDelete = vm::dropFirst,
+                            onDelete = { id ->
+                                val removed = ui.firsts.firstOrNull { it.id == id }
+                                vm.dropFirst(id)
+                                if (removed != null) undoSnack("已删除「${removed.title}」") { vm.putFirst(removed) }
+                            },
                             onBack = { nav.popBackStack() },
                         )
                     }
@@ -590,7 +606,10 @@ private fun MainShell(
                 vm.log(it)
                 director.handle(MascotEvent.RecordPersistSuccess, ui.settings.companion)
             },
-            onDelete = { vm.dropLog(it.id) },
+            onDelete = { removed ->
+                vm.dropLog(removed.id)
+                undoSnack("已删除一条${logKind(removed.type).label}记录") { vm.log(removed) }
+            },
             onDismiss = { editEntry = null },
         )
     }
@@ -601,7 +620,10 @@ private fun MainShell(
                 vm.putMeasure(it)
                 director.handle(MascotEvent.RecordPersistSuccess, ui.settings.companion)
             },
-            onDelete = { vm.dropMeasure(it.id) },
+            onDelete = { removed ->
+                vm.dropMeasure(removed.id)
+                undoSnack("已删除这条生长测量") { vm.putMeasure(removed) }
+            },
             onDismiss = { editMeasure = null },
         )
     }

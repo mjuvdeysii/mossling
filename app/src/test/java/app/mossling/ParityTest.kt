@@ -159,4 +159,22 @@ class ParityTest {
         assertEquals("第一次翻身", first.title)
         assertEquals(7200, measure.weightG)
     }
+
+    @Test
+    fun shelfRollSkipsDuplicateWritesSameWeekAndRotatesOnNewWeekOrMonth() {
+        val content = ContentJson.parse(File("src/main/assets/content.json").readText())
+        val wed = LocalDate.of(2026, 10, 21)
+        val initial = Shelf.roll(content, month = 6, saved = "", today = wed, played = emptySet())
+        assertNotNull(initial)
+
+        // Same week & same month -> must return null so Settings never re-writes identically
+        val sameWeek = Shelf.roll(content, month = 6, saved = initial!!, today = wed.plusDays(2), played = setOf("A11"))
+        org.junit.Assert.assertNull("Shelf.roll must return null within same week and valid month pool", sameWeek)
+
+        // Next Monday -> new week -> must rotate
+        val nextMon = wed.plusDays(5)
+        val nextWeek = Shelf.roll(content, month = 6, saved = initial, today = nextMon, played = emptySet())
+        assertNotNull("Shelf.roll must rotate when crossing into a new Monday-based week", nextWeek)
+        assertEquals(Shelf.week(nextMon), Shelf.parse(nextWeek!!)!!.first)
+    }
 }

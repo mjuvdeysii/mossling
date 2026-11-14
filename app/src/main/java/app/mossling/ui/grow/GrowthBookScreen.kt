@@ -13,19 +13,30 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import app.mossling.AppUi
 import app.mossling.data.First
 import app.mossling.data.LogEntry
@@ -72,14 +83,37 @@ fun GrowthBookScreen(
 ) {
     val content = ui.content ?: return
     val currentMonth = ui.age?.bookMonth ?: 0
-    val monthsToShow = remember(currentMonth, ui.ticks, ui.measures, ui.firsts) {
+    val zone = ZoneId.systemDefault()
+    val birth = ui.settings.birth
+    val allMonths = remember(currentMonth, ui.ticks) {
         val maxTickMonth = ui.ticks.values.maxOfOrNull { it.month } ?: 0
         val top = maxOf(currentMonth, maxTickMonth).coerceIn(0, 36)
         (top downTo 0).toList()
     }
+    val recordedMonths = remember(allMonths, ui.ticks, ui.allLogs, ui.firsts, ui.measures, birth) {
+        allMonths.filterTo(mutableSetOf()) { m ->
+            val startMs = birth?.plusMonths(m.toLong())?.atStartOfDay(zone)?.toInstant()?.toEpochMilli()
+            val endMs = birth?.plusMonths((m + 1).toLong())?.atStartOfDay(zone)?.toInstant()?.toEpochMilli()
+            val hasPlay = playedInMonth(content, ui.ticks, ui.allLogs, birth, m, zone).isNotEmpty()
+            val hasObs = ui.ticks.values.any { it.month == m && it.kind == TickKind.Observed }
+            val hasFirst = if (startMs != null && endMs != null) ui.firsts.any { it.at in startMs until endMs } else m == 0 && ui.firsts.isNotEmpty()
+            val hasMeas = if (startMs != null && endMs != null) ui.measures.any { it.at in startMs until endMs } else m == 0 && ui.measures.isNotEmpty()
+            val hasLogs = if (startMs != null && endMs != null) ui.allLogs.any { it.start in startMs until endMs } else false
+            hasPlay || hasObs || hasFirst || hasMeas || hasLogs
+        }
+    }
+    var onlyRecorded by rememberSaveable { mutableStateOf(false) }
+    val monthsToShow = remember(allMonths, recordedMonths, onlyRecorded) {
+        if (onlyRecorded && recordedMonths.isNotEmpty()) allMonths.filter { it in recordedMonths } else allMonths
+    }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
+    val hasControls = allMonths.size > 1 || recordedMonths.isNotEmpty()
 
     LazyColumn(
         Modifier.fillMaxSize(),
+        state = listState,
         contentPadding = PaddingValues(bottom = 56.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
@@ -120,6 +154,41 @@ fun GrowthBookScreen(
                         companion = ui.settings.companion,
                         size = 80.dp,
                     )
+                }
+            }
+        }
+
+        if (hasControls) {
+            item("controls") {
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (recordedMonths.isNotEmpty()) {
+                        item("filter-recorded") {
+                            FilterChip(
+                                selected = onlyRecorded,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    onlyRecorded = !onlyRecorded
+                                },
+                                label = { Text("仅看有记录 (${recordedMonths.size})") },
+                            )
+                        }
+                    }
+                    if (allMonths.size > 3) {
+                        items(monthsToShow, key = { "jump-$it" }) { m ->
+                            FilterChip(
+                                selected = false,
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    val idx = monthsToShow.indexOf(m)
+                                    if (idx >= 0) scope.launch { listState.animateScrollToItem(idx + 3) }
+                                },
+                                label = { Text("满 ${m} 月") },
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -204,7 +273,17 @@ private fun MonthAlbumPage(
                     )
                 }
             }
-            Text("详情 →", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+            Surface(
+                shape = RoundedCornerShape(10.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+            ) {
+                Text(
+                    "月龄详情",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                )
+            }
         }
 
         // Cover illustration

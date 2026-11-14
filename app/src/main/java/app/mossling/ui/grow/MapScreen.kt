@@ -14,19 +14,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
 import app.mossling.data.MonthGuide
@@ -43,6 +52,7 @@ import app.mossling.ui.ip.StoryGoesOn
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
 import app.mossling.ui.you.Bar
+import kotlinx.coroutines.launch
 
 /**
  * The whole first three years on one screen: 37 stations from birth to three, grouped into the seven stages the
@@ -61,10 +71,24 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
         Triple("18–23 个月", "我来 · 叠高、配对、把两个词连在一起", 18..23),
         Triple("24–36 个月", "讲自己的事 · 跑跳、假装游戏、自己穿脱与收拾", 24..36),
     )
+    val stageHeaderOffsets = remember(stages) {
+        var idx = 3 // bar + hero + stage-jump row
+        stages.map { st ->
+            val current = idx
+            idx += 1 + st.third.count()
+            current
+        }
+    }
+    val initialStage = remember(here) {
+        if (here == null) 0 else stages.indexOfFirst { here in it.third }.coerceAtLeast(0)
+    }
+    var pickedStage by remember(here) { mutableIntStateOf(initialStage) }
     val startIndex = remember(here) {
-        if (here == null) 0 else 2 + stages.takeWhile { here !in it.third }.sumOf { 1 + it.third.count() }
+        if (here == null) 0 else stageHeaderOffsets[initialStage]
     }
     val state = rememberLazyListState(initialFirstVisibleItemIndex = startIndex)
+    val scope = rememberCoroutineScope()
+    val haptic = LocalHapticFeedback.current
     val totalPlays = ui.ticks.values.count { it.kind == TickKind.Did }
     val totalWatch = ui.ticks.values.count { it.kind == TickKind.Observed }
 
@@ -91,6 +115,24 @@ fun MapScreen(ui: AppUi, open: (Int) -> Unit, onBack: () -> Unit) {
                         )
                     }
                     Creature(ui.settings.companion, Modifier.size(64.dp), mood = Mood.Happy)
+                }
+            }
+        }
+        item("stage-jump") {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                itemsIndexed(stages) { idx, st ->
+                    FilterChip(
+                        selected = pickedStage == idx,
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            pickedStage = idx
+                            scope.launch { state.animateScrollToItem(stageHeaderOffsets[idx]) }
+                        },
+                        label = { Text(st.first) },
+                    )
                 }
             }
         }

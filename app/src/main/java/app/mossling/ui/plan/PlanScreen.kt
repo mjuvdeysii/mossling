@@ -29,6 +29,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
@@ -98,8 +102,10 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
             .eachCount()
     }
     val rest = pool.filter { it.code !in codes }
+    val haptic = LocalHapticFeedback.current
 
     fun toggle(code: String) {
+        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         val next = if (code in codes) codes - code else (codes + code).takeLast(3)
         if (next.isNotEmpty()) a.setShelf(next)
     }
@@ -138,6 +144,7 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
                 trailing = {
                     TextButton(
                         onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                             a.setShelf(Shelf.suggest(c, month, played = playedCodes, lastWeek = codes).map { it.code })
                         }
                     ) { Text("换一批推荐") }
@@ -151,7 +158,10 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
                             weekCount = thisWeek[p.code] ?: 0,
                             totalCount = allTime[p.code] ?: 0,
                             onOpen = { a.openPlay(p.code, month) },
-                            onPlayed = { a.logPlayed(p, month) },
+                            onPlayed = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                a.logPlayed(p, month)
+                            },
                             onRemove = if (onShelf.size > 1) ({ toggle(p.code) }) else null,
                         )
                     }
@@ -174,13 +184,55 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
         item {
             SectionTitle("怎么用这个架子")
             Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Text(
-                    "· 不必一天做完三样。一天做一样、做五分钟就够；同一件事一周做四五遍，比做五件新事更有用。\n" +
-                        "· 孩子还在看、还在试的时候不打断；把头转开、推开道具，就收起来。\n" +
-                        "· 每周一架子会自动按孩子的月龄换上三样覆盖不同发展领域的玩法；你也可以随时手动调整。",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    ShelfRuleRow(
+                        glyph = G.Clock,
+                        shape = Shapes.Circle,
+                        title = "少而重复，比贪多更有用",
+                        body = "不必一天做完三样。一天做一样、做五分钟就够；同一件事一周做四五遍，孩子才能真正吃透。",
+                    )
+                    ShelfRuleRow(
+                        glyph = G.Eye,
+                        shape = Shapes.Cookie,
+                        title = "顺着兴趣来，也顺着信号停",
+                        body = "孩子还在看、还在试的时候不打断；把头转开、推开道具，就安静收起来。",
+                    )
+                    ShelfRuleRow(
+                        glyph = G.Bead,
+                        shape = Shapes.Clover,
+                        title = "每周一自动更新，也可以手动调",
+                        body = "架子会按月龄选三样覆盖不同发展领域的玩法；想自己搭，随时点上方列表「+」换上来。",
+                    )
+                }
             }
+        }
+    }
+}
+
+@Composable
+private fun ShelfRuleRow(
+    glyph: G,
+    shape: androidx.graphics.shapes.RoundedPolygon,
+    title: String,
+    body: String,
+) {
+    Row(verticalAlignment = Alignment.Top) {
+        ShapeBadge(
+            glyph,
+            MaterialTheme.colorScheme.secondaryContainer,
+            MaterialTheme.colorScheme.onSecondaryContainer,
+            shape = shape,
+            size = 36.dp,
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, style = MaterialTheme.typography.titleSmall)
+            Text(
+                body,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
+            )
         }
     }
 }
@@ -274,7 +326,14 @@ private fun PoolRow(p: Play, totalCount: Int, onPut: () -> Unit, onOpen: () -> U
                 }
                 Text(p.name, style = MaterialTheme.typography.titleSmall)
             }
-            Box(Modifier.size(44.dp).clickable(onClick = onPut), contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .clickable(onClick = onPut)
+                    .semantics { contentDescription = "把「${p.name}」摆上架子" },
+                contentAlignment = Alignment.Center,
+            ) {
                 MorphBlob(false, Shapes.Circle, Shapes.Burst, MaterialTheme.colorScheme.surfaceContainerHighest, Modifier.size(36.dp))
                 Glyph(G.Plus, size = 18.dp)
             }

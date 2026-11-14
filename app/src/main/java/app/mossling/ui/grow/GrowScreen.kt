@@ -1,6 +1,13 @@
 package app.mossling.ui.grow
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -22,6 +29,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
@@ -40,6 +48,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -180,7 +189,12 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
                         Text("生长曲线", style = MaterialTheme.typography.titleMedium)
                         Text(sub, fontFamily = Numerals, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
-                    Text("查看", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                    Glyph(
+                        G.Back,
+                        size = 18.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                    )
                 }
             }
         }
@@ -221,7 +235,7 @@ fun GrowScreen(ui: AppUi, month: Int, a: GrowActions) {
             item("also") {
                 SectionTitle("也适合这个月", kicker = "${also.size} 个跨月龄玩法")
                 val visible = if (showAllAlso) also else also.take(4)
-                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp).animateContentSize(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     visible.forEach { p ->
                         PlayRow(
                             p = p,
@@ -505,51 +519,108 @@ private fun MonthBanner(
         shape = RoundedCornerShape(32.dp),
         color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-        Column(Modifier.padding(22.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+        AnimatedContent(
+            targetState = month,
+            transitionSpec = {
+                val dir = if (targetState >= initialState) 1 else -1
+                (slideInHorizontally(tween(220)) { (it / 5) * dir } + fadeIn(tween(180))) togetherWith
+                    (slideOutHorizontally(tween(180)) { -(it / 5) * dir } + fadeOut(tween(140)))
+            },
+            label = "month-banner",
+        ) { targetMonth ->
+            val targetGuide = ui.content?.month(targetMonth) ?: guide
+            val targetCover = remember(targetMonth) { ArtIndex.cover(ctx, targetMonth) }
+            val targetTag = when {
+                babyMonth == null -> "第 $targetMonth 站"
+                targetMonth == babyMonth -> "现在这一站"
+                targetMonth < babyMonth -> "走过的第 $targetMonth 站"
+                else -> "往前的第 $targetMonth 站"
+            }
+            Column(Modifier.padding(22.dp)) {
+                Row(
+                    Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Row(
+                        Modifier.weight(1f),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        Text(tag, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Text(targetTag, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
                         Text(
                             "左右滑动切月龄",
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text("满 ", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 4.dp))
-                        SandpaperNumber("$month", MaterialTheme.typography.displaySmall)
-                        Text(" 个月", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Surface(
+                            onClick = { if (targetMonth > 0) onSelectMonth(targetMonth - 1) },
+                            enabled = targetMonth > 0,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (targetMonth > 0) 1f else 0.35f),
+                            modifier = Modifier.size(34.dp).semantics { contentDescription = "上一个月龄" },
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Glyph(
+                                    G.Back,
+                                    size = 16.dp,
+                                    color = if (targetMonth > 0) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                                )
+                            }
+                        }
+                        Surface(
+                            onClick = { if (targetMonth < 36) onSelectMonth(targetMonth + 1) },
+                            enabled = targetMonth < 36,
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (targetMonth < 36) 1f else 0.35f),
+                            modifier = Modifier.size(34.dp).semantics { contentDescription = "下一个月龄" },
+                        ) {
+                            Box(contentAlignment = Alignment.Center) {
+                                Glyph(
+                                    G.Back,
+                                    size = 16.dp,
+                                    color = if (targetMonth < 36) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.outline,
+                                    modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                                )
+                            }
+                        }
                     }
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        guide.title,
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text("满 ", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(bottom = 4.dp))
+                            SandpaperNumber("$targetMonth", MaterialTheme.typography.displaySmall)
+                            Text(" 个月", style = MaterialTheme.typography.headlineMedium, modifier = Modifier.padding(start = 6.dp, bottom = 4.dp))
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        Text(
+                            targetGuide.title,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Box(contentAlignment = Alignment.BottomEnd) {
+                        GrowingChild(month = targetMonth, modifier = Modifier.size(92.dp))
+                        Creature(
+                            ui.settings.companion,
+                            Modifier.size(46.dp),
+                            mood = if (targetMonth == babyMonth) Mood.Happy else Mood.Calm,
+                            look = look,
+                        )
+                    }
+                }
+                if (targetCover != null) {
+                    Spacer(Modifier.height(14.dp))
+                    Art(
+                        targetCover,
+                        label = "满 $targetMonth 个月：${targetGuide.title}",
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)),
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                Box(contentAlignment = Alignment.BottomEnd) {
-                    GrowingChild(month = month, modifier = Modifier.size(92.dp))
-                    Creature(
-                        ui.settings.companion,
-                        Modifier.size(46.dp),
-                        mood = if (month == babyMonth) Mood.Happy else Mood.Calm,
-                        look = look,
-                    )
-                }
-            }
-            if (cover != null) {
-                Spacer(Modifier.height(14.dp))
-                Art(
-                    cover,
-                    label = "满 $month 个月：${guide.title}",
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)),
-                )
             }
         }
     }

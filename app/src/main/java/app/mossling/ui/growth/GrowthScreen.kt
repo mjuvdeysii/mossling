@@ -57,9 +57,15 @@ import app.mossling.domain.ageOn
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.drawText
+import app.mossling.ui.ip.Creature
+import app.mossling.ui.ip.Mood
+import app.mossling.ui.theme.LocalCompanion
 import app.mossling.ui.theme.Numerals
 import app.mossling.ui.theme.Palette
 import app.mossling.ui.you.Bar
@@ -100,6 +106,8 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
     val girl = ui.settings.sex == "girl"
     val known = birth != null && ui.settings.sex != null
     val sorted = ui.measures.sortedBy { it.at }
+    val haptic = LocalHapticFeedback.current
+    val companion = LocalCompanion.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
         item { Bar("生长", a.back) }
         // the latest of each measure; a tile is also the switch for the chart
@@ -110,7 +118,12 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
                     val last = hist.lastOrNull(); val prev = hist.dropLast(1).lastOrNull()
                     Tile(x, selected = ind == x, last = last?.value(x), delta = if (last != null && prev != null) last.value(x)!! - prev.value(x)!! else null,
                         pct = if (known && last != null) growth.percentile(x, girl, monthsAt(birth!!, last.at), last.value(x)!!) else null,
-                        modifier = Modifier.weight(1f)) { ind = x }
+                        modifier = Modifier.weight(1f)) {
+                        if (ind != x) {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            ind = x
+                        }
+                    }
                 }
             }
         }
@@ -147,6 +160,29 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
         }
         item { SectionTitle("每一次测量", kicker = if (ui.measures.isEmpty()) "还没有" else "${ui.measures.size} 次", glyph = G.Ruler) }
+        if (ui.measures.isEmpty()) {
+            item {
+                Surface(
+                    shape = RoundedCornerShape(24.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                ) {
+                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("体检完记一次就够了", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                "不必天天称重；每次去社区卫生服务中心儿保后，顺手把体重、身长、头围填上来，就能看到走势。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(top = 4.dp),
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Creature(companion, Modifier.size(60.dp), mood = Mood.Calm)
+                    }
+                }
+            }
+        }
         val rev = sorted.reversed()
         items(rev, key = { it.id }) { m ->
             val prev = sorted.getOrNull(sorted.indexOf(m) - 1)
@@ -216,6 +252,7 @@ private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNo
     val tip = MaterialTheme.typography.labelMedium.copy(color = ink, fontFamily = Numerals)
     val tm = androidx.compose.ui.text.rememberTextMeasurer()
     var pick by remember(ind, pts.size) { mutableStateOf(if (pts.isEmpty()) -1 else pts.lastIndex) }
+    val haptic = LocalHapticFeedback.current
     val label = "${ind.label}曲线，${pts.size} 个测量点" + (pts.lastOrNull()?.let { "，最近一次 ${ind.fmt(it.v)} ${ind.unit}" } ?: "")
     val geo = remember { floatArrayOf(0f, 0f, 1f, 1f) } // left, top, plot width, plot height
     Canvas(modifier.aspectRatio(1.1f).semantics { contentDescription = label }
@@ -224,6 +261,9 @@ private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNo
                 if (pts.isEmpty()) return@detectTapGestures
                 val (l, _, w, _) = geo.toList()
                 val near = pts.indices.minByOrNull { kotlin.math.abs(l + (pts[it].m / span * w).toFloat() - o.x) } ?: -1
+                if (near != pick && near >= 0) {
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                }
                 pick = near
             }
         }) {
@@ -353,22 +393,42 @@ fun MeasureSheet(m: Measure, onSave: (Measure) -> Unit, onDelete: (Measure) -> U
                     dismissButton = { TextButton(onClick = { calendar = false }) { Text("取消") } }) { androidx.compose.material3.DatePicker(ds) }
             }
             val num = KeyboardOptions(keyboardType = KeyboardType.Decimal)
+            val haptic = LocalHapticFeedback.current
             val wg = w.toDoubleOrNull()?.takeIf { it in 1.0..30.0 }?.let { Math.round(it * 1000).toInt() }
             val lm = l.toDoubleOrNull()?.takeIf { it in 35.0..120.0 }?.let { Math.round(it * 10).toInt() }
             val hm = h.toDoubleOrNull()?.takeIf { it in 25.0..60.0 }?.let { Math.round(it * 10).toInt() }
-            @Composable fun field(x: Indicator, text: String, set: (String) -> Unit, ok: Boolean, hint: String, max: Int) =
-                OutlinedTextField(text, { set(it.filter { c -> c.isDigit() || c == '.' }.take(max)) }, Modifier.fillMaxWidth().padding(top = 8.dp),
-                    label = { Text(x.label) }, leadingIcon = { Glyph(x.glyph, size = 22.dp, color = x.tint) }, suffix = { Text(x.unit) },
-                    supportingText = { Text(hint) }, isError = text.isNotBlank() && !ok, keyboardOptions = num, singleLine = true, shape = RoundedCornerShape(16.dp))
-            field(Indicator.Weight, w, { w = it }, wg != null, "精确到 0.01 千克，如 7.85", 6)
-            field(Indicator.Length, l, { l = it }, lm != null, "精确到 0.1 厘米；2 岁前躺着量身长", 5)
-            field(Indicator.Head, h, { h = it }, hm != null, "精确到 0.1 厘米，经眉上缘与后脑最突出处", 5)
+            @Composable fun field(x: Indicator, text: String, set: (String) -> Unit, ok: Boolean, hint: String, rangeHint: String, max: Int) {
+                val err = text.isNotBlank() && !ok
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { set(it.filter { c -> c.isDigit() || c == '.' }.take(max)) },
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    label = { Text(x.label) },
+                    leadingIcon = { Glyph(x.glyph, size = 22.dp, color = x.tint) },
+                    suffix = { Text(x.unit) },
+                    supportingText = { Text(if (err) rangeHint else hint) },
+                    isError = err,
+                    keyboardOptions = num,
+                    singleLine = true,
+                    shape = RoundedCornerShape(16.dp),
+                )
+            }
+            field(Indicator.Weight, w, { w = it }, wg != null, "精确到 0.01 千克，如 7.85", "请输入 1.0 – 30.0 千克之间的数值", 6)
+            field(Indicator.Length, l, { l = it }, lm != null, "精确到 0.1 厘米；2 岁前躺着量身长", "请输入 35.0 – 120.0 厘米之间的数值", 5)
+            field(Indicator.Head, h, { h = it }, hm != null, "精确到 0.1 厘米，经眉上缘与后脑最突出处", "请输入 25.0 – 60.0 厘米之间的数值", 5)
             Row(Modifier.fillMaxWidth().padding(top = 16.dp)) {
                 if (m.id != 0L) TextButton(onClick = { onDelete(m); onDismiss() }) { Text("删除", color = MaterialTheme.colorScheme.error) }
                 Spacer(Modifier.weight(1f))
-                Button(onClick = {
-                    onSave(m.copy(at = day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), weightG = wg, lengthMm = lm, headMm = hm)); close()
-                }, enabled = wg != null || lm != null || hm != null, shape = RoundedCornerShape(18.dp), modifier = Modifier.heightIn(min = 48.dp)) { Text("好") }
+                Button(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onSave(m.copy(at = day.atTime(12, 0).atZone(ZoneId.systemDefault()).toInstant().toEpochMilli(), weightG = wg, lengthMm = lm, headMm = hm))
+                        close()
+                    },
+                    enabled = wg != null || lm != null || hm != null,
+                    shape = RoundedCornerShape(18.dp),
+                    modifier = Modifier.heightIn(min = 48.dp),
+                ) { Text("好") }
             }
         }
     }

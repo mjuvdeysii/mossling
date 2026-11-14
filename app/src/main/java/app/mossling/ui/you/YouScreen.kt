@@ -21,6 +21,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -38,6 +39,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -47,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.selection.toggleable
 import app.mossling.AppUi
 import app.mossling.ui.components.G
+import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.Plate
 import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.ShapeBadge
@@ -90,6 +95,7 @@ fun YouScreen(ui: AppUi, a: YouActions) {
     val age = ui.age
     val content = ui.content ?: return
     var confirmClear by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     LazyColumn(
         Modifier.fillMaxSize(),
@@ -258,7 +264,12 @@ fun YouScreen(ui: AppUi, a: YouActions) {
                             Text("生长曲线", style = MaterialTheme.typography.titleMedium)
                             Text(sub, fontFamily = Numerals, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Text("进入", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        Glyph(
+                            G.Back,
+                            size = 18.dp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                        )
                     }
                 }
             }
@@ -283,14 +294,20 @@ fun YouScreen(ui: AppUi, a: YouActions) {
                         note = Kind.Moss.trait,
                         selected = ui.settings.companion == Kind.Moss,
                         modifier = Modifier.weight(1f),
-                    ) { a.setCompanion(Kind.Moss) }
+                    ) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        a.setCompanion(Kind.Moss)
+                    }
                     CompanionChoice(
                         kind = Kind.Otto,
                         name = "奥托 Otto",
                         note = Kind.Otto.trait,
                         selected = ui.settings.companion == Kind.Otto,
                         modifier = Modifier.weight(1f),
-                    ) { a.setCompanion(Kind.Otto) }
+                    ) {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        a.setCompanion(Kind.Otto)
+                    }
                 }
             }
         }
@@ -299,16 +316,19 @@ fun YouScreen(ui: AppUi, a: YouActions) {
             SectionTitle("设置")
             Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 ToggleLine("手帐", "记录喂奶、换尿布与睡眠；关掉不会删掉已记的内容", ui.settings.journal, a.setJournal)
-                Spacer(Modifier.height(10.dp))
+                HorizontalDivider(Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 ToggleLine("应用锁", "打开应用时用手机的指纹、面容或锁屏密码确认是你本人", ui.settings.appLock, a.setAppLock)
-                Spacer(Modifier.height(14.dp))
+                HorizontalDivider(Modifier.padding(vertical = 12.dp), color = MaterialTheme.colorScheme.outlineVariant)
                 Text("外观", style = MaterialTheme.typography.titleMedium)
                 Spacer(Modifier.height(8.dp))
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     ThemeMode.entries.forEachIndexed { index, m ->
                         SegmentedButton(
                             selected = ui.settings.theme == m,
-                            onClick = { a.setTheme(m) },
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                a.setTheme(m)
+                            },
                             shape = SegmentedButtonDefaults.itemShape(index = index, count = ThemeMode.entries.size),
                             label = { Text(m.label) },
                         )
@@ -322,34 +342,63 @@ fun YouScreen(ui: AppUi, a: YouActions) {
         }
 
         item {
-            SectionTitle(
-                "记录文件",
-                kicker = "只保存在这部手机上 · 可随时导出或恢复",
-                trailing = { TextButton(onClick = a.openData) { Text("数据与隐私") } },
-            )
-            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                val tickCount = ui.ticks.size
-                Text("已记下 $tickCount 项成长与玩法记录", style = MaterialTheme.typography.bodyMedium)
-                Spacer(Modifier.height(10.dp))
-                FilledTonalButton(
-                    onClick = a.shareSummary,
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                ) {
-                    Text("导出给医生或 AI 看的摘要 (.md)")
-                }
-                Spacer(Modifier.height(8.dp))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    FilledTonalButton(onClick = a.shareJson, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
-                        Text("导出记录（JSON）")
+            SectionTitle("记录与备份", kicker = "只保存在这部手机上 · 可随时导出或恢复")
+            Surface(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Column {
+                    Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp)) {
+                        Text(
+                            "已记下 ${ui.ticks.size} 项成长 · ${ui.allLogs.size} 条手帐 · ${ui.measures.size} 次测量",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Spacer(Modifier.height(10.dp))
+                        FilledTonalButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                a.shareSummary()
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp),
+                        ) {
+                            Glyph(G.Share, size = 18.dp)
+                            Spacer(Modifier.width(8.dp))
+                            Text("导出给医生或 AI 看的摘要 (.md)")
+                        }
                     }
-                    FilledTonalButton(onClick = a.shareCsv, modifier = Modifier.weight(1f), shape = RoundedCornerShape(16.dp)) {
-                        Text("导出手帐（CSV 表格）")
+                    HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    Surface(onClick = a.openData, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ShapeBadge(
+                                G.Download,
+                                MaterialTheme.colorScheme.tertiaryContainer,
+                                MaterialTheme.colorScheme.onTertiaryContainer,
+                                shape = Shapes.Clover,
+                                size = 38.dp,
+                            )
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text("完整备份、表格导出与隐私控制", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "导出 JSON / CSV、从备份恢复、撤回同意",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Glyph(
+                                G.Back,
+                                size = 18.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                            )
+                        }
                     }
-                }
-                Spacer(Modifier.height(8.dp))
-                OutlinedButton(onClick = a.importJson, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-                    Text("从备份文件恢复（JSON）")
                 }
             }
         }
@@ -375,25 +424,67 @@ fun YouScreen(ui: AppUi, a: YouActions) {
         }
 
         item {
-            SectionTitle("参考与来源")
-            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp), onClick = a.openAbout) {
-                Text("内容来源、怎么读、可信程度与参考文献", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "中国、世界卫生组织、美国、英国、加拿大、澳大利亚等权威机构的公开指南 · 共 ${content.sources.size + 1} 项来源",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp), onClick = a.openAppAbout) {
-                Text("关于摸索台灯", style = MaterialTheme.typography.titleMedium)
-                Text(
-                    "版本、检查更新、隐私政策、医疗免责声明、使用条款与问题反馈",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+            SectionTitle("参考与关于")
+            Surface(
+                Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                shape = RoundedCornerShape(26.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+            ) {
+                Column {
+                    Surface(onClick = a.openAbout, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ShapeBadge(
+                                G.Journal,
+                                MaterialTheme.colorScheme.primaryContainer,
+                                MaterialTheme.colorScheme.onPrimaryContainer,
+                                shape = Shapes.Gem,
+                                size = 40.dp,
+                            )
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text("内容来源、怎么读、可信程度与参考文献", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "中国、世界卫生组织、美国、英国、加拿大、澳大利亚等权威机构的公开指南 · 共 ${content.sources.size + 1} 项来源",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                            Glyph(
+                                G.Back,
+                                size = 18.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                            )
+                        }
+                    }
+                    HorizontalDivider(Modifier.padding(horizontal = 18.dp), color = MaterialTheme.colorScheme.outlineVariant)
+                    Surface(onClick = a.openAppAbout, color = MaterialTheme.colorScheme.surfaceContainerLow) {
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+                            ShapeBadge(
+                                G.Idea,
+                                MaterialTheme.colorScheme.secondaryContainer,
+                                MaterialTheme.colorScheme.onSecondaryContainer,
+                                shape = Shapes.Cookie,
+                                size = 40.dp,
+                            )
+                            Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                                Text("关于摸索台灯", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "版本、检查更新、隐私政策、医疗免责声明、使用条款与问题反馈",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                )
+                            }
+                            Glyph(
+                                G.Back,
+                                size = 18.dp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -429,13 +520,17 @@ private fun ToggleLine(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val haptic = LocalHapticFeedback.current
     Row(
         Modifier
             .fillMaxWidth()
             .toggleable(
                 value = checked,
                 role = Role.Switch,
-                onValueChange = onCheckedChange,
+                onValueChange = { next ->
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    onCheckedChange(next)
+                },
             )
             .semantics(mergeDescendants = true) {
                 toggleableState = ToggleableState(checked)

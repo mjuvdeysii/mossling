@@ -133,6 +133,9 @@ interface RecordDao {
     @Query("SELECT * FROM ticks")
     suspend fun allTicks(): List<Tick>
 
+    @Query("SELECT * FROM ticks WHERE `key` = :key LIMIT 1")
+    suspend fun tick(key: String): Tick?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun putTick(t: Tick)
 
@@ -162,6 +165,9 @@ interface RecordDao {
 
     @Query("DELETE FROM logs WHERE id = :id")
     suspend fun dropLog(id: Long)
+
+    @Query("DELETE FROM logs WHERE type = :type AND start = :start")
+    suspend fun dropLogAt(type: String, start: Long)
 
     @Query("SELECT * FROM timers")
     fun timers(): Flow<List<RunningTimer>>

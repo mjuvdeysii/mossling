@@ -29,6 +29,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -69,6 +70,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch { content.value = g.content.get() }
+        viewModelScope.launch {
+            combine(content, g.settings.settings, dao.ticks(), dao.logsFlow()) { c, s, t, logs ->
+                if (c == null) null
+                else {
+                    val today = LocalDate.now()
+                    val month = s.birth?.let { ageOn(it, today).bookMonth } ?: 0
+                    val played = buildSet {
+                        t.filter { it.kind == TickKind.Did }.forEach { add(it.key.substringAfterLast(":")) }
+                        logs.filter { it.type == LogType.Play }.forEach { playCodeOf(it.detail)?.let(::add) }
+                    }
+                    Shelf.roll(c, month, s.shelf, today, played)?.takeIf { it != s.shelf }
+                }
+            }.distinctUntilChanged().collect { rolled ->
+                if (rolled != null) g.settings.setShelf(rolled)
+            }
+        }
     }
 
     private data class CoreState(
@@ -108,18 +125,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val ui: StateFlow<AppUi> = combine(core, extra) { (c, s, t, r, m), ex ->
         val today = LocalDate.now()
         val tickMap = t.associateBy { it.key }
-        // Auto-roll shelf if needed
-        if (c != null) {
-            val month = s.birth?.let { ageOn(it, today).bookMonth } ?: 0
-            val played = buildSet {
-                t.filter { it.kind == TickKind.Did }.forEach { add(it.key.substringAfterLast(":")) }
-                ex.logs.filter { it.type == LogType.Play }.forEach { playCodeOf(it.detail)?.let(::add) }
-            }
-            val rolled = Shelf.roll(c, month, s.shelf, today, played)
-            if (rolled != null && rolled != s.shelf) {
-                viewModelScope.launch { g.settings.setShelf(rolled) }
-            }
-        }
         AppUi(
             content = c,
             settings = s,
@@ -182,14 +187,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleTick(month: Int, kind: String, item: String, label: String = item) = viewModelScope.launch {
         val key = tickKey(month, kind, item)
-        val wasDone = key in ui.value.ticks
-        if (wasDone) {
+        val existing = dao.tick(key)
+        if (existing != null) {
             dao.dropTick(key)
+            if (kind == TickKind.Did) {
+                dao.dropLogAt(LogType.Play, existing.at)
+            }
         } else {
             val now = System.currentTimeMillis()
             dao.putTick(Tick(key, month, kind, label, now))
             if (kind == TickKind.Did) {
-                val play = ui.value.content?.play(item)
+                val c = content.value ?: g.content.get()
+                val play = c.play(item)
                 val detail = if (play != null) "${play.code} ${play.name}" else "$item $label"
                 dao.putLog(LogEntry(type = LogType.Play, start = now, detail = detail))
             }

@@ -43,6 +43,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
 import app.mossling.data.First
@@ -76,6 +78,7 @@ fun FirstsScreen(
 ) {
     var editing by remember { mutableStateOf<First?>(null) }
     val zone = ZoneId.systemDefault()
+    val haptic = LocalHapticFeedback.current
     val birth = ui.settings.birth
     val sorted = remember(ui.firsts) { ui.firsts.sortedByDescending { it.at } }
     val recordedKeys = remember(ui.firsts) { ui.firsts.map { it.key }.toSet() }
@@ -129,6 +132,7 @@ fun FirstsScreen(
                         FilterChip(
                             selected = done,
                             onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 val existing = ui.firsts.firstOrNull { it.key == preset.key }
                                 editing = existing ?: First(
                                     at = System.currentTimeMillis(),
@@ -143,6 +147,7 @@ fun FirstsScreen(
                 Spacer(Modifier.height(12.dp))
                 Button(
                     onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         editing = First(
                             at = System.currentTimeMillis(),
                             key = "custom",
@@ -181,7 +186,7 @@ fun FirstsScreen(
                     onClick = { editing = f },
                     shape = RoundedCornerShape(22.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateItem(),
                 ) {
                     Row(
                         Modifier.padding(18.dp),

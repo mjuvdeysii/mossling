@@ -35,6 +35,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.unit.dp
 import app.mossling.data.LogType
 import app.mossling.data.RunningTimer
@@ -91,9 +93,13 @@ fun TimerCard(
         else -> null
     }
     val companion = LocalCompanion.current
+    val haptic = LocalHapticFeedback.current
 
     Surface(
-        modifier = modifier.fillMaxWidth().let { if (onExpand != null) it.clickable { onExpand() } else it },
+        modifier = modifier.fillMaxWidth().let { if (onExpand != null) it.clickable {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            onExpand()
+        } else it },
         shape = RoundedCornerShape(28.dp),
         color = MaterialTheme.colorScheme.primaryContainer,
     ) {
@@ -107,11 +113,17 @@ fun TimerCard(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         if (onExpand != null) {
-                            Text(
-                                "展开 →",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.primary,
-                            )
+                            Surface(
+                                shape = RoundedCornerShape(10.dp),
+                                color = MaterialTheme.colorScheme.surfaceContainerLowest.copy(alpha = 0.72f),
+                            ) {
+                                Text(
+                                    "专注面板",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                )
+                            }
                         }
                     }
                     Text(
@@ -162,17 +174,32 @@ fun TimerCard(
             }
             Spacer(Modifier.height(6.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilledTonalButton(onClick = onPause, shape = RoundedCornerShape(16.dp)) {
+                FilledTonalButton(
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        onPause()
+                    },
+                    shape = RoundedCornerShape(16.dp),
+                ) {
                     Text(if (t.pausedAt == null) "暂停" else "继续")
                 }
                 if (t.type == LogType.Nurse) {
-                    FilledTonalButton(onClick = onSwitchSide, shape = RoundedCornerShape(16.dp)) {
+                    FilledTonalButton(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onSwitchSide()
+                        },
+                        shape = RoundedCornerShape(16.dp),
+                    ) {
                         Text("换到" + if (t.side == "l") "右侧" else "左侧")
                     }
                 }
                 Spacer(Modifier.weight(1f))
                 Button(
-                    onClick = onStop,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onStop()
+                    },
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primary,
@@ -219,6 +246,7 @@ fun TimerModalSheet(
     val leftMs = if (timer != null && type == LogType.Nurse) Timers.sideElapsed(timer, "l", tick) else 0L
     val rightMs = if (timer != null && type == LogType.Nurse) Timers.sideElapsed(timer, "r", tick) else 0L
     val companion = LocalCompanion.current
+    val haptic = LocalHapticFeedback.current
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -266,20 +294,29 @@ fun TimerModalSheet(
                         elapsedMs = leftMs,
                         active = timer != null && timer.side == "l" && timer.pausedAt == null,
                         paused = timer != null && timer.side == "l" && timer.pausedAt != null,
-                        onClick = { onTapSide("l") },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTapSide("l")
+                        },
                     )
                     NurseSideCircle(
                         label = "右侧 R",
                         elapsedMs = rightMs,
                         active = timer != null && timer.side == "r" && timer.pausedAt == null,
                         paused = timer != null && timer.side == "r" && timer.pausedAt != null,
-                        onClick = { onTapSide("r") },
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            onTapSide("r")
+                        },
                     )
                 }
             } else {
                 val active = timer != null && timer.pausedAt == null
                 Surface(
-                    onClick = { if (timer == null) onStart(null) else onPause() },
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        if (timer == null) onStart(null) else onPause()
+                    },
                     shape = CircleShape,
                     color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
                     border = BorderStroke(if (active) 3.dp else 1.dp, if (active) Palette.Bead else MaterialTheme.colorScheme.outlineVariant),
