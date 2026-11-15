@@ -33,6 +33,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import app.mossling.ui.components.Plate
@@ -64,6 +66,14 @@ fun Onboarding(
     var companion by remember { mutableStateOf(Kind.Moss) }
     var picking by remember { mutableStateOf(false) }
     var legalDoc by remember { mutableStateOf<LegalDoc?>(null) }
+    val haptic = LocalHapticFeedback.current
+
+    fun selectCompanion(k: Kind) {
+        if (companion != k) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            companion = k
+        }
+    }
 
     Column(
         Modifier
@@ -80,7 +90,7 @@ fun Onboarding(
                 .height(210.dp),
             focus = companion,
             selecting = true,
-            onSelect = { companion = it },
+            onSelect = ::selectCompanion,
         )
 
         Spacer(Modifier.height(16.dp))
@@ -109,14 +119,14 @@ fun Onboarding(
                 trait = Kind.Moss.trait,
                 selected = companion == Kind.Moss,
                 modifier = Modifier.weight(1f),
-            ) { companion = Kind.Moss }
+            ) { selectCompanion(Kind.Moss) }
             CompanionCard(
                 kind = Kind.Otto,
                 name = "奥托 Otto",
                 trait = Kind.Otto.trait,
                 selected = companion == Kind.Otto,
                 modifier = Modifier.weight(1f),
-            ) { companion = Kind.Otto }
+            ) { selectCompanion(Kind.Otto) }
         }
 
         Spacer(Modifier.height(16.dp))
@@ -163,7 +173,11 @@ fun Onboarding(
     if (picking) {
         BirthDateDialog(
             initial = LocalDate.now().minusMonths(6),
-            onConfirm = { picking = false; onFinish(it, companion) },
+            onConfirm = {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                picking = false
+                onFinish(it, companion)
+            },
             onDismiss = { picking = false },
         )
     }

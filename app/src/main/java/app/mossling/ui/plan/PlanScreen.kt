@@ -1,5 +1,6 @@
 package app.mossling.ui.plan
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -12,20 +13,31 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -74,6 +86,7 @@ data class PlanActions(
  * The week's Montessori shelf:
  * Three plays set out in the open, repeated as often as the child likes, rotated when a new week begins or when the child loses interest.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
     val c = ui.content ?: return
@@ -102,6 +115,18 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
             .eachCount()
     }
     val rest = pool.filter { it.code !in codes }
+    var domainFilter by rememberSaveable(month) { mutableStateOf<String?>(null) }
+    var onlyUnplayed by rememberSaveable(month) { mutableStateOf(false) }
+    var showGuide by rememberSaveable { mutableStateOf(false) }
+    val availableDomains = remember(rest) {
+        rest.flatMap { it.domains }.distinct().sorted()
+    }
+    val filteredRest = remember(rest, domainFilter, onlyUnplayed, allTime, playedCodes) {
+        rest.filter { p ->
+            (domainFilter == null || domainFilter in p.domains) &&
+                (!onlyUnplayed || (p.code !in playedCodes && (allTime[p.code] ?: 0) == 0))
+        }
+    }
     val haptic = LocalHapticFeedback.current
 
     fun toggle(code: String) {
@@ -115,7 +140,11 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
         contentPadding = PaddingValues(bottom = 48.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item { Bar("本周的架子", a.back) }
+        item {
+            Bar("本周的架子", a.back) {
+                TextButton(onClick = { showGuide = true }) { Text("怎么用") }
+            }
+        }
         item {
             Surface(
                 shape = RoundedCornerShape(28.dp),
@@ -126,7 +155,7 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
                     Column(Modifier.weight(1f)) {
                         Text("矮架上一次摆三样", style = MaterialTheme.typography.headlineSmall)
                         Text(
-                            "蒙台梭利教室里，架子上的工作不多，但每天都在老地方。孩子看到熟悉的托盘，会自己走过去再做一遍；做腻了，再换一样。",
+                            "架子上的工作不多，但每天都在老地方。孩子看到熟悉的托盘，会自己走过去再做一遍；做腻了，再换一样。",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.padding(top = 4.dp),
@@ -150,11 +179,12 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
                     ) { Text("换一批推荐") }
                 },
             )
-            WoodShelf(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+            WoodShelf(Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateContentSize()) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    onShelf.forEach { p ->
+                    onShelf.forEachIndexed { idx, p ->
                         ShelfItemCard(
                             p = p,
+                            slotIndex = idx + 1,
                             weekCount = thisWeek[p.code] ?: 0,
                             totalCount = allTime[p.code] ?: 0,
                             onOpen = { a.openPlay(p.code, month) },
@@ -169,41 +199,108 @@ fun PlanScreen(ui: AppUi, playLogs: List<LogEntry>, a: PlanActions) {
             }
         }
         if (rest.isNotEmpty()) {
-            item {
-                SectionTitle("满 $month 个月还能摆的", kicker = "点一下换到架子上（最多 3 样）")
-            }
-            items(rest, key = { it.code }) { p ->
-                PoolRow(
-                    p = p,
-                    totalCount = allTime[p.code] ?: 0,
-                    onPut = { toggle(p.code) },
-                    onOpen = { a.openPlay(p.code, month) },
+            item("pool-header") {
+                SectionTitle(
+                    "满 $month 个月还能摆的",
+                    kicker = if (onShelf.size >= 3) "点「+」会替换架上最早的一样（最多 3 样）" else "点一下换到架子上（最多 3 样）",
                 )
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    item("unplayed") {
+                        FilterChip(
+                            selected = onlyUnplayed,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onlyUnplayed = !onlyUnplayed
+                            },
+                            label = { Text("还没玩过") },
+                        )
+                    }
+                    item("all-domains") {
+                        FilterChip(
+                            selected = domainFilter == null,
+                            onClick = { domainFilter = null },
+                            label = { Text("全部 (${rest.size})") },
+                        )
+                    }
+                    items(availableDomains, key = { "dom-$it" }) { d ->
+                        FilterChip(
+                            selected = domainFilter == d,
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                domainFilter = if (domainFilter == d) null else d
+                            },
+                            leadingIcon = { ColorTablet(areaColor(d)) },
+                            label = { Text(AreaNames[d] ?: d) },
+                        )
+                    }
+                }
             }
-        }
-        item {
-            SectionTitle("怎么用这个架子")
-            Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    ShelfRuleRow(
-                        glyph = G.Clock,
-                        shape = Shapes.Circle,
-                        title = "少而重复，比贪多更有用",
-                        body = "不必一天做完三样。一天做一样、做五分钟就够；同一件事一周做四五遍，孩子才能真正吃透。",
-                    )
-                    ShelfRuleRow(
-                        glyph = G.Eye,
-                        shape = Shapes.Cookie,
-                        title = "顺着兴趣来，也顺着信号停",
-                        body = "孩子还在看、还在试的时候不打断；把头转开、推开道具，就安静收起来。",
-                    )
-                    ShelfRuleRow(
-                        glyph = G.Bead,
-                        shape = Shapes.Clover,
-                        title = "每周一自动更新，也可以手动调",
-                        body = "架子会按月龄选三样覆盖不同发展领域的玩法；想自己搭，随时点上方列表「+」换上来。",
+            if (filteredRest.isEmpty()) {
+                item("pool-empty") {
+                    Plate(
+                        Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                    ) {
+                        Text("这一组筛选下没有更多玩法", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            "可以切换其它领域，或取消「还没玩过」看看全部 ${rest.size} 个玩法。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
+                }
+            } else {
+                items(filteredRest, key = { it.code }) { p ->
+                    PoolRow(
+                        p = p,
+                        totalCount = allTime[p.code] ?: 0,
+                        shelfFull = onShelf.size >= 3,
+                        onPut = { toggle(p.code) },
+                        onOpen = { a.openPlay(p.code, month) },
+                        modifier = Modifier.animateItem(),
                     )
                 }
+            }
+        }
+    }
+
+    if (showGuide) {
+        ModalBottomSheet(
+            onDismissRequest = { showGuide = false },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp)
+                    .padding(bottom = 28.dp)
+                    .navigationBarsPadding(),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Text("怎么用这个架子", style = MaterialTheme.typography.headlineSmall)
+                ShelfRuleRow(
+                    glyph = G.Clock,
+                    shape = Shapes.Circle,
+                    title = "少而重复，比贪多更有用",
+                    body = "不必一天做完三样。一天做一样、做五分钟就够；同一件事一周做四五遍，孩子才能真正吃透。",
+                )
+                ShelfRuleRow(
+                    glyph = G.Eye,
+                    shape = Shapes.Cookie,
+                    title = "顺着兴趣来，也顺着信号停",
+                    body = "孩子还在看、还在试的时候不打断；把头转开、推开道具，就安静收起来。",
+                )
+                ShelfRuleRow(
+                    glyph = G.Bead,
+                    shape = Shapes.Clover,
+                    title = "每周一自动更新，也可以手动调",
+                    body = "架子会按月龄选三样覆盖不同发展领域的玩法；想自己搭，随时点「+」换上来。",
+                )
             }
         }
     }
@@ -240,6 +337,7 @@ private fun ShelfRuleRow(
 @Composable
 private fun ShelfItemCard(
     p: Play,
+    slotIndex: Int,
     weekCount: Int,
     totalCount: Int,
     onOpen: () -> Unit,
@@ -262,7 +360,12 @@ private fun ShelfItemCard(
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text(p.code, fontFamily = Numerals, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            "$slotIndex/3 · ${p.code}",
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         p.domains.forEach { d ->
                             ColorTablet(areaColor(d))
                             Text(AreaNames[d] ?: d, style = MaterialTheme.typography.labelSmall, color = areaColor(d))
@@ -304,12 +407,19 @@ private fun ShelfItemCard(
 }
 
 @Composable
-private fun PoolRow(p: Play, totalCount: Int, onPut: () -> Unit, onOpen: () -> Unit) {
+private fun PoolRow(
+    p: Play,
+    totalCount: Int,
+    shelfFull: Boolean,
+    onPut: () -> Unit,
+    onOpen: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Surface(
         onClick = onOpen,
         shape = RoundedCornerShape(20.dp),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        modifier = modifier.fillMaxWidth().padding(horizontal = 16.dp),
     ) {
         Row(Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
             val d0 = p.domains.firstOrNull() ?: "A"
@@ -331,7 +441,9 @@ private fun PoolRow(p: Play, totalCount: Int, onPut: () -> Unit, onOpen: () -> U
                     .size(44.dp)
                     .clip(CircleShape)
                     .clickable(onClick = onPut)
-                    .semantics { contentDescription = "把「${p.name}」摆上架子" },
+                    .semantics {
+                        contentDescription = if (shelfFull) "用「${p.name}」替换架子上最早的一样" else "把「${p.name}」摆上架子"
+                    },
                 contentAlignment = Alignment.Center,
             ) {
                 MorphBlob(false, Shapes.Circle, Shapes.Burst, MaterialTheme.colorScheme.surfaceContainerHighest, Modifier.size(36.dp))

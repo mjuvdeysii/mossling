@@ -1,37 +1,45 @@
 package app.mossling.ui.growth
 
+import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -39,30 +47,29 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import app.mossling.AppUi
 import app.mossling.data.Measure
 import app.mossling.domain.Growth
 import app.mossling.domain.Indicator
-import app.mossling.ui.components.SectionTitle
+import app.mossling.domain.ageOn
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
-import app.mossling.domain.ageOn
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.text.drawText
+import app.mossling.ui.components.SectionTitle
+import app.mossling.ui.components.ShapeBadge
+import app.mossling.ui.components.Shapes
 import app.mossling.ui.ip.Creature
 import app.mossling.ui.ip.Mood
 import app.mossling.ui.theme.LocalCompanion
@@ -96,16 +103,24 @@ private fun ageText(birth: LocalDate, d: LocalDate): String {
 
 /**
  * Weight, length and head circumference against the WHO Child Growth Standards: the latest of each on top, then the
- * chart (3rd–97th and 15th–85th percentile bands, the median, the child's own line), then every measurement. A
- * percentile is a position, not a grade.
+ * chart (3rd–97th and 15th–85th percentile bands, the median, the child's own line) with an interactive point inspector,
+ * then every measurement. A percentile is a position, not a grade.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
     var ind by rememberSaveable { mutableStateOf(Indicator.Weight) }
+    var fullSpan by rememberSaveable { mutableStateOf(false) }
     val birth = ui.settings.birth
     val girl = ui.settings.sex == "girl"
     val known = birth != null && ui.settings.sex != null
-    val sorted = ui.measures.sortedBy { it.at }
+    val sorted = remember(ui.measures) { ui.measures.sortedBy { it.at } }
+    val measuredPts = remember(sorted, birth, ind) {
+        if (birth == null) emptyList()
+        else sorted.mapNotNull { m -> m.value(ind)?.let { v -> MeasuredPt(m, Pt(monthsAt(birth, m.at), v, dayOf(m.at))) } }
+    }
+    var rawPick by rememberSaveable(ind, measuredPts.size) { mutableIntStateOf(if (measuredPts.isEmpty()) -1 else measuredPts.lastIndex) }
+    val pick = if (measuredPts.isEmpty()) -1 else rawPick.coerceIn(0, measuredPts.lastIndex)
     val haptic = LocalHapticFeedback.current
     val companion = LocalCompanion.current
     LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 120.dp)) {
@@ -139,25 +154,112 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
             }
         }
         item {
-            val pts = if (birth == null) emptyList() else sorted.mapNotNull { m -> m.value(ind)?.let { Pt(monthsAt(birth, m.at), it, dayOf(m.at)) } }
+            val pts = remember(measuredPts) { measuredPts.map { it.pt } }
             val ageNow = ui.age?.let { it.months + it.days / 30.4375 }
-            Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surfaceContainerLow, modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp)) {
-                Column(Modifier.padding(top = 16.dp, bottom = 12.dp)) {
-                    Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        app.mossling.ui.components.ShapeBadge(ind.glyph, ind.tint.copy(alpha = 0.16f), ind.tint, shape = app.mossling.ui.components.Shapes.Cookie, size = 36.dp)
-                        Column(Modifier.padding(start = 10.dp)) {
-                            Text("${ind.label} · ${ind.unit}", style = MaterialTheme.typography.titleMedium)
-                            Text(if (ui.settings.sex == null) "WHO 儿童生长标准" else "WHO 儿童生长标准 · " + if (girl) "女孩" else "男孩",
-                                style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val autoSpan = (maxOf(ageNow ?: 0.0, pts.maxOfOrNull { it.m } ?: 0.0) + 3).coerceIn(6.0, 36.0)
+            val span = if (fullSpan) 36.0 else autoSpan
+            Surface(
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 12.dp).animateContentSize(),
+            ) {
+                Column(Modifier.padding(top = 16.dp, bottom = 14.dp)) {
+                    Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            ShapeBadge(ind.glyph, ind.tint.copy(alpha = 0.16f), ind.tint, shape = Shapes.Cookie, size = 36.dp)
+                            Column(Modifier.padding(start = 10.dp)) {
+                                Text("${ind.label} · ${ind.unit}", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    if (ui.settings.sex == null) "WHO 儿童生长标准" else "WHO 儿童生长标准 · " + if (girl) "女孩" else "男孩",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            FilterChip(
+                                selected = !fullSpan,
+                                onClick = {
+                                    if (fullSpan) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        fullSpan = false
+                                    }
+                                },
+                                label = { Text("当前阶段") },
+                            )
+                            FilterChip(
+                                selected = fullSpan,
+                                onClick = {
+                                    if (!fullSpan) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        fullSpan = true
+                                    }
+                                },
+                                label = { Text("0–36 月全貌") },
+                            )
                         }
                     }
-                    Chart(growth, ind, girl, pts, ageNow, span = (maxOf(ageNow ?: 0.0, pts.maxOfOrNull { it.m } ?: 0.0) + 3).coerceIn(6.0, 36.0),
-                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 12.dp))
+                    Chart(
+                        g = growth,
+                        ind = ind,
+                        girl = girl,
+                        pts = pts,
+                        ageNow = ageNow,
+                        span = span,
+                        pick = pick,
+                        onPick = { rawPick = it },
+                        modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 8.dp, top = 12.dp),
+                    )
+                    if (pick in measuredPts.indices) {
+                        val selected = measuredPts[pick]
+                        val prevPt = measuredPts.getOrNull(pick - 1)?.pt
+                        val selectedPct = if (known) growth.percentile(ind, girl, selected.pt.m, selected.pt.v) else null
+                        ChartInspector(
+                            ind = ind,
+                            entry = selected,
+                            prev = prevPt,
+                            birth = birth,
+                            pct = selectedPct,
+                            index = pick,
+                            total = measuredPts.size,
+                            onPrev = {
+                                if (pick > 0) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    rawPick = pick - 1
+                                }
+                            },
+                            onNext = {
+                                if (pick < measuredPts.lastIndex) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    rawPick = pick + 1
+                                }
+                            },
+                            onEdit = { a.edit(selected.m) },
+                        )
+                    } else if (birth == null && ui.measures.isNotEmpty()) {
+                        Text(
+                            "填写出生日期后，测量点就会落在对应的月龄曲线上。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
+                    } else if (ui.measures.isNotEmpty()) {
+                        Text(
+                            "当前记录里还没有${ind.short}数值，点下方任意测量可补充。",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                        )
+                    }
                     Legend(ind, Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
                 }
             }
-            Text("资料来源：世界卫生组织儿童生长标准（2006）。百分位表示同龄同性别儿童中的位置，不是评分；判断生长情况请以儿童保健医生的评估为准。",
-                style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp))
+            Text(
+                "资料来源：世界卫生组织儿童生长标准（2006）。百分位表示同龄同性别儿童中的位置，不是评分；判断生长情况请以儿童保健医生的评估为准。",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 10.dp),
+            )
         }
         item { SectionTitle("每一次测量", kicker = if (ui.measures.isEmpty()) "还没有" else "${ui.measures.size} 次", glyph = G.Ruler) }
         if (ui.measures.isEmpty()) {
@@ -167,18 +269,27 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
                     color = MaterialTheme.colorScheme.surfaceContainerLow,
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
                 ) {
-                    Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text("体检完记一次就够了", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                "不必天天称重；每次去社区卫生服务中心儿保后，顺手把体重、身长、头围填上来，就能看到走势。",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 4.dp),
-                            )
+                    Column(Modifier.padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f)) {
+                                Text("体检完记一次就够了", style = MaterialTheme.typography.titleMedium)
+                                Text(
+                                    "不必天天称重；每次去社区卫生服务中心儿保后，顺手把体重、身长、头围填上来，就能看到走势。",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 4.dp),
+                                )
+                            }
+                            Spacer(Modifier.width(8.dp))
+                            Creature(companion, Modifier.size(60.dp), mood = Mood.Calm)
                         }
-                        Spacer(Modifier.width(8.dp))
-                        Creature(companion, Modifier.size(60.dp), mood = Mood.Calm)
+                        Button(
+                            onClick = a.add,
+                            shape = RoundedCornerShape(18.dp),
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+                        ) {
+                            Glyph(G.Plus, size = 18.dp); Spacer(Modifier.width(8.dp)); Text("记一次测量")
+                        }
                     }
                 }
             }
@@ -186,17 +297,97 @@ fun GrowthScreen(ui: AppUi, growth: Growth, a: GrowthActions) {
         val rev = sorted.reversed()
         items(rev, key = { it.id }) { m ->
             val prev = sorted.getOrNull(sorted.indexOf(m) - 1)
-            MeasureRow(m, prev, birth, ind, if (known && m.value(ind) != null) growth.percentile(ind, girl, monthsAt(birth!!, m.at), m.value(ind)!!) else null) { a.edit(m) }
+            val isPicked = pick in measuredPts.indices && measuredPts[pick].m.id == m.id
+            MeasureRow(
+                m = m,
+                prev = prev,
+                birth = birth,
+                ind = ind,
+                pct = if (known && m.value(ind) != null) growth.percentile(ind, girl, monthsAt(birth!!, m.at), m.value(ind)!!) else null,
+                highlighted = isPicked,
+            ) { a.edit(m) }
         }
-        item {
-            Button(onClick = a.add, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 52.dp)) {
-                Glyph(G.Plus, size = 18.dp); Spacer(Modifier.width(8.dp)); Text("记一次测量")
+        if (ui.measures.isNotEmpty()) {
+            item {
+                Button(onClick = a.add, shape = RoundedCornerShape(18.dp), modifier = Modifier.fillMaxWidth().padding(16.dp).heightIn(min = 52.dp)) {
+                    Glyph(G.Plus, size = 18.dp); Spacer(Modifier.width(8.dp)); Text("记一次测量")
+                }
             }
         }
     }
 }
 
 private data class Pt(val m: Double, val v: Double, val day: LocalDate)
+private data class MeasuredPt(val m: Measure, val pt: Pt)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ChartInspector(
+    ind: Indicator,
+    entry: MeasuredPt,
+    prev: Pt?,
+    birth: LocalDate?,
+    pct: Double?,
+    index: Int,
+    total: Int,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onEdit: () -> Unit,
+) {
+    val d = entry.pt.day
+    val delta = prev?.let { entry.pt.v - it.v }
+    Surface(
+        shape = RoundedCornerShape(20.dp),
+        color = ind.tint.copy(alpha = 0.08f),
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp).padding(top = 8.dp),
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Column {
+                    Text(
+                        "${d.year}.${d.monthValue}.${d.dayOfMonth}" + (birth?.let { " · ${ageText(it, d)}" } ?: ""),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                    Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 2.dp)) {
+                        Text(ind.fmt(entry.pt.v), fontFamily = Numerals, style = MaterialTheme.typography.headlineSmall, color = ind.tint)
+                        Text(" ${ind.unit}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 2.dp))
+                        delta?.let { dv ->
+                            Text(
+                                "  " + (if (dv >= 0) "+" else "−") + ind.fmt(kotlin.math.abs(dv)),
+                                fontFamily = Numerals,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = ind.tint,
+                                modifier = Modifier.padding(bottom = 2.dp),
+                            )
+                        }
+                    }
+                    pct?.let {
+                        Text(pctText(it), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                TextButton(onClick = onEdit) {
+                    Text("编辑")
+                }
+            }
+            if (total > 1) {
+                HorizontalDivider(color = ind.tint.copy(alpha = 0.16f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedButton(onClick = onPrev, enabled = index > 0, shape = RoundedCornerShape(14.dp)) {
+                        Text("‹ 上一次", style = MaterialTheme.typography.labelMedium)
+                    }
+                    Text("${index + 1} / $total", fontFamily = Numerals, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    OutlinedButton(onClick = onNext, enabled = index < total - 1, shape = RoundedCornerShape(14.dp)) {
+                        Text("下一次 ›", style = MaterialTheme.typography.labelMedium)
+                    }
+                }
+            }
+        }
+    }
+}
 
 @Composable
 private fun Tile(x: Indicator, selected: Boolean, last: Double?, delta: Double?, pct: Double?, modifier: Modifier, onClick: () -> Unit) {
@@ -217,12 +408,12 @@ private fun Tile(x: Indicator, selected: Boolean, last: Double?, delta: Double?,
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Legend(ind: Indicator, modifier: Modifier) {
     val outline = MaterialTheme.colorScheme.outline
     val mid = MaterialTheme.colorScheme.onSurfaceVariant
-    androidx.compose.foundation.layout.FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         @Composable fun swatch(text: String, draw: androidx.compose.ui.graphics.drawscope.DrawScope.() -> Unit) = Row(verticalAlignment = Alignment.CenterVertically) {
             Canvas(Modifier.width(22.dp).height(12.dp), onDraw = draw); Text(" $text", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -241,7 +432,17 @@ private fun niceStep(range: Double): Double {
 }
 
 @Composable
-private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNow: Double?, span: Double, modifier: Modifier) {
+private fun Chart(
+    g: Growth,
+    ind: Indicator,
+    girl: Boolean,
+    pts: List<Pt>,
+    ageNow: Double?,
+    span: Double,
+    pick: Int,
+    onPick: (Int) -> Unit,
+    modifier: Modifier,
+) {
     val tint = ind.tint
     val line = MaterialTheme.colorScheme.outline
     val mid = MaterialTheme.colorScheme.onSurfaceVariant
@@ -251,12 +452,11 @@ private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNo
     val axis = MaterialTheme.typography.labelSmall.copy(color = MaterialTheme.colorScheme.onSurfaceVariant, fontFamily = Numerals)
     val tip = MaterialTheme.typography.labelMedium.copy(color = ink, fontFamily = Numerals)
     val tm = androidx.compose.ui.text.rememberTextMeasurer()
-    var pick by remember(ind, pts.size) { mutableStateOf(if (pts.isEmpty()) -1 else pts.lastIndex) }
     val haptic = LocalHapticFeedback.current
     val label = "${ind.label}曲线，${pts.size} 个测量点" + (pts.lastOrNull()?.let { "，最近一次 ${ind.fmt(it.v)} ${ind.unit}" } ?: "")
     val geo = remember { floatArrayOf(0f, 0f, 1f, 1f) } // left, top, plot width, plot height
     Canvas(modifier.aspectRatio(1.1f).semantics { contentDescription = label }
-        .pointerInput(pts, span) {
+        .pointerInput(pts, span, pick) {
             detectTapGestures { o ->
                 if (pts.isEmpty()) return@detectTapGestures
                 val (l, _, w, _) = geo.toList()
@@ -264,7 +464,7 @@ private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNo
                 if (near != pick && near >= 0) {
                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                 }
-                pick = near
+                if (near >= 0) onPick(near)
             }
         }) {
         val left = 40.dp.toPx(); val right = 26.dp.toPx(); val top = 8.dp.toPx(); val bottom = 22.dp.toPx()
@@ -333,32 +533,48 @@ private fun Chart(g: Growth, ind: Indicator, girl: Boolean, pts: List<Pt>, ageNo
     }
 }
 
-@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun MeasureRow(m: Measure, prev: Measure?, birth: LocalDate?, ind: Indicator, pct: Double?, onClick: () -> Unit) {
+private fun MeasureRow(m: Measure, prev: Measure?, birth: LocalDate?, ind: Indicator, pct: Double?, highlighted: Boolean, onClick: () -> Unit) {
     val d = dayOf(m.at)
-    Surface(onClick = onClick, color = Color.Transparent, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(horizontal = 20.dp, vertical = 10.dp), verticalAlignment = Alignment.Top) {
-            Column(Modifier.width(112.dp)) {
-                Text("${d.year}.${d.monthValue}.${d.dayOfMonth}", fontFamily = Numerals, style = MaterialTheme.typography.titleMedium)
-                birth?.let { Text(ageText(it, d), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(20.dp),
+        color = if (highlighted) ind.tint.copy(alpha = 0.08f) else MaterialTheme.colorScheme.surfaceContainerLow,
+        border = if (highlighted) androidx.compose.foundation.BorderStroke(1.5.dp, ind.tint.copy(alpha = 0.45f)) else null,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                FlowRow(
+                    modifier = Modifier.weight(1f),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text("${d.year}.${d.monthValue}.${d.dayOfMonth}", fontFamily = Numerals, style = MaterialTheme.typography.titleMedium)
+                    birth?.let { Text(ageText(it, d), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 2.dp)) }
+                }
+                Glyph(
+                    G.Back,
+                    size = 14.dp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                )
             }
-            Column(Modifier.weight(1f)) {
-                androidx.compose.foundation.layout.FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Indicator.entries.forEach { x ->
-                        m.value(x)?.let { v ->
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Glyph(x.glyph, size = 16.dp, color = x.tint)
-                                Text(" ${x.fmt(v)}", fontFamily = Numerals, style = MaterialTheme.typography.bodyLarge, color = if (x == ind) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(if (x == Indicator.Weight) " kg" else " cm", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Indicator.entries.forEach { x ->
+                    m.value(x)?.let { v ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Glyph(x.glyph, size = 16.dp, color = x.tint)
+                            Text(" ${x.fmt(v)}", fontFamily = Numerals, style = MaterialTheme.typography.bodyLarge, color = if (x == ind) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(if (x == Indicator.Weight) " kg" else " cm", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
                 }
-                val dv = prev?.value(ind)?.let { pv -> m.value(ind)?.let { it - pv } }
-                val bits = listOfNotNull(pct?.let { pctText(it) }, dv?.let { (if (it >= 0) "比上次 +" else "比上次 −") + ind.fmt(kotlin.math.abs(it)) })
-                if (bits.isNotEmpty()) Text("${ind.short} " + bits.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = ind.tint, modifier = Modifier.padding(top = 2.dp))
             }
+            val dv = prev?.value(ind)?.let { pv -> m.value(ind)?.let { it - pv } }
+            val bits = listOfNotNull(pct?.let { pctText(it) }, dv?.let { (if (it >= 0) "比上次 +" else "比上次 −") + ind.fmt(kotlin.math.abs(it)) })
+            if (bits.isNotEmpty()) Text("${ind.short} " + bits.joinToString(" · "), style = MaterialTheme.typography.labelMedium, color = ind.tint)
         }
     }
 }

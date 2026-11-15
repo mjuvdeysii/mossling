@@ -1,5 +1,6 @@
 package app.mossling.ui.search
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -35,6 +36,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.SpanStyle
@@ -42,8 +46,10 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import app.mossling.data.AreaNames
 import app.mossling.data.Block
 import app.mossling.data.Content
+import app.mossling.ui.components.ColorTablet
 import app.mossling.ui.components.G
 import app.mossling.ui.components.Glyph
 import app.mossling.ui.components.ShapeBadge
@@ -87,39 +93,51 @@ fun SearchScreen(
 ) {
     var q by rememberSaveable { mutableStateOf("") }
     var cat by rememberSaveable { mutableStateOf(HitCategory.All) }
+    var selectedDomain by rememberSaveable { mutableStateOf<String?>(null) }
     val focus = remember { FocusRequester() }
+    val haptic = LocalHapticFeedback.current
     LaunchedEffect(Unit) { runCatching { focus.requestFocus() } }
 
-    val allHits = remember(q, c) {
+    val domainCounts = remember(c) {
+        AreaNames.keys.associateWith { d -> c.activities.count { d in it.domains } }
+    }
+
+    val allHits = remember(q, selectedDomain, c) {
         val t = q.trim()
-        if (t.isEmpty()) emptyList() else buildList {
+        if (t.isEmpty() && selectedDomain == null) emptyList() else buildList {
             fun cut(s: String): String {
                 val clean = s.replace("**", "")
+                if (t.isEmpty()) return clean.take(64)
                 val i = clean.indexOf(t, ignoreCase = true)
                 return if (i < 0) clean.take(64) else (if (i > 18) "…" else "") + clean.substring((i - 18).coerceAtLeast(0)).take(68)
             }
             c.activities.forEach { p ->
+                val matchesDomain = selectedDomain == null || selectedDomain in p.domains
+                if (!matchesDomain) return@forEach
                 val body = listOf(p.name, p.prepare, p.steps.joinToString("；"), p.observe, p.safety, p.domains.joinToString()).joinToString(" ")
-                if (p.code.contains(t, ignoreCase = true) || body.contains(t, ignoreCase = true)) {
-                    add(Hit(HitCategory.Play, "玩法 ${p.code}", p.name, cut(body), p.domains.firstOrNull(), { openPlay(p.code) }))
+                if (t.isEmpty() || p.code.contains(t, ignoreCase = true) || body.contains(t, ignoreCase = true)) {
+                    val rangeText = "满 ${p.months.first()}–${p.months.last()} 月"
+                    add(Hit(HitCategory.Play, "玩法 ${p.code} · $rangeText", p.name, cut(body), p.domains.firstOrNull(), { openPlay(p.code) }))
                 }
             }
-            c.months.forEach { m ->
-                val body = listOf(
-                    m.title,
-                    m.domains.joinToString(" ") { it.name + " " + it.text },
-                    m.observe.joinToString(" ") { it.items.joinToString(" ") },
-                    m.vaccines.joinToString(" "),
-                    m.checkups.joinToString(" "),
-                ).joinToString(" ")
-                if (body.contains(t, ignoreCase = true)) {
-                    add(Hit(HitCategory.Month, "满 ${m.month} 个月", m.title, cut(body), null, { openMonth(m.month) }))
+            if (selectedDomain == null && t.isNotEmpty()) {
+                c.months.forEach { m ->
+                    val body = listOf(
+                        m.title,
+                        m.domains.joinToString(" ") { it.name + " " + it.text },
+                        m.observe.joinToString(" ") { it.items.joinToString(" ") },
+                        m.vaccines.joinToString(" "),
+                        m.checkups.joinToString(" "),
+                    ).joinToString(" ")
+                    if (body.contains(t, ignoreCase = true)) {
+                        add(Hit(HitCategory.Month, "满 ${m.month} 个月", m.title, cut(body), null, { openMonth(m.month) }))
+                    }
                 }
-            }
-            c.topics.forEach { tp ->
-                val body = tp.title + " " + tp.blocks.joinToString(" ") { it.plainText() }
-                if (body.contains(t, ignoreCase = true)) {
-                    add(Hit(HitCategory.Topic, "专题", tp.title, cut(body), null, { openTopic(tp.id) }))
+                c.topics.forEach { tp ->
+                    val body = tp.title + " " + tp.blocks.joinToString(" ") { it.plainText() }
+                    if (body.contains(t, ignoreCase = true)) {
+                        add(Hit(HitCategory.Topic, "专题", tp.title, cut(body), null, { openTopic(tp.id) }))
+                    }
                 }
             }
         }
@@ -148,9 +166,12 @@ fun SearchScreen(
                     shape = RoundedCornerShape(22.dp),
                     placeholder = { Text("搜索玩法、月龄内容、专题") },
                     leadingIcon = { Glyph(G.Search, size = 20.dp) },
-                    trailingIcon = if (q.isNotEmpty()) {
+                    trailingIcon = if (q.isNotEmpty() || selectedDomain != null) {
                         {
-                            IconButton(onClick = { q = "" }, modifier = Modifier.semantics { contentDescription = "清空" }) {
+                            IconButton(
+                                onClick = { q = ""; selectedDomain = null; cat = HitCategory.All },
+                                modifier = Modifier.semantics { contentDescription = "清空" },
+                            ) {
                                 Glyph(G.Close, size = 18.dp)
                             }
                         }
@@ -159,31 +180,82 @@ fun SearchScreen(
             }
         }
 
-        if (q.isBlank()) {
+        if (q.isBlank() && selectedDomain == null) {
             item {
-                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                     Text(
                         "大家常找",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
                     )
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         listOf("辅食", "睡眠", "趴", "共读", "牙", "安全座椅", "发热", "疫苗", "儿保", "屏幕", "分离焦虑", "如厕").forEach { w ->
-                            SuggestionChip(onClick = { q = w }, label = { Text(w) })
+                            SuggestionChip(
+                                onClick = {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    q = w
+                                },
+                                label = { Text(w) },
+                            )
                         }
                     }
-                    Spacer(Modifier.height(4.dp))
+
                     Text(
-                        "常翻的专题",
+                        "按六个发展领域找玩法",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp),
+                    )
+                    AreaNames.entries.chunked(2).forEach { pair ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            pair.forEach { (key, title) ->
+                                val col = areaColor(key)
+                                Surface(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                        selectedDomain = key
+                                        cat = HitCategory.All
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                    shape = RoundedCornerShape(20.dp),
+                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                    border = BorderStroke(1.dp, col.copy(alpha = 0.25f)),
+                                ) {
+                                    Row(
+                                        Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        ShapeBadge(areaGlyph(key), col.copy(alpha = 0.16f), col, shape = Shapes.of(key), size = 34.dp)
+                                        Spacer(Modifier.width(10.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                                                ColorTablet(col)
+                                                Text(title, style = MaterialTheme.typography.titleSmall)
+                                            }
+                                            Text(
+                                                "${domainCounts[key] ?: 0} 个玩法",
+                                                fontFamily = Numerals,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Text(
+                        "全部育儿专题 (${c.topics.size})",
                         style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp),
                     )
-                    c.topics.take(6).forEach { tp ->
+                    c.topics.forEach { tp ->
                         Surface(
                             onClick = { openTopic(tp.id) },
                             shape = RoundedCornerShape(20.dp),
@@ -203,6 +275,12 @@ fun SearchScreen(
                                 )
                                 Spacer(Modifier.width(12.dp))
                                 Text(tp.title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                                Glyph(
+                                    G.Back,
+                                    size = 16.dp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                                )
                             }
                         }
                     }
@@ -210,23 +288,40 @@ fun SearchScreen(
             }
         }
 
-        if (q.isNotBlank()) {
+        if (q.isNotBlank() || selectedDomain != null) {
             item {
                 LazyRow(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    items(HitCategory.entries) { cItem ->
-                        val count = if (cItem == HitCategory.All) allHits.size else allHits.count { it.category == cItem }
-                        FilterChip(
-                            selected = cat == cItem,
-                            onClick = { cat = cItem },
-                            label = { Text("${cItem.label} ($count)") },
-                        )
+                    selectedDomain?.let { d ->
+                        item("active-domain") {
+                            FilterChip(
+                                selected = true,
+                                onClick = { selectedDomain = null },
+                                leadingIcon = { ColorTablet(areaColor(d)) },
+                                trailingIcon = { Glyph(G.Close, size = 14.dp) },
+                                label = { Text(AreaNames[d] ?: d) },
+                            )
+                        }
+                    }
+                    if (selectedDomain == null && q.isNotBlank()) {
+                        items(HitCategory.entries) { cItem ->
+                            val count = if (cItem == HitCategory.All) allHits.size else allHits.count { it.category == cItem }
+                            FilterChip(
+                                selected = cat == cItem,
+                                onClick = { cat = cItem },
+                                label = { Text("${cItem.label} ($count)") },
+                            )
+                        }
                     }
                 }
                 Text(
-                    if (hits.isEmpty()) "没有找到「${q.trim()}」" else "${hits.size} 处",
+                    when {
+                        hits.isEmpty() -> "没有找到「${q.trim()}」"
+                        selectedDomain != null && q.isBlank() -> "${AreaNames[selectedDomain]} · 共 ${hits.size} 个玩法"
+                        else -> "${hits.size} 处"
+                    },
                     style = MaterialTheme.typography.labelLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
@@ -239,11 +334,11 @@ fun SearchScreen(
                 onClick = h.open,
                 shape = RoundedCornerShape(22.dp),
                 color = MaterialTheme.colorScheme.surfaceContainerLowest,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateItem(),
             ) {
                 Row(
                     Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     val badgeGlyph = when (h.category) {
                         HitCategory.Play -> areaGlyph(h.domain ?: "A")
@@ -276,8 +371,8 @@ fun SearchScreen(
                             buildAnnotatedString {
                                 var i = 0
                                 while (true) {
-                                    val j = h.snippet.indexOf(t, i, ignoreCase = true)
-                                    if (j < 0 || t.isEmpty()) {
+                                    val j = if (t.isEmpty()) -1 else h.snippet.indexOf(t, i, ignoreCase = true)
+                                    if (j < 0) {
                                         append(h.snippet.substring(i))
                                         break
                                     }
@@ -294,6 +389,13 @@ fun SearchScreen(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     }
+                    Spacer(Modifier.width(8.dp))
+                    Glyph(
+                        G.Back,
+                        size = 16.dp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.graphicsLayer { rotationZ = 180f },
+                    )
                 }
             }
         }

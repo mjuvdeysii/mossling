@@ -1,7 +1,15 @@
 package app.mossling.ui.today
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +30,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -75,7 +85,6 @@ import app.mossling.ui.components.SectionTitle
 import app.mossling.ui.components.ShapeBadge
 import app.mossling.ui.components.Shapes
 import app.mossling.ui.components.Shelf as WoodShelf
-import app.mossling.ui.components.Tagged
 import app.mossling.ui.components.WorkTray
 import app.mossling.ui.components.areaColor
 import app.mossling.ui.components.areaGlyph
@@ -413,7 +422,8 @@ private fun BeadRing(done: Int, total: Int) {
     }
 }
 
-/** How long since the last feed and the last sleep, plus awake window prompt ("醒了 X 分钟 · 一起玩"). */
+/** How long since the last feed and the last sleep, plus awake window prompt ("醒了 X 分钟 · 一起玩") as scannable status pills. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun SinceLine(ui: AppUi, nowSource: () -> Long) {
     var now by remember { mutableLongStateOf(nowSource()) }
@@ -438,25 +448,48 @@ private fun SinceLine(ui: AppUi, nowSource: () -> Long) {
         ((now - ui.lastSleep.end).coerceAtLeast(0) / 60_000).toInt()
     } else null
 
-    val parts = buildList {
+    val pills = buildList<Triple<G, String, Boolean>> {
         when {
-            sleepRunning -> add("正在睡觉")
-            nurseRunning -> add("正在亲喂")
-            awakeMin != null && awakeMin in 5..240 -> add("醒了 $awakeMin 分钟 · 一起玩")
+            sleepRunning -> add(Triple(G.Moon, "正在睡觉", true))
+            nurseRunning -> add(Triple(G.Nurse, "正在亲喂", true))
+            awakeMin != null && awakeMin in 5..240 -> add(Triple(G.Sun, "醒了 $awakeMin 分钟 · 一起玩", true))
         }
-        ui.lastFeed?.let { add("上次喂 ${ago(it.end ?: it.start)}") }
+        ui.lastFeed?.let { add(Triple(if (it.type == LogType.Bottle) G.Bottle else G.Nurse, "喂 ${ago(it.end ?: it.start)}", false)) }
         if (!sleepRunning) {
-            ui.lastSleep?.let { add(if (it.end == null) "正在睡" else "上一觉 ${ago(it.end)}") }
+            ui.lastSleep?.let { add(Triple(G.Moon, if (it.end == null) "正在睡" else "睡 ${ago(it.end)}", false)) }
         }
     }
-    if (parts.isNotEmpty()) {
-        Text(
-            parts.joinToString(" · "),
-            fontFamily = Numerals,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 4.dp),
-        )
+    if (pills.isNotEmpty()) {
+        FlowRow(
+            modifier = Modifier.padding(top = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            pills.forEach { (glyph, text, highlight) ->
+                Surface(
+                    shape = RoundedCornerShape(10.dp),
+                    color = if (highlight) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+                ) {
+                    Row(
+                        Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Glyph(
+                            glyph,
+                            size = 13.dp,
+                            color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Text(
+                            text,
+                            fontFamily = Numerals,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (highlight) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -506,7 +539,6 @@ private fun TodayPlayCard(
 ) {
     val ctx = LocalContext.current
     val haptic = LocalHapticFeedback.current
-    val firstPic = remember(play.code) { ArtIndex.steps(ctx, play.code).firstOrNull() }
     val playedToday = (record?.todayCount ?: 0) > 0
     val totalCount = maxOf(record?.total ?: 0, if (done) 1 else 0)
 
@@ -517,121 +549,208 @@ private fun TodayPlayCard(
             .animateContentSize()
             .clickable(onClick = onOpen),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("今天一起玩", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
-                    if (playedToday) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.primaryContainer,
-                        ) {
-                            Text(
-                                "今天玩过",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
-                            )
+        AnimatedContent(
+            targetState = play,
+            transitionSpec = {
+                (slideInHorizontally(tween(220)) { it / 8 } + fadeIn(tween(180))) togetherWith
+                    (slideOutHorizontally(tween(160)) { -it / 8 } + fadeOut(tween(140)))
+            },
+            label = "today-play-card",
+        ) { target ->
+            val firstPic = remember(target.code) { ArtIndex.steps(ctx, target.code).firstOrNull() }
+            Column {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("今天一起玩", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                            if (playedToday) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.primaryContainer,
+                                ) {
+                                    Text(
+                                        "今天玩过",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    )
+                                }
+                            } else if (totalCount > 0) {
+                                Surface(
+                                    shape = RoundedCornerShape(10.dp),
+                                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                                ) {
+                                    Text(
+                                        "做过 ×$totalCount",
+                                        fontFamily = Numerals,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                    )
+                                }
+                            }
                         }
-                    } else if (totalCount > 0) {
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        Spacer(Modifier.height(4.dp))
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.Center,
                         ) {
                             Text(
-                                "做过 ×$totalCount",
+                                target.code,
                                 fontFamily = Numerals,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.shared("play-code-${target.code}"),
+                            )
+                            target.domains.forEach { d -> ColorTablet(areaColor(d)) }
+                        }
+                    }
+                    Box(
+                        Modifier
+                            .size(48.dp)
+                            .clickable {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onToggle()
+                            }
+                            .semantics {
+                                role = Role.Checkbox
+                                contentDescription = "记为今天做过"
+                                stateDescription = if (done) "已做过" else "未做"
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        MorphBlob(
+                            done,
+                            from = Shapes.Circle,
+                            to = Shapes.Burst,
+                            color = if (done) Palette.Bead else MaterialTheme.colorScheme.surfaceContainerHigh,
+                            modifier = Modifier.size(44.dp),
+                        )
+                        Glyph(G.Check, size = 20.dp, color = if (done) Palette.Ink else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                if (firstPic != null) {
+                    Art(
+                        firstPic,
+                        label = "${target.name}，第一步",
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+                    )
+                } else {
+                    MaterialStill(
+                        familyOf(target.domains),
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
+                        ground = MaterialTheme.colorScheme.surfaceContainer,
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    target.name,
+                    style = MaterialTheme.typography.headlineMedium,
+                    modifier = Modifier.shared("play-title-${target.code}"),
+                )
+                if (target.prepare.isNotEmpty() && target.prepare != "无" && target.prepare != "不需要任何道具") {
+                    Spacer(Modifier.height(6.dp))
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Glyph(G.Hand, size = 14.dp, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                "准备：${target.prepare}",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
                 }
-                Spacer(Modifier.height(4.dp))
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalArrangement = Arrangement.Center,
-                ) {
+                target.steps.firstOrNull()?.let { firstStep ->
+                    Spacer(Modifier.height(10.dp))
+                    Surface(
+                        shape = RoundedCornerShape(18.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            SandpaperNumber("1", MaterialTheme.typography.titleSmall)
+                            Spacer(Modifier.width(10.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(firstStep, style = MaterialTheme.typography.bodyMedium)
+                                if (target.steps.size > 1) {
+                                    Text(
+                                        "还有 ${target.steps.size - 1} 步 · 点卡片或「开始」跟着做",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(top = 4.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                if (target.observe.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Glyph(G.Eye, size = 15.dp, color = MaterialTheme.colorScheme.secondary, modifier = Modifier.padding(top = 2.dp))
+                        Text(
+                            target.observe,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                if (target.safety.isNotEmpty()) {
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = RoundedCornerShape(14.dp),
+                        color = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.42f),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Row(
+                            Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.Top,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Glyph(G.Shield, size = 15.dp, color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 1.dp))
+                            Text(
+                                target.safety,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onErrorContainer,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                }
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        play.code,
+                        if (target.steps.size > 1) "共 ${target.steps.size} 步 · 满 $month 个月" else "完整步骤 · 满 $month 个月",
                         fontFamily = Numerals,
-                        style = MaterialTheme.typography.labelMedium,
+                        style = MaterialTheme.typography.labelLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.shared("play-code-${play.code}"),
+                        modifier = Modifier.weight(1f),
                     )
-                    play.domains.forEach { d -> ColorTablet(areaColor(d)) }
+                    if (onNext != null) {
+                        TextButton(
+                            onClick = {
+                                haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                onNext()
+                            },
+                        ) { Text("换一个") }
+                        Spacer(Modifier.width(4.dp))
+                    }
+                    Button(onClick = onOpen, shape = RoundedCornerShape(16.dp)) { Text("开始") }
                 }
             }
-            Box(
-                Modifier
-                    .size(48.dp)
-                    .clickable {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onToggle()
-                    }
-                    .semantics {
-                        role = Role.Checkbox
-                        contentDescription = "记为今天做过"
-                        stateDescription = if (done) "已做过" else "未做"
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                MorphBlob(
-                    done,
-                    from = Shapes.Circle,
-                    to = Shapes.Burst,
-                    color = if (done) Palette.Bead else MaterialTheme.colorScheme.surfaceContainerHigh,
-                    modifier = Modifier.size(44.dp),
-                )
-                Glyph(G.Check, size = 20.dp, color = if (done) Palette.Ink else MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        }
-        Spacer(Modifier.height(10.dp))
-        if (firstPic != null) {
-            Art(
-                firstPic,
-                label = "${play.name}，第一步",
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
-            )
-        } else {
-            MaterialStill(
-                familyOf(play.domains),
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)),
-                ground = MaterialTheme.colorScheme.surfaceContainer,
-            )
-        }
-        Spacer(Modifier.height(12.dp))
-        Text(
-            play.name,
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.shared("play-title-${play.code}"),
-        )
-        Spacer(Modifier.height(8.dp))
-        if (play.prepare.isNotEmpty() && play.prepare != "无" && play.prepare != "不需要任何道具") {
-            Tagged("准备", play.prepare)
-        }
-        play.steps.firstOrNull()?.let { Tagged("怎么做", it) }
-        if (play.observe.isNotEmpty()) Tagged("留意", play.observe)
-        if (play.safety.isNotEmpty()) Tagged("注意", play.safety, tagColor = MaterialTheme.colorScheme.error)
-        Spacer(Modifier.height(10.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (play.steps.size > 1) "共 ${play.steps.size} 步 · 点开跟着做" else "点开看完整做法",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.weight(1f),
-            )
-            if (onNext != null) {
-                TextButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onNext()
-                    },
-                ) { Text("换一个") }
-                Spacer(Modifier.width(4.dp))
-            }
-            Button(onClick = onOpen, shape = RoundedCornerShape(16.dp)) { Text("开始") }
         }
     }
 }
@@ -646,16 +765,20 @@ private fun WeekShelf(
     onOpen: (String, Int) -> Unit,
 ) {
     WoodShelf(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            plays.take(3).forEach { p ->
+        LazyRow(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            items(plays.take(3), key = { it.code }) { p ->
                 val isDone = p.code in done
                 val rec = records[p.code]
                 val weekCount = maxOf(rec?.thisWeek ?: 0, if (isDone) 1 else 0)
                 Surface(
                     onClick = { onOpen(p.code, month) },
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier.width(152.dp),
                     shape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp, bottomStart = 8.dp, bottomEnd = 8.dp),
                     color = MaterialTheme.colorScheme.surfaceContainerLowest,
+                    border = if (isDone) BorderStroke(1.dp, Palette.Bead.copy(alpha = 0.65f)) else null,
                 ) {
                     Column(Modifier.padding(10.dp)) {
                         Box(
@@ -713,7 +836,7 @@ private fun MilestonePeek(guide: MonthGuide, month: Int, ui: AppUi, onToggle: (I
     val all = guide.observe.flatMapIndexed { gi, g -> g.items.mapIndexed { ii, text -> Triple("$gi-$ii", g.group, text) } }
     val done = all.count { (id, _, _) -> tickKey(month, TickKind.Observed, id) in ui.ticks }
     val shown = all.sortedBy { (id, _, _) -> if (tickKey(month, TickKind.Observed, id) in ui.ticks) 1 else 0 }.take(3)
-    Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+    Plate(Modifier.fillMaxWidth().padding(horizontal = 16.dp).animateContentSize()) {
         NumberRod(done, all.size, Modifier.padding(bottom = 10.dp))
         shown.forEachIndexed { idx, (id, group, text) ->
             val checked = tickKey(month, TickKind.Observed, id) in ui.ticks
