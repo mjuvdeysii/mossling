@@ -523,10 +523,10 @@ final class ScreenshotTests: XCTestCase {
         let storyPage = VStack(spacing: 18) {
             HStack(spacing: 18) {
                 tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false))
-                tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false).environment(\.colorScheme, .dark))
+                tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false)).environment(\.colorScheme, .dark)
             }
             tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: true))
-            tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: true).environment(\.colorScheme, .dark))
+            tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: true)).environment(\.colorScheme, .dark)
         }
         .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(red: 0.80, green: 0.86, blue: 0.92))

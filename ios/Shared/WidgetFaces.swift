@@ -691,7 +691,9 @@ struct StoryWindowFace: View {
         let name = snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName
         let chapter = L10n.stretchName(for: bookMonth)
         let beadNum = min(bookMonth + 1, 37)
-        let beadLabel = L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37")
+        let beadLabel = isMedium
+            ? L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37")
+            : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37")
         let monthDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
 
         VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {

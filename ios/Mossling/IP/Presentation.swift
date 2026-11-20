@@ -146,5 +146,9 @@ final class MascotDirector {
 
 extension Kind {
     /// The character in a few words (a description for the picker, not something the character says).
-    var trait: String { self == .moss ? "精力用不完，什么都要先看一眼" : "有点困，但灯一直亮着" }
+    var trait: String {
+        self == .moss
+            ? L10n.t("精力用不完，什么都要先看一眼", "Boundless curiosity, always peeking first")
+            : L10n.t("有点困，但灯一直亮着", "A little sleepy, lamp always glowing")
+    }
 }

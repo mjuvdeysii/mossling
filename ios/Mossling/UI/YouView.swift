@@ -766,14 +766,19 @@ enum Biometry {
         return c.biometryType
     }
     static var name: String {
-        switch type { case .faceID: "面容 ID"; case .touchID: "触控 ID"; case .opticID: "视控 ID"; default: "密码" }
+        switch type {
+        case .faceID: L10n.t("面容 ID", "Face ID")
+        case .touchID: L10n.t("触控 ID", "Touch ID")
+        case .opticID: L10n.t("视控 ID", "Optic ID")
+        default: L10n.t("密码", "Passcode")
+        }
     }
     /// The lock is turned on only after the owner of the phone confirms once (Face ID is asked when it is first used,
     /// with its purpose in NSFaceIDUsageDescription); turning it off needs nothing.
     static func turn(_ on: Bool, _ set: @escaping @MainActor (Bool) -> Void) {
         guard on else { Task { @MainActor in set(false) }; return }
         Task { @MainActor in
-            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "打开应用锁")) ?? false
+            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("打开应用锁", "Enable App Lock"))) ?? false
             set(ok)
         }
     }
@@ -819,7 +824,7 @@ private struct AppearanceRow: View {
     private var label: some View {
         HStack(spacing: 10) {
             IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
-            Text(L10n.t("外观", "Appearance")).font(.subheadline.weight(.semibold))
+            Text(L10n.t("外观", "Theme")).font(.subheadline.weight(.semibold)).lineLimit(1)
         }
     }
     var body: some View {

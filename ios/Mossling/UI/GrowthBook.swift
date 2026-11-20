@@ -528,8 +528,11 @@ struct GrowthBookCard: View {
                 }
                 .frame(width: 70, height: 50)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("成长册").font(.headline).foregroundStyle(.primary)
-                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 页 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("成长册", "Growth Book")).font(.headline).foregroundStyle(.primary)
+                    Text(pages.isEmpty
+                        ? L10n.t("每个月一页，从出生开始", "One page for every month since birth")
+                        : L10n.t("\(pages.count) 页 · 玩过 \(plays) 次", "\(pages.count) \(pages.count == 1 ? "page" : "pages") · \(plays) \(plays == 1 ? "play" : "plays")")
+                    ).font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -539,6 +542,6 @@ struct GrowthBookCard: View {
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
-        .accessibilityLabel("成长册")
+        .accessibilityLabel(L10n.t("成长册", "Growth Book"))
     }
 }
