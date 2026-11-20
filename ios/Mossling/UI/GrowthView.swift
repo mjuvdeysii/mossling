@@ -168,6 +168,7 @@ struct GrowthView: View {
             }
         }
         .frame(height: 260)
+        .padding(.top, 14)
         .accessibilityLabel("\(ind.label)曲线，\(pts.count) 个测量点")
     }
 

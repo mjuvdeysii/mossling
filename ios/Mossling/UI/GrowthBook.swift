@@ -60,7 +60,10 @@ struct GrowthBookView: View {
 private struct QuietMonths: View {
     let pages: [BookPage]
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     var body: some View {
+        let dark = lamp || scheme == .dark
         // the months are named once, under their pictures (newest first, as the book): the line only says what is so
         VStack(alignment: .leading, spacing: 10) {
             Text(pages.count == 1 ? "这个月没有留下记录" : "这几个月没有留下记录")
@@ -74,8 +77,8 @@ private struct QuietMonths: View {
                                 else { Color.clear.aspectRatio(4 / 3, contentMode: .fit) }
                             }
                             .padding(3)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white))
-                            .shadow(color: Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
+                            .shadow(color: dark ? Color.black.opacity(0.28) : Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
                             Text(p.month == 0 ? "出生" : "\(p.month) 个月").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
