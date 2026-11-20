@@ -142,8 +142,8 @@ struct SleepControl: ControlWidget {
             }
             .tint(LogType.color(LogType.sleep))
         }
-        .displayName(L10n.t("睡觉计时", "Sleep Timer"))
-        .description(L10n.t("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。", "Toggle baby's sleep timer with live on/off state in Control Center or Lock Screen."))
+        .displayName(L10n.res("睡觉计时", "Sleep Timer"))
+        .description(L10n.res("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。", "Toggle baby's sleep timer with live on/off state in Control Center or Lock Screen."))
     }
 }
 
@@ -159,8 +159,8 @@ struct NurseControl: ControlWidget {
             }
             .tint(LogType.color(LogType.nurse))
         }
-        .displayName(L10n.t("亲喂计时", "Nursing Timer"))
-        .description(L10n.t("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。", "Toggle nursing timer with live on/off state in Control Center or Lock Screen."))
+        .displayName(L10n.res("亲喂计时", "Nursing Timer"))
+        .description(L10n.res("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。", "Toggle nursing timer with live on/off state in Control Center or Lock Screen."))
     }
 }
 
@@ -172,8 +172,8 @@ struct WetDiaperControl: ControlWidget {
             }
             .tint(LogType.color(LogType.diaper))
         }
-        .displayName(L10n.t("记湿尿布", "Log Wet Diaper"))
-        .description(L10n.t("在控制中心或锁屏一键记下一次湿尿布。", "Log a wet diaper in one tap from Control Center or Lock Screen."))
+        .displayName(L10n.res("记湿尿布", "Log Wet Diaper"))
+        .description(L10n.res("在控制中心或锁屏一键记下一次湿尿布。", "Log a wet diaper in one tap from Control Center or Lock Screen."))
     }
 }
 
@@ -190,7 +190,7 @@ struct TimerLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.leading) {
                     HStack(spacing: 6) {
                         ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 30, height: 30)
-                        Text(timerState(ctx.attributes.type, side: ctx.state.side, paused: ctx.state.pausedAt != nil)).font(.headline).foregroundStyle(c).lineLimit(1).minimumScaleFactor(0.7)
+                        Text(L10n.timerStatus(ctx.attributes.type, side: ctx.state.side, paused: ctx.state.pausedAt != nil)).font(.headline).foregroundStyle(c).lineLimit(1).minimumScaleFactor(0.7)
                     }
                 }
                 DynamicIslandExpandedRegion(.trailing) { TimerFace.elapsed(ctx.state).font(WidgetInk.numerals(24)).foregroundStyle(.white) }

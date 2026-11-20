@@ -25,6 +25,11 @@ enum L10n {
         isEnglish ? en : zh
     }
 
+    /// Returns a `LocalizedStringResource` for APIs like `ControlWidgetConfiguration.displayName(_:)`.
+    static func res(_ zh: String, _ en: String) -> LocalizedStringResource {
+        LocalizedStringResource(stringLiteral: t(zh, en))
+    }
+
     static func logName(_ type: String) -> String {
         guard isEnglish else { return LogType.name(type) }
         switch type {
