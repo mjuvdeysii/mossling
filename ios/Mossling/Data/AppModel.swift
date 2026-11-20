@@ -123,7 +123,7 @@ final class AppModel {
         let p = babyMonth.flatMap { todayPlay($0, j) }
         let code = p?.code, name = p?.name
         let pool: [PlayRef] = babyMonth.map { mo in
-            let w = weekPlays(for: mo)
+            let w = weekShelf(mo).plays
             let list = w.count >= 2 ? w : Array(content.plays(of: mo).prefix(4))
             return list.map { PlayRef(code: $0.code, name: $0.name) }
         } ?? []
