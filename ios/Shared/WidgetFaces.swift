@@ -248,8 +248,8 @@ struct TodayFace: View {
         }
     }
 
-    /// Large Home Screen dashboard: age & companions, today's summary strip, today's play card, and interactive
-    /// one-tap care buttons (log wet/dirty diaper, start/stop nursing or sleep without opening the app).
+    /// Large Home Screen dashboard: age & companions, today's play hero card, quiet daily summary line, and
+    /// four uniform 3D-sticker interactive care tiles (start/stop nursing or sleep, log wet/dirty diaper).
     private var large: some View {
         let day = Day(date)
         let startMs = day.date.timeIntervalSince1970 * 1000
@@ -257,62 +257,50 @@ struct TodayFace: View {
         let feeds = todayLogs.feedCount(from: startMs)
         let sleepSec = todayLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let diapers = todayLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: day) }.count
-        return VStack(alignment: .leading, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 12) {
             head
-            if journal {
-                HStack(spacing: 8) {
-                    statPill("喂奶", "\(feeds) 次", LogType.color(LogType.nurse))
-                    statPill("睡眠", sleepSec > 0 ? minutesOf(sleepSec) : "—", LogType.color(LogType.sleep))
-                    statPill("尿布", "\(diapers) 次", LogType.color(LogType.diaper))
-                }
-            }
+
             if let code = snap?.playCode, let name = snap?.playName {
                 HStack(spacing: 12) {
-                    ArtImage(name: WidgetArt.tray(code)).frame(width: 68, height: 50)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("今天一起玩").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
-                        Text(name).font(.subheadline.weight(.bold)).lineLimit(2)
+                    ArtImage(name: WidgetArt.tray(code)).frame(width: 74, height: 54)
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 5) {
+                            Circle().fill(WidgetInk.bead).frame(width: 6, height: 6)
+                            Text("今天一起玩").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                        }
+                        Text(name).font(.subheadline.weight(.bold)).foregroundStyle(.primary).lineLimit(2)
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(10)
+                .padding(.horizontal, 12).padding(.vertical, 10)
                 .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
+
+            Spacer(minLength: 0)
+
             if journal {
-                Spacer(minLength: 0)
-                if let t = body_.timers.first {
-                    running(t)
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                HStack(spacing: 6) {
+                    Text("今天").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                    Text("喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? minutesOf(sleepSec) : "—") · 尿布 \(diapers) 次")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
+                        .lineLimit(1).minimumScaleFactor(0.8)
                 }
+                .padding(.horizontal, 2)
+
                 HStack(spacing: 8) {
-                    QuickCareFace.timerTile(body: body_, kind: .nurse, compact: true)
-                    QuickCareFace.timerTile(body: body_, kind: .sleep, compact: true)
-                    QuickCareFace.diaperTile(kind: .wet, title: "湿尿布", symbol: "drop.fill", compact: true)
-                    QuickCareFace.diaperTile(kind: .dirty, title: "便尿布", symbol: "leaf.fill", compact: true)
+                    QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32)
+                    QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32)
+                    QuickCareFace.diaperTile(kind: .wet, title: "湿尿布", dot: Crayon.sky, stickerSize: 32)
+                    QuickCareFace.diaperTile(kind: .dirty, title: "便尿布", dot: Crayon.caramel, stickerSize: 32)
                 }
-                .frame(height: 68)
-            } else {
-                Spacer(minLength: 0)
+                .frame(height: 82)
             }
         }
         .foregroundStyle(.primary)
     }
-
-    private func statPill(_ label: String, _ value: String, _ color: Color) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
-            Text(value).font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(Crayon.ink(color)).lineLimit(1).minimumScaleFactor(0.75)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(.horizontal, 10).padding(.vertical, 7)
-        .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-    }
 }
 
-// MARK: Interactive Quick Care Widget (Home Screen — zero-open logging)
+// MARK: Interactive Quick Care Widget (Home Screen — zero-open logging with 3D stickers)
 
 struct QuickCareFace: View {
     let date: Date
@@ -320,45 +308,55 @@ struct QuickCareFace: View {
     let body_: JournalFile.Body
     let isMedium: Bool
 
+    private var journal: Bool { snap?.journal == true }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
 
     var body: some View {
-        if isMedium {
-            HStack(spacing: 10) {
+        if !journal {
+            VStack(alignment: .leading, spacing: 8) {
+                ArtImage(name: WidgetArt.pair).frame(width: 34, height: 34).padding(5).background(Circle().fill(WidgetInk.card))
+                Spacer(minLength: 0)
+                Text("一键记录").font(.subheadline.weight(.bold)).foregroundStyle(.primary)
+                Text("在「我的」打开记录后即可使用").font(.caption2).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+        } else if isMedium {
+            HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 5) {
-                        ArtImage(name: WidgetArt.pair).frame(width: 22, height: 22)
-                        Text("一键记录").font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent)
+                    HStack(spacing: 6) {
+                        ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
+                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : "一键记录")
+                            .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
                     }
                     Spacer(minLength: 0)
                     miniFact("上次喂奶", lastFeed, LogType.nurse)
                     miniFact("上次醒来", lastWake, LogType.sleep)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                grid.frame(width: 176)
+                grid(stickerSize: 26).frame(width: 174)
             }
             .foregroundStyle(.primary)
         } else {
-            grid.foregroundStyle(.primary)
+            grid(stickerSize: 26).foregroundStyle(.primary)
         }
     }
 
-    private var grid: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                Self.timerTile(body: body_, kind: .nurse, compact: !isMedium)
-                Self.timerTile(body: body_, kind: .sleep, compact: !isMedium)
+    private func grid(stickerSize: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                Self.timerTile(body: body_, kind: .nurse, stickerSize: stickerSize)
+                Self.timerTile(body: body_, kind: .sleep, stickerSize: stickerSize)
             }
-            HStack(spacing: 6) {
-                Self.diaperTile(kind: .wet, title: "湿尿布", symbol: "drop.fill", compact: !isMedium)
-                Self.diaperTile(kind: .dirty, title: "便尿布", symbol: "leaf.fill", compact: !isMedium)
+            HStack(spacing: 8) {
+                Self.diaperTile(kind: .wet, title: "湿尿布", dot: Crayon.sky, stickerSize: stickerSize)
+                Self.diaperTile(kind: .dirty, title: "便尿布", dot: Crayon.caramel, stickerSize: stickerSize)
             }
         }
     }
 
     private func miniFact(_ label: String, _ at: Date?, _ type: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
             Text(at.map { ago($0, now: date, precise: true) } ?? "—")
                 .font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
@@ -366,46 +364,47 @@ struct QuickCareFace: View {
         }
     }
 
-    static func timerTile(body: JournalFile.Body, kind: CareTimerAppEnum, compact: Bool) -> some View {
+    static func timerTile(body: JournalFile.Body, kind: CareTimerAppEnum, stickerSize: CGFloat) -> some View {
         let type = kind == .nurse ? LogType.nurse : LogType.sleep
         let t = body.timers.first { $0.type == type }
         let c = LogType.color(type)
         let running = t != nil
         return Button(intent: ToggleCareTimerIntent(careType: kind)) {
-            VStack(spacing: 2) {
-                ArtImage(name: WidgetArt.sticker(type)).frame(width: compact ? 24 : 26, height: compact ? 24 : 26)
+            VStack(spacing: 3) {
+                ArtImage(name: WidgetArt.sticker(type))
+                    .frame(width: stickerSize, height: stickerSize)
+                    .padding(2)
+                    .overlay(Circle().stroke(c.opacity(running ? 0.65 : 0), lineWidth: 2.5))
                 if let t {
                     if let p = t.pausedAt {
-                        Text(minutesOf(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c))
+                        Text(minutesOf(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).lineLimit(1).minimumScaleFactor(0.75)
                     } else {
-                        Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).multilineTextAlignment(.center)
+                        Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).multilineTextAlignment(.center).lineLimit(1).minimumScaleFactor(0.75)
                     }
                 } else {
                     Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(running ? c.opacity(0.18) : WidgetInk.card)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .strokeBorder(running ? c.opacity(0.75) : .clear, lineWidth: 1.5)
-            )
+            .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }
 
-    static func diaperTile(kind: DiaperKindAppEnum, title: String, symbol: String, compact: Bool) -> some View {
-        let c = LogType.color(LogType.diaper)
+    static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat) -> some View {
         return Button(intent: QuickLogDiaperIntent(kind: kind)) {
             VStack(spacing: 3) {
-                Image(systemName: symbol).font(.system(size: compact ? 15 : 16, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                ArtImage(name: WidgetArt.sticker(LogType.diaper))
+                    .frame(width: stickerSize, height: stickerSize)
+                    .padding(2)
+                    .overlay(alignment: .bottomTrailing) {
+                        Circle().fill(dot).frame(width: 8, height: 8)
+                            .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
+                    }
                 Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         }
         .buttonStyle(.plain)
     }
@@ -425,42 +424,47 @@ struct BedsideLampFace: View {
 
     var body: some View {
         let amber = Color(red: 0xF5 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
+        let cardDark = Color(red: 0x19 / 255, green: 0x21 / 255, blue: 0x3F / 255)
         ZStack {
-            RadialGradient(colors: [amber.opacity(0.28), Color.clear], center: UnitPoint(x: 0.22, y: 0.22), startRadius: 4, endRadius: isMedium ? 160 : 110)
-            VStack(alignment: .leading, spacing: 6) {
+            RadialGradient(colors: [amber.opacity(0.20), Color.clear], center: UnitPoint(x: 0.18, y: 0.18), startRadius: 6, endRadius: isMedium ? 170 : 120)
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(alignment: .center, spacing: 8) {
                     ArtImage(name: WidgetArt.pair)
                         .frame(width: 34, height: 34)
                         .padding(5)
-                        .background(Circle().fill(Color.white.opacity(0.08)))
+                        .background(Circle().fill(cardDark))
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("摸索台灯").font(.caption2.weight(.semibold)).foregroundStyle(amber)
+                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : "摸索台灯")
+                            .font(.caption2.weight(.semibold)).foregroundStyle(amber)
                         if let a = age {
-                            Text("第 \(a.lived) 天").font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.88)).monospacedDigit()
+                            Text("第 \(a.lived) 天").font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
                         }
                     }
                     Spacer(minLength: 0)
                 }
-                Spacer(minLength: 2)
+                Spacer(minLength: 0)
                 if let t = body_.timers.first {
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil))
-                            .font(.caption.weight(.semibold)).foregroundStyle(amber)
-                        if let p = t.pausedAt {
-                            Text(minutesOf(t.total(p))).font(WidgetInk.numerals(isMedium ? 32 : 24)).foregroundStyle(.white)
-                        } else {
-                            Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 32 : 24)).foregroundStyle(.white)
+                    HStack(alignment: .center, spacing: 10) {
+                        ArtImage(name: WidgetArt.sticker(t.type)).frame(width: isMedium ? 36 : 28, height: isMedium ? 36 : 28)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil))
+                                .font(.caption2.weight(.semibold)).foregroundStyle(amber)
+                            if let p = t.pausedAt {
+                                Text(minutesOf(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                            } else {
+                                Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                            }
                         }
                     }
                 } else if isMedium {
-                    HStack(spacing: 14) {
+                    HStack(spacing: 16) {
                         lampMetric("上次喂奶", lastFeed, amber)
-                        lampMetric("上次醒来", lastWake, Color(red: 0x8F / 255, green: 0xB8 / 255, blue: 0xFF / 255))
+                        lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
                     }
                 } else {
-                    VStack(alignment: .leading, spacing: 4) {
+                    VStack(alignment: .leading, spacing: 5) {
                         lampMetric("上次喂奶", lastFeed, amber)
-                        lampMetric("上次醒来", lastWake, Color(red: 0x8F / 255, green: 0xB8 / 255, blue: 0xFF / 255))
+                        lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
                     }
                 }
             }
@@ -471,9 +475,9 @@ struct BedsideLampFace: View {
     }
 
     private func lampMetric(_ label: String, _ at: Date?, _ tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.6))
-            Text(at.map { ago($0, now: date, precise: isMedium) } ?? "安睡中")
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.62))
+            Text(at.map { ago($0, now: date, precise: isMedium) } ?? "—")
                 .font(.system(size: isMedium ? 16 : 13, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.75)
         }
