@@ -50,6 +50,7 @@ actor LiveTimers {
             }
         }
         #endif
+        ControlCenter.shared.reloadAllControls()
     }
 }
 
@@ -116,16 +117,45 @@ struct QuickLogDiaperIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "请先在摸索台灯里开启记录并同意本地保存。")
+            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Mossling first."))")
         }
         JournalFile.quickLog(type: LogType.diaper, detail: kind.rawValue)
         WidgetCenter.shared.reloadAllTimelines()
-        let label = kind == .wet ? "湿尿布" : kind == .dirty ? "便尿布" : "湿便都有"
-        return .result(dialog: "已记下：\(label)。")
+        let label = kind == .wet ? L10n.t("湿尿布", "Wet diaper") : kind == .dirty ? L10n.t("便尿布", "Dirty diaper") : L10n.t("湿便都有", "Wet & dirty diaper")
+        return .result(dialog: "\(L10n.t("已记下：\(label)。", "Logged: \(label)."))")
     }
 }
 
-/// Starts or ends a nursing or sleep timer from interactive widgets, Control Center, Action Button, or Siri.
+/// One-tap undo for a diaper just logged on a Home Screen widget (reverses accidental taps within 30 seconds).
+struct UndoLastDiaperIntent: AppIntent {
+    static var title: LocalizedStringResource = "撤销刚刚记下的尿布"
+    static var isDiscoverable = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return .result() }
+        _ = JournalFile.undoRecent(type: LogType.diaper, withinSeconds: 30)
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+/// Cycles today's recommended play directly on the Home Screen widget through this week's curated plays.
+struct CycleWidgetPlayIntent: AppIntent {
+    static var title: LocalizedStringResource = "换一个今日活动"
+    static var isDiscoverable = false
+
+    init() {}
+
+    func perform() async throws -> some IntentResult {
+        _ = JournalFile.cycleWidgetPlay()
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
+    }
+}
+
+/// Starts or ends a nursing or sleep timer from interactive widgets, Action Button, or Siri.
 struct ToggleCareTimerIntent: AppIntent {
     static var title: LocalizedStringResource = "开始或结束计时"
     static var description = IntentDescription("开始或结束亲喂、睡觉计时，并同步到锁屏实时活动。")
@@ -136,7 +166,7 @@ struct ToggleCareTimerIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "请先在摸索台灯里开启记录并同意本地保存。")
+            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Mossling first."))")
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
         let running = (try? JournalFile.load())?.timers.contains(where: { $0.type == type }) ?? false
@@ -147,8 +177,35 @@ struct ToggleCareTimerIntent: AppIntent {
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
-        let name = LogType.name(type)
-        return .result(dialog: running ? "已结束\(name)计时。" : "已开始\(name)计时。")
+        let name = L10n.logName(type)
+        return .result(dialog: "\(running ? L10n.t("已结束\(name)计时。", "Ended \(name.lowercased()) timer.") : L10n.t("已开始\(name)计时。", "Started \(name.lowercased()) timer."))")
+    }
+}
+
+/// Stateful Control Center / Lock Screen toggle intent for sleep and nursing timers.
+struct SetCareTimerIntent: SetValueIntent {
+    static var title: LocalizedStringResource = "切换照护计时"
+    static var isDiscoverable = false
+    @Parameter(title: "运行中") var value: Bool
+    @Parameter(title: "类型") var careType: CareTimerAppEnum
+
+    init() { self.value = false; self.careType = .sleep }
+    init(careType: CareTimerAppEnum) { self.value = false; self.careType = careType }
+
+    func perform() async throws -> some IntentResult {
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
+            ControlCenter.shared.reloadAllControls()
+            return .result()
+        }
+        let type = careType == .nurse ? LogType.nurse : LogType.sleep
+        if value {
+            JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
+        } else {
+            JournalFile.stop(type)
+        }
+        await LiveTimers.sync()
+        WidgetCenter.shared.reloadAllTimelines()
+        return .result()
     }
 }
 

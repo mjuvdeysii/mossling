@@ -30,10 +30,17 @@ struct TodayProvider: TimelineProvider {
     }
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) { completion(entry(.now)) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
-        // refresh every half hour for "how long ago" (and so past midnight, when the age changes)
         let now = Date()
-        let dates = (0..<12).map { now.addingTimeInterval(Double($0) * 1800) }
-        completion(Timeline(entries: dates.map { entry($0) }, policy: .atEnd))
+        let snap = JournalFile.snapshot()
+        let body = JournalFile.read()
+        var dates: [Date] = [now]
+        // If a diaper was just logged on the widget, schedule a clean transition back to normal right after the 12s confirm window
+        if let recent = QuickCareFace.recentDiaper(in: body.logs, now: now) {
+            let settle = recent.startDate.addingTimeInterval(QuickCareFace.confirmWindowSeconds + 0.5)
+            if settle > now { dates.append(settle) }
+        }
+        dates.append(contentsOf: (1..<12).map { now.addingTimeInterval(Double($0) * 1800) })
+        completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body) }, policy: .atEnd))
     }
     private func entry(_ d: Date) -> TodayEntry { TodayEntry(date: d, snap: JournalFile.snapshot(), body: JournalFile.read()) }
 }
@@ -43,8 +50,8 @@ struct TodayWidget: Widget {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in
             TodayWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
         }
-        .configurationDisplayName("摸索台灯 · 今日")
-        .description("月龄、今日活动与照护节奏；大号组件支持在桌面直接一键记录。")
+        .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Mossling · Today"))
+        .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；大号组件支持桌面换活动与一键记录撤销。", "Age, today's play, 24h bead rhythm, and one-tap interactive logging with undo."))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -71,8 +78,8 @@ struct QuickCareWidget: Widget {
         StaticConfiguration(kind: "quick-care", provider: TodayProvider()) { e in
             QuickCareWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
         }
-        .configurationDisplayName("一键记录")
-        .description("无需打开应用，在桌面轻点即可开始/结束亲喂与睡眠计时，或记下湿/便尿布。")
+        .configurationDisplayName(L10n.t("一键记录", "Quick Log"))
+        .description(L10n.t("无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。", "Start or stop timers and log wet or dirty diapers right from your Home Screen."))
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -93,8 +100,8 @@ struct BedsideLampWidget: Widget {
                 BedsideLampFace.backdrop
             }
         }
-        .configurationDisplayName("床头台灯")
-        .description("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，抬眼即看计时与上次喂奶。")
+        .configurationDisplayName(L10n.t("床头台灯", "Bedside Lamp"))
+        .description(L10n.t("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，抬眼即看计时与上次喂奶。", "Warm amber StandBy lamp with live timer and time since last feed & wake."))
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -107,29 +114,53 @@ private struct BedsideLampWidgetView: View {
     }
 }
 
-// MARK: Control Center, Lock Screen bottom buttons & Action Button controls
+// MARK: Stateful Control Center, Lock Screen bottom buttons & Action Button controls
+
+struct SleepControlProvider: ControlValueProvider {
+    var previewValue: Bool { false }
+    func currentValue() async throws -> Bool {
+        JournalFile.read().timers.contains { $0.type == LogType.sleep }
+    }
+}
+
+struct NurseControlProvider: ControlValueProvider {
+    var previewValue: Bool { false }
+    func currentValue() async throws -> Bool {
+        JournalFile.read().timers.contains { $0.type == LogType.nurse }
+    }
+}
 
 struct SleepControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "control.sleep") {
-            ControlWidgetButton(action: ToggleCareTimerIntent(careType: .sleep)) {
-                Label("睡觉计时", systemImage: "moon.zzz.fill")
+        StaticControlConfiguration(kind: "control.sleep", provider: SleepControlProvider()) { isRunning in
+            ControlWidgetToggle(
+                L10n.t("睡觉计时", "Sleep Timer"),
+                isOn: isRunning,
+                action: SetCareTimerIntent(careType: .sleep)
+            ) { running in
+                Label(running ? L10n.t("睡觉中", "Sleeping") : L10n.t("睡觉", "Sleep"), systemImage: "moon.zzz.fill")
             }
+            .tint(LogType.color(LogType.sleep))
         }
-        .displayName("睡觉计时")
-        .description("在控制中心、锁屏或操作按钮一键开始/结束宝宝睡眠计时。")
+        .displayName(L10n.t("睡觉计时", "Sleep Timer"))
+        .description(L10n.t("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。", "Toggle baby's sleep timer with live on/off state in Control Center or Lock Screen."))
     }
 }
 
 struct NurseControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
-        StaticControlConfiguration(kind: "control.nurse") {
-            ControlWidgetButton(action: ToggleCareTimerIntent(careType: .nurse)) {
-                Label("亲喂计时", systemImage: "heart.circle.fill")
+        StaticControlConfiguration(kind: "control.nurse", provider: NurseControlProvider()) { isRunning in
+            ControlWidgetToggle(
+                L10n.t("亲喂计时", "Nursing Timer"),
+                isOn: isRunning,
+                action: SetCareTimerIntent(careType: .nurse)
+            ) { running in
+                Label(running ? L10n.t("亲喂中", "Nursing") : L10n.t("亲喂", "Nurse"), systemImage: "heart.circle.fill")
             }
+            .tint(LogType.color(LogType.nurse))
         }
-        .displayName("亲喂计时")
-        .description("在控制中心、锁屏或操作按钮一键开始/结束亲喂计时。")
+        .displayName(L10n.t("亲喂计时", "Nursing Timer"))
+        .description(L10n.t("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。", "Toggle nursing timer with live on/off state in Control Center or Lock Screen."))
     }
 }
 
@@ -137,11 +168,12 @@ struct WetDiaperControl: ControlWidget {
     var body: some ControlWidgetConfiguration {
         StaticControlConfiguration(kind: "control.diaper.wet") {
             ControlWidgetButton(action: QuickLogDiaperIntent(kind: .wet)) {
-                Label("记湿尿布", systemImage: "drop.fill")
+                Label(L10n.t("记湿尿布", "Wet Diaper"), systemImage: "drop.fill")
             }
+            .tint(LogType.color(LogType.diaper))
         }
-        .displayName("记湿尿布")
-        .description("在控制中心或锁屏一键记下一次湿尿布。")
+        .displayName(L10n.t("记湿尿布", "Log Wet Diaper"))
+        .description(L10n.t("在控制中心或锁屏一键记下一次湿尿布。", "Log a wet diaper in one tap from Control Center or Lock Screen."))
     }
 }
 

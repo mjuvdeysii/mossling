@@ -441,13 +441,21 @@ final class ScreenshotTests: XCTestCase {
     }
 
     func test33NewWidgets() {
+        L10n.overrideEnglish = false; defer { L10n.overrideEnglish = nil }
         let day = Day(y: 2026, m: 10, d: 19)
-        let now = day.date.addingTimeInterval(20 * 3600)
-        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会")
+        let now = day.date.addingTimeInterval(16 * 3600 + 20 * 60)
+        let plays = [PlayRef(code: "A11", name: "双手物品传递机会"), PlayRef(code: "A12", name: "听声音找方向")]
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true, weekPlays: plays)
         var idle = JournalFile.Body()
-        idle.logs = [LogEntry(type: LogType.nurse, start: ms(now) - 140 * 60_000, end: ms(now) - 120 * 60_000, side: "l"),
-                     LogEntry(type: LogType.sleep, start: ms(now) - 300 * 60_000, end: ms(now) - 200 * 60_000),
-                     LogEntry(type: LogType.diaper, start: ms(now) - 45 * 60_000, detail: "wet")]
+        idle.logs = [
+            LogEntry(type: LogType.sleep, start: ms(day.date) + 1 * 3600_000, end: ms(day.date) + 6 * 3600_000),
+            LogEntry(type: LogType.nurse, start: ms(day.date) + 7 * 3600_000, end: ms(day.date) + 7 * 3600_000 + 20 * 60_000, side: "l"),
+            LogEntry(type: LogType.sleep, start: ms(day.date) + 10 * 3600_000, end: ms(day.date) + 11 * 3600_000 + 40 * 60_000),
+            LogEntry(type: LogType.nurse, start: ms(now) - 140 * 60_000, end: ms(now) - 120 * 60_000, side: "r"),
+            LogEntry(type: LogType.diaper, start: ms(now) - 90 * 60_000, detail: "wet"),
+            // Just logged 3 seconds ago -> triggers live ✓ confirmation + Undo pill
+            LogEntry(type: LogType.diaper, start: ms(now) - 3_000, detail: "wet"),
+        ]
         var feeding = idle
         feeding.timers = [RunningTimer(type: LogType.nurse, start: ms(now) - 9 * 60_000, side: "r", pausedAt: ms(now) - 60_000)]
         func tile<BG: View>(_ w: CGFloat, _ h: CGFloat, bg: BG, _ v: some View) -> some View {
@@ -469,5 +477,34 @@ final class ScreenshotTests: XCTestCase {
             .fontDesign(.rounded)
             shot(dark ? "33_widgets_v12_dark" : "33_widgets_v12", dark: dark, height: 1020, page)
         }
+    }
+
+    func test34WidgetsEnglish() {
+        L10n.overrideEnglish = true; defer { L10n.overrideEnglish = nil }
+        let day = Day(y: 2026, m: 10, d: 19)
+        let now = day.date.addingTimeInterval(16 * 3600 + 20 * 60)
+        let plays = [PlayRef(code: "A11", name: "Hand-to-Hand Object Transfer"), PlayRef(code: "A12", name: "Follow the Gentle Sound")]
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "Leo", companion: "Moss", journal: true, playCode: "A11", playName: "Hand-to-Hand Object Transfer", consented: true, weekPlays: plays)
+        var idle = JournalFile.Body()
+        idle.logs = [
+            LogEntry(type: LogType.sleep, start: ms(day.date) + 1 * 3600_000, end: ms(day.date) + 6 * 3600_000),
+            LogEntry(type: LogType.nurse, start: ms(now) - 140 * 60_000, end: ms(now) - 120 * 60_000, side: "l"),
+            LogEntry(type: LogType.diaper, start: ms(now) - 3_000, detail: "wet"),
+        ]
+        var feeding = idle
+        feeding.timers = [RunningTimer(type: LogType.nurse, start: ms(now) - 9 * 60_000, side: "r", pausedAt: ms(now) - 60_000)]
+        func tile<BG: View>(_ w: CGFloat, _ h: CGFloat, bg: BG, _ v: some View) -> some View {
+            v.padding(16).frame(width: w, height: h).background(bg).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        }
+        let page = VStack(spacing: 18) {
+            tile(360, 360, bg: WidgetInk.paper, TodayFace(date: now, snap: snap, body: idle, size: .large))
+            tile(360, 170, bg: WidgetInk.paper, QuickCareFace(date: now, snap: snap, body_: feeding, isMedium: true))
+            tile(360, 170, bg: BedsideLampFace.backdrop, BedsideLampFace(date: now, snap: snap, body_: idle, isMedium: true))
+        }
+        .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(red: 0.80, green: 0.86, blue: 0.92))
+        .fontDesign(.rounded)
+        shot("34_widgets_en", dark: false, height: 820, page)
     }
 }
