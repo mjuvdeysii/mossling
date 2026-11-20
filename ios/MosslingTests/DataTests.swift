@@ -91,4 +91,20 @@ final class DataTests: XCTestCase {
         XCTAssertEqual(j.measures.first?.weightG, 7500)
         XCTAssertNil(j.measures.first?.headMm)
     }
+
+    func testSummaryPreGroupingHandlesOvernightCarryover() throws {
+        let app = model()
+        let today = Day.today
+        let yesterday = today.plus(days: -1)
+        // Sleep from yesterday 23:00 to today 01:00 (1 hour on each day)
+        let start = (yesterday.date.timeIntervalSince1970 + 23 * 3600) * 1000
+        let end = (today.date.timeIntervalSince1970 + 1 * 3600) * 1000
+        var b = JournalFile.Body()
+        b.logs = [LogEntry(type: LogType.sleep, start: start, end: end)]
+        let md = try XCTUnwrap(String(data: RecordFile.summary(app, b), encoding: .utf8))
+        let yRow = String(format: "| %04d-%02d-%02d ", yesterday.y, yesterday.m, yesterday.d)
+        let tRow = String(format: "| %04d-%02d-%02d ", today.y, today.m, today.d)
+        XCTAssertTrue(md.contains(yRow), "summary must include start day row")
+        XCTAssertTrue(md.contains(tRow), "summary must include overnight carryover day row")
+    }
 }

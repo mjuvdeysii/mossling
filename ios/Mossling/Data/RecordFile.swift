@@ -146,15 +146,28 @@ enum RecordFile {
             }
         }
 
-        // day by day
+        // day by day — pre-grouped by calendar day (including multi-day carryovers) in O(logs)
         let logs = j.logs.sorted { $0.start < $1.start }
         if let first = logs.first {
             o += "\n## 每天汇总\n\n| 日期 | 喂奶次数 | 亲喂 | 瓶喂 | 睡眠 | 尿布（湿 / 便） | 体温最高 | 辅食 | 用药 |\n|---|---|---|---|---|---|---|---|---|\n"
-            var d = Day(first.startDate); let last = Day.today
+            let last = Day.today
+            var byDay: [Int: [LogEntry]] = [:]
+            for e in logs {
+                let startDay = Day(e.startDate)
+                if startDay.epochDay <= last.epochDay {
+                    byDay[startDay.epochDay, default: []].append(e)
+                }
+                if let endMs = e.end, endMs > e.start {
+                    var cur = startDay.plus(days: 1)
+                    while cur.epochDay <= last.epochDay && endMs > cur.date.timeIntervalSince1970 * 1000 {
+                        byDay[cur.epochDay, default: []].append(e)
+                        cur = cur.plus(days: 1)
+                    }
+                }
+            }
+            var d = Day(first.startDate)
             while d.epochDay <= last.epochDay {
-                let a0 = d.date.timeIntervalSince1970 * 1000, b0 = d.plus(days: 1).date.timeIntervalSince1970 * 1000
-                let day = j.logs.filter { e in (e.start >= a0 && e.start < b0) || (e.start < a0 && (e.end ?? e.start) > a0) }
-                if !day.isEmpty {
+                if let day = byDay[d.epochDay], !day.isEmpty {
                     let own = day.filter { !$0.carriedOver(into: d) }
                     let feeds = day.feedCount(from: d.date.timeIntervalSince1970 * 1000)
                     let nursed = day.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) }
