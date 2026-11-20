@@ -106,7 +106,8 @@ struct FirstSheet: View {
                     own
                     if isNew { choices }
                     VStack(alignment: .leading, spacing: 0) {
-                        DatePicker("哪一天", selection: $day, in: earliest...Date(), displayedComponents: .date)
+                        let now = Date()
+                        DatePicker("哪一天", selection: $day, in: min(earliest, now)...now, displayedComponents: .date)
                             .padding(.horizontal, 16).padding(.vertical, 10)
                         if let b = app.birth {
                             Text(Firsts.age(from: b, to: Day(day))).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()

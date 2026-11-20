@@ -133,7 +133,9 @@ struct DataView: View {
     private func load(_ url: URL) {
         let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
         do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j); message = "已导入" }
-        catch { message = error is RecordFile.Failure ? "这不是摸索台灯导出的备份文件" : "没有导入成功，文件可能已损坏" }
+        catch RecordFile.Failure.notOurs { message = "这不是摸索台灯导出的备份文件" }
+        catch RecordFile.Failure.saveFailed { message = "没有导入成功，请检查 iPhone 的存储空间后再试。" }
+        catch { message = "没有导入成功，文件可能已损坏" }
     }
 
     /// The app's own folder in the Files app (Documents is shared there: UIFileSharingEnabled), its 导出 subfolder.

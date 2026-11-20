@@ -109,8 +109,8 @@ final class AppModel {
     /// The play in progress, if any.
     var playing: (play: Play, month: Int, step: Int)? {
         let p = session.split(separator: "|")
-        guard p.count == 3, let pl = content.play(String(p[0])), let m = Int(p[1]), let st = Int(p[2]) else { return nil }
-        return (pl, m, min(st, pl.steps.count - 1))
+        guard p.count == 3, let pl = content.play(String(p[0])), !pl.steps.isEmpty, let m = Int(p[1]), let st = Int(p[2]) else { return nil }
+        return (pl, m, max(0, min(st, pl.steps.count - 1)))
     }
     func play(_ p: Play, month: Int, at step: Int) { session = "\(p.code)|\(month)|\(step)" }
     func finishPlaying() { session = "" }
@@ -122,10 +122,10 @@ final class AppModel {
         // the widget says the play the home page says
         let p = babyMonth.flatMap { todayPlay($0, j) }
         let code = p?.code, name = p?.name
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name))
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented))
         WidgetCenter.shared.reloadAllTimelines()
     }
-    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(pick)|\(shelf)|\(today.epochDay)" }
+    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)" }
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
@@ -133,7 +133,7 @@ final class AppModel {
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
         // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil))
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil, consented: false))
         WidgetCenter.shared.reloadAllTimelines()
         let fm = FileManager.default
         try? fm.removeItem(at: DataView.exportFolder)
@@ -141,7 +141,7 @@ final class AppModel {
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
-        theme = .system; companion = .moss; nightLight = true
+        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

@@ -39,16 +39,21 @@ struct Growth {
         return abs(l) < 1e-6 ? m * exp(s * z) : m * pow(1 + l * s * z, 1 / l)
     }
     func z(_ i: Indicator, girl: Bool, months: Double, value: Double) -> Double {
+        guard value.isFinite, value > 0 else { return .nan }
         let (l, m, s) = lms(i, girl, months)
+        guard m > 0, s > 0 else { return .nan }
         return abs(l) < 1e-6 ? log(value / m) / s : (pow(value / m, l) - 1) / (l * s)
     }
     func percentile(_ i: Indicator, girl: Bool, months: Double, value: Double) -> Double {
-        100 * 0.5 * (1 + erf(z(i, girl: girl, months: months, value: value) / 2.0.squareRoot()))
+        let score = z(i, girl: girl, months: months, value: value)
+        guard score.isFinite else { return .nan }
+        return 100 * 0.5 * (1 + erf(score / 2.0.squareRoot()))
     }
 }
 
 /// "第 42 百分位"; the far ends say what they are.
 func pctText(_ p: Double) -> String {
+    guard p.isFinite else { return "" }
     if p < 3 { return "低于第 3 百分位" }
     if p > 97 { return "高于第 97 百分位" }
     return "约第 \(max(3, min(97, Int(p.rounded())))) 百分位"

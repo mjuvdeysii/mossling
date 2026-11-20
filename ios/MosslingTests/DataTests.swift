@@ -48,4 +48,47 @@ final class DataTests: XCTestCase {
         }
         XCTAssertFalse(text.contains("诊断为"), "the record makes no assessment")
     }
+
+    func testCsvDeductsPausedDuration() throws {
+        var b = JournalFile.Body()
+        let start = Day(y: 2026, m: 10, d: 18).date.timeIntervalSince1970 * 1000 + 3_600_000
+        // 20 minutes elapsed, 5 minutes paused -> 15 active minutes
+        b.logs = [LogEntry(type: LogType.nurse, start: start, end: start + 20 * 60_000, side: "l", detail: "paused:300000")]
+        let csv = try XCTUnwrap(String(data: RecordFile.csv(b), encoding: .utf8))
+        let rows = csv.split(separator: "\n")
+        XCTAssertEqual(rows.count, 2)
+        let cols = rows[1].split(separator: ",", omittingEmptySubsequences: false)
+        XCTAssertEqual(cols[3], "15", "CSV duration must exclude paused minutes")
+    }
+
+    func testImportSanitizesResetsMissingFieldsAndFailsAtomically() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let payload: [String: Any] = [
+            "app": "mossling",
+            "mossling": [
+                "settings": ["birth": "2026-02-30"],
+                "measures": [
+                    ["at": 1_760_000_000_000.0, "weightG": 0, "lengthMm": -10],
+                    ["at": 1_760_086_400_000.0, "weightG": 7500, "headMm": -5]
+                ]
+            ]
+        ]
+        let data = try JSONSerialization.data(withJSONObject: payload)
+        let app = model()
+        let j = JournalStore(preview: JournalFile.Body())
+
+        // disk failure leaves existing settings untouched
+        JournalFile.failWrites = true
+        XCTAssertThrowsError(try RecordFile.load(data, into: app, journal: j))
+        XCTAssertEqual(app.nickname, "小满", "failed journal write must not mutate AppModel settings")
+        JournalFile.failWrites = false
+
+        try RecordFile.load(data, into: app, journal: j)
+        XCTAssertNil(app.birth, "invalid birth date is ignored and previous birth is cleared")
+        XCTAssertNil(app.look, "absent look resets previous value")
+        XCTAssertEqual(app.shelf, "", "absent shelf resets previous value")
+        XCTAssertEqual(j.measures.count, 1)
+        XCTAssertEqual(j.measures.first?.weightG, 7500)
+        XCTAssertNil(j.measures.first?.headMm)
+    }
 }

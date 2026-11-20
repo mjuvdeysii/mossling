@@ -40,30 +40,29 @@ enum RecordFile {
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
 
-    enum Failure: Error { case notOurs }
+    enum Failure: Error { case notOurs, saveFailed }
 
     /// Reads a record file and replaces what is on the phone with it.
     static func load(_ data: Data, into app: AppModel, journal: JournalStore) throws {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], root["app"] as? String == "mossling",
               let m = root["mossling"] as? [String: Any] else { throw Failure.notOurs }
-        func num(_ v: Any?) -> Double? { (v as? NSNumber)?.doubleValue }
+        func num(_ v: Any?) -> Double? {
+            guard let x = (v as? NSNumber)?.doubleValue, x.isFinite else { return nil }
+            return x
+        }
+        func posInt(_ v: Any?) -> Int? { num(v).flatMap { $0 > 0 ? Int($0) : nil } }
         let s = m["settings"] as? [String: Any] ?? [:]
+        var parsedBirth: Day? = nil
         if let b = s["birth"] as? String {
             let p = b.split(separator: "-").compactMap { Int($0) }
-            if p.count == 3 { app.birth = Day(y: p[0], m: p[1], d: p[2]) }
+            if p.count == 3, (1900...2100).contains(p[0]), (1...12).contains(p[1]), (1...Day.daysIn(p[0], p[1])).contains(p[2]) {
+                parsedBirth = Day(y: p[0], m: p[1], d: p[2])
+            }
         }
-        app.sex = s["sex"] as? String
-        app.nickname = s["nickname"] as? String ?? ""
-        if let c = s["companion"] as? String, let k = Kind(rawValue: c) { app.companion = k }
-        if let v = s["look"] as? String { app.look = v }
-        if let v = s["theme"] as? String, let t = ThemeMode(rawValue: v) { app.theme = t }
-        if let v = s["nightLight"] as? Bool { app.nightLight = v }
-        if let v = s["shelf"] as? String { app.shelf = v }
         let ticks = (m["ticks"] as? [[String: Any]] ?? []).compactMap { t -> Tick? in
             guard let key = t["key"] as? String, let mo = num(t["month"]), let kind = t["kind"] as? String else { return nil }
             return Tick(key: key, month: Int(mo), kind: kind, label: t["label"] as? String ?? "", at: num(t["at"]) ?? 0)
         }
-        app.replaceTicks(ticks)
         var body = JournalFile.Body()
         body.logs = (m["logs"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
@@ -71,7 +70,9 @@ enum RecordFile {
         }
         body.measures = (m["measures"] as? [[String: Any]] ?? []).compactMap { o in
             guard let at = num(o["at"]) else { return nil }
-            return Measure(at: at, weightG: num(o["weightG"]).map { Int($0) }, lengthMm: num(o["lengthMm"]).map { Int($0) }, headMm: num(o["headMm"]).map { Int($0) })
+            let w = posInt(o["weightG"]), l = posInt(o["lengthMm"]), h = posInt(o["headMm"])
+            guard w != nil || l != nil || h != nil else { return nil }
+            return Measure(at: at, weightG: w, lengthMm: l, headMm: h)
         }
         body.firsts = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
             guard let at = num(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
@@ -79,12 +80,24 @@ enum RecordFile {
         }
         body.timers = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
-            return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: num(o["pausedAt"]), pausedTotal: num(o["pausedTotal"]) ?? 0,
-                                carried: num(o["carried"]) ?? 0, carriedPause: num(o["carriedPause"]) ?? 0)
+            return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: num(o["pausedAt"]), pausedTotal: max(0, num(o["pausedTotal"]) ?? 0),
+                                carried: max(0, num(o["carried"]) ?? 0), carriedPause: max(0, num(o["carriedPause"]) ?? 0))
         }
-        if let v = s["journal"] as? Bool { app.journal = v }
-        if !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty { app.journal = true }
-        journal.replaceAll(body)
+        // write the journal first so a failed disk save never leaves settings half-imported
+        guard journal.replaceAll(body) else { throw Failure.saveFailed }
+        app.birth = parsedBirth
+        app.sex = s["sex"] as? String
+        app.nickname = s["nickname"] as? String ?? ""
+        app.companion = (s["companion"] as? String).flatMap(Kind.init(rawValue:)) ?? .moss
+        app.look = s["look"] as? String
+        app.theme = (s["theme"] as? String).flatMap(ThemeMode.init(rawValue:)) ?? .system
+        app.nightLight = s["nightLight"] as? Bool ?? true
+        app.shelf = s["shelf"] as? String ?? ""
+        app.pick = ""
+        app.session = ""
+        app.replaceTicks(ticks)
+        let hasRecords = !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty
+        app.journal = (s["journal"] as? Bool ?? false) || hasRecords
     }
 
     /// Everything recorded, as a document a paediatrician can read, or that a parent can hand to an AI assistant to look
@@ -122,10 +135,10 @@ enum RecordFile {
             for m in ms {
                 let months = app.birth.map { Double(Day(Date(timeIntervalSince1970: m.at / 1000)).epochDay - $0.epochDay) / 30.4375 }
                 func cell(_ v: Int?, _ i: Indicator, _ k: Double) -> String {
-                    guard let v else { return "" }
+                    guard let v, v > 0 else { return "" }
                     let x = Double(v) / k
                     let p = months.flatMap { mo in mo >= 0 && mo <= 36 && app.sex != nil ? app.growth.percentile(i, girl: app.girl, months: mo, value: x) : nil }
-                    guard let p else { return i.fmt(x) }
+                    guard let p, p.isFinite else { return i.fmt(x) }
                     return "\(i.fmt(x))（\(pctText(p))）"
                 }
                 let row: [String] = [date(m.at), months.map { String(format: "%.1f", $0) } ?? "", cell(m.weightG, .weight, 1000), cell(m.lengthMm, .length, 10), cell(m.headMm, .head, 10)]
@@ -227,7 +240,8 @@ enum RecordFile {
             let (amt, unit): (String, String) = e.type == LogType.bottle ? ("\(e.amount ?? 0)", "毫升") : e.type == LogType.temp ? (e.amount.map { String(format: "%.1f", Double($0) / 10) } ?? "", "°C") : ("", "")
             let side = e.side == "l" ? "左" : e.side == "r" ? "右" : ""
             let detail = e.type == LogType.diaper ? (["wet": "湿", "dirty": "便", "both": "湿和便"][e.detail ?? ""] ?? "") : (e.detail ?? "")
-            s += [day(e.start), t(e.start), e.end.map(t) ?? "", e.end.map { "\(Int(($0 - e.start) / 60_000))" } ?? "", LogType.name(e.type), amt, unit, side, q(detail)].joined(separator: ",") + "\n"
+            let minutes = e.end != nil ? "\(Int((e.activeSeconds / 60).rounded(.down)))" : ""
+            s += [day(e.start), t(e.start), e.end.map(t) ?? "", minutes, LogType.name(e.type), amt, unit, side, q(detail)].joined(separator: ",") + "\n"
         }
         for m in j.measures {
             if let w = m.weightG { s += [day(m.at), t(m.at), "", "", "体重", String(format: "%.2f", Double(w) / 1000), "千克", "", ""].joined(separator: ",") + "\n" }

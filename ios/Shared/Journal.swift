@@ -239,6 +239,8 @@ struct Snapshot: Codable {
     var journal: Bool
     var playCode: String?
     var playName: String?
+    /// Whether the guardian has agreed to the current rules; nil in files written by v1.0.0.
+    var consented: Bool? = nil
 }
 
 /// The journal file, shared with the widget and the Live Activity through the app group.
@@ -284,6 +286,12 @@ enum JournalFile {
         }
     }
 
+    enum MutationResult {
+        case saved(before: Body, after: Body)
+        case unchanged(Body)
+        case failed
+    }
+
     /// Builds signed before the app group was set up kept the journal in the app's own Documents folder. Once the
     /// group exists, move it there (once), so nothing recorded earlier is lost and the widget sees it too.
     static func migrateIntoGroup() {
@@ -297,29 +305,105 @@ enum JournalFile {
         }
     }
 
-    static func read() -> Body { (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Body.self, from: $0) } ?? Body() }
-    /// Writes the journal; false when it could not be saved (the caller says so and keeps what was typed).
-    @discardableResult static func write(_ b: Body) -> Bool {
+    private static func readUnlocked(at u: URL) throws -> Body {
+        guard FileManager.default.fileExists(atPath: u.path) else { return Body() }
+        let data = try Data(contentsOf: u)
+        return try JSONDecoder().decode(Body.self, from: data)
+    }
+
+    private static func writeUnlocked(_ b: Body, to u: URL) -> Bool {
         #if DEBUG
         if failWrites { return false }
         #endif
         guard let data = try? JSONEncoder().encode(b) else { return false }
-        do { try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); return true } catch { return false }
+        do { try data.write(to: u, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]); return true } catch { return false }
     }
+
+    /// Reads the journal under file coordination. Returns an empty body only when the file does not exist yet; throws
+    /// on I/O or decode errors so callers never overwrite an unreadable file with an empty one.
+    static func load() throws -> Body {
+        var coordError: NSError?
+        var result: Result<Body, Error> = .failure(CocoaError(.fileReadUnknown))
+        NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: url, options: [], error: &coordError) { target in
+            do { result = .success(try readUnlocked(at: target)) }
+            catch { result = .failure(error) }
+        }
+        if let coordError { throw coordError }
+        return try result.get()
+    }
+
+    static func read() -> Body { (try? load()) ?? Body() }
+
+    /// Writes the journal under file coordination; false when it could not be saved (the caller says so and keeps what was typed).
+    @discardableResult static func write(_ b: Body) -> Bool {
+        #if DEBUG
+        if failWrites { return false }
+        #endif
+        var coordError: NSError?
+        var ok = false
+        NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: [], error: &coordError) { target in
+            ok = writeUnlocked(b, to: target)
+        }
+        return coordError == nil && ok
+    }
+
+    /// Coordinated read-modify-write across app and widget processes. If the existing file cannot be read or decoded,
+    /// returns `.failed` without overwriting it.
+    static func mutate(_ transform: (inout Body) -> Bool) -> MutationResult {
+        var coordError: NSError?
+        var outcome: MutationResult = .failed
+        NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: [], error: &coordError) { target in
+            guard let before = try? readUnlocked(at: target) else { outcome = .failed; return }
+            var after = before
+            guard transform(&after) else { outcome = .unchanged(before); return }
+            outcome = writeUnlocked(after, to: target) ? .saved(before: before, after: after) : .failed
+        }
+        return coordError == nil ? outcome : .failed
+    }
+
+    private static func applyMutation(_ transform: (inout Body) -> Bool) -> Body {
+        switch mutate(transform) {
+        case let .saved(_, after): return after
+        case let .unchanged(b): return b
+        case .failed: return read()
+        }
+    }
+
     #if DEBUG
     /// Tests only: every write fails, to check that nothing celebrates a save that did not happen.
     nonisolated(unsafe) static var failWrites = false
     #endif
-    static func snapshot() -> Snapshot? { (try? Data(contentsOf: snapshotURL)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) } }
-    static func writeSnapshot(_ s: Snapshot) { try? JSONEncoder().encode(s).write(to: snapshotURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication]) }
+    static func snapshot() -> Snapshot? {
+        var coordError: NSError?
+        var snap: Snapshot?
+        NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: snapshotURL, options: [], error: &coordError) { target in
+            snap = (try? Data(contentsOf: target)).flatMap { try? JSONDecoder().decode(Snapshot.self, from: $0) }
+        }
+        return coordError == nil ? snap : nil
+    }
+    static func writeSnapshot(_ s: Snapshot) {
+        guard let data = try? JSONEncoder().encode(s) else { return }
+        var coordError: NSError?
+        NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: snapshotURL, options: [], error: &coordError) { target in
+            try? data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        }
+    }
 
     // Timer operations, shared by the app, the Live Activity buttons and the widget.
     static func now() -> Double { Date().timeIntervalSince1970 * 1000 }
     @discardableResult static func start(_ type: String, side: String? = nil, at: Double = now()) -> Body {
-        var b = read(); if !b.timers.contains(where: { $0.type == type }) { b.timers.append(RunningTimer(type: type, start: at, side: side)); write(b) }; return b
+        applyMutation { b in
+            guard !b.timers.contains(where: { $0.type == type }) else { return false }
+            b.timers.append(RunningTimer(type: type, start: at, side: side))
+            return true
+        }
     }
     @discardableResult static func togglePause(_ type: String) -> Body {
-        var b = read(); b = pausing(b, type, now: now()); write(b); return b
+        applyMutation { b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b = pausing(b, type, now: now())
+            return true
+        }
     }
     static func pausing(_ b0: Body, _ type: String, now n: Double) -> Body {
         var b = b0
@@ -331,7 +415,11 @@ enum JournalFile {
     /// A tap on one side of a feed, the one gesture of the feeding screen: on the side being fed it pauses (or goes
     /// on); on the other side it changes sides and runs.
     @discardableResult static func tapSide(_ type: String, _ side: String) -> Body {
-        var b = read(); b = tappingSide(b, type, side, now: now()); write(b); return b
+        applyMutation { b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b = tappingSide(b, type, side, now: now())
+            return true
+        }
     }
     static func tappingSide(_ b: Body, _ type: String, _ side: String, now n: Double) -> Body {
         guard let t = b.timers.first(where: { $0.type == type }) else { return b }
@@ -341,7 +429,11 @@ enum JournalFile {
     /// side from now (and runs again if it was paused). A side of under 30 seconds is not worth an entry: the side is
     /// just changed. Each side stays a plain nurse entry, so the file reads the same in the Android app.
     @discardableResult static func switchSide(_ type: String) -> Body {
-        var b = read(); b = switchingSide(b, type, now: now()); write(b); return b
+        applyMutation { b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b = switchingSide(b, type, now: now())
+            return true
+        }
     }
     static func switchingSide(_ b0: Body, _ type: String, now n: Double) -> Body {
         var b = b0
@@ -360,11 +452,19 @@ enum JournalFile {
         return b
     }
     @discardableResult static func shift(_ type: String, to start: Double) -> Body {
-        var b = read(); if let i = b.timers.firstIndex(where: { $0.type == type }) { b.timers[i].start = min(start, now()); write(b) }; return b
+        applyMutation { b in
+            guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return false }
+            b.timers[i].start = min(start, now())
+            return true
+        }
     }
     /// Ends the timer and writes the entry; nothing when it was not running.
     @discardableResult static func stop(_ type: String) -> Body {
-        var b = read(); b = stopping(b, type, now: now()); write(b); return b
+        applyMutation { b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b = stopping(b, type, now: now())
+            return true
+        }
     }
     static func stopping(_ b0: Body, _ type: String, now n: Double) -> Body {
         var b = b0
@@ -389,8 +489,16 @@ enum JournalFile {
         }
         return nil
     }
-    @discardableResult static func discard(_ type: String) -> Body { var b = read(); b.timers.removeAll { $0.type == type }; write(b); return b }
-    @discardableResult static func add(_ e: LogEntry) -> Body { var b = read(); b.logs.append(e); write(b); return b }
+    @discardableResult static func discard(_ type: String) -> Body {
+        applyMutation { b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b.timers.removeAll { $0.type == type }
+            return true
+        }
+    }
+    @discardableResult static func add(_ e: LogEntry) -> Body {
+        applyMutation { b in b.logs.append(e); return true }
+    }
 }
 
 #if canImport(ActivityKit)
