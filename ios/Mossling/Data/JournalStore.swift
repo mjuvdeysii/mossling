@@ -50,13 +50,13 @@ final class JournalStore {
     /// Applies a change and saves it under file coordination. Returns the pre-change body on success for 撤销.
     /// On a failed save nothing changes on screen, the failure is said in plain words (no undo, no success haptic),
     /// and the caller keeps what was typed.
-    private func edit(_ what: String = "这条记录", _ f: (inout JournalFile.Body) -> Void) -> JournalFile.Body? {
+    private func edit(_ f: (inout JournalFile.Body) -> Void) -> JournalFile.Body? {
         switch JournalFile.mutate({ b in f(&b); return true }) {
         case let .saved(before, after):
             changed(after)
             return before
         case .unchanged, .failed:
-            failed(what)
+            failed()
             return nil
         }
     }

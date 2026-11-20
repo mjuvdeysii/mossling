@@ -63,70 +63,76 @@ struct RootView: View {
                 set: { if !$0 { app.askConsent = false } })
     }
 
+    @ViewBuilder private var rootContent: some View {
+        if isLocked {
+            // replace the whole tree while locked so no .sheet or .fullScreenCover can sit above LockView
+            LockView { unlock() }
+        } else if !app.onboarded {
+            OnboardingView()
+        } else {
+            // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
+            // sleep rides above it on every tab
+            tabs
+        }
+    }
+
+    private var observedContent: some View {
+        rootContent
+            // a tab that is no longer there (记录 turned off) falls back to 本月
+            .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
+            // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
+            .onChange(of: app.lock) { _, on in if on { locked = false } }
+            .onChange(of: locked) { _, stillLocked in
+                if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
+            }
+            .onChange(of: phase) { _, p in
+                if p == .active { app.today = .today; journal.reload(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+                if p == .background { locked = true; mascot.send(.appBackground) }
+            }
+            .task { if app.lock { unlock() }; roll(); app.publish(journal) }
+            // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
+            // flows back into the journal
+            .task {
+                mascot.companion = app.companion
+                mascot.timing = !journal.timers.isEmpty
+                if scheme == .dark { mascot.send(.nightmodeEnabled) }
+                journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
+            }
+            .onChange(of: scheme) { _, s in mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled) }
+            .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
+            .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }
+    }
+
     var body: some View {
-        Group {
-            if isLocked {
-                // replace the whole tree while locked so no .sheet or .fullScreenCover can sit above LockView
-                LockView { unlock() }
-            } else if !app.onboarded {
-                OnboardingView()
-            } else {
-                // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
-                // sleep rides above it on every tab
-                tabs
+        observedContent
+            // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
+            .task(id: phase) {
+                guard phase == .active else { return }
+                var n = 0
+                while !Task.isCancelled {
+                    journal.refreshIfChanged()
+                    n += 1; if n % 30 == 1 { night = Daylight.isNight() }
+                    try? await Task.sleep(for: .seconds(2))
+                }
             }
-        }
-        // a tab that is no longer there (记录 turned off) falls back to 本月
-        .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
-        // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
-        .onChange(of: app.lock) { _, on in if on { locked = false } }
-        .onChange(of: locked) { _, stillLocked in
-            if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
-        }
-        .onChange(of: phase) { _, p in
-            if p == .active { app.today = .today; journal.reload(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
-            if p == .background { locked = true; mascot.send(.appBackground) }
-        }
-        .task { if app.lock { unlock() }; roll(); app.publish(journal) }
-        // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
-        // flows back into the journal
-        .task {
-            mascot.companion = app.companion
-            mascot.timing = !journal.timers.isEmpty
-            if scheme == .dark { mascot.send(.nightmodeEnabled) }
-            journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
-        }
-        .onChange(of: scheme) { _, s in mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled) }
-        .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
-        .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }
-        // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
-        .task(id: phase) {
-            guard phase == .active else { return }
-            var n = 0
-            while !Task.isCancelled {
-                journal.refreshIfChanged()
-                n += 1; if n % 30 == 1 { night = Daylight.isNight() }
-                try? await Task.sleep(for: .seconds(2))
-            }
-        }
-        // a play recorded changes today's play (the least played comes next), so its count is part of the key
-        // a birth date just given: this week is written at once (not at the next time the app comes forward)
-        .onChange(of: app.birth) { _, _ in roll(fresh: true) }
-        .onChange(of: widgetKey) { _, _ in app.publish(journal) }
-        // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
-        // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
-        // drawn by the system from the window's appearance, and stayed black on the lamp's blue when only the views
-        // were dark (seen on a phone in light mode). Everywhere else, the chosen theme.
-        // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
-        // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
-        // system's own bars, pickers and sheets follow
-        .toasts()
-        .sheet(isPresented: consentShown) { ConsentSheet() }
-        // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
-        .onOpenURL { url in open(url) }
-        .modifier(LampScope(on: scheme == .dark))
-        // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone
-        .preferredColorScheme(app.theme == .system && app.nightLight && night ? .dark : app.theme.scheme)
+            // a play recorded changes today's play (the least played comes next), so its count is part of the key
+            // a birth date just given: this week is written at once (not at the next time the app comes forward)
+            .onChange(of: app.birth) { _, _ in roll(fresh: true) }
+            .onChange(of: widgetKey) { _, _ in app.publish(journal) }
+            // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
+            // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
+            // drawn by the system from the window's appearance, and stayed black on the lamp's blue when only the views
+            // were dark (seen on a phone in light mode). Everywhere else, the chosen theme.
+            // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
+            // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
+            // system's own bars, pickers and sheets follow
+            .toasts()
+            .sheet(isPresented: consentShown) { ConsentSheet() }
+            // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
+            .onOpenURL { url in open(url) }
+            .modifier(LampScope(on: scheme == .dark))
+            // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone
+            .preferredColorScheme(app.theme == .system && app.nightLight && night ? .dark : app.theme.scheme)
     }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
