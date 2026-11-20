@@ -90,7 +90,7 @@ struct BedsideLampWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "bedside-lamp", provider: TodayProvider()) { e in
             BedsideLampWidgetView(e: e).containerBackground(for: .widget) {
-                Color(red: 0x0B / 255, green: 0x10 / 255, blue: 0x28 / 255)
+                BedsideLampFace.backdrop
             }
         }
         .configurationDisplayName("床头台灯")
