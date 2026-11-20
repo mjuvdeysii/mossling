@@ -450,20 +450,19 @@ final class ScreenshotTests: XCTestCase {
                      LogEntry(type: LogType.diaper, start: ms(now) - 45 * 60_000, detail: "wet")]
         var feeding = idle
         feeding.timers = [RunningTimer(type: LogType.nurse, start: ms(now) - 9 * 60_000, side: "r", pausedAt: ms(now) - 60_000)]
-        func tile(_ w: CGFloat, _ h: CGFloat, bg: Color = WidgetInk.paper, _ v: some View) -> some View {
+        func tile<BG: View>(_ w: CGFloat, _ h: CGFloat, bg: BG, _ v: some View) -> some View {
             v.padding(16).frame(width: w, height: h).background(bg).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
         }
-        let lampBg = Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255)
         for dark in [false, true] {
             let page = VStack(spacing: 18) {
-                tile(360, 360, TodayFace(date: now, snap: snap, body: idle, size: .large))
+                tile(360, 360, bg: WidgetInk.paper, TodayFace(date: now, snap: snap, body: idle, size: .large))
                 HStack(spacing: 18) {
-                    tile(170, 170, QuickCareFace(date: now, snap: snap, body_: idle, isMedium: false))
-                    tile(170, 170, bg: lampBg, BedsideLampFace(date: now, snap: snap, body_: feeding, isMedium: false))
+                    tile(170, 170, bg: WidgetInk.paper, QuickCareFace(date: now, snap: snap, body_: idle, isMedium: false))
+                    tile(170, 170, bg: BedsideLampFace.backdrop, BedsideLampFace(date: now, snap: snap, body_: feeding, isMedium: false))
                 }
-                tile(360, 170, QuickCareFace(date: now, snap: snap, body_: feeding, isMedium: true))
-                tile(360, 170, bg: lampBg, BedsideLampFace(date: now, snap: snap, body_: idle, isMedium: true))
+                tile(360, 170, bg: WidgetInk.paper, QuickCareFace(date: now, snap: snap, body_: feeding, isMedium: true))
+                tile(360, 170, bg: BedsideLampFace.backdrop, BedsideLampFace(date: now, snap: snap, body_: idle, isMedium: true))
             }
             .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(dark ? Color(white: 0.08) : Color(red: 0.80, green: 0.86, blue: 0.92))

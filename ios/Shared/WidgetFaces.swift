@@ -261,18 +261,18 @@ struct TodayFace: View {
             head
 
             if let code = snap?.playCode, let name = snap?.playName {
-                HStack(spacing: 12) {
-                    ArtImage(name: WidgetArt.tray(code)).frame(width: 74, height: 54)
-                    VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 14) {
+                    ArtImage(name: WidgetArt.tray(code)).frame(width: 84, height: 62)
+                    VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 5) {
                             Circle().fill(WidgetInk.bead).frame(width: 6, height: 6)
                             Text("今天一起玩").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
                         }
-                        Text(name).font(.subheadline.weight(.bold)).foregroundStyle(.primary).lineLimit(2)
+                        Text(name).font(.headline.weight(.bold)).foregroundStyle(.primary).lineLimit(2)
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 10)
+                .padding(.horizontal, 14).padding(.vertical, 14)
                 .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
             }
 
@@ -293,7 +293,7 @@ struct TodayFace: View {
                     QuickCareFace.diaperTile(kind: .wet, title: "湿尿布", dot: Crayon.sky, stickerSize: 32)
                     QuickCareFace.diaperTile(kind: .dirty, title: "便尿布", dot: Crayon.caramel, stickerSize: 32)
                 }
-                .frame(height: 82)
+                .frame(height: 86)
             }
         }
         .foregroundStyle(.primary)
@@ -418,58 +418,70 @@ struct BedsideLampFace: View {
     let body_: JournalFile.Body
     let isMedium: Bool
 
+    static let lampBase = Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255)
+    static let amber = Color(red: 0xF5 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
+
+    /// Full-bleed night-lamp backdrop used in `containerBackground(for: .widget)` so the amber glow never clips.
+    static var backdrop: some View {
+        ZStack {
+            lampBase
+            RadialGradient(
+                colors: [amber.opacity(0.24), amber.opacity(0.06), .clear],
+                center: UnitPoint(x: 0.16, y: 0.16),
+                startRadius: 8,
+                endRadius: 190
+            )
+        }
+    }
+
     private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
 
     var body: some View {
-        let amber = Color(red: 0xF5 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
         let cardDark = Color(red: 0x19 / 255, green: 0x21 / 255, blue: 0x3F / 255)
-        ZStack {
-            RadialGradient(colors: [amber.opacity(0.20), Color.clear], center: UnitPoint(x: 0.18, y: 0.18), startRadius: 6, endRadius: isMedium ? 170 : 120)
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .center, spacing: 8) {
-                    ArtImage(name: WidgetArt.pair)
-                        .frame(width: 34, height: 34)
-                        .padding(5)
-                        .background(Circle().fill(cardDark))
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : "摸索台灯")
-                            .font(.caption2.weight(.semibold)).foregroundStyle(amber)
-                        if let a = age {
-                            Text("第 \(a.lived) 天").font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
-                        }
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
+                ArtImage(name: WidgetArt.pair)
+                    .frame(width: 34, height: 34)
+                    .padding(5)
+                    .background(Circle().fill(cardDark))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : "摸索台灯")
+                        .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
+                    if let a = age {
+                        Text("第 \(a.lived) 天").font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
                     }
-                    Spacer(minLength: 0)
                 }
                 Spacer(minLength: 0)
-                if let t = body_.timers.first {
-                    HStack(alignment: .center, spacing: 10) {
-                        ArtImage(name: WidgetArt.sticker(t.type)).frame(width: isMedium ? 36 : 28, height: isMedium ? 36 : 28)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil))
-                                .font(.caption2.weight(.semibold)).foregroundStyle(amber)
-                            if let p = t.pausedAt {
-                                Text(minutesOf(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
-                            } else {
-                                Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
-                            }
+            }
+            Spacer(minLength: 0)
+            if let t = body_.timers.first {
+                HStack(alignment: .center, spacing: 10) {
+                    ArtImage(name: WidgetArt.sticker(t.type)).frame(width: isMedium ? 36 : 28, height: isMedium ? 36 : 28)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil))
+                            .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
+                        if let p = t.pausedAt {
+                            Text(minutesOf(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                        } else {
+                            Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
                         }
                     }
-                } else if isMedium {
-                    HStack(spacing: 16) {
-                        lampMetric("上次喂奶", lastFeed, amber)
-                        lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
-                    }
-                } else {
-                    VStack(alignment: .leading, spacing: 5) {
-                        lampMetric("上次喂奶", lastFeed, amber)
-                        lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
-                    }
+                }
+            } else if isMedium {
+                HStack(spacing: 18) {
+                    lampMetric("上次喂奶", lastFeed, Self.amber)
+                    lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 5) {
+                    lampMetric("上次喂奶", lastFeed, Self.amber)
+                    lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
         .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) })
     }
