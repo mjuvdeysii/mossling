@@ -16,6 +16,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -117,9 +118,11 @@ def extract_changelog(changelog_path: str, version: str | None = None, build: st
         s = raw.strip()
         if not s:
             continue
-        # Strip markdown bold/code formatting for clean TestFlight plain-text display
+        # Strip markdown bold/code formatting and ASC-disallowed Unicode symbols (category So, e.g. checkmarks/emoji)
         s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
         s = re.sub(r"`([^`]+)`", r"\1", s)
+        s = "".join(ch for ch in s if unicodedata.category(ch) != "So")
+        s = re.sub(r"\s{2,}", " ", s).strip()
         if s.startswith("- "):
             s = "• " + s[2:]
         cleaned.append(s)

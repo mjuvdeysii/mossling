@@ -20,7 +20,7 @@ struct TodayView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
-                    Button { if app.mayKeep() { askBirth = true } } label: { Label("填写出生日期，从宝宝这个月开始", systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
+                    Button { if app.mayKeep() { askBirth = true } } label: { Label(L10n.t("填写出生日期，从宝宝这个月开始", "Add baby's birthday to begin"), systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
                 // a feed or a sleep being timed is what matters most while it runs: it leads the page
@@ -46,10 +46,10 @@ struct TodayView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
         .onChange(of: app.journal, initial: true) { _, on in RecordsTip.recordsOff = !on }
-        .navigationTitle(app.nickname.isEmpty ? "摸索台灯" : app.nickname)
+        .navigationTitle(app.nickname.isEmpty ? L10n.appName : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel("搜索") }
+            ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel(L10n.t("搜索", "Search")) }
         }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
@@ -71,9 +71,12 @@ private struct DueCard: View {
                 HStack(spacing: 12) {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text("这个月的接种与儿保").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                        Text("中国大陆程序").font(.caption2).foregroundStyle(Palette.secondaryText)
-                        Text("本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : "")).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                        Text(L10n.t("这个月的接种与儿保", "Vaccines & Check-ups")).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                        Text(L10n.t("中国大陆程序", "Standard schedule")).font(.caption2).foregroundStyle(Palette.secondaryText)
+                        Text(L10n.t(
+                            "本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : ""),
+                            "\(done) / \(total) this month" + (earlier > 0 ? " · \(earlier) earlier" : "")
+                        )).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
@@ -104,7 +107,10 @@ private struct NowCard: View {
                 Button { j.focus = LogType.sleep } label: {
                     card(tint: Crayon.lilac) {
                         Duo(primary: app.companion, size: 44, mood: .sleep, night: true)
-                        words(sleep.pausedAt != nil ? timerState(LogType.sleep, side: nil, paused: true) : "宝宝在睡觉", "已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下")
+                        words(
+                            sleep.pausedAt != nil ? L10n.timerStatus(LogType.sleep, side: nil, paused: true) : L10n.t("宝宝在睡觉", "Baby is sleeping"),
+                            L10n.t("已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下", "Asleep " + L10n.duration(sleep.total(now)) + " · Tap when awake")
+                        )
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                     }
@@ -114,7 +120,10 @@ private struct NowCard: View {
                 Button { j.focus = LogType.nurse } label: {
                     card(tint: Crayon.pink) {
                         IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
-                        words(feed.pausedAt != nil ? timerState(LogType.nurse, side: feed.side, paused: true) : "正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "已经 " + durationValue(feed.total(now)))
+                        words(
+                            feed.pausedAt != nil ? L10n.timerStatus(LogType.nurse, side: feed.side, paused: true) : L10n.t("正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "Nursing" + (feed.side == "r" ? " · Right" : " · Left")),
+                            L10n.t("已经 " + durationValue(feed.total(now)), L10n.duration(feed.total(now)) + " elapsed")
+                        )
                         Spacer(minLength: 0)
                         Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                     }

@@ -7,6 +7,7 @@ import ActivityKit
 struct MosslingWidgets: WidgetBundle {
     var body: some Widget {
         TodayWidget()
+        StoryWindowWidget()
         QuickCareWidget()
         BedsideLampWidget()
         TimerLiveActivity()
@@ -26,7 +27,7 @@ struct TodayEntry: TimelineEntry {
 
 struct TodayProvider: TimelineProvider {
     func placeholder(in context: Context) -> TodayEntry {
-        TodayEntry(date: .now, snap: Snapshot(birthEpochDay: Day.today.plus(days: -200).epochDay, nickname: "", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会"), body: .init())
+        TodayEntry(date: .now, snap: Snapshot(birthEpochDay: Day.today.plus(days: -200).epochDay, nickname: "", companion: "Moss", journal: true, playCode: "A11", playName: L10n.t("双手物品传递机会", "Hand-to-Hand Transfer")), body: .init())
     }
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) { completion(entry(.now)) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
@@ -50,8 +51,8 @@ struct TodayWidget: Widget {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in
             TodayWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
         }
-        .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Mossling · Today"))
-        .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；大号组件支持桌面换活动与一键记录撤销。", "Age, today's play, 24h bead rhythm, and one-tap interactive logging with undo."))
+        .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Moss & Otto · Today"))
+        .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；点击各区块直达活动绘本与手帐。", "Age, today's play, 24h bead rhythm, and direct links into play & journal."))
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -69,6 +70,26 @@ private struct TodayWidgetView: View {
         default: .small
         }
         TodayFace(date: e.date, snap: e.snap, body: e.body, size: size)
+    }
+}
+
+/// Story Window (成长故事窗): 37-bead Montessori growth chapter keepsake linking directly into Growth Book & Month view.
+struct StoryWindowWidget: Widget {
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: "story-window", provider: TodayProvider()) { e in
+            StoryWindowWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
+        }
+        .configurationDisplayName(L10n.t("成长故事窗", "Story Window"))
+        .description(L10n.t("37 颗蒙氏成长珠进度与当下成长章节，轻点直达成长册与本月主页。", "Your baby's 37-bead Montessori chapter & keepsake window into Growth Book."))
+        .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+private struct StoryWindowWidgetView: View {
+    let e: TodayEntry
+    @Environment(\.widgetFamily) private var family
+    var body: some View {
+        StoryWindowFace(date: e.date, snap: e.snap, body_: e.body, isMedium: family == .systemMedium)
     }
 }
 
@@ -101,7 +122,7 @@ struct BedsideLampWidget: Widget {
             }
         }
         .configurationDisplayName(L10n.t("床头台灯", "Bedside Lamp"))
-        .description(L10n.t("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，抬眼即看计时与上次喂奶。", "Warm amber StandBy lamp with live timer and time since last feed & wake."))
+        .description(L10n.t("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。", "Warm amber StandBy lamp with live timer and direct tap to timer or night log."))
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }

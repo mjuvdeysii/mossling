@@ -10,8 +10,12 @@ struct Tick: Codable, Hashable {
 }
 
 enum ThemeMode: String, CaseIterable { case system, light, dark
-    var label: String { switch self { case .system: "自动"; case .light: "日光"; case .dark: "夜灯" } }
+    var label: String { switch self { case .system: L10n.t("自动", "Auto"); case .light: L10n.t("日光", "Day"); case .dark: L10n.t("夜灯", "Lamp") } }
     var scheme: ColorScheme? { switch self { case .system: nil; case .light: .light; case .dark: .dark } }
+}
+
+extension AppLanguage {
+    var label: String { switch self { case .system: L10n.t("自动", "Auto"); case .zh: "中文"; case .en: "English" } }
 }
 
 /// Settings and month records, kept on the phone (UserDefaults); the journal lives in its own store.
@@ -25,6 +29,14 @@ final class AppModel {
     var birth: Day? { didSet { d.set(birth?.epochDay, forKey: "birth"); if birth != nil { onboarded = true } } }
     var companion: Kind { didSet { d.set(companion.rawValue, forKey: "companion") } }
     var theme: ThemeMode { didSet { d.set(theme.rawValue, forKey: "theme") } }
+    /// In-app language preference (shared with widgets & controls via App Group).
+    var language: AppLanguage {
+        didSet {
+            L10n.preference = language
+            WidgetCenter.shared.reloadAllTimelines()
+            if #available(iOS 18.0, *) { ControlCenter.shared.reloadAllControls() }
+        }
+    }
     /// How the pictures and icons are drawn: 立体 (3D vinyl, the default) or 平面 (the picture book's 2D drawings).
     var artStyle: ArtStyle { didSet { d.set(artStyle.rawValue, forKey: "artStyle"); ArtStyle.current = artStyle } }
     var onboarded: Bool { didSet { d.set(onboarded, forKey: "onboarded") } }
@@ -58,6 +70,7 @@ final class AppModel {
         birth = ((d.object(forKey: "birth") as? Int) ?? d.string(forKey: "birth").flatMap { Int($0) }).map { Day(epochDay: $0) }
         companion = Kind(rawValue: d.string(forKey: "companion") ?? "") ?? .moss
         theme = ThemeMode(rawValue: d.string(forKey: "theme") ?? "") ?? .system
+        language = L10n.preference
         let style = ArtStyle(rawValue: d.string(forKey: "artStyle") ?? "") ?? .vinyl
         artStyle = style
         ArtStyle.current = style
