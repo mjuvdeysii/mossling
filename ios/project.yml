@@ -1,6 +1,8 @@
 name: Mossling
 options:
   bundleIdPrefix: app.mossling
+  developmentLanguage: zh-Hans
+  knownRegions: [zh-Hans, en]
   deploymentTarget:
     iOS: "26.0"
   createIntermediateGroups: true
@@ -8,7 +10,7 @@ settings:
   base:
     SWIFT_VERSION: "5.10"
     PRODUCT_NAME: "$(TARGET_NAME)"
-    MARKETING_VERSION: "1.2.0"
+    MARKETING_VERSION: "1.3.0"
     # the App filing number (工信部 App 备案), shown in 关于 once set; empty until the filing is done
     MOSSLING_ICP: ""
     # the developer named in the privacy policy, terms and disclaimer (the same as the App filing), and the contact

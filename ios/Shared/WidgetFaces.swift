@@ -60,7 +60,7 @@ struct TodayFace: View {
     init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize) { self.date = date; self.snap = snap; self.body_ = body; self.size = size }
 
     private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
-    private var ageText: String { age.map { $0.days > 0 ? "\($0.months) 个月 \($0.days) 天" : "满 \($0.months) 个月" } ?? "填写出生日期" }
+    private var ageText: String { age.map { L10n.ageText($0) } ?? L10n.t("填写出生日期", "Add birthday") }
     /// When it was last done, as the app says it (LastFact): a feed — breast or bottle — by when it began, a sleep by
     /// when the baby woke.
     private func last(_ t: String) -> Date? {
@@ -71,8 +71,8 @@ struct TodayFace: View {
     /// 喂奶, either kind: the last feed, as the app's 上次喂奶.
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     /// The wide faces have room for the minutes past the hour ("2 小时 30 分前"); the narrow cards use the short form.
-    private func agoText(_ d: Date) -> String { ago(d, now: date, precise: true) }
-    private func agoCard(_ d: Date) -> String { ago(d, now: date) }
+    private func agoText(_ d: Date) -> String { L10n.agoText(d, now: date, precise: true) }
+    private func agoCard(_ d: Date) -> String { L10n.agoText(d, now: date) }
     private var journal: Bool { snap?.journal == true }
 
     var body: some View {
@@ -84,11 +84,11 @@ struct TodayFace: View {
                 Text(ageText).font(.headline).widgetAccentable()
                 if let t = body_.timers.first {
                     HStack(spacing: 4) {
-                        Text(LogType.name(t.type))
-                        if let p = t.pausedAt { Text(minutesOf(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit() }
+                        Text(L10n.logName(t.type))
+                        if let p = t.pausedAt { Text(L10n.duration(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
                     }.font(.caption)
                 } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1) }
-                if journal, let f = lastFeed { Text("喂奶 \(agoText(f))").font(.caption) }
+                if journal, let f = lastFeed { Text("\(L10n.t("喂奶", "Fed")) \(agoText(f))").font(.caption) }
             }
         case .large: large
         case .medium: medium
@@ -102,8 +102,8 @@ struct TodayFace: View {
             if let t = body_.timers.first {
                 VStack(spacing: 1) {
                     Image(systemName: t.type == LogType.sleep ? "moon.zzz.fill" : "drop.fill").font(.caption2)
-                    if let p = t.pausedAt { Text(minutesOf(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit() }
-                    else { Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().multilineTextAlignment(.center) }
+                    if let p = t.pausedAt { Text(L10n.duration(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit() }
+                    else { Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().multilineTextAlignment(.center).contentTransition(.numericText(countsDown: false)) }
                 }
                 .padding(4)
             } else if journal, let f = lastFeed {
@@ -115,7 +115,7 @@ struct TodayFace: View {
             } else if let a = age {
                 VStack(spacing: 0) {
                     Text("\(a.months)").font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
-                    Text("个月").font(.system(size: 9, weight: .semibold, design: .rounded))
+                    Text(L10n.t("个月", "mo")).font(.system(size: 9, weight: .semibold, design: .rounded))
                 }
             } else {
                 Image(systemName: "lamp.desk.fill").font(.title3)
@@ -129,14 +129,21 @@ struct TodayFace: View {
             VStack(alignment: .leading, spacing: 0) {
                 if let n = snap?.nickname, !n.isEmpty { Text(n).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1) }
                 if let a = age {
-                    HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
-                        Text("个月").font(.caption2.weight(.semibold))
-                        if a.days > 0 { Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent).padding(.leading, 2); Text("天").font(.caption2.weight(.semibold)) }
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline, spacing: 1) {
+                            Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
+                            Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
+                        }
+                        if a.days > 0 {
+                            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                                Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent)
+                                Text(L10n.t("天", "d")).font(.caption2.weight(.semibold))
+                            }
+                        }
                     }
                     .widgetAccentable()
                     .lineLimit(1).minimumScaleFactor(0.7)
-                } else { Text("摸索台灯").font(.headline) }
+                } else { Text(L10n.t("摸索台灯", "Mossling")).font(.headline) }
             }
             Spacer(minLength: 0)
             // the companions on a small disc of paper, so Otto's blue still reads on the lamp's blue
@@ -159,10 +166,10 @@ struct TodayFace: View {
         HStack(spacing: 8) {
             ArtImage(name: WidgetArt.sticker(t.type)).frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 0) {
-                Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil)).lineLimit(1).minimumScaleFactor(0.8)
                     .font(.caption2.weight(.semibold)).foregroundStyle(Crayon.ink(LogType.color(t.type)))
-                if let p = t.pausedAt { Text(minutesOf(t.total(p))).font(WidgetInk.numerals(17)) }
-                else { Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(20)) }
+                if let p = t.pausedAt { Text(L10n.duration(t.total(p))).font(WidgetInk.numerals(17)) }
+                else { Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(20)).contentTransition(.numericText(countsDown: false)) }
             }
         }
     }
@@ -188,7 +195,7 @@ struct TodayFace: View {
                 HStack(spacing: 6) {
                     ArtImage(name: WidgetArt.sticker(t)).frame(width: 24, height: 24)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(t == LogType.nurse ? "上次喂奶" : "上次醒来").font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
+                        Text(t == LogType.nurse ? L10n.t("上次喂奶", "Last feed") : L10n.t("上次醒来", "Last wake")).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
                         Text(d.map(agoText) ?? "—").font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
                             .foregroundStyle(Crayon.ink(LogType.color(t))).lineLimit(1).minimumScaleFactor(0.8)
                     }
@@ -235,72 +242,174 @@ struct TodayFace: View {
     private func timerButton(_ type: String) -> some View {
         let t = body_.timers.first { $0.type == type }
         // running: the card is the clock (how long so far)
-        let sub: Text? = t.map { t in t.pausedAt.map { Text(minutesOf(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoCard($0)) }
+        let sub: Text? = t.map { t in t.pausedAt.map { Text(L10n.duration(t.total($0))) } ?? Text(t.countsFrom, style: .timer) } ?? last(type).map { Text(agoCard($0)) }
         return Link(destination: WidgetLinks.care(type)) {
-            card(type, title: LogType.name(type), sub: sub, on: t != nil)
+            card(type, title: L10n.logName(type), sub: sub, on: t != nil)
         }
     }
 
     /// A nappy: opens the nappy page (wet, dirty or both), where one tap records it.
     private var nappy: some View {
         Link(destination: WidgetLinks.log(LogType.diaper)) {
-            card(LogType.diaper, title: "尿布", sub: last(LogType.diaper).map { Text(agoCard($0)) }, on: false)
+            card(LogType.diaper, title: L10n.logName(LogType.diaper), sub: last(LogType.diaper).map { Text(agoCard($0)) }, on: false)
         }
     }
 
-    /// Large Home Screen dashboard: age & companions, today's play hero card, quiet daily summary line, and
-    /// four uniform 3D-sticker interactive care tiles (start/stop nursing or sleep, log wet/dirty diaper).
+    /// Large Home Screen dashboard: age & companions, interactive today's play hero card (with inline shuffle),
+    /// 24-hour Montessori bead strip, live summary + 1-tap undo when a diaper was just logged, and 4 interactive 3D-sticker tiles.
     private var large: some View {
         let day = Day(date)
         let startMs = day.date.timeIntervalSince1970 * 1000
         let todayLogs = body_.logs.filter { $0.start >= startMs || ($0.start < startMs && ($0.end ?? $0.start) > startMs) }
         let feeds = todayLogs.feedCount(from: startMs)
         let sleepSec = todayLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
-        let diapers = todayLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: day) }.count
-        return VStack(alignment: .leading, spacing: 12) {
+        let diapers = todayLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: day) }
+        let wetCount = diapers.filter { $0.detail == "wet" || $0.detail == "both" }.count
+        let dirtyCount = diapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+        let recentDiaper = QuickCareFace.recentDiaper(in: body_.logs, now: date)
+        let canShuffle = (snap?.weekPlays?.count ?? 0) >= 2
+        return VStack(alignment: .leading, spacing: 11) {
             head
 
             if let code = snap?.playCode, let name = snap?.playName {
-                HStack(spacing: 14) {
-                    ArtImage(name: WidgetArt.tray(code)).frame(width: 84, height: 62)
-                    VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 12) {
+                    ArtImage(name: WidgetArt.tray(code))
+                        .frame(width: 80, height: 58)
+                        .id(code)
+                        .transition(.push(from: .bottom).combined(with: .opacity))
+                    VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 5) {
                             Circle().fill(WidgetInk.bead).frame(width: 6, height: 6)
-                            Text("今天一起玩").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                            Text(L10n.t("今天一起玩", "Today's Play")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
                         }
-                        Text(name).font(.headline.weight(.bold)).foregroundStyle(.primary).lineLimit(2)
+                        Text(name)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.88)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .id(name)
+                            .transition(.opacity)
                     }
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 4)
+                    if canShuffle {
+                        Button(intent: CycleWidgetPlayIntent()) {
+                            Image(systemName: "arrow.trianglehead.2.clockwise")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(WidgetInk.accent)
+                                .frame(width: 30, height: 30)
+                                .background(WidgetInk.accent.opacity(0.12), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("换一个活动", "Swap activity"))
+                    }
                 }
-                .padding(.horizontal, 14).padding(.vertical, 14)
+                .padding(.horizontal, 13).padding(.vertical, 12)
                 .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .invalidatableContent()
             }
 
             Spacer(minLength: 0)
 
             if journal {
-                HStack(spacing: 6) {
-                    Text("今天").font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
-                    Text("喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? minutesOf(sleepSec) : "—") · 尿布 \(diapers) 次")
-                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
-                        .lineLimit(1).minimumScaleFactor(0.8)
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                        Text(L10n.t(
+                            "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
+                            "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
+                        ))
+                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
+                            .contentTransition(.numericText())
+                            .lineLimit(1).minimumScaleFactor(0.78)
+                        Spacer(minLength: 2)
+                        if recentDiaper != nil {
+                            Button(intent: UndoLastDiaperIntent()) {
+                                Text(L10n.t("撤销", "Undo"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(WidgetInk.accent)
+                                    .padding(.horizontal, 7).padding(.vertical, 3)
+                                    .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
+                    }
+                    .padding(.horizontal, 2)
+
+                    MontessoriDayStrip(day: day, now: date, logs: todayLogs)
+                        .frame(height: 12)
+                        .padding(.horizontal, 2)
                 }
-                .padding(.horizontal, 2)
 
                 HStack(spacing: 8) {
                     QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32)
                     QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32)
-                    QuickCareFace.diaperTile(kind: .wet, title: "湿尿布", dot: Crayon.sky, stickerSize: 32)
-                    QuickCareFace.diaperTile(kind: .dirty, title: "便尿布", dot: Crayon.caramel, stickerSize: 32)
+                    QuickCareFace.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: 32, count: wetCount, justLogged: recentDiaper?.detail == "wet")
+                    QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty")
                 }
-                .frame(height: 86)
+                .frame(height: 84)
             }
         }
         .foregroundStyle(.primary)
     }
 }
 
-// MARK: Interactive Quick Care Widget (Home Screen — zero-open logging with 3D stickers)
+/// Miniature 24-hour Montessori bead thread echoing the Journal timeline: feeds, sleeps, and diapers sit along
+/// 00:00–24:00 as soft colored beads, with Otto's warm gold bead marking the present moment.
+struct MontessoriDayStrip: View {
+    let day: Day
+    let now: Date
+    let logs: [LogEntry]
+
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width
+            let cy = g.size.height / 2
+            let dayStart = day.date.timeIntervalSince1970 * 1000
+            let daySpan: Double = 86_400_000
+            let nowFrac = max(0, min(1, (now.timeIntervalSince1970 * 1000 - dayStart) / daySpan))
+            ZStack(alignment: .leading) {
+                // quiet linen thread
+                Capsule()
+                    .fill(Color.secondary.opacity(0.16))
+                    .frame(height: 3)
+                // subtle 6h / 12h / 18h reference ticks
+                ForEach([0.25, 0.5, 0.75], id: \.self) { q in
+                    Circle()
+                        .fill(Color.secondary.opacity(0.28))
+                        .frame(width: 3, height: 3)
+                        .position(x: w * q, y: cy)
+                }
+                // proportional beads for today's entries
+                ForEach(logs.suffix(24), id: \.id) { e in
+                    let s = max(0, min(1, (e.start - dayStart) / daySpan))
+                    let eEnd = max(e.start, e.end ?? e.start)
+                    let f = max(s, min(1, (eEnd - dayStart) / daySpan))
+                    let bw = max(6, CGFloat(f - s) * w)
+                    let bx = max(bw / 2, min(w - bw / 2, CGFloat(s) * w + bw / 2))
+                    Capsule()
+                        .fill(LogType.color(e.type).opacity(0.88))
+                        .frame(width: bw, height: e.type == LogType.diaper ? 6 : 7)
+                        .position(x: bx, y: cy)
+                }
+                // Otto's gold "now" bead with soft halo
+                Circle()
+                    .fill(WidgetInk.bead.opacity(0.28))
+                    .frame(width: 12, height: 12)
+                    .position(x: max(6, min(w - 6, w * nowFrac)), y: cy)
+                Circle()
+                    .fill(WidgetInk.bead)
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1))
+                    .position(x: max(6, min(w - 6, w * nowFrac)), y: cy)
+            }
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+// MARK: Interactive Quick Care Widget (Home Screen — zero-open logging with 3D stickers & instant confirmation)
 
 struct QuickCareFace: View {
     let date: Date
@@ -308,17 +417,32 @@ struct QuickCareFace: View {
     let body_: JournalFile.Body
     let isMedium: Bool
 
+    static let confirmWindowSeconds: Double = 12
+
+    static func recentDiaper(in logs: [LogEntry], now: Date) -> LogEntry? {
+        guard let last = logs.filter({ $0.type == LogType.diaper }).max(by: { $0.start < $1.start }) else { return nil }
+        let elapsed = now.timeIntervalSince(last.startDate)
+        return (elapsed >= -2 && elapsed <= confirmWindowSeconds) ? last : nil
+    }
+
     private var journal: Bool { snap?.journal == true }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
 
     var body: some View {
+        let day = Day(date)
+        let startMs = day.date.timeIntervalSince1970 * 1000
+        let todayDiapers = body_.logs.filter { $0.type == LogType.diaper && $0.start >= startMs }
+        let wetCount = todayDiapers.filter { $0.detail == "wet" || $0.detail == "both" }.count
+        let dirtyCount = todayDiapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+        let recent = Self.recentDiaper(in: body_.logs, now: date)
+
         if !journal {
             VStack(alignment: .leading, spacing: 8) {
                 ArtImage(name: WidgetArt.pair).frame(width: 34, height: 34).padding(5).background(Circle().fill(WidgetInk.card))
                 Spacer(minLength: 0)
-                Text("一键记录").font(.subheadline.weight(.bold)).foregroundStyle(.primary)
-                Text("在「我的」打开记录后即可使用").font(.caption2).foregroundStyle(.secondary)
+                Text(L10n.t("一键记录", "Quick Log")).font(.subheadline.weight(.bold)).foregroundStyle(.primary)
+                Text(L10n.t("在「我的」打开记录后即可使用", "Turn on Log in Me to enable")).font(.caption2).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         } else if isMedium {
@@ -326,31 +450,31 @@ struct QuickCareFace: View {
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(spacing: 6) {
                         ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
-                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : "一键记录")
+                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
                             .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
                     }
                     Spacer(minLength: 0)
-                    miniFact("上次喂奶", lastFeed, LogType.nurse)
-                    miniFact("上次醒来", lastWake, LogType.sleep)
+                    miniFact(L10n.t("上次喂奶", "Last feed"), lastFeed, LogType.nurse)
+                    miniFact(L10n.t("上次醒来", "Last wake"), lastWake, LogType.sleep)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                grid(stickerSize: 26).frame(width: 174)
+                grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent).frame(width: 174)
             }
             .foregroundStyle(.primary)
         } else {
-            grid(stickerSize: 26).foregroundStyle(.primary)
+            grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent).foregroundStyle(.primary)
         }
     }
 
-    private func grid(stickerSize: CGFloat) -> some View {
+    private func grid(stickerSize: CGFloat, wetCount: Int, dirtyCount: Int, recent: LogEntry?) -> some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Self.timerTile(body: body_, kind: .nurse, stickerSize: stickerSize)
                 Self.timerTile(body: body_, kind: .sleep, stickerSize: stickerSize)
             }
             HStack(spacing: 8) {
-                Self.diaperTile(kind: .wet, title: "湿尿布", dot: Crayon.sky, stickerSize: stickerSize)
-                Self.diaperTile(kind: .dirty, title: "便尿布", dot: Crayon.caramel, stickerSize: stickerSize)
+                Self.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: stickerSize, count: wetCount, justLogged: recent?.detail == "wet")
+                Self.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: stickerSize, count: dirtyCount, justLogged: recent?.detail == "dirty")
             }
         }
     }
@@ -358,7 +482,7 @@ struct QuickCareFace: View {
     private func miniFact(_ label: String, _ at: Date?, _ type: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
-            Text(at.map { ago($0, now: date, precise: true) } ?? "—")
+            Text(at.map { L10n.agoText($0, now: date, precise: true) } ?? "—")
                 .font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(Crayon.ink(LogType.color(type))).lineLimit(1).minimumScaleFactor(0.75)
         }
@@ -377,34 +501,59 @@ struct QuickCareFace: View {
                     .overlay(Circle().stroke(c.opacity(running ? 0.65 : 0), lineWidth: 2.5))
                 if let t {
                     if let p = t.pausedAt {
-                        Text(minutesOf(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).lineLimit(1).minimumScaleFactor(0.75)
+                        Text(L10n.duration(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).lineLimit(1).minimumScaleFactor(0.75)
                     } else {
                         Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).multilineTextAlignment(.center).lineLimit(1).minimumScaleFactor(0.75)
+                            .contentTransition(.numericText(countsDown: false))
                     }
                 } else {
-                    Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
+                    Text(L10n.logName(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .invalidatableContent()
         }
         .buttonStyle(.plain)
     }
 
-    static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat) -> some View {
+    static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat, count: Int = 0, justLogged: Bool = false) -> some View {
         return Button(intent: QuickLogDiaperIntent(kind: kind)) {
-            VStack(spacing: 3) {
-                ArtImage(name: WidgetArt.sticker(LogType.diaper))
-                    .frame(width: stickerSize, height: stickerSize)
-                    .padding(2)
-                    .overlay(alignment: .bottomTrailing) {
-                        Circle().fill(dot).frame(width: 8, height: 8)
-                            .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
-                    }
-                Text(title).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
+            ZStack(alignment: .topTrailing) {
+                VStack(spacing: 3) {
+                    ArtImage(name: WidgetArt.sticker(LogType.diaper))
+                        .frame(width: stickerSize, height: stickerSize)
+                        .padding(2)
+                        .overlay(Circle().stroke(WidgetInk.accent.opacity(justLogged ? 0.7 : 0), lineWidth: 2.2))
+                        .overlay(alignment: .bottomTrailing) {
+                            if justLogged {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundStyle(.white, WidgetInk.accent)
+                                    .transition(.scale(scale: 0.7).combined(with: .opacity))
+                            } else {
+                                Circle().fill(dot).frame(width: 8, height: 8)
+                                    .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
+                            }
+                        }
+                    Text(justLogged ? L10n.t("已记", "Logged") : title)
+                        .font(.caption2.weight(justLogged ? .bold : .semibold))
+                        .foregroundStyle(justLogged ? WidgetInk.accent : .primary)
+                        .lineLimit(1)
+                        .contentTransition(.opacity)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                if count > 0 {
+                    Text("\(count)")
+                        .font(.system(size: 9, weight: .bold, design: .rounded)).monospacedDigit()
+                        .foregroundStyle(justLogged ? WidgetInk.accent : .secondary)
+                        .contentTransition(.numericText())
+                        .padding(.top, 5).padding(.trailing, 7)
+                }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .invalidatableContent()
         }
         .buttonStyle(.plain)
     }
@@ -447,10 +596,10 @@ struct BedsideLampFace: View {
                     .padding(5)
                     .background(Circle().fill(cardDark))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : "摸索台灯")
+                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("摸索台灯", "Mossling"))
                         .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
                     if let a = age {
-                        Text("第 \(a.lived) 天").font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
+                        Text(L10n.livedDays(a.lived)).font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
                     }
                 }
                 Spacer(minLength: 0)
@@ -460,24 +609,25 @@ struct BedsideLampFace: View {
                 HStack(alignment: .center, spacing: 10) {
                     ArtImage(name: WidgetArt.sticker(t.type)).frame(width: isMedium ? 36 : 28, height: isMedium ? 36 : 28)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(timerState(t.type, side: t.side, paused: t.pausedAt != nil))
+                        Text(L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil))
                             .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
                         if let p = t.pausedAt {
-                            Text(minutesOf(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                            Text(L10n.duration(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
                         } else {
                             Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                                .contentTransition(.numericText(countsDown: false))
                         }
                     }
                 }
             } else if isMedium {
                 HStack(spacing: 18) {
-                    lampMetric("上次喂奶", lastFeed, Self.amber)
-                    lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                    lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
+                    lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
                 }
             } else {
                 VStack(alignment: .leading, spacing: 5) {
-                    lampMetric("上次喂奶", lastFeed, Self.amber)
-                    lampMetric("上次醒来", lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                    lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
+                    lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
                 }
             }
         }
@@ -489,7 +639,7 @@ struct BedsideLampFace: View {
     private func lampMetric(_ label: String, _ at: Date?, _ tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.62))
-            Text(at.map { ago($0, now: date, precise: isMedium) } ?? "—")
+            Text(at.map { L10n.agoText($0, now: date, precise: isMedium) } ?? "—")
                 .font(.system(size: isMedium ? 16 : 13, weight: .bold, design: .rounded)).monospacedDigit()
                 .foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.75)
         }
@@ -512,7 +662,7 @@ struct TimerFace: View {
             HStack(spacing: 10) {
                 ArtImage(name: WidgetArt.sticker(type)).frame(width: 38, height: 38)
                 VStack(alignment: .leading, spacing: 0) {
-                    Text(timerState(type, side: s.side, paused: s.pausedAt != nil))
+                    Text(L10n.timerStatus(type, side: s.side, paused: s.pausedAt != nil))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))
                     TimerFace.elapsed(s).font(WidgetInk.numerals(34)).foregroundStyle(.primary)
                     if let n = s.note { Text(n).font(.caption.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit() }
@@ -525,8 +675,8 @@ struct TimerFace: View {
         .padding(16)
     }
     @ViewBuilder static func elapsed(_ s: TimerAttributes.ContentState) -> some View {
-        if let p = s.pausedAt { Text(minutesOf(p.timeIntervalSince(s.start))) }
-        else { Text(timerInterval: s.start...Date.distantFuture, countsDown: false).monospacedDigit() }
+        if let p = s.pausedAt { Text(L10n.duration(p.timeIntervalSince(s.start))) }
+        else { Text(timerInterval: s.start...Date.distantFuture, countsDown: false).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
     }
 }
 
@@ -544,19 +694,19 @@ struct TimerControls: View {
                 ForEach(["l", "r"], id: \.self) { k in
                     let on = (s.side ?? "l") == k
                     Button(intent: TimerIntent(type: type, action: "tap-" + k)) {
-                        Label(k == "l" ? "左" : "右", systemImage: on ? (s.pausedAt == nil ? "pause.fill" : "play.fill") : "arrow.left.arrow.right")
+                        Label(k == "l" ? L10n.t("左", "L") : L10n.t("右", "R"), systemImage: on ? (s.pausedAt == nil ? "pause.fill" : "play.fill") : "arrow.left.arrow.right")
                             .frame(maxWidth: .infinity)
                     }
                     .tint(on ? Crayon.buttonFill(c) : quiet)
                 }
             } else {
                 Button(intent: TimerIntent(type: type, action: "pause")) {
-                    Label(s.pausedAt == nil ? "暂停" : "继续", systemImage: s.pausedAt == nil ? "pause.fill" : "play.fill").frame(maxWidth: .infinity)
+                    Label(s.pausedAt == nil ? L10n.t("暂停", "Pause") : L10n.t("继续", "Resume"), systemImage: s.pausedAt == nil ? "pause.fill" : "play.fill").frame(maxWidth: .infinity)
                 }
                 .tint(Crayon.buttonFill(c))
             }
             Spacer(minLength: 10)
-            Button(intent: TimerIntent(type: type, action: "stop")) { Text(type == LogType.sleep ? "醒了" : "结束") }.tint(quiet)
+            Button(intent: TimerIntent(type: type, action: "stop")) { Text(type == LogType.sleep ? L10n.t("醒了", "Awake") : L10n.t("结束", "End")) }.tint(quiet)
         }
         .buttonStyle(.borderedProminent)
         .font(.subheadline.weight(.semibold))

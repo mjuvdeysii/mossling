@@ -117,4 +117,29 @@ final class DataTests: XCTestCase {
         let reloaded = try JournalFile.load()
         XCTAssertEqual(reloaded.logs.count, 1)
     }
+
+    func testUndoRecentDiaperAndCycleWidgetPlay() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let now: Double = 1_760_000_000_000
+        _ = JournalFile.quickLog(type: LogType.diaper, detail: "wet", at: now - 5_000)
+        XCTAssertTrue(JournalFile.undoRecent(type: LogType.diaper, withinSeconds: 30, now: now))
+        XCTAssertEqual(try JournalFile.load().logs.count, 0)
+
+        // Entries older than the undo window are preserved
+        _ = JournalFile.quickLog(type: LogType.diaper, detail: "dirty", at: now - 120_000)
+        XCTAssertFalse(JournalFile.undoRecent(type: LogType.diaper, withinSeconds: 30, now: now))
+        XCTAssertEqual(try JournalFile.load().logs.count, 1)
+
+        // Cycling widget play rotates cleanly through weekPlays
+        let pool = [PlayRef(code: "A01", name: "一"), PlayRef(code: "A02", name: "二"), PlayRef(code: "A03", name: "三")]
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: "A01", playName: "一", consented: true, weekPlays: pool))
+        let next = JournalFile.cycleWidgetPlay()
+        XCTAssertEqual(next?.playCode, "A02")
+        XCTAssertEqual(JournalFile.cycleWidgetPlay()?.playCode, "A03")
+        XCTAssertEqual(JournalFile.cycleWidgetPlay()?.playCode, "A01")
+
+        L10n.overrideEnglish = true; defer { L10n.overrideEnglish = nil }
+        XCTAssertEqual(L10n.logName(LogType.nurse), "Nurse")
+        XCTAssertEqual(L10n.duration(5400), "1h 30m")
+    }
 }

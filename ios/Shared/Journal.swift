@@ -232,6 +232,11 @@ struct First: Codable, Identifiable, Hashable {
 }
 
 /// What the widget needs to know without opening the content: written by the app whenever it changes.
+struct PlayRef: Codable, Hashable {
+    var code: String
+    var name: String
+}
+
 struct Snapshot: Codable {
     var birthEpochDay: Int?
     var nickname: String
@@ -241,6 +246,8 @@ struct Snapshot: Codable {
     var playName: String?
     /// Whether the guardian has agreed to the current rules; nil in files written by v1.0.0.
     var consented: Bool? = nil
+    /// Curated plays for this week/month so the Home Screen widget can cycle activities interactively.
+    var weekPlays: [PlayRef]? = nil
 }
 
 /// The journal file, shared with the widget and the Live Activity through the app group.
@@ -404,6 +411,29 @@ enum JournalFile {
             b.logs.append(LogEntry(type: type, start: at, amount: amount, detail: detail))
             return true
         }
+    }
+    /// Removes the most recent entry of `type` if logged within `withinSeconds`, enabling safe 1-tap widget undo.
+    @discardableResult static func undoRecent(type: String, withinSeconds: Double = 30, now n: Double = now()) -> Bool {
+        switch mutate({ b in
+            guard let idx = b.logs.lastIndex(where: { $0.type == type && (n - $0.start) >= 0 && (n - $0.start) <= withinSeconds * 1000 }) else {
+                return false
+            }
+            b.logs.remove(at: idx)
+            return true
+        }) {
+        case .saved: return true
+        case .unchanged, .failed: return false
+        }
+    }
+    /// Rotates `playCode` / `playName` in `snapshot.json` to the next play in `weekPlays` under file coordination.
+    @discardableResult static func cycleWidgetPlay() -> Snapshot? {
+        guard var s = snapshot(), let pool = s.weekPlays, pool.count >= 2 else { return nil }
+        let cur = pool.firstIndex { $0.code == s.playCode } ?? -1
+        let next = pool[(cur + 1) % pool.count]
+        s.playCode = next.code
+        s.playName = next.name
+        writeSnapshot(s)
+        return s
     }
     @discardableResult static func togglePause(_ type: String) -> Body {
         applyMutation { b in

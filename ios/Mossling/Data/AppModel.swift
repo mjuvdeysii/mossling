@@ -119,10 +119,15 @@ final class AppModel {
 
     /// What the widget shows, written whenever it changes.
     func publish(_ j: JournalStore) {
-        // the widget says the play the home page says
+        // the widget says the play the home page says, plus this week's shelf so the widget can swap plays inline
         let p = babyMonth.flatMap { todayPlay($0, j) }
         let code = p?.code, name = p?.name
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented))
+        let pool: [PlayRef] = babyMonth.map { mo in
+            let w = weekShelf(mo).plays
+            let list = w.count >= 2 ? w : Array(content.plays(of: mo).prefix(4))
+            return list.map { PlayRef(code: $0.code, name: $0.name) }
+        } ?? []
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented, weekPlays: pool.isEmpty ? nil : pool))
         WidgetCenter.shared.reloadAllTimelines()
     }
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)" }
