@@ -232,6 +232,7 @@ private struct CompanionPicker: View {
                     }
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(on ? Palette.accent.opacity(lamp ? 0.18 : 0.08) : .clear))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).strokeBorder(on ? Palette.accent.opacity(lamp ? 0.42 : 0.25) : .clear, lineWidth: 1))
                     .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.toy)
@@ -567,13 +568,15 @@ struct TurnCard<Front: View, Back: View>: View {
             back.opacity(turned ? 1 : 0).rotation3DEffect(.degrees(reduce ? 0 : 180), axis: (x: 0, y: 1, z: 0))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-        .card(Palette.card, radius: radius, padding: padding)
+        .padding(padding)
+        .printCard(radius: radius)
         .rotation3DEffect(.degrees(turned && !reduce ? 180 : 0), axis: (x: 0, y: 1, z: 0), perspective: 0.45)
         .contentShape(Rectangle())
         .onTapGesture { withAnimation(reduce ? nil : .spring(duration: 0.55, bounce: 0.2)) { turned.toggle() } }
         .sensoryFeedback(.selection, trigger: turned)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
+        .accessibilityHint("点一下翻面")
     }
 }
 
@@ -619,11 +622,27 @@ struct DocView: View {
     }
 }
 
-/// Every source the content draws on, numbered.
+/// Every source the content draws on, numbered, plus WHO's 0–36m daily activity/sleep/screen rhythm reference.
 struct SourcesView: View {
     @Environment(AppModel.self) private var app
     var body: some View {
         List {
+            if !app.content.who.isEmpty {
+                Section {
+                    ForEach(Array(app.content.who.enumerated()), id: \.offset) { _, row in
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(row.age).font(.subheadline.weight(.bold)).foregroundStyle(Palette.accent)
+                            whoLine("活动", row.act)
+                            whoLine("睡眠", row.sleep)
+                            whoLine("屏幕", row.screen)
+                            whoLine("受限", row.restrain)
+                        }
+                        .padding(.vertical, 3)
+                    }
+                } header: { Text("WHO 每天的节奏参考") } footer: {
+                    Text("节选自世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019），仅供日常参考。")
+                }
+            }
             Section {
                 ForEach(Array(app.content.sources.enumerated()), id: \.offset) { i, s in
                     VStack(alignment: .leading, spacing: 3) {
@@ -645,6 +664,13 @@ struct SourcesView: View {
         }
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle("内容来源")
+    }
+
+    private func whoLine(_ label: String, _ text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 6) {
+            Text(label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).frame(width: 30, alignment: .leading)
+            Text(text).font(.caption).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
+        }
     }
 }
 
@@ -681,10 +707,11 @@ enum Biometry {
     }
     /// The lock is turned on only after the owner of the phone confirms once (Face ID is asked when it is first used,
     /// with its purpose in NSFaceIDUsageDescription); turning it off needs nothing.
-    static func turn(_ on: Bool, _ set: @escaping (Bool) -> Void) {
-        guard on else { set(false); return }
-        LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "打开应用锁") { ok, _ in
-            DispatchQueue.main.async { set(ok) }
+    static func turn(_ on: Bool, _ set: @escaping @MainActor (Bool) -> Void) {
+        guard on else { Task { @MainActor in set(false) }; return }
+        Task { @MainActor in
+            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "打开应用锁")) ?? false
+            set(ok)
         }
     }
     static var symbol: String {

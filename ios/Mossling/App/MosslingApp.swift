@@ -105,14 +105,20 @@ struct RootView: View {
 
     var body: some View {
         observedContent
-            // while open, pick up what the Live Activity or the widget changed (a side change from the Lock Screen)
-            .task(id: phase) {
-                guard phase == .active else { return }
-                var n = 0
+            // while a timer is running, pick up Lock Screen / widget changes every 3s; when idle, no fast polling
+            .task(id: phase == .active && !journal.timers.isEmpty) {
+                guard phase == .active, !journal.timers.isEmpty else { return }
                 while !Task.isCancelled {
                     journal.refreshIfChanged()
-                    n += 1; if n % 30 == 1 { night = Daylight.isNight() }
-                    try? await Task.sleep(for: .seconds(2))
+                    try? await Task.sleep(for: .seconds(3))
+                }
+            }
+            // track day/night boundary once a minute while foregrounded
+            .task(id: phase == .active) {
+                guard phase == .active else { return }
+                while !Task.isCancelled {
+                    night = Daylight.isNight()
+                    try? await Task.sleep(for: .seconds(60))
                 }
             }
             // a play recorded changes today's play (the least played comes next), so its count is part of the key

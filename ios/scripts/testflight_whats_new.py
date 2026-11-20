@@ -1,0 +1,285 @@
+#!/usr/bin/env python3
+"""Update TestFlight 'What to Test' (betaBuildLocalizations.whatsNew) via App Store Connect API.
+
+Uses only Python 3 standard library + `openssl` (preinstalled on macOS/Linux) so CI needs no pip installs.
+Reads the latest version section from ios/Docs/CHANGELOG.md, polls App Store Connect until the uploaded
+build appears, and creates/updates the zh-Hans betaBuildLocalization.
+"""
+
+from __future__ import annotations
+
+import argparse
+import base64
+import json
+import os
+import re
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+
+API_BASE = "https://api.appstoreconnect.apple.com/v1"
+MAX_WHATS_NEW_CHARS = 4000
+
+
+def b64url(data: bytes) -> str:
+    return base64.urlsafe_b64encode(data).rstrip(b"=").decode("ascii")
+
+
+def der_ecdsa_to_raw(der: bytes, size: int = 32) -> bytes:
+    """Convert an ASN.1 DER-encoded ECDSA signature (SEQUENCE { INTEGER r, INTEGER s }) to raw r||s."""
+    idx = 0
+    if idx >= len(der) or der[idx] != 0x30:
+        raise ValueError("Invalid DER signature: missing SEQUENCE tag")
+    idx += 1
+    seq_len = der[idx]
+    idx += 1
+    if seq_len & 0x80:
+        nbytes = seq_len & 0x7F
+        idx += nbytes
+
+    def read_int() -> bytes:
+        nonlocal idx
+        if idx >= len(der) or der[idx] != 0x02:
+            raise ValueError("Invalid DER signature: missing INTEGER tag")
+        idx += 1
+        length = der[idx]
+        idx += 1
+        if length & 0x80:
+            n = length & 0x7F
+            length = int.from_bytes(der[idx : idx + n], "big")
+            idx += n
+        val = der[idx : idx + length]
+        idx += length
+        val = val.lstrip(b"\x00")
+        if len(val) > size:
+            raise ValueError(f"ECDSA integer too large: {len(val)} > {size}")
+        return val.rjust(size, b"\x00")
+
+    r = read_int()
+    s = read_int()
+    return r + s
+
+
+def make_jwt(key_id: str, issuer_id: str, key_path: str, ttl_seconds: int = 1000) -> str:
+    now = int(time.time())
+    header = {"alg": "ES256", "kid": key_id, "typ": "JWT"}
+    payload = {
+        "iss": issuer_id,
+        "iat": now,
+        "exp": now + ttl_seconds,
+        "aud": "appstoreconnect-v1",
+    }
+    signing_input = f"{b64url(json.dumps(header, separators=(',', ':')).encode())}.{b64url(json.dumps(payload, separators=(',', ':')).encode())}"
+    proc = subprocess.run(
+        ["openssl", "dgst", "-sha256", "-sign", key_path],
+        input=signing_input.encode("ascii"),
+        capture_output=True,
+        check=True,
+    )
+    raw_sig = der_ecdsa_to_raw(proc.stdout, 32)
+    return f"{signing_input}.{b64url(raw_sig)}"
+
+
+def extract_changelog(changelog_path: str, version: str | None = None, build: str | None = None) -> str:
+    """Extract the matching version section (or the top-most ## section) as clean TestFlight plain text."""
+    with open(changelog_path, encoding="utf-8") as f:
+        lines = f.read().splitlines()
+
+    sections: list[tuple[str, list[str]]] = []
+    cur_ver: str | None = None
+    cur_lines: list[str] = []
+    for line in lines:
+        if line.startswith("## "):
+            if cur_ver is not None:
+                sections.append((cur_ver, cur_lines))
+            cur_ver = line[3:].strip()
+            cur_lines = []
+        elif cur_ver is not None:
+            cur_lines.append(line)
+    if cur_ver is not None:
+        sections.append((cur_ver, cur_lines))
+
+    if not sections:
+        raise ValueError(f"No ## version sections found in {changelog_path}")
+
+    chosen_ver, chosen_lines = sections[0]
+    if version:
+        for sec_ver, sec_lines in sections:
+            if sec_ver == version or sec_ver.startswith(version + " "):
+                chosen_ver, chosen_lines = sec_ver, sec_lines
+                break
+
+    cleaned: list[str] = []
+    for raw in chosen_lines:
+        s = raw.strip()
+        if not s:
+            continue
+        # Strip markdown bold/code formatting for clean TestFlight plain-text display
+        s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
+        s = re.sub(r"`([^`]+)`", r"\1", s)
+        if s.startswith("- "):
+            s = "• " + s[2:]
+        cleaned.append(s)
+
+    header = f"v{chosen_ver}" + (f" (Build {build})" if build else "")
+    text = header + "\n" + "\n".join(cleaned)
+    if len(text) > MAX_WHATS_NEW_CHARS:
+        text = text[: MAX_WHATS_NEW_CHARS - 1] + "…"
+    return text
+
+
+class ASCClient:
+    def __init__(self, key_id: str, issuer_id: str, key_path: str):
+        self.key_id = key_id
+        self.issuer_id = issuer_id
+        self.key_path = key_path
+        self._token = ""
+        self._token_exp = 0.0
+
+    def _get_token(self) -> str:
+        now = time.time()
+        if not self._token or now >= self._token_exp - 60:
+            self._token = make_jwt(self.key_id, self.issuer_id, self.key_path, ttl_seconds=1000)
+            self._token_exp = now + 1000
+        return self._token
+
+    def request(self, method: str, path: str, body: dict | None = None) -> dict:
+        url = path if path.startswith("http") else f"{API_BASE}{path}"
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        req = urllib.request.Request(url, data=data, method=method)
+        req.add_header("Authorization", f"Bearer {self._get_token()}")
+        req.add_header("Accept", "application/json")
+        if data is not None:
+            req.add_header("Content-Type", "application/json")
+        try:
+            with urllib.request.urlopen(req, timeout=30) as resp:
+                raw = resp.read()
+                return json.loads(raw.decode("utf-8")) if raw else {}
+        except urllib.error.HTTPError as e:
+            detail = e.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"ASC {method} {path} failed ({e.code}): {detail}") from e
+
+
+def update_whats_new(
+    client: ASCClient,
+    bundle_id: str,
+    build_number: str,
+    version: str | None,
+    whats_new: str,
+    locale: str = "zh-Hans",
+    timeout_seconds: int = 1200,
+    poll_interval: int = 20,
+) -> str:
+    q = urllib.parse.urlencode({"filter[bundleId]": bundle_id})
+    apps = client.request("GET", f"/apps?{q}").get("data", [])
+    if not apps:
+        raise RuntimeError(f"No app found in App Store Connect for bundleId={bundle_id}")
+    app_id = apps[0]["id"]
+
+    deadline = time.time() + timeout_seconds
+    build_id: str | None = None
+    state = ""
+
+    while time.time() < deadline:
+        params = {
+            "filter[app]": app_id,
+            "filter[version]": build_number,
+            "limit": "5",
+        }
+        if version:
+            params["filter[preReleaseVersion.version]"] = version
+        builds = client.request("GET", f"/builds?{urllib.parse.urlencode(params)}").get("data", [])
+        if builds:
+            b = builds[0]
+            build_id = b["id"]
+            state = b.get("attributes", {}).get("processingState", "")
+            print(f"[ASC] Found build {build_number} (id={build_id}, state={state})", flush=True)
+            if state == "INVALID" or state == "FAILED":
+                raise RuntimeError(f"Build {build_number} ended in state {state}")
+            if state == "VALID":
+                break
+        else:
+            print(f"[ASC] Waiting for build {build_number} to appear in App Store Connect...", flush=True)
+        time.sleep(poll_interval)
+
+    if not build_id:
+        raise RuntimeError(f"Timed out waiting for build {build_number} to appear in App Store Connect")
+
+    locs = client.request("GET", f"/builds/{build_id}/betaBuildLocalizations").get("data", [])
+    existing = next((x for x in locs if x.get("attributes", {}).get("locale") == locale), None)
+
+    if existing:
+        loc_id = existing["id"]
+        client.request(
+            "PATCH",
+            f"/betaBuildLocalizations/{loc_id}",
+            {
+                "data": {
+                    "type": "betaBuildLocalizations",
+                    "id": loc_id,
+                    "attributes": {"whatsNew": whats_new},
+                }
+            },
+        )
+        return f"updated existing {locale} localization (id={loc_id}) for build {build_number} (state={state})"
+
+    created = client.request(
+        "POST",
+        "/betaBuildLocalizations",
+        {
+            "data": {
+                "type": "betaBuildLocalizations",
+                "attributes": {"locale": locale, "whatsNew": whats_new},
+                "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
+            }
+        },
+    )
+    loc_id = created.get("data", {}).get("id", "unknown")
+    return f"created {locale} localization (id={loc_id}) for build {build_number} (state={state})"
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description="Sync CHANGELOG.md to TestFlight What to Test")
+    ap.add_argument("--bundle-id", default="app.mossling")
+    ap.add_argument("--build", required=True, help="CFBundleVersion (build number)")
+    ap.add_argument("--version", default="", help="CFBundleShortVersionString (marketing version)")
+    ap.add_argument("--changelog", default="Docs/CHANGELOG.md")
+    ap.add_argument("--locale", default="zh-Hans")
+    ap.add_argument("--key-id", default=os.environ.get("ASC_KEY_ID", ""))
+    ap.add_argument("--issuer-id", default=os.environ.get("ASC_ISSUER_ID", ""))
+    ap.add_argument("--key-path", required=True)
+    ap.add_argument("--timeout", type=int, default=1200)
+    ap.add_argument("--dry-run", action="store_true")
+    args = ap.parse_args()
+
+    whats_new = extract_changelog(args.changelog, version=args.version or None, build=args.build)
+    print("--- TestFlight What to Test ---")
+    print(whats_new)
+    print("-------------------------------", flush=True)
+
+    if args.dry_run:
+        return 0
+
+    if not args.key_id or not args.issuer_id:
+        print("Missing ASC_KEY_ID or ASC_ISSUER_ID", file=sys.stderr)
+        return 1
+
+    client = ASCClient(args.key_id, args.issuer_id, args.key_path)
+    result = update_whats_new(
+        client,
+        bundle_id=args.bundle_id,
+        build_number=args.build,
+        version=args.version or None,
+        whats_new=whats_new,
+        locale=args.locale,
+        timeout_seconds=args.timeout,
+    )
+    print(f"::notice title=TestFlight 测试信息::{result}", flush=True)
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
