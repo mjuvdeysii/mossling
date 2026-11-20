@@ -129,10 +129,17 @@ struct TodayFace: View {
             VStack(alignment: .leading, spacing: 0) {
                 if let n = snap?.nickname, !n.isEmpty { Text(n).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1) }
                 if let a = age {
-                    HStack(alignment: .firstTextBaseline, spacing: 1) {
-                        Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
-                        Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
-                        if a.days > 0 { Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent).padding(.leading, 2); Text(L10n.t("天", "d")).font(.caption2.weight(.semibold)) }
+                    HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        HStack(alignment: .firstTextBaseline, spacing: 1) {
+                            Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
+                            Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
+                        }
+                        if a.days > 0 {
+                            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                                Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent)
+                                Text(L10n.t("天", "d")).font(.caption2.weight(.semibold))
+                            }
+                        }
                     }
                     .widgetAccentable()
                     .lineLimit(1).minimumScaleFactor(0.7)
@@ -275,7 +282,12 @@ struct TodayFace: View {
                             Circle().fill(WidgetInk.bead).frame(width: 6, height: 6)
                             Text(L10n.t("今天一起玩", "Today's Play")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
                         }
-                        Text(name).font(.headline.weight(.bold)).foregroundStyle(.primary).lineLimit(2)
+                        Text(name)
+                            .font(.system(size: 15, weight: .bold, design: .rounded))
+                            .foregroundStyle(.primary)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.88)
+                            .fixedSize(horizontal: false, vertical: true)
                             .id(name)
                             .transition(.opacity)
                     }
@@ -305,7 +317,7 @@ struct TodayFace: View {
                         Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
                         Text(L10n.t(
                             "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
-                            "\(feeds) feeds · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) diapers"
+                            "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
                         ))
                             .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
                             .contentTransition(.numericText())
