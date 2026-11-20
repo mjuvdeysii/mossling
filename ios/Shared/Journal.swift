@@ -398,6 +398,13 @@ enum JournalFile {
             return true
         }
     }
+    /// Appends a single instant entry (diaper, quick bottle, etc.) under file coordination from a widget or shortcut.
+    @discardableResult static func quickLog(type: String, detail: String? = nil, amount: Int? = nil, at: Double = now()) -> Body {
+        applyMutation { b in
+            b.logs.append(LogEntry(type: type, start: at, amount: amount, detail: detail))
+            return true
+        }
+    }
     @discardableResult static func togglePause(_ type: String) -> Body {
         applyMutation { b in
             guard b.timers.contains(where: { $0.type == type }) else { return false }

@@ -107,4 +107,14 @@ final class DataTests: XCTestCase {
         XCTAssertTrue(md.contains(yRow), "summary must include start day row")
         XCTAssertTrue(md.contains(tRow), "summary must include overnight carryover day row")
     }
+
+    func testQuickLogDiaperPersistsUnderCoordination() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let after = JournalFile.quickLog(type: LogType.diaper, detail: "wet", at: 1_760_000_000_000)
+        XCTAssertEqual(after.logs.count, 1)
+        XCTAssertEqual(after.logs.first?.type, LogType.diaper)
+        XCTAssertEqual(after.logs.first?.detail, "wet")
+        let reloaded = try JournalFile.load()
+        XCTAssertEqual(reloaded.logs.count, 1)
+    }
 }
