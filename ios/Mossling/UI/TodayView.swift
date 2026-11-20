@@ -169,6 +169,7 @@ private struct NowCard: View {
 private struct MonthCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
+    @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
     let month: Int, baby: Int
     let open: () -> Void
@@ -179,7 +180,7 @@ private struct MonthCard: View {
                 MapVignette(month: month, baby: baby, festive: month == baby && app.age?.days == 0 && app.age != nil)
                 .frame(width: 104, height: 112)
                 .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(LinearGradient(colors: [.white.opacity(0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(LinearGradient(colors: [night || lamp ? Palette.amber.opacity(0.28) : .white.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
@@ -311,6 +312,7 @@ struct TodayPlayCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
     @Environment(\.dynamicTypeSize) private var size
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(JournalStore.self) private var j
     let month: Int
     /// Their story: nothing says there is more — tap the two on the card's edge and they hop; keep tapping and on the
@@ -336,7 +338,7 @@ struct TodayPlayCard: View {
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         if week.count > 1 {
-                            Button { withAnimation(.snappy) { app.anotherToday(month, j) } } label: {
+                            Button { withAnimation(reduce ? nil : .snappy) { app.anotherToday(month, j) } } label: {
                                 // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
                                 Text("换一个").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                             }
@@ -348,6 +350,8 @@ struct TodayPlayCard: View {
                     if !asleep { slogan }
                     VStack(spacing: 0) {
                         lead(p)
+                            .id(p.code)
+                            .transition(reduce ? .identity : .asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
                         if !rest.isEmpty {
                             Divider().padding(.horizontal, 14)
                             HStack {
@@ -380,6 +384,7 @@ struct TodayPlayCard: View {
                     // room above the card for the pair on its edge comes from the line beside them; while they are on the
                     // sleep card, neither
                 }
+                .sensoryFeedback(.selection, trigger: p.code)
             }
         }
     }

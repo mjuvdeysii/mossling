@@ -37,6 +37,19 @@ struct AirEmitter: UIViewRepresentable {
         /// Three drifts at once, each swaying on its own slow breath of air, so the things in them do not move in step.
         private static let drifts = 3
 
+        override func didMoveToWindow() {
+            super.didMoveToWindow()
+            syncPlayback()
+        }
+
+        private func syncPlayback() {
+            let active = window != nil
+            for e in emitters {
+                e.birthRate = active ? 1 : 0
+                e.speed = active ? 1 : 0
+            }
+        }
+
         override func layoutSubviews() {
             super.layoutSubviews()
             let b = bounds
@@ -82,6 +95,7 @@ struct AirEmitter: UIViewRepresentable {
                 }
                 layer.addSublayer(e); emitters.append(e)
             }
+            syncPlayback()
             built = true; builtSize = b.size
         }
 
@@ -114,10 +128,10 @@ struct AirEmitter: UIViewRepresentable {
                 // float upright as dandelion seeds do — fluff up, seed hanging below — only rocking a little; the
                 // leaves turn slowly; a few petals in the tab's colour; a little pollen
                 cells = [
-                    cell(Self.seed(), rate: 0.16, spin: 0.1, size: 1.0, alpha: 0.75),
-                    cell(Self.petal(tone), rate: 0.14, spin: 1.2, size: 1.0, alpha: 0.6),
-                    cell(Self.leaf(), rate: 0.08, spin: 0.9, size: 0.95, alpha: 0.55),
-                    cell(Self.pollen(), rate: 0.18, spin: 0, size: 1.0, alpha: 0.6),
+                    cell(Self.cachedSeed, rate: 0.16, spin: 0.1, size: 1.0, alpha: 0.75),
+                    cell(Self.cachedPetal(tone), rate: 0.14, spin: 1.2, size: 1.0, alpha: 0.6),
+                    cell(Self.cachedLeaf, rate: 0.08, spin: 0.9, size: 0.95, alpha: 0.55),
+                    cell(Self.cachedPollen, rate: 0.18, spin: 0, size: 1.0, alpha: 0.6),
                 ]
                 emitter.renderMode = .unordered
             case .night:
@@ -127,7 +141,7 @@ struct AirEmitter: UIViewRepresentable {
                 // fireflies, as the lamp's first night had them: a bright warm core in a wide soft halo, some twenty-five
                 // in view, wandering up as they glow and fade
                 let c = CAEmitterCell()
-                c.contents = Self.firefly().cgImage
+                c.contents = Self.cachedFirefly.cgImage
                 c.birthRate = (preview ? 1.6 : 1.0) * share
                 c.lifetime = life; c.lifetimeRange = life * 0.12
                 c.velocity = v; c.velocityRange = v * 0.45
@@ -136,7 +150,7 @@ struct AirEmitter: UIViewRepresentable {
                 c.alphaRange = 0.5
                 // a firefly breathes: its halo swells bright and fades again and again on the way up
                 let pulse = CAEmitterCell()
-                pulse.contents = Self.firefly().cgImage
+                pulse.contents = Self.cachedFirefly.cgImage
                 pulse.birthRate = 0.55; pulse.lifetime = 2.2; pulse.lifetimeRange = 0.8
                 pulse.velocity = 0; pulse.scale = 0.42 * z; pulse.scaleSpeed = -0.14 * z
                 pulse.alphaRange = 0.1; pulse.alphaSpeed = -0.42
@@ -166,7 +180,23 @@ struct AirEmitter: UIViewRepresentable {
             emitter.beginTime = CACurrentMediaTime() - Double(cells.first?.lifetime ?? 30) * (0.92 + 0.03 * Double(index))
         }
 
-        // MARK: the particles, drawn once at 3×
+        // MARK: the particles, drawn once at 3× and cached across pages
+
+        private static let cachedSeed = seed()
+        private static let cachedLeaf = leaf()
+        private static let cachedPollen = pollen()
+        private static let cachedFirefly = firefly()
+        private static var petalCache: [String: UIImage] = [:]
+
+        private static func cachedPetal(_ tone: UIColor) -> UIImage {
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            tone.getRed(&r, green: &g, blue: &b, alpha: &a)
+            let key = "\(Int(r * 255))-\(Int(g * 255))-\(Int(b * 255))-\(Int(a * 255))"
+            if let hit = petalCache[key] { return hit }
+            let img = petal(tone)
+            petalCache[key] = img
+            return img
+        }
 
         static func draw(_ size: CGSize, _ f: (CGContext) -> Void) -> UIImage {
             let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 3; fmt.opaque = false

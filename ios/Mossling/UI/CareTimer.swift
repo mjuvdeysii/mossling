@@ -88,7 +88,7 @@ struct TimerScreen: View {
                         // the same choices as every record's time: 现在, 5, 10, 15, 30 minutes, an hour
                         ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
-                            Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { startAt = nil; startAgo = m }
+                            Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { withAnimation(.snappy) { startAt = nil; startAgo = m } }
                                 .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
@@ -99,7 +99,8 @@ struct TimerScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(16)
-                .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .printCard(radius: Radius.card)
+                .sensoryFeedback(.selection, trigger: startAgo)
             }
             .padding(.horizontal, 20).padding(.bottom, 24)
         }
@@ -182,7 +183,7 @@ struct TimerScreen: View {
                         Stat(title: "暂停", value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                     }
                     .padding(.vertical, 12)
-                    .background(lamp ? Palette.lampCard : Palette.card, in: RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    .printCard(radius: Radius.card)
 
                     if type != LogType.sleep {
                         Button { picking = true } label: {

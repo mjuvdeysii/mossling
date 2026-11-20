@@ -60,7 +60,10 @@ struct GrowthBookView: View {
 private struct QuietMonths: View {
     let pages: [BookPage]
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     var body: some View {
+        let dark = lamp || scheme == .dark
         // the months are named once, under their pictures (newest first, as the book): the line only says what is so
         VStack(alignment: .leading, spacing: 10) {
             Text(pages.count == 1 ? "这个月没有留下记录" : "这几个月没有留下记录")
@@ -74,8 +77,8 @@ private struct QuietMonths: View {
                                 else { Color.clear.aspectRatio(4 / 3, contentMode: .fit) }
                             }
                             .padding(3)
-                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(Color.white))
-                            .shadow(color: Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
+                            .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
+                            .shadow(color: dark ? Color.black.opacity(0.28) : Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
                             Text(p.month == 0 ? "出生" : "\(p.month) 个月").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
@@ -163,7 +166,7 @@ private struct BookTotals: View {
                     Text("\(firsts)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.bead.mix(with: .black, by: 0.18))
                     HStack(spacing: 2) {
                         Text("个第一次").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        Image(systemName: "chevron.right").font(.system(size: 9, weight: .bold)).foregroundStyle(.tertiary)
+                        Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(.tertiary)
                     }
                 }
                 .frame(maxWidth: .infinity).contentShape(Rectangle())
@@ -188,6 +191,8 @@ private struct BookTotals: View {
 private struct BookPageView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     @State private var newFirst: First?
     let page: BookPage
     let current: Bool
@@ -262,18 +267,22 @@ private struct BookPageView: View {
         .printCard(radius: Radius.card)
     }
 
-    /// The month's picture pinned like a photograph: a white border, a slight tilt, a strip of tape.
+    /// The month's picture pinned like a photograph: a paper border, a slight tilt, a strip of masking tape.
     private func photo(_ m: Int) -> some View {
-        Group {
+        let dark = lamp || scheme == .dark
+        return Group {
             if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, label: "满 \(m) 个月", radius: 6) }
             else { ZStack { StagePlate(); GrowingChild(month: m).padding(10) }.aspectRatio(4 / 3, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 6)) }
         }
         .frame(width: type.isAccessibilitySize ? 96 : 112)
         .padding(5)
-        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
-        .shadow(color: Color(hex: 0x6B4A2B).opacity(0.18), radius: 5, y: 3)
+        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
+        .shadow(color: dark ? Color.black.opacity(0.32) : Color(hex: 0x6B4A2B).opacity(0.18), radius: 5, y: 3)
         .overlay(alignment: .top) {
-            RoundedRectangle(cornerRadius: 2).fill(Crayon.sunflower.opacity(0.55)).frame(width: 34, height: 12)
+            RoundedRectangle(cornerRadius: 2)
+                .fill(Crayon.sunflower.opacity(dark ? 0.45 : 0.55))
+                .overlay(RoundedRectangle(cornerRadius: 2).strokeBorder(.white.opacity(dark ? 0.14 : 0.35), lineWidth: 0.6))
+                .frame(width: 34, height: 12)
                 .rotationEffect(.degrees(-tilt * 2)).offset(y: -6)
         }
         .rotationEffect(.degrees(tilt))
@@ -318,7 +327,7 @@ private struct FactChip: View {
             Spacer(minLength: 0)
         }
         .padding(.horizontal, 8).padding(.vertical, 7)
-        .background(fact.color.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        .vinylSurface(fact.color, radius: Radius.tile)
         .accessibilityElement(children: .combine)
     }
 }
