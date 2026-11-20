@@ -53,8 +53,8 @@ fi
 for crt in /usr/local/share/ca-certificates/*.crt; do
   [ -f "$crt" ] || continue
   alias="local-$(basename "$crt" .crt)"
-  keytool -list -keystore "$TRUST" -storepass changeit -alias "$alias" >/dev/null 2>&1 || \
-    keytool -importcert -noprompt -keystore "$TRUST" -storepass changeit -alias "$alias" -file "$crt" >/dev/null
+  keytool -delete -keystore "$TRUST" -storepass changeit -alias "$alias" >/dev/null 2>&1 || true
+  keytool -importcert -noprompt -keystore "$TRUST" -storepass changeit -alias "$alias" -file "$crt" >/dev/null
 done
 
 cat > "$TOOLS/java-env.sh" <<EOF
@@ -71,11 +71,11 @@ EOF
 # shellcheck disable=SC1091
 . "$TOOLS/java-env.sh"
 
-# 4. Android SDK 35 components
+# 4. Android SDK 35 components (AGP 8.7.3 also uses build-tools 34.0.0)
 export ANDROID_HOME="$SDK" ANDROID_SDK_ROOT="$SDK"
-if [ ! -d "$SDK/platforms/android-35" ] || [ ! -d "$SDK/build-tools/35.0.0" ]; then
+if [ ! -d "$SDK/platforms/android-35" ] || [ ! -d "$SDK/build-tools/35.0.0" ] || [ ! -d "$SDK/build-tools/34.0.0" ]; then
   yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null || true
-  "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0" >/dev/null
+  "$SDK/cmdline-tools/latest/bin/sdkmanager" "platform-tools" "platforms;android-35" "build-tools;35.0.0" "build-tools;34.0.0" >/dev/null
 fi
 
 # 5. Python Pillow for tools/ scripts
