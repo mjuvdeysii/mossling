@@ -84,3 +84,72 @@ struct TimerIntent: LiveActivityIntent {
     }
 }
 
+/// Diaper state choices exposed to interactive widgets, Control Center, and Siri / Shortcuts.
+enum DiaperKindAppEnum: String, AppEnum {
+    case wet, dirty, both
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "尿布状态"
+    static var caseDisplayRepresentations: [DiaperKindAppEnum: DisplayRepresentation] = [
+        .wet: "湿尿布",
+        .dirty: "便尿布",
+        .both: "湿便都有",
+    ]
+}
+
+/// Care timer kinds exposed to interactive widgets, Control Center, Action Button, and Siri / Shortcuts.
+enum CareTimerAppEnum: String, AppEnum {
+    case nurse, sleep
+    static var typeDisplayRepresentation: TypeDisplayRepresentation = "计时类型"
+    static var caseDisplayRepresentations: [CareTimerAppEnum: DisplayRepresentation] = [
+        .nurse: "亲喂",
+        .sleep: "睡觉",
+    ]
+}
+
+/// One-tap diaper logging from Home Screen widgets, Control Center, or Siri without opening the app.
+struct QuickLogDiaperIntent: AppIntent {
+    static var title: LocalizedStringResource = "记一次尿布"
+    static var description = IntentDescription("无需打开应用，直接记下湿尿布、便尿布或湿便都有。")
+    @Parameter(title: "状态", default: .wet) var kind: DiaperKindAppEnum
+
+    init() { self.kind = .wet }
+    init(kind: DiaperKindAppEnum) { self.kind = kind }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
+            return .result(dialog: "请先在摸索台灯里开启记录并同意本地保存。")
+        }
+        JournalFile.quickLog(type: LogType.diaper, detail: kind.rawValue)
+        WidgetCenter.shared.reloadAllTimelines()
+        let label = kind == .wet ? "湿尿布" : kind == .dirty ? "便尿布" : "湿便都有"
+        return .result(dialog: "已记下：\(label)。")
+    }
+}
+
+/// Starts or ends a nursing or sleep timer from interactive widgets, Control Center, Action Button, or Siri.
+struct ToggleCareTimerIntent: AppIntent {
+    static var title: LocalizedStringResource = "开始或结束计时"
+    static var description = IntentDescription("开始或结束亲喂、睡觉计时，并同步到锁屏实时活动。")
+    @Parameter(title: "类型", default: .sleep) var careType: CareTimerAppEnum
+
+    init() { self.careType = .sleep }
+    init(careType: CareTimerAppEnum) { self.careType = careType }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
+            return .result(dialog: "请先在摸索台灯里开启记录并同意本地保存。")
+        }
+        let type = careType == .nurse ? LogType.nurse : LogType.sleep
+        let running = (try? JournalFile.load())?.timers.contains(where: { $0.type == type }) ?? false
+        if running {
+            JournalFile.stop(type)
+        } else {
+            JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
+        }
+        await LiveTimers.sync()
+        WidgetCenter.shared.reloadAllTimelines()
+        let name = LogType.name(type)
+        return .result(dialog: running ? "已结束\(name)计时。" : "已开始\(name)计时。")
+    }
+}
+
+

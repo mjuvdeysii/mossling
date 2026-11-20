@@ -352,20 +352,25 @@ private struct SwitchRow: View {
     }
 }
 
-/// One row of the data card: its sticker, what it does, a word on what it takes.
+/// One row of the data/about cards: unified 28pt icon tile, title, optional detail, chevron.
 private struct DataRow: View {
-    let title: String, detail: String, symbol: String, color: Color
+    let title: String
+    var detail: String? = nil
+    let symbol: String
+    let color: Color
     var body: some View {
-        HStack(spacing: 12) {
-            IconTile(symbol: symbol, color: color, size: 30, round: true)
+        HStack(spacing: 10) {
+            IconTile(symbol: symbol, color: color, size: 28, round: true)
             VStack(alignment: .leading, spacing: 1) {
                 Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                Text(detail).font(.caption).foregroundStyle(Palette.secondaryText)
+                if let detail, !detail.isEmpty {
+                    Text(detail).font(.caption).foregroundStyle(Palette.secondaryText)
+                }
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 16).padding(.vertical, 11).contentShape(Rectangle())
+        .padding(.horizontal, 14).padding(.vertical, 10).contentShape(Rectangle())
     }
 }
 
@@ -406,8 +411,8 @@ struct ProfileSheet: View {
 
 private var stamp: String { let d = Day.today; return String(format: "%04d%02d%02d", d.y, d.m, d.d) }
 
-/// About, in the order a parent asks: what this is (the name and its story), who made it and how (AI-assisted, with
-/// the content's sources), the documents, help. Every row is the same shape: an icon tile, one name, a chevron.
+/// About, in the same calm PrintCard language as 我的: hero header (tap the pair three times for their story),
+/// content & documents, and help.
 struct AboutView: View {
     @Environment(AppModel.self) private var app
     @State private var replay = false
@@ -417,67 +422,86 @@ struct AboutView: View {
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
-        List {
-            // the two and the name in one row, the line about the app under them; tap the two and they hop, and on
-            // the third tap they take you into their story (the page names no way in)
-            Section {
-                VStack(alignment: .leading, spacing: 0) {
-                    HStack(alignment: .bottom, spacing: 14) {
-                        Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
-                            .storyKnock(hops: $hops, lamp: $lamp) { story = true }
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("摸索台灯").font(.title2.weight(.bold))
-                            Text("孩子摸索，大人点灯").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
-                            Text("Moss & Otto · 版本 \(v)（\(b)）").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                HStack(alignment: .bottom, spacing: 14) {
+                    Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
+                        .storyKnock(hops: $hops, lamp: $lamp) { story = true }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("摸索台灯").font(.title2.weight(.bold))
+                        Text("孩子摸索，大人点灯").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
+                        Text("Moss & Otto · 版本 \(v)（\(b)）").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    }
+                    .padding(.bottom, 4)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 4)
+
+                Section2(title: "内容与说明") {
+                    VStack(spacing: 0) {
+                        row(Route.sources, "内容来源", "WHO 节奏参考与权威文献出处", "books.vertical.fill", Crayon.caramel)
+                        Divider().padding(.leading, 52)
+                        row(Route.doc("CHANGELOG"), "更新日志", "近期改进与版本记录", "clock.arrow.circlepath", Crayon.lilac)
+                        Divider().padding(.leading, 52)
+                        row(Route.licenses, "许可与致谢", nil, "checkmark.seal.fill", Crayon.aqua)
+                    }
+                    .buttonStyle(.toy)
+                    .printCard(radius: Radius.card)
+                }
+
+                Section2(title: "条款与隐私") {
+                    VStack(spacing: 0) {
+                        row(Route.doc("TERMS"), "使用条款", nil, "doc.text.fill", Crayon.pebble)
+                        Divider().padding(.leading, 52)
+                        row(Route.doc("PRIVACY"), "隐私政策", nil, "hand.raised.fill", Crayon.sky)
+                        Divider().padding(.leading, 52)
+                        row(Route.doc("DISCLAIMER"), "免责声明", nil, "exclamationmark.shield.fill", Crayon.tangerine)
+                    }
+                    .buttonStyle(.toy)
+                    .printCard(radius: Radius.card)
+                }
+
+                Section2(title: "帮助") {
+                    VStack(spacing: 0) {
+                        Button { Guide.replayNextLaunch(); replay = true } label: {
+                            HStack(spacing: 10) {
+                                IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("重新显示使用提示").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                    if replay { Text("下次打开应用时，使用提示会重新出现。").font(.caption).foregroundStyle(Palette.accent) }
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 10).contentShape(Rectangle())
                         }
-                        .padding(.bottom, 4)
-                        Spacer(minLength: 0)
+                        .buttonStyle(.toy).disabled(replay)
+                        if let url = Owner.contactURL {
+                            Divider().padding(.leading, 52)
+                            Link(destination: url) {
+                                DataRow(title: "反馈问题", symbol: "envelope.fill", color: Crayon.leaf)
+                            }
+                            .buttonStyle(.toy)
+                        }
                     }
+                    .printCard(radius: Radius.card)
                 }
-                .listRowBackground(Color.clear)
-                .listRowInsets(EdgeInsets(top: 4, leading: 4, bottom: 0, trailing: 4))
+
+                if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
+                    Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!)
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 4)
+                }
             }
-            Section {
-                row(Route.sources, "内容来源", "books.vertical.fill", Crayon.caramel)
-                row(Route.licenses, "许可与致谢", "checkmark.seal.fill", Crayon.aqua)
-            } header: { Text("制作") }
-            Section("文件") {
-                row(Route.doc("TERMS"), "使用条款", "doc.text.fill", Crayon.pebble)
-                row(Route.doc("PRIVACY"), "隐私政策", "hand.raised.fill", Crayon.sky)
-                row(Route.doc("DISCLAIMER"), "免责声明", "exclamationmark.shield.fill", Crayon.tangerine)
-                row(Route.doc("CHANGELOG"), "更新日志", "clock.arrow.circlepath", Crayon.lilac)
-            }
-            Section {
-                Button { Guide.replayNextLaunch(); replay = true } label: {
-                    Label { Text("重新显示使用提示") } icon: { IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower) }
-                }
-                .tint(.primary).disabled(replay)
-                if let url = Owner.contactURL {
-                    Link(destination: url) { Label { Text("反馈问题") } icon: { IconTile(symbol: "envelope.fill", color: Crayon.leaf) } }
-                        .tint(.primary)
-                }
-            } header: { Text("帮助") } footer: {
-                // the page's small print lives where it belongs (who made it → 许可与致谢; where the content comes from →
-                // 内容来源; that it is not medical advice → 免责声明 and the first launch); here only what answers a tap
-                VStack(alignment: .leading, spacing: 6) {
-                    if replay { Text("下次打开应用时，使用提示会重新出现。") }
-                    // the App filing number, shown where the filing rules ask (设置 / 关于), once there is one
-                    if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                        Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!).font(.footnote.weight(.semibold))
-                    }
-                }
-                .padding(.top, 4)
-            }
+            .padding(.horizontal, 16).padding(.vertical, 12).padding(.bottom, 28)
         }
-        .listSectionSpacing(.compact)
-        .contentMargins(.top, 0, for: .scrollContent)
-        .scrollContentBackground(.hidden).pageBackground()
+        .calmWhileScrolling()
+        .pageBackground(tone: Crayon.lilac)
         .navigationDestination(isPresented: $story) { StoryView() }
         .navigationTitle("关于摸索台灯").navigationBarTitleDisplayMode(.inline)
     }
 
-    private func row(_ r: Route, _ t: String, _ sym: String, _ c: Color) -> some View {
-        NavigationLink(value: r) { Label { Text(t) } icon: { IconTile(symbol: sym, color: c) } }
+    private func row(_ r: Route, _ t: String, _ detail: String?, _ sym: String, _ c: Color) -> some View {
+        NavigationLink(value: r) { DataRow(title: t, detail: detail, symbol: sym, color: c) }
     }
 }
 
@@ -678,7 +702,7 @@ struct LicensesView: View {
     var body: some View {
         List {
             Section("制作") {
-                row("摸索台灯", "由创作者本人构思与主导，借助 AI（Anthropic 的 Claude）辅助完成产品设计、插画与代码。", "Moss & Otto")
+                row("摸索台灯", "由创作者独立构思与持续打磨，结合现代软件与人工智能工具辅助完成设计、插画与工程实现。", "Moss & Otto")
             }
             Section("数据") {
                 row("WHO Child Growth Standards", "按世界卫生组织的使用条款引用", "© World Health Organization")
