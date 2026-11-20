@@ -1,23 +1,54 @@
 import Foundation
 
+enum AppLanguage: String, CaseIterable {
+    case system, zh, en
+}
+
 /// Lightweight bilingual (zh-Hans / en) & regional unit helper shared by the app, widgets, Live Activities, and intents.
 /// Preserves Moss & Otto's quiet, warm tone in both Chinese and English ("They explore. You hold the light.").
 enum L10n {
+    private static let prefKey = "appLanguage"
+
     #if DEBUG
     /// Tests may set this to render deterministic Chinese or English screenshots regardless of simulator locale.
     nonisolated(unsafe) static var overrideEnglish: Bool? = nil
     #endif
 
+    private static var sharedDefaults: UserDefaults {
+        UserDefaults(suiteName: JournalFile.group) ?? .standard
+    }
+
+    static var preference: AppLanguage {
+        get {
+            let raw = sharedDefaults.string(forKey: prefKey) ?? UserDefaults.standard.string(forKey: prefKey) ?? ""
+            return AppLanguage(rawValue: raw) ?? .system
+        }
+        set {
+            sharedDefaults.set(newValue.rawValue, forKey: prefKey)
+            UserDefaults.standard.set(newValue.rawValue, forKey: prefKey)
+        }
+    }
+
     static var isEnglish: Bool {
         #if DEBUG
         if let o = overrideEnglish { return o }
         #endif
-        let lang = Locale.preferredLanguages.first ?? Locale.current.identifier
-        return lang.hasPrefix("en")
+        switch preference {
+        case .en: return true
+        case .zh: return false
+        case .system:
+            let lang = Locale.preferredLanguages.first ?? Locale.current.identifier
+            return lang.hasPrefix("en")
+        }
     }
 
     static var usesImperial: Bool {
         Locale.current.measurementSystem == .us
+    }
+
+    /// Official bilingual brand name per docs/IP.md: 摸索台灯 / Moss & Otto.
+    static var appName: String {
+        t("摸索台灯", "Moss & Otto")
     }
 
     /// Picks idiomatic Chinese or English copy.
@@ -28,6 +59,23 @@ enum L10n {
     /// Returns a `LocalizedStringResource` for APIs like `ControlWidgetConfiguration.displayName(_:)`.
     static func res(_ zh: String, _ en: String) -> LocalizedStringResource {
         LocalizedStringResource(stringLiteral: t(zh, en))
+    }
+
+    /// Bilingual 7-stage developmental chapter labels shared between YouView and StoryWindowWidget.
+    static func stretchName(for month: Int) -> String {
+        let idx: Int
+        switch month {
+        case 0...2: idx = 0
+        case 3...5: idx = 1
+        case 6...8: idx = 2
+        case 9...11: idx = 3
+        case 12...14: idx = 4
+        case 15...23: idx = 5
+        default: idx = 6
+        }
+        let zh = ["躺着看世界", "趴着抬起头", "坐起来看", "往前爬", "站起来", "迈开步子", "跑起来"]
+        let en = ["Watching the world", "Lifting their head", "Sitting up to see", "On the move", "Standing tall", "First steady steps", "Running free"]
+        return isEnglish ? en[idx] : zh[idx]
     }
 
     static func logName(_ type: String) -> String {

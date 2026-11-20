@@ -499,12 +499,43 @@ final class ScreenshotTests: XCTestCase {
         }
         let page = VStack(spacing: 18) {
             tile(360, 360, bg: WidgetInk.paper, TodayFace(date: now, snap: snap, body: idle, size: .large))
+            tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snap, body_: idle, isMedium: true))
             tile(360, 170, bg: WidgetInk.paper, QuickCareFace(date: now, snap: snap, body_: feeding, isMedium: true))
             tile(360, 170, bg: BedsideLampFace.backdrop, BedsideLampFace(date: now, snap: snap, body_: idle, isMedium: true))
         }
         .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Color(red: 0.80, green: 0.86, blue: 0.92))
         .fontDesign(.rounded)
-        shot("34_widgets_en", dark: false, height: 820, page)
+        shot("34_widgets_en", dark: false, height: 1010, page)
+    }
+
+    func test35StoryWindowAndEnglishApp() {
+        let day = Day(y: 2026, m: 10, d: 19)
+        let now = day.date.addingTimeInterval(16 * 3600 + 20 * 60)
+        var idle = JournalFile.Body()
+        idle.logs = [LogEntry(type: LogType.sleep, start: ms(now) - 105 * 60_000, end: ms(now) - 45 * 60_000)]
+        func tile<BG: View>(_ w: CGFloat, _ h: CGFloat, bg: BG, _ v: some View) -> some View {
+            v.padding(16).frame(width: w, height: h).background(bg).clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+        }
+        L10n.overrideEnglish = false
+        let snapZh = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true)
+        let storyPage = VStack(spacing: 18) {
+            HStack(spacing: 18) {
+                tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false))
+                tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false)).environment(\.colorScheme, .dark)
+            }
+            tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: true))
+            tile(360, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: true)).environment(\.colorScheme, .dark)
+        }
+        .padding(.vertical, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Color(red: 0.80, green: 0.86, blue: 0.92))
+        .fontDesign(.rounded)
+        shot("35_story_window", dark: false, height: 640, storyPage)
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.nickname = "Leo"; m.journal = true
+        shot("35_you_en", height: 960, tabs(m, YouView(path: .constant(NavigationPath()))))
     }
 }

@@ -164,20 +164,20 @@ struct RootView: View {
             Tab(value: 0) {
                 NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
                     .environment(\.night, night || scheme == .dark)
-            } label: { tabLabel("本月", "TabMonth", "leaf.fill", 0) }
+            } label: { tabLabel(L10n.t("本月", "Today"), "TabMonth", "leaf.fill", 0) }
             if app.journal {
                 Tab(value: 2) {
                     NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
-                } label: { tabLabel("记录", "TabJournal", "list.bullet.clipboard.fill", 2) }
+                } label: { tabLabel(L10n.t("记录", "Log"), "TabJournal", "list.bullet.clipboard.fill", 2) }
             }
             Tab(value: 3) {
                 NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
-            } label: { tabLabel("我的", "TabMe", "person.crop.circle.fill", 3) }
+            } label: { tabLabel(L10n.t("我的", "Me"), "TabMe", "person.crop.circle.fill", 3) }
         }
         // a light tick as the chosen tab changes, like turning to a tabbed page
         .sensoryFeedback(.selection, trigger: tab)
-        // a change of drawing style redraws every picture and icon at once
-        .id(app.artStyle)
+        // a change of drawing style or language redraws every view immediately
+        .id("\(app.artStyle.rawValue)-\(app.language.rawValue)")
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
         .overlay { StyleShiftOverlay() }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
@@ -188,14 +188,43 @@ struct RootView: View {
     }
 
     private func open(_ url: URL) {
-        guard url.scheme == "mossling", let type = url.pathComponents.dropFirst().first else { return }
+        guard url.scheme == "mossling" else { return }
         if isLocked { pendingURL = url; return }
-        guard app.onboarded, app.mayKeep() else { return }
-        guard app.journal else { tab = 3; return }
-        tab = 2
+        guard app.onboarded else { return }
+        let arg = url.pathComponents.dropFirst().first
         switch url.host() {
-        case "care" where LogType.timed.contains(type): journal.focus = type
-        case "log" where LogType.buttons.contains(type) && type != LogType.growth: journal.focus = nil; journal.ask = type
+        case "today":
+            tab = 0
+            todayPath = NavigationPath()
+        case "play":
+            tab = 0
+            let mo = app.babyMonth ?? 0
+            if let code = arg, app.content.play(code) != nil {
+                todayPath = NavigationPath([Route.play(code, mo)])
+            } else {
+                todayPath = NavigationPath()
+            }
+        case "month":
+            tab = 0
+            let mo = arg.flatMap(Int.init) ?? (app.babyMonth ?? 0)
+            todayPath = NavigationPath([Route.month(max(0, min(mo, 36)))])
+        case "book":
+            tab = 0
+            todayPath = NavigationPath([Route.book])
+        case "journal":
+            guard app.mayKeep() else { return }
+            tab = app.journal ? 2 : 3
+        case "care":
+            guard let type = arg, LogType.timed.contains(type), app.mayKeep() else { return }
+            guard app.journal else { tab = 3; return }
+            tab = 2
+            journal.focus = type
+        case "log":
+            guard let type = arg, LogType.buttons.contains(type), type != LogType.growth, app.mayKeep() else { return }
+            guard app.journal else { tab = 3; return }
+            tab = 2
+            journal.focus = nil
+            journal.ask = type
         default: break
         }
     }
@@ -206,7 +235,7 @@ struct RootView: View {
         Task { @MainActor in
             defer { unlocking = false }
             let ctx = LAContext()
-            if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "确认是你本人")) == true {
+            if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("确认是你本人", "Confirm it's you"))) == true {
                 locked = false
             }
         }
@@ -219,8 +248,8 @@ private struct LockView: View {
     var body: some View {
         VStack(spacing: 16) {
             Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
-            Text("摸索台灯已锁定").font(.title2.weight(.bold))
-            Button("解锁", systemImage: Biometry.symbol, action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+            Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked")).font(.title2.weight(.bold))
+            Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()

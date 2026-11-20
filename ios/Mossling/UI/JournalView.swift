@@ -38,8 +38,8 @@ struct JournalView: View {
                     })
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
-                    NavigationLink(value: JournalRoute.stats) { tile("最近七天", "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
-                    NavigationLink(value: JournalRoute.growth) { tile("生长曲线", "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.stats) { tile(L10n.t("最近七天", "Last 7 Days"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.growth) { tile(L10n.t("生长曲线", "Growth Curve"), "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
                 }
                 // the two tiles side by side are one height: top and bottom edges line up
                 .fixedSize(horizontal: false, vertical: true)
@@ -48,21 +48,25 @@ struct JournalView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.pink)
-        .navigationTitle("记录")
+        .navigationTitle(L10n.t("记录", "Journal"))
         .toolbar {
             if day != app.today {
-                ToolbarItem(placement: .topBarLeading) { Button("今天") { withAnimation(.snappy) { day = app.today } } }
+                ToolbarItem(placement: .topBarLeading) { Button(L10n.t("今天", "Today")) { withAnimation(.snappy) { day = app.today } } }
             }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ShareLink(item: handoverText) {
+                    Image(systemName: "person.2.wave.2")
+                }
+                .accessibilityLabel(L10n.t("一键交接给家人", "Share care handover"))
                 // the rarer records live behind +, not on the page: an entry after the fact, a first, a measurement
                 Menu {
-                    Button("补记一条记录", systemImage: "square.and.pencil") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
-                    Button("记一个第一次", systemImage: "star") { newFirst = First(at: ms(Date()), title: "") }
-                    Button("记一次测量", systemImage: "ruler") { measuring = Measure(at: Date().timeIntervalSince1970 * 1000) }
+                    Button(L10n.t("补记一条记录", "Add past entry"), systemImage: "square.and.pencil") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
+                    Button(L10n.t("记一个第一次", "Log a first"), systemImage: "star") { newFirst = First(at: ms(Date()), title: "") }
+                    Button(L10n.t("记一次测量", "Log measurement"), systemImage: "ruler") { measuring = Measure(at: Date().timeIntervalSince1970 * 1000) }
                     Divider()
-                    Button("第一次时间线", systemImage: "point.topleft.down.to.point.bottomright.curvepath") { path.append(JournalRoute.firsts) }
+                    Button(L10n.t("第一次时间线", "Firsts timeline"), systemImage: "point.topleft.down.to.point.bottomright.curvepath") { path.append(JournalRoute.firsts) }
                 } label: { Image(systemName: "plus") }
-                .accessibilityLabel("补记、第一次、测量")
+                .accessibilityLabel(L10n.t("补记、第一次、测量", "Add entry, first, or measurement"))
             }
         }
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
@@ -70,11 +74,11 @@ struct JournalView: View {
             NavigationStack {
                 let now = Date()
                 let lower = min(app.birth?.date ?? .distantPast, now)
-                DatePicker("哪一天", selection: Binding(get: { min(max(day.date, lower), now) }, set: { day = Day($0); pickingDay = false }),
+                DatePicker(L10n.t("哪一天", "Date"), selection: Binding(get: { min(max(day.date, lower), now) }, set: { day = Day($0); pickingDay = false }),
                            in: lower...now, displayedComponents: .date)
                     .datePickerStyle(.graphical).padding(.horizontal, 16)
-                    .navigationTitle("看哪一天").navigationBarTitleDisplayMode(.inline)
-                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { pickingDay = false } } }
+                    .navigationTitle(L10n.t("看哪一天", "Choose Day")).navigationBarTitleDisplayMode(.inline)
+                    .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { pickingDay = false } } }
             }
             .presentationDetents([.medium]).lampPresented()
         }
@@ -123,6 +127,43 @@ struct JournalView: View {
     /// Noon of the day on the page, for a record made while looking at a past day.
     private var pastNoon: Date { Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day.date) ?? day.date.addingTimeInterval(12 * 3600) }
     private func defaultTime() -> Double { day == app.today ? JournalFile.now() : pastNoon.timeIntervalSince1970 * 1000 }
+
+    /// One-tap offline Care Handover summary for partner, grandparents, or nanny (zero cloud required).
+    private var handoverText: String {
+        let now = Date()
+        let logs = j.logs(on: day)
+        let startMs = day.date.timeIntervalSince1970 * 1000
+        let feeds = logs.feedCount(from: startMs)
+        let sleepSec = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
+        let diapers = logs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: day) }
+        let wet = diapers.filter { $0.detail == "wet" || $0.detail == "both" }.count
+        let dirty = diapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+        let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+        let ageStr = app.age.map { " · " + L10n.ageText($0) } ?? ""
+        var lines: [String] = [
+            L10n.t("【摸索台灯 · 照护交接】\(who)\(ageStr)", "[Moss & Otto · Care Handover] \(who)\(ageStr)")
+        ]
+        if let t = j.timers.first {
+            let status = L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil)
+            let dur = L10n.duration(t.total(now.timeIntervalSince1970 * 1000))
+            lines.append(L10n.t("进行中：\(status)（已 \(dur)）", "Active now: \(status) (\(dur))"))
+        }
+        if let f = j.last(LogType.nurse) {
+            lines.append(L10n.t("上次喂奶：\(L10n.agoText(f, now: now, precise: true))", "Last feed: \(L10n.agoText(f, now: now, precise: true))"))
+        }
+        if let w = j.last(LogType.sleep) {
+            lines.append(L10n.t("上次醒来：\(L10n.agoText(w, now: now, precise: true))", "Last wake: \(L10n.agoText(w, now: now, precise: true))"))
+        }
+        let sleepStr = sleepSec > 0 ? L10n.duration(sleepSec) : "—"
+        lines.append(L10n.t(
+            "今日累计：喂奶 \(feeds) 次 · 睡眠 \(sleepStr) · 尿布 \(diapers.count) 次（湿 \(wet) / 便 \(dirty)）",
+            "Today: \(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepStr) sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers") (\(wet) wet / \(dirty) dirty)"
+        ))
+        if let mo = app.babyMonth, let play = app.todayPlay(mo, j) {
+            lines.append(L10n.t("今日一起玩：\(play.name)", "Today's play: \(play.name)"))
+        }
+        return lines.joined(separator: "\n")
+    }
 }
 
 enum JournalRoute: Hashable { case stats, growth, firsts }

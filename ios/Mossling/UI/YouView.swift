@@ -28,23 +28,26 @@ struct YouView: View {
                     AppearanceRow()
                         .padding(.horizontal, 14).padding(.vertical, 10)
                     Divider().padding(.leading, 52).opacity(0.5)
+                    LanguageRow()
+                        .padding(.horizontal, 14).padding(.vertical, 10)
+                    Divider().padding(.leading, 52).opacity(0.5)
                     // it belongs to 自动: under 日光 or 夜灯 the choice is already made, so the switch rests and says so
-                    SwitchRow(title: "晚上自动开夜灯", detail: app.theme == .system ? "19:00–06:00" : "外观选「自动」时生效", symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight, resting: app.theme != .system)
+                    SwitchRow(title: L10n.t("晚上自动开夜灯", "Auto Night Lamp"), detail: app.theme == .system ? "19:00–06:00" : L10n.t("外观选「自动」时生效", "Active when Appearance is Auto"), symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight, resting: app.theme != .system)
                         .disabled(app.theme != .system)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    SwitchRow(title: "记录", detail: "显示记录标签页", symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
+                    SwitchRow(title: L10n.t("记录", "Care Journal"), detail: L10n.t("显示记录标签页", "Show the Log tab"), symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
                     if face {
                         Divider().padding(.leading, 52).opacity(0.5)
-                        SwitchRow(title: Biometry.name, detail: "打开时解锁", symbol: Biometry.symbol, color: Crayon.leaf, on: Binding(get: { app.lock }, set: { on in Biometry.turn(on) { app.lock = $0 } }))
+                        SwitchRow(title: Biometry.name, detail: L10n.t("打开时解锁", "Unlock on launch"), symbol: Biometry.symbol, color: Crayon.leaf, on: Binding(get: { app.lock }, set: { on in Biometry.turn(on) { app.lock = $0 } }))
                     }
                 }
                 .printCard(radius: Radius.card)
 
                 // data and about, aligned to the exact same 28pt icon & 52pt hairline rhythm
                 VStack(spacing: 0) {
-                    NavigationLink(value: Route.data) { DataRow(title: "数据", detail: "导出 · 导入 · 清除；记录只存在这台手机上", symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
+                    NavigationLink(value: Route.data) { DataRow(title: L10n.t("数据", "Data & Privacy"), detail: L10n.t("导出 · 导入 · 清除；记录只存在这台手机上", "Export · Import · Clear; stored only on this iPhone"), symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
                     Divider().padding(.leading, 52).opacity(0.5)
-                    NavigationLink(value: Route.about) { DataRow(title: "关于摸索台灯", detail: "内容来源 · 条款与隐私 · 反馈", symbol: "info", color: Crayon.pebble) }
+                    NavigationLink(value: Route.about) { DataRow(title: L10n.t("关于摸索台灯", "About Moss & Otto"), detail: L10n.t("内容来源 · 条款与隐私 · 反馈", "Sources · Privacy & Terms · Feedback"), symbol: "info", color: Crayon.pebble) }
                 }
                 .buttonStyle(.toy)
                 .printCard(radius: Radius.card)
@@ -53,9 +56,9 @@ struct YouView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
-        .navigationTitle("我的")
+        .navigationTitle(L10n.t("我的", "Me"))
         .sheet(isPresented: $editing) { ProfileSheet() }
-        .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button("好") {} }
+        .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button(L10n.t("好", "OK")) {} }
     }
 
 }
@@ -73,8 +76,6 @@ private struct FamilyCard: View {
     let edit: () -> Void
     @State private var giggles = 0
 
-    private static let stretch = ["躺着看世界", "趴着抬起头", "坐起来看", "往前爬", "站起来", "迈开步子", "跑起来"]
-
     var body: some View {
         let baby = app.babyMonth ?? 0
         VStack(alignment: .leading, spacing: 10) {
@@ -87,31 +88,31 @@ private struct FamilyCard: View {
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(app.nickname.isEmpty ? "宝宝" : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+                        Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
                         Spacer(minLength: 4)
                         Button(action: edit) {
-                            Label("编辑", systemImage: "pencil").font(.caption.weight(.semibold)).foregroundStyle(.white)
+                            Label(L10n.t("编辑", "Edit"), systemImage: "pencil").font(.caption.weight(.semibold)).foregroundStyle(.white)
                                 .padding(.horizontal, 10).padding(.vertical, 5)
                                 .background(Capsule().fill(Palette.accentFill))
                                 .contentShape(Capsule().inset(by: -8))
                         }
                         .buttonStyle(.toy)
-                        .accessibilityLabel("编辑宝宝信息")
+                        .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
                     }
                     if let a = app.age {
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
                             Ticking(text: "\(a.months)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
-                            Text("个月").font(.subheadline.weight(.semibold)).fixedSize()
+                            Text(L10n.t("个月", "m")).font(.subheadline.weight(.semibold)).fixedSize()
                             if a.days > 0 {
                                 Ticking(text: "\(a.days)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
-                                Text("天").font(.subheadline.weight(.semibold)).fixedSize()
+                                Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold)).fixedSize()
                             }
                         }
                         .fixedSize()
                         .foregroundStyle(Palette.accent)
                         // one element for VoiceOver and the audit: "7 个月 12 天", not four separate pieces
                         .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(a.days > 0 ? "\(a.months) 个月 \(a.days) 天" : "\(a.months) 个月")
+                        .accessibilityLabel(L10n.ageText(a))
                         .accessibilityAddTraits(.isStaticText)
                     }
                     if !type.isAccessibilitySize { facts }
@@ -128,17 +129,17 @@ private struct FamilyCard: View {
 
     /// The child's facts as small chips that wrap (never a line that scrolls sideways).
     private var facts: some View {
-        let birth = app.birth.map { b in String(b.y) + "年" + b.md + "出生" }
-        let lived = app.age.map { "第 \($0.lived) 天" }
-        let sex = app.sex == "boy" ? "男孩" : app.sex == "girl" ? "女孩" : nil
-        let stage = app.age.map { _ in "这一段：" + Self.stretch[GrowingChild.stage(app.babyMonth ?? 0)] }
+        let birth = app.birth.map { b in L10n.isEnglish ? "Born \(b.y)-\(String(format: "%02d", b.m))-\(String(format: "%02d", b.d))" : String(b.y) + "年" + b.md + "出生" }
+        let lived = app.age.map { L10n.livedDays($0.lived) }
+        let sex = app.sex == "boy" ? L10n.t("男孩", "Boy") : app.sex == "girl" ? L10n.t("女孩", "Girl") : nil
+        let stage = app.age.map { _ in L10n.t("这一段：", "Stage: ") + L10n.stretchName(for: app.babyMonth ?? 0) }
         return FlowRow(spacing: 10, lineSpacing: 3) {
             if let birth { chip(birth, "calendar") } else {
-                Button(action: edit) { chip("填写出生日期", "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
+                Button(action: edit) { chip(L10n.t("填写出生日期", "Add birthday"), "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
             }
             if let lived { chip(lived, "sun.max") }
             if let sex { chip(sex, "figure.child") } else {
-                Button(action: edit) { chip("填写性别", "plus", strong: true) }.buttonStyle(.toy)
+                Button(action: edit) { chip(L10n.t("填写性别", "Add sex"), "plus", strong: true) }.buttonStyle(.toy)
             }
             if let stage { chip(stage, "leaf") }
         }
@@ -765,14 +766,19 @@ enum Biometry {
         return c.biometryType
     }
     static var name: String {
-        switch type { case .faceID: "面容 ID"; case .touchID: "触控 ID"; case .opticID: "视控 ID"; default: "密码" }
+        switch type {
+        case .faceID: L10n.t("面容 ID", "Face ID")
+        case .touchID: L10n.t("触控 ID", "Touch ID")
+        case .opticID: L10n.t("视控 ID", "Optic ID")
+        default: L10n.t("密码", "Passcode")
+        }
     }
     /// The lock is turned on only after the owner of the phone confirms once (Face ID is asked when it is first used,
     /// with its purpose in NSFaceIDUsageDescription); turning it off needs nothing.
     static func turn(_ on: Bool, _ set: @escaping @MainActor (Bool) -> Void) {
         guard on else { Task { @MainActor in set(false) }; return }
         Task { @MainActor in
-            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "打开应用锁")) ?? false
+            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("打开应用锁", "Enable App Lock"))) ?? false
             set(ok)
         }
     }
@@ -818,7 +824,7 @@ private struct AppearanceRow: View {
     private var label: some View {
         HStack(spacing: 10) {
             IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
-            Text("外观").font(.subheadline.weight(.semibold))
+            Text(L10n.t("外观", "Theme")).font(.subheadline.weight(.semibold)).lineLimit(1)
         }
     }
     var body: some View {
@@ -826,6 +832,45 @@ private struct AppearanceRow: View {
             VStack(alignment: .leading, spacing: 8) { label; swatches }
         } else {
             HStack(spacing: 10) { label; Spacer(minLength: 4); swatches }
+        }
+    }
+}
+
+/// Language switcher (语言 / Language): Auto / 中文 / English, synced to widgets & controls via App Group.
+private struct LanguageRow: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
+    private var label: some View {
+        HStack(spacing: 10) {
+            IconTile(symbol: "globe", color: Crayon.sky, size: 28, round: true)
+            Text(L10n.t("语言", "Language")).font(.subheadline.weight(.semibold))
+        }
+    }
+    private var pills: some View {
+        HStack(spacing: 6) {
+            ForEach(AppLanguage.allCases, id: \.self) { lang in
+                let on = app.language == lang
+                Button {
+                    withAnimation(.snappy) { app.language = lang }
+                } label: {
+                    Text(lang.label)
+                        .font(.caption.weight(on ? .bold : .semibold))
+                        .foregroundStyle(on ? .white : .primary)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .background(Capsule().fill(on ? Palette.accentFill : Palette.card))
+                        .overlay(Capsule().strokeBorder(on ? .clear : Color.secondary.opacity(0.22), lineWidth: 1))
+                }
+                .buttonStyle(.toy)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .sensoryFeedback(.selection, trigger: app.language)
+    }
+    var body: some View {
+        if type.isAccessibilitySize {
+            VStack(alignment: .leading, spacing: 8) { label; pills }
+        } else {
+            HStack(spacing: 10) { label; Spacer(minLength: 4); pills }
         }
     }
 }

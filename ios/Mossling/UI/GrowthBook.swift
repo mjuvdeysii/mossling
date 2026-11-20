@@ -12,7 +12,7 @@ struct GrowthBookView: View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 18) {
                 if pages.isEmpty {
-                    ContentUnavailableView("填写出生日期后，成长册从出生那个月开始", systemImage: "book.closed")
+                    ContentUnavailableView(L10n.t("填写出生日期后，成长册从出生那个月开始", "Add baby's birthday to start the Growth Book"), systemImage: "book.closed")
                         .padding(.top, 60)
                 } else {
                     BookTotals(pages: pages)
@@ -32,8 +32,40 @@ struct GrowthBookView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.caramel)
-        .navigationTitle("成长册")
+        .navigationTitle(L10n.t("成长册", "Growth Book"))
         .navigationSubtitle(subtitle)
+        .toolbar {
+            if let a = app.age, let poster = renderKeepsakePoster(age: a) {
+                ToolbarItem(placement: .topBarTrailing) {
+                    ShareLink(
+                        item: Image(uiImage: poster),
+                        preview: SharePreview(
+                            L10n.t("摸索台灯 · 成长纪念卡", "Moss & Otto · Keepsake Card"),
+                            image: Image(uiImage: poster)
+                        )
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel(L10n.t("分享成长纪念卡", "Share keepsake poster"))
+                }
+            }
+        }
+    }
+
+    @MainActor
+    private func renderKeepsakePoster(age: Age) -> UIImage? {
+        let mo = min(age.bookMonth, 36)
+        let cover = ArtIndex.shared.cover(mo).flatMap { ArtImageCache.load($0) }
+        let card = KeepsakePosterCard(
+            name: app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname,
+            age: age,
+            month: mo,
+            chapter: L10n.stretchName(for: mo),
+            cover: cover
+        )
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = 3.0
+        return renderer.uiImage
     }
 
     /// The pages in order, with each run of empty months (other than this month) as one group.
@@ -52,7 +84,85 @@ struct GrowthBookView: View {
 
     private var subtitle: String {
         guard let b = app.birth else { return "" }
-        return "从 \(b.y)年\(b.md) 开始"
+        return L10n.isEnglish ? "Since \(b.y)-\(String(format: "%02d", b.m))-\(String(format: "%02d", b.d))" : "从 \(b.y)年\(b.md) 开始"
+    }
+}
+
+/// High-resolution print-styled Keepsake Poster rendered offline via ImageRenderer for sharing or saving.
+private struct KeepsakePosterCard: View {
+    let name: String
+    let age: Age
+    let month: Int
+    let chapter: String
+    let cover: UIImage?
+
+    var body: some View {
+        let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
+        let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
+        let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
+        let bead = Color(red: 0xD4 / 255, green: 0xA2 / 255, blue: 0x1C / 255)
+
+        VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center) {
+                HStack(spacing: 6) {
+                    Circle().fill(bead).frame(width: 8, height: 8)
+                    Text(L10n.t("第 \(min(month + 1, 37)) / 37 颗成长珠", "Bead \(min(month + 1, 37)) of 37"))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(teal)
+                }
+                Spacer()
+                Text(L10n.livedDays(age.lived))
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.55))
+            }
+
+            if let cover {
+                Image(uiImage: cover)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 312, height: 224)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .padding(6)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+                    .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
+            }
+
+            VStack(alignment: .leading, spacing: 4) {
+                Text(name)
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.6))
+                Text(L10n.ageText(age))
+                    .font(.system(size: 30, weight: .bold, design: .rounded))
+                    .foregroundStyle(teal)
+                Text(chapter)
+                    .font(.system(size: 17, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+            }
+
+            Divider().opacity(0.35)
+
+            HStack {
+                Text(L10n.t("摸索台灯 · 孩子摸索，大人点灯", "Moss & Otto · They explore. You hold the light."))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.55))
+                Spacer()
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
+        .background(paper)
+    }
+}
+
+private enum ArtImageCache {
+    static func load(_ name: String) -> UIImage? {
+        for sub in ["art", "widget"] {
+            if let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: sub),
+               let img = UIImage(contentsOfFile: url.path) {
+                return img
+            }
+        }
+        return nil
     }
 }
 
@@ -418,8 +528,11 @@ struct GrowthBookCard: View {
                 }
                 .frame(width: 70, height: 50)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text("成长册").font(.headline).foregroundStyle(.primary)
-                    Text(pages.isEmpty ? "每个月一页，从出生开始" : "\(pages.count) 页 · 玩过 \(plays) 次").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("成长册", "Growth Book")).font(.headline).foregroundStyle(.primary)
+                    Text(pages.isEmpty
+                        ? L10n.t("每个月一页，从出生开始", "One page for every month since birth")
+                        : L10n.t("\(pages.count) 页 · 玩过 \(plays) 次", "\(pages.count) \(pages.count == 1 ? "page" : "pages") · \(plays) \(plays == 1 ? "play" : "plays")")
+                    ).font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
@@ -429,6 +542,6 @@ struct GrowthBookCard: View {
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
-        .accessibilityLabel("成长册")
+        .accessibilityLabel(L10n.t("成长册", "Growth Book"))
     }
 }

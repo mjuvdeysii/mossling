@@ -143,7 +143,7 @@ struct TodayFace: View {
                     }
                     .widgetAccentable()
                     .lineLimit(1).minimumScaleFactor(0.7)
-                } else { Text(L10n.t("摸索台灯", "Mossling")).font(.headline) }
+                } else { Text(L10n.appName).font(.headline) }
             }
             Spacer(minLength: 0)
             // the companions on a small disc of paper, so Otto's blue still reads on the lamp's blue
@@ -151,13 +151,14 @@ struct TodayFace: View {
         }
     }
 
-    /// Today's play (今天一起玩): its tray and its name — the picture first.
+    /// Today's play (今天一起玩): its tray and its name — the picture first, linking directly into the activity storybook.
     @ViewBuilder private var play: some View {
         if let code = snap?.playCode, let name = snap?.playName {
-            // the tray, and under it the name on one line across the column (never broken mid-word)
-            VStack(alignment: .leading, spacing: 4) {
-                ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
-                Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+            Link(destination: WidgetLinks.play(code)) {
+                VStack(alignment: .leading, spacing: 4) {
+                    ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
+                    Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+                }
             }
         }
     }
@@ -175,7 +176,10 @@ struct TodayFace: View {
     }
 
     private var small: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let dest = body_.timers.first.map { WidgetLinks.care($0.type) }
+            ?? (journal ? WidgetLinks.journal : snap?.playCode.map(WidgetLinks.play))
+            ?? WidgetLinks.today
+        return VStack(alignment: .leading, spacing: 0) {
             head
             Spacer(minLength: 4)
             if let t = body_.timers.first { running(t) }
@@ -183,7 +187,7 @@ struct TodayFace: View {
             else { play }
         }
         .foregroundStyle(.primary)
-        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) })
+        .widgetURL(dest)
     }
 
     /// With records on, the small widget answers the question asked most at night: how long since the last feed, and
@@ -268,30 +272,49 @@ struct TodayFace: View {
         let dirtyCount = diapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
         let recentDiaper = QuickCareFace.recentDiaper(in: body_.logs, now: date)
         let canShuffle = (snap?.weekPlays?.count ?? 0) >= 2
+        let isSleeping = body_.timers.contains { $0.type == LogType.sleep }
+        let awakeMinutes: Int? = {
+            guard !isSleeping, let w = last(LogType.sleep) else { return nil }
+            let m = Int(date.timeIntervalSince(w) / 60)
+            return (m >= 10 && m <= 150) ? m : nil
+        }()
+        let playCue: String = {
+            if isSleeping { return L10n.t("正在睡觉 · 醒来再一起玩", "Sleeping · Play when awake") }
+            if let m = awakeMinutes {
+                return L10n.t("醒来 \(L10n.duration(Double(m) * 60)) · 正适合一起玩", "Awake \(L10n.duration(Double(m) * 60)) · Ready to play")
+            }
+            return L10n.t("今天一起玩", "Today's Play")
+        }()
+        let headerLink = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
         return VStack(alignment: .leading, spacing: 11) {
-            head
+            Link(destination: headerLink) { head }
 
             if let code = snap?.playCode, let name = snap?.playName {
                 HStack(spacing: 12) {
-                    ArtImage(name: WidgetArt.tray(code))
-                        .frame(width: 80, height: 58)
-                        .id(code)
-                        .transition(.push(from: .bottom).combined(with: .opacity))
-                    VStack(alignment: .leading, spacing: 3) {
-                        HStack(spacing: 5) {
-                            Circle().fill(WidgetInk.bead).frame(width: 6, height: 6)
-                            Text(L10n.t("今天一起玩", "Today's Play")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                    Link(destination: WidgetLinks.play(code)) {
+                        HStack(spacing: 12) {
+                            ArtImage(name: WidgetArt.tray(code))
+                                .frame(width: 80, height: 58)
+                                .id(code)
+                                .transition(.push(from: .bottom).combined(with: .opacity))
+                            VStack(alignment: .leading, spacing: 3) {
+                                HStack(spacing: 5) {
+                                    Circle().fill(isSleeping ? Crayon.lilac : WidgetInk.bead).frame(width: 6, height: 6)
+                                    Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent).lineLimit(1).minimumScaleFactor(0.8)
+                                }
+                                Text(name)
+                                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(2)
+                                    .minimumScaleFactor(0.88)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .id(name)
+                                    .transition(.opacity)
+                            }
+                            Spacer(minLength: 4)
                         }
-                        Text(name)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundStyle(.primary)
-                            .lineLimit(2)
-                            .minimumScaleFactor(0.88)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .id(name)
-                            .transition(.opacity)
+                        .contentShape(Rectangle())
                     }
-                    Spacer(minLength: 4)
                     if canShuffle {
                         Button(intent: CycleWidgetPlayIntent()) {
                             Image(systemName: "arrow.trianglehead.2.clockwise")
@@ -314,14 +337,18 @@ struct TodayFace: View {
             if journal {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .center, spacing: 6) {
-                        Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
-                        Text(L10n.t(
-                            "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
-                            "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
-                        ))
-                            .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
-                            .contentTransition(.numericText())
-                            .lineLimit(1).minimumScaleFactor(0.78)
+                        Link(destination: WidgetLinks.journal) {
+                            HStack(spacing: 6) {
+                                Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                                Text(L10n.t(
+                                    "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
+                                    "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
+                                ))
+                                    .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
+                                    .contentTransition(.numericText())
+                                    .lineLimit(1).minimumScaleFactor(0.78)
+                            }
+                        }
                         Spacer(minLength: 2)
                         if recentDiaper != nil {
                             Button(intent: UndoLastDiaperIntent()) {
@@ -337,9 +364,11 @@ struct TodayFace: View {
                     }
                     .padding(.horizontal, 2)
 
-                    MontessoriDayStrip(day: day, now: date, logs: todayLogs)
-                        .frame(height: 12)
-                        .padding(.horizontal, 2)
+                    Link(destination: WidgetLinks.journal) {
+                        MontessoriDayStrip(day: day, now: date, logs: todayLogs)
+                            .frame(height: 12)
+                            .padding(.horizontal, 2)
+                    }
                 }
 
                 HStack(spacing: 8) {
@@ -596,7 +625,7 @@ struct BedsideLampFace: View {
                     .padding(5)
                     .background(Circle().fill(cardDark))
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("摸索台灯", "Mossling"))
+                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName)
                         .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
                     if let a = age {
                         Text(L10n.livedDays(a.lived)).font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
@@ -633,7 +662,7 @@ struct BedsideLampFace: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
-        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) })
+        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.journal)
     }
 
     private func lampMetric(_ label: String, _ at: Date?, _ tint: Color) -> some View {
@@ -646,7 +675,132 @@ struct BedsideLampFace: View {
     }
 }
 
+/// Story Window (成长故事窗): a poetic Montessori keepsake window showing the baby's 37-bead growth journey,
+/// current developmental chapter, and Moss & Otto's quiet presence. Tapping opens the Growth Book or Month chapter.
+struct StoryWindowFace: View {
+    let date: Date
+    let snap: Snapshot?
+    let body_: JournalFile.Body
+    let isMedium: Bool
+
+    private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
+    private var bookMonth: Int { age?.bookMonth ?? 0 }
+    private var isSleeping: Bool { body_.timers.contains { $0.type == LogType.sleep } }
+
+    var body: some View {
+        let name = snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName
+        let chapter = L10n.stretchName(for: bookMonth)
+        let beadNum = min(bookMonth + 1, 37)
+        let beadLabel = isMedium
+            ? L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37")
+            : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37")
+        let monthDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
+
+        VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(name).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
+                    Text(chapter)
+                        .font(.system(size: isMedium ? 18 : 15, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.82)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                ArtImage(name: WidgetArt.pair)
+                    .frame(width: isMedium ? 40 : 32, height: isMedium ? 40 : 32)
+                    .padding(5)
+                    .background(Circle().fill(WidgetInk.card))
+            }
+
+            if isMedium {
+                HStack(spacing: 10) {
+                    if let code = snap?.playCode, let playName = snap?.playName {
+                        Link(destination: WidgetLinks.play(code)) {
+                            HStack(spacing: 8) {
+                                ArtImage(name: WidgetArt.tray(code)).frame(width: 44, height: 34)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(isSleeping ? L10n.t("正在小睡", "Napping") : L10n.t("本周一起玩", "This Week's Play"))
+                                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                        .foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent)
+                                    Text(playName)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 10).padding(.vertical, 7)
+                            .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        }
+                    } else {
+                        Text(L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
+                            .font(.caption.weight(.medium))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Spacer(minLength: 0)
+
+            Link(destination: monthDest) {
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(spacing: 4) {
+                        Text(beadLabel)
+                            .font(.system(size: 10, weight: .bold, design: .rounded))
+                            .foregroundStyle(WidgetInk.accent)
+                            .monospacedDigit()
+                        Spacer(minLength: 2)
+                        if let a = age {
+                            Text(L10n.livedDays(a.lived))
+                                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                .foregroundStyle(.secondary)
+                                .monospacedDigit()
+                        }
+                    }
+                    beadHorizon(current: bookMonth)
+                        .frame(height: 10)
+                }
+            }
+        }
+        .foregroundStyle(.primary)
+        .widgetURL(WidgetLinks.book)
+    }
+
+    /// 37-bead Montessori growth path condensed into a clean horizon bar with Otto's gold bead marking the child's month.
+    private func beadHorizon(current: Int) -> some View {
+        GeometryReader { geo in
+            let w = geo.size.width
+            let cy = geo.size.height / 2
+            let progress = max(0, min(1, CGFloat(current) / 36.0))
+            let x = max(5, min(w - 5, progress * w))
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Color.primary.opacity(0.09))
+                    .frame(height: 4)
+                    .position(x: w / 2, y: cy)
+                Capsule()
+                    .fill(WidgetInk.accent.opacity(0.65))
+                    .frame(width: max(6, x), height: 4)
+                    .position(x: max(6, x) / 2, y: cy)
+                Circle()
+                    .fill(WidgetInk.bead)
+                    .frame(width: 8, height: 8)
+                    .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
+                    .position(x: x, y: cy)
+            }
+        }
+    }
+}
+
 enum WidgetLinks {
+    static let today = URL(string: "mossling://today")!
+    static let journal = URL(string: "mossling://journal")!
+    static let book = URL(string: "mossling://book")!
+    static func play(_ code: String) -> URL { URL(string: "mossling://play/\(code)")! }
+    static func month(_ m: Int) -> URL { URL(string: "mossling://month/\(m)")! }
     static func care(_ type: String) -> URL { URL(string: "mossling://care/\(type)")! }
     static func log(_ type: String) -> URL { URL(string: "mossling://log/\(type)")! }
 }
