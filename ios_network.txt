@@ -1,0 +1,6 @@
+Network events from the app's processes during the simulator tests (       3 log lines)
+-- connections and requests --
+-- every line, deduplicated (timestamps and ids removed) --
+   1 getpwuid_r did not find a match for uid 501
+   1 Filtering the log data using "process BEGINSWITH "Mossling" AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")"
+   1 Child process terminated with signal 15: Terminated
