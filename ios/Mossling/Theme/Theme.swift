@@ -646,9 +646,21 @@ struct PrintCard: ViewModifier {
                     .shadow(color: dark ? .black.opacity(0.22) : Color(hex: 0x7A5230).opacity(0.13), radius: 7, y: 4)
             }
             .overlay {
-                // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece
-                shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.12 : 0.95), .white.opacity(dark ? 0.03 : 0.25), .white.opacity(0)],
-                                                  startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
+                // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece;
+                // under Otto's lamp the upper bevel catches warm amber rather than cold white
+                shape.strokeBorder(
+                    LinearGradient(
+                        stops: dark
+                            ? [.init(color: Palette.amber.opacity(0.16), location: 0),
+                               .init(color: .white.opacity(0.05), location: 0.28),
+                               .init(color: .clear, location: 0.72),
+                               .init(color: Color.black.opacity(0.24), location: 1)]
+                            : [.init(color: .white.opacity(0.95), location: 0),
+                               .init(color: .white.opacity(0.26), location: 0.35),
+                               .init(color: .clear, location: 0.78),
+                               .init(color: Color(hex: 0x7A5230).opacity(0.08), location: 1)],
+                        startPoint: .top, endPoint: .bottom),
+                    lineWidth: 1.2)
                     .allowsHitTesting(false)
             }
             .contentShape(shape)
@@ -667,10 +679,12 @@ extension View {
 
 /// Pressing a card is like pressing a wooden toy: it gives a little and springs back, with a light tap.
 struct ToyPress: ButtonStyle {
+    @Environment(\.accessibilityReduceMotion) private var reduce
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.96 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.55), value: configuration.isPressed)
+            .scaleEffect(!reduce && configuration.isPressed ? 0.975 : 1)
+            .opacity(configuration.isPressed ? 0.96 : 1)
+            .animation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.62), value: configuration.isPressed)
             .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, new in new }
     }
 }
@@ -691,12 +705,16 @@ struct VinylSurface: ViewModifier {
         if ArtStyle.current == .flat {
             content.background(shape.fill(strong ? tint : tint.opacity(dark ? 0.2 : 0.12)))
         } else {
-        content.background {
-            shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
-                .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? 0 : (dark ? 0.06 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
-                .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.14 : 0.85), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-                .shadow(color: (strong ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (strong ? 0.3 : 0.08)), radius: strong ? 5 : 2, y: strong ? 3 : 1)
-        }
+            let rimTop: Color = dark ? Palette.amber.opacity(strong ? 0.18 : 0.12) : .white.opacity(0.85)
+            let shadowColor: Color = dark
+                ? Color.black.opacity(strong ? 0.30 : 0.14)
+                : (strong ? tint : Color(hex: 0x7A5230)).opacity(strong ? 0.3 : 0.08)
+            content.background {
+                shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
+                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? (dark ? 0.06 : 0.1) : (dark ? 0.05 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                    .overlay(shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                    .shadow(color: shadowColor, radius: strong ? 5 : 2, y: strong ? 3 : 1)
+            }
         }
     }
 }
@@ -715,9 +733,11 @@ struct VinylButton: ButtonStyle {
     @Environment(\.isEnabled) private var enabled
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @ViewBuilder
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
+        let pressed = configuration.isPressed
         let body = prominent ? tint : tint.opacity(dark ? 0.26 : 0.16)
         let ink: Color = prominent ? .white : Crayon.ink(tint)
         let shape = Capsule(style: .continuous)
@@ -730,24 +750,31 @@ struct VinylButton: ButtonStyle {
                 .frame(minHeight: 44)
                 .background(shape.fill(prominent ? tint : tint.opacity(dark ? 0.22 : 0.14)))
                 .contentShape(shape)
-                .opacity(enabled ? (configuration.isPressed ? 0.6 : 1) : 0.45)
+                .opacity(enabled ? (pressed ? 0.6 : 1) : 0.45)
         } else {
-        configuration.label
-            .font((large ? Font.body : Font.subheadline).weight(.semibold))
-            .foregroundStyle(ink)
-            .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 14 : 9)
-            .frame(minHeight: 44)
-            .background {
-                shape.fill(body)
-                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.06 : 0.45), .white.opacity(0)], startPoint: .top, endPoint: .center)))
-                    .overlay(shape.strokeBorder(LinearGradient(colors: [.white.opacity(dark ? 0.18 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-                    .shadow(color: (prominent ? tint : Color(hex: 0x7A5230)).opacity(dark ? 0 : (prominent ? 0.28 : 0.10)), radius: prominent ? 6 : 3, y: prominent ? 3 : 2)
-            }
-            .contentShape(shape)
-            .opacity(enabled ? 1 : 0.45)
-            .scaleEffect(x: configuration.isPressed ? 1.03 : 1, y: configuration.isPressed ? 0.93 : 1, anchor: .bottom)
-            .animation(.spring(response: 0.22, dampingFraction: 0.5), value: configuration.isPressed)
-            .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: configuration.isPressed) { _, new in new }
+            let rimTop: Color = dark ? Palette.amber.opacity(prominent ? 0.22 : 0.15) : .white.opacity(0.85)
+            let shadowColor: Color = dark
+                ? Color.black.opacity(prominent ? 0.34 : 0.18)
+                : (prominent ? tint : Color(hex: 0x7A5230)).opacity(prominent ? 0.28 : 0.10)
+            let shadowR: CGFloat = pressed ? 1.5 : (prominent ? 6 : 3)
+            let shadowY: CGFloat = pressed ? 0.8 : (prominent ? 3 : 2)
+            configuration.label
+                .font((large ? Font.body : Font.subheadline).weight(.semibold))
+                .foregroundStyle(ink)
+                .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 14 : 9)
+                .frame(minHeight: 44)
+                .background {
+                    shape.fill(body)
+                        .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.09 : (dark ? 0.06 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
+                        .overlay(shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
+                        .shadow(color: shadowColor, radius: shadowR, y: shadowY)
+                }
+                .contentShape(shape)
+                .opacity(enabled ? (pressed && reduce ? 0.78 : 1) : 0.45)
+                .offset(y: !reduce && pressed ? 1.5 : 0)
+                .scaleEffect(x: !reduce && pressed ? 1.025 : 1, y: !reduce && pressed ? 0.94 : 1, anchor: .bottom)
+                .animation(reduce ? nil : .spring(response: 0.22, dampingFraction: 0.55), value: pressed)
+                .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: pressed) { _, new in new }
         }
     }
 }

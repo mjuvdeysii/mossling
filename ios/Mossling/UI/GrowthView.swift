@@ -6,7 +6,9 @@ import Charts
 struct GrowthView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.lamp) private var lamp
     @State private var ind: Indicator = .weight
+    @State private var fullSpan = false
     @State private var picked: Measure?
     @State private var editing: Measure?
 
@@ -48,85 +50,171 @@ struct GrowthView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle("生长曲线")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { Button("记一次测量", systemImage: "plus") { editing = Measure(at: ms(Date())) } }
         }
         .sheet(item: $editing) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
+        .sensoryFeedback(.selection, trigger: picked?.id)
+        .sensoryFeedback(.selection, trigger: fullSpan)
     }
 
-    private struct Band: Identifiable { let id = UUID(); let m: Double; let lo: Double; let hi: Double; let series: String }
-    private struct Line: Identifiable { let id = UUID(); let m: Double; let v: Double; let p: Int }
+    private struct Band: Identifiable { var id: String { "\(series)-\(m)" }; let m: Double; let lo: Double; let hi: Double; let series: String }
+    private struct Line: Identifiable { var id: String { "\(p)-\(m)" }; let m: Double; let v: Double; let p: Int }
 
     private var chartCard: some View {
         let g = app.growth, girl = app.girl
         let pts: [(Measure, Double, Double)] = j.measures.compactMap { m in months(m).flatMap { mo in value(m, ind).map { (m, mo, $0) } } }
         let now = app.age.map { Double($0.months) + Double($0.days) / 30.4375 }
-        let span = min(36, max(6, max(now ?? 0, pts.map(\.1).max() ?? 0) + 3))
-        let xs = stride(from: 0.0, through: span, by: 0.1).map { $0 }
-        let mid = xs.dropLast().map { $0 + 0.05 }
-        let outer = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 3), hi: g.at(ind, girl: girl, months: m, percentile: 97), series: "3–97") }
-        let inner = mid.map { m in Band(m: m - 0.05, lo: g.at(ind, girl: girl, months: m, percentile: 15), hi: g.at(ind, girl: girl, months: m, percentile: 85), series: "15–85") }
+        let autoSpan = min(36, max(6, max(now ?? 0, pts.map(\.1).max() ?? 0) + 3))
+        let span: Double = fullSpan ? 36 : autoSpan
+        let step: Double = span <= 12 ? 0.25 : 0.5
+        var xs = stride(from: 0.0, through: span, by: step).map { $0 }
+        if (xs.last ?? 0) < span { xs.append(span) }
+        let outer = xs.map { Band(m: $0, lo: g.at(ind, girl: girl, months: $0, percentile: 3), hi: g.at(ind, girl: girl, months: $0, percentile: 97), series: "3–97") }
+        let inner = xs.map { Band(m: $0, lo: g.at(ind, girl: girl, months: $0, percentile: 15), hi: g.at(ind, girl: girl, months: $0, percentile: 85), series: "15–85") }
         let lines = [3, 50, 97].flatMap { p in xs.map { Line(m: $0, v: g.at(ind, girl: girl, months: $0, percentile: p), p: p) } }
         let lastM = j.measures.filter { value($0, ind) != nil }.last
         return Card(title: ind.label + (app.sex == nil ? "" : girl ? " · 女孩" : " · 男孩"), symbol: ind.symbol, color: ind.tint,
                     detail: lastM.map { "最近 " + Day(Date(timeIntervalSince1970: $0.at / 1000)).md }) {
-            if let l = lastM, let v = value(l, ind) {
-                VStack(alignment: .leading, spacing: 2) {
-                    ValueText(parts: [(ind.fmt(v), ind.unit)], size: 34)
-                    if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
-                }
-            } else {
-                Text("还没有\(ind.short)记录").font(.subheadline).foregroundStyle(Palette.secondaryText)
-            }
-            Chart {
-                // the bands, as thin slices (a tenth of a month each)
-                ForEach(outer) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.1)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.09)) }
-                ForEach(inner) { b in RectangleMark(xStart: .value("月龄", b.m), xEnd: .value("月龄", min(span, b.m + 0.1)), yStart: .value("低", b.lo), yEnd: .value("高", b.hi)).foregroundStyle(ind.tint.opacity(0.13)) }
-                ForEach(lines) { l in
-                    LineMark(x: .value("月龄", l.m), y: .value("值", l.v), series: .value("百分位", "p\(l.p)"))
-                        .foregroundStyle(l.p == 50 ? Palette.secondaryText : Palette.secondaryText.opacity(0.6))
-                        .lineStyle(StrokeStyle(lineWidth: l.p == 50 ? 1.6 : 1, dash: l.p == 50 ? [] : [4, 4]))
-                }
-                if let now, now <= span {
-                    RuleMark(x: .value("今天", now)).foregroundStyle(ind.tint.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                        .annotation(position: .top, alignment: .center) { Text("今天").font(.caption2).foregroundStyle(ind.tint) }
-                }
-                ForEach(Array(pts.enumerated()), id: \.offset) { _, p in
-                    LineMark(x: .value("月龄", p.1), y: .value("值", p.2), series: .value("百分位", "child")).foregroundStyle(ind.tint).lineStyle(StrokeStyle(lineWidth: 2.4))
-                    PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(ind.tint).symbolSize(picked?.id == p.0.id ? 140 : 60)
-                }
-                if let m = picked, let p = pts.first(where: { $0.0.id == m.id }) {
-                    PointMark(x: .value("月龄", p.1), y: .value("值", p.2)).foregroundStyle(.clear)
-                        .annotation(position: .top) {
-                            Text("\(Day(Date(timeIntervalSince1970: m.at / 1000)).md) · \(ind.fmt(p.2)) \(ind.unit)").font(.caption.weight(.semibold)).monospacedDigit()
-                                .padding(.horizontal, 8).padding(.vertical, 4).background(.regularMaterial, in: Capsule())
-                        }
-                }
-            }
-            .chartXScale(domain: 0...span)
-            .chartYScale(domain: yDomain(outer.map(\.lo) + pts.map(\.2), outer.map(\.hi) + pts.map(\.2)))
-            .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text("\(Int(d)) 个月") } } } }
-            .chartYAxis { AxisMarks(position: .leading) }
-            .chartOverlay { proxy in
-                GeometryReader { geo in
-                    Rectangle().fill(.clear).contentShape(Rectangle()).onTapGesture { loc in
-                        guard let plot = proxy.plotFrame else { return }
-                        let x = loc.x - geo[plot].origin.x
-                        if let mo: Double = proxy.value(atX: x) { picked = pts.min(by: { abs($0.1 - mo) < abs($1.1 - mo) })?.0 }
+            HStack(alignment: .bottom, spacing: 8) {
+                if let l = lastM, let v = value(l, ind) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        ValueText(parts: [(ind.fmt(v), ind.unit)], size: 34)
+                        if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
                     }
+                } else {
+                    Text("还没有\(ind.short)记录").font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
+                Spacer(minLength: 4)
+                if autoSpan < 35 { spanToggle }
             }
-            .frame(height: 260)
-            .accessibilityLabel("\(ind.label)曲线，\(pts.count) 个测量点")
+            growthChart(span: span, bands: outer + inner, outer: outer, lines: lines, pts: pts, now: now)
+            if !pts.isEmpty, let active = picked ?? pts.last?.0, let idx = pts.firstIndex(where: { $0.0.id == active.id }) {
+                pickedBar(pts: pts, index: idx)
+            }
             WrapLayout(spacing: 14) {
-                legend(AnyView(RoundedRectangle(cornerRadius: 3).fill(ind.tint.opacity(0.2)).frame(width: 20, height: 10)), "第 15–85 百分位")
-                legend(AnyView(RoundedRectangle(cornerRadius: 3).fill(ind.tint.opacity(0.09)).frame(width: 20, height: 10)), "第 3–97 百分位")
+                legend(AnyView(RoundedRectangle(cornerRadius: 3).fill(ind.tint.opacity(0.22)).frame(width: 20, height: 10)), "第 15–85 百分位")
+                legend(AnyView(RoundedRectangle(cornerRadius: 3).fill(ind.tint.opacity(0.10)).frame(width: 20, height: 10)), "第 3–97 百分位")
                 legend(AnyView(Rectangle().fill(Palette.secondaryText).frame(width: 20, height: 2)), "中位数")
                 legend(AnyView(Circle().fill(ind.tint).frame(width: 8, height: 8)), "测量")
             }
         }
+    }
+
+    private var spanToggle: some View {
+        HStack(spacing: 4) {
+            spanChip("当前阶段", on: !fullSpan) { withAnimation(.snappy) { fullSpan = false } }
+            spanChip("0–36 月", on: fullSpan) { withAnimation(.snappy) { fullSpan = true } }
+        }
+    }
+
+    private func spanChip(_ title: String, on: Bool, tap: @escaping () -> Void) -> some View {
+        Button(action: tap) {
+            Text(title).font(.caption.weight(on ? .semibold : .regular))
+                .foregroundStyle(on ? .white : Palette.secondaryText)
+                .padding(.horizontal, 10).padding(.vertical, 6)
+                .vinylSurface(on ? Crayon.fill(ind.tint, lamp) : Palette.stone, radius: Radius.chip, strong: on)
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private func growthChart(span: Double, bands: [Band], outer: [Band], lines: [Line], pts: [(Measure, Double, Double)], now: Double?) -> some View {
+        let activeID = (picked ?? pts.last?.0)?.id
+        return Chart {
+            // smooth vector percentile bands (Catmull-Rom interpolation)
+            ForEach(bands) { b in
+                AreaMark(x: .value("月龄", b.m), yStart: .value("低", b.lo), yEnd: .value("高", b.hi))
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(by: .value("区间", b.series))
+            }
+            ForEach(lines) { l in
+                LineMark(x: .value("月龄", l.m), y: .value("值", l.v), series: .value("百分位", "p\(l.p)"))
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(l.p == 50 ? Palette.secondaryText : Palette.secondaryText.opacity(0.55))
+                    .lineStyle(StrokeStyle(lineWidth: l.p == 50 ? 1.6 : 1, dash: l.p == 50 ? [] : [4, 4]))
+            }
+            if let now, now <= span {
+                RuleMark(x: .value("今天", now)).foregroundStyle(ind.tint.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
+                    .annotation(position: .top, alignment: .center) { Text("今天").font(.caption2).foregroundStyle(ind.tint) }
+            }
+            ForEach(Array(pts.enumerated()), id: \.offset) { _, p in
+                LineMark(x: .value("月龄", p.1), y: .value("值", p.2), series: .value("百分位", "child"))
+                    .foregroundStyle(ind.tint).lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                PointMark(x: .value("月龄", p.1), y: .value("值", p.2))
+                    .foregroundStyle(ind.tint).symbolSize(activeID == p.0.id ? 120 : 56)
+            }
+            if let id = activeID, let p = pts.first(where: { $0.0.id == id }) {
+                PointMark(x: .value("月龄", p.1), y: .value("值", p.2))
+                    .foregroundStyle(.white).symbolSize(26)
+            }
+        }
+        .chartForegroundStyleScale(["3–97": ind.tint.opacity(0.09), "15–85": ind.tint.opacity(0.15)])
+        .chartLegend(.hidden)
+        .chartXScale(domain: 0...span)
+        .chartYScale(domain: yDomain(outer.map(\.lo) + pts.map(\.2), outer.map(\.hi) + pts.map(\.2)))
+        .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text("\(Int(d)) 个月") } } } }
+        .chartYAxis { AxisMarks(position: .leading) }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle().fill(.clear).contentShape(Rectangle()).onTapGesture { loc in
+                    guard let plot = proxy.plotFrame else { return }
+                    let x = loc.x - geo[plot].origin.x
+                    if let mo: Double = proxy.value(atX: x) { picked = pts.min(by: { abs($0.1 - mo) < abs($1.1 - mo) })?.0 }
+                }
+            }
+        }
+        .frame(height: 260)
+        .accessibilityLabel("\(ind.label)曲线，\(pts.count) 个测量点")
+    }
+
+    private func pickedBar(pts: [(Measure, Double, Double)], index: Int) -> some View {
+        let item = pts[index]
+        let m = item.0, val = item.2
+        let d = Day(Date(timeIntervalSince1970: m.at / 1000))
+        let delta: Double? = index > 0 ? val - pts[index - 1].2 : nil
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(verbatim: "\(d.y)年\(d.md)").font(.subheadline.weight(.semibold))
+                if let b = app.birth {
+                    let a = Age.on(birth: b, today: d)
+                    Text(verbatim: a.months == 0 ? "出生第 \(a.lived) 天" : a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天")
+                        .font(.caption).foregroundStyle(Palette.secondaryText)
+                }
+                Spacer(minLength: 4)
+                Button("编辑") { editing = m }.font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(ind.fmt(val) + " " + ind.unit).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(ind.tint))
+                if let dv = delta {
+                    Text((dv >= 0 ? "+" : "") + ind.fmt(dv))
+                        .font(.caption.weight(.semibold)).monospacedDigit()
+                        .foregroundStyle(Crayon.ink(ind.tint))
+                }
+                if let p = pct(m, ind) {
+                    Text("· " + pctText(p)).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
+                }
+            }
+            if pts.count > 1 {
+                HStack {
+                    Button { picked = pts[max(0, index - 1)].0 } label: { Label("上一次", systemImage: "chevron.left").font(.caption.weight(.semibold)) }
+                        .disabled(index == 0)
+                    Spacer()
+                    Text("\(index + 1) / \(pts.count)").font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    Spacer()
+                    Button { picked = pts[min(pts.count - 1, index + 1)].0 } label: {
+                        HStack(spacing: 3) { Text("下一次"); Image(systemName: "chevron.right") }.font(.caption.weight(.semibold))
+                    }
+                    .disabled(index == pts.count - 1)
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(12)
+        .vinylSurface(ind.tint, radius: Radius.inner)
     }
 
     private func yDomain(_ lo: [Double], _ hi: [Double]) -> ClosedRange<Double> {
@@ -235,7 +323,7 @@ struct StatsView: View {
                     .foregroundStyle(LogType.color(type).opacity(d.0 == app.today ? 1 : 0.55).gradient).cornerRadius(4)
             }
             // the day under each bar (a week's bars read without counting along them); today named
-            .chartXAxis { AxisMarks { v in AxisValueLabel { if let t = v.as(String.self) { Text(t).font(.system(size: 9)) } } } }
+            .chartXAxis { AxisMarks { v in AxisValueLabel { if let t = v.as(String.self) { Text(t).font(.caption2).lineLimit(1).minimumScaleFactor(0.75) } } } }
             .chartYAxis {
                 // counts in whole numbers only (no "0.5 次")
                 AxisMarks(position: .trailing) { v in

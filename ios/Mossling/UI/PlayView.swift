@@ -39,6 +39,10 @@ struct PlayView: View {
                     }
                 }
 
+                if play.steps.count > 1 {
+                    StepBeadBar(total: play.steps.count, current: open) { go($0, proxy) }
+                }
+
                 ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
                     StepCard(n: i + 1, text: s, art: i < art.count ? art[i] : nil, open: i == open, done: i < open, last: i == play.steps.count - 1, companion: app.companion) {
                         go(i, proxy)
@@ -67,6 +71,7 @@ struct PlayView: View {
             .padding(.horizontal, 16).padding(.top, 8).padding(.bottom, 24)
         }
         }
+        .calmWhileScrolling()
         .pageBackground()
         .sensoryFeedback(.success, trigger: cheer)
         .sensoryFeedback(.selection, trigger: open)
@@ -157,6 +162,49 @@ struct Fold<Content: View>: View {
     }
 }
 
+/// A quiet Montessori bead progress bar for a play's steps: gold beads for finished steps, an active pill for the step
+/// in hand, pale stone for the steps ahead. Tapping any bead opens that step.
+private struct StepBeadBar: View {
+    let total: Int
+    let current: Int
+    let pick: (Int) -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    var body: some View {
+        let done = min(current, total)
+        let label = current >= total ? "全部 \(total) 步已完成" : "第 \(current + 1) 步，共 \(total) 步"
+        HStack(spacing: 10) {
+            HStack(spacing: 6) {
+                ForEach(0..<total, id: \.self) { i in
+                    Button { pick(i) } label: {
+                        Group {
+                            if i < current {
+                                GoldBead(size: 11)
+                            } else if i == current {
+                                Capsule().fill(Palette.accent).frame(width: 24, height: 11)
+                            } else {
+                                Circle().fill(Palette.stone.opacity(0.75)).frame(width: 9, height: 9)
+                            }
+                        }
+                        .frame(minWidth: 28, minHeight: 32)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("第 \(i + 1) 步" + (i < current ? "，已完成" : i == current ? "，当前步骤" : ""))
+                }
+            }
+            Spacer(minLength: 4)
+            Text(current >= total ? "全部完成" : "第 \(done + 1) / \(total) 步")
+                .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        }
+        .padding(.horizontal, 14).padding(.vertical, 6)
+        .printCard(radius: Radius.inner)
+        .animation(reduce ? nil : .snappy, value: current)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(label)
+    }
+}
+
 /// One step. Open: the big picture, the number and the sentence, and 下一步. Folded: a small row — the picture as a
 /// thumbnail, the number (a gold bead once done) and the sentence — that opens it when tapped.
 private struct StepCard: View {
@@ -173,6 +221,7 @@ private struct StepCard: View {
     let tap: () -> Void
     let next: () -> Void
     @State private var arrived = 0
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         Group {
@@ -200,7 +249,7 @@ private struct StepCard: View {
                     .padding(16)
                 }
                 .printCard(radius: Radius.card)
-                .transition(.opacity)
+                .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.985)))
             } else {
                 Button(action: tap) {
                     HStack(spacing: 12) {
