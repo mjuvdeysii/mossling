@@ -4,7 +4,7 @@
 
 <p align="center"><b>孩子摸索，大人点灯。</b><br>陪 0–3 岁的孩子一起玩、一起长大，把每一天记下来。<br>一次买断 · 无广告 · 不需要账号 · 记录只保存在手机里</p>
 
-<p align="center"><a href="#ios-版">iOS 版</a> · <a href="#安卓版">安卓版</a> · <a href="docs/IP.md">品牌与 IP</a> · <a href="PRIVACY.md">隐私政策</a> · <a href="TERMS.md">使用条款</a> · <a href="DISCLAIMER.md">免责声明</a></p>
+<p align="center"><a href="https://apps.apple.com/cn/app/%E6%91%B8%E7%B4%A2%E5%8F%B0%E7%81%AF/id6825856138">App Store 下载</a> · <a href="#ios-版">iOS 版</a> · <a href="#安卓版">安卓版</a> · <a href="docs/IP.md">品牌与 IP</a> · <a href="PRIVACY.md">隐私政策</a> · <a href="TERMS.md">使用条款</a> · <a href="DISCLAIMER.md">免责声明</a></p>
 
 ## 这是什么
 
@@ -33,7 +33,7 @@
 
 ## iOS 版
 
-为 iPhone 原生构建（SwiftUI，iOS 26 及以上，液态玻璃设计语言 + 3D 哑光软胶画风），**v1.0 已上架 App Store**（一次买断，无广告、无订阅；App Store 链接待补充）。
+为 iPhone 原生构建（SwiftUI，iOS 26 及以上，液态玻璃设计语言 + 3D 哑光软胶画风），**v1.0 已上架 App Store**（一次买断，无广告、无订阅）。[在 App Store 下载](https://apps.apple.com/cn/app/%E6%91%B8%E7%B4%A2%E5%8F%B0%E7%81%AF/id6825856138)。
 
 <p align="center">
   <img src="docs/images/ios/1_opening.jpg" width="31%" alt="首次打开：灯亮起，Moss 在灯下摸索">
