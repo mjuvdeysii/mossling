@@ -149,10 +149,10 @@ struct JournalView: View {
             lines.append(L10n.t("进行中：\(status)（已 \(dur)）", "Active now: \(status) (\(dur))"))
         }
         if let f = j.last(LogType.nurse) {
-            lines.append(L10n.t("上次喂奶：\(L10n.agoText(f.at, now: now, precise: true))", "Last feed: \(L10n.agoText(f.at, now: now, precise: true))"))
+            lines.append(L10n.t("上次喂奶：\(L10n.agoText(f, now: now, precise: true))", "Last feed: \(L10n.agoText(f, now: now, precise: true))"))
         }
         if let w = j.last(LogType.sleep) {
-            lines.append(L10n.t("上次醒来：\(L10n.agoText(w.at, now: now, precise: true))", "Last wake: \(L10n.agoText(w.at, now: now, precise: true))"))
+            lines.append(L10n.t("上次醒来：\(L10n.agoText(w, now: now, precise: true))", "Last wake: \(L10n.agoText(w, now: now, precise: true))"))
         }
         let sleepStr = sleepSec > 0 ? L10n.duration(sleepSec) : "—"
         lines.append(L10n.t(
