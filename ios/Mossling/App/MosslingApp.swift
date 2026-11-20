@@ -40,10 +40,14 @@ struct RootView: View {
     @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
     @State private var locked = true
+    @State private var unlocking = false
+    @State private var pendingURL: URL?
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
     @Namespace private var zoomYou
+
+    private var isLocked: Bool { app.lock && locked }
 
     /// Turns the week when it has gone by, counting each play's times from the records.
     private func roll(fresh: Bool = false) {
@@ -55,25 +59,30 @@ struct RootView: View {
     /// The consent card: on the first run (and after 清除全部数据, or when the rules change), and whenever something that
     /// keeps the child's information is asked for before the guardian agreed.
     private var consentShown: Binding<Bool> {
-        Binding(get: { (app.consent.isEmpty || app.askConsent || (app.consent != "declined" && !app.consented)) },
+        Binding(get: { !isLocked && (app.consent.isEmpty || app.askConsent || (app.consent != "declined" && !app.consented)) },
                 set: { if !$0 { app.askConsent = false } })
     }
 
     var body: some View {
-        ZStack {
-            if !app.onboarded {
+        Group {
+            if isLocked {
+                // replace the whole tree while locked so no .sheet or .fullScreenCover can sit above LockView
+                LockView { unlock() }
+            } else if !app.onboarded {
                 OnboardingView()
             } else {
                 // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
                 // sleep rides above it on every tab
                 tabs
             }
-            if app.lock && locked { LockView { unlock() } }
         }
         // a tab that is no longer there (记录 turned off) falls back to 本月
         .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
         // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
         .onChange(of: app.lock) { _, on in if on { locked = false } }
+        .onChange(of: locked) { _, stillLocked in
+            if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
+        }
         .onChange(of: phase) { _, p in
             if p == .active { app.today = .today; journal.reload(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
             if p == .background { locked = true; mascot.send(.appBackground) }
@@ -160,26 +169,34 @@ struct RootView: View {
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
         .overlay { StyleShiftOverlay() }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
-        .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } }, set: { journal.focus = $0?.id })) { w in
+        .fullScreenCover(item: Binding(get: { isLocked ? nil : journal.focus.map { Wrap(id: $0) } },
+                                       set: { if !isLocked { journal.focus = $0?.id } })) { w in
             TimerScreen(type: w.id).lampPresented()
         }
     }
 
     private func open(_ url: URL) {
         guard url.scheme == "mossling", let type = url.pathComponents.dropFirst().first else { return }
+        if isLocked { pendingURL = url; return }
+        guard app.onboarded, app.mayKeep() else { return }
         guard app.journal else { tab = 3; return }
         tab = 2
         switch url.host() {
         case "care" where LogType.timed.contains(type): journal.focus = type
-        case "log": journal.focus = nil; journal.ask = type
+        case "log" where LogType.buttons.contains(type) && type != LogType.growth: journal.focus = nil; journal.ask = type
         default: break
         }
     }
 
     private func unlock() {
-        let ctx = LAContext()
-        ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "确认是你本人") { ok, _ in
-            DispatchQueue.main.async { if ok { locked = false } }
+        guard !unlocking else { return }
+        unlocking = true
+        Task { @MainActor in
+            defer { unlocking = false }
+            let ctx = LAContext()
+            if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "确认是你本人")) == true {
+                locked = false
+            }
         }
     }
 }

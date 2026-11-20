@@ -226,7 +226,7 @@ struct TimerScreen: View {
             // the real end: not before it began, not later than now (or than the pause, if paused)
             TimeSheet(title: type == LogType.sleep ? "什么时候醒的" : "什么时候喂完的",
                       initial: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date(),
-                      notBefore: Date(timeIntervalSince1970: t.start / 1000 + 60)) { d in j.stop(type, at: d); dismiss() }
+                      notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in j.stop(type, at: d); dismiss() }
                 .lampPresented()
         }
     }

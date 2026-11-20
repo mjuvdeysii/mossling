@@ -68,8 +68,10 @@ struct JournalView: View {
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
         .sheet(isPresented: $pickingDay) {
             NavigationStack {
-                DatePicker("哪一天", selection: Binding(get: { day.date }, set: { day = Day($0); pickingDay = false }),
-                           in: (app.birth?.date ?? .distantPast)...Date(), displayedComponents: .date)
+                let now = Date()
+                let lower = min(app.birth?.date ?? .distantPast, now)
+                DatePicker("哪一天", selection: Binding(get: { min(max(day.date, lower), now) }, set: { day = Day($0); pickingDay = false }),
+                           in: lower...now, displayedComponents: .date)
                     .datePickerStyle(.graphical).padding(.horizontal, 16)
                     .navigationTitle("看哪一天").navigationBarTitleDisplayMode(.inline)
                     .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { pickingDay = false } } }
@@ -119,8 +121,8 @@ struct JournalView: View {
         j.ask = t
     }
     /// Noon of the day on the page, for a record made while looking at a past day.
-    private var pastNoon: Date { day.date.addingTimeInterval(12 * 3600) }
-    private func defaultTime() -> Double { day == app.today ? JournalFile.now() : day.date.addingTimeInterval(12 * 3600).timeIntervalSince1970 * 1000 }
+    private var pastNoon: Date { Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day.date) ?? day.date.addingTimeInterval(12 * 3600) }
+    private func defaultTime() -> Double { day == app.today ? JournalFile.now() : pastNoon.timeIntervalSince1970 * 1000 }
 }
 
 enum JournalRoute: Hashable { case stats, growth, firsts }
@@ -158,12 +160,20 @@ private struct WeekBars: View {
 private struct LastMeasure: View {
     let m: Measure?
     var body: some View {
-        if let m, let w = m.weightG {
+        if let m, m.weightG != nil || m.lengthMm != nil || m.headMm != nil {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
-                    Text(String(format: "%.2f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
-                    Text("千克").font(.caption.weight(.semibold))
-                    if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + " 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
+                    if let w = m.weightG {
+                        Text(String(format: "%.2f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
+                        Text("千克").font(.caption.weight(.semibold))
+                        if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + " 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
+                    } else if let l = m.lengthMm {
+                        Text(String(format: "%.1f", Double(l) / 10)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
+                        Text("厘米 · 身长").font(.caption.weight(.semibold))
+                    } else if let h = m.headMm {
+                        Text(String(format: "%.1f", Double(h) / 10)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
+                        Text("厘米 · 头围").font(.caption.weight(.semibold))
+                    }
                 }
                 .fixedSize()
                 let d = Date(timeIntervalSince1970: m.at / 1000)
@@ -1060,10 +1070,12 @@ struct TimeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var date = Date()
     var body: some View {
+        let now = Date()
+        let lower = min(notBefore ?? Date.distantPast, now)
         NavigationStack {
             Form {
                 Section {
-                    DatePicker(title, selection: $date, in: (notBefore ?? Date.distantPast)...Date(), displayedComponents: [.date, .hourAndMinute])
+                    DatePicker(title, selection: $date, in: lower...now, displayedComponents: [.date, .hourAndMinute])
                         .datePickerStyle(.graphical)
                 } footer: { Text(whenLabel(date)).font(.headline).monospacedDigit() }
             }
@@ -1073,7 +1085,11 @@ struct TimeSheet: View {
                 ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { pick(date); dismiss() } }
             }
         }
-        .onAppear { date = initial }
+        .onAppear {
+            let now = Date()
+            let lower = min(notBefore ?? Date.distantPast, now)
+            date = min(max(initial, lower), now)
+        }
         .presentationDetents([.large])
     }
 }

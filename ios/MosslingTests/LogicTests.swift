@@ -504,4 +504,63 @@ final class LogicTests: XCTestCase {
         XCTAssertNil(m.birth); XCTAssertEqual(m.nickname, ""); XCTAssertTrue(m.ticks.isEmpty); XCTAssertEqual(m.consent, "")
         XCTAssertFalse(FileManager.default.fileExists(atPath: dir.path), "exports in the Files app hold the child's records: cleared too")
     }
+
+    func testCorruptJournalFileIsNeverOverwritten() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let raw = Data("{corrupt".utf8)
+        try raw.write(to: JournalFile.url)
+        XCTAssertThrowsError(try JournalFile.load())
+        let j = JournalStore(preview: JournalFile.Body())
+        XCTAssertFalse(j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: "wet")))
+        XCTAssertEqual(j.toast?.failed, true)
+        XCTAssertEqual(try Data(contentsOf: JournalFile.url), raw, "a corrupt journal must never be overwritten with an empty body")
+    }
+
+    func testTimerMutationsReportWriteFailures() {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let j = JournalStore(preview: JournalFile.Body())
+        j.start(LogType.nurse, side: "l", at: Date().addingTimeInterval(-300))
+        XCTAssertEqual(j.timers.count, 1)
+        JournalFile.failWrites = true
+        j.togglePause(LogType.nurse)
+        XCTAssertEqual(j.toast?.failed, true)
+        XCTAssertNil(j.timers.first?.pausedAt, "failed pause must not stick in memory")
+        j.switchSide(LogType.nurse)
+        XCTAssertEqual(j.toast?.failed, true)
+        XCTAssertEqual(j.timers.first?.side, "l")
+    }
+
+    func testGrowthGuardsNonPositiveValuesAndNaN() throws {
+        let g = try Growth.load()
+        XCTAssertTrue(g.z(.weight, girl: true, months: 6, value: 0).isNaN)
+        XCTAssertTrue(g.z(.weight, girl: true, months: 6, value: -3).isNaN)
+        XCTAssertTrue(g.percentile(.weight, girl: true, months: 6, value: 0).isNaN)
+        XCTAssertEqual(pctText(.nan), "")
+        XCTAssertEqual(pctText(.infinity), "")
+    }
+
+    func testTimerIntentRequiresConsent() {
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: nil))
+        let declined = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: false)
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: declined))
+        let agreed = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true)
+        XCTAssertTrue(TimerIntent.canRecord(snapshot: agreed))
+        let legacyOn = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil)
+        XCTAssertTrue(TimerIntent.canRecord(snapshot: legacyOn))
+        let legacyOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil)
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: legacyOff))
+    }
+
+    func testClearAllResetsArtStyleAndPlayingClampsNegativeStep() {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let m = AppModel(defaults: UserDefaults(suiteName: "style-\(UUID().uuidString)")!)
+        m.session = "A11|6|-3"
+        XCTAssertEqual(m.playing?.step, 0)
+        m.artStyle = .flat
+        XCTAssertEqual(ArtStyle.current, .flat)
+        m.clearAll()
+        XCTAssertEqual(m.artStyle, .vinyl)
+        XCTAssertEqual(ArtStyle.current, .vinyl)
+        XCTAssertEqual(JournalFile.snapshot()?.consented, false)
+    }
 }

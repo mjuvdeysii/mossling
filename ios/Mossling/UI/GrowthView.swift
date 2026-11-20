@@ -15,8 +15,9 @@ struct GrowthView: View {
     }
     private func months(_ m: Measure) -> Double? { app.birth.map { Double($0.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375 } }
     private func pct(_ m: Measure, _ i: Indicator) -> Double? {
-        guard app.sex != nil, let mo = months(m), let v = value(m, i) else { return nil }
-        return app.growth.percentile(i, girl: app.girl, months: mo, value: v)
+        guard app.sex != nil, let mo = months(m), mo >= 0, mo <= 36, let v = value(m, i), v > 0 else { return nil }
+        let p = app.growth.percentile(i, girl: app.girl, months: mo, value: v)
+        return p.isFinite ? p : nil
     }
 
     var body: some View {
@@ -27,7 +28,10 @@ struct GrowthView: View {
                     .onChange(of: ind) { _, _ in picked = nil }
                 if app.sex == nil {
                     Card(title: "生长曲线按性别区分", symbol: "person.2.fill", color: Crayon.sky) {
-                        HStack { Button("男孩") { app.sex = "boy" }.buttonStyle(.vinyl(Crayon.sky)); Button("女孩") { app.sex = "girl" }.buttonStyle(.vinyl(Crayon.pink)) }
+                        HStack {
+                            Button("男孩") { if app.mayKeep() { app.sex = "boy" } }.buttonStyle(.vinyl(Crayon.sky))
+                            Button("女孩") { if app.mayKeep() { app.sex = "girl" } }.buttonStyle(.vinyl(Crayon.pink))
+                        }
                     }
                 }
                 chartCard

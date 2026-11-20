@@ -269,12 +269,17 @@ struct EntrySheet: View {
                     .listRowBackground(Color.clear)
                 }
                 Section {
-                    DatePicker(entry.end != nil ? "开始" : "时间", selection: Binding(get: { entry.startDate }, set: { d in
-                        let delta = ms(d) - entry.start; entry.start = ms(d); if let e = entry.end { entry.end = e + delta }
-                    }), in: ...Date(), displayedComponents: [.date, .hourAndMinute])
+                    let now = Date()
+                    DatePicker(entry.end != nil ? "开始" : "时间", selection: Binding(get: { min(entry.startDate, now) }, set: { d in
+                        let delta = ms(d) - entry.start
+                        entry.start = ms(d)
+                        if let e = entry.end { entry.end = min(ms(Date()), max(entry.start + 60_000, e + delta)) }
+                    }), in: ...now, displayedComponents: [.date, .hourAndMinute])
                     if let e = entry.endDate {
-                        DatePicker("结束", selection: Binding(get: { e }, set: { entry.end = max(entry.start + 60_000, ms($0)) }), in: entry.startDate...Date(), displayedComponents: [.date, .hourAndMinute])
-                        LabeledContent("时长", value: minutesOf((entry.end! - entry.start) / 1000))
+                        let endLower = min(entry.startDate, now)
+                        DatePicker("结束", selection: Binding(get: { min(max(e, endLower), now) }, set: { entry.end = max(entry.start + 60_000, ms($0)) }),
+                                   in: endLower...now, displayedComponents: [.date, .hourAndMinute])
+                        LabeledContent("时长", value: minutesOf(entry.activeSeconds))
                     }
                 }
                 Section { fields }
