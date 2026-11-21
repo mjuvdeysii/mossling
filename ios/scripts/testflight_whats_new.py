@@ -226,11 +226,38 @@ def update_whats_new(
     timeout_seconds: int = 1800,
     poll_interval: int = 20,
 ) -> list[str]:
-    q = urllib.parse.urlencode({"filter[bundleId]": bundle_id})
+    q = urllib.parse.urlencode({"filter[bundleId]": bundle_id, "limit": "50"})
     apps = client.request("GET", f"/apps?{q}").get("data", [])
     if not apps:
         raise RuntimeError(f"No app found in App Store Connect for bundleId={bundle_id}")
-    app_id = apps[0]["id"]
+    exact_app = next(
+        (a for a in apps if a.get("attributes", {}).get("bundleId") == bundle_id),
+        None,
+    )
+    if exact_app is None:
+        found = [a.get("attributes", {}).get("bundleId", "?") for a in apps]
+        raise RuntimeError(f"No exact bundleId={bundle_id} match in App Store Connect (candidates: {found})")
+    app_id = exact_app["id"]
+    app_name = exact_app.get("attributes", {}).get("name", "?")
+    print(f"[ASC] Matched exact bundleId={bundle_id} -> app_id={app_id} ({app_name})", flush=True)
+
+    # Also backfill the most recent already-VALID build (e.g. build 463) if its What-to-Test is still blank
+    try:
+        rq = urllib.parse.urlencode({"filter[app]": app_id, "sort": "-uploadedDate", "limit": "3"})
+        recent_builds = client.request("GET", f"/builds?{rq}").get("data", [])
+        for rb in recent_builds:
+            r_ver = str(rb.get("attributes", {}).get("version", ""))
+            r_state = rb.get("attributes", {}).get("processingState", "")
+            if r_state == "VALID" and r_ver and r_ver != build_number:
+                locs = client.request("GET", f"/builds/{rb['id']}/betaBuildLocalizations").get("data", [])
+                zh_loc = next((x for x in locs if x.get("attributes", {}).get("locale") == "zh-Hans"), None)
+                if not zh_loc or not (zh_loc.get("attributes", {}).get("whatsNew") or "").strip():
+                    for loc, notes in localized_notes:
+                        msg = upsert_beta_localization(client, rb["id"], r_ver, r_state, loc, notes)
+                        print(f"[ASC] Backfilled recent build #{r_ver}: {msg}", flush=True)
+                break
+    except Exception as exc:
+        print(f"[ASC] Note: recent build backfill skipped: {exc}", flush=True)
 
     deadline = time.time() + timeout_seconds
     build_id: str | None = None
@@ -239,12 +266,9 @@ def update_whats_new(
 
     while time.time() < deadline:
         attempt += 1
-        # Query by app + CFBundleVersion without preReleaseVersion.version filter, which can lag or mismatch
-        # when multiple builds share the same marketing version.
         params = {
             "filter[app]": app_id,
             "filter[version]": build_number,
-            "sort": "-uploadedDate",
             "limit": "5",
         }
         builds = client.request("GET", f"/builds?{urllib.parse.urlencode(params)}").get("data", [])
