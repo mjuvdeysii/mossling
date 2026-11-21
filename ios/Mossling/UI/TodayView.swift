@@ -27,6 +27,7 @@ struct TodayView: View {
                 let running = !j.timers.isEmpty || night
                 if running && app.journal && app.age != nil { NowCard(month: baby) }
                 MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
+                    .zoomSource(Route.month(baby))
                 if app.age != nil { DueCard(month: baby) }
                 if !running && app.journal && app.age != nil { NowCard(month: baby) }
                 if app.age != nil {
@@ -348,7 +349,7 @@ struct TodayPlayCard: View {
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         if week.count > 1 {
-                            Button { withAnimation(reduce ? nil : .snappy) { app.anotherToday(month, j) } } label: {
+                            Button { withAnimation(reduce ? nil : .spring(response: 0.38, dampingFraction: 0.84)) { app.anotherToday(month, j) } } label: {
                                 // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
                                 Text(L10n.t("换一个", "Swap")).padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                             }
@@ -361,7 +362,10 @@ struct TodayPlayCard: View {
                     VStack(spacing: 0) {
                         lead(p)
                             .id(p.code)
-                            .transition(reduce ? .identity : .asymmetric(insertion: .opacity.combined(with: .offset(y: 6)), removal: .opacity))
+                            .transition(reduce ? .identity : .asymmetric(
+                                insertion: .opacity.combined(with: .scale(scale: 0.97)).combined(with: .offset(y: 6)),
+                                removal: .opacity.combined(with: .scale(scale: 0.985))
+                            ))
                         if !rest.isEmpty {
                             Divider().padding(.horizontal, 14)
                             HStack {

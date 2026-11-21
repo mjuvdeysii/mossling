@@ -24,14 +24,23 @@ struct TimerScreen: View {
     /// Before starting: when it began, in minutes before now (0 = now); a chosen time when picked.
     @State private var startAgo = 0
     @State private var startAt: Date?
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var pickingStart = false
 
     var body: some View {
         let c = LogType.color(type)
+        let activeTimer = j.timers.first(where: { $0.type == type })
         NavigationStack {
-            Group {
-                if let t = j.timers.first(where: { $0.type == type }) { running(t, c) } else { ready(c) }
+            ZStack {
+                if let t = activeTimer {
+                    running(t, c)
+                        .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
+                } else {
+                    ready(c)
+                        .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
+                }
             }
+            .animation(reduce ? nil : .spring(response: 0.38, dampingFraction: 0.84), value: activeTimer != nil)
             .background {
                 // the same air as every page — sunlight and seeds by day, the lamp and its motes at night — tinted by
                 // the kind being timed
@@ -334,8 +343,8 @@ private struct SidePad: View {
         .frame(maxWidth: .infinity)
         .background { pad }
         .overlay(alignment: .topTrailing) { badge }
+        .animation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.78), value: state)
         .modifier(Breathe(on: state == .running && !reduce, amount: 1.015, period: 1.6))
-        .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
     }
 
     private var label: some View {
@@ -366,23 +375,21 @@ private struct SidePad: View {
 
     @ViewBuilder private var pad: some View {
         let shape = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
-        shape
-            .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
-                     : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
-            .overlay {
-                // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
-                if ArtStyle.current == .vinyl {
-                    let inner = RoundedRectangle(cornerRadius: Radius.stage, style: .continuous)
-                    inner.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
-                    inner.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
-                }
+        ZStack {
+            shape
+                .fill(on ? AnyShapeStyle(LinearGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.05 : 0.12), Crayon.fill(color, lamp)], startPoint: .top, endPoint: .bottom))
+                         : AnyShapeStyle(color.opacity(state == .paused ? (lamp ? 0.34 : 0.22) : lamp ? 0.16 : 0.12)))
+                .shadow(color: on && !lamp ? color.opacity(0.4) : .clear, radius: 12, y: 6)
+            // 3D: lit from above like the buttons and tokens — a lighter top and a lit rim
+            if ArtStyle.current == .vinyl {
+                shape.fill(LinearGradient(colors: [.white.opacity(on ? 0.24 : (lamp ? 0.05 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                shape.strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
             }
-            .overlay {
-                // paused: the side stays coloured (it is still this side's feed) with a solid rim
-                if state == .paused {
-                    RoundedRectangle(cornerRadius: Radius.stage, style: .continuous).strokeBorder(Crayon.ink(color), lineWidth: 2.5)
-                }
+            // paused: the side stays coloured (it is still this side's feed) with a solid rim
+            if state == .paused {
+                shape.strokeBorder(Crayon.ink(color), lineWidth: 2.5)
             }
+        }
     }
 
     @ViewBuilder private var badge: some View {
@@ -470,17 +477,18 @@ private struct SleepPad: View {
         }
         .frame(width: 250, height: 250)
         .background {
-            Circle().fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
+            ZStack {
+                Circle()
+                    .fill(paused && !ready ? AnyShapeStyle(color.opacity(0.14))
                           : AnyShapeStyle(RadialGradient(colors: [Crayon.fill(color, lamp).mix(with: color, by: lamp ? 0.06 : 0.15), Crayon.fill(color, lamp)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 240)))
-                .overlay {
-                    if ArtStyle.current == .vinyl {
-                        Circle().fill(LinearGradient(colors: [.white.opacity(paused && !ready ? (lamp ? 0.05 : 0.45) : 0.24), .white.opacity(0)], startPoint: .top, endPoint: .center))
-                        Circle().strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
-                    }
+                    .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
+                if ArtStyle.current == .vinyl {
+                    Circle().fill(LinearGradient(colors: [.white.opacity(paused && !ready ? (lamp ? 0.05 : 0.45) : 0.24), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                    Circle().strokeBorder(LinearGradient(colors: [.white.opacity(lamp ? 0.16 : 0.8), .white.opacity(0)], startPoint: .top, endPoint: .bottom), lineWidth: 1.2)
                 }
+            }
         }
         .modifier(Breathe(on: !paused && !reduce, amount: 1.02, period: 2.1))   // slow, like a sleeping breath
-        .shadow(color: (paused && !ready) || lamp ? .clear : color.opacity(0.4), radius: 16, y: 8)
         .frame(maxWidth: .infinity)
     }
 }

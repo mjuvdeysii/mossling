@@ -4,7 +4,7 @@ import Foundation
 /// on Android — so each time counts, and the record file carries them.
 extension JournalStore {
     func plays(_ code: String) -> [LogEntry] {
-        logs.filter { $0.type == LogType.play && ($0.detail ?? "").split(separator: " ").first.map(String.init) == code }
+        playsByCode[code] ?? []
     }
 }
 

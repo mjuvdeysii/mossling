@@ -40,7 +40,11 @@ struct TodayProvider: TimelineProvider {
             let settle = recent.startDate.addingTimeInterval(QuickCareFace.confirmWindowSeconds + 0.5)
             if settle > now { dates.append(settle) }
         }
-        dates.append(contentsOf: (1..<12).map { now.addingTimeInterval(Double($0) * 1800) })
+        // Dense 5-minute ticks for the first hour so "X min ago" and Otto's golden bead feel alive,
+        // then 15-minute ticks for hours 1–4, then 30-minute ticks for hours 4–8.
+        dates.append(contentsOf: (1...12).map { now.addingTimeInterval(Double($0) * 300) })
+        dates.append(contentsOf: (5...16).map { now.addingTimeInterval(Double($0) * 900) })
+        dates.append(contentsOf: (9...16).map { now.addingTimeInterval(Double($0) * 1800) })
         completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body) }, policy: .atEnd))
     }
     private func entry(_ d: Date) -> TodayEntry { TodayEntry(date: d, snap: JournalFile.snapshot(), body: JournalFile.read()) }

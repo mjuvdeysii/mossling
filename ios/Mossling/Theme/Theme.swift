@@ -138,8 +138,8 @@ struct IconTile: View {
                 .frame(width: s, height: s)
                 .background {
                     shape.fill(LinearGradient(colors: [color.mix(with: .white, by: 0.22), color, color.mix(with: .black, by: 0.1)], startPoint: .topLeading, endPoint: .bottomTrailing))
+                        .shadow(color: color.opacity(0.22), radius: s * 0.08, y: s * 0.05)
                 }
-                .shadow(color: color.opacity(0.22), radius: s * 0.08, y: s * 0.05)
                 .accessibilityHidden(true)
         }
     }
@@ -201,16 +201,24 @@ extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)
 /// device, build 156). This lights the presentation itself — `preferredColorScheme` sets the sheet's own appearance,
 /// which UIKit-backed controls follow — and changes nothing by day.
 struct LampPresented: ViewModifier {
+    var sheet: Bool = true
     @Environment(\.lamp) private var lamp
     @ViewBuilder func body(content: Self.Content) -> some View {
-        let lit = content.fontDesign(.rounded).modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+        let base = content.fontDesign(.rounded).modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+        let styled = Group {
+            if sheet {
+                base.presentationCornerRadius(28).presentationDragIndicator(.visible)
+            } else {
+                base
+            }
+        }
         if lamp && ArtStyle.current == .flat {
             // in 2D, every sheet at night has the page's night behind it (the fireflies), lists and forms included
-            lit.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
-        } else { lit }
+            styled.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
+        } else { styled }
     }
 }
-extension View { func lampPresented() -> some View { modifier(LampPresented()) } }
+extension View { func lampPresented(sheet: Bool = true) -> some View { modifier(LampPresented(sheet: sheet)) } }
 
 extension Crayon {
     /// A fill under white text. Under the lamp the bright kind colours would be the brightest things in a dark room —
@@ -267,22 +275,30 @@ struct PageBackground: View {
         if lamp {
             // night: deep blue, warmed from the top by Otto's lamp
             ZStack {
-                Palette.lampPage
+                ZStack {
+                    Palette.lampPage
+                    if !solid { Grain(dark: true) }
+                }
+                .drawingGroup(opaque: true)
                 // the 2D night is the fireflies (in place of the lamp's glow); the 3D night keeps the lamp's light
                 if ArtStyle.current != .flat { LampGlow() }
-                if !solid { Grain(dark: true); Motes() }
+                if !solid { Motes() }
             }
             .ignoresSafeArea().accessibilityHidden(true)
         } else {
             ZStack {
-                Palette.background
-                if let tone {
-                    LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
-                    RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
+                ZStack {
+                    Palette.background
+                    if let tone {
+                        LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
+                        RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
+                    }
+                    // two faint pools of watercolour soaked into the paper, their rims a little deeper where the pigment dried
+                    if !solid { PaperPools(tone: tone ?? Crayon.sunflower) }
+                    if !solid { Grain(dark: false) }
                 }
-                // two faint pools of watercolour soaked into the paper, their rims a little deeper where the pigment dried
-                if !solid { PaperPools(tone: tone ?? Crayon.sunflower) }
-                if !solid { Grain(dark: false); DayAir(tone: tone ?? Crayon.sunflower) }
+                .drawingGroup(opaque: true)
+                if !solid { DayAir(tone: tone ?? Crayon.sunflower) }
             }
             .ignoresSafeArea().accessibilityHidden(true)
         }
@@ -324,12 +340,15 @@ struct DayAir: View {
     @State private var breath = false
     var body: some View {
         ZStack {
-            // the sun, its hill and flowers: drawn once (nothing in them moves per frame)
-            Canvas { ctx, size in sunDisc(&ctx, size) }
-            // the meadow at the foot of the page: low and quiet, so text that reaches the bottom of a short page stays
-            // easy to read over it
-            Canvas { ctx, size in meadow(&ctx, size, 0) }
-                .opacity(0.4).offset(y: 28 * scale)
+            // the sun, its hill and flowers: drawn once and flattened into one cached Metal texture
+            ZStack {
+                Canvas { ctx, size in sunDisc(&ctx, size) }
+                // the meadow at the foot of the page: low and quiet, so text that reaches the bottom of a short page stays
+                // easy to read over it
+                Canvas { ctx, size in meadow(&ctx, size, 0) }
+                    .opacity(0.4).offset(y: 28 * scale)
+            }
+            .drawingGroup()
             // the beams breathe as one slow change of opacity, run by the system compositor, not redrawn
             Canvas { ctx, size in beams(&ctx, size, 0) }
                 .opacity(breath ? 1 : 0.55)
@@ -595,12 +614,14 @@ struct GoldBead: View {
         if ArtStyle.current != .flat { bead } else { Circle().fill(Palette.bead).frame(width: size, height: size).accessibilityHidden(true) }
     }
     private var bead: some View {
-        Circle()
-            .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.7))
-            .overlay(Circle().fill(.white.opacity(0.7)).frame(width: size * 0.28, height: size * 0.28).offset(x: -size * 0.16, y: -size * 0.18))
-            .frame(width: size, height: size)
-            .shadow(color: Color(hex: 0x7A5230).opacity(0.25), radius: 1, y: 1)
-            .accessibilityHidden(true)
+        ZStack {
+            Circle()
+                .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: size * 0.7))
+                .shadow(color: Color(hex: 0x7A5230).opacity(0.25), radius: 1, y: 1)
+            Circle().fill(.white.opacity(0.7)).frame(width: size * 0.28, height: size * 0.28).offset(x: -size * 0.16, y: -size * 0.18)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
     }
 }
 
@@ -710,10 +731,13 @@ struct VinylSurface: ViewModifier {
                 ? Color.black.opacity(strong ? 0.30 : 0.14)
                 : (strong ? tint : Color(hex: 0x7A5230)).opacity(strong ? 0.3 : 0.08)
             content.background {
-                shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
-                    .overlay(shape.fill(LinearGradient(colors: [.white.opacity(strong ? (dark ? 0.06 : 0.1) : (dark ? 0.05 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
-                    .overlay(shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-                    .shadow(color: shadowColor, radius: strong ? 5 : 2, y: strong ? 3 : 1)
+                // Keep .shadow directly on the base shape fill (not after overlays) so Core Animation uses a direct shadowPath with zero off-screen pass
+                ZStack {
+                    shape.fill(strong ? tint : tint.opacity(dark ? 0.22 : 0.14))
+                        .shadow(color: shadowColor, radius: strong ? 5 : 2, y: strong ? 3 : 1)
+                    shape.fill(LinearGradient(colors: [.white.opacity(strong ? (dark ? 0.06 : 0.1) : (dark ? 0.05 : 0.5)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                    shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                }
             }
         }
     }
@@ -764,10 +788,13 @@ struct VinylButton: ButtonStyle {
                 .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 14 : 9)
                 .frame(minHeight: 44)
                 .background {
-                    shape.fill(body)
-                        .overlay(shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.09 : (dark ? 0.06 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center)))
-                        .overlay(shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-                        .shadow(color: shadowColor, radius: shadowR, y: shadowY)
+                    // Direct shadowPath on base capsule avoids an off-screen alpha render pass on every 3D button
+                    ZStack {
+                        shape.fill(body)
+                            .shadow(color: shadowColor, radius: shadowR, y: shadowY)
+                        shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.09 : (dark ? 0.06 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                        shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                    }
                 }
                 .contentShape(shape)
                 .opacity(enabled ? (pressed && reduce ? 0.78 : 1) : 0.45)

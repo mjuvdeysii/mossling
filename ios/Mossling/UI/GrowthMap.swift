@@ -76,6 +76,7 @@ struct MapLand: View, Equatable {
             stones(&ctx, w)
             marks(&ctx, w)
         }
+        .drawingGroup()
         .overlay { if flat { Grain(dark: night, strength: 0.9).blendMode(.multiply).allowsHitTesting(false) } }
         .accessibilityHidden(true)
     }
@@ -713,6 +714,7 @@ struct MapVignette: View {
                     ctx.fill(Path(ellipseIn: s.offsetBy(dx: 0, dy: 1.5)), with: .color(.black.opacity(0.15)))
                     ctx.fill(Path(ellipseIn: s), with: .color(Palette.bead))
                 }
+                .drawingGroup()
                 .overlay { if flat { Grain(dark: night, strength: 0.9).blendMode(.multiply) } }
                 // the child's stone: in the middle, or a little left of it when Otto stands beside
                 let stone = CGPoint(x: otto ? w * 0.38 : w / 2, y: h * 0.84)

@@ -11,7 +11,7 @@ struct MosslingApp: App {
     @State private var app = AppModel()
     @State private var journal = JournalStore()
     @State private var mascot = MascotDirector()
-    init() { Guide.configure(); DataView.tidyDocuments() }
+    init() { Guide.configure(); DataView.tidyDocuments(); ArtCache.shared.prewarmCommonStickers() }
     var body: some Scene {
         WindowGroup {
             RootView()
@@ -54,7 +54,7 @@ struct RootView: View {
         app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }, fresh: fresh)
     }
     /// What the widget shows changes with the settings and with each play recorded (today's play may follow).
-    private var widgetKey: String { app.publishKey + "|" + String(journal.logs.filter { $0.type == LogType.play }.count) }
+    private var widgetKey: String { app.publishKey + "|" + String(journal.playLogCount) }
 
     /// The consent card: on the first run (and after 清除全部数据, or when the rules change), and whenever something that
     /// keeps the child's information is asked for before the guardian agreed.
@@ -86,7 +86,7 @@ struct RootView: View {
                 if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
             }
             .onChange(of: phase) { _, p in
-                if p == .active { app.today = .today; journal.reload(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+                if p == .active { app.today = .today; journal.reload(); app.syncWidgetPick(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
                 if p == .background { locked = true; mascot.send(.appBackground) }
             }
             .task { if app.lock { unlock() }; roll(); app.publish(journal) }
@@ -97,6 +97,7 @@ struct RootView: View {
                 mascot.timing = !journal.timers.isEmpty
                 if scheme == .dark { mascot.send(.nightmodeEnabled) }
                 journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
+                journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
             .onChange(of: scheme) { _, s in mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled) }
             .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
@@ -105,12 +106,12 @@ struct RootView: View {
 
     var body: some View {
         observedContent
-            // while a timer is running, pick up Lock Screen / widget changes every 3s; when idle, no fast polling
+            // Cross-process changes arrive immediately via Darwin notification; keep a gentle 10s safety fallback only while a timer runs
             .task(id: phase == .active && !journal.timers.isEmpty) {
                 guard phase == .active, !journal.timers.isEmpty else { return }
                 while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(10))
                     journal.refreshIfChanged()
-                    try? await Task.sleep(for: .seconds(3))
                 }
             }
             // track day/night boundary once a minute while foregrounded
@@ -183,7 +184,7 @@ struct RootView: View {
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
         .fullScreenCover(item: Binding(get: { isLocked ? nil : journal.focus.map { Wrap(id: $0) } },
                                        set: { if !isLocked { journal.focus = $0?.id } })) { w in
-            TimerScreen(type: w.id).lampPresented()
+            TimerScreen(type: w.id).lampPresented(sheet: false)
         }
     }
 
@@ -191,13 +192,16 @@ struct RootView: View {
         guard url.scheme == "mossling" else { return }
         if isLocked { pendingURL = url; return }
         guard app.onboarded else { return }
+        // Always pull fresh writes from widgets / Control Center / Live Activities before routing
+        journal.reload()
+        app.syncWidgetPick()
         let arg = url.pathComponents.dropFirst().first
         let pushToday: (Route) -> Void = { route in
             let needsSwitch = tab != 0
             tab = 0
             todayPath = NavigationPath()
             Task { @MainActor in
-                if needsSwitch { try? await Task.sleep(for: .milliseconds(80)) }
+                if needsSwitch { try? await Task.sleep(for: .milliseconds(120)) }
                 else { await Task.yield() }
                 todayPath = NavigationPath([route])
             }
@@ -224,18 +228,37 @@ struct RootView: View {
             pushToday(.book)
         case "journal":
             guard app.mayKeep() else { return }
+            journal.focus = nil
+            journal.ask = nil
+            journal.jumpToToday &+= 1
             tab = app.journal ? 2 : 3
+            if app.journal { journalPath = NavigationPath() }
         case "care":
             guard let type = arg, LogType.timed.contains(type), app.mayKeep() else { return }
             guard app.journal else { tab = 3; return }
+            let needsSwitch = tab != 2
             tab = 2
-            journal.focus = type
+            journal.ask = nil
+            journal.focus = nil
+            Task { @MainActor in
+                if needsSwitch { try? await Task.sleep(for: .milliseconds(120)) }
+                else { await Task.yield() }
+                journal.focus = type
+            }
         case "log":
             guard let type = arg, LogType.buttons.contains(type), type != LogType.growth, app.mayKeep() else { return }
             guard app.journal else { tab = 3; return }
+            let needsSwitch = tab != 2
             tab = 2
             journal.focus = nil
-            journal.ask = type
+            journal.ask = nil
+            journal.jumpToToday &+= 1
+            // Defer assignment until JournalView has mounted so .sheet(item:) always observes nil → non-nil
+            Task { @MainActor in
+                if needsSwitch { try? await Task.sleep(for: .milliseconds(140)) }
+                else { await Task.yield() }
+                journal.ask = type
+            }
         default: break
         }
     }
@@ -299,7 +322,7 @@ private struct RouteView: View {
         case .sources: SourcesView()
         case .licenses: LicensesView()
         case let .doc(n): DocView(name: n)
-        case .book: GrowthBookView()
+        case .book: GrowthBookView().zoomDestination(route)
         }
     }
 }

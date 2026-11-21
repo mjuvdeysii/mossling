@@ -7,10 +7,11 @@ struct JournalView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Binding var path: NavigationPath
-    /// A kind to show alone when the page opens (screenshots); the page's own chips change it.
-    var only: String? = nil
     @State private var day: Day = .today
+    @State private var dayDirection: CGFloat = 1
+    @State private var only: String?
     @Environment(\.scenePhase) private var phase
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var leftAt: Date?
     @State private var pickingDay = false
     @State private var opened = false
@@ -19,6 +20,17 @@ struct JournalView: View {
     @State private var newFirst: First?
     @Environment(\.dynamicTypeSize) private var size
 
+    init(path: Binding<NavigationPath>, only: String? = nil) {
+        _path = path
+        _only = State(initialValue: only)
+    }
+
+    private func move(to next: Day) {
+        guard next != day else { return }
+        dayDirection = next.epochDay > day.epochDay ? 1 : -1
+        withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.86)) { day = next }
+    }
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -26,16 +38,23 @@ struct JournalView: View {
                 // what is running comes first on the page, above the stickers — at night it is what is looked for
                 ForEach(j.timers, id: \.type) { t in RunningRow(timer: t) }
                 StickerSheet(timers: j.timers, month: app.babyMonth, last: { j.last($0) }, tap: tap)
-                WeekStrip(today: app.today, day: $day)
+                WeekStrip(today: app.today, day: day, pick: move(to:))
                 // any day: tap its date for a calendar, or swipe the page sideways for the day before or after
-                DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, edit: { editing = $0 }, delete: { j.delete($0) }, only: only, pick: { pickingDay = true })
-                    .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
-                        let dx = v.translation.width, dy = v.translation.height
-                        guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
-                        let next = day.plus(days: dx < 0 ? 1 : -1)
-                        guard next.epochDay <= app.today.epochDay, app.birth.map({ next.epochDay >= $0.epochDay }) ?? true else { return }
-                        withAnimation(.snappy) { day = next }
-                    })
+                ZStack {
+                    DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, only: $only, edit: { editing = $0 }, delete: { j.delete($0) }, pick: { pickingDay = true })
+                        .id(day.epochDay)
+                        .transition(reduce ? .opacity : .asymmetric(
+                            insertion: .opacity.combined(with: .offset(x: dayDirection * 22)),
+                            removal: .opacity.combined(with: .offset(x: -dayDirection * 22))
+                        ))
+                }
+                .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
+                    let dx = v.translation.width, dy = v.translation.height
+                    guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
+                    let next = day.plus(days: dx < 0 ? 1 : -1)
+                    guard next.epochDay <= app.today.epochDay, app.birth.map({ next.epochDay >= $0.epochDay }) ?? true else { return }
+                    move(to: next)
+                })
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
                     NavigationLink(value: JournalRoute.stats) { tile(L10n.t("最近七天", "Last 7 Days"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
@@ -48,10 +67,11 @@ struct JournalView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.pink)
+        .sensoryFeedback(.selection, trigger: day)
         .navigationTitle(L10n.t("记录", "Journal"))
         .toolbar {
             if day != app.today {
-                ToolbarItem(placement: .topBarLeading) { Button(L10n.t("今天", "Today")) { withAnimation(.snappy) { day = app.today } } }
+                ToolbarItem(placement: .topBarLeading) { Button(L10n.t("今天", "Today")) { move(to: app.today) } }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
                 ShareLink(item: handoverText) {
@@ -74,7 +94,7 @@ struct JournalView: View {
             NavigationStack {
                 let now = Date()
                 let lower = min(app.birth?.date ?? .distantPast, now)
-                DatePicker(L10n.t("哪一天", "Date"), selection: Binding(get: { min(max(day.date, lower), now) }, set: { day = Day($0); pickingDay = false }),
+                DatePicker(L10n.t("哪一天", "Date"), selection: Binding(get: { min(max(day.date, lower), now) }, set: { move(to: Day($0)); pickingDay = false }),
                            in: lower...now, displayedComponents: .date)
                     .datePickerStyle(.graphical).padding(.horizontal, 16)
                     .navigationTitle(L10n.t("看哪一天", "Choose Day")).navigationBarTitleDisplayMode(.inline)
@@ -85,13 +105,14 @@ struct JournalView: View {
         // a side of a two-sided feed opens the whole feed (that side chosen)
         .sheet(item: $editing) { e in
             EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id },
-                       feed: j.logs.feeds().first { f in f.entries.contains { $0.id == e.id } }?.entries ?? []).lampPresented()
+                       feed: j.feedEntries(containing: e.id)).lampPresented()
         }
         .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
         .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
         // the day chosen stays chosen across the stats, the growth curve and the other tabs; it goes back to today
-        // when the date turns, or when the app comes back after a while away (half an hour)
+        // when the date turns, when a widget deep link asks to log today, or when the app comes back after a while away
         .onChange(of: app.today) { _, t in day = t }
+        .onChange(of: j.jumpToToday) { _, _ in day = app.today }
         .onAppear { if !opened { day = app.today; opened = true } }   // the first time only
         .onChange(of: phase) { _, p in
             if p == .background { leftAt = Date() }
@@ -339,7 +360,8 @@ private struct Sticker: View {
 private struct WeekStrip: View {
     @Environment(\.lamp) private var lamp
     let today: Day
-    @Binding var day: Day
+    let day: Day
+    let pick: (Day) -> Void
     private static let enWeekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     var body: some View {
         let end = min(day.plus(days: 3), today)
@@ -348,7 +370,7 @@ private struct WeekStrip: View {
                 let d = end.plus(days: -i), on = d == day, isToday = d == today
                 let wdIdx = max(0, min(6, Day.cal.component(.weekday, from: d.date) - 1))
                 let wdLabel = L10n.isEnglish ? Self.enWeekdays[wdIdx] : String(d.weekday.suffix(1))
-                Button { withAnimation(.snappy) { day = d } } label: {
+                Button { pick(d) } label: {
                     VStack(spacing: 2) {
                         Text(wdLabel).font(.caption2.weight(.semibold))
                         Text("\(d.d)").font(Typeface.numerals(17, relativeTo: .body, weight: .bold))
@@ -417,15 +439,11 @@ private struct DayPage: View {
     let day: Day, today: Day
     let logs: [LogEntry]
     let timers: [RunningTimer]
+    /// One kind to look at alone ("feed" = breast and bottle together), or nil for the whole day.
+    @Binding var only: String?
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
     var pick: () -> Void = {}
-    /// One kind to look at alone ("feed" = breast and bottle together), or nil for the whole day.
-    @State private var only: String?
-    init(day: Day, today: Day, logs: [LogEntry], timers: [RunningTimer], edit: @escaping (LogEntry) -> Void, delete: @escaping (LogEntry) -> Void, only: String? = nil, pick: @escaping () -> Void = {}) {
-        self.day = day; self.today = today; self.logs = logs; self.timers = timers; self.edit = edit; self.delete = delete; self.pick = pick
-        _only = State(initialValue: only)
-    }
 
     var body: some View {
         let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
@@ -666,19 +684,31 @@ private struct DayRibbon: View {
 }
 
 
-/// The paper of the journal: a faint dot grid.
+/// The paper of the journal: a faint dot grid rendered once as a 16 pt tile (avoids drawing thousands of Canvas circles per scroll/resize).
 private struct DotPaper: View {
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    private static let lightTile = DotPaper.makeTile(dark: false)
+    private static let darkTile = DotPaper.makeTile(dark: true)
+
     var body: some View {
-        Canvas { ctx, size in
-            let g: CGFloat = 16
-            var y: CGFloat = g
-            while y < size.height {
-                var x: CGFloat = g
-                while x < size.width { ctx.fill(Path(ellipseIn: CGRect(x: x - 0.9, y: y - 0.9, width: 1.8, height: 1.8)), with: .color(Color.primary.opacity(0.1))); x += g }
-                y += g
-            }
+        let dark = lamp || scheme == .dark
+        Image(uiImage: dark ? Self.darkTile : Self.lightTile)
+            .resizable(resizingMode: .tile)
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+    }
+
+    private static func makeTile(dark: Bool) -> UIImage {
+        let g: CGFloat = 16
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 2
+        format.opaque = false
+        return UIGraphicsImageRenderer(size: CGSize(width: g, height: g), format: format).image { ctx in
+            let ink = dark ? UIColor(white: 1, alpha: 0.1) : UIColor(white: 0, alpha: 0.1)
+            ink.setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(x: g - 0.9 - 8, y: g - 0.9 - 8, width: 1.8, height: 1.8))
         }
-        .accessibilityHidden(true)
     }
 }
 
@@ -980,10 +1010,7 @@ extension DayTimeline {
     /// records (the previous feed may be on the day before). The second side of the same feed gets none.
     func feedInterval(_ e: LogEntry) -> Double? {
         guard e.type == LogType.nurse || e.type == LogType.bottle else { return nil }
-        let feeds = all.feeds()
-        // only a feed's first entry carries the interval; a side that continues the feed gets none
-        guard let i = feeds.firstIndex(where: { $0.first.id == e.id }), i > 0 else { return nil }
-        return (e.start - feeds[i - 1].start) / 1000
+        return j.feedIntervalByID[e.id]
     }
 }
 
