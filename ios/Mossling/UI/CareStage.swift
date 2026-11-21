@@ -160,14 +160,19 @@ struct LastLine: View {
                 let when = VStack(alignment: .leading, spacing: 1) {
                     Text(f.label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     Text(whenLabel(f.at) + (!compact ? f.note.map { " · " + $0 } ?? "" : ""))
-                        .font(.subheadline.weight(.semibold)).monospacedDigit().fixedSize(horizontal: false, vertical: true)
+                        .font(.subheadline.weight(.semibold)).monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 // more than two days back, the date says it; a count of days is no help
                 let recent = gap < 48 * 3600
                 let since = VStack(alignment: big ? .leading : .trailing, spacing: 0) {
-                    Text(until == nil ? "已过" : "间隔").font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Text(until == nil ? L10n.t("已过", "Ago") : L10n.t("间隔", "Gap"))
+                        .font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     Ticking(text: durationValue(max(0, gap)), tint: Crayon.ink(c))
-                        .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c)).fixedSize()
+                        .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold))
+                        .foregroundStyle(Crayon.ink(c))
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .fixedSize()
                 }
                 // large text: the two stack (nothing is cut or squeezed); otherwise one row
                 Group {

@@ -17,40 +17,40 @@ struct ConsentSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text("使用前，请阅读以下文件：").font(.body)
+                    Text(L10n.t("使用前，请阅读以下文件：", "Before you begin, please review:")).font(.body)
                     VStack(alignment: .leading, spacing: 8) {
-                        docLink("《隐私政策》（含儿童个人信息保护规则）", "PRIVACY")
-                        docLink("《使用条款》", "TERMS")
-                        docLink("《免责声明》", "DISCLAIMER")
+                        docLink(L10n.t("《隐私政策》（含儿童个人信息保护规则）", "Privacy Policy (incl. children's data)"), "PRIVACY")
+                        docLink(L10n.t("《使用条款》", "Terms of Use"), "TERMS")
+                        docLink(L10n.t("《免责声明》", "Disclaimer"), "DISCLAIMER")
                     }
                     VStack(alignment: .leading, spacing: 10) {
-                        point("本应用不需要账号、不联网，不含广告、统计或任何第三方 SDK。")
-                        point("你填写的孩子信息，包括出生日期、小名、性别、生长测量，以及喂养、睡眠、尿布、体温、用药等照护记录，属于不满十四周岁儿童的个人信息，其中包含健康信息。这些信息只保存在这台设备上，开发者无法获取。")
-                        point("你可以随时在「我的 › 数据」中导出、清除全部数据，或撤回同意。")
+                        point(L10n.t("本应用不需要账号、不联网，不含广告、统计或任何第三方 SDK。", "No account, no internet connection, no ads, no analytics, and no third-party SDKs."))
+                        point(L10n.t("你填写的孩子信息，包括出生日期、小名、性别、生长测量，以及喂养、睡眠、尿布、体温、用药等照护记录，属于不满十四周岁儿童的个人信息，其中包含健康信息。这些信息只保存在这台设备上，开发者无法获取。", "Everything you enter about your child — birthday, nickname, sex, growth measurements, and care logs — is sensitive child health data. It stays only on this iPhone; the developer never sees or receives it."))
+                        point(L10n.t("你可以随时在「我的 › 数据」中导出、清除全部数据，或撤回同意。", "You can export or erase all data, or withdraw consent, anytime in Me › Data."))
                     }
-                    Text("点「同意」，表示你是孩子的父母或其他监护人，同意本应用按上述文件在本机保存和使用这些信息。点「不同意」，仍可浏览全部玩法和月龄内容，但不能填写孩子资料和记录；此前已经保存的信息仍只在这台手机上，可在「我的 › 数据」导出或清除。以后需要时，可以再次选择同意。")
+                    Text(L10n.t("点「同意」，表示你是孩子的父母或其他监护人，同意本应用按上述文件在本机保存和使用这些信息。点「不同意」，仍可浏览全部玩法和月龄内容，但不能填写孩子资料和记录；此前已经保存的信息仍只在这台手机上，可在「我的 › 数据」导出或清除。以后需要时，可以再次选择同意。", "By tapping Agree, you confirm you are the child's parent or legal guardian and consent to storing and using this information locally on this device. If you tap Not Now, you can still browse all activities and monthly guides without saving child profile or care logs; any data already saved stays on this device and can be exported or erased in Me › Data. You can agree later at any time."))
                         .font(.subheadline).foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(20)
             }
             .safeAreaBar(edge: .bottom) { buttons }
-            .navigationTitle("欢迎使用摸索台灯")
+            .navigationTitle(L10n.t("欢迎使用摸索台灯", "Welcome to Moss & Otto"))
             .navigationBarTitleDisplayMode(.inline)
             .pageBackground()
         }
         .interactiveDismissDisabled()
         .sheet(item: Binding(get: { doc.map { ConsentDoc(id: $0) } }, set: { doc = $0?.id })) { d in
-            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { doc = nil } } } }
+            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { doc = nil } } } }
         }
     }
 
     private var buttons: some View {
         // equal weight: neither choice is the easy one
         HStack(spacing: 12) {
-            Button { answer(false) } label: { Text("不同意").frame(maxWidth: .infinity).padding(.vertical, 6) }
+            Button { answer(false) } label: { Text(L10n.t("不同意", "Not Now")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                 .buttonStyle(.glass).controlSize(.large)
-            Button { answer(true) } label: { Text("同意").frame(maxWidth: .infinity).padding(.vertical, 6) }
+            Button { answer(true) } label: { Text(L10n.t("同意", "Agree")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                 .buttonStyle(.glass).controlSize(.large)
         }
         .padding(.horizontal, 20).padding(.vertical, 10)

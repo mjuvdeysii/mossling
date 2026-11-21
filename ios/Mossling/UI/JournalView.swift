@@ -184,16 +184,20 @@ private struct WeekBars: View {
                     VStack(spacing: 3) {
                         Capsule().fill(i == 6 ? Crayon.lilac : Crayon.lilac.opacity(0.35))
                             .frame(height: max(5, 26 * CGFloat(n[i]) / CGFloat(top)))
-                        Text(String(d.weekday.suffix(1))).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        Text(d.weekdayInitial).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     }
                     .frame(maxWidth: .infinity)
                 }
             }
-            Text("今天 \(n[6]) 条" + (mean.map { " · 日均 \($0) 条" } ?? ""))
+            Text(L10n.isEnglish
+                 ? "Today \(n[6])" + (mean.map { " · Avg \($0)/d" } ?? "")
+                 : "今天 \(n[6]) 条" + (mean.map { " · 日均 \($0) 条" } ?? ""))
                 .font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.8)
         }
-        .accessibilityElement().accessibilityLabel("最近七天共记录 \(n.reduce(0, +)) 条，今天 \(n[6]) 条" + (mean.map { "，日均 \($0) 条" } ?? ""))
+        .accessibilityElement().accessibilityLabel(L10n.isEnglish
+            ? "Last 7 days: \(n.reduce(0, +)) entries, today \(n[6])" + (mean.map { ", daily average \($0)" } ?? "")
+            : "最近七天共记录 \(n.reduce(0, +)) 条，今天 \(n[6]) 条" + (mean.map { "，日均 \($0) 条" } ?? ""))
     }
 }
 
@@ -206,22 +210,22 @@ private struct LastMeasure: View {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     if let w = m.weightG {
                         Text(String(format: "%.2f", Double(w) / 1000)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
-                        Text("千克").font(.caption.weight(.semibold))
-                        if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + " 厘米").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
+                        Text(L10n.t("千克", "kg")).font(.caption.weight(.semibold))
+                        if let l = m.lengthMm { Text("· " + String(format: "%.1f", Double(l) / 10) + L10n.t(" 厘米", " cm")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 2) }
                     } else if let l = m.lengthMm {
                         Text(String(format: "%.1f", Double(l) / 10)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
-                        Text("厘米 · 身长").font(.caption.weight(.semibold))
+                        Text(L10n.t("厘米 · 身长", "cm · Length")).font(.caption.weight(.semibold))
                     } else if let h = m.headMm {
                         Text(String(format: "%.1f", Double(h) / 10)).font(Typeface.numerals(22, relativeTo: .title3, weight: .bold)).foregroundStyle(Crayon.ink(Crayon.tangerine))
-                        Text("厘米 · 头围").font(.caption.weight(.semibold))
+                        Text(L10n.t("厘米 · 头围", "cm · Head")).font(.caption.weight(.semibold))
                     }
                 }
-                .fixedSize()
+                .lineLimit(1).minimumScaleFactor(0.8)
                 let d = Date(timeIntervalSince1970: m.at / 1000)
-                Text("最近一次 " + Day(d).md).font(.caption2).foregroundStyle(Palette.secondaryText)
+                Text(L10n.t("最近一次 ", "Latest ") + Day(d).md).font(.caption2).foregroundStyle(Palette.secondaryText)
             }
         } else {
-            Text("还没有量过，点进去记下第一次").font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+            Text(L10n.t("还没有量过，点进去记下第一次", "No measurements yet — tap to log")).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -432,16 +436,20 @@ private struct DayPage: View {
                         Text("\(day.d)").font(Typeface.numerals(36, relativeTo: .largeTitle, weight: .bold))
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(spacing: 4) {
-                                Text("\(day.m)月 \(day.weekday)").font(.headline)
+                                Text(L10n.isEnglish ? "\(Day.enMonths[day.m - 1]) · \(day.weekday)" : "\(day.m)月 \(day.weekday)").font(.headline)
                                 Image(systemName: "chevron.down").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
                             }
-                            Text(day == today ? "今天" : "\(today.epochDay - day.epochDay) 天前").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                            let diff = today.epochDay - day.epochDay
+                            Text(day == today ? L10n.t("今天", "Today")
+                                 : diff == 1 ? L10n.t("1 天前", "Yesterday")
+                                 : L10n.t("\(diff) 天前", "\(diff) days ago"))
+                                .font(.subheadline).foregroundStyle(Palette.secondaryText)
                         }
                     }
                     .foregroundStyle(.primary)
                 }
                 .buttonStyle(.toy)
-                .accessibilityHint("选另一天")
+                .accessibilityHint(L10n.t("选另一天", "Choose another day"))
                 Spacer()
                 DayCompanion(lamp: lamp, empty: logs.isEmpty, hush: day == today && timers.contains { $0.type == LogType.sleep && $0.pausedAt == nil })
             }
@@ -454,7 +462,7 @@ private struct DayPage: View {
                 // an empty day: the two dozing beside one line, not a stage of its own
                 HStack(spacing: 10) {
                     Duo(primary: app.companion, size: 40, mood: lamp ? .open : .sleep, night: lamp)
-                    Text("这一页还空着，点上面的贴纸就能记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("这一页还空着，点上面的贴纸就能记下", "Nothing logged yet — tap a sticker above")).font(.subheadline).foregroundStyle(Palette.secondaryText)
                     Spacer(minLength: 0)
                 }
                 .padding(.vertical, 2)
@@ -475,7 +483,7 @@ enum JournalKinds {
     static func matches(_ type: String, _ key: String) -> Bool {
         key == "feed" ? (type == LogType.nurse || type == LogType.bottle) : type == key
     }
-    static func name(_ key: String) -> String { key == "feed" ? "喂奶" : LogType.name(key) }
+    static func name(_ key: String) -> String { key == "feed" ? L10n.t("喂奶", "Feeds") : LogType.name(key) }
     static func type(_ key: String) -> String { key == "feed" ? LogType.nurse : key }
 }
 
@@ -502,8 +510,8 @@ private struct OtherKinds: View {
                         .opacity(only == nil || on ? 1 : 0.5)
                     }
                     .buttonStyle(.toy)
-                    .accessibilityLabel("\(LogType.name(t)) \(n) 次")
-                    .accessibilityHint(on ? "显示全部" : "只看这一类")
+                    .accessibilityLabel(L10n.isEnglish ? "\(LogType.name(t)), \(n)" : "\(LogType.name(t)) \(n) 次")
+                    .accessibilityHint(on ? L10n.t("显示全部", "Show all") : L10n.t("只看这一类", "Filter to this kind"))
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
@@ -525,7 +533,7 @@ private struct FocusLine: View {
             Text(summary).font(.footnote.weight(.semibold)).foregroundStyle(.primary).monospacedDigit()
                 .lineLimit(1).minimumScaleFactor(0.75)
             Spacer(minLength: 6)
-            Button("全部", action: clear).buttonStyle(.vinyl(c))
+            Button(L10n.t("全部", "All"), action: clear).buttonStyle(.vinyl(c))
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(c.opacity(0.12), in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
@@ -538,20 +546,25 @@ private struct FocusLine: View {
         switch kind {
         case "feed":
             let starts = feedStarts().filter { $0 >= d0 }
-            var s = "只看喂奶 · \(logs.feedCount(from: d0)) 次"
+            let count = logs.feedCount(from: d0)
+            var s = L10n.isEnglish ? "Feeds · \(count)" : "只看喂奶 · \(count) 次"
             if starts.count >= 2 {
                 let gaps = zip(starts.dropFirst(), starts).map { ($0 - $1) / 1000 }
-                s += " · " + labeled("平均间隔", durationValue(gaps.reduce(0, +) / Double(gaps.count)))
+                s += " · " + labeled(L10n.t("平均间隔", "Avg gap"), durationValue(gaps.reduce(0, +) / Double(gaps.count)))
             }
             return s
         case LogType.sleep:
             let total = logs.reduce(0.0) { $0 + $1.seconds(on: day) }
-            return "只看睡眠 · \(logs.count) 段 · 共 " + durationValue(total)
+            return L10n.isEnglish
+                ? "Sleep · \(logs.count) \(logs.count == 1 ? "stretch" : "stretches") · " + durationValue(total)
+                : "只看睡眠 · \(logs.count) 段 · 共 " + durationValue(total)
         case LogType.diaper:
             let wet = logs.filter { $0.detail == "wet" || $0.detail == "both" }.count, dirty = logs.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-            return "只看尿布 · \(logs.count) 片 · 湿 \(wet) · 便 \(dirty)"
+            return L10n.isEnglish
+                ? "Diapers · \(logs.count) · \(wet) wet · \(dirty) dirty"
+                : "只看尿布 · \(logs.count) 片 · 湿 \(wet) · 便 \(dirty)"
         default:
-            return "只看" + LogType.name(kind) + " · \(logs.count) 次"
+            return L10n.isEnglish ? LogType.name(kind) + " · \(logs.count)" : "只看" + LogType.name(kind) + " · \(logs.count) 次"
         }
     }
     /// The start of each feed of the day (the second side of a breast feed is the same feed).
@@ -566,7 +579,7 @@ private struct RunningRow: View {
         let c = LogType.color(timer.type)
         Button { j.focus = timer.type } label: {
             TimelineView(.periodic(from: .now, by: 30)) { tl in
-                let state = (timer.pausedAt != nil ? "已暂停 " : "进行中 ") + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000))
+                let state = (timer.pausedAt != nil ? L10n.t("已暂停 ", "Paused ") : L10n.t("进行中 ", "Active ")) + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000))
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 12) {
                         Text(hm(Date(timeIntervalSince1970: timer.start / 1000))).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
@@ -594,7 +607,7 @@ private struct RunningRow: View {
             }
         }
         .buttonStyle(.toy)
-        .accessibilityLabel("\(LogType.name(timer.type))进行中，打开计时")
+        .accessibilityLabel(L10n.t("\(LogType.name(timer.type))进行中，打开计时", "\(LogType.name(timer.type)) active, open timer"))
     }
 }
 
@@ -613,7 +626,7 @@ private struct DayRibbon: View {
                 HStack { ForEach(["00:00", "06:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
             }
         }
-        .accessibilityElement().accessibilityLabel("这一天的串珠：\(logs.count) 颗")
+        .accessibilityElement().accessibilityLabel(L10n.t("这一天的串珠：\(logs.count) 颗", "Day bead ribbon: \(logs.count) entries"))
     }
 
     /// The day as a string of beads, like the Montessori bead chains: a cord from midnight to midnight, a bead for
@@ -683,7 +696,10 @@ private struct Totals: View {
         let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
         // breastfeeding as time on the breast that day (pauses left out), not only how many times
         let nursed = logs.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: day) }
-        let feedLine = [nursed >= 60 ? "亲喂 " + durationValue(nursed) : nil, ml > 0 ? "瓶喂 \(ml) 毫升" : nil].compactMap { $0 }
+        let feedLine = [
+            nursed >= 60 ? L10n.t("亲喂 ", "Nursed ") + durationValue(nursed) : nil,
+            ml > 0 ? L10n.t("瓶喂 \(ml) 毫升", "Bottle " + L10n.volume(ml: ml)) : nil
+        ].compactMap { $0 }
         let sleep = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         let nappies = own.filter { $0.type == LogType.diaper }
         let wet = nappies.filter { $0.detail == "wet" || $0.detail == "both" }.count
@@ -691,14 +707,16 @@ private struct Totals: View {
         // the whole sleep, as on its line; when it began the day before, said so (it can be longer than the day's part)
         let longestSleep: LogEntry? = logs.filter { $0.type == LogType.sleep && $0.end != nil }.max { $0.activeSeconds < $1.activeSeconds }
         let longest: Double = longestSleep?.activeSeconds ?? 0
-        let longestLine: [String] = longest >= 60 ? ["最长一觉", durationValue(longest)] + ((longestSleep?.carriedOver(into: day) ?? false) ? ["（接昨天）"] : []) : []
+        let longestLine: [String] = longest >= 60
+            ? [L10n.t("最长一觉", "Longest"), durationValue(longest)] + ((longestSleep?.carriedOver(into: day) ?? false) ? [L10n.t("（接昨天）", "(from yesterday)")] : [])
+            : []
         // three across; at the largest text sizes, one under the other so nothing breaks a word
         let layout = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 10))
         layout {
-            tap("feed", stamp(LogType.nurse, "喂奶", [("\(feeds)", "次")], feedLine))
-            tap(LogType.sleep, stamp(LogType.sleep, "睡眠", durationParts(sleep), longestLine, " "))
+            tap("feed", stamp(LogType.nurse, L10n.t("喂奶", "Feeds"), [("\(feeds)", L10n.t("次", feeds == 1 ? "feed" : "feeds"))], feedLine))
+            tap(LogType.sleep, stamp(LogType.sleep, L10n.t("睡眠", "Sleep"), durationParts(sleep), longestLine, " "))
             // what a doctor asks: how many wet, how many dirty
-            tap(LogType.diaper, stamp(LogType.diaper, "尿布", [("\(nappies.count)", "片")], nappies.isEmpty ? [] : ["湿 \(wet)", "便 \(dirty)"]))
+            tap(LogType.diaper, stamp(LogType.diaper, L10n.t("尿布", "Diapers"), [("\(nappies.count)", L10n.t("片", ""))], nappies.isEmpty ? [] : [L10n.t("湿 \(wet)", "Wet \(wet)"), L10n.t("便 \(dirty)", "Dirty \(dirty)")]))
         }
         .fixedSize(horizontal: false, vertical: true)
     }
@@ -712,7 +730,7 @@ private struct Totals: View {
                 .scaleEffect(on ? 1.02 : 1)
         }
         .buttonStyle(.toy)
-        .accessibilityHint(on ? "显示全部" : "只看这一类")
+        .accessibilityHint(on ? L10n.t("显示全部", "Show all") : L10n.t("只看这一类", "Filter to this kind"))
         .accessibilityAddTraits(on ? .isSelected : [])
     }
     private func details(_ sub: [String], _ sep: String) -> some View {
@@ -728,14 +746,17 @@ private struct Totals: View {
                 IconTile(symbol: LogType.symbol(t), color: c, size: 18, round: true)
                 Text(name).font(.caption.weight(.semibold)).foregroundStyle(Crayon.ink(c))
             }
-            // numbers large, units small: "8 小时 5 分" fits a third of the width
+            // numbers large, units small: compact units + ViewThatFits/scale so "14时42分" / "14h 42m" never truncates to "…"
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { _, p in
-                    Ticking(text: p.0, tint: Crayon.ink(c)).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
-                    Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Ticking(text: p.0, tint: Crayon.ink(c))
+                        .font(Typeface.numerals(parts.count > 1 ? 21 : 24, relativeTo: .title2, weight: .bold))
+                    if !p.1.isEmpty {
+                        Text(p.1).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    }
                 }
             }
-            .lineLimit(1).minimumScaleFactor(0.7)
+            .lineLimit(1).minimumScaleFactor(0.55)
             // the details in full: on one line when they fit, otherwise one piece per line — never cut off with "…"
             // nothing to add: an invisible line keeps the three tiles the same height (hidden, so nothing is read or audited)
             Group {
@@ -827,9 +848,12 @@ func unbroken(_ s: String) -> String {
 /// A length of time as number–unit pairs, for a large number with a small unit: [("8", "小时"), ("5", "分")].
 func durationParts(_ seconds: Double) -> [(String, String)] {
     let m = Int((max(0, seconds) / 60).rounded())
-    if m < 60 { return [("\(m)", "分钟")] }
-    if m >= 48 * 60 { let h = m / 60; return h % 24 == 0 ? [("\(h / 24)", "天")] : [("\(h / 24)", "天"), ("\(h % 24)", "小时")] }
-    return m % 60 == 0 ? [("\(m / 60)", "小时")] : [("\(m / 60)", "小时"), ("\(m % 60)", "分")]
+    if m < 60 { return [("\(m)", L10n.t("分钟", "m"))] }
+    if m >= 48 * 60 {
+        let h = m / 60
+        return h % 24 == 0 ? [("\(h / 24)", L10n.t("天", "d"))] : [("\(h / 24)", L10n.t("天", "d")), ("\(h % 24)", L10n.t("时", "h"))]
+    }
+    return m % 60 == 0 ? [("\(m / 60)", L10n.t("小时", "h"))] : [("\(m / 60)", L10n.t("时", "h")), ("\(m % 60)", L10n.t("分", "m"))]
 }
 
 /// A length of time, rounded to the minute, in the one form used everywhere (minutesOf).
@@ -840,10 +864,13 @@ extension LogEntry {
     /// kind of nappy.
     func value(on day: Day) -> String {
         switch type {
-        case LogType.nurse, LogType.sleep: return end == nil ? "进行中" : durationValue(seconds(on: day))
-        case LogType.bottle: return "\(amount ?? 0) 毫升"
-        case LogType.temp: return amount.map { String(format: "%.1f °C", Double($0) / 10) } ?? ""
-        case LogType.diaper: return ["wet": "湿", "dirty": "便", "both": "湿 + 便"][detail ?? ""] ?? ""
+        case LogType.nurse, LogType.sleep: return end == nil ? L10n.t("进行中", "Active") : durationValue(seconds(on: day))
+        case LogType.bottle: return L10n.volume(ml: amount ?? 0)
+        case LogType.temp: return amount.map { L10n.temperature(tenthsC: $0) } ?? ""
+        case LogType.diaper:
+            return L10n.isEnglish
+                ? (["wet": "Wet", "dirty": "Dirty", "both": "Wet + dirty"][detail ?? ""] ?? "")
+                : (["wet": "湿", "dirty": "便", "both": "湿 + 便"][detail ?? ""] ?? "")
         default: return ""
         }
     }
@@ -851,14 +878,19 @@ extension LogEntry {
     /// ended (or began, if the day before), the whole length when it crosses midnight, what was eaten or noted.
     func meta(on day: Day, endShown: Bool = false) -> String {
         var bits: [String] = []
-        if type == LogType.nurse, let s = side { bits.append(s == "l" ? "左侧" : "右侧") }
+        if type == LogType.nurse, let s = side { bits.append(s == "l" ? L10n.t("左侧", "Left") : L10n.t("右侧", "Right")) }
         if let m = milk { bits.append(m) }
         if let e = endDate {
             let endsLater = Day(e) > day
-            if carriedOver(into: day) { bits.append("接昨天 \(hm(startDate)) · 到 \(hm(e))") }
-            else if !endShown || endsLater { bits.append("到 " + (endsLater ? "次日 " : "") + hm(e)) }
-            if carriedOver(into: day) || endsLater { bits.append("共 " + durationValue(activeSeconds)) }
-            if pausedSeconds >= 60 { bits.append("暂停 " + durationValue(pausedSeconds)) }
+            if carriedOver(into: day) {
+                bits.append(L10n.t("接昨天 \(hm(startDate)) · 到 \(hm(e))", "From yesterday \(hm(startDate)) · until \(hm(e))"))
+            } else if !endShown || endsLater {
+                bits.append(L10n.isEnglish
+                    ? "Until " + hm(e) + (endsLater ? " next day" : "")
+                    : "到 " + (endsLater ? "次日 " : "") + hm(e))
+            }
+            if carriedOver(into: day) || endsLater { bits.append(L10n.t("共 ", "Total ") + durationValue(activeSeconds)) }
+            if pausedSeconds >= 60 { bits.append(L10n.t("暂停 ", "Paused ") + durationValue(pausedSeconds)) }
         }
         if [LogType.solid, LogType.medicine, LogType.note, LogType.play].contains(type), let d = detail, !d.isEmpty {
             bits.append(type == LogType.play ? String(d.drop { $0 != " " }.dropFirst()) : d)
@@ -919,18 +951,18 @@ private struct DayTimeline: View {
                         .onTapGesture { edit(parts[0]) }
                         // VoiceOver: the row is a button that opens the editor; deleting is one of its actions
                         .accessibilityAddTraits(.isButton)
-                        .accessibilityHint("修改这条记录")
-                        .accessibilityAction(named: parts.count > 1 ? "删除这一顿" : "删除") { remove(parts) }
+                        .accessibilityHint(L10n.t("修改这条记录", "Edit this entry"))
+                        .accessibilityAction(named: parts.count > 1 ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除", "Delete")) { remove(parts) }
                         .contextMenu {
                             if parts.count > 1 {
                                 // a feed of two sides: each side can still be changed on its own; deleting takes the feed
                                 ForEach(parts) { p in
-                                    Button("修改" + (p.side == "r" ? "右侧" : "左侧") + " · " + hm(p.startDate), systemImage: "pencil") { edit(p) }
+                                    Button(L10n.t("修改" + (p.side == "r" ? "右侧" : "左侧"), "Edit " + (p.side == "r" ? "Right" : "Left")) + " · " + hm(p.startDate), systemImage: "pencil") { edit(p) }
                                 }
-                                Button("删除这一顿", systemImage: "trash", role: .destructive) { remove(parts) }
+                                Button(L10n.t("删除这一顿", "Delete feed"), systemImage: "trash", role: .destructive) { remove(parts) }
                             } else {
-                                Button("修改", systemImage: "pencil") { edit(e) }
-                                Button("删除", systemImage: "trash", role: .destructive) { delete(e) }
+                                Button(L10n.t("修改", "Edit"), systemImage: "pencil") { edit(e) }
+                                Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { delete(e) }
                             }
                         }
                 }
@@ -964,7 +996,7 @@ private struct GapRow: View {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
                 .frame(width: 28, height: 28)
-            Text(labeled("相隔", durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+            Text(labeled(L10n.t("相隔", "Quiet"), durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
         .accessibilityElement(children: .combine)
@@ -990,12 +1022,12 @@ private struct TimelineRow: View {
         // a feed of two sides: its length is the sides' together, and the sides come first in the details, in order
         let joined = parts.count > 1
         let value = joined ? durationValue(parts.reduce(0) { $0 + $1.seconds(on: day) }) : entry.value(on: day)
-        let sides = joined ? parts.map { ($0.side == "r" ? "右侧 " : "左侧 ") + durationValue($0.seconds(on: day)) }.joined(separator: " · ") : nil
+        let sides = joined ? parts.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.seconds(on: day)) }.joined(separator: " · ") : nil
         let span = entry.end != nil ? entry.seconds(on: day) : 0
         // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
         let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
         // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
-        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { labeled("距上一顿", durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
+        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { labeled(L10n.t("距上一顿", "Gap"), durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: " · ").components(separatedBy: " · ").filter { !$0.isEmpty }
         HStack(alignment: .top, spacing: 12) {
             VStack(alignment: .leading, spacing: 1) {
@@ -1041,7 +1073,7 @@ private struct TimelineRow: View {
                         }
                     }
                     .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                    .accessibilityElement(children: .ignore).accessibilityLabel(meta.joined(separator: "，"))
+                    .accessibilityElement(children: .ignore).accessibilityLabel(meta.joined(separator: L10n.t("，", ", ")))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -1067,7 +1099,7 @@ struct TimerAccessory: View {
                 HStack(spacing: 12) {
                     IconTile(symbol: LogType.symbol(timer.type), color: c, size: 30, round: true)
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(LogType.name(timer.type) + (timer.side == "l" ? " · 左侧" : timer.side == "r" ? " · 右侧" : "")).font(.footnote.weight(.semibold))
+                        Text(LogType.name(timer.type) + (timer.side == "l" ? L10n.t(" · 左侧", " · Left") : timer.side == "r" ? L10n.t(" · 右侧", " · Right") : "")).font(.footnote.weight(.semibold))
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
                             Ticking(text: span(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Palette.secondaryText)
                         }
@@ -1077,7 +1109,7 @@ struct TimerAccessory: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.toy)
-            .accessibilityLabel("打开\(LogType.name(timer.type))计时")
+            .accessibilityLabel(L10n.t("打开\(LogType.name(timer.type))计时", "Open \(LogType.name(timer.type)) timer"))
             if let o = also {
                 Button { j.focus = o.type } label: {
                     HStack(spacing: 6) {
@@ -1088,10 +1120,10 @@ struct TimerAccessory: View {
                     }
                 }
                 .buttonStyle(.toy)
-                .accessibilityLabel("打开\(LogType.name(o.type))计时")
+                .accessibilityLabel(L10n.t("打开\(LogType.name(o.type))计时", "Open \(LogType.name(o.type)) timer"))
             }
             Button { j.togglePause(timer.type) } label: { Image(systemName: timer.pausedAt == nil ? "pause.fill" : "play.fill") }
-                .accessibilityLabel(timer.pausedAt == nil ? "暂停" : "继续")
+                .accessibilityLabel(timer.pausedAt == nil ? L10n.t("暂停", "Pause") : L10n.t("继续", "Resume"))
         }
         .font(.body)
         .padding(.horizontal, 14)
@@ -1102,7 +1134,7 @@ struct TimerAccessory: View {
 /// "今天 14:05" / "昨天 23:40" / "10月20日 08:15" — the whole time, never shortened.
 func whenLabel(_ d: Date) -> String {
     let day = Day(d), today = Day.today
-    let name = day == today ? "今天" : day == today.plus(days: -1) ? "昨天" : day == today.plus(days: -2) ? "前天" : day.md
+    let name = day == today ? L10n.t("今天", "Today") : day == today.plus(days: -1) ? L10n.t("昨天", "Yesterday") : day == today.plus(days: -2) ? L10n.t("前天", "2 days ago") : day.md
     return "\(name) \(hm(d))"
 }
 
@@ -1126,8 +1158,8 @@ struct TimeSheet: View {
             }
             .navigationTitle(title).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { pick(date); dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { pick(date); dismiss() } }
             }
         }
         .onAppear {

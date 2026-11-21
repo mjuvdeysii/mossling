@@ -33,7 +33,7 @@ struct LevelGauge: View {
         }
         .sensoryFeedback(.selection, trigger: value)
         .accessibilityElement()
-        .accessibilityLabel(vessel == .bottle ? "奶量" : "体温")
+        .accessibilityLabel(vessel == .bottle ? L10n.t("奶量", "Volume") : L10n.t("体温", "Temperature"))
         .accessibilityValue(label(value))
         .accessibilityAdjustableAction { d in
             switch d {
@@ -149,7 +149,7 @@ struct WhenChips: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .firstTextBaseline) {
-                Text("时间").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                Text(L10n.t("时间", "Time")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                 Spacer(minLength: 8)
                 TimelineView(.periodic(from: .now, by: 30)) { tl in
                     Text(whenLabel(ago.map { tl.date.addingTimeInterval(-Double($0) * 60) } ?? exact))
@@ -159,11 +159,11 @@ struct WhenChips: View {
             WrapLayout(spacing: 8) {
                 ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                     let on = ago == m
-                    Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { withAnimation(.snappy) { ago = m } }
+                    Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) { withAnimation(.snappy) { ago = m } }
                         .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
                         .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                 }
-                Button(ago == nil ? "其他时间 ✓" : "其他时间…") { picking = true }
+                Button(ago == nil ? L10n.t("其他时间 ✓", "Other ✓") : L10n.t("其他时间…", "Other…")) { picking = true }
                     .buttonStyle(.vinyl(ago == nil ? tint : Color(hex: 0x8A8279)))
                     .fontWeight(ago == nil ? .semibold : .regular)
             }
@@ -173,7 +173,7 @@ struct WhenChips: View {
         .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         .sensoryFeedback(.selection, trigger: ago)
         .sheet(isPresented: $picking) {
-            TimeSheet(title: "时间", initial: ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? exact) { d in exact = d; withAnimation(.snappy) { ago = nil } }
+            TimeSheet(title: L10n.t("时间", "Time"), initial: ago.map { Date().addingTimeInterval(-Double($0) * 60) } ?? exact) { d in exact = d; withAnimation(.snappy) { ago = nil } }
                 .lampPresented()
         }
     }
@@ -199,7 +199,7 @@ struct ChoiceTile: View {
                 } else {
                     IconTile(symbol: symbol, color: tint, size: 46, round: true)
                 }
-                Text(title).font(.headline)
+                Text(title).font(.headline).lineLimit(1).minimumScaleFactor(0.8)
                 if let detail { Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit() }
             }
             .foregroundStyle(on ? Crayon.ink(tint) : Color.primary)
@@ -228,8 +228,8 @@ struct NudgeButtons: View {
     let tint: Color
     var body: some View {
         HStack(spacing: 10) {
-            nudge("minus", -step).accessibilityLabel("减少")
-            nudge("plus", step).accessibilityLabel("增加")
+            nudge("minus", -step).accessibilityLabel(L10n.t("减少", "Decrease"))
+            nudge("plus", step).accessibilityLabel(L10n.t("增加", "Increase"))
         }
     }
     private func nudge(_ sym: String, _ d: Double) -> some View {

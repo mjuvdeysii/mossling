@@ -88,7 +88,7 @@ struct TimerScreen: View {
                         // the same choices as every record's time: 现在, 5, 10, 15, 30 minutes, an hour
                         ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
-                            Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1h ago") : L10n.t("\(m) 分钟前", "\(m)m ago")) { withAnimation(.snappy) { startAt = nil; startAgo = m } }
+                            Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) { withAnimation(.snappy) { startAt = nil; startAgo = m } }
                                 .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
@@ -173,21 +173,21 @@ struct TimerScreen: View {
                         // a sleep shows its length once, in the moon; here, when it began instead
                         if type == LogType.sleep {
                             Button { picking = true } label: {
-                                Stat(title: "睡着于", value: whenLabel(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
+                                Stat(title: L10n.t("睡着于", "Asleep since"), value: whenLabel(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
                             }
-                            .buttonStyle(.toy).accessibilityHint("改开始时间")
+                            .buttonStyle(.toy).accessibilityHint(L10n.t("改开始时间", "Change start time"))
                         } else {
-                            Stat(title: "合计", value: span(t.total(now)), strong: true, tint: Crayon.ink(c))
+                            Stat(title: L10n.t("合计", "Total"), value: span(t.total(now)), strong: true, tint: Crayon.ink(c))
                         }
                         Divider().frame(height: 34)
-                        Stat(title: "暂停", value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
+                        Stat(title: L10n.t("暂停", "Paused"), value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                     }
                     .padding(.vertical, 12)
                     .printCard(radius: Radius.card)
 
                     if type != LogType.sleep {
                         Button { picking = true } label: {
-                            Label("开始于 " + whenLabel(Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000)), systemImage: "clock")
+                            Label(L10n.t("开始于 ", "Started ") + whenLabel(Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000)), systemImage: "clock")
                                 .font(.subheadline).monospacedDigit()
                         }
                         .buttonStyle(.glass)
@@ -198,21 +198,21 @@ struct TimerScreen: View {
             .scrollBounceBehavior(.basedOnSize)
         }
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("收起", systemImage: "chevron.down") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(L10n.t("收起", "Minimize"), systemImage: "chevron.down") { dismiss() } }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
-                    Button("已经结束了，选结束时间", systemImage: "clock.badge.checkmark") { ending = true }
-                    Button("提前 5 分钟开始", systemImage: "gobackward.5") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300)) }
-                    Button("提前 15 分钟开始", systemImage: "gobackward.15") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900)) }
+                    Button(L10n.t("已经结束了，选结束时间", "Already finished — pick end time"), systemImage: "clock.badge.checkmark") { ending = true }
+                    Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300)) }
+                    Button(L10n.t("提前 15 分钟开始", "Start 15 min earlier"), systemImage: "gobackward.15") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900)) }
                     Divider()
-                    Button("不记这一次", systemImage: "xmark", role: .destructive) { j.discard(type) }
-                } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
+                    Button(L10n.t("不记这一次", "Discard timer"), systemImage: "xmark", role: .destructive) { j.discard(type) }
+                } label: { Image(systemName: "ellipsis") }.accessibilityLabel(L10n.t("更多", "More"))
             }
         }
         // ending, alone: a full-width button in its own band, nothing beside it to hit by mistake
         .safeAreaBar(edge: .bottom) {
             Button { j.stop(type); dismiss() } label: {
-                Label(type == LogType.sleep ? "醒了，记下" : "喂完了，记下", systemImage: "checkmark")
+                Label(type == LogType.sleep ? L10n.t("醒了，记下", "Awake — Save") : L10n.t("喂完了，记下", "Done — Save"), systemImage: "checkmark")
                     .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 10)
             }
             .buttonStyle(.glassProminent).tint(Crayon.fill(c, lamp)).controlSize(.large)
@@ -221,11 +221,11 @@ struct TimerScreen: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: paused)
         .sensoryFeedback(.selection, trigger: side)
         .sheet(isPresented: $picking) {
-            TimeSheet(title: "开始时间", initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }.lampPresented()
+            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }.lampPresented()
         }
         .sheet(isPresented: $ending) {
             // the real end: not before it began, not later than now (or than the pause, if paused)
-            TimeSheet(title: type == LogType.sleep ? "什么时候醒的" : "什么时候喂完的",
+            TimeSheet(title: type == LogType.sleep ? L10n.t("什么时候醒的", "When did they wake?") : L10n.t("什么时候喂完的", "When did the feed end?"),
                       initial: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date(),
                       notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in j.stop(type, at: d); dismiss() }
                 .lampPresented()
@@ -236,15 +236,23 @@ struct TimerScreen: View {
     private func question(_ t: RunningTimer, _ now: Double) -> (key: String, text: String, keep: String, end: String)? {
         let key = "\(t.type)-\(Int(t.start))"
         if let p = t.pausedAt, now - p > 20 * 60_000, !acked.contains(key + "p") {
-            return (key + "p", "已经暂停了 " + durationValue((now - p) / 1000) + "。" + (type == LogType.sleep ? "宝宝已经醒了吗？" : "这一顿喂完了吗？"),
-                    type == LogType.sleep ? "还在睡" : "还没喂完", type == LogType.sleep ? "选醒来时间" : "选结束时间")
+            let dur = durationValue((now - p) / 1000)
+            return (key + "p",
+                    L10n.t("已经暂停了 " + dur + "。" + (type == LogType.sleep ? "宝宝已经醒了吗？" : "这一顿喂完了吗？"),
+                           "Paused for " + dur + ". " + (type == LogType.sleep ? "Already awake?" : "Finished feeding?")),
+                    type == LogType.sleep ? L10n.t("还在睡", "Still asleep") : L10n.t("还没喂完", "Still feeding"),
+                    type == LogType.sleep ? L10n.t("选醒来时间", "Set wake time") : L10n.t("选结束时间", "Set end time"))
         }
         let total = t.total(now)
         if type == LogType.nurse, total > 3600, !acked.contains(key) {
-            return (key, "这次亲喂已经计时 " + durationValue(total) + "，还在喂吗？", "还在喂", "选结束时间")
+            let dur = durationValue(total)
+            return (key, L10n.t("这次亲喂已经计时 " + dur + "，还在喂吗？", "Nursing has run for " + dur + ". Still feeding?"),
+                    L10n.t("还在喂", "Still feeding"), L10n.t("选结束时间", "Set end time"))
         }
         if type == LogType.sleep, total > 12 * 3600, !acked.contains(key) {
-            return (key, "已经睡了 " + durationValue(total) + "，是不是忘了记醒来？", "还在睡", "选醒来时间")
+            let dur = durationValue(total)
+            return (key, L10n.t("已经睡了 " + dur + "，是不是忘了记醒来？", "Asleep for " + dur + ". Forgot to log wake?"),
+                    L10n.t("还在睡", "Still asleep"), L10n.t("选醒来时间", "Set wake time"))
         }
         return nil
     }
@@ -308,10 +316,10 @@ private struct SidePad: View {
     var body: some View {
         Button(action: tap) { face }
             .buttonStyle(.toy)
-            .accessibilityLabel((side == "l" ? "左侧" : "右侧") + (isReady ? "" : " " + minutesOf(seconds)))
+            .accessibilityLabel((side == "l" ? L10n.t("左侧", "Left") : L10n.t("右侧", "Right")) + (isReady ? "" : " " + minutesOf(seconds)))
             .accessibilityHint(hint)
             .accessibilityAddTraits(state == .other || isReady ? [] : .isSelected)
-            .accessibilityValue(state == .ready(suggested: true) ? "建议从这一侧开始" : "")
+            .accessibilityValue(state == .ready(suggested: true) ? L10n.t("建议从这一侧开始", "Suggested side to start") : "")
     }
 
     // Split out of `body`: the whole pad in one expression was more than the type checker would chew through.
@@ -332,7 +340,7 @@ private struct SidePad: View {
 
     private var label: some View {
         VStack(spacing: 2) {
-            Text(side == "l" ? "左" : "右").font(Typeface.numerals(28, weight: .heavy))
+            Text(side == "l" ? L10n.t("左", "Left") : L10n.t("右", "Right")).font(Typeface.numerals(28, weight: .heavy)).lineLimit(1).minimumScaleFactor(0.75)
             Group {
                 // before it starts the big 左 / 右 already names the side: the line keeps its height, empty
                 if isReady { Text("00:00").hidden() }
@@ -379,7 +387,7 @@ private struct SidePad: View {
 
     @ViewBuilder private var badge: some View {
         if state == .ready(suggested: true) {
-            Text("建议").font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
+            Text(L10n.t("建议", "Suggested")).font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
                 .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(color)).padding(10)
         }
     }
@@ -392,10 +400,10 @@ private struct SidePad: View {
     private var isReady: Bool { if case .ready = state { true } else { false } }
     private var hint: String {
         switch state {
-        case .running: "点按暂停"
-        case .paused: "点按继续"
-        case .other: "点按换到这侧"
-        case .ready: "点按开始"
+        case .running: L10n.t("点按暂停", "Tap to pause")
+        case .paused: L10n.t("点按继续", "Tap to resume")
+        case .other: L10n.t("点按换到这侧", "Tap to switch")
+        case .ready: L10n.t("点按开始", "Tap to start")
         }
     }
 }
@@ -420,8 +428,8 @@ private struct SleepPad: View {
         if ready {
             Button(action: tap) { face }
                 .buttonStyle(.toy)
-                .accessibilityLabel("开始睡觉")
-                .accessibilityHint("点按开始计时")
+                .accessibilityLabel(L10n.t("开始睡觉", "Start Sleep"))
+                .accessibilityHint(L10n.t("点按开始计时", "Tap to start sleep timer"))
         } else {
             face
                 .accessibilityElement(children: .contain)
@@ -435,17 +443,17 @@ private struct SleepPad: View {
             VStack(spacing: 6) {
                 IconTile(symbol: LogType.symbol(LogType.sleep), color: color, size: 46, round: true)
                 Group {
-                    if ready { Text("开始睡觉") } else { Ticking(text: clock(seconds)) }
+                    if ready { Text(L10n.t("开始睡觉", "Start Sleep")) } else { Ticking(text: clock(seconds)) }
                 }
                 .font(Typeface.numerals(ready ? 30 : 38, relativeTo: .largeTitle, weight: .bold))
                 .lineLimit(1).minimumScaleFactor(0.6)
-                .accessibilityLabel(ready ? "开始睡觉" : "睡眠 " + minutesOf(seconds))
+                .accessibilityLabel(ready ? L10n.t("开始睡觉", "Start Sleep") : L10n.t("睡眠 ", "Sleep ") + minutesOf(seconds))
                 // before it starts the moon already says 开始睡觉: no second line saying it again
                 if !ready {
                     Button(action: tap) {
                         HStack(spacing: 4) {
                             Image(systemName: paused ? "play.fill" : "pause.fill")
-                            Text(paused ? "继续" : "暂停").lineLimit(1)
+                            Text(paused ? L10n.t("继续", "Resume") : L10n.t("暂停", "Pause")).lineLimit(1)
                         }
                         .font(.subheadline.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
                         .padding(.horizontal, 16)
@@ -454,7 +462,7 @@ private struct SleepPad: View {
                         .contentShape(Capsule())
                     }
                     .buttonStyle(.toy)
-                    .accessibilityLabel(paused ? "继续睡眠计时" : "暂停睡眠计时")
+                    .accessibilityLabel(paused ? L10n.t("继续睡眠计时", "Resume sleep timer") : L10n.t("暂停睡眠计时", "Pause sleep timer"))
                 }
             }
             .frame(width: 170)

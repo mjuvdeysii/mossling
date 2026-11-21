@@ -42,7 +42,7 @@ struct AskSheet: View {
             }
             .safeAreaBar(edge: .bottom) { saveBar }
             .navigationBarTitleDisplayMode(.inline)   // the name is on the stage
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } } }
             .background { PageBackground(tone: LogType.color(type)) }
         }
         .presentationDetents([.large])
@@ -60,16 +60,16 @@ struct AskSheet: View {
         switch type {
         case LogType.bottle:
             HStack(spacing: 12) {
-                ChoiceTile(sticker: "ic_heart_fill.webp", symbol: "heart.fill", title: "母乳", on: milk == "breastmilk", tint: Crayon.pink, height: 78) { withAnimation(.snappy) { milk = "breastmilk" } }
-                ChoiceTile(sticker: "ic_waterbottle_fill.webp", symbol: "waterbottle.fill", title: "配方奶", on: milk == "formula", tint: Crayon.peach, height: 78) { withAnimation(.snappy) { milk = "formula" } }
+                ChoiceTile(sticker: "ic_heart_fill.webp", symbol: "heart.fill", title: L10n.t("母乳", "Breast milk"), on: milk == "breastmilk", tint: Crayon.pink, height: 78) { withAnimation(.snappy) { milk = "breastmilk" } }
+                ChoiceTile(sticker: "ic_waterbottle_fill.webp", symbol: "waterbottle.fill", title: L10n.t("配方奶", "Formula"), on: milk == "formula", tint: Crayon.peach, height: 78) { withAnimation(.snappy) { milk = "formula" } }
             }
             HStack(alignment: .center, spacing: 16) {
                 LevelGauge(vessel: .bottle, value: $ml, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" },
                            tint: c, liquid: milk == "breastmilk" ? Color(hex: 0xFFF6E2) : Color(hex: 0xF6E2BC))
                     .frame(width: 112, height: 252)
                 VStack(alignment: .leading, spacing: 12) {
-                    ValueText(parts: [("\(Int(ml))", "毫升")], size: 52).foregroundStyle(lamp ? Palette.lampInk : Color.primary)
-                    Text("点按或上下拖动奶瓶").font(.footnote).foregroundStyle(Palette.secondaryText)
+                    ValueText(parts: [("\(Int(ml))", L10n.t("毫升", "ml"))], size: 52).foregroundStyle(lamp ? Palette.lampInk : Color.primary)
+                    Text(L10n.t("点按或上下拖动奶瓶", "Tap or drag the bottle")).font(.footnote).foregroundStyle(Palette.secondaryText)
                     FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in withAnimation(.snappy) { ml = Double(v) } }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -77,9 +77,9 @@ struct AskSheet: View {
             .padding(16)
             .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         case LogType.diaper:
-            Text("点一下即记下").font(.subheadline).foregroundStyle(Palette.secondaryText)
+            Text(L10n.t("点一下即记下", "Tap one to log")).font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 10) {
-                ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
+                ForEach([("wet", L10n.t("湿", "Wet"), "drop.halffull", "ic_drop_halffull.webp"), ("dirty", L10n.t("便", "Dirty"), "circle.fill", "ic_diaper_dirty.webp"), ("both", L10n.t("都有", "Both"), "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
                     ChoiceTile(sticker: art, symbol: sym, title: t, on: chosen == k, tint: c, height: 116) {
                         guard chosen == nil else { return }
                         withAnimation(.snappy) { chosen = k }
@@ -98,11 +98,13 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
                         .foregroundStyle(temp >= 380 ? Palette.danger : lamp ? Palette.lampInk : .primary)
-                    Text("点按或上下拖动体温计").font(.footnote).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("点按或上下拖动体温计", "Tap or drag the thermometer")).font(.footnote).foregroundStyle(Palette.secondaryText)
                     // a fever is not only a red number: what to do is said under it, in the sourced words of 发热就医
                     // (AAP, checked 2026-10-17), and the doctor has the last word
                     if temp >= 380 {
-                        Text((app.content.health.first { $0.topic == "发热就医" }?.text ?? "未满3个月体温达到或超过38.0°C，应立即联系医生或就医。") + "以医生的判断为准。")
+                        let feverNote = app.content.health.first { $0.topic == "发热就医" || $0.topic.localizedCaseInsensitiveContains("fever") }?.text
+                            ?? L10n.t("未满3个月体温达到或超过38.0°C，应立即联系医生或就医。", "Under 3 months, a temperature of 38.0 °C (100.4 °F) or higher calls for prompt medical advice.")
+                        Text(feverNote + L10n.t("以医生的判断为准。", " Always follow your doctor's advice."))
                             .font(.footnote.weight(.semibold)).foregroundStyle(Palette.danger)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -113,13 +115,19 @@ struct AskSheet: View {
             .padding(16)
             .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
         default:
-            let (title, hint, chips): (String, String, [String]) = type == LogType.solid ? ("吃了什么", "食物和大概的量", ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
-                : type == LogType.medicine ? ("用了什么药", "药名与剂量，按医嘱或说明书", ["维生素 D", "维生素 AD"]) : ("备注", "发生了什么", [])
+            let (title, hint, chips): (String, String, [String]) = type == LogType.solid
+                ? (L10n.t("吃了什么", "What did they eat?"), L10n.t("食物和大概的量", "Food and rough amount"),
+                   L10n.isEnglish ? ["Cereal", "Veggie purée", "Fruit purée", "Meat purée", "Egg yolk", "Oatmeal"] : ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
+                : type == LogType.medicine
+                ? (L10n.t("用了什么药", "Medicine"), L10n.t("药名与剂量，按医嘱或说明书", "Name and dose, per doctor or label"),
+                   L10n.isEnglish ? ["Vitamin D", "Vitamin AD"] : ["维生素 D", "维生素 AD"])
+                : (L10n.t("备注", "Note"), L10n.t("发生了什么", "What happened?"), [])
             Text(title).font(.headline)
             TextField(hint, text: $text, axis: .vertical).lineLimit(type == LogType.note ? 3...6 : 1...3).focused($typing)
                 .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
             if !chips.isEmpty {
-                FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + "、" + chips[i] }
+                let sep = L10n.t("、", ", ")
+                FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + sep + chips[i] }
             }
         }
     }
@@ -142,7 +150,7 @@ struct AskSheet: View {
     /// view at the foot of the sheet whatever is above it — a one-handed parent never scrolls to find it.
     @ViewBuilder private var saveBar: some View {
         if let s = submit {
-            Button { if s.run() { saved += 1; dismiss() } else { failed = true } } label: { Text("记下").frame(maxWidth: .infinity) }
+            Button { if s.run() { saved += 1; dismiss() } else { failed = true } } label: { Text(L10n.t("记下", "Save")).frame(maxWidth: .infinity) }
                 .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!s.enabled)
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
         }
@@ -239,7 +247,7 @@ struct EntrySheet: View {
                                 let c = current
                                 Text(hm(c[0].startDate) + " · " + durationValue(c.reduce(0) { $0 + $1.activeSeconds }))
                                     .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                                Text(c.map { ($0.side == "r" ? "右侧 " : "左侧 ") + durationValue($0.activeSeconds) }.joined(separator: " · "))
+                                Text(c.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.activeSeconds) }.joined(separator: " · "))
                                     .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                             } else {
                                 Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
@@ -252,7 +260,7 @@ struct EntrySheet: View {
                 }
                 .listRowBackground(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(LogType.color(entry.type).opacity(0.16)))
                 if isNew {
-                    Picker("类型", selection: $entry.type) {
+                    Picker(L10n.t("类型", "Kind"), selection: $entry.type) {
                         ForEach(LogType.buttons.filter { $0 != LogType.growth }, id: \.self) { Text(LogType.name($0)).tag($0) }
                     }
                     .onChange(of: entry.type) { _, t in
@@ -262,38 +270,38 @@ struct EntrySheet: View {
                 }
                 if whole {
                     // which side is being changed: each keeps its own times and side
-                    Picker("修改", selection: Binding(get: { sel }, set: { choose($0) })) {
-                        ForEach(parts.indices, id: \.self) { i in Text("第 \(i + 1) 段 · " + (current[i].side == "r" ? "右侧" : "左侧")).tag(i) }
+                    Picker(L10n.t("修改", "Side"), selection: Binding(get: { sel }, set: { choose($0) })) {
+                        ForEach(parts.indices, id: \.self) { i in Text(L10n.t("第 \(i + 1) 段 · " + (current[i].side == "r" ? "右侧" : "左侧"), "Part \(i + 1) · " + (current[i].side == "r" ? "Right" : "Left"))).tag(i) }
                     }
                     .pickerStyle(.segmented)
                     .listRowBackground(Color.clear)
                 }
                 Section {
                     let now = Date()
-                    DatePicker(entry.end != nil ? "开始" : "时间", selection: Binding(get: { min(entry.startDate, now) }, set: { d in
+                    DatePicker(entry.end != nil ? L10n.t("开始", "Start") : L10n.t("时间", "Time"), selection: Binding(get: { min(entry.startDate, now) }, set: { d in
                         let delta = ms(d) - entry.start
                         entry.start = ms(d)
                         if let e = entry.end { entry.end = min(ms(Date()), max(entry.start + 60_000, e + delta)) }
                     }), in: ...now, displayedComponents: [.date, .hourAndMinute])
                     if let e = entry.endDate {
                         let endLower = min(entry.startDate, now)
-                        DatePicker("结束", selection: Binding(get: { min(max(e, endLower), now) }, set: { entry.end = max(entry.start + 60_000, ms($0)) }),
+                        DatePicker(L10n.t("结束", "End"), selection: Binding(get: { min(max(e, endLower), now) }, set: { entry.end = max(entry.start + 60_000, ms($0)) }),
                                    in: endLower...now, displayedComponents: [.date, .hourAndMinute])
-                        LabeledContent("时长", value: minutesOf(entry.activeSeconds))
+                        LabeledContent(L10n.t("时长", "Duration"), value: minutesOf(entry.activeSeconds))
                     }
                 }
                 Section { fields }
                 if !isNew {
                     // a feed of two sides goes whole: one change, one 撤销
-                    Section { Button(whole ? "删除这一顿" : "删除这条", role: .destructive) { if whole { j.delete(original) } else { j.delete(entry) }; dismiss() } }
+                    Section { Button(whole ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除这条", "Delete entry"), role: .destructive) { if whole { j.delete(original) } else { j.delete(entry) }; dismiss() } }
                 }
             }
             .scrollContentBackground(.hidden)
             .pageBackground(tone: LogType.color(entry.type))
-            .navigationTitle((isNew ? "补记 · " : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
+            .navigationTitle((isNew ? L10n.t("补记 · ", "Add · ") : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if save() { dismiss() } else { failed = true } } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if save() { dismiss() } else { failed = true } } }
             }
         }
     }
@@ -302,15 +310,15 @@ struct EntrySheet: View {
         let c = LogType.color(entry.type)
         switch entry.type {
         case LogType.bottle:
-            Picker("奶", selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
-                Text("未填").tag(""); Text("母乳").tag("breastmilk"); Text("配方奶").tag("formula")
+            Picker(L10n.t("奶", "Milk"), selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
+                Text(L10n.t("未填", "Not set")).tag(""); Text(L10n.t("母乳", "Breast milk")).tag("breastmilk"); Text(L10n.t("配方奶", "Formula")).tag("formula")
             }
             let amount = Binding<Double>(get: { Double(entry.amount ?? 120) }, set: { entry.amount = Int($0) })
             HStack(spacing: 16) {
                 LevelGauge(vessel: .bottle, value: amount, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" }, tint: c)
                     .frame(width: 92, height: 196)
                 VStack(alignment: .leading, spacing: 12) {
-                    ValueText(parts: [("\(entry.amount ?? 120)", "毫升")], size: 40)
+                    ValueText(parts: [("\(entry.amount ?? 120)", L10n.t("毫升", "ml"))], size: 40)
                     NudgeButtons(value: amount, range: 5...300, step: 5, tint: c)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -319,7 +327,7 @@ struct EntrySheet: View {
         case LogType.nurse:
             HStack(spacing: 10) {
                 // the sides read 左侧 / 右侧, never L / R; the arrow only points the way
-                ForEach([("l", "左侧"), ("r", "右侧")], id: \.0) { k, t in
+                ForEach([("l", L10n.t("左侧", "Left")), ("r", L10n.t("右侧", "Right"))], id: \.0) { k, t in
                     ChoiceTile(sticker: nil, symbol: k == "l" ? "arrow.left.circle.fill" : "arrow.right.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: c, height: 76) { withAnimation(.snappy) { entry.side = k } }
                         .accessibilityLabel(t)
                 }
@@ -327,7 +335,7 @@ struct EntrySheet: View {
             .padding(.vertical, 4)
         case LogType.diaper:
             HStack(spacing: 10) {
-                ForEach([("wet", "湿", "drop.halffull", "ic_drop_halffull.webp"), ("dirty", "便", "circle.fill", "ic_diaper_dirty.webp"), ("both", "都有", "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
+                ForEach([("wet", L10n.t("湿", "Wet"), "drop.halffull", "ic_drop_halffull.webp"), ("dirty", L10n.t("便", "Dirty"), "circle.fill", "ic_diaper_dirty.webp"), ("both", L10n.t("都有", "Both"), "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
                     ChoiceTile(sticker: art, symbol: sym, title: t, on: (entry.detail ?? "wet") == k, tint: c, height: 96) { withAnimation(.snappy) { entry.detail = k } }
                 }
             }
@@ -346,7 +354,7 @@ struct EntrySheet: View {
             }
             .padding(.vertical, 6)
         case LogType.solid, LogType.medicine, LogType.note:
-            TextField(entry.type == LogType.solid ? "食物和大概的量" : entry.type == LogType.medicine ? "药名与剂量" : "发生了什么",
+            TextField(entry.type == LogType.solid ? L10n.t("食物和大概的量", "Food and rough amount") : entry.type == LogType.medicine ? L10n.t("药名与剂量", "Name and dose") : L10n.t("发生了什么", "What happened?"),
                       text: Binding(get: { entry.detail ?? "" }, set: { entry.detail = String($0.prefix(120)) }), axis: .vertical)
         default: EmptyView()
         }
@@ -374,22 +382,32 @@ struct MeasureSheet: View {
         NavigationStack {
             Form {
                 if failed { Section { SaveFailed() } }
-                DatePicker("日期", selection: $day, in: ...Date(), displayedComponents: .date)
-                Section { field("体重", "千克", $w, "scalemass.fill", Indicator.weight) } footer: {
-                    note(w, ok: wg != nil, base: "精确到 0.01 千克，如 7.85", bad: "体重请在 1–30 千克之间",
-                         extra: (Double(w) ?? 0) > 300 && wg != nil ? "已按克换算为 " + String(format: "%.2f", Double(wg!) / 1000) + " 千克" : nil)
+                DatePicker(L10n.t("日期", "Date"), selection: $day, in: ...Date(), displayedComponents: .date)
+                Section { field(L10n.t("体重", "Weight"), L10n.t("千克", "kg"), $w, "scalemass.fill", Indicator.weight) } footer: {
+                    note(w, ok: wg != nil,
+                         base: L10n.t("精确到 0.01 千克，如 7.85", "To 0.01 kg, e.g. 7.85"),
+                         bad: L10n.t("体重请在 1–30 千克之间", "Weight must be between 1 and 30 kg"),
+                         extra: (Double(w) ?? 0) > 300 && wg != nil ? L10n.t("已按克换算为 ", "Converted from grams: ") + String(format: "%.2f", Double(wg!) / 1000) + L10n.t(" 千克", " kg") : nil)
                 }
-                Section { field("身长 / 身高", "厘米", $l, "ruler.fill", Indicator.length) } footer: { note(l, ok: lm != nil, base: "精确到 0.1 厘米；2 岁前躺着量身长", bad: "身长请在 35–120 厘米之间") }
-                Section { field("头围", "厘米", $h, "circle.dashed", Indicator.head) } footer: { note(h, ok: hm != nil, base: "精确到 0.1 厘米，经眉上缘与后脑最突出处", bad: "头围请在 25–60 厘米之间") }
-                if !isNew { Section { Button("删除这次测量", role: .destructive) { j.deleteMeasure(measure); dismiss() } } }
+                Section { field(L10n.t("身长 / 身高", "Length / Height"), L10n.t("厘米", "cm"), $l, "ruler.fill", Indicator.length) } footer: {
+                    note(l, ok: lm != nil,
+                         base: L10n.t("精确到 0.1 厘米；2 岁前躺着量身长", "To 0.1 cm; measure lying down under age 2"),
+                         bad: L10n.t("身长请在 35–120 厘米之间", "Length must be between 35 and 120 cm"))
+                }
+                Section { field(L10n.t("头围", "Head"), L10n.t("厘米", "cm"), $h, "circle.dashed", Indicator.head) } footer: {
+                    note(h, ok: hm != nil,
+                         base: L10n.t("精确到 0.1 厘米，经眉上缘与后脑最突出处", "To 0.1 cm, above eyebrows around widest back of head"),
+                         bad: L10n.t("头围请在 25–60 厘米之间", "Head circumference must be between 25 and 60 cm"))
+                }
+                if !isNew { Section { Button(L10n.t("删除这次测量", "Delete measurement"), role: .destructive) { j.deleteMeasure(measure); dismiss() } } }
             }
             .scrollContentBackground(.hidden)
             .pageBackground(tone: Crayon.tangerine)
-            .navigationTitle(isNew ? "记一次测量" : "这次测量").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(isNew ? L10n.t("记一次测量", "Log Measurement") : L10n.t("这次测量", "Measurement")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("完成", systemImage: "checkmark") {
+                    Button(L10n.t("完成", "Done"), systemImage: "checkmark") {
                         var m = measure; m.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day); m.weightG = wg; m.lengthMm = lm; m.headMm = hm
                         if j.saveMeasure(m) { dismiss() } else { failed = true }
                     }
@@ -431,7 +449,7 @@ extension Indicator {
 /// failure); what was typed stays.
 struct SaveFailed: View {
     var body: some View {
-        Label { Text("没有保存成功，填写的内容还在，请再点一次。如果反复出现，请检查 iPhone 的存储空间。").fixedSize(horizontal: false, vertical: true) }
+        Label { Text(L10n.t("没有保存成功，填写的内容还在，请再点一次。如果反复出现，请检查 iPhone 的存储空间。", "Could not save — your entry is still here. Try again, or check available iPhone storage if this keeps happening.")).fixedSize(horizontal: false, vertical: true) }
             icon: { Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Palette.danger) }
             .font(.subheadline)
             .padding(14).frame(maxWidth: .infinity, alignment: .leading)
