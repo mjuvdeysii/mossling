@@ -412,6 +412,9 @@ struct GrowthMap: View {
             withAnimation(.spring(response: 0.55, dampingFraction: 0.6)) { preview = baby }
             arrived += 1
         }
+        .onChange(of: preview) { _, _ in TactileEngine.shared.beadClick() }
+        .onChange(of: arrived) { _, _ in TactileEngine.shared.goldChime() }
+        .onChange(of: giggles) { _, _ in TactileEngine.shared.vinylPop() }
         .sensoryFeedback(.selection, trigger: preview)
         // crossing into a new year (出生, 1 岁, 2 岁, 3 岁) is felt more than a month
         .sensoryFeedback(.impact(weight: .medium), trigger: MapGeo.row(preview))

@@ -18,6 +18,8 @@ struct JournalView: View {
     @State private var editing: LogEntry?
     @State private var measuring: Measure?
     @State private var newFirst: First?
+    @State private var showingLamp = false
+    @State private var soundscape = SoundscapeEngine.shared
     @Environment(\.dynamicTypeSize) private var size
 
     init(path: Binding<NavigationPath>, only: String? = nil) {
@@ -28,6 +30,7 @@ struct JournalView: View {
     private func move(to next: Day) {
         guard next != day else { return }
         dayDirection = next.epochDay > day.epochDay ? 1 : -1
+        TactileEngine.shared.pageTurn()
         withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.86)) { day = next }
     }
 
@@ -57,7 +60,7 @@ struct JournalView: View {
                 })
                 let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
                 pair {
-                    NavigationLink(value: JournalRoute.stats) { tile(L10n.t("最近七天", "Last 7 Days"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
+                    NavigationLink(value: JournalRoute.stats) { tile(L10n.t("昼夜节律", "Rhythm & 7d"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
                     NavigationLink(value: JournalRoute.growth) { tile(L10n.t("生长曲线", "Growth Curve"), "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
                 }
                 // the two tiles side by side are one height: top and bottom edges line up
@@ -74,6 +77,15 @@ struct JournalView: View {
                 ToolbarItem(placement: .topBarLeading) { Button(L10n.t("今天", "Today")) { move(to: app.today) } }
             }
             ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingLamp = true
+                } label: {
+                    Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
+                        .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
+                }
+                .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
+
                 ShareLink(item: handoverText) {
                     Image(systemName: "person.2.wave.2")
                 }
@@ -89,6 +101,7 @@ struct JournalView: View {
                 .accessibilityLabel(L10n.t("补记、第一次、测量", "Add entry, first, or measurement"))
             }
         }
+        .fullScreenCover(isPresented: $showingLamp) { BedsideLampView() }
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
         .sheet(isPresented: $pickingDay) {
             NavigationStack {

@@ -35,6 +35,8 @@ struct YouView: View {
                     SwitchRow(title: L10n.t("晚上自动开夜灯", "Auto Night Lamp"), detail: app.theme == .system ? "19:00–06:00" : L10n.t("外观选「自动」时生效", "Active when Appearance is Auto"), symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight, resting: app.theme != .system)
                         .disabled(app.theme != .system)
                     Divider().padding(.leading, 52).opacity(0.5)
+                    SwitchRow(title: L10n.t("轻柔手感音效", "Tactile Sounds"), detail: L10n.t("木珠轻敲与翻页声；夜灯与睡眠时自动静音", "Soft wood & paper cues; muted at night"), symbol: "hand.tap.fill", color: Crayon.teal, on: $app.tactileSounds)
+                    Divider().padding(.leading, 52).opacity(0.5)
                     SwitchRow(title: L10n.t("记录", "Care Journal"), detail: L10n.t("显示记录标签页", "Show the Log tab"), symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
                     if face {
                         Divider().padding(.leading, 52).opacity(0.5)
