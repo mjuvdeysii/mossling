@@ -14,7 +14,7 @@ enum LogType {
             case solid: return "Solids"; case bath: return "Bath"; case temp: return "Temp"; case medicine: return "Medicine"; case note: return "Note"
             case play: return "Play"; case growth: return "Growth"; default: return t }
         }
-        switch t { case nurse: "亲喂"; case bottle: "瓶喂"; case sleep: "睡觉"; case diaper: "尿布"; case solid: "辅食"; case bath: "洗澡"
+        return switch t { case nurse: "亲喂"; case bottle: "瓶喂"; case sleep: "睡觉"; case diaper: "尿布"; case solid: "辅食"; case bath: "洗澡"
         case temp: "体温"; case medicine: "用药"; case note: "备注"; case play: "一起玩"; case growth: "生长"; default: t }
     }
     static func symbol(_ t: String) -> String {
@@ -198,7 +198,7 @@ struct LastFact {
 /// A running timer's state, one way everywhere (widget, Live Activity, home, records): 「亲喂 · 右侧 · 已暂停」.
 func timerState(_ type: String, side: String?, paused: Bool) -> String {
     if L10n.isEnglish { return LogType.name(type) + (side == "l" ? " · Left" : side == "r" ? " · Right" : "") + (paused ? " · Paused" : "") }
-    LogType.name(type) + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (paused ? " · 已暂停" : "")
+    return LogType.name(type) + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (paused ? " · 已暂停" : "")
 }
 
 /// One way to write a length of time everywhere (app, widget, Live Activity): "18 分钟", "1 小时 5 分", "2 小时".
