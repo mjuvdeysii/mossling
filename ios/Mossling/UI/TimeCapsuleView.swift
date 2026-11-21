@@ -495,7 +495,7 @@ struct CapsuleComposeSheet: View {
                         Text(L10n.t("约定拆封时间", "When to Unseal"))
                             .font(.footnote.weight(.bold))
                             .foregroundStyle(Palette.secondaryText)
-                        FlowRow(spacing: 8, lineSpacing: 8) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 94), spacing: 8)], alignment: .leading, spacing: 8) {
                             ForEach(availableChoices) { choice in
                                 let picked = unlockOption == choice
                                 Button {
@@ -505,8 +505,9 @@ struct CapsuleComposeSheet: View {
                                     Text(choice.label)
                                         .font(.footnote.weight(.semibold))
                                         .foregroundStyle(picked ? .white : .primary)
-                                        .padding(.horizontal, 12)
-                                        .padding(.vertical, 7)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 8)
                                         .background(Capsule().fill(picked ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
                                         .overlay(Capsule().strokeBorder(Palette.outline.opacity(picked ? 0 : 0.35), lineWidth: 0.75))
                                 }
