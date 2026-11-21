@@ -69,11 +69,11 @@ enum Palette {
     static func areaKey(of play: Play) -> String {
         let d = (play.domains.first ?? "").lowercased()
         let rules: [(String, [String])] = [
-            ("F", ["安全", "照护", "调节", "safety", "care", "regulation"]),
             ("E", ["生活", "自理", "自主", "文化", "家庭", "practical", "self-care", "independence", "culture", "family"]),
+            ("F", ["安全", "照护", "调节", "safety", "care", "regulation", "soothing"]),
             ("A", ["语言", "共读", "表达", "多语言", "language", "reading", "communication", "multilingual"]),
             ("B", ["大运动", "运动", "gross motor", "movement", "mobility"]),
-            ("D", ["社会", "社交", "关系", "情绪", "合作", "轮流", "共同注意", "假装", "规则", "social", "emotional", "relationship", "turn-taking", "pretend", "cooperation"]),
+            ("D", ["社会", "社交", "关系", "情绪", "合作", "轮流", "共同注意", "假装", "规则", "social", "emotional", "relationship", "connection", "turn-taking", "pretend", "cooperation"]),
         ]
         return rules.first { _, words in words.contains { d.contains($0) } }?.0 ?? "C"
     }

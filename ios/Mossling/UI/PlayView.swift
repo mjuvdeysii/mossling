@@ -60,7 +60,7 @@ struct PlayView: View {
                 }
 
                 if !play.observe.isEmpty || !play.pause.isEmpty {
-                    Fold(title: L10n.t("做的时候", "While Playing"), summary: [play.observe.isEmpty ? nil : L10n.t("看什么", "Observe"), play.pause.isEmpty ? nil : L10n.t("停下来", "When to Pause")].compactMap { $0 }.joined(separator: " · "),
+                    Fold(title: L10n.t("做的时候", "While Playing"), summary: [play.observe.isEmpty ? nil : L10n.t("看什么", "Observe"), play.pause.isEmpty ? nil : L10n.t("停下来", "Pause")].compactMap { $0 }.joined(separator: " · "),
                          symbol: "eye.fill", color: Crayon.sky, open: $during) {
                         if !play.observe.isEmpty { BoxRow(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("看什么", "Observe"), text: play.observe, last: play.pause.isEmpty) }
                         if !play.pause.isEmpty { BoxRow(symbol: "hand.raised.fill", color: Crayon.lilac, title: L10n.t("停下来", "When to Pause"), text: play.pause, last: true) }
