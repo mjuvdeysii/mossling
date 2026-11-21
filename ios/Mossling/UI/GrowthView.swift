@@ -306,7 +306,7 @@ struct StatsView: View {
         }
         return out
     }
-    private enum Scale { case count, minutes, hours }
+    fileprivate enum Scale { case count, minutes, hours }
     private struct Spec { let title: String; let unit: String; let scale: Scale; let type: String; let data: [(Day, Double)] }
     /// The charts there is something for: feeds, minutes at the breast and bottle millilitres when any were recorded,
     /// sleep, nappies.
