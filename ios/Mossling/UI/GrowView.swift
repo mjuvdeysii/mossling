@@ -261,18 +261,18 @@ struct PlayActions: View {
     var body: some View {
         let rec = app.record(play, j)
         let shelf = app.weekShelf(app.babyMonth ?? month).plays.map(\.code)
-        if !inPage { Button(rec.count == 0 ? "玩过了" : "又玩了一次", systemImage: "checkmark.circle") { if app.mayKeep() { app.didPlay(play, month: month, j) } } }
-        if rec.count > 0 { Button("撤销最近一次", systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
+        if !inPage { Button(rec.count == 0 ? L10n.t("玩过了", "Played") : L10n.t("又玩了一次", "Played again"), systemImage: "checkmark.circle") { if app.mayKeep() { app.didPlay(play, month: month, j) } } }
+        if rec.count > 0 { Button(L10n.t("撤销最近一次", "Undo last play"), systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         let m = app.babyMonth ?? month
         if app.todayPlay(m, j)?.code != play.code {
-            Button("今天玩这个", systemImage: "sun.max") { withAnimation(.snappy) { app.playToday(play, m) } }
+            Button(L10n.t("今天玩这个", "Play today"), systemImage: "sun.max") { withAnimation(.snappy) { app.playToday(play, m) } }
         }
         if shelf.contains(play.code) {
-            Button("从这周拿掉", systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
+            Button(L10n.t("从这周拿掉", "Remove from this week"), systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
         } else if shelf.count < Shelf.max {
-            Button("加到这周", systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
+            Button(L10n.t("加到这周", "Add to this week"), systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
         }
-        ShareLink(item: "\(play.name)（\(play.code)）\n" + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label("分享", systemImage: "square.and.arrow.up") }
+        ShareLink(item: L10n.t("\(play.name)（\(play.code)）\n", "\(play.name) (\(play.code))\n") + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label(L10n.t("分享", "Share"), systemImage: "square.and.arrow.up") }
     }
 }
 
@@ -287,7 +287,7 @@ struct AreasView: View {
                 // the month's focus first, then the rest in their usual order
                 let ordered = mo.domains.filter { $0.key == mo.focus } + mo.domains.filter { $0.key != mo.focus }
                 ForEach(Array(ordered.enumerated()), id: \.offset) { _, d in
-                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), detail: d.key == mo.focus ? "本月重点" : nil) {
+                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), detail: d.key == mo.focus ? L10n.t("本月重点", "Focus") : nil) {
                         Text(rich(d.text)).font(.body).fixedSize(horizontal: false, vertical: true)
                     }
                 }
@@ -295,8 +295,8 @@ struct AreasView: View {
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("六个方面")
-        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+        .navigationTitle(L10n.t("六个方面", "Six Areas"))
+        .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
     }
 }
 
@@ -332,34 +332,41 @@ struct CareView: View {
                 // it is kept under its own month
                 let earlier = app.duePending(before: m)
                 if !earlier.isEmpty {
-                    Box(title: "之前没勾的") {
+                    Box(title: L10n.t("之前没勾的", "Earlier unchecked")) {
                         ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
-                            CheckRow(text: d.text + " · 满 \(d.month) 个月", on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
+                            let moText = d.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(d.month) 个月", d.month == 1 ? "1 month" : "\(d.month) months")
+                            CheckRow(text: d.text + " · " + moText, on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
                         }
                     }
                 }
                 if !mo.vaccines.isEmpty {
-                    Box(title: "接种") {
+                    Box(title: L10n.t("接种", "Vaccines")) {
                         ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
                             CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), last: i == mo.vaccines.count - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
                         }
                     }
                 }
                 if !mo.checkups.isEmpty {
-                    Box(title: "儿童保健") {
+                    Box(title: L10n.t("儿童保健", "Well-Child Visits")) {
                         ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
                             CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
                         }
                     }
                 }
                 // whose schedule this is: China's; elsewhere, the local health authority's (1.4.1 — say where data applies)
-                Text("按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                Text(L10n.t(
+                    "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
+                    "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
+                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("接种与儿保")
-        .navigationSubtitle(app.birth.map { "满 \(m) 个月 · \($0.plus(months: m).md)" } ?? "满 \(m) 个月")
+        .navigationTitle(L10n.t("接种与儿保", "Care & Checkups"))
+        .navigationSubtitle(app.birth.map {
+            let moLabel = m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")
+            return moLabel + " · " + $0.plus(months: m).md
+        } ?? (m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")))
     }
 }
 
@@ -383,8 +390,8 @@ struct NotesView: View {
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("还要知道")
-        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+        .navigationTitle(L10n.t("还要知道", "Good to Know"))
+        .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
     }
 }
 
@@ -399,17 +406,25 @@ struct RhythmView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 ForEach(Array(parts.enumerated()), id: \.offset) { _, t in
-                    let (sym, col, name): (String, Color, String) = t.contains("睡") ? ("moon.zzz.fill", Crayon.lilac, "睡眠") : t.contains("屏幕") ? ("iphone", Crayon.pebble, "屏幕")
-                        : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久")) ? ("figure.walk", Crayon.tangerine, "活动") : ("clock.fill", Crayon.aqua, "节奏")
+                    let low = t.lowercased()
+                    let (sym, col, name): (String, Color, String) =
+                        (t.contains("睡") || low.contains("sleep")) ? ("moon.zzz.fill", Crayon.lilac, L10n.t("睡眠", "Sleep"))
+                        : (t.contains("屏幕") || low.contains("screen")) ? ("iphone", Crayon.pebble, L10n.t("屏幕", "Screens"))
+                        : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久") || low.contains("active") || low.contains("activity") || low.contains("tummy") || low.contains("restrain") || low.contains("sit"))
+                            ? ("figure.walk", Crayon.tangerine, L10n.t("活动", "Activity"))
+                        : ("clock.fill", Crayon.aqua, L10n.t("节奏", "Rhythm"))
                     Card(title: name, symbol: sym, color: col) { Text(t).font(.body).fixedSize(horizontal: false, vertical: true) }
                 }
-                Text("依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                Text(L10n.t(
+                    "依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。",
+                    "Based on WHO Guidelines on Physical Activity, Sedentary Behaviour and Sleep for Children Under 5 Years of Age (2019)."
+                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("一天的节奏")
-        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+        .navigationTitle(L10n.t("一天的节奏", "Daily Rhythm"))
+        .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
     }
 }
 
@@ -480,7 +495,7 @@ struct PlayTile: View {
             Ticking(text: "×\(times)").font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold)).foregroundStyle(Color(hex: 0x4A3300))
                 .padding(.horizontal, 8).frame(height: 24)
                 .background(Capsule().fill(Palette.bead))
-                .accessibilityLabel("玩过 \(times) 次")
+                .accessibilityLabel(L10n.t("玩过 \(times) 次", times == 1 ? "Played once" : "Played \(times) times"))
         }
     }
     private func words(_ key: String, title: Font) -> some View {
@@ -490,7 +505,7 @@ struct PlayTile: View {
                 Text(play.domains.first ?? "").font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
             }
             Text(play.name).font(title.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
-            Text(form == .lead ? "\(play.age) · \(play.steps.count) 步" : play.age).font(.caption).foregroundStyle(Palette.secondaryText)
+            Text(form == .lead ? L10n.t("\(play.age) · \(play.steps.count) 步", "\(play.age) · \(play.steps.count) steps") : play.age).font(.caption).foregroundStyle(Palette.secondaryText)
         }
     }
 }
@@ -514,12 +529,15 @@ struct ObserveView: View {
                         }
                     }
                 }
-                Text("这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                Text(L10n.t(
+                    "这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。",
+                    "These are signs many children show around this age. If you haven't noticed one yet, mention it at your next well-child visit — every child moves at their own pace."
+                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
         .pageBackground()
-        .navigationTitle("可以留意")
-        .navigationSubtitle(month == 0 ? "出生" : "满 \(month) 个月")
+        .navigationTitle(L10n.t("可以留意", "What to Notice"))
+        .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
     }
 }

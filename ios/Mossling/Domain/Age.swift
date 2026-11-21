@@ -48,8 +48,21 @@ struct Day: Hashable, Comparable, Codable {
     /// Monday of this day's week
     var monday: Day { let wd = (epochDay + 3) % 7; return plus(days: -((wd + 7) % 7)) } // 1970-01-01 was a Thursday
     var weekdayIndex: Int { ((epochDay + 3) % 7 + 7) % 7 } // 0 = Monday
-    var md: String { "\(m)月\(d)日" }
-    var weekday: String { ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][weekdayIndex] }
+    /// "11月19日" / "Nov 19".
+    var md: String { L10n.isEnglish ? "\(Day.enMonths[m - 1]) \(d)" : "\(m)月\(d)日" }
+    /// "2026年11月19日" / "Nov 19, 2026".
+    var ymd: String { L10n.isEnglish ? "\(Day.enMonths[m - 1]) \(d), \(y)" : "\(y)年\(m)月\(d)日" }
+    /// The date, with the year only when it is not this year.
+    var mdOrYmd: String { y == Day.today.y ? md : ymd }
+    /// "周一" / "Mon".
+    var weekday: String {
+        L10n.isEnglish ? ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"][weekdayIndex] : ["周一", "周二", "周三", "周四", "周五", "周六", "周日"][weekdayIndex]
+    }
+    /// One character for a week strip: "一" / "M".
+    var weekdayInitial: String {
+        L10n.isEnglish ? ["M", "T", "W", "T", "F", "S", "S"][weekdayIndex] : ["一", "二", "三", "四", "五", "六", "日"][weekdayIndex]
+    }
+    static let enMonths = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
 }
 
 /// Age the way the content counts it: "满 m 个月" from the day of the month the child was born on.

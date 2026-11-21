@@ -106,32 +106,36 @@ enum RecordFile {
     static func summary(_ app: AppModel, _ j: JournalFile.Body) -> Data {
         func date(_ ms: Double) -> String { let d = Day(Date(timeIntervalSince1970: ms / 1000)); return String(format: "%04d-%02d-%02d", d.y, d.m, d.d) }
         func time(_ ms: Double) -> String { hm(Date(timeIntervalSince1970: ms / 1000)) }
-        var o = "# 摸索台灯 · 成长与照护记录\n\n"
-        o += "导出时间：\(date(JournalFile.now())) \(time(JournalFile.now()))\n\n"
-        o += "## 孩子\n\n"
-        o += "- 小名：\(app.nickname.isEmpty ? "未填写" : app.nickname)\n"
-        o += "- 性别：\(app.sex == "girl" ? "女" : app.sex == "boy" ? "男" : "未填写")\n"
+        var o = L10n.t("# 摸索台灯 · 成长与照护记录\n\n", "# Moss & Otto · Growth & care record\n\n")
+        o += L10n.t("导出时间：\(date(JournalFile.now())) \(time(JournalFile.now()))\n\n", "Exported: \(date(JournalFile.now())) \(time(JournalFile.now()))\n\n")
+        o += L10n.t("## 孩子\n\n", "## Child\n\n")
+        o += L10n.t("- 小名：\(app.nickname.isEmpty ? "未填写" : app.nickname)\n", "- Name: \(app.nickname.isEmpty ? "Not set" : app.nickname)\n")
+        let sexText = app.sex == "girl" ? L10n.t("女", "Girl") : app.sex == "boy" ? L10n.t("男", "Boy") : L10n.t("未填写", "Not set")
+        o += L10n.t("- 性别：\(sexText)\n", "- Sex: \(sexText)\n")
         if let b = app.birth, let a = app.age {
-            o += String(format: "- 出生日期：%04d-%02d-%02d\n", b.y, b.m, b.d)
-            o += "- 今天：满 \(a.months) 个月 \(a.days) 天\n"
-        } else { o += "- 出生日期：未填写\n" }
-        o += "\n## 说明\n\n记录由家长在摸索台灯中自行录入，应用不做发育评估或医疗判断。可交给儿科医生参考；也可以交给 AI 助手，请它在说明自身局限的前提下帮助整理和提出值得向医生询问的问题。生长百分位按世界卫生组织儿童生长标准（2006）计算。\n"
+            o += String(format: L10n.t("- 出生日期：%04d-%02d-%02d\n", "- Date of birth: %04d-%02d-%02d\n"), b.y, b.m, b.d)
+            o += L10n.t("- 今天：满 \(a.months) 个月 \(a.days) 天\n", "- Today: \(a.months) mo \(a.days) d\n")
+        } else { o += L10n.t("- 出生日期：未填写\n", "- Date of birth: Not set\n") }
+        o += L10n.t("\n## 说明\n\n记录由家长在摸索台灯中自行录入，应用不做发育评估或医疗判断。可交给儿科医生参考；也可以交给 AI 助手，请它在说明自身局限的前提下帮助整理和提出值得向医生询问的问题。生长百分位按世界卫生组织儿童生长标准（2006）计算。\n", "\n## About this record\n\nEntries were logged by the parent in Moss & Otto. The app does not assess development or offer medical advice. You can share this document with a pediatrician, or with an AI assistant to help organize notes and prepare questions for a doctor (noting its own limitations). Growth percentiles follow the WHO Child Growth Standards (2006).\n")
+
+        let pipe = L10n.t("／", "/")
+        let listSep = L10n.t("；", "; ")
 
         // firsts
         let fs = j.firsts.sorted { $0.at < $1.at }
         if !fs.isEmpty {
-            o += "\n## 第一次\n\n| 日期 | 月龄 | 第一次 | 备注 |\n|---|---|---|---|\n"
+            o += L10n.t("\n## 第一次\n\n| 日期 | 月龄 | 第一次 | 备注 |\n|---|---|---|---|\n", "\n## Firsts\n\n| Date | Age | First | Note |\n|---|---|---|---|\n")
             for f in fs {
                 let d = Day(f.date)
                 let age = app.birth.map { b in Firsts.age(from: b, to: d) } ?? ""
-                o += String(format: "| %04d-%02d-%02d | ", d.y, d.m, d.d) + age + " | " + f.title + " | " + (f.note ?? "").replacingOccurrences(of: "|", with: "／").replacingOccurrences(of: "\n", with: " ") + " |\n"
+                o += String(format: "| %04d-%02d-%02d | ", d.y, d.m, d.d) + age + " | " + Firsts.displayTitle(f) + " | " + (f.note ?? "").replacingOccurrences(of: "|", with: pipe).replacingOccurrences(of: "\n", with: " ") + " |\n"
             }
         }
 
         // growth
         let ms = j.measures.sorted { $0.at < $1.at }
         if !ms.isEmpty {
-            o += "\n## 生长测量\n\n| 日期 | 月龄 | 体重（千克） | 身长 / 身高（厘米） | 头围（厘米） |\n|---|---|---|---|---|\n"
+            o += L10n.t("\n## 生长测量\n\n| 日期 | 月龄 | 体重（千克） | 身长 / 身高（厘米） | 头围（厘米） |\n|---|---|---|---|---|\n", "\n## Measurements\n\n| Date | Age (mo) | Weight (kg) | Length / Height (cm) | Head circumference (cm) |\n|---|---|---|---|---|\n")
             for m in ms {
                 let months = app.birth.map { Double(Day(Date(timeIntervalSince1970: m.at / 1000)).epochDay - $0.epochDay) / 30.4375 }
                 func cell(_ v: Int?, _ i: Indicator, _ k: Double) -> String {
@@ -139,7 +143,7 @@ enum RecordFile {
                     let x = Double(v) / k
                     let p = months.flatMap { mo in mo >= 0 && mo <= 36 && app.sex != nil ? app.growth.percentile(i, girl: app.girl, months: mo, value: x) : nil }
                     guard let p, p.isFinite else { return i.fmt(x) }
-                    return "\(i.fmt(x))（\(pctText(p))）"
+                    return L10n.t("\(i.fmt(x))（\(pctText(p))）", "\(i.fmt(x)) (\(pctText(p)))")
                 }
                 let row: [String] = [date(m.at), months.map { String(format: "%.1f", $0) } ?? "", cell(m.weightG, .weight, 1000), cell(m.lengthMm, .length, 10), cell(m.headMm, .head, 10)]
                 o += "| \(row.joined(separator: " | ")) |\n"
@@ -149,7 +153,7 @@ enum RecordFile {
         // day by day — pre-grouped by calendar day (including multi-day carryovers) in O(logs)
         let logs = j.logs.sorted { $0.start < $1.start }
         if let first = logs.first {
-            o += "\n## 每天汇总\n\n| 日期 | 喂奶次数 | 亲喂 | 瓶喂 | 睡眠 | 尿布（湿 / 便） | 体温最高 | 辅食 | 用药 |\n|---|---|---|---|---|---|---|---|---|\n"
+            o += L10n.t("\n## 每天汇总\n\n| 日期 | 喂奶次数 | 亲喂 | 瓶喂 | 睡眠 | 尿布（湿 / 便） | 体温最高 | 辅食 | 用药 |\n|---|---|---|---|---|---|---|---|---|\n", "\n## Daily totals\n\n| Date | Feeds | Nursing | Bottle | Sleep | Diapers (wet / dirty) | Peak temp | Solids | Medicine |\n|---|---|---|---|---|---|---|---|---|\n")
             let last = Day.today
             var byDay: [Int: [LogEntry]] = [:]
             for e in logs {
@@ -175,12 +179,12 @@ enum RecordFile {
                     let sleep = day.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) }
                     let nap = own.filter { $0.type == LogType.diaper }
                     let wet = nap.filter { $0.detail == "wet" || $0.detail == "both" }.count, dirty = nap.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-                    let temp = own.filter { $0.type == LogType.temp }.compactMap(\.amount).max().map { String(format: "%.1f °C", Double($0) / 10) } ?? ""
-                    let solid = own.filter { $0.type == LogType.solid }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: "；")
-                    let med = own.filter { $0.type == LogType.medicine }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: "；")
+                    let temp = own.filter { $0.type == LogType.temp }.compactMap(\.amount).max().map { L10n.temperature(tenthsC: $0) } ?? ""
+                    let solid = own.filter { $0.type == LogType.solid }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
+                    let med = own.filter { $0.type == LogType.medicine }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
                     o += String(format: "| %04d-%02d-%02d ", d.y, d.m, d.d)
-                    let cells: [String] = ["\(feeds)", nursed > 0 ? minutesOf(nursed) : "", ml > 0 ? "\(ml) 毫升" : "", sleep > 0 ? minutesOf(sleep) : "",
-                                           nap.isEmpty ? "" : "\(nap.count)（\(wet) / \(dirty)）", temp, solid, med]
+                    let cells: [String] = ["\(feeds)", nursed > 0 ? minutesOf(nursed) : "", ml > 0 ? L10n.volume(ml: ml) : "", sleep > 0 ? minutesOf(sleep) : "",
+                                           nap.isEmpty ? "" : L10n.t("\(nap.count)（\(wet) / \(dirty)）", "\(nap.count) (\(wet) / \(dirty))"), temp, solid, med]
                     o += "| \(cells.joined(separator: " | ")) |\n"
                 }
                 d = d.plus(days: 1)
@@ -190,7 +194,7 @@ enum RecordFile {
         // month records: what was marked, and the plays — from the records (a play's entries, by the child's month
         // on their date); a play marked done before plays were dated, only when it has no entries
         let ticks = app.ticks.values.sorted { $0.month != $1.month ? $0.month < $1.month : $0.at < $1.at }
-        let kinds: [(String, String)] = [(TickKind.observed, "留意到的表现"), (TickKind.vaccine, "已完成的接种"), (TickKind.checkup, "已完成的儿保")]
+        let kinds: [(String, String)] = [(TickKind.observed, L10n.t("留意到的表现", "Observed")), (TickKind.vaccine, L10n.t("已完成的接种", "Vaccines")), (TickKind.checkup, L10n.t("已完成的儿保", "Checkups"))]
         let playLogs = j.logs.filter { $0.type == LogType.play }.sorted { $0.start < $1.start }
         let codeOf = { (l: LogEntry) in (l.detail ?? "").split(separator: " ").first.map(String.init) ?? "" }
         var playedIn: [Int: [String]] = [:]
@@ -209,38 +213,38 @@ enum RecordFile {
         }
         let months = Set(ticks.filter { $0.kind != TickKind.did }.map(\.month)).union(playedIn.keys).sorted()
         if !months.isEmpty {
-            o += "\n## 每个月记下的事\n"
+            o += L10n.t("\n## 每个月记下的事\n", "\n## Monthly notes\n")
             for m in months {
-                o += "\n### \(m == 0 ? "出生" : "满 \(m) 个月")\n\n"
+                o += "\n### \(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months"))\n\n"
                 for (k, name) in kinds {
                     let items = ticks.filter { $0.month == m && $0.kind == k }
                     let labels: [String] = items.map { (t: Tick) -> String in t.label.isEmpty ? t.key : t.label }
-                    if !items.isEmpty { o += "- \(name)：\(labels.joined(separator: "；"))\n" }
+                    if !items.isEmpty { o += L10n.t("- \(name)：\(labels.joined(separator: listSep))\n", "- \(name): \(labels.joined(separator: listSep))\n") }
                 }
-                if let p = playedIn[m], !p.isEmpty { o += "- 一起玩过的活动：\(p.joined(separator: "；"))\n" }
+                if let p = playedIn[m], !p.isEmpty { o += L10n.t("- 一起玩过的活动：\(p.joined(separator: listSep))\n", "- Activities played: \(p.joined(separator: listSep))\n") }
             }
         }
 
         // every entry
         if !logs.isEmpty {
-            o += "\n## 全部记录（按时间）\n\n| 日期 | 开始 | 结束 | 类型 | 内容 |\n|---|---|---|---|---|\n"
+            o += L10n.t("\n## 全部记录（按时间）\n\n| 日期 | 开始 | 结束 | 类型 | 内容 |\n|---|---|---|---|---|\n", "\n## All entries\n\n| Date | Start | End | Type | Details |\n|---|---|---|---|---|\n")
             for e in logs {
                 var what = e.summary
                 if e.type == LogType.play { what = e.detail ?? "" }
                 if e.type == LogType.nurse {
-                    let side: String? = e.side == "l" ? "左侧" : e.side == "r" ? "右侧" : nil
+                    let side: String? = e.side == "l" ? L10n.t("左侧", "Left") : e.side == "r" ? L10n.t("右侧", "Right") : nil
                     let length: String? = e.end == nil ? nil : minutesOf(e.activeSeconds)
                     what = [side, length].compactMap { $0 }.joined(separator: " · ")
                 }
-                let row: [String] = [date(e.start), time(e.start), e.end.map(time) ?? "", LogType.name(e.type), what.replacingOccurrences(of: "|", with: "／")]
+                let row: [String] = [date(e.start), time(e.start), e.end.map(time) ?? "", LogType.name(e.type), what.replacingOccurrences(of: "|", with: pipe)]
                 o += "| \(row.joined(separator: " | ")) |\n"
             }
         }
         if !j.timers.isEmpty {
-            let running: [String] = j.timers.map { (t: RunningTimer) -> String in "\(LogType.name(t.type))，\(date(t.start)) \(time(t.start)) 开始" }
-            o += "\n正在计时：\(running.joined(separator: "；"))\n"
+            let running: [String] = j.timers.map { (t: RunningTimer) -> String in L10n.t("\(LogType.name(t.type))，\(date(t.start)) \(time(t.start)) 开始", "\(LogType.name(t.type)), started \(date(t.start)) \(time(t.start))") }
+            o += L10n.t("\n正在计时：\(running.joined(separator: listSep))\n", "\nActive timers: \(running.joined(separator: listSep))\n")
         }
-        o += "\n—— 来自 摸索台灯 Moss & Otto。应用内容仅供家庭养育参考，不能替代医生的诊断和建议。\n"
+        o += L10n.t("\n—— 来自 摸索台灯 Moss & Otto。应用内容仅供家庭养育参考，不能替代医生的诊断和建议。\n", "\n— Exported from Moss & Otto. Content is for everyday family reference only and does not replace medical advice or diagnosis.\n")
         return Data(o.utf8)
     }
 
@@ -248,18 +252,18 @@ enum RecordFile {
         func day(_ ms: Double) -> String { let d = Day(Date(timeIntervalSince1970: ms / 1000)); return String(format: "%04d-%02d-%02d", d.y, d.m, d.d) }
         func t(_ ms: Double) -> String { hm(Date(timeIntervalSince1970: ms / 1000)) }
         func q(_ v: String) -> String { v.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" }) ? "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : v }
-        var s = "\u{FEFF}日期,开始,结束,时长（分钟）,类型,数量,单位,侧,详情\n"
+        var s = L10n.t("\u{FEFF}日期,开始,结束,时长（分钟）,类型,数量,单位,侧,详情\n", "\u{FEFF}Date,Start,End,Duration (min),Type,Amount,Unit,Side,Details\n")
         for e in j.logs.sorted(by: { $0.start < $1.start }) {
-            let (amt, unit): (String, String) = e.type == LogType.bottle ? ("\(e.amount ?? 0)", "毫升") : e.type == LogType.temp ? (e.amount.map { String(format: "%.1f", Double($0) / 10) } ?? "", "°C") : ("", "")
-            let side = e.side == "l" ? "左" : e.side == "r" ? "右" : ""
-            let detail = e.type == LogType.diaper ? (["wet": "湿", "dirty": "便", "both": "湿和便"][e.detail ?? ""] ?? "") : (e.detail ?? "")
+            let (amt, unit): (String, String) = e.type == LogType.bottle ? ("\(e.amount ?? 0)", L10n.t("毫升", "ml")) : e.type == LogType.temp ? (e.amount.map { String(format: "%.1f", Double($0) / 10) } ?? "", "°C") : ("", "")
+            let side = e.side == "l" ? L10n.t("左", "Left") : e.side == "r" ? L10n.t("右", "Right") : ""
+            let detail = e.type == LogType.diaper ? (["wet": L10n.t("湿", "Wet"), "dirty": L10n.t("便", "Dirty"), "both": L10n.t("湿和便", "Both")][e.detail ?? ""] ?? "") : (e.detail ?? "")
             let minutes = e.end != nil ? "\(Int((e.activeSeconds / 60).rounded(.down)))" : ""
             s += [day(e.start), t(e.start), e.end.map(t) ?? "", minutes, LogType.name(e.type), amt, unit, side, q(detail)].joined(separator: ",") + "\n"
         }
         for m in j.measures {
-            if let w = m.weightG { s += [day(m.at), t(m.at), "", "", "体重", String(format: "%.2f", Double(w) / 1000), "千克", "", ""].joined(separator: ",") + "\n" }
-            if let l = m.lengthMm { s += [day(m.at), t(m.at), "", "", "身长", String(format: "%.1f", Double(l) / 10), "厘米", "", ""].joined(separator: ",") + "\n" }
-            if let h = m.headMm { s += [day(m.at), t(m.at), "", "", "头围", String(format: "%.1f", Double(h) / 10), "厘米", "", ""].joined(separator: ",") + "\n" }
+            if let w = m.weightG { s += [day(m.at), t(m.at), "", "", L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), L10n.t("千克", "kg"), "", ""].joined(separator: ",") + "\n" }
+            if let l = m.lengthMm { s += [day(m.at), t(m.at), "", "", L10n.t("身长", "Length"), String(format: "%.1f", Double(l) / 10), L10n.t("厘米", "cm"), "", ""].joined(separator: ",") + "\n" }
+            if let h = m.headMm { s += [day(m.at), t(m.at), "", "", L10n.t("头围", "Head"), String(format: "%.1f", Double(h) / 10), L10n.t("厘米", "cm"), "", ""].joined(separator: ",") + "\n" }
         }
         return Data(s.utf8)
     }

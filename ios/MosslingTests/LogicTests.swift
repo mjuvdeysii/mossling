@@ -3,6 +3,8 @@ import SwiftUI
 @testable import Mossling
 
 final class LogicTests: XCTestCase {
+    /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     func testContentLoads() throws {
         let c = try Content.load()
         XCTAssertEqual(c.months.count, 37)

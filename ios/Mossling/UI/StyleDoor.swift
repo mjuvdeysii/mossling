@@ -357,7 +357,7 @@ private struct StoryKnock: ViewModifier {
             })
             .sensoryFeedback(.impact(flexibility: .soft, intensity: 0.5), trigger: hops)
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Moss 和 Otto")
-            .accessibilityAction(named: "他们的故事") { open() }
+            .accessibilityLabel(L10n.t("Moss 和 Otto", "Moss and Otto"))
+            .accessibilityAction(named: L10n.t("他们的故事", "Their story")) { open() }
     }
 }

@@ -10,38 +10,43 @@ import SwiftUI
 // The list of common firsts orders the suggestions only: it is not a timetable, and nothing is compared.
 
 enum Firsts {
-    struct Kind: Identifiable { let id: String; let title: String; let symbol: String; let color: Color; let around: Int }
+    struct Kind: Identifiable {
+        let id: String; let zh: String; let en: String; let symbol: String; let color: Color; let around: Int
+        var title: String { L10n.t(zh, en) }
+    }
     static let all: [Kind] = [
-        Kind(id: "smile", title: "第一次笑", symbol: "face.smiling.inverse", color: Crayon.sunflower, around: 1),
-        Kind(id: "hand", title: "吃手", symbol: "hand.raised.fill", color: Crayon.peach, around: 2),
-        Kind(id: "coo", title: "昂咕（发出咕咕声）", symbol: "bubble.left.fill", color: Crayon.sky, around: 2),
-        Kind(id: "headup", title: "趴着抬起头", symbol: "arrow.up.circle.fill", color: Crayon.leaf, around: 2),
-        Kind(id: "laugh", title: "笑出声", symbol: "face.smiling.inverse", color: Crayon.tangerine, around: 4),
-        Kind(id: "roll", title: "翻身", symbol: "arrow.trianglehead.2.clockwise.rotate.90", color: Crayon.lilac, around: 4),
-        Kind(id: "grasp", title: "抓住玩具", symbol: "hand.raised.fingers.spread.fill", color: Crayon.aqua, around: 4),
-        Kind(id: "feet", title: "抓到自己的脚", symbol: "figure.child", color: Crayon.pink, around: 5),
-        Kind(id: "sit", title: "坐", symbol: "chair.fill", color: Crayon.caramel, around: 6),
-        Kind(id: "tooth", title: "长出第一颗牙", symbol: "mouth.fill", color: Crayon.pink, around: 6),
-        Kind(id: "solid", title: "第一口辅食", symbol: "fork.knife", color: Crayon.leaf, around: 6),
-        Kind(id: "babble", title: "咿咿呀呀连着发音", symbol: "waveform", color: Crayon.sky, around: 7),
-        Kind(id: "crawl", title: "爬", symbol: "figure.walk", color: Crayon.tangerine, around: 8),
-        Kind(id: "pull", title: "扶着站起来", symbol: "figure.stand", color: Crayon.aqua, around: 9),
-        Kind(id: "clap", title: "拍手", symbol: "hands.clap.fill", color: Crayon.sunflower, around: 9),
-        Kind(id: "wave", title: "挥手再见", symbol: "hand.wave.fill", color: Crayon.peach, around: 9),
-        Kind(id: "mama", title: "叫爸爸 / 妈妈", symbol: "heart.text.square.fill", color: Crayon.pink, around: 10),
-        Kind(id: "stand", title: "自己站稳", symbol: "figure.stand", color: Crayon.lilac, around: 11),
-        Kind(id: "step", title: "迈出第一步", symbol: "shoeprints.fill", color: Crayon.leaf, around: 12),
-        Kind(id: "cup", title: "用杯子喝水", symbol: "cup.and.saucer.fill", color: Crayon.sky, around: 12),
-        Kind(id: "haircut", title: "第一次理发", symbol: "scissors", color: Crayon.caramel, around: 12),
-        Kind(id: "spoon", title: "自己用勺吃饭", symbol: "fork.knife", color: Crayon.tangerine, around: 15),
-        Kind(id: "run", title: "跑起来", symbol: "figure.run", color: Crayon.aqua, around: 18),
-        Kind(id: "kick", title: "踢球", symbol: "soccerball", color: Crayon.leaf, around: 20),
-        Kind(id: "jump", title: "双脚跳", symbol: "figure.jumprope", color: Crayon.lilac, around: 24),
-        Kind(id: "sentence", title: "说出一句话", symbol: "quote.bubble.fill", color: Crayon.sky, around: 24),
-        Kind(id: "draw", title: "画出一个圈", symbol: "scribble.variable", color: Crayon.pink, around: 30),
-        Kind(id: "potty", title: "自己上厕所", symbol: "toilet.fill", color: Crayon.aqua, around: 30),
+        Kind(id: "smile", zh: "第一次笑", en: "First smile", symbol: "face.smiling.inverse", color: Crayon.sunflower, around: 1),
+        Kind(id: "hand", zh: "吃手", en: "Found their hands", symbol: "hand.raised.fill", color: Crayon.peach, around: 2),
+        Kind(id: "coo", zh: "昂咕（发出咕咕声）", en: "First coos", symbol: "bubble.left.fill", color: Crayon.sky, around: 2),
+        Kind(id: "headup", zh: "趴着抬起头", en: "Held head up", symbol: "arrow.up.circle.fill", color: Crayon.leaf, around: 2),
+        Kind(id: "laugh", zh: "笑出声", en: "Laughed out loud", symbol: "face.smiling.inverse", color: Crayon.tangerine, around: 4),
+        Kind(id: "roll", zh: "翻身", en: "Rolled over", symbol: "arrow.trianglehead.2.clockwise.rotate.90", color: Crayon.lilac, around: 4),
+        Kind(id: "grasp", zh: "抓住玩具", en: "Grabbed a toy", symbol: "hand.raised.fingers.spread.fill", color: Crayon.aqua, around: 4),
+        Kind(id: "feet", zh: "抓到自己的脚", en: "Found their feet", symbol: "figure.child", color: Crayon.pink, around: 5),
+        Kind(id: "sit", zh: "坐", en: "Sat up", symbol: "chair.fill", color: Crayon.caramel, around: 6),
+        Kind(id: "tooth", zh: "长出第一颗牙", en: "First tooth", symbol: "mouth.fill", color: Crayon.pink, around: 6),
+        Kind(id: "solid", zh: "第一口辅食", en: "First solid food", symbol: "fork.knife", color: Crayon.leaf, around: 6),
+        Kind(id: "babble", zh: "咿咿呀呀连着发音", en: "Started babbling", symbol: "waveform", color: Crayon.sky, around: 7),
+        Kind(id: "crawl", zh: "爬", en: "Crawled", symbol: "figure.walk", color: Crayon.tangerine, around: 8),
+        Kind(id: "pull", zh: "扶着站起来", en: "Pulled up to stand", symbol: "figure.stand", color: Crayon.aqua, around: 9),
+        Kind(id: "clap", zh: "拍手", en: "Clapped hands", symbol: "hands.clap.fill", color: Crayon.sunflower, around: 9),
+        Kind(id: "wave", zh: "挥手再见", en: "Waved goodbye", symbol: "hand.wave.fill", color: Crayon.peach, around: 9),
+        Kind(id: "mama", zh: "叫爸爸 / 妈妈", en: "Said Mama / Dada", symbol: "heart.text.square.fill", color: Crayon.pink, around: 10),
+        Kind(id: "stand", zh: "自己站稳", en: "Stood on their own", symbol: "figure.stand", color: Crayon.lilac, around: 11),
+        Kind(id: "step", zh: "迈出第一步", en: "First step", symbol: "shoeprints.fill", color: Crayon.leaf, around: 12),
+        Kind(id: "cup", zh: "用杯子喝水", en: "Drank from a cup", symbol: "cup.and.saucer.fill", color: Crayon.sky, around: 12),
+        Kind(id: "haircut", zh: "第一次理发", en: "First haircut", symbol: "scissors", color: Crayon.caramel, around: 12),
+        Kind(id: "spoon", zh: "自己用勺吃饭", en: "Ate with a spoon", symbol: "fork.knife", color: Crayon.tangerine, around: 15),
+        Kind(id: "run", zh: "跑起来", en: "Started running", symbol: "figure.run", color: Crayon.aqua, around: 18),
+        Kind(id: "kick", zh: "踢球", en: "Kicked a ball", symbol: "soccerball", color: Crayon.leaf, around: 20),
+        Kind(id: "jump", zh: "双脚跳", en: "Jumped with both feet", symbol: "figure.jumprope", color: Crayon.lilac, around: 24),
+        Kind(id: "sentence", zh: "说出一句话", en: "First sentence", symbol: "quote.bubble.fill", color: Crayon.sky, around: 24),
+        Kind(id: "draw", zh: "画出一个圈", en: "Drew a circle", symbol: "scribble.variable", color: Crayon.pink, around: 30),
+        Kind(id: "potty", zh: "自己上厕所", en: "Used the potty", symbol: "toilet.fill", color: Crayon.aqua, around: 30),
     ]
     static func kind(_ key: String?) -> Kind? { key.flatMap { k in all.first { $0.id == k } } }
+    /// Shows the built-in title in the current language when `key` matches a common first; custom titles stay as written.
+    static func displayTitle(_ f: First) -> String { kind(f.key)?.title ?? f.title }
     /// The common firsts in the order a parent of a child this age would look for them: those around now first,
     /// then the ones a little ahead, then the earlier ones.
     static func ordered(around month: Int?) -> [Kind] {
@@ -54,9 +59,11 @@ enum Firsts {
     /// "出生第 5 天" / "4 个月 12 天" — the age on that day.
     static func age(from birth: Day, to day: Day) -> String {
         let a = Age.on(birth: birth, today: day)
-        if day < birth { return "出生前" }
-        if a.months == 0 { return "出生第 \(a.lived) 天" }
-        return a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天"
+        if day < birth { return L10n.t("出生前", "Before birth") }
+        if a.months == 0 { return L10n.t("出生第 \(a.lived) 天", "Day \(a.lived)") }
+        return a.days == 0
+            ? L10n.t("满 \(a.months) 个月", a.months == 1 ? "1 month" : "\(a.months) months")
+            : L10n.t("\(a.months) 个月 \(a.days) 天", "\(a.months) mo \(a.days) d")
     }
     /// A first the parent named keeps the mark they picked for it, as "icon:<symbol>" in `key`.
     static let customIcons: [(String, Color)] = [("star.fill", Palette.bead), ("heart.fill", Crayon.pink), ("sun.max.fill", Crayon.sunflower),
@@ -74,9 +81,9 @@ enum Firsts {
 /// "今天" / "昨天" / "10月20日" / "2025年10月20日" — a day, said as people say it.
 func whenLabelDay(_ d: Date) -> String {
     let day = Day(d), today = Day.today
-    if day == today { return "今天" }
-    if day == today.plus(days: -1) { return "昨天" }
-    return day.y == today.y ? day.md : "\(day.y)年\(day.md)"
+    if day == today { return L10n.t("今天", "Today") }
+    if day == today.plus(days: -1) { return L10n.t("昨天", "Yesterday") }
+    return day.mdOrYmd
 }
 
 /// Records a first, or changes one: what (one of the common firsts, or named), which day, and a line about it.
@@ -107,7 +114,7 @@ struct FirstSheet: View {
                     if isNew { choices }
                     VStack(alignment: .leading, spacing: 0) {
                         let now = Date()
-                        DatePicker("哪一天", selection: $day, in: min(earliest, now)...now, displayedComponents: .date)
+                        DatePicker(L10n.t("哪一天", "Date"), selection: $day, in: min(earliest, now)...now, displayedComponents: .date)
                             .padding(.horizontal, 16).padding(.vertical, 10)
                         if let b = app.birth {
                             Text(Firsts.age(from: b, to: Day(day))).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
@@ -116,26 +123,26 @@ struct FirstSheet: View {
                     }
                     .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
                     VStack(alignment: .leading, spacing: 8) {
-                        Text("想留下的话（可选）").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-                        TextField("当时的样子、在哪里、谁在身边", text: Binding(get: { first.note ?? "" }, set: { first.note = String($0.prefix(200)) }), axis: .vertical)
+                        Text(L10n.t("想留下的话（可选）", "A note to keep (optional)")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        TextField(L10n.t("当时的样子、在哪里、谁在身边", "Where you were, who was there, how it felt"), text: Binding(get: { first.note ?? "" }, set: { first.note = String($0.prefix(200)) }), axis: .vertical)
                             .lineLimit(2...6).padding(14).printCard(radius: Radius.inner, fill: lamp ? Palette.lampCard : Palette.card)
                     }
-                    Button { save() } label: { Text(isNew ? "记下这个第一次" : "保存").frame(maxWidth: .infinity) }
+                    Button { save() } label: { Text(isNew ? L10n.t("记下这个第一次", "Save This First") : L10n.t("保存", "Save")).frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Crayon.fill(Palette.bead, lamp), prominent: true, large: true))
                         .disabled(first.title.trimmingCharacters(in: .whitespaces).isEmpty)
                     if !isNew {
-                        Button("删除这个第一次", role: .destructive) { j.deleteFirst(first); dismiss() }
+                        Button(L10n.t("删除这个第一次", "Delete this first"), role: .destructive) { j.deleteFirst(first); dismiss() }
                             .frame(maxWidth: .infinity)
                     }
-                    Text("每个孩子的第一次都在自己的时间里到来，这里只记录，不比较。")
+                    Text(L10n.t("每个孩子的第一次都在自己的时间里到来，这里只记录，不比较。", "Every child reaches their firsts in their own time — this is just a keepsake, never a comparison."))
                         .font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
                 .padding(20)
             }
             .scrollDismissesKeyboard(.interactively)
             .background { PageBackground(tone: Palette.bead) }
-            .navigationTitle(isNew ? "记一个第一次" : "这个第一次").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } } }
+            .navigationTitle(isNew ? L10n.t("记一个第一次", "Log a First") : L10n.t("这个第一次", "First")).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } } }
         }
         .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: cheers)
@@ -148,8 +155,8 @@ struct FirstSheet: View {
     /// Any first at all, in the parent's own words, with a mark of their choosing — written here, or picked below.
     private var own: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(isNew ? "自己写一个第一次" : "第一次做了什么").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-            TextField("例如：第一次看海、第一次坐飞机", text: Binding(get: { first.title }, set: { v in
+            Text(isNew ? L10n.t("自己写一个第一次", "Write your own") : L10n.t("第一次做了什么", "What happened?")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            TextField(L10n.t("例如：第一次看海、第一次坐飞机", "e.g. First beach trip, first plane ride"), text: Binding(get: { first.title }, set: { v in
                 first.title = String(v.prefix(40))
                 // typing makes it the parent's own first (unless it is still exactly a common one's name)
                 if let k = Firsts.kind(first.key) {
@@ -170,7 +177,7 @@ struct FirstSheet: View {
                                 .overlay(Circle().strokeBorder(on ? Crayon.ink(c) : .clear, lineWidth: 2))
                         }
                         .buttonStyle(.toy)
-                        .accessibilityLabel("标记").accessibilityAddTraits(on ? .isSelected : [])
+                        .accessibilityLabel(L10n.t("标记", "Icon")).accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
                 .transition(.opacity)
@@ -184,8 +191,8 @@ struct FirstSheet: View {
         HStack(alignment: .center, spacing: 14) {
             Duo(primary: app.companion, size: 64, mood: .open, look: CGPoint(x: 0.5, y: 0.3), poke: true, cheer: cheers, night: lamp)
             VStack(alignment: .leading, spacing: 4) {
-                Text("第一次").font(.largeTitle.weight(.bold))
-                Text("把值得记住的瞬间留在成长册里").font(.subheadline).foregroundStyle(Palette.secondaryText)
+                Text(L10n.t("第一次", "Firsts")).font(.largeTitle.weight(.bold))
+                Text(L10n.t("把值得记住的瞬间留在成长册里", "Keep the moments worth remembering in the Growth Book")).font(.subheadline).foregroundStyle(Palette.secondaryText)
             }
             Spacer(minLength: 0)
         }
@@ -195,7 +202,7 @@ struct FirstSheet: View {
     private var choices: some View {
         let done = Set(j.firsts.compactMap(\.key))
         return VStack(alignment: .leading, spacing: 10) {
-            Text("或者选一个常见的").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+            Text(L10n.t("或者选一个常见的", "Or pick a common one")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             WrapLayout(spacing: 8) {
                 ForEach(Firsts.ordered(around: app.babyMonth)) { k in
                     let on = first.key == k.id
@@ -211,7 +218,7 @@ struct FirstSheet: View {
                     .buttonStyle(.vinyl(on ? k.color : kept ? Color(hex: 0xB9AFA4) : Color(hex: 0x8A8279), prominent: on))
                     .fontWeight(on ? .semibold : .regular)
                     .disabled(kept)
-                    .accessibilityLabel(k.title + (kept ? "，已经记下" : ""))
+                    .accessibilityLabel(k.title + (kept ? L10n.t("，已经记下", ", already logged") : ""))
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
@@ -246,7 +253,7 @@ struct FirstsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 summary
                 if j.firsts.isEmpty {
-                    Text("还没有记下第一次。吃手、昂咕、翻身、坐、爬……孩子第一次做到的时候，点上面的按钮记下来。")
+                    Text(L10n.t("还没有记下第一次。吃手、昂咕、翻身、坐、爬……孩子第一次做到的时候，点上面的按钮记下来。", "No firsts logged yet. First smile, first coo, first roll, first step — tap + above whenever a moment arrives."))
                         .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 4)
                 }
@@ -261,7 +268,7 @@ struct FirstsView: View {
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
         .pageBackground(tone: Palette.bead)
-        .navigationTitle("第一次")
+        .navigationTitle(L10n.t("第一次", "Firsts"))
         .onChange(of: j.firsts.map(\.id)) { old, new in
             guard let n = new.first(where: { !old.contains($0) }) else { return }
             fresh = n
@@ -278,15 +285,15 @@ struct FirstsView: View {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(j.firsts.count)").font(Typeface.numerals(34, relativeTo: .largeTitle, weight: .bold)).foregroundStyle(Palette.accent)
-                    Text("个第一次").font(.headline)
+                    Text(L10n.t("个第一次", j.firsts.count == 1 ? "first" : "firsts")).font(.headline)
                 }
-                Text(j.firsts.first.map { "最近：" + $0.title + " · " + whenLabelDay($0.date) } ?? "从出生那天起的一条线")
+                Text(j.firsts.first.map { L10n.t("最近：", "Latest: ") + Firsts.displayTitle($0) + " · " + whenLabelDay($0.date) } ?? L10n.t("从出生那天起的一条线", "One quiet thread from the day they arrived"))
                     .font(.footnote).foregroundStyle(Palette.secondaryText).lineLimit(2)
             }
             Spacer(minLength: 0)
             Button { adding = true } label: { Image(systemName: "plus").font(.headline).frame(width: 44, height: 40) }
                 .buttonStyle(.vinyl(Palette.bead, prominent: true))
-                .accessibilityLabel("记一个第一次")
+                .accessibilityLabel(L10n.t("记一个第一次", "Log a first"))
         }
         .padding(14)
         .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
@@ -318,7 +325,7 @@ private struct FirstRow: View {
                     }
                     Text(whenLabelDay(first.date)).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 }
-                Text(first.title).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Text(Firsts.displayTitle(first)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 if let n = first.note, !n.isEmpty {
                     Text(n).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
                 }
@@ -329,7 +336,7 @@ private struct FirstRow: View {
             .padding(.bottom, 12)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityHint("改这个第一次")
+        .accessibilityHint(L10n.t("改这个第一次", "Edit this first"))
     }
 }
 
@@ -367,8 +374,8 @@ private struct BirthRow: View {
             }
             .frame(width: 40)
             VStack(alignment: .leading, spacing: 2) {
-                Text("出生").font(.headline)
-                Text(verbatim: "\(birth.y)年\(birth.md)").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                Text(L10n.t("出生", "Born")).font(.headline)
+                Text(verbatim: birth.ymd).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
             }
             .padding(.top, 4)
             Spacer(minLength: 0)
@@ -403,13 +410,13 @@ struct FirstStamps: View {
     let firsts: [First]
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label("第一次", systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
+            Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
             WrapLayout(spacing: 6) {
                 ForEach(firsts) { f in
                     NavigationLink(value: JournalRoute.firsts) {
                         HStack(spacing: 5) {
                             Image(systemName: Firsts.symbol(f)).font(.caption.weight(.bold)).foregroundStyle(Crayon.ink(Firsts.color(f)))
-                            Text(f.title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                            Text(Firsts.displayTitle(f)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                             Text(Day(f.date).md).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)

@@ -5,6 +5,8 @@ import XCTest
 /// the same behaviour whichever companion is in front.
 @MainActor
 final class MascotTests: XCTestCase {
+    /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     override func tearDown() { JournalFile.failWrites = false; super.tearDown() }
 
     func testEventContract() {

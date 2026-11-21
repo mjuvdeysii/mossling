@@ -38,7 +38,7 @@ private struct ToastBar: View {
                 .lineLimit(2).fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             if toast.restore != nil {
-                Button("撤销") { j.undo(toast) }
+                Button(L10n.t("撤销", "Undo")) { j.undo(toast) }
                     .font(.subheadline.weight(.bold)).buttonStyle(.borderless)
             }
         }

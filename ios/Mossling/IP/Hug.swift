@@ -59,7 +59,7 @@ struct HuggedAvatar: View {
         .onChange(of: app.drawsGirl) { _, _ in hug() }   // a new look for the baby: a hug to welcome it
         .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: hugs)
         .accessibilityElement()
-        .accessibilityLabel("\(kind.rawValue) 抱着宝宝")
+        .accessibilityLabel(L10n.t("\(kind.rawValue) 抱着宝宝", "\(kind.rawValue) holding baby"))
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { hug() }
     }

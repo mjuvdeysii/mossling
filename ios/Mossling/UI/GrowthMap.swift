@@ -33,7 +33,7 @@ enum MapGeo {
     static func facing(_ m: Int) -> CGFloat { row(m) == 1 ? -1 : 1 }
     /// Where each hill's crest runs (the line between one year's land and the next behind it).
     static func crest(_ band: Int) -> CGFloat { rows[band] - 62 }
-    static let marks: [(Int, String)] = [(0, "出生"), (12, "1 岁"), (24, "2 岁"), (36, "3 岁")]
+    static var marks: [(Int, String)] { [(0, L10n.t("出生", "Birth")), (12, L10n.t("1 岁", "1 yr")), (24, L10n.t("2 岁", "2 yrs")), (36, L10n.t("3 岁", "3 yrs"))] }
 }
 
 /// The palette of a hill, by day and by night, in either world.
@@ -495,8 +495,8 @@ struct GrowthMap: View {
         .frame(height: MapGeo.height)
         .clipShape(UnevenRoundedRectangle(topLeadingRadius: 30, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 30, style: .continuous))
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("成长地图，37 个月")
-        .accessibilityValue((preview == 0 ? "出生" : "满 \(preview) 个月") + (preview == baby ? "，宝宝在这里" : ""))
+        .accessibilityLabel(L10n.t("成长地图，37 个月", "Growth map, 37 months"))
+        .accessibilityValue((preview == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(preview) 个月", "Month \(preview)")) + (preview == baby ? L10n.t("，宝宝在这里", ", baby is here") : ""))
         .accessibilityAdjustableAction { d in
             switch d {
             case .increment: preview = min(36, preview + 1); month = preview
@@ -513,12 +513,12 @@ struct GrowthMap: View {
         let plays = app.content.plays(of: m)
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Text(m == 0 ? "出生" : "\(m)").font(Typeface.numerals(m == 0 ? 30 : 40, relativeTo: .largeTitle, weight: .bold))
+                Text(m == 0 ? L10n.t("出生", "Birth") : "\(m)").font(Typeface.numerals(m == 0 ? 30 : 40, relativeTo: .largeTitle, weight: .bold))
                     .contentTransition(.numericText(value: Double(m)))
-                if m > 0 { Text("个月").font(.headline) }
+                if m > 0 { Text(L10n.t("个月", "mo")).font(.headline) }
                 if m == baby, let d = app.age?.days, d > 0 {
                     Text("\(d)").font(Typeface.numerals(20, relativeTo: .headline, weight: .bold)).padding(.leading, 2)
-                    Text("天").font(.headline)
+                    Text(L10n.t("天", d == 1 ? "day" : "days")).font(.headline)
                 }
                 Spacer(minLength: 8)
                 Text(verbatim: status(m))
@@ -532,14 +532,14 @@ struct GrowthMap: View {
                             .background(Palette.outline.opacity(0.35), in: Circle())
                     }
                     .foregroundStyle(.primary)
-                    .accessibilityLabel("收起成长地图")
+                    .accessibilityLabel(L10n.t("收起成长地图", "Collapse growth map"))
                 }
             }
             .animation(.snappy, value: m)
             // the month's own picture beside what it is about: the month at a glance, without opening it
             HStack(alignment: .top, spacing: 12) {
                 if let f = ArtIndex.shared.cover(m) {
-                    ArtView(name: f, label: m == 0 ? "出生" : "满 \(m) 个月", radius: 10)
+                    ArtView(name: f, label: m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)"), radius: 10)
                         .frame(width: 92)
                         .id(f)
                         .transition(.opacity)
@@ -556,7 +556,7 @@ struct GrowthMap: View {
                     let k = Palette.areaKey(of: p)
                     IconTile(symbol: Palette.areaSymbol(k), color: Palette.area(k), size: 26)
                 }
-                Text("\(plays.count) 个活动").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
+                Text(L10n.t("\(plays.count) 个活动", "\(plays.count) \(plays.count == 1 ? "activity" : "activities")")).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.leading, 4)
                 Spacer(minLength: 0)
             }
         }
@@ -564,10 +564,10 @@ struct GrowthMap: View {
     }
 
     private func status(_ m: Int) -> String {
-        if m == baby { return night ? "宝宝在家睡觉" : "宝宝在这里" }
-        if m < baby { return "走过的一站" }
-        if let b = app.birth { let d = b.plus(months: m); return (d.y == Day.today.y ? d.md : "\(d.y)年\(d.md)") + " 到这一站" }
-        return "以后的一站"
+        if m == baby { return night ? L10n.t("宝宝在家睡觉", "Sleeping at home") : L10n.t("宝宝在这里", "Baby is here") }
+        if m < baby { return L10n.t("走过的一站", "Past stop") }
+        if let b = app.birth { let d = b.plus(months: m); return L10n.t("\(d.mdOrYmd) 到这一站", "Arrives \(d.mdOrYmd)") }
+        return L10n.t("以后的一站", "Ahead")
     }
 }
 
@@ -614,7 +614,7 @@ struct MonthProgress: View {
             VStack(alignment: .leading, spacing: 4) { bar(k); wrappingWords }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel("\(toNext) 天后满 \(next) 个月")
+        .accessibilityLabel(L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext) \(toNext == 1 ? "day" : "days") until month \(next)"))
     }
 }
 

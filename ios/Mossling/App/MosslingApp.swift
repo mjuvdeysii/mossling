@@ -329,12 +329,12 @@ struct OnboardingView: View {
             .sensoryFeedback(.selection, trigger: chose)
 
             VStack(spacing: 6) {
-                Text("摸索台灯").font(.largeTitle.weight(.bold))
-                Text("孩子摸索，大人点灯").font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
-                Text("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。")
+                Text(L10n.appName).font(.largeTitle.weight(.bold))
+                Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
+                Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 // who the two are, in one line (their parts as child and grown-up are for the pictures only)
-                Text("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴")
+                Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Me."))
                     .font(.footnote).foregroundStyle(Palette.secondaryText)
                     .padding(.top, 4)
             }
@@ -342,16 +342,16 @@ struct OnboardingView: View {
             .padding(.top, 14).padding(.horizontal, 24)
 
             VStack(spacing: 10) {
-                Button { if app.mayKeep() { askBirth = true } } label: { Text("填写出生日期").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
-                Button { app.onboarded = true } label: { Text("稍后再填").frame(maxWidth: .infinity).padding(.vertical, 6) }
+                Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                     .buttonStyle(.glass).controlSize(.large)
                 // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
                 VStack(spacing: 6) {
-                    Text("本应用陪伴家庭养育，不能替代医生的诊断和建议。")
+                    Text(L10n.t("本应用陪伴家庭养育，不能替代医生的诊断和建议。", "A quiet companion for home parenting — not a substitute for medical advice."))
                         .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
                     HStack(spacing: 16) {
-                        ForEach([("使用条款", "TERMS"), ("隐私政策", "PRIVACY"), ("免责声明", "DISCLAIMER")], id: \.1) { t, f in
+                        ForEach([(L10n.t("使用条款", "Terms"), "TERMS"), (L10n.t("隐私政策", "Privacy"), "PRIVACY"), (L10n.t("免责声明", "Disclaimer"), "DISCLAIMER")], id: \.1) { t, f in
                             Button(t) { doc = f }.font(.caption.weight(.semibold))
                         }
                     }
@@ -370,7 +370,7 @@ struct OnboardingView: View {
         }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
-            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { doc = nil } } } }
+            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { doc = nil } } } }
         }
     }
 }

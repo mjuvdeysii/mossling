@@ -5,6 +5,8 @@ import SwiftUI
 /// Renders each screen in the simulator and writes a PNG to $SNAPSHOT_DIR (set by CI) for review.
 @MainActor
 final class ScreenshotTests: XCTestCase {
+    /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     // the journal in these shots is in memory; nothing is written
     private func model(companion: Kind = .moss, birth: Day? = Day(y: 2026, m: 4, d: 2)) -> AppModel {
         let d = UserDefaults(suiteName: "shots-\(UUID().uuidString)")!
@@ -541,5 +543,22 @@ final class ScreenshotTests: XCTestCase {
         if let p = m.content.play("A11") {
             shot("36_play_en", height: 1200, tabs(m, PlayView(play: p, month: 6)))
         }
+        var jb = JournalFile.Body()
+        let base = m.today.date
+        jb.logs = [
+            LogEntry(type: LogType.sleep, start: ms(base.addingTimeInterval(-3 * 3600)), end: ms(base.addingTimeInterval(11 * 3600 + 42 * 60))),
+            LogEntry(type: LogType.sleep, start: ms(base.addingTimeInterval(13 * 3600)), end: ms(base.addingTimeInterval(16 * 3600))),
+            LogEntry(type: LogType.nurse, start: ms(base.addingTimeInterval(12 * 3600)), end: ms(base.addingTimeInterval(12 * 3600 + 14 * 60)), side: "l"),
+            LogEntry(type: LogType.diaper, start: ms(base.addingTimeInterval(12 * 3600 + 20 * 60)), detail: "wet"),
+            LogEntry(type: LogType.bottle, start: ms(base.addingTimeInterval(15 * 3600)), amount: 120, detail: "breastmilk"),
+            LogEntry(type: LogType.play, start: ms(base.addingTimeInterval(16 * 3600 + 10 * 60)), detail: "A11 Two-Handed Transfer"),
+        ]
+        jb.firsts = [First(at: ms(base.addingTimeInterval(-20 * 86_400)), key: "roll", title: "翻身")]
+        let jEn = JournalStore(preview: jb)
+        shot("37_journal_en", height: 1050, tabs(m, JournalView(path: .constant(NavigationPath())).environment(jEn)))
+        shot("38_timer_en", height: 860, TimerScreen(type: LogType.nurse).environment(m).environment(jEn).fontDesign(.rounded))
+        shot("39_growthbook_en", height: 1000, tabs(m, GrowthBookView().environment(jEn)))
+        shot("40_story_en", height: 960, tabs(m, StoryView()))
+        shot("41_sources_en", height: 960, tabs(m, SourcesView()))
     }
 }

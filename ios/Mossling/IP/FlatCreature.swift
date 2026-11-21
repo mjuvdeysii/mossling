@@ -335,7 +335,7 @@ struct FlatDuo: View {
                 .offset(x: size - small * 0.38, y: -2)
             FlatCreature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? "Moss 和 Otto" : "Otto 和 Moss", arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, notice: notice)
+                     label: primary == .moss ? L10n.t("Moss 和 Otto", "Moss and Otto") : L10n.t("Otto 和 Moss", "Otto and Moss"), arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)

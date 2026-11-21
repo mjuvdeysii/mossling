@@ -9,7 +9,7 @@ import ImageIO
 enum ArtStyle: String, CaseIterable {
     case vinyl = "3d", flat = "2d"
     nonisolated(unsafe) static var current: ArtStyle = .vinyl
-    var title: String { self == .vinyl ? "立体" : "平面" }
+    var title: String { self == .vinyl ? L10n.t("立体", "3D") : L10n.t("平面", "Flat") }
     static func resolve(_ name: String) -> String {
         if name.hasPrefix("3d:") { return String(name.dropFirst(3)) }   // asked for the 3D drawing, whatever the style
         guard current == .flat else { return name }
@@ -233,9 +233,12 @@ struct TableBlock: View {
     /// The months an age-group heading covers, or nil when the heading is not an age group.
     static func months(_ t: String) -> ClosedRange<Int>? {
         let ns = t.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }
-        guard t.contains("月") || t.contains("岁"), let a = ns.first else { return nil }
-        let k = t.contains("岁") && !t.contains("月") ? 12 : 1
-        if t.contains("起") || t.contains("以上") { return (a * k)...999 }
+        let low = t.lowercased()
+        let hasMonth = t.contains("月") || low.contains("month") || low.contains("mo")
+        let hasYear = t.contains("岁") || low.contains("year") || low.contains("yr")
+        guard hasMonth || hasYear, let a = ns.first else { return nil }
+        let k = hasYear && !hasMonth ? 12 : 1
+        if t.contains("起") || t.contains("以上") || t.contains("+") || low.contains("and up") || low.contains("onward") { return (a * k)...999 }
         return (a * k)...((ns.count > 1 ? ns[1] : a) * k)
     }
 
@@ -256,7 +259,7 @@ struct TableBlock: View {
                             HStack(spacing: 8) {
                                 Text(first).font(.headline).foregroundStyle(.primary)
                                 if i == mine {
-                                    Text("宝宝现在").font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
+                                    Text(L10n.t("宝宝现在", "Now")).font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
                                         .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(Palette.bead))
                                 }
                                 Spacer(minLength: 0)
@@ -358,11 +361,20 @@ func clock(_ s: TimeInterval) -> String {
 /// A length of time read as one, never as a time of day: "45 秒", "12 分 01 秒", "1 小时 15 分".
 func span(_ s: TimeInterval) -> String {
     let n = Int(max(0, s))
+    if L10n.isEnglish {
+        if n < 60 { return "\(n)s" }
+        if n < 3600 { return String(format: "%dm %02ds", n / 60, n % 60) }
+        return "\(n / 3600)h \(n / 60 % 60)m"
+    }
     if n < 60 { return "\(n) 秒" }
     if n < 3600 { return String(format: "%d 分 %02d 秒", n / 60, n % 60) }
     return "\(n / 3600) 小时 \(n / 60 % 60) 分"
 }
-func minutesText(_ s: TimeInterval) -> String { let m = Int(max(0, s) / 60); return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟" }
+func minutesText(_ s: TimeInterval) -> String {
+    let m = Int(max(0, s) / 60)
+    if L10n.isEnglish { return m >= 60 ? "\(m / 60) hr \(m % 60) min" : "\(m) min" }
+    return m >= 60 ? "\(m / 60) 小时 \(m % 60) 分" : "\(m) 分钟"
+}
 
 // MARK: navigation
 
@@ -408,7 +420,7 @@ struct Ring: View {
         }
         .frame(width: size, height: size)
         .animation(.snappy, value: done)
-        .accessibilityElement().accessibilityLabel("已记下 \(done) / \(total)")
+        .accessibilityElement().accessibilityLabel(L10n.t("已记下 \(done) / \(total)", "\(done) of \(total) completed"))
     }
 }
 

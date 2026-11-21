@@ -84,7 +84,7 @@ struct GrowthBookView: View {
 
     private var subtitle: String {
         guard let b = app.birth else { return "" }
-        return L10n.isEnglish ? "Since \(b.y)-\(String(format: "%02d", b.m))-\(String(format: "%02d", b.d))" : "从 \(b.y)年\(b.md) 开始"
+        return L10n.t("从 \(b.ymd) 开始", "Since \(b.ymd)")
     }
 }
 
@@ -176,25 +176,25 @@ private struct QuietMonths: View {
         let dark = lamp || scheme == .dark
         // the months are named once, under their pictures (newest first, as the book): the line only says what is so
         VStack(alignment: .leading, spacing: 10) {
-            Text(pages.count == 1 ? "这个月没有留下记录" : "这几个月没有留下记录")
+            Text(pages.count == 1 ? L10n.t("这个月没有留下记录", "No entries this month") : L10n.t("这几个月没有留下记录", "No entries in these months"))
                 .font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             LazyVGrid(columns: [GridItem(.adaptive(minimum: type.isAccessibilitySize ? 96 : 60), spacing: 8)], alignment: .leading, spacing: 8) {
                 ForEach(pages, id: \.month) { p in
                     NavigationLink(value: Route.month(min(p.month, 36))) {
                         VStack(spacing: 3) {
                             Group {
-                                if let f = ArtIndex.shared.cover(min(p.month, 36)) { ArtView(name: f, label: "满 \(p.month) 个月", radius: 4) }
+                                if let f = ArtIndex.shared.cover(min(p.month, 36)) { ArtView(name: f, label: p.month == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(p.month) 个月", "Month \(p.month)"), radius: 4) }
                                 else { Color.clear.aspectRatio(4 / 3, contentMode: .fit) }
                             }
                             .padding(3)
                             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
                             .shadow(color: dark ? Color.black.opacity(0.28) : Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
-                            Text(p.month == 0 ? "出生" : "\(p.month) 个月").font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
+                            Text(p.month == 0 ? L10n.t("出生", "Birth") : L10n.t("\(p.month) 个月", "\(p.month) mo")).font(Typeface.numerals(12, relativeTo: .caption, weight: .bold)).foregroundStyle(Palette.secondaryText)
                                 .lineLimit(1).minimumScaleFactor(0.7)
                         }
                     }
                     .buttonStyle(.toy)
-                    .accessibilityLabel((p.month == 0 ? "出生" : "满 \(p.month) 个月") + "，没有记录")
+                    .accessibilityLabel(L10n.t((p.month == 0 ? "出生" : "满 \(p.month) 个月") + "，没有记录", (p.month == 0 ? "Birth" : "Month \(p.month)") + ", no entries"))
                 }
             }
         }
@@ -264,25 +264,28 @@ private struct BookTotals: View {
         let kinds = Set(pages.flatMap { $0.plays.map(\.play.code) }).count
         let firsts = pages.reduce(0) { $0 + $1.firsts.count }
         HStack(spacing: 0) {
-            item("\(pages.count)", "页")
+            item("\(pages.count)", L10n.t("页", pages.count == 1 ? "page" : "pages"))
             Divider().frame(height: 30)
-            item("\(plays)", "次玩过")
+            item("\(plays)", L10n.t("次玩过", plays == 1 ? "play" : "plays"))
             Divider().frame(height: 30)
-            item("\(kinds)", "个活动")
+            item("\(kinds)", L10n.t("个活动", kinds == 1 ? "activity" : "activities"))
             Divider().frame(height: 30)
             // the firsts open from their own count: the timeline of every 第一次, and a new one kept there
             NavigationLink(value: JournalRoute.firsts) {
                 VStack(spacing: 1) {
                     Text("\(firsts)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.bead.mix(with: .black, by: 0.18))
+                        .lineLimit(1).minimumScaleFactor(0.75)
                     HStack(spacing: 2) {
-                        Text("个第一次").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                        Text(L10n.t("个第一次", firsts == 1 ? "first" : "firsts")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1).minimumScaleFactor(0.75)
                         Image(systemName: "chevron.right").font(.caption2.weight(.bold)).foregroundStyle(.tertiary)
                     }
                 }
+                .padding(.horizontal, 4)
                 .frame(maxWidth: .infinity).contentShape(Rectangle())
             }
             .buttonStyle(.toy)
-            .accessibilityLabel("\(firsts) 个第一次，打开第一次时间线")
+            .accessibilityLabel(L10n.t("\(firsts) 个第一次，打开第一次时间线", "\(firsts) \(firsts == 1 ? "first" : "firsts"), open Firsts timeline"))
         }
         .padding(.vertical, 12)
         .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.08)], startPoint: .leading, endPoint: .trailing))
@@ -292,8 +295,11 @@ private struct BookTotals: View {
     private func item(_ n: String, _ unit: String) -> some View {
         VStack(spacing: 1) {
             Text(n).font(Typeface.numerals(24, relativeTo: .title2, weight: .bold)).foregroundStyle(Palette.accent)
+                .lineLimit(1).minimumScaleFactor(0.75)
             Text(unit).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                .lineLimit(1).minimumScaleFactor(0.75)
         }
+        .padding(.horizontal, 4)
         .frame(maxWidth: .infinity).accessibilityElement(children: .combine)
     }
 }
@@ -315,13 +321,14 @@ private struct BookPageView: View {
                     photo(m)
                     VStack(alignment: .leading, spacing: 4) {
                         HStack(spacing: 6) {
-                            Text(m == 0 ? "出生" : "满 \(m) 个月").font(.title3.weight(.bold)).foregroundStyle(.primary)
+                            Text(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "\(m) \(m == 1 ? "month" : "months")")).font(.title3.weight(.bold)).foregroundStyle(.primary)
                             if current {
-                                Text("这个月").font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
+                                Text(L10n.t("这个月", "This month")).font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
+                                    .lineLimit(1).minimumScaleFactor(0.8)
                                     .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(Palette.bead))
                             }
                         }
-                        Text(mo.title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
+                        Text(mo.title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 3).fixedSize(horizontal: false, vertical: true).multilineTextAlignment(.leading)
                         Text(range).font(.caption).foregroundStyle(.tertiary).monospacedDigit()
                     }
                     Spacer(minLength: 0)
@@ -343,7 +350,7 @@ private struct BookPageView: View {
             if !facts.isEmpty {
                 EvenRows(items: facts, id: \.label, per: type.isAccessibilitySize ? 1 : 2) { f in FactChip(fact: f) }
                 if page.days > 0 {
-                    Text("照护：按有记录的 \(page.days) 天平均").font(.caption2).foregroundStyle(.tertiary).padding(.leading, 2)
+                    Text(L10n.t("照护：按有记录的 \(page.days) 天平均", "Care: daily average across \(page.days) logged \(page.days == 1 ? "day" : "days")")).font(.caption2).foregroundStyle(.tertiary).padding(.leading, 2)
                 }
             }
 
@@ -361,14 +368,14 @@ private struct BookPageView: View {
             // this month's page: a first can be kept right here, onto this page
             if current {
                 Button { newFirst = First(at: ms(Date()), title: "") } label: {
-                    Label(page.firsts.isEmpty ? "记下这个月的第一次" : "再记一个第一次", systemImage: "star.fill").font(.subheadline.weight(.semibold))
+                    Label(page.firsts.isEmpty ? L10n.t("记下这个月的第一次", "Log a first this month") : L10n.t("再记一个第一次", "Log another first"), systemImage: "star.fill").font(.subheadline.weight(.semibold))
                 }
                 .buttonStyle(.vinyl(Palette.bead))
                 .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
             }
 
             if page.empty {
-                Text(current ? "这个月的记录会出现在这里：玩过的活动、测量和照护。" : "这一站没有留下记录。")
+                Text(current ? L10n.t("这个月的记录会出现在这里：玩过的活动、测量和照护。", "This month's plays, measurements, and care will gather here.") : L10n.t("这一站没有留下记录。", "No entries for this month."))
                     .font(.footnote).foregroundStyle(Palette.secondaryText)
             }
         }
@@ -381,7 +388,7 @@ private struct BookPageView: View {
     private func photo(_ m: Int) -> some View {
         let dark = lamp || scheme == .dark
         return Group {
-            if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, label: "满 \(m) 个月", radius: 6) }
+            if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, label: m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "\(m) \(m == 1 ? "month" : "months")"), radius: 6) }
             else { ZStack { StagePlate(); GrowingChild(month: m).padding(10) }.aspectRatio(4 / 3, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 6)) }
         }
         .frame(width: type.isAccessibilitySize ? 96 : 112)
@@ -402,19 +409,20 @@ private struct BookPageView: View {
     /// The days the page covers; the month still being lived runs to 至今 (not to a day that has not come).
     private var range: String {
         let a = Day(page.from), b = Day(page.to.addingTimeInterval(-1))
-        if page.to > Date() { return "\(a.y)年\(a.md) – 至今" }
-        return a.y == b.y ? "\(a.y)年\(a.md) – \(b.md)" : "\(a.y)年\(a.md) – \(b.y)年\(b.md)"
+        if page.to > Date() { return L10n.t("\(a.ymd) – 至今", "\(a.ymd) – present") }
+        if L10n.isEnglish { return a.y == b.y ? "\(a.md) – \(b.ymd)" : "\(a.ymd) – \(b.ymd)" }
+        return a.y == b.y ? "\(a.ymd) – \(b.md)" : "\(a.ymd) – \(b.ymd)"
     }
 
     private var facts: [Fact] {
         var f: [Fact] = []
-        if let w = page.measure?.weightG { f.append(Fact(symbol: "scalemass.fill", color: Crayon.leaf, value: String(format: "%.2f", Double(w) / 1000), unit: "千克", label: "体重")) }
-        if let l = page.measure?.lengthMm { f.append(Fact(symbol: "ruler.fill", color: Crayon.aqua, value: String(format: "%.1f", Double(l) / 10), unit: "厘米", label: "身长")) }
-        if let h = page.measure?.headMm { f.append(Fact(symbol: "circle.dashed", color: Crayon.sky, value: String(format: "%.1f", Double(h) / 10), unit: "厘米", label: "头围")) }
-        if let s = page.sleepHours { f.append(Fact(symbol: LogType.symbol(LogType.sleep), color: LogType.color(LogType.sleep), value: String(format: "%.1f", s), unit: "小时", label: "每天睡眠")) }
-        if let x = page.feeds { f.append(Fact(symbol: LogType.symbol(LogType.nurse), color: LogType.color(LogType.nurse), value: String(format: "%.0f", x.rounded()), unit: "次", label: "每天喂奶")) }
-        if let x = page.diapers { f.append(Fact(symbol: LogType.symbol(LogType.diaper), color: LogType.color(LogType.diaper), value: String(format: "%.0f", x.rounded()), unit: "片", label: "每天尿布")) }
-        if page.observed > 0 { f.append(Fact(symbol: "eye.fill", color: Crayon.tangerine, value: "\(page.observed)", unit: "项", label: "留意到")) }
+        if let w = page.measure?.weightG { f.append(Fact(symbol: "scalemass.fill", color: Crayon.leaf, value: String(format: "%.2f", Double(w) / 1000), unit: L10n.t("千克", "kg"), label: L10n.t("体重", "Weight"))) }
+        if let l = page.measure?.lengthMm { f.append(Fact(symbol: "ruler.fill", color: Crayon.aqua, value: String(format: "%.1f", Double(l) / 10), unit: L10n.t("厘米", "cm"), label: L10n.t("身长", "Length"))) }
+        if let h = page.measure?.headMm { f.append(Fact(symbol: "circle.dashed", color: Crayon.sky, value: String(format: "%.1f", Double(h) / 10), unit: L10n.t("厘米", "cm"), label: L10n.t("头围", "Head"))) }
+        if let s = page.sleepHours { f.append(Fact(symbol: LogType.symbol(LogType.sleep), color: LogType.color(LogType.sleep), value: String(format: "%.1f", s), unit: L10n.t("小时", "hrs"), label: L10n.t("每天睡眠", "Daily sleep"))) }
+        if let x = page.feeds { f.append(Fact(symbol: LogType.symbol(LogType.nurse), color: LogType.color(LogType.nurse), value: String(format: "%.0f", x.rounded()), unit: L10n.t("次", "/day"), label: L10n.t("每天喂奶", "Daily feeds"))) }
+        if let x = page.diapers { f.append(Fact(symbol: LogType.symbol(LogType.diaper), color: LogType.color(LogType.diaper), value: String(format: "%.0f", x.rounded()), unit: L10n.t("片", "/day"), label: L10n.t("每天尿布", "Daily diapers"))) }
+        if page.observed > 0 { f.append(Fact(symbol: "eye.fill", color: Crayon.tangerine, value: "\(page.observed)", unit: L10n.t("项", ""), label: L10n.t("留意到", "Noticed"))) }
         return f
     }
 }
@@ -429,7 +437,7 @@ private struct FactChip: View {
             VStack(alignment: .leading, spacing: 0) {
                 HStack(alignment: .firstTextBaseline, spacing: 2) {
                     Text(fact.value).font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(.primary)
-                    Text(fact.unit).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    if !fact.unit.isEmpty { Text(fact.unit).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
                 }
                 .lineLimit(1).fixedSize()
                 Text(fact.label).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
@@ -490,16 +498,17 @@ private struct PlayStamp: View {
             TrayTile(code: play.code, color: c, flat: ArtStyle.current == .flat)
                 .frame(width: min(w, 80), height: min(w, 80) * 0.75)
             VStack(alignment: .leading, spacing: 1) {
-                Text(play.name).font(.caption.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.leading)
+                Text(play.name).font(.caption.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
-                Text("玩过 \(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                Text(L10n.t("玩过 \(times) 次", "\(times) \(times == 1 ? "time" : "times")")).font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.secondaryText)
+                    .lineLimit(1)
             }
             Spacer(minLength: 0)
         }
         .padding(6)
         .background(c.opacity(0.1), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(play.name + "，玩过 \(times) 次")
+        .accessibilityLabel(L10n.t("\(play.name)，玩过 \(times) 次", "\(play.name), played \(times) \(times == 1 ? "time" : "times")"))
     }
 }
 

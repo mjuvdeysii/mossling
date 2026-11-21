@@ -49,7 +49,7 @@ struct TodayProvider: TimelineProvider {
 struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in
-            TodayWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
+            TodayWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
         }
         .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Moss & Otto · Today"))
         .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；点击各区块直达活动绘本与手帐。", "Age, today's play, 24h bead rhythm, and direct links into play & journal."))
@@ -77,7 +77,7 @@ private struct TodayWidgetView: View {
 struct StoryWindowWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "story-window", provider: TodayProvider()) { e in
-            StoryWindowWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
+            StoryWindowWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
         }
         .configurationDisplayName(L10n.t("成长故事窗", "Story Window"))
         .description(L10n.t("37 颗蒙氏成长珠进度与当下成长章节，轻点直达成长册与本月主页。", "Your baby's 37-bead Montessori chapter & keepsake window into Growth Book."))
@@ -97,7 +97,7 @@ private struct StoryWindowWidgetView: View {
 struct QuickCareWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "quick-care", provider: TodayProvider()) { e in
-            QuickCareWidgetView(e: e).containerBackground(for: .widget) { WidgetInk.paper }
+            QuickCareWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
         }
         .configurationDisplayName(L10n.t("一键记录", "Quick Log"))
         .description(L10n.t("无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。", "Start or stop timers and log wet or dirty diapers right from your Home Screen."))
@@ -117,7 +117,7 @@ private struct QuickCareWidgetView: View {
 struct BedsideLampWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "bedside-lamp", provider: TodayProvider()) { e in
-            BedsideLampWidgetView(e: e).containerBackground(for: .widget) {
+            BedsideLampWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) {
                 BedsideLampFace.backdrop
             }
         }
