@@ -231,7 +231,7 @@ struct RhythmDialCard: View {
                         dark: dark
                     )
                     centerMedallion(model: model, dark: dark)
-                        .frame(width: side * 0.42, height: side * 0.42)
+                        .frame(width: side * 0.405, height: side * 0.405)
                 }
                 .contentShape(Circle())
                 .gesture(
@@ -271,6 +271,7 @@ struct RhythmDialCard: View {
             HStack(spacing: 6) {
                 ForEach(RhythmFilter.allCases) { f in
                     let on = filter == f
+                    let chipTint = f == .all ? Crayon.teal : f.tint
                     Button {
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : .snappy) { filter = f }
@@ -287,7 +288,7 @@ struct RhythmDialCard: View {
                         .foregroundStyle(on ? .white : Palette.secondaryText)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 7)
-                        .vinylSurface(on ? Crayon.fill(f.tint, lamp) : Palette.stone, radius: Radius.chip, strong: on)
+                        .vinylSurface(on ? Crayon.fill(chipTint, lamp) : Palette.stone, radius: Radius.chip, strong: on)
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(on ? .isSelected : [])
@@ -329,7 +330,7 @@ struct RhythmDialCard: View {
                         .foregroundStyle(on ? .white : Palette.secondaryText)
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
-                        .vinylSurface(on ? Crayon.fill(Palette.accent, lamp) : Palette.stone, radius: Radius.chip, strong: on)
+                        .vinylSurface(on ? Crayon.fill(Crayon.teal, lamp) : Palette.stone, radius: Radius.chip, strong: on)
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
@@ -442,8 +443,8 @@ struct RhythmDialCanvas: View {
         Canvas { ctx, size in
             let side = min(size.width, size.height)
             let c = CGPoint(x: size.width / 2, y: size.height / 2)
-            let outerR = side * 0.435
-            let innerR = side * 0.225
+            let outerR = side * 0.395
+            let innerR = side * 0.210
             let ringCount = max(1, model.rings.count)
             let ringBand = (outerR - innerR) / CGFloat(ringCount)
 

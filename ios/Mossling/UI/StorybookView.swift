@@ -269,99 +269,102 @@ private struct StorybookCoverSpread: View {
         let plays = pages.reduce(0) { $0 + $1.plays.reduce(0) { $0 + $1.times } }
         let firsts = pages.reduce(0) { $0 + $1.firsts.count }
 
-        ScrollView {
-            VStack(spacing: 20) {
-                VStack(spacing: 18) {
-                    // Gold embossed colophon ribbon
-                    HStack(spacing: 7) {
-                        GoldBead(size: 8)
-                        Text(L10n.t("成长绘本 · 0–3 岁", "GROWTH STORYBOOK · 0–3 YRS"))
-                            .font(.caption2.weight(.bold))
-                            .tracking(0.8)
-                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
-                        GoldBead(size: 8)
-                    }
-                    .padding(.top, 6)
+        GeometryReader { geo in
+            ScrollView {
+                VStack(spacing: 20) {
+                    VStack(spacing: 18) {
+                        // Gold embossed colophon ribbon
+                        HStack(spacing: 7) {
+                            GoldBead(size: 8)
+                            Text(L10n.t("成长绘本 · 0–3 岁", "GROWTH STORYBOOK · 0–3 YRS"))
+                                .font(.caption2.weight(.bold))
+                                .tracking(0.8)
+                                .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
+                            GoldBead(size: 8)
+                        }
+                        .padding(.top, 6)
 
-                    // Taped heirloom cover frame
-                    ZStack(alignment: .bottomTrailing) {
-                        Group {
-                            if let f = ArtIndex.shared.cover(mo) {
-                                ArtView(name: f, label: L10n.t("封面插画", "Cover illustration"), radius: 12)
-                            } else {
-                                ZStack { StagePlate(); GrowingChild(month: mo).padding(16) }
-                                    .aspectRatio(4 / 3, contentMode: .fit)
-                                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        // Taped heirloom cover frame
+                        ZStack(alignment: .bottomTrailing) {
+                            Group {
+                                if let f = ArtIndex.shared.cover(mo) {
+                                    ArtView(name: f, label: L10n.t("封面插画", "Cover illustration"), radius: 12)
+                                } else {
+                                    ZStack { StagePlate(); GrowingChild(month: mo).padding(16) }
+                                        .aspectRatio(4 / 3, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                }
+                            }
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
+                            .shadow(color: dark ? .black.opacity(0.34) : Color(hex: 0x6B4A2B).opacity(0.18), radius: 10, y: 5)
+                            .overlay(alignment: .top) {
+                                RoundedRectangle(cornerRadius: 2)
+                                    .fill(Crayon.sunflower.opacity(dark ? 0.5 : 0.62))
+                                    .frame(width: 56, height: 15)
+                                    .rotationEffect(.degrees(-2.5))
+                                    .offset(y: -7)
+                            }
+
+                            Duo(primary: app.companion, size: 54, mood: .happy, poke: true, night: dark)
+                                .offset(x: 6, y: 12)
+                        }
+                        .padding(.horizontal, 12)
+
+                        VStack(spacing: 6) {
+                            Text(L10n.t("\(who)的成长绘本", "\(who)'s Storybook"))
+                                .font(.title.weight(.bold))
+                                .foregroundStyle(.primary)
+                                .multilineTextAlignment(.center)
+                            if let age = app.age {
+                                Text(L10n.ageText(age) + " · " + L10n.livedDays(age.lived))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(Palette.accent)
+                            }
+                            if let b = app.birth {
+                                Text(L10n.t("始于 \(b.ymd)", "Beginning \(b.ymd)"))
+                                    .font(.caption)
+                                    .foregroundStyle(Palette.secondaryText)
                             }
                         }
-                        .padding(8)
-                        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
-                        .shadow(color: dark ? .black.opacity(0.34) : Color(hex: 0x6B4A2B).opacity(0.18), radius: 10, y: 5)
-                        .overlay(alignment: .top) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(Crayon.sunflower.opacity(dark ? 0.5 : 0.62))
-                                .frame(width: 56, height: 15)
-                                .rotationEffect(.degrees(-2.5))
-                                .offset(y: -7)
+
+                        Divider().padding(.horizontal, 12).opacity(0.45)
+
+                        HStack(spacing: 0) {
+                            coverStat("\(pages.count)", L10n.t("个月份", pages.count == 1 ? "month" : "months"))
+                            Divider().frame(height: 28)
+                            coverStat("\(plays)", L10n.t("次一起玩", plays == 1 ? "play" : "plays"))
+                            Divider().frame(height: 28)
+                            coverStat("\(firsts)", L10n.t("个第一次", firsts == 1 ? "first" : "firsts"))
                         }
 
-                        Duo(primary: app.companion, size: 54, mood: .happy, poke: true, night: dark)
-                            .offset(x: 6, y: 12)
-                    }
-                    .padding(.horizontal, 12)
-
-                    VStack(spacing: 6) {
-                        Text(L10n.t("\(who)的成长绘本", "\(who)'s Storybook"))
-                            .font(.title.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.center)
-                        if let age = app.age {
-                            Text(L10n.ageText(age) + " · " + L10n.livedDays(age.lived))
-                                .font(.subheadline.weight(.semibold))
+                        HStack(spacing: 6) {
+                            Text(L10n.t("向左轻翻，从出生那一页开始", "Swipe left to open from Month 0"))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Palette.secondaryText)
+                            Image(systemName: "arrow.right")
+                                .font(.caption2.weight(.bold))
                                 .foregroundStyle(Palette.accent)
                         }
-                        if let b = app.birth {
-                            Text(L10n.t("始于 \(b.ymd)", "Beginning \(b.ymd)"))
-                                .font(.caption)
-                                .foregroundStyle(Palette.secondaryText)
-                        }
+                        .padding(.top, 2)
                     }
-
-                    Divider().padding(.horizontal, 12).opacity(0.45)
-
-                    HStack(spacing: 0) {
-                        coverStat("\(pages.count)", L10n.t("个月份", pages.count == 1 ? "month" : "months"))
-                        Divider().frame(height: 28)
-                        coverStat("\(plays)", L10n.t("次一起玩", plays == 1 ? "play" : "plays"))
-                        Divider().frame(height: 28)
-                        coverStat("\(firsts)", L10n.t("个第一次", firsts == 1 ? "first" : "firsts"))
-                    }
-
-                    HStack(spacing: 6) {
-                        Text(L10n.t("向左轻翻，从出生那一页开始", "Swipe left to open from Month 0"))
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Palette.secondaryText)
-                        Image(systemName: "arrow.right")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(Palette.accent)
-                    }
-                    .padding(.top, 2)
-                }
-                .padding(20)
-                .frame(maxWidth: .infinity)
-                .background(
-                    LinearGradient(
-                        colors: [Crayon.caramel.opacity(dark ? 0.14 : 0.16), Crayon.sunflower.opacity(dark ? 0.06 : 0.07)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
+                    .padding(20)
+                    .frame(maxWidth: .infinity)
+                    .background(
+                        LinearGradient(
+                            colors: [Crayon.caramel.opacity(dark ? 0.14 : 0.16), Crayon.sunflower.opacity(dark ? 0.06 : 0.07)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
                     )
-                )
-                .printCard(radius: Radius.stage)
+                    .printCard(radius: Radius.stage)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 8)
+                .frame(minHeight: geo.size.height, alignment: .center)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .scrollBounceBehavior(.basedOnSize)
     }
 
     private func coverStat(_ value: String, _ unit: String) -> some View {
@@ -396,7 +399,7 @@ private struct StorybookMonthSpread: View {
         }.first
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 12) {
                 // Editorial Chapter Heading
                 HStack(alignment: .firstTextBaseline) {
                     HStack(spacing: 6) {
@@ -414,7 +417,7 @@ private struct StorybookMonthSpread: View {
                 }
 
                 Text(mo.title)
-                    .font(.title2.weight(.bold))
+                    .font(.title3.weight(.bold))
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -429,6 +432,7 @@ private struct StorybookMonthSpread: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
                     }
+                    .frame(maxHeight: 192)
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
                     .shadow(color: dark ? .black.opacity(0.32) : Color(hex: 0x6B4A2B).opacity(0.16), radius: 8, y: 4)
@@ -445,22 +449,23 @@ private struct StorybookMonthSpread: View {
                             Image(uiImage: uiImg)
                                 .resizable()
                                 .scaledToFill()
-                                .frame(width: 82, height: 82)
+                                .frame(width: 74, height: 74)
                                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                             Text(Firsts.displayTitle(firstItem))
                                 .font(.system(size: 9.5, weight: .bold, design: .rounded))
                                 .foregroundStyle(Color(hex: 0x3A2E24))
                                 .lineLimit(1)
-                                .frame(maxWidth: 82)
+                                .frame(maxWidth: 74)
                         }
                         .padding(5)
                         .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(Color.white))
                         .shadow(color: .black.opacity(0.22), radius: 7, y: 4)
                         .rotationEffect(.degrees(4.5))
-                        .offset(x: 4, y: 12)
+                        .offset(x: 4, y: 10)
                     }
                 }
-                .padding(.bottom, firstPhoto != nil ? 12 : 2)
+                .frame(maxWidth: .infinity, alignment: .center)
+                .padding(.bottom, firstPhoto != nil ? 10 : 2)
 
                 // Month's Firsts
                 if !page.firsts.isEmpty {

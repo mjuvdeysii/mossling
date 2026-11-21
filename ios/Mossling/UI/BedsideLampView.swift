@@ -36,11 +36,16 @@ struct BedsideLampView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 10)
 
                 lanternCenterpiece
+                    .frame(maxWidth: .infinity)
+                    .overlay(alignment: .trailing) {
+                        dimmerRail
+                            .padding(.trailing, 10)
+                    }
 
-                Spacer(minLength: 12)
+                Spacer(minLength: 10)
 
                 VStack(spacing: 14) {
                     soundscapeDeck
@@ -50,10 +55,6 @@ struct BedsideLampView: View {
                 }
                 .padding(.horizontal, 18)
                 .padding(.bottom, 16)
-            }
-            .overlay(alignment: .trailing) {
-                dimmerRail
-                    .padding(.trailing, 10)
             }
         }
         .preferredColorScheme(.dark)
@@ -289,7 +290,7 @@ struct BedsideLampView: View {
         return VStack(spacing: 6) {
             Image(systemName: "sun.max.fill")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Palette.amber.opacity(active ? 0.9 : 0.38))
+                .foregroundStyle(Palette.amber.opacity(active ? 0.9 : 0.42))
 
             GeometryReader { g in
                 let h = g.size.height
@@ -309,14 +310,14 @@ struct BedsideLampView: View {
                         .frame(height: fillH)
                 }
             }
-            .frame(width: active ? 8 : 5, height: 132)
+            .frame(width: active ? 8 : 5, height: 124)
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: active)
 
             Image(systemName: "moon.fill")
                 .font(.system(size: 9, weight: .bold))
-                .foregroundStyle(Palette.lampInk.opacity(active ? 0.7 : 0.32))
+                .foregroundStyle(Palette.lampInk.opacity(active ? 0.72 : 0.36))
         }
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
         .padding(.horizontal, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.t("夜灯亮度", "Lamp brightness"))
@@ -370,29 +371,29 @@ struct BedsideLampView: View {
                             soundscape.toggle(kind)
                         }
                     } label: {
-                        HStack(spacing: 9) {
+                        HStack(spacing: 7) {
                             Image(systemName: kind.symbol)
-                                .font(.system(size: 16, weight: .semibold))
+                                .font(.system(size: 14, weight: .semibold))
                                 .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
-                                .frame(width: 32, height: 32)
+                                .frame(width: 28, height: 28)
                                 .background(
                                     Circle().fill(on ? Palette.amber : Palette.amber.opacity(0.14))
                                 )
                             VStack(alignment: .leading, spacing: 1) {
                                 Text(kind.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.86))
+                                    .font(.footnote.weight(.bold))
+                                    .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.88))
                                     .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
+                                    .minimumScaleFactor(0.72)
                                 Text(kind.subtitle)
                                     .font(.caption2)
-                                    .foregroundStyle(on ? Palette.amber.opacity(0.9) : Palette.lampInk.opacity(0.5))
+                                    .foregroundStyle(on ? Palette.amber.opacity(0.9) : Palette.lampInk.opacity(0.52))
                                     .lineLimit(1)
-                                    .minimumScaleFactor(0.75)
+                                    .minimumScaleFactor(0.72)
                             }
                             Spacer(minLength: 0)
                         }
-                        .padding(.horizontal, 10)
+                        .padding(.horizontal, 9)
                         .padding(.vertical, 9)
                         .background(
                             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
@@ -432,14 +433,49 @@ struct BedsideLampView: View {
                         }
                     }
 
-                    // Warm low-glare volume control
+                    // Zero-glare warm brass volume scrubber (no stark white slider knob in a dark room)
                     HStack(spacing: 10) {
                         Image(systemName: "speaker.wave.1.fill")
                             .font(.caption)
                             .foregroundStyle(Palette.lampInk.opacity(0.58))
-                        Slider(value: Binding(get: { soundscape.volume }, set: { soundscape.volume = $0 }), in: 0.1...1.0)
-                            .tint(Palette.lampTint)
-                            .accessibilityLabel(L10n.t("声景音量", "Soundscape volume"))
+                        GeometryReader { geo in
+                            let w = max(1, geo.size.width)
+                            let norm = max(0, min(1, (soundscape.volume - 0.1) / 0.9))
+                            let thumbX = norm * (w - 18) + 9
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(Color.white.opacity(0.12))
+                                    .frame(height: 6)
+                                Capsule()
+                                    .fill(LinearGradient(colors: [Palette.lampTint, Palette.amber], startPoint: .leading, endPoint: .trailing))
+                                    .frame(width: max(6, thumbX), height: 6)
+                                Circle()
+                                    .fill(RadialGradient(colors: [Palette.beadLight, Palette.amber], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11))
+                                    .frame(width: 18, height: 18)
+                                    .overlay(Circle().strokeBorder(Color(hex: 0x241500).opacity(0.45), lineWidth: 1))
+                                    .offset(x: thumbX - 9)
+                            }
+                            .frame(maxHeight: .infinity)
+                            .contentShape(Rectangle())
+                            .gesture(
+                                DragGesture(minimumDistance: 0)
+                                    .onChanged { v in
+                                        let ratio = max(0, min(1, v.location.x / w))
+                                        soundscape.volume = 0.1 + ratio * 0.9
+                                    }
+                            )
+                        }
+                        .frame(height: 28)
+                        .accessibilityElement(children: .ignore)
+                        .accessibilityLabel(L10n.t("声景音量", "Soundscape volume"))
+                        .accessibilityValue("\(Int((soundscape.volume * 100).rounded()))%")
+                        .accessibilityAdjustableAction { dir in
+                            switch dir {
+                            case .increment: soundscape.volume = min(1.0, soundscape.volume + 0.1)
+                            case .decrement: soundscape.volume = max(0.1, soundscape.volume - 0.1)
+                            default: break
+                            }
+                        }
                         Image(systemName: "speaker.wave.3.fill")
                             .font(.caption)
                             .foregroundStyle(Palette.lampInk.opacity(0.58))
