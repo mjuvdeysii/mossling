@@ -1,0 +1,19 @@
+/Applications/Xcode_27.app/Contents/Applications/Icon Composer.app/Contents/Executables/ictool
+{
+
+}
+{
+
+}
+{
+
+}
+{
+
+}
+{
+
+}
+{
+
+}
