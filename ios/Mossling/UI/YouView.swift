@@ -193,7 +193,7 @@ private struct BabyPortrait: View {
             }
         }
         .accessibilityElement().accessibilityAddTraits(.isImage)
-        .accessibilityLabel(sex == "girl" ? "女宝宝" : sex == "boy" ? "男宝宝" : "宝宝")
+        .accessibilityLabel(sex == "girl" ? L10n.t("女宝宝", "Baby girl") : sex == "boy" ? L10n.t("男宝宝", "Baby boy") : L10n.t("宝宝", "Baby"))
     }
 }
 
@@ -234,7 +234,7 @@ private struct CompanionPicker: View {
                     .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.toy)
-                .accessibilityLabel("陪伴伙伴 \(k.rawValue)，\(k.trait)").accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityLabel(L10n.t("陪伴伙伴 \(k.rawValue)，\(k.trait)", "Companion \(k.rawValue), \(k.trait)")).accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: cheer)
@@ -473,7 +473,7 @@ struct AboutView: View {
                 }
 
                 if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                    Link("ICP备案号：\(icp)", destination: URL(string: "https://beian.miit.gov.cn/")!)
+                    Link(L10n.t("ICP备案号：\(icp)", "ICP Filing: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
                         .font(.footnote.weight(.semibold))
                         .padding(.horizontal, 6)
                 }
@@ -483,7 +483,7 @@ struct AboutView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
         .navigationDestination(isPresented: $story) { StoryView() }
-        .navigationTitle("关于摸索台灯").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(L10n.t("关于摸索台灯", "About Moss & Otto")).navigationBarTitleDisplayMode(.inline)
     }
 
     private func aboutGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -515,38 +515,38 @@ struct StoryView: View {
                         .frame(height: 180)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 }
-                Text("孩子摸索，大人点灯").font(.title2.weight(.bold))
+                Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title2.weight(.bold))
                 // the two names as two cards to turn over: each face shows who it is and a line; turned, the whole of it
                 HStack(alignment: .top, spacing: 10) {
-                    pair("摸索", "孩子", "用手、用嘴、用眼睛摸索世界", "0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", Palette.moss, .moss)
-                    pair("台灯", "大人", "不替人走路，只把桌面照亮", "台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", Palette.rod, .otto)
+                    pair(L10n.t("摸索", "Moss"), L10n.t("孩子", "the child"), L10n.t("用手、用嘴、用眼睛摸索世界", "Explores with hands, mouth, and eyes"), L10n.t("0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", "From 0 to 3, a child explores the world with hands, mouth, and eyes, discovering something new each month. Moss takes its name from exploring — its little sprout is always growing."), Palette.moss, .moss)
+                    pair(L10n.t("台灯", "Otto"), L10n.t("大人", "the grown-up"), L10n.t("不替人走路，只把桌面照亮", "Doesn't walk for them — just lights the table"), L10n.t("台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", "A desk lamp never walks for you; it simply lights the table and sits quietly beside you. The warm golden bead above Otto is that light."), Palette.rod, .otto)
                 }
                 .fixedSize(horizontal: false, vertical: true)   // both cards as tall as the taller
                 // what is done here: three small cards, a line on the face, the whole of it on the back
                 HStack(alignment: .top, spacing: 8) {
-                    thing("square.grid.2x2.fill", Crayon.sunflower, "一起玩", "一步步的图", "首页每天推荐一个这个月适合的活动，点开就是一步步的图。")
-                    thing("leaf.fill", Crayon.leaf, "看\(app.ta)长大", "一月一站", "0–36 个月，一个月一站，共 37 站；成长册留下每一站的样子。")
-                    thing("list.bullet.clipboard.fill", Crayon.tangerine, "记下来", "可选 · 只存本机", "喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。")
+                    thing("square.grid.2x2.fill", Crayon.sunflower, L10n.t("一起玩", "Play"), L10n.t("一步步的图", "Step-by-step"), L10n.t("首页每天推荐一个这个月适合的活动，点开就是一步步的图。", "Each day highlights one activity right for this month, with simple illustrated steps."))
+                    thing("leaf.fill", Crayon.leaf, L10n.t("看\(app.ta)长大", "Grow"), L10n.t("一月一站", "37 stations"), L10n.t("0–36 个月，一个月一站，共 37 站；成长册留下每一站的样子。", "One station for every month from 0 to 36 — 37 in all, kept in the Growth Book."))
+                    thing("list.bullet.clipboard.fill", Crayon.tangerine, L10n.t("记下来", "Log"), L10n.t("可选 · 只存本机", "Optional · Local"), L10n.t("喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。", "Feeds, sleep, and diapers logged in a tap (optional), stored only on this iPhone."))
                 }
                 .fixedSize(horizontal: false, vertical: true)
-                Text("陪 0–3 岁的孩子一起玩，看\(app.ta == "孩子" ? "着" : app.ta)一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。")
+                Text(L10n.t("陪 0–3 岁的孩子一起玩，看\(app.ta == "孩子" ? "着" : app.ta)一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes. No scores, no comparisons, no hurry — every child grows at their own pace."))
                     .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 StoryGoesOn(primary: app.companion)
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .pageBackground()
-        .navigationTitle("摸索台灯的故事").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(L10n.t("摸索台灯的故事", "Our Story")).navigationBarTitleDisplayMode(.inline)
     }
 
     private func pair(_ word: String, _ who: String, _ line: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
-        TurnCard(label: "\(word)，属于\(who)。\(text)") {
+        TurnCard(label: L10n.t("\(word)，属于\(who)。\(text)", "\(word), for \(who). \(text)")) {
             VStack(spacing: 6) {
                 Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true)
                     .frame(width: 58 * k.scale, height: 58 * k.scale).frame(height: 64, alignment: .bottom)
                 HStack(alignment: .firstTextBaseline, spacing: 6) {
                     Text(word).font(.title3.weight(.bold)).foregroundStyle(c)
-                    Text("属于" + who).font(.caption).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("属于" + who, "for " + who)).font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Text(line).font(.footnote).foregroundStyle(.primary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
             }
@@ -596,7 +596,7 @@ struct TurnCard<Front: View, Back: View>: View {
         .sensoryFeedback(.selection, trigger: turned)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
-        .accessibilityHint("点一下翻面")
+        .accessibilityHint(L10n.t("点一下翻面", "Tap to flip"))
     }
 }
 
@@ -604,7 +604,9 @@ struct TurnCard<Front: View, Back: View>: View {
 struct DocView: View {
     let name: String
     var body: some View {
-        let raw = (Bundle.main.url(forResource: name, withExtension: "md").flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? "读取不到这份文件。")
+        let resURL = (L10n.isEnglish ? Bundle.main.url(forResource: name + "_EN", withExtension: "md") : nil)
+            ?? Bundle.main.url(forResource: name, withExtension: "md")
+        let raw = (resURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? L10n.t("读取不到这份文件。", "This document could not be loaded."))
             .replacingOccurrences(of: "安卓应用", with: "应用")
         let lines = Owner.fill(raw).components(separatedBy: "\n")
         // a table's first row (the one followed by |---|) names the columns; it is not an entry
@@ -636,7 +638,7 @@ struct DocView: View {
                 .card(Palette.card, radius: 18, padding: 14)
             }
         }
-        else if l.hasPrefix("适用于") || l.hasPrefix("生效日期") { Text(l).font(.footnote).foregroundStyle(Palette.secondaryText) }
+        else if l.hasPrefix("适用于") || l.hasPrefix("生效日期") || l.hasPrefix("Applies to") || l.hasPrefix("Effective") { Text(l).font(.footnote).foregroundStyle(Palette.secondaryText) }
         else if l.isEmpty { Color.clear.frame(height: 2) }
         else { Text(rich(l)).font(.body) }
     }
@@ -655,8 +657,8 @@ struct SourcesView: View {
                             HStack(spacing: 10) {
                                 IconTile(symbol: "clock.badge.checkmark.fill", color: Crayon.aqua, size: 28, round: true)
                                 VStack(alignment: .leading, spacing: 1) {
-                                    Text("WHO 每天的节奏参考").font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                    Text("0–3 岁活动、睡眠与屏幕建议（2019）").font(.caption).foregroundStyle(Palette.secondaryText)
+                                    Text(L10n.t("WHO 每天的节奏参考", "WHO Daily Rhythm Reference")).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                                    Text(L10n.t("0–3 岁活动、睡眠与屏幕建议（2019）", "Activity, sleep & screen guidelines, ages 0–3 (2019)")).font(.caption).foregroundStyle(Palette.secondaryText)
                                 }
                                 Spacer(minLength: 0)
                                 Image(systemName: "chevron.down")
@@ -672,10 +674,10 @@ struct SourcesView: View {
                                 ForEach(Array(app.content.who.enumerated()), id: \.offset) { idx, row in
                                     VStack(alignment: .leading, spacing: 5) {
                                         Text(row.age).font(.subheadline.weight(.bold)).foregroundStyle(Palette.accent)
-                                        whoLine("活动", row.act)
-                                        whoLine("睡眠", row.sleep)
-                                        whoLine("屏幕", row.screen)
-                                        whoLine("久坐", row.restrain)
+                                        whoLine(L10n.t("活动", "Activity"), row.act)
+                                        whoLine(L10n.t("睡眠", "Sleep"), row.sleep)
+                                        whoLine(L10n.t("屏幕", "Screens"), row.screen)
+                                        whoLine(L10n.t("久坐", "Restraint"), row.restrain)
                                     }
                                     if idx < app.content.who.count - 1 { Divider().opacity(0.4) }
                                 }
@@ -687,7 +689,7 @@ struct SourcesView: View {
                 }
 
                 VStack(alignment: .leading, spacing: 6) {
-                    Text("参考文献 · \(app.content.sources.count + 1) 项")
+                    Text(L10n.t("参考文献 · \(app.content.sources.count + 1) 项", "References · \(app.content.sources.count + 1)"))
                         .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 6)
                         .accessibilityAddTraits(.isHeader)
                     VStack(spacing: 0) {
@@ -711,14 +713,14 @@ struct SourcesView: View {
                                 Text("\(app.content.sources.count + 1)").font(.footnote.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(minWidth: 20, alignment: .leading)
                                 Text("World Health Organization").font(.subheadline.weight(.semibold))
                             }
-                            Text("WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准").font(.footnote)
+                            Text(L10n.t("WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准", "WHO Child Growth Standards: weight, length/height, and head circumference for age")).font(.footnote)
                             Text("2006").font(.caption).foregroundStyle(Palette.secondaryText)
                         }
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(14)
                     }
                     .printCard(radius: Radius.card)
-                    Text("育儿内容整理自公开发布的机构资料，每一条都注明来源。")
+                    Text(L10n.t("育儿内容整理自公开发布的机构资料，每一条都注明来源。", "Guidance is summarized from published public health and pediatric references, each cited above."))
                         .font(.caption).foregroundStyle(Palette.secondaryText).padding(.horizontal, 6).padding(.top, 2)
                 }
             }
@@ -726,12 +728,12 @@ struct SourcesView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
-        .navigationTitle("内容来源").navigationBarTitleDisplayMode(.inline)
+        .navigationTitle(L10n.t("内容来源", "Sources")).navigationBarTitleDisplayMode(.inline)
     }
 
     private func whoLine(_ label: String, _ text: String) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).frame(width: 28, alignment: .leading)
+            Text(label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).frame(width: L10n.isEnglish ? 64 : 28, alignment: .leading)
             Text(text).font(.caption).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
         }
     }
@@ -740,18 +742,23 @@ struct SourcesView: View {
 struct LicensesView: View {
     var body: some View {
         List {
-            Section("制作") {
-                row("摸索台灯", "由创作者独立构思与持续打磨，结合现代软件与人工智能工具辅助完成设计、插画与工程实现。", "Moss & Otto")
+            Section(L10n.t("制作", "Craft")) {
+                row(L10n.appName,
+                    L10n.t("由独立创作者构思与持续打磨，专注安静、离线、以孩子节奏为本的家庭陪伴体验。",
+                           "Independently designed and crafted as a quiet, offline companion paced to your child."),
+                    "Moss & Otto")
             }
-            Section("数据") {
-                row("WHO Child Growth Standards", "按世界卫生组织的使用条款引用", "© World Health Organization")
+            Section(L10n.t("数据", "Data")) {
+                row("WHO Child Growth Standards",
+                    L10n.t("按世界卫生组织的使用条款引用", "Used under World Health Organization terms"),
+                    "© World Health Organization")
             }
-            Section("系统框架") {
+            Section(L10n.t("系统框架", "Frameworks")) {
                 row("SwiftUI · Swift Charts · WidgetKit · ActivityKit", "Apple SDK", "© Apple Inc.")
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .navigationTitle("许可与致谢")
+        .navigationTitle(L10n.t("许可与致谢", "Licenses & Credits"))
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
         VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }
@@ -797,10 +804,10 @@ enum Owner {
     static var developer: String { value("MosslingDeveloper") }
     static var email: String { value("MosslingEmail") }
     /// How to reach the developer, as the documents say it.
-    static var contact: String { email.isEmpty ? "本应用 App Store 页面上的「App 支持」链接" : "电子邮件 " + email }
+    static var contact: String { email.isEmpty ? L10n.t("本应用 App Store 页面上的「App 支持」链接", "the App Support link on the App Store page") : L10n.t("电子邮件 ", "email ") + email }
     /// 反馈问题 opens mail; with no address yet there is no button (the documents name the App Store page instead).
     static var contactURL: URL? { email.isEmpty ? nil : URL(string: "mailto:" + email) }
-    static var developerName: String { developer.isEmpty ? "本应用 App Store 页面上显示的开发者" : developer }
+    static var developerName: String { developer.isEmpty ? L10n.t("本应用 App Store 页面上显示的开发者", "the developer listed on the App Store page") : developer }
     /// A document with the developer and the contact put in.
     static func fill(_ text: String) -> String {
         text.replacingOccurrences(of: "{{DEVELOPER}}", with: developerName).replacingOccurrences(of: "{{CONTACT}}", with: contact)

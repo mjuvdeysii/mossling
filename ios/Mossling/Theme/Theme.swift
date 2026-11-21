@@ -203,7 +203,7 @@ extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)
 struct LampPresented: ViewModifier {
     @Environment(\.lamp) private var lamp
     @ViewBuilder func body(content: Self.Content) -> some View {
-        let lit = content.modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+        let lit = content.fontDesign(.rounded).modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
         if lamp && ArtStyle.current == .flat {
             // in 2D, every sheet at night has the page's night behind it (the fireflies), lists and forms included
             lit.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }

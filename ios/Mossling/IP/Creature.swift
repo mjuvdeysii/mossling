@@ -433,8 +433,8 @@ struct StoryGoesOn: View {
                 Duo(primary: primary, size: 64, look: CGPoint(x: 0.9, y: -0.1)).padding(.leading, 18).padding(.bottom, 12)
             }
             .frame(height: 96)
-            Text("故事仍在继续").font(.title2.weight(.bold)).padding(.top, 10)
-            Text("36 个月以后，路还很长，每一天都有新的样子。").font(.subheadline).foregroundStyle(Palette.secondaryText)
+            Text(L10n.t("故事仍在继续", "The story goes on")).font(.title2.weight(.bold)).padding(.top, 10)
+            Text(L10n.t("36 个月以后，路还很长，每一天都有新的样子。", "Past 36 months, the road stretches far — every day brings something new.")).font(.subheadline).foregroundStyle(Palette.secondaryText)
         }
         .padding(20)
         .frame(maxWidth: .infinity, alignment: .leading)

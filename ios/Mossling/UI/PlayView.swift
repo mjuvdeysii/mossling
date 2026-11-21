@@ -150,7 +150,7 @@ struct Fold<Content: View>: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.toy)
-            .accessibilityValue(open ? "已展开" : "已折叠")
+            .accessibilityValue(open ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
             if open {
                 Divider().padding(.horizontal, 16)
                 VStack(spacing: 0) { content }
