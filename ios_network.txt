@@ -1,0 +1,19 @@
+Network events from the app's processes during the simulator tests (      17 log lines)
+-- connections and requests --
+-- every line, deduplicated (timestamps and ids removed) --
+   2 Df Mossling[70895:29cc2] [com.apple.network:] networkd_settings_read_from_file_locked initialized networkd settings by reading plist directly
+   1 Timestamp               Ty Process[PID:TID]
+   1 getpwuid_r did not find a match for uid 501
+   1 Filtering the log data using "process BEGINSWITH "Mossling" AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")"
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] Unsetting the global parent activity <nw_activity 50:1 [A96B7AB1-66BA-4A03-8022-2500658481D4] (global parent) (reporting strategy default) complete (reason failure)>
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] Unset the global parent activity
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] Set activity <nw_activity 50:1 [A96B7AB1-66BA-4A03-8022-2500658481D4] (reporting strategy default)> as the global parent
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:2 [21C4868D-F9F7-4EA2-858E-371AC398F617] (reporting strategy default)>
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] Create activity from XPC object <nw_activity 50:1 [A96B7AB1-66BA-4A03-8022-2500658481D4] (reporting strategy default)>
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] <nw_activity 50:2 [21C4868D-F9F7-4EA2-858E-371AC398F617] (reporting strategy default) complete (reason failure)> complete with reason 3 (failure), duration 77629ms
+   1 Df Mossling[70895:29cc2] [com.apple.network:activity] <nw_activity 50:1 [A96B7AB1-66BA-4A03-8022-2500658481D4] (global parent) (reporting strategy default) complete (reason failure)> complete with reason 3 (failure), dur
+   1 Db Mossling[70895:29cc2] [com.apple.network:activity] No threshold for app_launch:extended_app_launch, returning NW_ACTIVITY_DURATION_INVALID
+   1 Db Mossling[70895:29cc2] [com.apple.network:activity] No threshold for app_launch:app_launch, returning NW_ACTIVITY_DURATION_INVALID
+   1 Db Mossling[70895:29cc2] [com.apple.network:activity] No threshold for activity <nw_activity 50:2 [21C4868D-F9F7-4EA2-858E-371AC398F617] (reporting strategy default) complete (reason failure)>
+   1 Db Mossling[70895:29cc2] [com.apple.network:activity] No threshold for activity <nw_activity 50:1 [A96B7AB1-66BA-4A03-8022-2500658481D4] (global parent) (reporting strategy default) complete (reason failure)>
+   1 Child process terminated with signal 15: Terminated
