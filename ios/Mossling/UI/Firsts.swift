@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 // MARK: 第一次 — the child's firsts
 //
@@ -86,7 +87,7 @@ func whenLabelDay(_ d: Date) -> String {
     return day.mdOrYmd
 }
 
-/// Records a first, or changes one: what (one of the common firsts, or named), which day, and a line about it.
+/// Records a first, or changes one: what (one of the common firsts, or named), which day, an optional local Polaroid photo, and a line about it.
 struct FirstSheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(AppModel.self) private var app
@@ -100,6 +101,9 @@ struct FirstSheet: View {
     @State private var mark = "star.fill"
     @State private var cheers = 0
     @State private var failed = false
+    @State private var pickedPhoto: PhotosPickerItem? = nil
+    @State private var photoImage: UIImage? = nil
+    @State private var removeExistingPhoto = false
     @FocusState private var typing: Bool
 
     init(first: First, isNew: Bool) { _first = State(initialValue: first); self.isNew = isNew }
@@ -112,6 +116,7 @@ struct FirstSheet: View {
                     if failed { SaveFailed() }
                     own
                     if isNew { choices }
+                    photoSection
                     VStack(alignment: .leading, spacing: 0) {
                         let now = Date()
                         DatePicker(L10n.t("哪一天", "Date"), selection: $day, in: min(earliest, now)...now, displayedComponents: .date)
@@ -149,6 +154,94 @@ struct FirstSheet: View {
         .onAppear {
             day = isNew ? Date() : first.date; named = !isNew && Firsts.kind(first.key) == nil
             if let i = Firsts.customIcon(first.key) { mark = i }
+            if !isNew && photoImage == nil && !removeExistingPhoto {
+                photoImage = FirstPhotoStore.load(for: first.id)
+            }
+        }
+        .onChange(of: pickedPhoto) { _, item in
+            guard let item else { return }
+            Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data) {
+                    await MainActor.run {
+                        withAnimation(.snappy) {
+                            photoImage = img
+                            removeExistingPhoto = false
+                        }
+                        TactileEngine.shared.beadClick()
+                    }
+                }
+            }
+        }
+    }
+
+    private var photoSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(L10n.t("留一张照片（可选 · 仅存本机）", "Attach a photo (optional · on-device only)"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                Spacer()
+                if photoImage != nil {
+                    Button(L10n.t("移除", "Remove"), role: .destructive) {
+                        withAnimation(.snappy) {
+                            photoImage = nil
+                            pickedPhoto = nil
+                            removeExistingPhoto = true
+                        }
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+            }
+
+            if let img = photoImage {
+                HStack(spacing: 14) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 92, height: 92)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .padding(5)
+                        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color.white))
+                        .shadow(color: Color(hex: 0x6B4A2B).opacity(0.18), radius: 5, y: 3)
+                        .rotationEffect(.degrees(-2))
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(L10n.t("会收进成长绘本里", "Pinned into your Growth Storybook"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        PhotosPicker(selection: $pickedPhoto, matching: .images) {
+                            Label(L10n.t("换一张照片", "Change Photo"), systemImage: "photo")
+                                .font(.caption.weight(.semibold))
+                        }
+                        .buttonStyle(.vinyl(Palette.bead))
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12)
+                .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
+            } else {
+                PhotosPicker(selection: $pickedPhoto, matching: .images) {
+                    HStack(spacing: 10) {
+                        IconTile(symbol: "camera.fill", color: Crayon.caramel, size: 32)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(L10n.t("选一张纪念照片", "Choose a keepsake photo"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(L10n.t("不用授予相册权限，只存放在这台手机里", "No library permission needed · stored locally"))
+                                .font(.caption2)
+                                .foregroundStyle(Palette.secondaryText)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Palette.accent)
+                    }
+                    .padding(12)
+                    .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
+                }
+                .buttonStyle(.toy)
+            }
         }
     }
 
@@ -232,6 +325,12 @@ struct FirstSheet: View {
         f.title = f.title.trimmingCharacters(in: .whitespacesAndNewlines)
         f.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)
         guard j.saveFirst(f) else { failed = true; return }
+        if removeExistingPhoto {
+            FirstPhotoStore.delete(for: f.id)
+        } else if let img = photoImage {
+            FirstPhotoStore.save(img, for: f.id)
+        }
+        TactileEngine.shared.goldChime()
         cheers += 1
         Task { @MainActor in try? await Task.sleep(for: .milliseconds(650)); dismiss() }
     }
@@ -301,33 +400,51 @@ struct FirstsView: View {
     }
 }
 
-/// One first on the line: a gold bead on the thread, and beside it the age, what it was, the day and the words kept.
+/// One first on the line: a gold bead on the thread, and beside it the age, what it was, the day, an optional Polaroid keepsake photo, and the words kept.
 private struct FirstRow: View {
     let first: First
     let birth: Day?
     let last: Bool
     var fresh = false
     @Environment(\.lamp) private var lamp
+    @State private var photoVersion = FirstPhotoVersion.shared
     var body: some View {
+        let _ = photoVersion.tick
         let c = Firsts.color(first)
+        let photo = FirstPhotoStore.load(for: first.id)
         HStack(alignment: .top, spacing: 12) {
             Thread(top: true, bottom: true) {
                 IconTile(symbol: Firsts.symbol(first), color: c, size: 30, round: true)
                     .background { if fresh { InkBloom(color: c) } }
             }
             .frame(width: 40)
-            VStack(alignment: .leading, spacing: 6) {
-                HStack(spacing: 6) {
-                    if let birth {
-                        Text(Firsts.age(from: birth, to: Day(first.date))).font(.caption.weight(.bold)).monospacedDigit()
-                            .foregroundStyle(Color(hex: 0x4A3300))
-                            .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(Palette.bead.opacity(0.85)))
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        if let birth {
+                            Text(Firsts.age(from: birth, to: Day(first.date))).font(.caption.weight(.bold)).monospacedDigit()
+                                .foregroundStyle(Color(hex: 0x4A3300))
+                                .padding(.horizontal, 8).padding(.vertical, 3).background(Capsule().fill(Palette.bead.opacity(0.85)))
+                        }
+                        Text(whenLabelDay(first.date)).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     }
-                    Text(whenLabelDay(first.date)).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    Text(Firsts.displayTitle(first)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    if let n = first.note, !n.isEmpty {
+                        Text(n).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                Text(Firsts.displayTitle(first)).font(.headline).foregroundStyle(.primary).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-                if let n = first.note, !n.isEmpty {
-                    Text(n).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+                if let photo {
+                    Image(uiImage: photo)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 58, height: 58)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                        .padding(3)
+                        .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(Color.white))
+                        .shadow(color: Color(hex: 0x6B4A2B).opacity(0.18), radius: 3, y: 2)
+                        .rotationEffect(.degrees(2.5))
+                        .accessibilityHidden(true)
                 }
             }
             .padding(14)
@@ -408,7 +525,9 @@ private struct Thread<Bead: View>: View {
 /// The firsts of one month, on its page of the growth book.
 struct FirstStamps: View {
     let firsts: [First]
+    @State private var photoVersion = FirstPhotoVersion.shared
     var body: some View {
+        let _ = photoVersion.tick
         VStack(alignment: .leading, spacing: 8) {
             Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
             WrapLayout(spacing: 6) {
@@ -417,6 +536,9 @@ struct FirstStamps: View {
                         HStack(spacing: 5) {
                             Image(systemName: Firsts.symbol(f)).font(.caption.weight(.bold)).foregroundStyle(Crayon.ink(Firsts.color(f)))
                             Text(Firsts.displayTitle(f)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                            if FirstPhotoStore.exists(for: f.id) {
+                                Image(systemName: "photo.fill").font(.caption2).foregroundStyle(Palette.accent)
+                            }
                             Text(Day(f.date).md).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)

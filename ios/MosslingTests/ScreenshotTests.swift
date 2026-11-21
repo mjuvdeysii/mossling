@@ -561,4 +561,84 @@ final class ScreenshotTests: XCTestCase {
         shot("40_story_en", height: 960, tabs(m, StoryView()))
         shot("41_sources_en", height: 960, tabs(m, SourcesView()))
     }
+
+    /// Award-craft instruments: 24h Circadian Rhythm Dial, Otto's Bedside Lamp + Soundscapes, and Keepsake Growth Storybook.
+    func test42AwardInstruments() {
+        let m = model(); m.journal = true
+        let today = m.today
+        var b = JournalFile.Body()
+        // Populate 7 realistic circadian days (night stretches, daytime naps, feeds, plays)
+        for back in 0..<7 {
+            let d = today.plus(days: -back)
+            let dayStart = d.date
+            func ts(_ h: Double) -> Double { ms(dayStart.addingTimeInterval(h * 3600)) }
+            let jitter = Double(back % 3) * 0.25
+            b.logs.append(LogEntry(type: LogType.sleep, start: ts(0.0), end: ts(6.2 + jitter)))
+            b.logs.append(LogEntry(type: LogType.sleep, start: ts(9.5 + jitter), end: ts(10.8 + jitter)))
+            b.logs.append(LogEntry(type: LogType.sleep, start: ts(13.2 + jitter), end: ts(14.9 + jitter)))
+            b.logs.append(LogEntry(type: LogType.sleep, start: ts(20.5 + jitter), end: ts(24.0)))
+            b.logs.append(LogEntry(type: LogType.nurse, start: ts(6.5 + jitter), end: ts(6.8 + jitter), side: "l"))
+            b.logs.append(LogEntry(type: LogType.nurse, start: ts(11.1 + jitter), end: ts(11.4 + jitter), side: "r"))
+            b.logs.append(LogEntry(type: LogType.bottle, start: ts(15.2 + jitter), amount: 130, detail: "breastmilk"))
+            b.logs.append(LogEntry(type: LogType.nurse, start: ts(19.6 + jitter), end: ts(19.9 + jitter), side: "l"))
+            if back % 2 == 0 {
+                b.logs.append(LogEntry(type: LogType.play, start: ts(16.3), detail: "A11 双手物品传递机会"))
+            }
+        }
+        b.logs.append(LogEntry(type: LogType.note, start: ms(today.date.addingTimeInterval(17 * 3600)), detail: "今天自己抓着木摇铃左右倒手玩了好久，一直咯咯笑。"))
+        b.measures = [Measure(at: ms(today.plus(days: -5).date), weightG: 7450, lengthMm: 660, headMm: 428)]
+        let firstWithPhoto = First(at: ms(today.plus(days: -6).date), key: "sit", title: "坐", note: "靠着软垫自己坐稳了十几秒")
+        b.firsts = [
+            First(at: ms(today.plus(days: -55).date), key: "roll", title: "翻身"),
+            firstWithPhoto
+        ]
+
+        // Create a warm synthetic Polaroid photo keepsake for the Storybook & Firsts spread, cleaned up in defer
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 2
+        let samplePhoto = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 240), format: fmt).image { ctx in
+            let cg = ctx.cgContext
+            UIColor(red: 0.96, green: 0.87, blue: 0.72, alpha: 1).setFill()
+            cg.fill(CGRect(x: 0, y: 0, width: 240, height: 240))
+            UIColor(red: 0.34, green: 0.65, blue: 0.56, alpha: 1).setFill()
+            cg.fillEllipse(in: CGRect(x: 56, y: 74, width: 128, height: 128))
+            UIColor(red: 0.95, green: 0.72, blue: 0.25, alpha: 1).setFill()
+            cg.fillEllipse(in: CGRect(x: 150, y: 34, width: 46, height: 46))
+        }
+        FirstPhotoStore.save(samplePhoto, for: firstWithPhoto.id)
+        defer { FirstPhotoStore.delete(for: firstWithPhoto.id) }
+
+        let richJournal = JournalStore(preview: b)
+
+        // 1. 24-Hour Circadian Rhythm Dial (CN Day, Scrubbed Spotlight 21:00, Night Lamp, EN Day)
+        shot("42_rhythm_dial_zh", height: 1180, NavigationStack { StatsView() }.environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("42_rhythm_dial_scrub", height: 520,
+             ScrollView { RhythmDialCard(nowHour: 15.5, initialInspectedHour: 21).padding(16) }
+                .pageBackground().environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("42_rhythm_dial_lamp", height: 520, lamp: true,
+             ScrollView { RhythmDialCard(nowHour: 22.4, initialInspectedHour: 21).padding(16) }
+                .pageBackground().lamp(true).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 2. Otto's Living Bedside Lamp (CN with active sleep timer + Paper Rain soundscape)
+        var sleepBody = b
+        sleepBody.timers = [RunningTimer(type: LogType.sleep, start: ms(Date()) - 42 * 60_000)]
+        let sleepJournal = JournalStore(preview: sleepBody)
+        SoundscapeEngine.shared.start(.rain)
+        defer { SoundscapeEngine.shared.stop() }
+        shot("43_bedside_lamp_zh", dark: true, height: 852, BedsideLampView(initialBrightness: 0.78).environment(m).environment(sleepJournal).fontDesign(.rounded))
+
+        // 3. Keepsake Growth Storybook (CN Cover + CN Month 6 Editorial Spread with Polaroid First Photo)
+        shot("44_storybook_cover_zh", height: 852, StorybookView(initialPage: 0).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("44_storybook_spread_zh", height: 852, StorybookView(initialPage: 7).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 4. English variants of all three new hero instruments
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("42_rhythm_dial_en", height: 520,
+             ScrollView { RhythmDialCard(nowHour: 15.5, initialInspectedHour: 21).padding(16) }
+                .pageBackground().environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        SoundscapeEngine.shared.start(.lullaby)
+        shot("43_bedside_lamp_en", dark: true, height: 852, BedsideLampView(initialBrightness: 0.82).environment(mEn).environment(richJournal).fontDesign(.rounded))
+        shot("44_storybook_spread_en", height: 852, StorybookView(initialPage: 7).environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+    }
 }

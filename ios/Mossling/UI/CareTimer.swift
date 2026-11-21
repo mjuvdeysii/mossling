@@ -26,6 +26,8 @@ struct TimerScreen: View {
     @State private var startAt: Date?
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var pickingStart = false
+    @State private var showingLamp = false
+    @State private var soundscape = SoundscapeEngine.shared
 
     var body: some View {
         let c = LogType.color(type)
@@ -52,6 +54,9 @@ struct TimerScreen: View {
             .navigationTitle(L10n.logName(type))
             .navigationBarTitleDisplayMode(.inline)
             .toasts(bottom: true)
+        }
+        .fullScreenCover(isPresented: $showingLamp) {
+            BedsideLampView()
         }
     }
 
@@ -116,6 +121,16 @@ struct TimerScreen: View {
         .scrollBounceBehavior(.basedOnSize)
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(L10n.t("关闭", "Close"), systemImage: "xmark") { dismiss() } }
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingLamp = true
+                } label: {
+                    Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
+                        .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
+                }
+                .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
+            }
         }
         // already over: add it with its start and end instead of timing it
         .safeAreaBar(edge: .bottom) {
@@ -194,6 +209,32 @@ struct TimerScreen: View {
                     .padding(.vertical, 12)
                     .printCard(radius: Radius.card)
 
+                    // Quick Bedside Lamp & Soothing Soundscape pill right under the timer stats
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        showingLamp = true
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: soundscape.isPlaying ? "waveform" : "lamp.desk.fill")
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(Palette.lampTint)
+                            Text(
+                                soundscape.active.map { L10n.t("床头夜灯 · \($0.title)", "Bedside Lamp · \($0.title)") }
+                                    ?? L10n.t("打开床头夜灯与舒缓声景", "Open Bedside Lamp & Soundscapes")
+                            )
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.right")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 11)
+                        .printCard(radius: Radius.inner)
+                    }
+                    .buttonStyle(.toy)
+
                     if type != LogType.sleep {
                         Button { picking = true } label: {
                             Label(L10n.t("开始于 ", "Started ") + whenLabel(Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000)), systemImage: "clock")
@@ -208,7 +249,16 @@ struct TimerScreen: View {
         }
         .toolbar {
             ToolbarItem(placement: .cancellationAction) { Button(L10n.t("收起", "Minimize"), systemImage: "chevron.down") { dismiss() } }
-            ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingLamp = true
+                } label: {
+                    Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
+                        .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
+                }
+                .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
+
                 Menu {
                     Button(L10n.t("已经结束了，选结束时间", "Already finished — pick end time"), systemImage: "clock.badge.checkmark") { ending = true }
                     Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300)) }

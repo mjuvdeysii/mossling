@@ -153,14 +153,15 @@ final class JournalStore {
         onEvent?(.recordPersistFailure)
     }
 
-    func start(_ type: String, side: String? = nil, at: Date = Date()) {
+    func start(_ type: String, side: String? = nil, at: Date = Date(), openFocus: Bool = true) {
         switch JournalFile.mutate({ b in
             guard !b.timers.contains(where: { $0.type == type }) else { return false }
             b.timers.append(RunningTimer(type: type, start: at.timeIntervalSince1970 * 1000, side: side))
             return true
         }) {
         case let .saved(before, after):
-            changed(after); focus = type
+            changed(after)
+            if openFocus { focus = type }
             if type == LogType.sleep { sleepsStarted &+= 1 }
             onEvent?(.recordStartConfirmed)
             let ago = Int(Date().timeIntervalSince(at) / 60)
@@ -168,7 +169,8 @@ final class JournalStore {
             let agoPart = ago >= 1 ? L10n.t(" · 从 \(ago) 分钟前算起", " · from \(ago) min ago") : ""
             say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before)
         case let .unchanged(b):
-            apply(b); focus = type
+            apply(b)
+            if openFocus { focus = type }
         case .failed:
             failed(L10n.t("计时", "the timer"))
         }

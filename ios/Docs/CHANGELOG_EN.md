@@ -1,14 +1,13 @@
 # Release Notes
 
 ## 1.3.2
-A big update for everyday life with your little one: Moss & Otto is now available in English from start to finish, with more helpful widgets at home and by the bed.
+A generational craft update for Moss & Otto: introducing Otto's Living Bedside Lamp & soothing soundscapes, a 24-hour Circadian Rhythm Dial, a page-turning Growth Storybook, full English support, and silky-smooth 3D motion.
 
-- **Full English experience**: Every screen, sheet, activity, monthly guide, care log, export, and legal page is now available in English—switch anytime in Me › Language—along with refined typography for both English and Chinese.
-- **Richer Home & Lock Screen widgets**: New Quick Log, Bedside Lamp, and Growth Window widgets join a refreshed Today widget with a 24-hour bead timeline—now with faster timeline refreshes, instant app sync when swapping activities or logging diapers with undo, smart alternating nursing sides, and reliable deep links straight into every screen.
-- **Hands-free logging with Control Center & Siri**: Start or stop nursing and sleep timers or log a wet diaper right from Control Center, the Lock Screen, the Action button, or by asking Siri when your hands are full.
-- **Family handoff & keepsake cards**: Create an offline handoff summary from the Log tab to share the last feed, wake time, and daily totals with family, or save a keepsake poster from any page of the Growth Book.
-- **WHO daily rhythm reference**: Added the World Health Organization's 0–3 daily activity, sleep, and screen-time guidelines in About › Sources for quick reference.
-- **Silky 3D fluency & loving motion**: Rebuilt 3D soft-vinyl shadows and background layers, cached map & dot-paper textures, added O(1) journal indexing and sticker prewarming for noticeably smoother scrolling and lower battery draw; added hero zoom transitions for Month & Growth Book cards, directional day-flip motion, a gliding bead progress bar, and smoother timer transitions.
+- **Otto's Living Bedside Lamp & Soothing Soundscapes**: Open a full-screen zero-glare midnight lantern from Today, Log, any timer, or the Bedside Lamp widget—slide vertically to dim with brass haptic detents and gentle pendulum tilt glow. Includes four offline real-time synthesized soundscapes (Paper Rain, Meadow Breeze, Soft Heartbeat, Wood Lullaby) with lock-screen background playback, cosine auto-fade (15/30/60 min), and one-tap midnight sleep & nursing controls.
+- **24-Hour Circadian Rhythm Dial**: In Log › Rhythm & Week, watch your baby's own rhythm unfold across 7 or 14 concentric rings (Noon sun at top, Midnight moon at bottom, Today on the outer ring). Drag around the dial to shine Otto's amber beam onto any hour for calm factual counts, or export a 3× museum-grade Rhythm Print.
+- **Growth Storybook & On-Device Firsts Photos**: Open the Growth Book as a horizontal page-turning picture book from Month 0 to today—complete with a Montessori bead trail and one-tap page saving. Attach optional Polaroid keepsake photos to any First (zero photo-library permission needed; stored strictly on this iPhone).
+- **Montessori Tactile Feedback**: Subtle CoreHaptics textures and wood/paper micro-acoustics for stepping stones, activity beads, dial scrubbing, and poking Moss or Otto—automatically muted at night, during sleep timers, or when your iPhone is silent, with a toggle in Me.
+- **Full English, Richer Widgets & Silky 3D Fluency**: Full bilingual experience across every guide, activity, care log, and widget; new Quick Log, Bedside Lamp, and Growth Window widgets plus Control Center & Siri controls; major 3D scrolling performance overhaul and graceful hero zoom & page-turn transitions.
 
 ## 1.0.1
 More reliable local storage, smoother growth charts, and quieter nighttime polish.

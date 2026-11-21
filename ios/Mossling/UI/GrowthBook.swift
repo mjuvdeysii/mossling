@@ -7,6 +7,7 @@ import SwiftUI
 struct GrowthBookView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @State private var readingStorybook = false
     var body: some View {
         let pages = BookPage.all(app, j)
         ScrollView {
@@ -16,6 +17,7 @@ struct GrowthBookView: View {
                         .padding(.top, 60)
                 } else {
                     BookTotals(pages: pages)
+                    storybookDoor(pages: pages)
                     if (app.babyMonth ?? 0) >= 36 { StoryGoesOn(primary: app.companion) }
                     // months with nothing recorded are gathered into one strip of small photos, so the book is read in a
                     // few screens, not one screen a month
@@ -35,14 +37,32 @@ struct GrowthBookView: View {
         .navigationTitle(L10n.t("成长册", "Growth Book"))
         .navigationSubtitle(subtitle)
         .toolbar {
-            if let a = app.age, let poster = renderKeepsakePoster(age: a) {
-                ToolbarItem(placement: .topBarTrailing) {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !pages.isEmpty {
+                    Button {
+                        TactileEngine.shared.pageTurn()
+                        readingStorybook = true
+                    } label: {
+                        Image(systemName: "book.pages.fill")
+                    }
+                    .accessibilityLabel(L10n.t("翻阅成长绘本", "Read Growth Storybook"))
+                }
+                if let a = app.age {
+                    let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+                    let mo = min(a.bookMonth, 36)
+                    let chap = L10n.stretchName(for: mo)
+                    let ageStr = L10n.ageText(a)
+                    let livedStr = L10n.livedDays(a.lived)
+                    let posterItem = RenderedPoster {
+                        let cover = ArtIndex.shared.cover(mo).flatMap { ArtImageCache.load($0) }
+                        let card = KeepsakePosterCard(name: who, ageText: ageStr, livedText: livedStr, month: mo, chapter: chap, cover: cover)
+                        let renderer = ImageRenderer(content: card)
+                        renderer.scale = 3.0
+                        return renderer.uiImage
+                    }
                     ShareLink(
-                        item: Image(uiImage: poster),
-                        preview: SharePreview(
-                            L10n.t("摸索台灯 · 成长纪念卡", "Moss & Otto · Keepsake Card"),
-                            image: Image(uiImage: poster)
-                        )
+                        item: posterItem,
+                        preview: SharePreview(L10n.t("摸索台灯 · 成长纪念卡", "Moss & Otto · Keepsake Card"))
                     ) {
                         Image(systemName: "square.and.arrow.up")
                     }
@@ -50,22 +70,43 @@ struct GrowthBookView: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $readingStorybook) {
+            StorybookView().lampPresented(sheet: false)
+        }
     }
 
-    @MainActor
-    private func renderKeepsakePoster(age: Age) -> UIImage? {
-        let mo = min(age.bookMonth, 36)
-        let cover = ArtIndex.shared.cover(mo).flatMap { ArtImageCache.load($0) }
-        let card = KeepsakePosterCard(
-            name: app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname,
-            age: age,
-            month: mo,
-            chapter: L10n.stretchName(for: mo),
-            cover: cover
-        )
-        let renderer = ImageRenderer(content: card)
-        renderer.scale = 3.0
-        return renderer.uiImage
+    private func storybookDoor(pages: [BookPage]) -> some View {
+        Button {
+            TactileEngine.shared.pageTurn()
+            readingStorybook = true
+        } label: {
+            HStack(spacing: 14) {
+                IconTile(symbol: "book.pages.fill", color: Crayon.caramel, size: 40)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t("像绘本一样一页页翻阅", "Read as a Keepsake Storybook"))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(L10n.t("从出生那一页开始 · 共 \(pages.count) 个月份，可单页留存分享", "From Month 0 across \(pages.count) \(pages.count == 1 ? "month" : "months") · save any spread"))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(Palette.accent)
+            }
+            .padding(14)
+            .background(
+                LinearGradient(
+                    colors: [Palette.bead.opacity(0.16), Crayon.caramel.opacity(0.08)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .printCard(radius: Radius.card)
+        }
+        .buttonStyle(.toy)
     }
 
     /// The pages in order, with each run of empty months (other than this month) as one group.
@@ -91,7 +132,8 @@ struct GrowthBookView: View {
 /// High-resolution print-styled Keepsake Poster rendered offline via ImageRenderer for sharing or saving.
 private struct KeepsakePosterCard: View {
     let name: String
-    let age: Age
+    let ageText: String
+    let livedText: String
     let month: Int
     let chapter: String
     let cover: UIImage?
@@ -111,7 +153,7 @@ private struct KeepsakePosterCard: View {
                         .foregroundStyle(teal)
                 }
                 Spacer()
-                Text(L10n.livedDays(age.lived))
+                Text(livedText)
                     .font(.system(size: 12, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink.opacity(0.55))
             }
@@ -131,7 +173,7 @@ private struct KeepsakePosterCard: View {
                 Text(name)
                     .font(.system(size: 15, weight: .semibold, design: .rounded))
                     .foregroundStyle(ink.opacity(0.6))
-                Text(L10n.ageText(age))
+                Text(ageText)
                     .font(.system(size: 30, weight: .bold, design: .rounded))
                     .foregroundStyle(teal)
                 Text(chapter)

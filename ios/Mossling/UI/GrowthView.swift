@@ -259,7 +259,7 @@ struct GrowthView: View {
     }
 }
 
-/// The last seven days: feeds, sleep and nappies per day.
+/// Circadian rhythm dial + the last seven days: feeds, sleep and nappies per day.
 struct StatsView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -272,7 +272,8 @@ struct StatsView: View {
             let charts = Self.charts(rows)
             // each chart the page's whole width: a week of days needs the width to name them
             let per = 1
-            VStack(spacing: 12) {
+            VStack(spacing: 14) {
+                RhythmDialCard()
                 ForEach(Array(stride(from: 0, to: charts.count, by: per)), id: \.self) { i in
                     HStack(alignment: .top, spacing: 12) {
                         ForEach(i..<min(i + per, charts.count), id: \.self) { k in
@@ -288,8 +289,9 @@ struct StatsView: View {
             )).font(.caption).foregroundStyle(Palette.secondaryText)
                 .padding(.horizontal, 20).padding(.bottom, 32).frame(maxWidth: .infinity, alignment: .leading)
         }
+        .calmWhileScrolling()
         .pageBackground()
-        .navigationTitle(L10n.t("最近七天", "Last 7 Days"))
+        .navigationTitle(L10n.t("昼夜节律", "Rhythm & Week"))
     }
     /// Each of the last seven days: feeds, hours asleep, nappies, minutes at the breast (pauses left out), bottle ml.
     private func week() -> [(Day, Int, Double, Int, Double, Double)] {

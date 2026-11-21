@@ -12,6 +12,8 @@ struct TodayView: View {
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
+    @State private var showingLamp = false
+    @State private var soundscape = SoundscapeEngine.shared
     private let shelfTip = ShelfTip()
     private let recordsTip = RecordsTip()
 
@@ -50,8 +52,20 @@ struct TodayView: View {
         .navigationTitle(app.nickname.isEmpty ? L10n.appName : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel(L10n.t("搜索", "Search")) }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingLamp = true
+                } label: {
+                    Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
+                        .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
+                }
+                .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
+
+                NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel(L10n.t("搜索", "Search"))
+            }
         }
+        .fullScreenCover(isPresented: $showingLamp) { BedsideLampView() }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
     }

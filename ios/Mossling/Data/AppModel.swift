@@ -61,6 +61,14 @@ final class AppModel {
     var journal: Bool { didSet { d.set(journal, forKey: "journal") } }
     /// 夜灯: from 7 pm to 6 am the records and the timer turn into Otto's lamp — dim warm light on deep blue.
     var nightLight: Bool { didSet { d.set(nightLight, forKey: "nightLight") } }
+    /// Tactile Montessori wooden/paper micro-acoustics (automatically muted at night, under Sleep timers, or on Silent).
+    var tactileSounds: Bool {
+        didSet {
+            d.set(tactileSounds, forKey: "tactileSounds")
+            let enabled = tactileSounds
+            Task { @MainActor in TactileEngine.shared.soundEnabled = enabled }
+        }
+    }
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
@@ -89,6 +97,9 @@ final class AppModel {
         consent = d.string(forKey: "consent") ?? ""
         journal = d.bool(forKey: "journal")
         nightLight = d.object(forKey: "nightLight") == nil ? true : d.bool(forKey: "nightLight")
+        let sounds = d.object(forKey: "tactileSounds") == nil ? true : d.bool(forKey: "tactileSounds")
+        tactileSounds = sounds
+        Task { @MainActor in TactileEngine.shared.soundEnabled = sounds }
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
@@ -161,7 +172,7 @@ final class AppModel {
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
-                  "artStyle", "nightLight", "mapSeenMonth"] { d.removeObject(forKey: k) }
+                  "artStyle", "nightLight", "tactileSounds", "mapSeenMonth"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
         // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
@@ -170,10 +181,12 @@ final class AppModel {
         let fm = FileManager.default
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
+        FirstPhotoStore.clearAll()
+        Task { @MainActor in SoundscapeEngine.shared.stop() }
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
-        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true
+        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

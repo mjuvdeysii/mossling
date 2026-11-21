@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import UIKit
 @testable import Mossling
 
 final class LogicTests: XCTestCase {
@@ -608,9 +609,105 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(m.playing?.step, 0)
         m.artStyle = .flat
         XCTAssertEqual(ArtStyle.current, .flat)
+        m.tactileSounds = false
         m.clearAll()
         XCTAssertEqual(m.artStyle, .vinyl)
         XCTAssertEqual(ArtStyle.current, .vinyl)
+        XCTAssertTrue(m.tactileSounds)
         XCTAssertEqual(JournalFile.snapshot()?.consented, false)
+    }
+
+    func testSoundscapeDSPProducesBoundedFiniteSamples() {
+        for kindIndex in 0..<SoundscapeKind.allCases.count {
+            let dsp = SoundscapeDSPState()
+            dsp.kindRaw = kindIndex
+            dsp.targetGain = 1.0
+            dsp.currentGain = 0.8
+            dsp.userVolume = 0.8
+            dsp.noteCountdown = 10 // trigger wood lullaby note immediately
+            var maxAbs: Float = 0
+            for _ in 0..<2048 {
+                let s = dsp.nextSample(sampleRate: 44_100)
+                XCTAssertTrue(s.isFinite, "Soundscape kind \(kindIndex) produced non-finite sample")
+                XCTAssertLessThanOrEqual(abs(s), 1.0, "Soundscape kind \(kindIndex) exceeded [-1, 1]")
+                maxAbs = max(maxAbs, abs(s))
+            }
+            XCTAssertGreaterThan(maxAbs, 0.001, "Soundscape kind \(kindIndex) was silent")
+        }
+    }
+
+    func testSoundscapeFadeMultiplierCurve() {
+        XCTAssertEqual(SoundscapeEngine.fadeMultiplier(remaining: 25, fadeDuration: 20), 1.0, accuracy: 0.0001)
+        XCTAssertEqual(SoundscapeEngine.fadeMultiplier(remaining: 20, fadeDuration: 20), 1.0, accuracy: 0.0001)
+        XCTAssertEqual(SoundscapeEngine.fadeMultiplier(remaining: 10, fadeDuration: 20), 0.5, accuracy: 0.001)
+        XCTAssertEqual(SoundscapeEngine.fadeMultiplier(remaining: 0, fadeDuration: 20), 0.0, accuracy: 0.0001)
+        XCTAssertEqual(SoundscapeEngine.fadeMultiplier(remaining: -3, fadeDuration: 20), 0.0, accuracy: 0.0001)
+        XCTAssertLessThan(SoundscapeEngine.fadeMultiplier(remaining: 4, fadeDuration: 20), SoundscapeEngine.fadeMultiplier(remaining: 15, fadeDuration: 20))
+    }
+
+    func testRhythmDialModelBucketsOvernightSleepAndGeometry() {
+        let today = Day(y: 2026, m: 10, d: 19)
+        let overnight = LogEntry(type: LogType.sleep, start: t(18, 22, 0), end: t(19, 6, 30))
+        let nap = LogEntry(type: LogType.sleep, start: t(19, 13, 0), end: t(19, 14, 30))
+        // Two-sided nursing session within Feed.join counts as 1 feed bead, not 2
+        let nurseL = LogEntry(type: LogType.nurse, start: t(19, 8, 10), end: t(19, 8, 22), side: "l")
+        let nurseR = LogEntry(type: LogType.nurse, start: t(19, 8, 22), end: t(19, 8, 34), side: "r")
+        let play = LogEntry(type: LogType.play, start: t(19, 10, 15), detail: "A11 听摇铃")
+
+        let model = RhythmDialModel.build(logs: [overnight, nap, nurseL, nurseR, play], today: today, days: 7)
+        XCTAssertEqual(model.rings.count, 7)
+        XCTAssertEqual(model.rings.first?.day, today.plus(days: -6))
+        XCTAssertEqual(model.rings.last?.day, today)
+
+        let prevRing = model.rings[5] // Oct 18
+        let todayRing = model.rings[6] // Oct 19
+        XCTAssertEqual(prevRing.sleepSpans.count, 1)
+        XCTAssertEqual(prevRing.sleepSpans[0].startHour, 22.0, accuracy: 0.05)
+        XCTAssertEqual(prevRing.sleepSpans[0].endHour, 24.0, accuracy: 0.05)
+        XCTAssertEqual(todayRing.sleepSpans.count, 2)
+        XCTAssertEqual(todayRing.feeds.count, 1)
+        XCTAssertEqual(todayRing.plays.count, 1)
+
+        XCTAssertEqual(model.inspect(hour: 2).sleepDays, 1)
+        XCTAssertEqual(model.inspect(hour: 8).feedCount, 1)
+        XCTAssertEqual(model.inspect(hour: 10).playCount, 1)
+        XCTAssertEqual(model.inspect(hour: 16).sleepDays, 0)
+
+        // Verify angle <-> vector round-trip at all 4 cardinal hours (12 = top, 18 = right, 0 = bottom, 6 = left)
+        for cardinal in [0, 6, 12, 18] {
+            let a = RhythmDialModel.angle(forHour: Double(cardinal) + 0.5)
+            let h = RhythmDialModel.hour(forVector: CGFloat(cos(a)), dy: CGFloat(sin(a)))
+            XCTAssertEqual(h, cardinal, "Cardinal hour \(cardinal) failed geometry round-trip")
+        }
+    }
+
+    func testFirstPhotoStoreSaveDownscalePruneAndClear() {
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("first-photos-test-\(UUID().uuidString)", isDirectory: true)
+        defer { FirstPhotoStore.clearAll(in: dir) }
+
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let big = UIGraphicsImageRenderer(size: CGSize(width: 2400, height: 1600), format: format).image { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 2400, height: 1600))
+        }
+        let id1 = UUID(), id2 = UUID()
+        XCTAssertTrue(FirstPhotoStore.save(big, for: id1, maxDimension: 1200, in: dir))
+        XCTAssertTrue(FirstPhotoStore.save(big, for: id2, maxDimension: 1200, in: dir))
+        XCTAssertTrue(FirstPhotoStore.exists(for: id1, in: dir))
+        XCTAssertTrue(FirstPhotoStore.exists(for: id2, in: dir))
+
+        let loaded = FirstPhotoStore.load(for: id1, in: dir)
+        XCTAssertNotNil(loaded)
+        if let loaded {
+            XCTAssertLessThanOrEqual(max(loaded.size.width * loaded.scale, loaded.size.height * loaded.scale), 1201)
+        }
+
+        FirstPhotoStore.prune(keeping: [id1], in: dir)
+        XCTAssertTrue(FirstPhotoStore.exists(for: id1, in: dir))
+        XCTAssertFalse(FirstPhotoStore.exists(for: id2, in: dir))
+
+        FirstPhotoStore.clearAll(in: dir)
+        XCTAssertFalse(FirstPhotoStore.exists(for: id1, in: dir))
     }
 }

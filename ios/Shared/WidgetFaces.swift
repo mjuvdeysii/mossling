@@ -706,7 +706,7 @@ struct BedsideLampFace: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
-        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.journal)
+        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp)
     }
 
     private func lampMetric(_ label: String, _ at: Date?, _ tint: Color) -> some View {
@@ -847,6 +847,7 @@ enum WidgetLinks {
     static let journal = URL(string: "mossling://journal")!
     static let book = URL(string: "mossling://book")!
     static let settings = URL(string: "mossling://settings")!
+    static let lamp = URL(string: "mossling://lamp")!
     static func play(_ code: String) -> URL { URL(string: "mossling://play/\(code)")! }
     static func month(_ m: Int) -> URL { URL(string: "mossling://month/\(m)")! }
     static func care(_ type: String) -> URL { URL(string: "mossling://care/\(type)")! }

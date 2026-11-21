@@ -154,6 +154,7 @@ struct Creature: View {
         lastTap = now
         blinkAt = now; doubleBlink = false
         hopSize = 0.7; hopAt = now
+        TactileEngine.shared.vinylPop()
 
         if taps >= 5 { taps = 0; fleckAt = now }   // 小薄荷
     }

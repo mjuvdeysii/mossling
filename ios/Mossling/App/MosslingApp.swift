@@ -42,6 +42,7 @@ struct RootView: View {
     @State private var locked = true
     @State private var unlocking = false
     @State private var pendingURL: URL?
+    @State private var showingBedsideLamp = false
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
@@ -89,17 +90,30 @@ struct RootView: View {
                 if p == .active { app.today = .today; journal.reload(); app.syncWidgetPick(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
                 if p == .background { locked = true; mascot.send(.appBackground) }
             }
-            .task { if app.lock { unlock() }; roll(); app.publish(journal) }
+            .task {
+                if app.lock { unlock() }
+                roll()
+                app.publish(journal)
+                FirstPhotoStore.prune(keeping: Set(journal.firsts.map(\.id)))
+            }
             // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
             // flows back into the journal
             .task {
                 mascot.companion = app.companion
                 mascot.timing = !journal.timers.isEmpty
+                TactileEngine.shared.soundEnabled = app.tactileSounds
+                TactileEngine.shared.quietNight = scheme == .dark || journal.timers.contains { $0.type == LogType.sleep }
                 if scheme == .dark { mascot.send(.nightmodeEnabled) }
                 journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
-            .onChange(of: scheme) { _, s in mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled) }
+            .onChange(of: scheme) { _, s in
+                mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled)
+                TactileEngine.shared.quietNight = s == .dark || journal.timers.contains { $0.type == LogType.sleep }
+            }
+            .onChange(of: journal.timers) { _, timers in
+                TactileEngine.shared.quietNight = scheme == .dark || timers.contains { $0.type == LogType.sleep }
+            }
             .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
             .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }
     }
@@ -186,6 +200,9 @@ struct RootView: View {
                                        set: { if !isLocked { journal.focus = $0?.id } })) { w in
             TimerScreen(type: w.id).lampPresented(sheet: false)
         }
+        .fullScreenCover(isPresented: Binding(get: { !isLocked && showingBedsideLamp }, set: { showingBedsideLamp = $0 })) {
+            BedsideLampView()
+        }
     }
 
     private func open(_ url: URL) {
@@ -207,6 +224,10 @@ struct RootView: View {
             }
         }
         switch url.host() {
+        case "lamp":
+            journal.focus = nil
+            journal.ask = nil
+            showingBedsideLamp = true
         case "today":
             tab = 0
             todayPath = NavigationPath()
