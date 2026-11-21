@@ -166,51 +166,7 @@ class ASCClient:
             raise RuntimeError(f"ASC {method} {path} failed ({e.code}): {detail}") from e
 
 
-def update_whats_new(
-    client: ASCClient,
-    bundle_id: str,
-    build_number: str,
-    version: str | None,
-    whats_new: str,
-    locale: str = "zh-Hans",
-    timeout_seconds: int = 1200,
-    poll_interval: int = 20,
-) -> str:
-    q = urllib.parse.urlencode({"filter[bundleId]": bundle_id})
-    apps = client.request("GET", f"/apps?{q}").get("data", [])
-    if not apps:
-        raise RuntimeError(f"No app found in App Store Connect for bundleId={bundle_id}")
-    app_id = apps[0]["id"]
-
-    deadline = time.time() + timeout_seconds
-    build_id: str | None = None
-    state = ""
-
-    while time.time() < deadline:
-        params = {
-            "filter[app]": app_id,
-            "filter[version]": build_number,
-            "limit": "5",
-        }
-        if version:
-            params["filter[preReleaseVersion.version]"] = version
-        builds = client.request("GET", f"/builds?{urllib.parse.urlencode(params)}").get("data", [])
-        if builds:
-            b = builds[0]
-            build_id = b["id"]
-            state = b.get("attributes", {}).get("processingState", "")
-            print(f"[ASC] Found build {build_number} (id={build_id}, state={state})", flush=True)
-            if state == "INVALID" or state == "FAILED":
-                raise RuntimeError(f"Build {build_number} ended in state {state}")
-            if state == "VALID":
-                break
-        else:
-            print(f"[ASC] Waiting for build {build_number} to appear in App Store Connect...", flush=True)
-        time.sleep(poll_interval)
-
-    if not build_id:
-        raise RuntimeError(f"Timed out waiting for build {build_number} to appear in App Store Connect")
-
+def upsert_beta_localization(client: ASCClient, build_id: str, build_number: str, state: str, locale: str, whats_new: str) -> str:
     locs = client.request("GET", f"/builds/{build_id}/betaBuildLocalizations").get("data", [])
     existing = next((x for x in locs if x.get("attributes", {}).get("locale") == locale), None)
 
@@ -244,6 +200,92 @@ def update_whats_new(
     return f"created {locale} localization (id={loc_id}) for build {build_number} (state={state})"
 
 
+def fetch_recent_builds_summary(client: ASCClient, app_id: str, limit: int = 5) -> str:
+    try:
+        q = urllib.parse.urlencode({"filter[app]": app_id, "sort": "-uploadedDate", "limit": str(limit)})
+        recent = client.request("GET", f"/builds?{q}").get("data", [])
+        if not recent:
+            return "(no builds returned by ASC)"
+        parts = []
+        for b in recent:
+            attrs = b.get("attributes", {})
+            parts.append(
+                f"#{attrs.get('version', '?')}[{attrs.get('processingState', '?')}@{str(attrs.get('uploadedDate', ''))[:19]}]"
+            )
+        return ", ".join(parts)
+    except Exception as exc:
+        return f"(failed to list recent builds: {exc})"
+
+
+def update_whats_new(
+    client: ASCClient,
+    bundle_id: str,
+    build_number: str,
+    version: str | None,
+    localized_notes: list[tuple[str, str]],
+    timeout_seconds: int = 1800,
+    poll_interval: int = 20,
+) -> list[str]:
+    q = urllib.parse.urlencode({"filter[bundleId]": bundle_id})
+    apps = client.request("GET", f"/apps?{q}").get("data", [])
+    if not apps:
+        raise RuntimeError(f"No app found in App Store Connect for bundleId={bundle_id}")
+    app_id = apps[0]["id"]
+
+    deadline = time.time() + timeout_seconds
+    build_id: str | None = None
+    state = ""
+    attempt = 0
+
+    while time.time() < deadline:
+        attempt += 1
+        # Query by app + CFBundleVersion without preReleaseVersion.version filter, which can lag or mismatch
+        # when multiple builds share the same marketing version.
+        params = {
+            "filter[app]": app_id,
+            "filter[version]": build_number,
+            "sort": "-uploadedDate",
+            "limit": "5",
+        }
+        builds = client.request("GET", f"/builds?{urllib.parse.urlencode(params)}").get("data", [])
+        if builds:
+            b = builds[0]
+            build_id = b["id"]
+            state = b.get("attributes", {}).get("processingState", "")
+            print(f"[ASC] Found build {build_number} (id={build_id}, state={state})", flush=True)
+            if state == "INVALID" or state == "FAILED":
+                raise RuntimeError(f"Build {build_number} ended in state {state}")
+            if state == "VALID":
+                break
+        else:
+            if attempt == 1 or attempt % 5 == 0:
+                summary = fetch_recent_builds_summary(client, app_id)
+                print(
+                    f"[ASC] Waiting for build {build_number} (v{version or '?'})... latest ASC builds: {summary}",
+                    flush=True,
+                )
+            else:
+                print(f"[ASC] Waiting for build {build_number} to appear in App Store Connect...", flush=True)
+        time.sleep(poll_interval)
+
+    if not build_id:
+        summary = fetch_recent_builds_summary(client, app_id)
+        raise RuntimeError(
+            f"Timed out waiting for build {build_number} to appear in App Store Connect. Latest ASC builds: {summary}"
+        )
+
+    results: list[str] = []
+    for locale, notes in localized_notes:
+        try:
+            results.append(upsert_beta_localization(client, build_id, build_number, state, locale, notes))
+        except RuntimeError as exc:
+            # Never lose the primary localization if a secondary locale fails unexpectedly
+            if not results:
+                raise
+            print(f"[ASC] Warning: secondary locale {locale} failed: {exc}", flush=True)
+    return results
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Sync CHANGELOG.md to TestFlight What to Test")
     ap.add_argument("--bundle-id", default="app.mossling")
@@ -251,17 +293,26 @@ def main() -> int:
     ap.add_argument("--version", default="", help="CFBundleShortVersionString (marketing version)")
     ap.add_argument("--changelog", default="Docs/CHANGELOG.md")
     ap.add_argument("--locale", default="zh-Hans")
+    ap.add_argument("--en-changelog", default="", help="Optional English changelog path for en-US localization")
     ap.add_argument("--key-id", default=os.environ.get("ASC_KEY_ID", ""))
     ap.add_argument("--issuer-id", default=os.environ.get("ASC_ISSUER_ID", ""))
     ap.add_argument("--key-path", required=True)
-    ap.add_argument("--timeout", type=int, default=1200)
+    ap.add_argument("--timeout", type=int, default=1800)
     ap.add_argument("--dry-run", action="store_true")
     args = ap.parse_args()
 
-    whats_new = extract_changelog(args.changelog, version=args.version or None, build=args.build)
-    print("--- TestFlight What to Test ---")
-    print(whats_new)
-    print("-------------------------------", flush=True)
+    localized_notes: list[tuple[str, str]] = [
+        (args.locale, extract_changelog(args.changelog, version=args.version or None, build=args.build))
+    ]
+    if args.en_changelog and os.path.exists(args.en_changelog):
+        localized_notes.append(
+            ("en-US", extract_changelog(args.en_changelog, version=args.version or None, build=args.build))
+        )
+
+    for loc, text in localized_notes:
+        print(f"--- TestFlight What to Test ({loc}) ---")
+        print(text)
+        print("-------------------------------", flush=True)
 
     if args.dry_run:
         return 0
@@ -271,16 +322,16 @@ def main() -> int:
         return 1
 
     client = ASCClient(args.key_id, args.issuer_id, args.key_path)
-    result = update_whats_new(
+    results = update_whats_new(
         client,
         bundle_id=args.bundle_id,
         build_number=args.build,
         version=args.version or None,
-        whats_new=whats_new,
-        locale=args.locale,
+        localized_notes=localized_notes,
         timeout_seconds=args.timeout,
     )
-    print(f"::notice title=TestFlight 测试信息::{result}", flush=True)
+    for res in results:
+        print(f"::notice title=TestFlight 测试信息::{res}", flush=True)
     return 0
 
 

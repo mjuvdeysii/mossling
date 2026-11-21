@@ -182,7 +182,11 @@ final class AppModel {
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
         FirstPhotoStore.clearAll()
-        Task { @MainActor in SoundscapeEngine.shared.stop() }
+        Task { @MainActor in
+            SoundscapeEngine.shared.stop()
+            ToyboxAudioEngine.shared.stop()
+            CapsuleStore.shared.clearAll()
+        }
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false

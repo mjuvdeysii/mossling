@@ -51,6 +51,40 @@
           }
         }
       }
+    },
+    "NSMotionUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gently sways Otto's bedside lamp glow and rolls Montessori rainstick beads when you tilt your iPhone."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "在床头夜灯和金珠雨声棒中，感受手机轻倾以呈现柔和光影与木珠滚动。"
+          }
+        }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose keepsake photos for your baby's Firsts. Photos stay strictly on this iPhone and are never uploaded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为「第一次」挑选纪念照片，照片仅保存在这台手机上，不会上传。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

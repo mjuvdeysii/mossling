@@ -18,6 +18,7 @@ struct GrowthBookView: View {
                 } else {
                     BookTotals(pages: pages)
                     storybookDoor(pages: pages)
+                    timeCapsuleDoor
                     if (app.babyMonth ?? 0) >= 36 { StoryGoesOn(primary: app.companion) }
                     // months with nothing recorded are gathered into one strip of small photos, so the book is read in a
                     // few screens, not one screen a month
@@ -104,6 +105,39 @@ struct GrowthBookView: View {
                     endPoint: .bottomTrailing
                 )
             )
+            .printCard(radius: Radius.card)
+        }
+        .buttonStyle(.toy)
+    }
+
+    private var timeCapsuleDoor: some View {
+        let store = CapsuleStore.shared
+        let total = store.items.count
+        let ready = store.readyCount(on: app.today)
+        return NavigationLink(value: Route.capsules) {
+            HStack(spacing: 14) {
+                WaxSealBadge(seal: .gold, size: 38)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t("时光胶囊信笺", "Time Capsule Letters"))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(
+                        ready > 0
+                            ? L10n.t("有 \(ready) 封火漆信到了拆封的日子", "\(ready) \(ready == 1 ? "letter is" : "letters are") ready to unseal")
+                            : (total > 0
+                                ? L10n.t("已封存 \(total) 封信 · 留给未来的宝宝", "\(total) sealed · written for future birthdays")
+                                : L10n.t("盖上一枚火漆，把此刻写给一岁或三岁的宝宝", "Stamp a wax seal on a letter for a future birthday"))
+                    )
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(2)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(Palette.accent)
+            }
+            .padding(14)
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)

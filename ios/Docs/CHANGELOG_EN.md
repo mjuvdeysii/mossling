@@ -1,13 +1,13 @@
 # Release Notes
 
 ## 1.3.2
-A generational craft update for Moss & Otto: introducing Otto's Living Bedside Lamp & soothing soundscapes, a 24-hour Circadian Rhythm Dial, a page-turning Growth Storybook, full English support, and silky-smooth 3D motion.
+A generational craft update for Moss & Otto: introducing a new Home Quiet Instruments dock, a Montessori Sensory Toybox, wax-sealed Time Capsule Letters, Otto's Living Bedside Lamp & soundscapes, a 24-hour Rhythm Dial, a page-turning Growth Storybook, and full English support.
 
-- **Otto's Living Bedside Lamp & Soothing Soundscapes**: Open a full-screen zero-glare midnight lantern from Today, Log, any timer, or the Bedside Lamp widget—slide vertically to dim with brass haptic detents and gentle pendulum tilt glow. Includes four offline real-time synthesized soundscapes (Paper Rain, Meadow Breeze, Soft Heartbeat, Wood Lullaby) with lock-screen background playback, cosine auto-fade (15/30/60 min), and one-tap midnight sleep & nursing controls.
-- **24-Hour Circadian Rhythm Dial**: In Log › Rhythm & Week, watch your baby's own rhythm unfold across 7 or 14 concentric rings (Noon sun at top, Midnight moon at bottom, Today on the outer ring). Drag around the dial to shine Otto's amber beam onto any hour for calm factual counts, or export a 3× museum-grade Rhythm Print.
-- **Growth Storybook & On-Device Firsts Photos**: Open the Growth Book as a horizontal page-turning picture book from Month 0 to today—complete with a Montessori bead trail and one-tap page saving. Attach optional Polaroid keepsake photos to any First (zero photo-library permission needed; stored strictly on this iPhone).
-- **Montessori Tactile Feedback**: Subtle CoreHaptics textures and wood/paper micro-acoustics for stepping stones, activity beads, dial scrubbing, and poking Moss or Otto—automatically muted at night, during sleep timers, or when your iPhone is silent, with a toggle in Me.
-- **Full English, Richer Widgets & Silky 3D Fluency**: Full bilingual experience across every guide, activity, care log, and widget; new Quick Log, Bedside Lamp, and Growth Window widgets plus Control Center & Siri controls; major 3D scrolling performance overhaul and graceful hero zoom & page-turn transitions.
+- **Quiet Instruments Home Dock**: Reach every flagship offline tool in one tap right from Today—Bedside Lamp, Sensory Toybox, 24-Hour Rhythm Dial, Growth Storybook, and Time Capsule Letters.
+- **New Sensory Toybox (Parent-Child Co-Play)**: Three handcrafted, zero-asset Montessori studios—an 8-bar Rosewood Xylophone with glissando, lullaby mode, and Moss following every note; a 26-bead Golden Rainstick driven by gentle phone tilt or finger stir with wooden bead clicks; and 8 museum-grade 0–4 month Newborn High-Contrast Cards.
+- **New Time Capsule Letters**: Write tonight's quiet thought on cotton-paper stationery, stamp an embossed wax seal, and schedule it to unseal on your baby's 1st, 2nd, 3rd, or 5th birthday (stored strictly on this iPhone, with 3× letterpress print sharing).
+- **Otto's Living Bedside Lamp & Soothing Soundscapes**: Zero-glare full-screen midnight lantern with vertical brass-detent dimming, tilt-pendulum glow, four offline real-time soundscapes (Paper Rain, Meadow Breeze, Soft Heartbeat, Wood Lullaby) with lock-screen background playback and cosine auto-fade, plus one-tap midnight sleep & nursing controls.
+- **24-Hour Rhythm Dial, Growth Storybook & Craft Polish**: 7/14-day concentric circadian rings with hourly beam scrubbing and 3× print export; page-turning Growth Storybook with on-device Polaroid Firsts photos; Montessori CoreHaptics tactile feedback; full bilingual experience, refreshed interactive widgets, and silky-smooth 3D scrolling.
 
 ## 1.0.1
 More reliable local storage, smoother growth charts, and quieter nighttime polish.
