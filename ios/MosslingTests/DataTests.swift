@@ -4,6 +4,8 @@ import XCTest
 /// The export holds everything recorded, reads back the same, and the readable record says what was recorded.
 @MainActor
 final class DataTests: XCTestCase {
+    /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     private func model() -> AppModel {
         let m = AppModel(defaults: UserDefaults(suiteName: "data-\(UUID().uuidString)")!)
         m.consent = Consent.version   // a guardian who agreed: ticks are kept only with consent

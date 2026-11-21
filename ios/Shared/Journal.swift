@@ -9,6 +9,11 @@ enum LogType {
     static let temp = "temp", medicine = "med", note = "note", play = "play"
     static let growth = "growth" // not an entry: opens the measurement sheet
     static func name(_ t: String) -> String {
+        if L10n.isEnglish {
+            switch t { case nurse: return "Nursing"; case bottle: return "Bottle"; case sleep: return "Sleep"; case diaper: return "Diaper"
+            case solid: return "Solids"; case bath: return "Bath"; case temp: return "Temp"; case medicine: return "Medicine"; case note: return "Note"
+            case play: return "Play"; case growth: return "Growth"; default: return t }
+        }
         switch t { case nurse: "亲喂"; case bottle: "瓶喂"; case sleep: "睡觉"; case diaper: "尿布"; case solid: "辅食"; case bath: "洗澡"
         case temp: "体温"; case medicine: "用药"; case note: "备注"; case play: "一起玩"; case growth: "生长"; default: t }
     }
@@ -33,6 +38,16 @@ struct LogEntry: Codable, Identifiable, Hashable {
     var endDate: Date? { end.map { Date(timeIntervalSince1970: $0 / 1000) } }
 
     var summary: String {
+        if L10n.isEnglish {
+            switch type {
+            case LogType.nurse: return [side == "l" ? "Left" : side == "r" ? "Right" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
+            case LogType.sleep: return end.map { _ in minutesOf(activeSeconds) } ?? "In progress"
+            case LogType.bottle: return [milk, L10n.volume(ml: amount ?? 0)].compactMap { $0 }.joined(separator: " · ")
+            case LogType.diaper: return ["wet": "Wet", "dirty": "Dirty", "both": "Wet + dirty"][detail ?? ""] ?? ""
+            case LogType.temp: return amount.map { L10n.temperature(tenthsC: $0) } ?? ""
+            default: return detail ?? ""
+            }
+        }
         switch type {
         case LogType.nurse: return [side == "l" ? "左侧" : side == "r" ? "右侧" : nil, end.map { _ in minutesOf(activeSeconds) }].compactMap { $0 }.joined(separator: " · ")
         case LogType.sleep: return end.map { _ in minutesOf(activeSeconds) } ?? "进行中"
@@ -49,6 +64,7 @@ extension LogEntry {
     /// and entries from the Android app have none).
     var milk: String? {
         guard type == LogType.bottle else { return nil }
+        if L10n.isEnglish { return detail == "breastmilk" ? "Breast milk" : detail == "formula" ? "Formula" : nil }
         return detail == "breastmilk" ? "母乳" : detail == "formula" ? "配方奶" : nil
     }
     /// Time the timer was paused, as written by both apps in `detail` ("paused:<ms>").
@@ -129,6 +145,13 @@ extension Array where Element == LogEntry {
 /// passed in, never read here, so a test can say what time it is.
 func ago(_ then: Date, now: Date, precise: Bool = false) -> String {
     let m = Int(now.timeIntervalSince(then) / 60)
+    if L10n.isEnglish {
+        if m < 2 { return "just now" }
+        if m < 60 { return "\(m) min ago" }
+        if precise && m < 600 && m % 60 != 0 { return "\(m / 60) hr \(m % 60) min ago" }
+        if m < 48 * 60 { return "\(m / 60) hr ago" }
+        return "\(m / 1440) days ago"
+    }
     if m < 2 { return "刚刚" }
     if m < 60 { return "\(m) 分前" }
     if precise && m < 600 && m % 60 != 0 { return "\(m / 60) 小时 \(m % 60) 分前" }
@@ -148,14 +171,23 @@ struct LastFact {
         switch type {
         case LogType.nurse, LogType.bottle:
             guard let f = older.feeds().last else { return nil }
+            if L10n.isEnglish {
+                let note = f.isBottle ? "Bottle · " + L10n.volume(ml: f.first.amount ?? 0)
+                    : "Nursing · " + f.sides.map { $0.side == "l" ? "Left" : "Right" }.joined(separator: " → ")
+                return LastFact(label: "Last feed", at: f.startDate, note: note)
+            }
             let note = f.isBottle ? "瓶喂 \(f.first.amount ?? 0) 毫升"
                 : "亲喂 · " + f.sides.map { $0.side == "l" ? "左侧" : "右侧" }.joined(separator: " → ")
             return LastFact(label: "上次喂奶", at: f.startDate, note: note)
         case LogType.sleep:
             guard let s = older.filter({ $0.type == LogType.sleep && $0.end != nil }).max(by: { $0.start < $1.start }), let e = s.endDate else { return nil }
+            if L10n.isEnglish { return LastFact(label: "Last woke", at: e, note: "Slept " + minutesOf(s.activeSeconds)) }
             return LastFact(label: "上次醒来", at: e, note: "睡了 " + minutesOf(s.activeSeconds))
         default:
             guard let e = older.filter({ $0.type == type }).max(by: { $0.start < $1.start }) else { return nil }
+            if L10n.isEnglish {
+                return LastFact(label: type == LogType.diaper ? "Last change" : "Last " + LogType.name(type).lowercased(), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
+            }
             return LastFact(label: type == LogType.diaper ? "上次换尿布" : "上次" + LogType.name(type), at: e.startDate, note: e.summary.isEmpty ? nil : e.summary)
         }
     }
@@ -165,12 +197,18 @@ struct LastFact {
 
 /// A running timer's state, one way everywhere (widget, Live Activity, home, records): 「亲喂 · 右侧 · 已暂停」.
 func timerState(_ type: String, side: String?, paused: Bool) -> String {
+    if L10n.isEnglish { return LogType.name(type) + (side == "l" ? " · Left" : side == "r" ? " · Right" : "") + (paused ? " · Paused" : "") }
     LogType.name(type) + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (paused ? " · 已暂停" : "")
 }
 
 /// One way to write a length of time everywhere (app, widget, Live Activity): "18 分钟", "1 小时 5 分", "2 小时".
 func minutesOf(_ s: Double) -> String {
     let m = Int((max(0, s) / 60).rounded(.down))
+    if L10n.isEnglish {
+        if m < 60 { return "\(m) min" }
+        if m >= 48 * 60 { let h = m / 60; return h % 24 == 0 ? "\(h / 24) days" : "\(h / 24) d \(h % 24) hr" }
+        return m % 60 == 0 ? "\(m / 60) hr" : "\(m / 60) hr \(m % 60) min"
+    }
     if m < 60 { return "\(m) 分钟" }
     if m >= 48 * 60 { let h = m / 60; return h % 24 == 0 ? "\(h / 24) 天" : "\(h / 24) 天 \(h % 24) 小时" }
     return m % 60 == 0 ? "\(m / 60) 小时" : "\(m / 60) 小时 \(m % 60) 分"
@@ -519,10 +557,10 @@ enum JournalFile {
         let begun = t.start - t.carried - t.carriedPause
         if t.type == LogType.nurse {
             guard let f = logs.filter({ $0.start < begun }).feeds().last else { return nil }
-            return "距上一顿 " + minutesOf((begun - f.start) / 1000)
+            return L10n.t("距上一顿 ", "Since last feed ") + minutesOf((begun - f.start) / 1000)
         }
         if t.type == LogType.sleep, let e = logs.filter({ $0.type == LogType.sleep && ($0.end ?? .infinity) <= begun }).compactMap(\.end).max() {
-            return "醒了 " + minutesOf((begun - e) / 1000) + "后入睡"
+            return L10n.isEnglish ? "Fell asleep after " + minutesOf((begun - e) / 1000) + " awake" : "醒了 " + minutesOf((begun - e) / 1000) + "后入睡"
         }
         return nil
     }

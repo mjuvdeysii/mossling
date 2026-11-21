@@ -78,23 +78,8 @@ enum L10n {
         return isEnglish ? en[idx] : zh[idx]
     }
 
-    static func logName(_ type: String) -> String {
-        guard isEnglish else { return LogType.name(type) }
-        switch type {
-        case LogType.nurse: return "Nurse"
-        case LogType.bottle: return "Bottle"
-        case LogType.sleep: return "Sleep"
-        case LogType.diaper: return "Diaper"
-        case LogType.solid: return "Solids"
-        case LogType.bath: return "Bath"
-        case LogType.temp: return "Temp"
-        case LogType.medicine: return "Meds"
-        case LogType.note: return "Note"
-        case LogType.play: return "Play"
-        case LogType.growth: return "Growth"
-        default: return type
-        }
-    }
+    /// One name per kind of entry, in both languages (LogType.name already follows the language).
+    static func logName(_ type: String) -> String { LogType.name(type) }
 
     static func ageText(_ age: Age) -> String {
         if isEnglish {

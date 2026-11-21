@@ -5,6 +5,8 @@ import SwiftUI
 /// Renders each screen in the simulator and writes a PNG to $SNAPSHOT_DIR (set by CI) for review.
 @MainActor
 final class ScreenshotTests: XCTestCase {
+    /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     // the journal in these shots is in memory; nothing is written
     private func model(companion: Kind = .moss, birth: Day? = Day(y: 2026, m: 4, d: 2)) -> AppModel {
         let d = UserDefaults(suiteName: "shots-\(UUID().uuidString)")!
