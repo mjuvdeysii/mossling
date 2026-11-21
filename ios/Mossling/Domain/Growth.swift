@@ -4,10 +4,10 @@ import Foundation
 enum Indicator: String, CaseIterable, Identifiable {
     case weight = "wfa", length = "lhfa", head = "hcfa"
     var id: String { rawValue }
-    var label: String { switch self { case .weight: "体重"; case .length: "身长 / 身高"; case .head: "头围" } }
-    var short: String { switch self { case .weight: "体重"; case .length: "身长"; case .head: "头围" } }
-    var unit: String { self == .weight ? "千克" : "厘米" }
-    var unitShort: String { self == .weight ? "千克" : "厘米" }
+    var label: String { switch self { case .weight: L10n.t("体重", "Weight"); case .length: L10n.t("身长 / 身高", "Length / Height"); case .head: L10n.t("头围", "Head circumference") } }
+    var short: String { switch self { case .weight: L10n.t("体重", "Weight"); case .length: L10n.t("身长", "Length"); case .head: L10n.t("头围", "Head") } }
+    var unit: String { self == .weight ? L10n.t("千克", "kg") : L10n.t("厘米", "cm") }
+    var unitShort: String { self == .weight ? L10n.t("千克", "kg") : L10n.t("厘米", "cm") }
     func fmt(_ v: Double) -> String { String(format: self == .weight ? "%.2f" : "%.1f", v) }
 }
 
@@ -54,7 +54,19 @@ struct Growth {
 /// "第 42 百分位"; the far ends say what they are.
 func pctText(_ p: Double) -> String {
     guard p.isFinite else { return "" }
-    if p < 3 { return "低于第 3 百分位" }
-    if p > 97 { return "高于第 97 百分位" }
-    return "约第 \(max(3, min(97, Int(p.rounded())))) 百分位"
+    if p < 3 { return L10n.t("低于第 3 百分位", "Below 3rd percentile") }
+    if p > 97 { return L10n.t("高于第 97 百分位", "Above 97th percentile") }
+    let n = max(3, min(97, Int(p.rounded())))
+    return L10n.t("约第 \(n) 百分位", "~\(growthOrdinal(n)) percentile")
+}
+
+private func growthOrdinal(_ n: Int) -> String {
+    let mod100 = n % 100
+    if mod100 >= 11 && mod100 <= 13 { return "\(n)th" }
+    switch n % 10 {
+    case 1: return "\(n)st"
+    case 2: return "\(n)nd"
+    case 3: return "\(n)rd"
+    default: return "\(n)th"
+    }
 }

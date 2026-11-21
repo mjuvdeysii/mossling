@@ -10,38 +10,43 @@ import SwiftUI
 // The list of common firsts orders the suggestions only: it is not a timetable, and nothing is compared.
 
 enum Firsts {
-    struct Kind: Identifiable { let id: String; let title: String; let symbol: String; let color: Color; let around: Int }
+    struct Kind: Identifiable {
+        let id: String; let zh: String; let en: String; let symbol: String; let color: Color; let around: Int
+        var title: String { L10n.t(zh, en) }
+    }
     static let all: [Kind] = [
-        Kind(id: "smile", title: "第一次笑", symbol: "face.smiling.inverse", color: Crayon.sunflower, around: 1),
-        Kind(id: "hand", title: "吃手", symbol: "hand.raised.fill", color: Crayon.peach, around: 2),
-        Kind(id: "coo", title: "昂咕（发出咕咕声）", symbol: "bubble.left.fill", color: Crayon.sky, around: 2),
-        Kind(id: "headup", title: "趴着抬起头", symbol: "arrow.up.circle.fill", color: Crayon.leaf, around: 2),
-        Kind(id: "laugh", title: "笑出声", symbol: "face.smiling.inverse", color: Crayon.tangerine, around: 4),
-        Kind(id: "roll", title: "翻身", symbol: "arrow.trianglehead.2.clockwise.rotate.90", color: Crayon.lilac, around: 4),
-        Kind(id: "grasp", title: "抓住玩具", symbol: "hand.raised.fingers.spread.fill", color: Crayon.aqua, around: 4),
-        Kind(id: "feet", title: "抓到自己的脚", symbol: "figure.child", color: Crayon.pink, around: 5),
-        Kind(id: "sit", title: "坐", symbol: "chair.fill", color: Crayon.caramel, around: 6),
-        Kind(id: "tooth", title: "长出第一颗牙", symbol: "mouth.fill", color: Crayon.pink, around: 6),
-        Kind(id: "solid", title: "第一口辅食", symbol: "fork.knife", color: Crayon.leaf, around: 6),
-        Kind(id: "babble", title: "咿咿呀呀连着发音", symbol: "waveform", color: Crayon.sky, around: 7),
-        Kind(id: "crawl", title: "爬", symbol: "figure.walk", color: Crayon.tangerine, around: 8),
-        Kind(id: "pull", title: "扶着站起来", symbol: "figure.stand", color: Crayon.aqua, around: 9),
-        Kind(id: "clap", title: "拍手", symbol: "hands.clap.fill", color: Crayon.sunflower, around: 9),
-        Kind(id: "wave", title: "挥手再见", symbol: "hand.wave.fill", color: Crayon.peach, around: 9),
-        Kind(id: "mama", title: "叫爸爸 / 妈妈", symbol: "heart.text.square.fill", color: Crayon.pink, around: 10),
-        Kind(id: "stand", title: "自己站稳", symbol: "figure.stand", color: Crayon.lilac, around: 11),
-        Kind(id: "step", title: "迈出第一步", symbol: "shoeprints.fill", color: Crayon.leaf, around: 12),
-        Kind(id: "cup", title: "用杯子喝水", symbol: "cup.and.saucer.fill", color: Crayon.sky, around: 12),
-        Kind(id: "haircut", title: "第一次理发", symbol: "scissors", color: Crayon.caramel, around: 12),
-        Kind(id: "spoon", title: "自己用勺吃饭", symbol: "fork.knife", color: Crayon.tangerine, around: 15),
-        Kind(id: "run", title: "跑起来", symbol: "figure.run", color: Crayon.aqua, around: 18),
-        Kind(id: "kick", title: "踢球", symbol: "soccerball", color: Crayon.leaf, around: 20),
-        Kind(id: "jump", title: "双脚跳", symbol: "figure.jumprope", color: Crayon.lilac, around: 24),
-        Kind(id: "sentence", title: "说出一句话", symbol: "quote.bubble.fill", color: Crayon.sky, around: 24),
-        Kind(id: "draw", title: "画出一个圈", symbol: "scribble.variable", color: Crayon.pink, around: 30),
-        Kind(id: "potty", title: "自己上厕所", symbol: "toilet.fill", color: Crayon.aqua, around: 30),
+        Kind(id: "smile", zh: "第一次笑", en: "First smile", symbol: "face.smiling.inverse", color: Crayon.sunflower, around: 1),
+        Kind(id: "hand", zh: "吃手", en: "Found their hands", symbol: "hand.raised.fill", color: Crayon.peach, around: 2),
+        Kind(id: "coo", zh: "昂咕（发出咕咕声）", en: "First coos", symbol: "bubble.left.fill", color: Crayon.sky, around: 2),
+        Kind(id: "headup", zh: "趴着抬起头", en: "Held head up", symbol: "arrow.up.circle.fill", color: Crayon.leaf, around: 2),
+        Kind(id: "laugh", zh: "笑出声", en: "Laughed out loud", symbol: "face.smiling.inverse", color: Crayon.tangerine, around: 4),
+        Kind(id: "roll", zh: "翻身", en: "Rolled over", symbol: "arrow.trianglehead.2.clockwise.rotate.90", color: Crayon.lilac, around: 4),
+        Kind(id: "grasp", zh: "抓住玩具", en: "Grabbed a toy", symbol: "hand.raised.fingers.spread.fill", color: Crayon.aqua, around: 4),
+        Kind(id: "feet", zh: "抓到自己的脚", en: "Found their feet", symbol: "figure.child", color: Crayon.pink, around: 5),
+        Kind(id: "sit", zh: "坐", en: "Sat up", symbol: "chair.fill", color: Crayon.caramel, around: 6),
+        Kind(id: "tooth", zh: "长出第一颗牙", en: "First tooth", symbol: "mouth.fill", color: Crayon.pink, around: 6),
+        Kind(id: "solid", zh: "第一口辅食", en: "First solid food", symbol: "fork.knife", color: Crayon.leaf, around: 6),
+        Kind(id: "babble", zh: "咿咿呀呀连着发音", en: "Started babbling", symbol: "waveform", color: Crayon.sky, around: 7),
+        Kind(id: "crawl", zh: "爬", en: "Crawled", symbol: "figure.walk", color: Crayon.tangerine, around: 8),
+        Kind(id: "pull", zh: "扶着站起来", en: "Pulled up to stand", symbol: "figure.stand", color: Crayon.aqua, around: 9),
+        Kind(id: "clap", zh: "拍手", en: "Clapped hands", symbol: "hands.clap.fill", color: Crayon.sunflower, around: 9),
+        Kind(id: "wave", zh: "挥手再见", en: "Waved goodbye", symbol: "hand.wave.fill", color: Crayon.peach, around: 9),
+        Kind(id: "mama", zh: "叫爸爸 / 妈妈", en: "Said Mama / Dada", symbol: "heart.text.square.fill", color: Crayon.pink, around: 10),
+        Kind(id: "stand", zh: "自己站稳", en: "Stood on their own", symbol: "figure.stand", color: Crayon.lilac, around: 11),
+        Kind(id: "step", zh: "迈出第一步", en: "First step", symbol: "shoeprints.fill", color: Crayon.leaf, around: 12),
+        Kind(id: "cup", zh: "用杯子喝水", en: "Drank from a cup", symbol: "cup.and.saucer.fill", color: Crayon.sky, around: 12),
+        Kind(id: "haircut", zh: "第一次理发", en: "First haircut", symbol: "scissors", color: Crayon.caramel, around: 12),
+        Kind(id: "spoon", zh: "自己用勺吃饭", en: "Ate with a spoon", symbol: "fork.knife", color: Crayon.tangerine, around: 15),
+        Kind(id: "run", zh: "跑起来", en: "Started running", symbol: "figure.run", color: Crayon.aqua, around: 18),
+        Kind(id: "kick", zh: "踢球", en: "Kicked a ball", symbol: "soccerball", color: Crayon.leaf, around: 20),
+        Kind(id: "jump", zh: "双脚跳", en: "Jumped with both feet", symbol: "figure.jumprope", color: Crayon.lilac, around: 24),
+        Kind(id: "sentence", zh: "说出一句话", en: "First sentence", symbol: "quote.bubble.fill", color: Crayon.sky, around: 24),
+        Kind(id: "draw", zh: "画出一个圈", en: "Drew a circle", symbol: "scribble.variable", color: Crayon.pink, around: 30),
+        Kind(id: "potty", zh: "自己上厕所", en: "Used the potty", symbol: "toilet.fill", color: Crayon.aqua, around: 30),
     ]
     static func kind(_ key: String?) -> Kind? { key.flatMap { k in all.first { $0.id == k } } }
+    /// Shows the built-in title in the current language when `key` matches a common first; custom titles stay as written.
+    static func displayTitle(_ f: First) -> String { kind(f.key)?.title ?? f.title }
     /// The common firsts in the order a parent of a child this age would look for them: those around now first,
     /// then the ones a little ahead, then the earlier ones.
     static func ordered(around month: Int?) -> [Kind] {
@@ -54,9 +59,11 @@ enum Firsts {
     /// "出生第 5 天" / "4 个月 12 天" — the age on that day.
     static func age(from birth: Day, to day: Day) -> String {
         let a = Age.on(birth: birth, today: day)
-        if day < birth { return "出生前" }
-        if a.months == 0 { return "出生第 \(a.lived) 天" }
-        return a.days == 0 ? "满 \(a.months) 个月" : "\(a.months) 个月 \(a.days) 天"
+        if day < birth { return L10n.t("出生前", "Before birth") }
+        if a.months == 0 { return L10n.t("出生第 \(a.lived) 天", "Day \(a.lived)") }
+        return a.days == 0
+            ? L10n.t("满 \(a.months) 个月", a.months == 1 ? "1 month" : "\(a.months) months")
+            : L10n.t("\(a.months) 个月 \(a.days) 天", "\(a.months) mo \(a.days) d")
     }
     /// A first the parent named keeps the mark they picked for it, as "icon:<symbol>" in `key`.
     static let customIcons: [(String, Color)] = [("star.fill", Palette.bead), ("heart.fill", Crayon.pink), ("sun.max.fill", Crayon.sunflower),
@@ -74,9 +81,9 @@ enum Firsts {
 /// "今天" / "昨天" / "10月20日" / "2025年10月20日" — a day, said as people say it.
 func whenLabelDay(_ d: Date) -> String {
     let day = Day(d), today = Day.today
-    if day == today { return "今天" }
-    if day == today.plus(days: -1) { return "昨天" }
-    return day.y == today.y ? day.md : "\(day.y)年\(day.md)"
+    if day == today { return L10n.t("今天", "Today") }
+    if day == today.plus(days: -1) { return L10n.t("昨天", "Yesterday") }
+    return day.mdOrYmd
 }
 
 /// Records a first, or changes one: what (one of the common firsts, or named), which day, and a line about it.

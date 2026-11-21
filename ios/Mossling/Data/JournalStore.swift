@@ -64,12 +64,12 @@ final class JournalStore {
         switch JournalFile.mutate(f) {
         case let .saved(_, after): changed(after)
         case let .unchanged(b): apply(b)
-        case .failed: failed("计时")
+        case .failed: failed(L10n.t("计时", "the timer"))
         }
     }
-    private func failed(_ what: String = "这条记录") {
+    private func failed(_ what: String = L10n.t("这条记录", "this entry")) {
         reload()
-        toast = Toast(type: LogType.note, text: "没有保存成功：" + what + "未写入，请再试一次", restore: nil, failed: true)
+        toast = Toast(type: LogType.note, text: L10n.t("没有保存成功：" + what + "未写入，请再试一次", "Couldn't save: " + what + " wasn't saved. Please try again."), restore: nil, failed: true)
         onEvent?(.recordPersistFailure)
     }
 
@@ -84,11 +84,13 @@ final class JournalStore {
             if type == LogType.sleep { sleepsStarted &+= 1 }
             onEvent?(.recordStartConfirmed)
             let ago = Int(Date().timeIntervalSince(at) / 60)
-            say(type, LogType.name(type) + "开始计时" + (side == "l" ? " · 左侧" : side == "r" ? " · 右侧" : "") + (ago >= 1 ? " · 从 \(ago) 分钟前算起" : ""), undo: before)
+            let sidePart = side == "l" ? L10n.t(" · 左侧", " · Left") : side == "r" ? L10n.t(" · 右侧", " · Right") : ""
+            let agoPart = ago >= 1 ? L10n.t(" · 从 \(ago) 分钟前算起", " · from \(ago) min ago") : ""
+            say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before)
         case let .unchanged(b):
             apply(b); focus = type
         case .failed:
-            failed("计时")
+            failed(L10n.t("计时", "the timer"))
         }
     }
     func togglePause(_ type: String) {
@@ -130,11 +132,14 @@ final class JournalStore {
         case let .saved(before, after):
             changed(after)
             onEvent?(.recordPersistSuccess)
-            if let e = after.logs.last, e.type == type { say(type, "已记下 " + LogType.name(type) + " · " + durationValue(e.activeSeconds) + "，到 " + hm(e.endDate ?? Date()), undo: before) }
+            if let e = after.logs.last, e.type == type {
+                let durStr = durationValue(e.activeSeconds), endStr = hm(e.endDate ?? Date())
+                say(type, L10n.t("已记下 " + LogType.name(type) + " · " + durStr + "，到 " + endStr, "Logged " + LogType.name(type) + " · " + durStr + ", ended " + endStr), undo: before)
+            }
         case .unchanged:
             reload()
         case .failed:
-            failed("这次" + LogType.name(type))
+            failed(L10n.t("这次" + LogType.name(type), LogType.name(type)))
         }
     }
     /// Drops a running timer; said back with 撤销, like every change that loses something.
@@ -142,7 +147,7 @@ final class JournalStore {
         // said only once it is really dropped (a failed save says so, with nothing to take back)
         guard let before = edit({ $0.timers.removeAll { $0.type == type } }) else { return }
         onEvent?(.timerEnded)
-        say(type, "没有记这一次" + LogType.name(type), undo: before)
+        say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before)
     }
 
     @discardableResult func add(_ e: LogEntry) -> Bool { edit { $0.logs.append(e) } != nil }
@@ -153,7 +158,7 @@ final class JournalStore {
         onEvent?(.recordPersistSuccess)
         let what = [LogType.name(e.type), e.summary].filter { !$0.isEmpty }.joined(separator: " · ")
         let when = Day(e.startDate) == Day.today ? hm(e.startDate) : whenLabel(e.startDate)
-        say(e.type, "已记下 " + what + " · " + when, undo: before)
+        say(e.type, L10n.t("已记下 ", "Logged ") + what + " · " + when, undo: before)
         return true
     }
     /// Takes back what the toast describes: the journal as it was just before.
@@ -163,12 +168,12 @@ final class JournalStore {
         guard JournalFile.write(b) else {
             // not written: said so, and 撤销 stays on the toast to try again
             reload()
-            toast = Toast(type: t.type, text: "没有撤销成功，点「撤销」再试一次", restore: b, failed: true)
+            toast = Toast(type: t.type, text: L10n.t("没有撤销成功，点「撤销」再试一次", "Couldn't undo. Tap \"Undo\" to try again."), restore: b, failed: true)
             onEvent?(.recordPersistFailure)
             return
         }
         changed(b)
-        toast = Toast(type: t.type, text: "已撤销", restore: nil)
+        toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
     @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } != nil }
@@ -178,14 +183,14 @@ final class JournalStore {
         guard let before = edit({ b in
             for e in es { if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } }
         }) else { return false }
-        let what: String = feed || es.count > 1 ? "已修改这一顿" + LogType.name(first.type) : "已修改 " + LogType.name(first.type)
+        let what: String = feed || es.count > 1 ? L10n.t("已修改这一顿" + LogType.name(first.type), "Updated " + LogType.name(first.type)) : L10n.t("已修改 " + LogType.name(first.type), "Updated " + LogType.name(first.type))
         say(first.type, what + " · " + hm(first.startDate), undo: before)
         return true
     }
     /// Deleting is one tap (no confirmation to tap through at night): it is said back with 撤销 instead.
     func delete(_ e: LogEntry) {
         guard let before = edit({ $0.logs.removeAll { $0.id == e.id } }) else { return }
-        say(e.type, "已删除 " + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
+        say(e.type, L10n.t("已删除 ", "Deleted ") + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
     }
     /// A whole breast feed — its sides — at once: one change, one line said back, one 撤销.
     func delete(_ es: [LogEntry]) {
@@ -193,32 +198,32 @@ final class JournalStore {
         if es.count == 1 { delete(e); return }
         let ids = Set(es.map(\.id))
         guard let before = edit({ $0.logs.removeAll { ids.contains($0.id) } }) else { return }
-        say(e.type, "已删除这一顿" + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
+        say(e.type, L10n.t("已删除这一顿" + LogType.name(e.type), "Deleted " + LogType.name(e.type)) + " · " + hm(e.startDate), undo: before)
     }
     /// Keeps a measurement and says so, with 撤销; false when it could not be saved (the sheet keeps what was typed).
     @discardableResult func saveMeasure(_ m: Measure) -> Bool {
         guard let before = edit({ b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } }) else { return false }
-        say(LogType.growth, "已记下测量 · " + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+        say(LogType.growth, L10n.t("已记下测量 · ", "Logged measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
         return true
     }
     func deleteMeasure(_ m: Measure) {
         guard let before = edit({ $0.measures.removeAll { $0.id == m.id } }) else { return }
-        say(LogType.growth, "已删除这次测量 · " + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+        say(LogType.growth, L10n.t("已删除这次测量 · ", "Deleted measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
     }
     /// Keeps a first (new or changed) and says so; false when it could not be saved.
     @discardableResult func saveFirst(_ f: First) -> Bool {
         let isNew = !firsts.contains { $0.id == f.id }
         guard let before = edit({ b in if let i = b.firsts.firstIndex(where: { $0.id == f.id }) { b.firsts[i] = f } else { b.firsts.append(f) } }) else { return false }
         onEvent?(.recordPersistSuccess)
-        if isNew { toast = Toast(type: LogType.note, text: "记下了第一次：" + f.title + " · " + whenLabelDay(f.date), restore: before) }
+        if isNew { toast = Toast(type: LogType.note, text: L10n.t("记下了第一次：", "Logged first: ") + f.title + " · " + whenLabelDay(f.date), restore: before) }
         return true
     }
     func deleteFirst(_ f: First) {
         guard let before = edit({ $0.firsts.removeAll { $0.id == f.id } }) else { return }
-        say(LogType.note, "已删除第一次：" + f.title, undo: before)
+        say(LogType.note, L10n.t("已删除第一次：", "Deleted first: ") + f.title, undo: before)
     }
     @discardableResult func replaceAll(_ body: JournalFile.Body) -> Bool {
-        guard JournalFile.write(body) else { failed("备份数据"); return false }
+        guard JournalFile.write(body) else { failed(L10n.t("备份数据", "backup data")); return false }
         changed(body)
         return true
     }
