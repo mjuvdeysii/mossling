@@ -641,4 +641,79 @@ final class ScreenshotTests: XCTestCase {
         shot("43_bedside_lamp_en", dark: true, height: 852, BedsideLampView(initialBrightness: 0.82).environment(mEn).environment(richJournal).fontDesign(.rounded))
         shot("44_storybook_spread_en", height: 852, StorybookView(initialPage: 7).environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
     }
+
+    /// Screen-1 Quiet Instruments dock, Sensory Toybox (3 studios), and Time Capsule Letters (CN + EN + Lamp).
+    func test45QuietInstrumentsToyboxAndCapsules() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        // 1. Home Screen with Quiet Instruments dock (Day + Night Lamp)
+        shot("45_today_instruments_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("45_today_instruments_lamp", height: 1260, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+
+        // 2. Sensory Toybox — all 3 studios (Chinese)
+        shot("46_toybox_xylophone_zh", height: 852, tabs(m, ToyboxView(initialMode: .xylophone)))
+        shot("46_toybox_rainstick_zh", height: 852, tabs(m, ToyboxView(initialMode: .rainstick)))
+        shot("46_toybox_contrast_zh", height: 852, tabs(m, ToyboxView(initialMode: .contrast)))
+
+        // 3. Time Capsule Letters (Ready + Sealed + Opened envelopes + unfolded stationery)
+        let birth = m.birth!
+        let readyCap = TimeCapsule(
+            title: "满半岁那天的灯下小记",
+            body: "小满，今天你第一次靠着软垫自己坐稳了十几秒，举着木摇铃笑出声来。窗外下着细雨，床头灯暖暖地亮着，希望长大后的你，也一直记得被稳稳接住的感觉。",
+            writtenAt: ms(today.plus(days: -17).date),
+            writtenAgeLabel: "6 个月",
+            unlockEpochDay: today.epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        let sealedCap = TimeCapsule(
+            title: "写给一岁生日的小满",
+            body: "亲爱的小满，等你拆开这封信的时候，你已经走过一整年的四季啦。",
+            writtenAt: ms(today.plus(days: -2).date),
+            writtenAgeLabel: "6 个月 15 天",
+            unlockEpochDay: TimeCapsule.birthdayEpochDay(from: birth, years: 1),
+            openedAt: nil,
+            seal: .teal
+        )
+        let openedCap = TimeCapsule(
+            title: "你出生的第一百天",
+            body: "今天你第一次对着镜头咧嘴笑出了梨涡，爸爸妈妈手忙脚乱拍了二十张糊掉的照片，却一张也舍不得删。",
+            writtenAt: ms(birth.plus(days: 100).date),
+            writtenAgeLabel: "3 个月 9 天",
+            unlockEpochDay: nil,
+            openedAt: ms(today.plus(days: -10).date),
+            seal: .pink
+        )
+        let previewStore = CapsuleStore(preview: [readyCap, sealedCap, openedCap])
+        shot("47_capsules_zh", height: 960, tabs(m, TimeCapsuleListView(store: previewStore)))
+        shot("47_capsules_letter_zh", height: 852, CapsuleReadSheet(capsule: openedCap, store: previewStore).environment(m).tint(Palette.accent).fontDesign(.rounded))
+
+        // 4. English variants
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("45_today_instruments_en", height: 1260, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
+        shot("46_toybox_xylophone_en", height: 852, tabs(mEn, ToyboxView(initialMode: .xylophone)))
+        let readyCapEn = TimeCapsule(
+            title: "Six Months Under Otto's Lamp",
+            body: "Leo, tonight you sat up all by yourself for ten bright seconds and giggled at your wooden rattle.",
+            writtenAt: ms(today.plus(days: -17).date),
+            writtenAgeLabel: "6 months",
+            unlockEpochDay: today.epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        let sealedCapEn = TimeCapsule(
+            title: "To Leo on Your 1st Birthday",
+            body: "When you unseal this wax stamp, we will have walked through four full seasons together.",
+            writtenAt: ms(today.plus(days: -2).date),
+            writtenAgeLabel: "6 mo 15 d",
+            unlockEpochDay: TimeCapsule.birthdayEpochDay(from: birth, years: 1),
+            openedAt: nil,
+            seal: .teal
+        )
+        let previewStoreEn = CapsuleStore(preview: [readyCapEn, sealedCapEn])
+        shot("47_capsules_en", height: 900, tabs(mEn, TimeCapsuleListView(store: previewStoreEn)))
+    }
 }

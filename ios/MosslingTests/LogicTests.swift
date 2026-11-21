@@ -710,4 +710,76 @@ final class LogicTests: XCTestCase {
         FirstPhotoStore.clearAll(in: dir)
         XCTAssertFalse(FirstPhotoStore.exists(for: id1, in: dir))
     }
+
+    func testToyboxMarimbaAndBeadDSPProduceBoundedFiniteSamples() {
+        for note in ToyboxNote.scale {
+            let samples = ToyboxAudioEngine.synthesizeMarimbaSamples(frequency: note.frequency, sampleRate: 44_100, duration: 0.25)
+            XCTAssertGreaterThan(samples.count, 1000)
+            var peak: Float = 0
+            for s in samples {
+                XCTAssertTrue(s.isFinite, "Marimba note \(note.pitchName) produced non-finite sample")
+                XCTAssertLessThanOrEqual(abs(s), 1.0, "Marimba note \(note.pitchName) exceeded [-1, 1]")
+                peak = max(peak, abs(s))
+            }
+            XCTAssertGreaterThan(peak, 0.05, "Marimba note \(note.pitchName) was silent")
+        }
+        let click = ToyboxAudioEngine.synthesizeBeadClickSamples(pitchScale: 1.08, sampleRate: 44_100)
+        XCTAssertTrue(click.allSatisfy { $0.isFinite && abs($0) <= 1.0 })
+        XCTAssertGreaterThan(click.map { abs($0) }.max() ?? 0, 0.01)
+    }
+
+    func testRainstickPhysicsGravityAndStrictBounds() {
+        var sim = RainstickPhysics.initial()
+        XCTAssertEqual(sim.beads.count, 26)
+        XCTAssertEqual(sim.pegs.count, 11)
+        let avgYBefore = sim.beads.map(\.y).reduce(0, +) / Double(sim.beads.count)
+        for _ in 0..<45 {
+            sim.step(dt: 1.0 / 60.0, gx: 0.15, gy: 1.0, touch: CGPoint(x: 0.5, y: 0.5))
+        }
+        let avgYAfter = sim.beads.map(\.y).reduce(0, +) / Double(sim.beads.count)
+        XCTAssertGreaterThan(avgYAfter, avgYBefore, "Positive Y gravity should roll beads downward")
+        for b in sim.beads {
+            XCTAssertTrue(b.x.isFinite && b.y.isFinite && b.vx.isFinite && b.vy.isFinite)
+            XCTAssertGreaterThanOrEqual(b.x, b.radius - 0.0001)
+            XCTAssertLessThanOrEqual(b.x, 1.0 - b.radius + 0.0001)
+            XCTAssertGreaterThanOrEqual(b.y, b.radius - 0.0001)
+            XCTAssertLessThanOrEqual(b.y, 1.0 - b.radius + 0.0001)
+        }
+    }
+
+    @MainActor
+    func testCapsuleStorePersistenceAndUnlockLogic() {
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("capsules-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let birth = Day(y: 2026, m: 4, d: 2)
+        let today = Day(y: 2026, m: 10, d: 19)
+        let firstBday = TimeCapsule.birthdayEpochDay(from: birth, years: 1)
+        XCTAssertEqual(Day(epochDay: firstBday), Day(y: 2027, m: 4, d: 2))
+
+        let futureCap = TimeCapsule(title: "1岁信", body: "生日快乐", writtenAt: t(19, 21, 0), writtenAgeLabel: "6 个月 17 天", unlockEpochDay: firstBday, openedAt: nil, seal: .gold)
+        let readyCap = TimeCapsule(title: "随时读", body: "今晚很安静", writtenAt: t(18, 22, 0), writtenAgeLabel: "6 个月 16 天", unlockEpochDay: today.epochDay, openedAt: nil, seal: .teal)
+
+        XCTAssertTrue(futureCap.isLocked(on: today))
+        XCTAssertGreaterThan(futureCap.daysUntilUnlock(on: today), 100)
+        XCTAssertFalse(futureCap.isReadyToOpen(on: today))
+        XCTAssertTrue(readyCap.isReadyToOpen(on: today))
+
+        let store = CapsuleStore(fileURL: url)
+        store.save(futureCap)
+        store.save(readyCap)
+        XCTAssertEqual(store.items.count, 2)
+        XCTAssertEqual(store.readyCount(on: today), 1)
+
+        // Reload from disk verifies atomic JSON round-trip
+        let reloaded = CapsuleStore(fileURL: url)
+        XCTAssertEqual(reloaded.items.count, 2)
+        reloaded.open(id: readyCap.id, now: t(19, 22, 0))
+        XCTAssertEqual(reloaded.readyCount(on: today), 0)
+        XCTAssertNotNil(reloaded.items.first(where: { $0.id == readyCap.id })?.openedAt)
+
+        reloaded.clearAll()
+        XCTAssertTrue(reloaded.items.isEmpty)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
 }

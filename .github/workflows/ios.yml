@@ -184,7 +184,19 @@ jobs:
           # declare. Sign them ad hoc (no certificate) with their entitlements — the widget first, then the app — so the
           # app group reaches the exported build, and print what each one now declares.
           APPDIR=build/Mossling.xcarchive/Products/Applications/Mossling.app
-          for x in "$APPDIR"/PlugIns/*.appex; do codesign -f -s - --entitlements Widget/Widget.entitlements "$x"; done
+          # Pre-upload compliance check: verify required purpose strings & matching versions across app and widget extension
+          for key in NSFaceIDUsageDescription NSMotionUsageDescription NSPhotoLibraryUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
+            /usr/libexec/PlistBuddy -c "Print :$key" "$APPDIR/Info.plist" >/dev/null || { echo "::error::Missing required Info.plist key $key"; exit 1; }
+          done
+          APP_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPDIR/Info.plist")
+          APP_BLD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APPDIR/Info.plist")
+          for x in "$APPDIR"/PlugIns/*.appex; do
+            EXT_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$x/Info.plist")
+            EXT_BLD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$x/Info.plist")
+            echo "::notice title=Bundle Check::$(basename "$x") v${EXT_VER} (${EXT_BLD}) inside app v${APP_VER} (${APP_BLD})"
+            [ "$EXT_VER" = "$APP_VER" ] && [ "$EXT_BLD" = "$APP_BLD" ] && [ "$APP_BLD" = "$BUILD" ] || { echo "::error::Version/build mismatch between app and $(basename "$x")"; exit 1; }
+            codesign -f -s - --entitlements Widget/Widget.entitlements "$x"
+          done
           codesign -f -s - --entitlements Mossling/Resources/Mossling.entitlements "$APPDIR"
           for x in "$APPDIR" "$APPDIR"/PlugIns/*.appex; do echo "::notice title=Entitlements $(basename "$x")::$(codesign -d --entitlements - --xml "$x" 2>/dev/null | tr -d '\n\t' | sed 's/.*<dict>//;s/<\/dict>.*//')"; done
           cat > ExportOptions.plist <<PLIST
@@ -198,9 +210,9 @@ jobs:
             <key>manageAppVersionAndBuildNumber</key><false/>
           </dict></plist>
           PLIST
-          xcodebuild -exportArchive -archivePath build/Mossling.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export "${AUTH[@]}" 2>&1 | tee export.log | grep -E "error:|Upload|\*\* " || true
+          xcodebuild -exportArchive -archivePath build/Mossling.xcarchive -exportOptionsPlist ExportOptions.plist -exportPath build/export "${AUTH[@]}" 2>&1 | tee export.log | grep -E "error:|warning:|Warning:|ITMS-|Upload|\*\* " || true
           grep -q "EXPORT SUCCEEDED" export.log
-          VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPDIR/Info.plist" 2>/dev/null || true)
+          VER="$APP_VER"
           echo "BUILD=$BUILD" >> "$GITHUB_ENV"
           echo "MARKETING_VERSION=$VER" >> "$GITHUB_ENV"
           echo "::notice title=TestFlight::v${VER} build $BUILD uploaded; it appears in TestFlight after Apple finishes processing (usually 10–30 minutes)"
@@ -224,11 +236,11 @@ jobs:
           echo "::notice title=备案 SHA-1::$SHA1"
           echo "::notice title=备案 公钥（RSA 模数，十六进制）::$MOD"
       - name: Update TestFlight What to Test
-        # Automatically copies the latest version section of ios/Docs/CHANGELOG.md into TestFlight's
-        # zh-Hans "What to Test" (betaBuildLocalizations.whatsNew) once App Store Connect processes the build.
+        # Automatically copies the latest version section of ios/Docs/CHANGELOG.md (and CHANGELOG_EN.md) into
+        # TestFlight's zh-Hans & en-US "What to Test" (betaBuildLocalizations.whatsNew) once ASC processes the build.
         if: env.ASC_KEY_ID != '' && env.BUILD != ''
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 35
         working-directory: ios
         run: |
           python3 scripts/testflight_whats_new.py \
@@ -236,10 +248,11 @@ jobs:
             --build "$BUILD" \
             --version "$MARKETING_VERSION" \
             --changelog Docs/CHANGELOG.md \
+            --en-changelog Docs/CHANGELOG_EN.md \
             --locale zh-Hans \
             --key-path "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" \
-            --timeout 1200
+            --timeout 1800
       - name: Report errors
         if: failure()
         working-directory: ios
-        run: cat archive.log export.log 2>/dev/null | grep -E "error:|Error|failed" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+        run: cat archive.log export.log 2>/dev/null | grep -E "error:|Error|ITMS-|failed" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done
