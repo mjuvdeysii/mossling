@@ -4,8 +4,8 @@ import SwiftUI
 enum Land: Int, CaseIterable {
     case meadow, forest, river
     static func of(_ m: Int) -> Land { m < 12 ? .meadow : m < 24 ? .forest : .river }
-    var name: String { switch self { case .meadow: "草地"; case .forest: "森林小丘"; case .river: "小河村庄" } }
-    var years: String { switch self { case .meadow: "0–1 岁"; case .forest: "1–2 岁"; case .river: "2–3 岁" } }
+    var name: String { switch self { case .meadow: L10n.t("草地", "Meadow"); case .forest: L10n.t("森林小丘", "Forest Hills"); case .river: L10n.t("小河村庄", "River Village") } }
+    var years: String { switch self { case .meadow: L10n.t("0–1 岁", "0–1 yr"); case .forest: L10n.t("1–2 岁", "1–2 yrs"); case .river: L10n.t("2–3 岁", "2–3 yrs") } }
     var ground: Color { switch self { case .meadow: .dyn(0xE3F1CF, 0x1F2B1C); case .forest: .dyn(0xD5E8C0, 0x1B2719); case .river: .dyn(0xE6EFD9, 0x1E2620) } }
     var crayon: Color { switch self { case .meadow: Crayon.leaf; case .forest: Crayon.tangerine; case .river: Crayon.sky } }
     var symbol: String { switch self { case .meadow: "leaf.fill"; case .forest: "tree.fill"; case .river: "house.fill" } }
@@ -49,12 +49,14 @@ struct MonthView: View {
                 // the month's picture beside its title, as on the month card (not a screen-wide picture above it)
                 HStack(alignment: .center, spacing: 14) {
                     if let f = ArtIndex.shared.cover(m) {
-                        ArtView(name: f, label: "满 \(m) 个月：\(mo.title)", radius: 18).frame(width: type.isAccessibilitySize ? 112 : 148)
+                        ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: type.isAccessibilitySize ? 112 : 148)
                     }
                     VStack(alignment: .leading, spacing: 6) {
                         Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
                         if let b = app.birth {
-                            Label(b.plus(months: m).md + (app.babyMonth == m ? " · 宝宝在这一站" : ""), systemImage: "calendar")
+                            let d = b.plus(months: m)
+                            let dateStr = L10n.isEnglish ? "\(d.m)/\(d.d)" : d.md
+                            Label(dateStr + (app.babyMonth == m ? L10n.t(" · 宝宝在这一站", " · Current chapter") : ""), systemImage: "calendar")
                                 .font(.caption).foregroundStyle(Palette.secondaryText)
                         }
                     }
@@ -67,20 +69,20 @@ struct MonthView: View {
         }
         .calmWhileScrolling()
         .pageBackground()
-        .navigationTitle(m == 0 ? "出生" : "满 \(m) 个月")
+        .navigationTitle(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button("上个月", systemImage: "chevron.left") { withAnimation(.snappy) { month -= 1 } }.disabled(m <= 0)
+                Button(L10n.t("上个月", "Previous"), systemImage: "chevron.left") { withAnimation(.snappy) { month -= 1 } }.disabled(m <= 0)
                 Menu {
                     ForEach(0...36, id: \.self) { k in
                         Button { withAnimation(.snappy) { month = k } } label: {
-                            Text((k == 0 ? "出生" : "满 \(k) 个月") + (k == app.babyMonth ? " · 宝宝在这里" : ""))
+                            Text((k == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(k) 个月", "Month \(k)")) + (k == app.babyMonth ? L10n.t(" · 宝宝在这里", " · Now") : ""))
                         }
                     }
                 } label: { Image(systemName: "calendar") }
-                .accessibilityLabel("选一个月")
-                Button("下个月", systemImage: "chevron.right") { withAnimation(.snappy) { month += 1 } }.disabled(m >= 36)
+                .accessibilityLabel(L10n.t("选一个月", "Choose month"))
+                Button(L10n.t("下个月", "Next"), systemImage: "chevron.right") { withAnimation(.snappy) { month += 1 } }.disabled(m >= 36)
             }
         }
         .sensoryFeedback(.selection, trigger: month)
@@ -101,14 +103,15 @@ struct MonthPoints: View {
             let shut = folded && !open
             let box = Box {
                 ForEach(Array(points.enumerated()), id: \.offset) { i, h in
-                    let (sym, col): (String, Color) = h.kind.contains("留意") ? ("exclamationmark.triangle.fill", Crayon.tangerine) : h.kind.contains("先做") ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
+                    let k = h.kind.lowercased()
+                    let (sym, col): (String, Color) = (h.kind.contains("留意") || k.contains("keep in mind") || k.contains("watch") || k.contains("safety")) ? ("exclamationmark.triangle.fill", Crayon.tangerine) : (h.kind.contains("先做") || k.contains("try first") || k.contains("first") || k.contains("care")) ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
                     BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1)
                 }
             }
             if folded {
                 Button { withAnimation(.snappy) { open.toggle() } } label: { box }
                     .buttonStyle(.plain)
-                    .accessibilityHint(open ? "收起" : "展开全文")
+                    .accessibilityHint(open ? L10n.t("收起", "Collapse") : L10n.t("展开全文", "Expand"))
             } else {
                 box
             }
@@ -131,7 +134,7 @@ private struct MonthBody: View {
                     // how many were played, not a list to complete: the four cards themselves show how many there are
                     // counted as the cards are: a card with its ×N is a play counted here
                     let done: Int = plays.filter { app.record($0, j).count > 0 }.count
-                    SectionTitle(title: "一起玩", detail: done > 0 ? "其中 \(done) 个玩过" : nil)
+                    SectionTitle(title: L10n.t("一起玩", "Play Together"), detail: done > 0 ? L10n.t("其中 \(done) 个玩过", "\(done) played") : nil)
                     PlaysLeadGrid(plays: plays, month: m)
                 }
             }
@@ -156,7 +159,7 @@ struct MonthParts: View {
         let mo = app.content.month(month), m = month
         let parts = parts(mo, m)
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: "这个月")
+            SectionTitle(title: L10n.t("这个月", "This Month"))
             // one card of rows, whatever their number: the mark, the part, what it holds, its progress where it has one
             Box {
                 ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
@@ -173,16 +176,16 @@ struct MonthParts: View {
         var out: [Part] = []
         if !mo.observe.isEmpty {
             let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
-            out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: "可以留意", note: "\(done) / \(total)", done: done, total: total, route: Route.observe(m)))
+            out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("可以留意", "Things to Notice"), note: "\(done) / \(total)", done: done, total: total, route: Route.observe(m)))
         }
         if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
             let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: "接种与儿保", note: "\(done) / \(total)", done: done, total: total, route: Route.care(m)))
+            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: Route.care(m)))
         }
-        out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: "六个方面", note: "这个月的样子", route: Route.areas(m)))
-        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: "还要知道", note: "\(mo.notes.count) 条", route: Route.notes(m))) }
-        if !mo.who.isEmpty { out.append(Part(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: "一天的节奏", note: "睡、玩、吃", route: Route.rhythm(m))) }
-        out.append(Part(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: "生长曲线", note: "WHO 标准", route: nil))
+        out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: L10n.t("六个方面", "Six Areas"), note: L10n.t("这个月的样子", "This month's overview"), route: Route.areas(m)))
+        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", "\(mo.notes.count) notes"), route: Route.notes(m))) }
+        if !mo.who.isEmpty { out.append(Part(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: L10n.t("一天的节奏", "Daily Rhythm"), note: L10n.t("睡、玩、吃", "Sleep, play & feeds"), route: Route.rhythm(m))) }
+        out.append(Part(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: L10n.t("生长曲线", "Growth Curves"), note: L10n.t("WHO 标准", "WHO Standards"), route: nil))
         return out
     }
 }

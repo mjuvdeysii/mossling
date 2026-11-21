@@ -21,7 +21,7 @@ extension AppLanguage {
 /// Settings and month records, kept on the phone (UserDefaults); the journal lives in its own store.
 @Observable
 final class AppModel {
-    let content: Content
+    var content: Content
     let growth: Growth
     var today: Day = .today
 
@@ -33,6 +33,9 @@ final class AppModel {
     var language: AppLanguage {
         didSet {
             L10n.preference = language
+            if let reloaded = try? Content.load(english: L10n.isEnglish) {
+                content = reloaded
+            }
             WidgetCenter.shared.reloadAllTimelines()
             if #available(iOS 18.0, *) { ControlCenter.shared.reloadAllControls() }
         }
@@ -143,7 +146,7 @@ final class AppModel {
         JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented, weekPlays: pool.isEmpty ? nil : pool))
         WidgetCenter.shared.reloadAllTimelines()
     }
-    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)" }
+    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)" }
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",

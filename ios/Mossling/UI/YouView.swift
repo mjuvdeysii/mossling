@@ -387,20 +387,20 @@ struct ProfileSheet: View {
                         .listRowBackground(Color.clear)
                 }
                 Section {
-                    LabeledContent("小名") {
-                        TextField("小名", text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
+                    LabeledContent(L10n.t("小名", "Nickname")) {
+                        TextField(L10n.t("小名", "Nickname"), text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
                     }
-                    DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
+                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                         .onChange(of: date) { _, _ in hasBirth = true }
-                    Picker("性别", selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
-                        Text("不填").tag(""); Text("男孩").tag("boy"); Text("女孩").tag("girl")
+                    Picker(L10n.t("性别", "Sex"), selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
+                        Text(L10n.t("不填", "Not set")).tag(""); Text(L10n.t("男孩", "Boy")).tag("boy"); Text(L10n.t("女孩", "Girl")).tag("girl")
                     }
-                } footer: { Text("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。") }
+                } footer: { Text(L10n.t("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。", "Used only for WHO growth curves.")) }
             }
             .scrollContentBackground(.hidden)
             .pageBackground(tone: Crayon.lilac)
-            .navigationTitle("宝宝").navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
+            .navigationTitle(L10n.t("宝宝", "Baby")).navigationBarTitleDisplayMode(.inline)
+            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
             .onAppear { if let b = app.birth { date = b.date } }
         }
         .presentationDetents([.large])
@@ -426,36 +426,36 @@ struct AboutView: View {
                     Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
                         .storyKnock(hops: $hops, lamp: $lamp) { story = true }
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("摸索台灯").font(.title2.weight(.bold))
-                        Text("孩子摸索，大人点灯").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
-                        Text("Moss & Otto · 版本 \(v)（\(b)）").font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                        Text(L10n.appName).font(.title2.weight(.bold))
+                        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
+                        Text(L10n.t("Moss & Otto · 版本 \(v)（\(b)）", "Version \(v) (\(b))")).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     }
                     .padding(.bottom, 4)
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 4).padding(.top, 2)
 
-                aboutGroup("内容与说明") {
-                    row(Route.sources, "内容来源", "books.vertical.fill", Crayon.caramel)
+                aboutGroup(L10n.t("内容与说明", "Content & Info")) {
+                    row(Route.sources, L10n.t("内容来源", "Sources"), "books.vertical.fill", Crayon.caramel)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("CHANGELOG"), "更新日志", "clock.arrow.circlepath", Crayon.lilac)
+                    row(Route.doc("CHANGELOG"), L10n.t("更新日志", "Release Notes"), "clock.arrow.circlepath", Crayon.lilac)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.licenses, "许可与致谢", "checkmark.seal.fill", Crayon.aqua)
+                    row(Route.licenses, L10n.t("许可与致谢", "Licenses"), "checkmark.seal.fill", Crayon.aqua)
                 }
 
-                aboutGroup("条款与隐私") {
-                    row(Route.doc("TERMS"), "使用条款", "doc.text.fill", Crayon.pebble)
+                aboutGroup(L10n.t("条款与隐私", "Privacy & Terms")) {
+                    row(Route.doc("TERMS"), L10n.t("使用条款", "Terms of Use"), "doc.text.fill", Crayon.pebble)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("PRIVACY"), "隐私政策", "hand.raised.fill", Crayon.sky)
+                    row(Route.doc("PRIVACY"), L10n.t("隐私政策", "Privacy Policy"), "hand.raised.fill", Crayon.sky)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("DISCLAIMER"), "免责声明", "exclamationmark.shield.fill", Crayon.tangerine)
+                    row(Route.doc("DISCLAIMER"), L10n.t("免责声明", "Disclaimer"), "exclamationmark.shield.fill", Crayon.tangerine)
                 }
 
-                aboutGroup("帮助") {
+                aboutGroup(L10n.t("帮助", "Help")) {
                     Button { Guide.replayNextLaunch(); replay = true } label: {
                         HStack(spacing: 10) {
                             IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
-                            Text(replay ? "下次打开时将重新显示提示" : "重新显示使用提示")
+                            Text(replay ? L10n.t("下次打开时将重新显示提示", "Tips will appear on next launch") : L10n.t("重新显示使用提示", "Replay Tips"))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(replay ? Palette.accent : .primary)
                             Spacer(minLength: 0)
@@ -466,7 +466,7 @@ struct AboutView: View {
                     if let url = Owner.contactURL {
                         Divider().padding(.leading, 52).opacity(0.5)
                         Link(destination: url) {
-                            DataRow(title: "反馈问题", symbol: "envelope.fill", color: Crayon.leaf)
+                            DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
                         }
                         .buttonStyle(.toy)
                     }

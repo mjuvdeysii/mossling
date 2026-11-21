@@ -256,7 +256,7 @@ private struct StickerSheet: View {
                     ForEach(often, id: \.self) { t in
                         let run = timers.first { $0.type == t }
                         Sticker(type: t, running: run != nil, paused: run?.pausedAt != nil,
-                                since: run.map { durationValue($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { ago($0, now: tl.date) },
+                                since: run.map { L10n.duration($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { L10n.agoText($0, now: tl.date) },
                                 size: often.count > 4 ? 50 : 56) { tap(t) }
                     }
                 }
@@ -282,14 +282,14 @@ private struct SmallSticker: View {
             VStack(spacing: 3) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: 30, round: true)
                     .phaseAnimator([1.0, 0.86, 1.0], trigger: pops) { v, k in v.scaleEffect(k, anchor: .bottom) } animation: { _ in .snappy(duration: 0.14) }
-                Text(LogType.name(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
+                Text(L10n.logName(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)
-        .accessibilityLabel(LogType.name(type))
-        .accessibilityHint(type == LogType.bath ? "点按即记下一次" : "")
-        .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
+        .accessibilityLabel(L10n.logName(type))
+        .accessibilityHint(type == LogType.bath ? L10n.t("点按即记下一次", "Tap to log") : "")
+        .accessibilityShowsLargeContentViewer { Label(L10n.logName(type), systemImage: LogType.symbol(type)) }
     }
 }
 
@@ -304,6 +304,7 @@ private struct Sticker: View {
     var body: some View {
         let c = LogType.color(type)
         let on = !reduce
+        let name = L10n.logName(type)
         Button { pops += 1; action() } label: {
             VStack(spacing: 4) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: size, round: true)
@@ -316,17 +317,17 @@ private struct Sticker: View {
                         SpringKeyframe(on ? 1.08 : 1, duration: 0.16, spring: .snappy)
                         SpringKeyframe(1, duration: 0.3, spring: .bouncy)
                     }
-                Text(LogType.name(type)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
-                Ticking(text: running ? (paused ? "已暂停" : "进行中") : since ?? "未记", tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
+                Text(name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).multilineTextAlignment(.center).minimumScaleFactor(0.85)
+                Ticking(text: running ? (paused ? L10n.t("已暂停", "Paused") : L10n.t("进行中", "Active")) : since ?? L10n.t("未记", "—"), tint: Crayon.ink(c)).font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)
         .sensoryFeedback(.impact(weight: .light), trigger: running)
-        .accessibilityLabel(running ? "\(LogType.name(type))进行中，打开计时" : LogType.name(type))
-        .accessibilityHint(running ? "" : LogType.timed.contains(type) ? "打开计时页" : type == LogType.bath ? "点按即记下一次" : "")
-        .accessibilityValue(running ? (paused ? "已暂停 " : "") + (since ?? "") : since ?? "未记")
-        .accessibilityShowsLargeContentViewer { Label(LogType.name(type), systemImage: LogType.symbol(type)) }
+        .accessibilityLabel(running ? L10n.t("\(name)进行中，打开计时", "\(name) active, open timer") : name)
+        .accessibilityHint(running ? "" : LogType.timed.contains(type) ? L10n.t("打开计时页", "Open timer") : type == LogType.bath ? L10n.t("点按即记下一次", "Tap to log") : "")
+        .accessibilityValue(running ? (paused ? L10n.t("已暂停 ", "Paused ") : "") + (since ?? "") : since ?? L10n.t("未记", "None"))
+        .accessibilityShowsLargeContentViewer { Label(name, systemImage: LogType.symbol(type)) }
     }
 }
 
@@ -335,14 +336,17 @@ private struct WeekStrip: View {
     @Environment(\.lamp) private var lamp
     let today: Day
     @Binding var day: Day
+    private static let enWeekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
     var body: some View {
         let end = min(day.plus(days: 3), today)
         strip {
             ForEach((0...6).reversed(), id: \.self) { i in
                 let d = end.plus(days: -i), on = d == day, isToday = d == today
+                let wdIdx = max(0, min(6, Day.cal.component(.weekday, from: d.date) - 1))
+                let wdLabel = L10n.isEnglish ? Self.enWeekdays[wdIdx] : String(d.weekday.suffix(1))
                 Button { withAnimation(.snappy) { day = d } } label: {
                     VStack(spacing: 2) {
-                        Text(String(d.weekday.suffix(1))).font(.caption2.weight(.semibold))
+                        Text(wdLabel).font(.caption2.weight(.semibold))
                         Text("\(d.d)").font(Typeface.numerals(17, relativeTo: .body, weight: .bold))
                     }
                     .foregroundStyle(on ? Color.white : isToday ? Crayon.ink(Crayon.pink) : Color.primary)
@@ -351,9 +355,9 @@ private struct WeekStrip: View {
                     .vinylSurface(on ? Crayon.fill(Crayon.pink, lamp) : .white, strong: on)
                 }
                 .buttonStyle(.toy)
-                .accessibilityLabel("\(d.md) \(d.weekday)")
+                .accessibilityLabel(L10n.isEnglish ? "\(wdLabel) \(d.m)/\(d.d)" : "\(d.md) \(d.weekday)")
                 .accessibilityAddTraits(on ? .isSelected : [])
-                .accessibilityShowsLargeContentViewer { Text("\(d.md) \(d.weekday)") }
+                .accessibilityShowsLargeContentViewer { Text(L10n.isEnglish ? "\(wdLabel) \(d.m)/\(d.d)" : "\(d.md) \(d.weekday)") }
             }
         }
     }

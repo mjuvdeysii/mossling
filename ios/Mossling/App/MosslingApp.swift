@@ -192,25 +192,36 @@ struct RootView: View {
         if isLocked { pendingURL = url; return }
         guard app.onboarded else { return }
         let arg = url.pathComponents.dropFirst().first
+        let pushToday: (Route) -> Void = { route in
+            let needsSwitch = tab != 0
+            tab = 0
+            todayPath = NavigationPath()
+            Task { @MainActor in
+                if needsSwitch { try? await Task.sleep(for: .milliseconds(80)) }
+                else { await Task.yield() }
+                todayPath = NavigationPath([route])
+            }
+        }
         switch url.host() {
         case "today":
             tab = 0
             todayPath = NavigationPath()
+        case "settings":
+            tab = 3
+            youPath = NavigationPath()
         case "play":
-            tab = 0
             let mo = app.babyMonth ?? 0
-            if let code = arg, app.content.play(code) != nil {
-                todayPath = NavigationPath([Route.play(code, mo)])
+            if let raw = arg, let p = app.content.play(raw) ?? app.content.play(raw.uppercased()) {
+                pushToday(.play(p.code, mo))
             } else {
+                tab = 0
                 todayPath = NavigationPath()
             }
         case "month":
-            tab = 0
             let mo = arg.flatMap(Int.init) ?? (app.babyMonth ?? 0)
-            todayPath = NavigationPath([Route.month(max(0, min(mo, 36)))])
+            pushToday(.month(max(0, min(mo, 36))))
         case "book":
-            tab = 0
-            todayPath = NavigationPath([Route.book])
+            pushToday(.book)
         case "journal":
             guard app.mayKeep() else { return }
             tab = app.journal ? 2 : 3

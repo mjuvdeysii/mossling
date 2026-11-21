@@ -577,14 +577,14 @@ struct MonthProgress: View {
     let days: Int, toNext: Int, next: Int
     private var flat: Bool { ArtStyle.current == .flat }
     private var words: some View {
-        Text("\(toNext) 天后满 \(next) 个月").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        Text(L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext)d to month \(next)")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             .lineLimit(1).fixedSize()
     }
     /// Large text: two whole phrases on two lines ("14 天后" / "满 7 个月"), never a break inside 7 个月.
     private var wrappingWords: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text("\(toNext) 天后").lineLimit(1)
-            Text("满 \(next) 个月").lineLimit(1)
+            Text(L10n.t("\(toNext) 天后", "\(toNext)d left")).lineLimit(1)
+            Text(L10n.t("满 \(next) 个月", "to month \(next)")).lineLimit(1)
         }
         .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
         .accessibilityElement(children: .combine)
