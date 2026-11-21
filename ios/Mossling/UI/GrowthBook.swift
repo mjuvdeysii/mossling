@@ -551,6 +551,7 @@ struct GrowthBookCard: View {
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
+        .zoomSource(Route.book)
         .accessibilityLabel(L10n.t("成长册", "Growth Book"))
     }
 }

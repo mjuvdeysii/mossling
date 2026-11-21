@@ -4,11 +4,11 @@
 A big update for everyday life with your little one: Moss & Otto is now available in English from start to finish, with more helpful widgets at home and by the bed.
 
 - **Full English experience**: Every screen, sheet, activity, monthly guide, care log, export, and legal page is now available in English—switch anytime in Me › Language—along with refined typography for both English and Chinese.
-- **Richer Home & Lock Screen widgets**: New Quick Log, Bedside Lamp, and Growth Window widgets join a refreshed Today widget with a 24-hour bead timeline, tap-to-swap activities, quick diaper logging with undo, and direct links into the app.
+- **Richer Home & Lock Screen widgets**: New Quick Log, Bedside Lamp, and Growth Window widgets join a refreshed Today widget with a 24-hour bead timeline—now with faster timeline refreshes, instant app sync when swapping activities or logging diapers with undo, smart alternating nursing sides, and reliable deep links straight into every screen.
 - **Hands-free logging with Control Center & Siri**: Start or stop nursing and sleep timers or log a wet diaper right from Control Center, the Lock Screen, the Action button, or by asking Siri when your hands are full.
 - **Family handoff & keepsake cards**: Create an offline handoff summary from the Log tab to share the last feed, wake time, and daily totals with family, or save a keepsake poster from any page of the Growth Book.
 - **WHO daily rhythm reference**: Added the World Health Organization's 0–3 daily activity, sleep, and screen-time guidelines in About › Sources for quick reference.
-- **Lighter on battery, smoother everywhere**: Reduced background power use, sped up exports for long journals, and polished dozens of small details across the app.
+- **Silky 3D fluency & loving motion**: Rebuilt 3D soft-vinyl shadows and background layers, cached map & dot-paper textures, added O(1) journal indexing and sticker prewarming for noticeably smoother scrolling and lower battery draw; added hero zoom transitions for Month & Growth Book cards, directional day-flip motion, a gliding bead progress bar, and smoother timer transitions.
 
 ## 1.0.1
 More reliable local storage, smoother growth charts, and quieter nighttime polish.

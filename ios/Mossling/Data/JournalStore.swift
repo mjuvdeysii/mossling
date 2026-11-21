@@ -1,6 +1,7 @@
 import SwiftUI
 import Observation
 import WidgetKit
+import CoreFoundation
 
 /// The journal as the app sees it: the shared file, reloaded when the app comes back (a Live Activity or the widget may
 /// have changed it), saved after every change, with the Live Activities and widgets kept in step.
@@ -11,22 +12,45 @@ final class JournalStore {
     private(set) var measures: [Measure] = []
     /// The firsts, newest first.
     private(set) var firsts: [First] = []
+    /// Precomputed O(1) read indexes rebuilt on data changes (keeps scrolling & timeline rendering O(1) per row).
+    private(set) var allFeeds: [Feed] = []
+    private(set) var feedIntervalByID: [UUID: Double] = [:]
+    private(set) var lastByType: [String: Date] = [:]
+    private(set) var playsByCode: [String: [LogEntry]] = [:]
+    private(set) var playLogCount: Int = 0
+    @ObservationIgnored private var logsByDayEpoch: [Int: [LogEntry]] = [:]
+    @ObservationIgnored private var indexedTimeZone: TimeZone = Day.cal.timeZone
+    @ObservationIgnored private var externalObserver: ExternalJournalObserver?
     /// The page of a feed or a sleep, shown full screen: the only place a timer starts (tap 亲喂 or 睡觉 anywhere and
     /// this page opens, not yet running), and where a running one is paused, changed and ended.
     var focus: String?
     /// A record page to open in the journal (from a link, e.g. the widget's nappy button).
     var ask: String?
+    /// Incremented by deep links to bring JournalView back to today before opening a quick-log sheet.
+    var jumpToToday = 0
     /// What was just recorded, said back for a few seconds with a way to take it back.
     var toast: Toast?
     /// Where confirmed events go for the companions (IP v1.3 event contract). Set by the app; the journal never
     /// waits for, or depends on, what the companions do with them.
     var onEvent: ((MascotEvent) -> Void)?
+    /// Fired when another process (widget / Control Center / Live Activity) signals a shared-data change.
+    @ObservationIgnored var onExternalChange: (() -> Void)?
     /// Counts the sleeps started, so Otto can answer one with his slow yawn (he knows that tiredness).
     private(set) var sleepsStarted = 0
 
     init(preview: JournalFile.Body? = nil) {
-        if preview == nil { JournalFile.migrateIntoGroup() }
+        if preview == nil {
+            JournalFile.migrateIntoGroup()
+            externalObserver = ExternalJournalObserver { [weak self] in
+                self?.handleExternalChange()
+            }
+        }
         apply(preview ?? JournalFile.read())
+    }
+
+    private func handleExternalChange() {
+        refreshIfChanged()
+        onExternalChange?()
     }
 
     func reload() {
@@ -39,8 +63,64 @@ final class JournalStore {
     private var seen: Date? = nil
     private static func stamp() -> Date? { (try? FileManager.default.attributesOfItem(atPath: JournalFile.url.path))?[.modificationDate] as? Date }
     private func apply(_ b: JournalFile.Body) {
-        logs = b.logs.sorted { $0.start > $1.start }; timers = b.timers; measures = b.measures.sorted { $0.at < $1.at }
+        let sortedLogs = b.logs.sorted { $0.start > $1.start }
+        logs = sortedLogs; timers = b.timers; measures = b.measures.sorted { $0.at < $1.at }
         firsts = b.firsts.sorted { $0.at > $1.at }
+        rebuildIndexes(sortedLogs)
+    }
+    private func rebuildIndexes(_ sortedLogs: [LogEntry]) {
+        let feeds = sortedLogs.feeds()
+        allFeeds = feeds
+        var intervals: [UUID: Double] = [:]
+        intervals.reserveCapacity(feeds.count)
+        if feeds.count > 1 {
+            for i in 1..<feeds.count {
+                intervals[feeds[i].first.id] = (feeds[i].start - feeds[i - 1].start) / 1000
+            }
+        }
+        feedIntervalByID = intervals
+
+        var lastMap: [String: Date] = [:]
+        var playsMap: [String: [LogEntry]] = [:]
+        var byDay: [Int: [LogEntry]] = [:]
+        var playCount = 0
+        let tz = Day.cal.timeZone
+
+        for e in sortedLogs {
+            if e.type == LogType.bottle {
+                if lastMap[LogType.bottle] == nil { lastMap[LogType.bottle] = e.startDate }
+            } else if e.type != LogType.nurse && lastMap[e.type] == nil {
+                lastMap[e.type] = e.endDate ?? e.startDate
+            }
+            if e.type == LogType.play {
+                playCount += 1
+                if let code = (e.detail ?? "").split(separator: " ").first.map(String.init), !code.isEmpty {
+                    playsMap[code, default: []].append(e)
+                }
+            }
+            let startDay = Day(e.startDate)
+            byDay[startDay.epochDay, default: []].append(e)
+            if let endMs = e.end, endMs > e.start {
+                let endDay = Day(Date(timeIntervalSince1970: endMs / 1000))
+                if endDay.epochDay > startDay.epochDay {
+                    let limit = min(endDay.epochDay, startDay.epochDay + 30)
+                    for ep in (startDay.epochDay + 1)...limit {
+                        let midnightMs = Day(epochDay: ep).date.timeIntervalSince1970 * 1000
+                        if endMs > midnightMs {
+                            byDay[ep, default: []].append(e)
+                        }
+                    }
+                }
+            }
+        }
+        if let lastNurse = sortedLogs.filter({ $0.type == LogType.nurse }).feeds().last?.startDate {
+            lastMap[LogType.nurse] = lastNurse
+        }
+        lastByType = lastMap
+        playsByCode = playsMap
+        playLogCount = playCount
+        logsByDayEpoch = byDay
+        indexedTimeZone = tz
     }
     private func changed(_ b: JournalFile.Body) {
         apply(b); seen = Self.stamp()
@@ -231,15 +311,51 @@ final class JournalStore {
     /// When the last one was: a feed by when it began (feeds are counted start to start), anything else — a sleep
     /// above all — by when it ended (when the baby woke).
     func last(_ type: String) -> Date? {
-        // a breast feed of two sides began with its first side
-        if type == LogType.nurse || type == LogType.bottle { return logs.filter { $0.type == type }.feeds().last?.startDate }
-        return logs.first { $0.type == type }.map { $0.endDate ?? $0.startDate }
+        lastByType[type]
     }
     /// The entries of a day: those that start on it, and those that run into it from the day before (a night's sleep
     /// belongs to both days, each counting its own part).
     func logs(on day: Day) -> [LogEntry] {
+        guard !logs.isEmpty else { return [] }
+        if Day.cal.timeZone == indexedTimeZone {
+            return logsByDayEpoch[day.epochDay] ?? []
+        }
         let a = day.date.timeIntervalSince1970 * 1000, b = day.plus(days: 1).date.timeIntervalSince1970 * 1000
         return logs.filter { e in (e.start >= a && e.start < b) || (e.start < a && (e.end ?? e.start) > a) }
+    }
+    /// Returns all entries belonging to the same feed as `id`, or `[]` if not part of a feed.
+    func feedEntries(containing id: UUID) -> [LogEntry] {
+        allFeeds.first { f in f.entries.contains { $0.id == id } }?.entries ?? []
+    }
+}
+
+/// Observes cross-process Darwin notifications posted by widgets, Control Center, and Live Activities.
+private final class ExternalJournalObserver: @unchecked Sendable {
+    private let onChange: () -> Void
+    init(onChange: @escaping () -> Void) {
+        self.onChange = onChange
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            observer,
+            { _, observer, _, _, _ in
+                guard let observer else { return }
+                let box = Unmanaged<ExternalJournalObserver>.fromOpaque(observer).takeUnretainedValue()
+                DispatchQueue.main.async { box.onChange() }
+            },
+            JournalFile.darwinNotificationName,
+            nil,
+            .deliverImmediately
+        )
+    }
+    deinit {
+        let observer = Unmanaged.passUnretained(self).toOpaque()
+        CFNotificationCenterRemoveObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            observer,
+            CFNotificationName(JournalFile.darwinNotificationName),
+            nil
+        )
     }
 }
 

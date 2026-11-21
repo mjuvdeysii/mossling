@@ -1,4 +1,5 @@
 import Foundation
+import CoreFoundation
 #if canImport(ActivityKit)
 import ActivityKit
 #endif
@@ -286,6 +287,8 @@ struct Snapshot: Codable {
     var consented: Bool? = nil
     /// Curated plays for this week/month so the Home Screen widget can cycle activities interactively.
     var weekPlays: [PlayRef]? = nil
+    /// Epoch day when the user swapped today's play from a widget, so the main app adopts the pick on return.
+    var playPickedEpochDay: Int? = nil
 }
 
 /// The journal file, shared with the widget and the Live Activity through the app group.
@@ -314,6 +317,14 @@ enum JournalFile {
     #endif
     static var url: URL { dir.appendingPathComponent("journal.json") }
     static var snapshotURL: URL { dir.appendingPathComponent("snapshot.json") }
+    static let darwinNotificationName = "app.mossling.journalChanged" as CFString
+    /// Signals other processes (app ↔ widgets / Control Center / Live Activities) that shared data changed.
+    static func notifyChanged() {
+        #if DEBUG
+        if testDir != nil { return }
+        #endif
+        CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName(darwinNotificationName), nil, nil, true)
+    }
 
     struct Body: Codable {
         var logs: [LogEntry] = []; var timers: [RunningTimer] = []; var measures: [Measure] = []
@@ -389,7 +400,9 @@ enum JournalFile {
         NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: url, options: [], error: &coordError) { target in
             ok = writeUnlocked(b, to: target)
         }
-        return coordError == nil && ok
+        let saved = coordError == nil && ok
+        if saved { notifyChanged() }
+        return saved
     }
 
     /// Coordinated read-modify-write across app and widget processes. If the existing file cannot be read or decoded,
@@ -403,7 +416,9 @@ enum JournalFile {
             guard transform(&after) else { outcome = .unchanged(before); return }
             outcome = writeUnlocked(after, to: target) ? .saved(before: before, after: after) : .failed
         }
-        return coordError == nil ? outcome : .failed
+        let finalOutcome = coordError == nil ? outcome : .failed
+        if case .saved = finalOutcome { notifyChanged() }
+        return finalOutcome
     }
 
     private static func applyMutation(_ transform: (inout Body) -> Bool) -> Body {
@@ -436,10 +451,23 @@ enum JournalFile {
 
     // Timer operations, shared by the app, the Live Activity buttons and the widget.
     static func now() -> Double { Date().timeIntervalSince1970 * 1000 }
+    /// Suggests the nursing side not fed last time (matches CareTimer's alternating recommendation).
+    static func suggestedNurseSide(in logs: [LogEntry]) -> String {
+        logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side == "l" ? "r" : "l"
+    }
     @discardableResult static func start(_ type: String, side: String? = nil, at: Double = now()) -> Body {
         applyMutation { b in
             guard !b.timers.contains(where: { $0.type == type }) else { return false }
             b.timers.append(RunningTimer(type: type, start: at, side: side))
+            return true
+        }
+    }
+    /// Starts a timer from a widget / Control Center / Siri, picking the suggested opposite side for nursing.
+    @discardableResult static func startSmart(_ type: String, at: Double = now()) -> Body {
+        applyMutation { b in
+            guard !b.timers.contains(where: { $0.type == type }) else { return false }
+            let chosenSide = type == LogType.nurse ? suggestedNurseSide(in: b.logs) : nil
+            b.timers.append(RunningTimer(type: type, start: at, side: chosenSide))
             return true
         }
     }
@@ -470,7 +498,9 @@ enum JournalFile {
         let next = pool[(cur + 1) % pool.count]
         s.playCode = next.code
         s.playName = next.name
+        s.playPickedEpochDay = Day.today.epochDay
         writeSnapshot(s)
+        notifyChanged()
         return s
     }
     @discardableResult static func togglePause(_ type: String) -> Body {

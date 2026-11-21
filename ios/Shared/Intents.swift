@@ -63,7 +63,7 @@ struct TimerIntent: LiveActivityIntent {
     init() {}
     init(type: String, action: String) { self.type = type; self.action = action }
     static func canRecord(snapshot: Snapshot?) -> Bool {
-        snapshot.map { $0.consented ?? $0.journal } ?? false
+        snapshot.map { ($0.consented ?? $0.journal) && $0.journal } ?? false
     }
     func perform() async throws -> some IntentResult {
         guard Self.canRecord(snapshot: JournalFile.snapshot()) else {
@@ -72,7 +72,7 @@ struct TimerIntent: LiveActivityIntent {
             return .result()
         }
         switch action {
-        case "start": JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
+        case "start": JournalFile.startSmart(type)
         case "pause": JournalFile.togglePause(type)
         case "side": JournalFile.switchSide(type)
         case "tap-l": JournalFile.tapSide(type, "l")
@@ -117,7 +117,7 @@ struct QuickLogDiaperIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Mossling first."))")
+            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
         }
         JournalFile.quickLog(type: LogType.diaper, detail: kind.rawValue)
         WidgetCenter.shared.reloadAllTimelines()
@@ -166,14 +166,14 @@ struct ToggleCareTimerIntent: AppIntent {
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Mossling first."))")
+            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
         let running = (try? JournalFile.load())?.timers.contains(where: { $0.type == type }) ?? false
         if running {
             JournalFile.stop(type)
         } else {
-            JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
+            JournalFile.startSmart(type)
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
@@ -199,7 +199,7 @@ struct SetCareTimerIntent: SetValueIntent {
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
         if value {
-            JournalFile.start(type, side: type == LogType.nurse ? "l" : nil)
+            JournalFile.startSmart(type)
         } else {
             JournalFile.stop(type)
         }

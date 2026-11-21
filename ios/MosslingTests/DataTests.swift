@@ -132,11 +132,16 @@ final class DataTests: XCTestCase {
         XCTAssertFalse(JournalFile.undoRecent(type: LogType.diaper, withinSeconds: 30, now: now))
         XCTAssertEqual(try JournalFile.load().logs.count, 1)
 
-        // Cycling widget play rotates cleanly through weekPlays
+        // Cycling widget play rotates cleanly through weekPlays and syncs back into AppModel.pick
         let pool = [PlayRef(code: "A01", name: "一"), PlayRef(code: "A02", name: "二"), PlayRef(code: "A03", name: "三")]
         JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: "A01", playName: "一", consented: true, weekPlays: pool))
         let next = JournalFile.cycleWidgetPlay()
         XCTAssertEqual(next?.playCode, "A02")
+        XCTAssertEqual(next?.playPickedEpochDay, Day.today.epochDay)
+        let synced = model()
+        synced.today = .today
+        synced.syncWidgetPick()
+        XCTAssertEqual(Shelf.pick(synced.pick, today: synced.today), "A02")
         XCTAssertEqual(JournalFile.cycleWidgetPlay()?.playCode, "A03")
         XCTAssertEqual(JournalFile.cycleWidgetPlay()?.playCode, "A01")
 

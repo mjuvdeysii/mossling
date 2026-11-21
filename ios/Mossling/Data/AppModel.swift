@@ -133,6 +133,16 @@ final class AppModel {
 
     func replaceTicks(_ l: [Tick]) { ticks = Dictionary(l.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a }) }
 
+    /// Adopts a play swapped directly on a Home Screen widget today so opening the app never resets it.
+    func syncWidgetPick() {
+        guard let snap = JournalFile.snapshot(),
+              snap.playPickedEpochDay == today.epochDay,
+              let code = snap.playCode,
+              content.play(code) != nil else { return }
+        let formatted = Shelf.formatPick(code, today: today)
+        if pick != formatted { pick = formatted }
+    }
+
     /// What the widget shows, written whenever it changes.
     func publish(_ j: JournalStore) {
         // the widget says the play the home page says, plus this week's shelf so the widget can swap plays inline
@@ -143,7 +153,8 @@ final class AppModel {
             let list = w.count >= 2 ? w : Array(content.plays(of: mo).prefix(4))
             return list.map { PlayRef(code: $0.code, name: $0.name) }
         } ?? []
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented, weekPlays: pool.isEmpty ? nil : pool))
+        let pickedDay = Shelf.pick(pick, today: today) != nil ? today.epochDay : nil
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented, weekPlays: pool.isEmpty ? nil : pool, playPickedEpochDay: pickedDay))
         WidgetCenter.shared.reloadAllTimelines()
     }
     var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)" }

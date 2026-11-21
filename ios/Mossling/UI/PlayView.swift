@@ -169,6 +169,7 @@ private struct StepBeadBar: View {
     let current: Int
     let pick: (Int) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Namespace private var beadNS
 
     var body: some View {
         let done = min(current, total)
@@ -177,11 +178,15 @@ private struct StepBeadBar: View {
             HStack(spacing: 6) {
                 ForEach(0..<total, id: \.self) { i in
                     Button { pick(i) } label: {
-                        Group {
+                        ZStack {
                             if i < current {
                                 GoldBead(size: 11)
+                                    .transition(.scale.combined(with: .opacity))
                             } else if i == current {
-                                Capsule().fill(Palette.accent).frame(width: 24, height: 11)
+                                Capsule()
+                                    .fill(Palette.accent)
+                                    .frame(width: 24, height: 11)
+                                    .matchedGeometryEffect(id: "activeBead", in: beadNS)
                             } else {
                                 Circle().fill(Palette.stone.opacity(0.75)).frame(width: 9, height: 9)
                             }
@@ -196,10 +201,11 @@ private struct StepBeadBar: View {
             Spacer(minLength: 4)
             Text(current >= total ? L10n.t("全部完成", "All Done") : L10n.t("第 \(done + 1) / \(total) 步", "Step \(done + 1) / \(total)"))
                 .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                .contentTransition(.numericText(value: Double(done + 1)))
         }
         .padding(.horizontal, 14).padding(.vertical, 6)
         .printCard(radius: Radius.inner)
-        .animation(reduce ? nil : .snappy, value: current)
+        .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
     }
@@ -249,7 +255,7 @@ private struct StepCard: View {
                     .padding(16)
                 }
                 .printCard(radius: Radius.card)
-                .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.985)))
+                .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.975, anchor: .top)))
             } else {
                 Button(action: tap) {
                     HStack(spacing: 12) {

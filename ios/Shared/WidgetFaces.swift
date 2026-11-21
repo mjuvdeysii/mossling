@@ -151,14 +151,17 @@ struct TodayFace: View {
         }
     }
 
-    /// Today's play (今天一起玩): its tray and its name — the picture first, linking directly into the activity storybook.
-    @ViewBuilder private var play: some View {
+    /// Today's play (今天一起玩): its tray and its name — wrapped in Link on medium/large, plain on small (.widgetURL only).
+    @ViewBuilder private func playView(linked: Bool) -> some View {
         if let code = snap?.playCode, let name = snap?.playName {
-            Link(destination: WidgetLinks.play(code)) {
-                VStack(alignment: .leading, spacing: 4) {
-                    ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
-                    Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
-                }
+            let content = VStack(alignment: .leading, spacing: 4) {
+                ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
+                Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
+            }
+            if linked {
+                Link(destination: WidgetLinks.play(code)) { content }
+            } else {
+                content
             }
         }
     }
@@ -184,7 +187,7 @@ struct TodayFace: View {
             Spacer(minLength: 4)
             if let t = body_.timers.first { running(t) }
             else if journal { since }
-            else { play }
+            else { playView(linked: false) }
         }
         .foregroundStyle(.primary)
         .widgetURL(dest)
@@ -214,7 +217,7 @@ struct TodayFace: View {
             VStack(alignment: .leading, spacing: 0) {
                 Link(destination: headerDest) { head }
                 Spacer(minLength: 4)
-                if journal { play } else if let t = body_.timers.first { Link(destination: WidgetLinks.care(t.type)) { running(t) } } else { play }
+                if journal { playView(linked: true) } else if let t = body_.timers.first { Link(destination: WidgetLinks.care(t.type)) { running(t) } } else { playView(linked: true) }
             }
             if journal {
                 HStack(spacing: 6) {
@@ -480,40 +483,59 @@ struct QuickCareFace: View {
             .widgetURL(WidgetLinks.settings)
         } else if isMedium {
             HStack(spacing: 12) {
-                Link(destination: WidgetLinks.journal) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        HStack(spacing: 6) {
-                            ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
-                            Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
-                                .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Link(destination: WidgetLinks.journal) {
+                            HStack(spacing: 6) {
+                                ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
+                                Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
+                                    .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
+                            }
                         }
-                        Spacer(minLength: 0)
-                        miniFact(L10n.t("上次喂奶", "Last feed"), lastFeed, LogType.nurse)
-                        miniFact(L10n.t("上次醒来", "Last wake"), lastWake, LogType.sleep)
+                        Spacer(minLength: 2)
+                        if recent != nil {
+                            Button(intent: UndoLastDiaperIntent()) {
+                                Text(L10n.t("撤销", "Undo"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(WidgetInk.accent)
+                                    .padding(.horizontal, 7).padding(.vertical, 3)
+                                    .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                        }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
+                    Spacer(minLength: 0)
+                    Link(destination: WidgetLinks.care(LogType.nurse)) {
+                        miniFact(L10n.t("上次喂奶", "Last feed"), lastFeed, LogType.nurse)
+                            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    }
+                    Link(destination: WidgetLinks.care(LogType.sleep)) {
+                        miniFact(L10n.t("上次醒来", "Last wake"), lastWake, LogType.sleep)
+                            .frame(maxWidth: .infinity, alignment: .leading).contentShape(Rectangle())
+                    }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent).frame(width: 174)
             }
             .foregroundStyle(.primary)
             .widgetURL(WidgetLinks.journal)
         } else {
-            grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent)
+            grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent, tapToUndo: true)
                 .foregroundStyle(.primary)
                 .widgetURL(WidgetLinks.journal)
         }
     }
 
-    private func grid(stickerSize: CGFloat, wetCount: Int, dirtyCount: Int, recent: LogEntry?) -> some View {
+    private func grid(stickerSize: CGFloat, wetCount: Int, dirtyCount: Int, recent: LogEntry?, tapToUndo: Bool = false) -> some View {
         VStack(spacing: 8) {
             HStack(spacing: 8) {
                 Self.timerTile(body: body_, kind: .nurse, stickerSize: stickerSize)
                 Self.timerTile(body: body_, kind: .sleep, stickerSize: stickerSize)
             }
             HStack(spacing: 8) {
-                Self.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: stickerSize, count: wetCount, justLogged: recent?.detail == "wet")
-                Self.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: stickerSize, count: dirtyCount, justLogged: recent?.detail == "dirty")
+                Self.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: stickerSize, count: wetCount, justLogged: recent?.detail == "wet", tapToUndo: tapToUndo)
+                Self.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: stickerSize, count: dirtyCount, justLogged: recent?.detail == "dirty", tapToUndo: tapToUndo)
             }
         }
     }
@@ -556,45 +578,53 @@ struct QuickCareFace: View {
         .buttonStyle(.plain)
     }
 
-    static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat, count: Int = 0, justLogged: Bool = false) -> some View {
-        return Button(intent: QuickLogDiaperIntent(kind: kind)) {
-            ZStack(alignment: .topTrailing) {
-                VStack(spacing: 3) {
-                    ArtImage(name: WidgetArt.sticker(LogType.diaper))
-                        .frame(width: stickerSize, height: stickerSize)
-                        .padding(2)
-                        .overlay(Circle().stroke(WidgetInk.accent.opacity(justLogged ? 0.7 : 0), lineWidth: 2.2))
-                        .overlay(alignment: .bottomTrailing) {
-                            if justLogged {
-                                Image(systemName: "checkmark.circle.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundStyle(.white, WidgetInk.accent)
-                                    .transition(.scale(scale: 0.7).combined(with: .opacity))
-                            } else {
-                                Circle().fill(dot).frame(width: 8, height: 8)
-                                    .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
-                            }
+    @ViewBuilder
+    static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat, count: Int = 0, justLogged: Bool = false, tapToUndo: Bool = false) -> some View {
+        let tile = ZStack(alignment: .topTrailing) {
+            VStack(spacing: 3) {
+                ArtImage(name: WidgetArt.sticker(LogType.diaper))
+                    .frame(width: stickerSize, height: stickerSize)
+                    .padding(2)
+                    .overlay(Circle().stroke(WidgetInk.accent.opacity(justLogged ? 0.7 : 0), lineWidth: 2.2))
+                    .overlay(alignment: .bottomTrailing) {
+                        if justLogged {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(.white, WidgetInk.accent)
+                                .transition(.scale(scale: 0.7).combined(with: .opacity))
+                        } else {
+                            Circle().fill(dot).frame(width: 8, height: 8)
+                                .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1.5))
                         }
-                    Text(justLogged ? L10n.t("已记", "Logged") : title)
-                        .font(.caption2.weight(justLogged ? .bold : .semibold))
-                        .foregroundStyle(justLogged ? WidgetInk.accent : .primary)
-                        .lineLimit(1)
-                        .contentTransition(.opacity)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-
-                if count > 0 {
-                    Text("\(count)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded)).monospacedDigit()
-                        .foregroundStyle(justLogged ? WidgetInk.accent : .secondary)
-                        .contentTransition(.numericText())
-                        .padding(.top, 5).padding(.trailing, 7)
-                }
+                    }
+                Text(justLogged ? (tapToUndo ? L10n.t("已记·撤销", "Undo") : L10n.t("已记", "Logged")) : title)
+                    .font(.caption2.weight(justLogged ? .bold : .semibold))
+                    .foregroundStyle(justLogged ? WidgetInk.accent : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .contentTransition(.opacity)
             }
-            .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .invalidatableContent()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+            if count > 0 {
+                Text("\(count)")
+                    .font(.system(size: 9, weight: .bold, design: .rounded)).monospacedDigit()
+                    .foregroundStyle(justLogged ? WidgetInk.accent : .secondary)
+                    .contentTransition(.numericText())
+                    .padding(.top, 5).padding(.trailing, 7)
+            }
         }
-        .buttonStyle(.plain)
+        .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .invalidatableContent()
+
+        // While the 12s confirmation badge is shown, tapping the same tile undoes instead of accidentally double-logging
+        if justLogged {
+            Button(intent: UndoLastDiaperIntent()) { tile }
+                .buttonStyle(.plain)
+        } else {
+            Button(intent: QuickLogDiaperIntent(kind: kind)) { tile }
+                .buttonStyle(.plain)
+        }
     }
 }
 
@@ -660,8 +690,12 @@ struct BedsideLampFace: View {
                 }
             } else if isMedium {
                 HStack(spacing: 18) {
-                    lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
-                    lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                    Link(destination: WidgetLinks.care(LogType.nurse)) {
+                        lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
+                    }
+                    Link(destination: WidgetLinks.care(LogType.sleep)) {
+                        lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                    }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 5) {
@@ -755,24 +789,27 @@ struct StoryWindowFace: View {
 
             Spacer(minLength: 0)
 
-            Link(destination: monthDest) {
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(spacing: 4) {
-                        Text(beadLabel)
-                            .font(.system(size: 10, weight: .bold, design: .rounded))
-                            .foregroundStyle(WidgetInk.accent)
+            let progressBar = VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 4) {
+                    Text(beadLabel)
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundStyle(WidgetInk.accent)
+                        .monospacedDigit()
+                    Spacer(minLength: 2)
+                    if let a = age {
+                        Text(L10n.livedDays(a.lived))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .foregroundStyle(.secondary)
                             .monospacedDigit()
-                        Spacer(minLength: 2)
-                        if let a = age {
-                            Text(L10n.livedDays(a.lived))
-                                .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                .foregroundStyle(.secondary)
-                                .monospacedDigit()
-                        }
                     }
-                    beadHorizon(current: bookMonth)
-                        .frame(height: 10)
                 }
+                beadHorizon(current: bookMonth)
+                    .frame(height: 10)
+            }
+            if isMedium {
+                Link(destination: monthDest) { progressBar }
+            } else {
+                progressBar
             }
         }
         .foregroundStyle(.primary)

@@ -81,9 +81,15 @@ struct Creature: View {
     }
 
     @ViewBuilder private var vinyl: some View {
-        // 30 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
-        TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: still || !onScreen || scrolling.moving)) { tl in
-            Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+        Group {
+            if still && !glow {
+                stillFigure
+            } else {
+                // 24 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
+                TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: still || !onScreen || scrolling.moving)) { tl in
+                    Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+                }
+            }
         }
         .aspectRatio(1, contentMode: .fit)
         .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
@@ -113,6 +119,33 @@ struct Creature: View {
         .onChange(of: look) { old, _ in lookFrom = old; lookAt = Date() }
         .onChange(of: lean) { old, _ in leanFrom = old; leanAt = Date() }
         .onAppear { glowStart = Date() }
+    }
+
+    /// Lightweight static path for non-animating creatures (reduces Metal Canvas allocation during scrolls and static cards).
+    @ViewBuilder private var stillFigure: some View {
+        let face: Mood = arms == .cheer ? .happy : mood
+        let st = Self.state(kind, face: face, look: look, lid: lid ?? 0, hopping: false, yawning: false)
+        let pool = self.sprites.isEmpty ? (Self.shared[kind] ?? [:]) : self.sprites
+        let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
+        let img = pool[st] ?? pool["idle"] ?? ArtCache.shared.cached(prefix + "idle.webp", maxPixel: Self.spriteMaxPixel)
+        GeometryReader { g in
+            let side = min(g.size.width, g.size.height)
+            let rx = (kind == .moss ? 30.0 : 22.0) * side / 100.0
+            ZStack {
+                Ellipse()
+                    .fill(RadialGradient(colors: [Palette.ink.opacity(scheme == .dark ? 0.45 : 0.2), Palette.ink.opacity(0)], center: .center, startRadius: 0, endRadius: rx * 1.1))
+                    .frame(width: rx * 2.2, height: rx * 0.44)
+                    .position(x: g.size.width / 2, y: (g.size.height - side) / 2 + side * (feet + 0.5) / 100)
+                if let img {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: side, height: side)
+                        .rotationEffect(.degrees(lean), anchor: UnitPoint(x: 0.5, y: feet / 100))
+                        .position(x: g.size.width / 2, y: g.size.height / 2)
+                }
+            }
+        }
     }
 
     private func tapped() {
@@ -200,17 +233,29 @@ struct Creature: View {
     /// Feet line in the square (from the renders), where squash and stretch are anchored and the shadow sits.
     private var feet: CGFloat { kind == .moss ? Sprites.mossFeet : Sprites.ottoFeet }
 
+    private static let spriteMaxPixel = 384
+
     /// The decoded states, kept for the life of the app: every companion on every page shares them, so a page never
     /// waits for (or redraws after) its companions' pictures.
     nonisolated(unsafe) private static var shared: [Kind: [String: UIImage]] = [:]
 
     private func loadSprites() async {
-        if let have = Self.shared[kind] { sprites = have; return }
-        let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
         let names = Self.states[kind] ?? []
-        let loaded: [String: UIImage] = await Task.detached(priority: .userInitiated) {
+        if let have = Self.shared[kind], have.count == names.count { sprites = have; return }
+        let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
+        let px = Self.spriteMaxPixel
+        // Publish idle immediately so frame 1 renders with zero pop-in while the remaining expressions warm in background
+        if let warmIdle = Self.shared[kind]?["idle"] ?? ArtCache.shared.cached(prefix + "idle.webp", maxPixel: px) {
+            if sprites["idle"] == nil { sprites["idle"] = warmIdle }
+        } else if let idle = await Task.detached(priority: .userInitiated, operation: { ArtCache.shared.image(prefix + "idle.webp", maxPixel: px) }).value {
+            var base = Self.shared[kind] ?? [:]
+            base["idle"] = idle
+            Self.shared[kind] = base
+            sprites = base
+        }
+        let loaded: [String: UIImage] = await Task.detached(priority: .utility) {
             var d: [String: UIImage] = [:]
-            for s in names { if let i = ArtCache.shared.image(prefix + s + ".webp", maxPixel: 512) { d[s] = i } }
+            for s in names { if let i = ArtCache.shared.image(prefix + s + ".webp", maxPixel: px) { d[s] = i } }
             return d
         }.value
         Self.shared[kind] = loaded
@@ -249,7 +294,8 @@ struct Creature: View {
         let st = Self.state(kind, face: face, look: e, lid: patted ? 0 : l, hopping: hop > 0.15 || (arms == .cheer && !still), yawning: yawning)
         let box = CGRect(x: 0, y: 0, width: 100, height: 100)
         let sprites = self.sprites.isEmpty ? (Self.shared[kind] ?? [:]) : self.sprites
-        if let img = sprites[st] ?? sprites["idle"] {
+        let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
+        if let img = sprites[st] ?? sprites["idle"] ?? ArtCache.shared.cached(prefix + "idle.webp", maxPixel: Self.spriteMaxPixel) {
             ctx.draw(Image(uiImage: img), in: box)
         }
         if kind == .otto { lamp(&ctx, Self.bead[st] ?? Self.bead["idle"] ?? CGPoint(x: 0.29, y: 0.34), now) }

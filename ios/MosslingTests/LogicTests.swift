@@ -545,12 +545,60 @@ final class LogicTests: XCTestCase {
         XCTAssertFalse(TimerIntent.canRecord(snapshot: nil))
         let declined = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: false)
         XCTAssertFalse(TimerIntent.canRecord(snapshot: declined))
+        let journalOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil, consented: true)
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: journalOff), "widgets must not record when journal is turned off")
         let agreed = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true)
         XCTAssertTrue(TimerIntent.canRecord(snapshot: agreed))
         let legacyOn = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil)
         XCTAssertTrue(TimerIntent.canRecord(snapshot: legacyOn))
         let legacyOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil)
         XCTAssertFalse(TimerIntent.canRecord(snapshot: legacyOff))
+    }
+
+    func testSuggestedNurseSideAlternatesAndStartSmart() {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        XCTAssertEqual(JournalFile.suggestedNurseSide(in: []), "l")
+        let afterLeft = [LogEntry(type: LogType.nurse, start: t(19, 8, 0), end: t(19, 8, 12), side: "l")]
+        XCTAssertEqual(JournalFile.suggestedNurseSide(in: afterLeft), "r")
+        let afterRight = afterLeft + [LogEntry(type: LogType.nurse, start: t(19, 11, 0), end: t(19, 11, 10), side: "r")]
+        XCTAssertEqual(JournalFile.suggestedNurseSide(in: afterRight), "l")
+
+        var b = JournalFile.Body()
+        b.logs = afterLeft
+        XCTAssertTrue(JournalFile.write(b))
+        let startedNurse = JournalFile.startSmart(LogType.nurse, at: t(19, 11, 0))
+        XCTAssertEqual(startedNurse.timers.first(where: { $0.type == LogType.nurse })?.side, "r")
+        let startedSleep = JournalFile.startSmart(LogType.sleep, at: t(19, 12, 0))
+        XCTAssertNil(startedSleep.timers.first(where: { $0.type == LogType.sleep })?.side)
+    }
+
+    func testJournalStoreIndexedLookupsMatchSemantics() {
+        let d18 = Day(y: 2026, m: 10, d: 18), d19 = Day(y: 2026, m: 10, d: 19), d20 = Day(y: 2026, m: 10, d: 20)
+        let f1 = LogEntry(type: LogType.nurse, start: t(18, 22, 0), end: t(18, 22, 10), side: "l")
+        let f2a = LogEntry(type: LogType.nurse, start: t(19, 1, 0), end: t(19, 1, 8), side: "r")
+        let f2b = LogEntry(type: LogType.nurse, start: t(19, 1, 8), end: t(19, 1, 15), side: "l")
+        let overnight = LogEntry(type: LogType.sleep, start: t(18, 23, 0), end: t(19, 6, 0))
+        let endsAtMidnight = LogEntry(type: LogType.sleep, start: t(19, 22, 0), end: t(20, 0, 0))
+        let playEntry = LogEntry(type: LogType.play, start: t(19, 10, 0), detail: "A11 听摇铃")
+
+        var body = JournalFile.Body()
+        body.logs = [f1, f2a, f2b, overnight, endsAtMidnight, playEntry]
+        let j = JournalStore(preview: body)
+
+        // O(1) feed interval lookup: second feed starts 3h after first; continuation side has no interval
+        XCTAssertEqual(j.feedIntervalByID[f2a.id] ?? -1, 3 * 3600, accuracy: 1)
+        XCTAssertNil(j.feedIntervalByID[f2b.id])
+        XCTAssertNil(j.feedIntervalByID[f1.id])
+        // Last nursing feed begins at its first side (f2a), not its second side (f2b)
+        XCTAssertEqual(j.last(LogType.nurse), f2a.startDate)
+        XCTAssertEqual(j.last(LogType.sleep), endsAtMidnight.endDate)
+        // Day indexing includes overnight carryover on d19, excludes sleep ending at exact 00:00 of d20
+        XCTAssertTrue(j.logs(on: d19).contains { $0.id == overnight.id })
+        XCTAssertFalse(j.logs(on: d20).contains { $0.id == endsAtMidnight.id })
+        // O(1) play lookup and count
+        XCTAssertEqual(j.plays("A11").count, 1)
+        XCTAssertEqual(j.playLogCount, 1)
+        XCTAssertEqual(j.feedEntries(containing: f2b.id).count, 2)
     }
 
     func testClearAllResetsArtStyleAndPlayingClampsNegativeStep() {

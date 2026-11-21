@@ -19,15 +19,31 @@ enum ArtStyle: String, CaseIterable {
 }
 
 /// Decodes the pictures in art/ at the size they are shown, off the main thread, and keeps a few in memory.
-final class ArtCache {
+final class ArtCache: @unchecked Sendable {
     static let shared = ArtCache()
     private let cache = NSCache<NSString, UIImage>()
+    private let tableLock = NSLock()
+    private var keyLocks: [NSString: NSLock] = [:]
     // enough for a page of pictures and the page behind it, so going back never decodes them again
     init() { cache.totalCostLimit = 160 * 1024 * 1024 }
 
+    private static func bucket(for maxPixel: Int) -> Int {
+        if maxPixel <= 256 { return 256 }
+        if maxPixel <= 384 { return 384 }
+        return 1 << Int(ceil(log2(Double(max(1, maxPixel)))))
+    }
+
     private static func key(_ name: String, _ maxPixel: Int) -> NSString {
-        let bucket = max(256, 1 << Int(ceil(log2(Double(max(1, maxPixel))))))
-        return "\(name)@\(bucket)" as NSString
+        return "\(name)@\(bucket(for: maxPixel))" as NSString
+    }
+
+    private func lock(for key: NSString) -> NSLock {
+        tableLock.lock()
+        defer { tableLock.unlock() }
+        if let existing = keyLocks[key] { return existing }
+        let l = NSLock()
+        keyLocks[key] = l
+        return l
     }
 
     /// What a view's loading task is keyed by: the picture and the size bucket it is drawn at (a view that grows past
@@ -41,8 +57,13 @@ final class ArtCache {
 
     func image(_ asked: String, maxPixel: Int) -> UIImage? {
         let name = ArtStyle.resolve(asked)
-        let bucket = max(256, 1 << Int(ceil(log2(Double(max(1, maxPixel))))))
+        let bucket = Self.bucket(for: maxPixel)
         let key = Self.key(name, maxPixel)
+        if let i = cache.object(forKey: key) { return i }
+        // Deduplicate concurrent decodes of identical stickers/art (e.g. 15 rows sharing one icon)
+        let kl = lock(for: key)
+        kl.lock()
+        defer { kl.unlock() }
         if let i = cache.object(forKey: key) { return i }
         guard let url = Bundle.main.url(forResource: name, withExtension: nil, subdirectory: "art"),
               let src = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil }
@@ -52,6 +73,21 @@ final class ArtCache {
         let img = UIImage(cgImage: cg)
         cache.setObject(img, forKey: key, cost: cg.width * cg.height * 4)
         return img
+    }
+
+    /// Pre-decodes the small stickers and companion idle sprites off the main thread at launch so the first scroll is hitch-free.
+    func prewarmCommonStickers() {
+        Task.detached(priority: .utility) {
+            for idle in ["ip_moss_idle.webp", "ip_otto_idle.webp"] {
+                _ = ArtCache.shared.image(idle, maxPixel: 384)
+            }
+            let symbols = LogType.buttons.map(LogType.symbol) + ["A", "B", "C", "D", "E", "F"].map(Palette.areaSymbol)
+            for sym in Set(symbols) {
+                if let file = IconTile.sticker(sym) {
+                    _ = ArtCache.shared.image(file, maxPixel: 256)
+                }
+            }
+        }
     }
 }
 
@@ -332,13 +368,16 @@ struct ArtFill: View {
     var body: some View {
         let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
+            let px = Int(max(g.size.width, g.size.height) * scale)
+            let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px)
             ZStack {
                 Palette.fill
-                if let img { Image(uiImage: img).resizable().scaledToFill().frame(width: g.size.width, height: g.size.height).clipped().transition(.opacity) }
+                if let ready { Image(uiImage: ready).resizable().scaledToFill().frame(width: g.size.width, height: g.size.height).clipped().transition(.opacity) }
                 NightDim()
             }
-            .task(id: shown) {
-                let px = Int(max(g.size.width, g.size.height) * scale)
+            .frame(width: g.size.width, height: g.size.height)
+            .task(id: ArtCache.token(shown, px)) {
+                if let c = ArtCache.shared.cached(shown, maxPixel: px) { img = c; return }
                 let n = shown
                 let i = await Task.detached(priority: .userInitiated) { ArtCache.shared.image(n, maxPixel: px) }.value
                 withAnimation(.easeOut(duration: 0.18)) { img = i }
