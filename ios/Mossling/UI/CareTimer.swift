@@ -40,7 +40,7 @@ struct TimerScreen: View {
                     if !lamp { RadialGradient(colors: [c.opacity(0.2), c.opacity(0)], center: .top, startRadius: 0, endRadius: 520).ignoresSafeArea() }
                 }
             }
-            .navigationTitle(LogType.name(type))
+            .navigationTitle(L10n.logName(type))
             .navigationBarTitleDisplayMode(.inline)
             .toasts(bottom: true)
         }
@@ -59,14 +59,14 @@ struct TimerScreen: View {
             VStack(spacing: 18) {
                 Duo(primary: app.companion, size: 62, mood: .open, look: CGPoint(x: 0, y: 0.5), poke: true, night: lamp)
                     .frame(maxWidth: .infinity).padding(.top, 4)
-                Text(type == LogType.nurse ? "从哪一侧开始" : "宝宝要睡了").font(.title3.weight(.bold))
+                Text(type == LogType.nurse ? L10n.t("从哪一侧开始", "Which side to start?") : L10n.t("宝宝要睡了", "Ready for sleep")).font(.title3.weight(.bold))
                 LastLine(type: type)
 
                 // something else still running: say so here, so two clocks never run unnoticed
                 if let o = j.timers.first(where: { $0.type == other }) {
                     TimelineView(.periodic(from: .now, by: 30)) { tl in
-                        Notice(type: other, text: LogType.name(other) + "还在计时", detail: "已经 " + durationValue(o.total(ms(tl.date))),
-                               action: other == LogType.sleep ? "先记醒了" : "先记喂完") { withAnimation(.snappy) { j.stop(other) } }
+                        Notice(type: other, text: L10n.t(LogType.name(other) + "还在计时", L10n.logName(other) + " is still running"), detail: L10n.t("已经 " + durationValue(o.total(ms(tl.date))), L10n.duration(o.total(ms(tl.date))) + " elapsed"),
+                               action: other == LogType.sleep ? L10n.t("先记醒了", "Mark Awake") : L10n.t("先记喂完", "End Feed")) { withAnimation(.snappy) { j.stop(other) } }
                     }
                 }
 
@@ -83,16 +83,16 @@ struct TimerScreen: View {
 
                 // when it began: now unless said otherwise — set before starting, shown on the button
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("开始时间").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("开始时间", "Start Time")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                     WrapLayout(spacing: 8) {
                         // the same choices as every record's time: 现在, 5, 10, 15, 30 minutes, an hour
                         ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
-                            Button(m == 0 ? "现在" : m == 60 ? "1 小时前" : "\(m) 分钟前") { withAnimation(.snappy) { startAt = nil; startAgo = m } }
+                            Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1h ago") : L10n.t("\(m) 分钟前", "\(m)m ago")) { withAnimation(.snappy) { startAt = nil; startAgo = m } }
                                 .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
-                        Button(startAt.map { whenLabel($0) } ?? "其他时间…") { pickingStart = true }
+                        Button(startAt.map { whenLabel($0) } ?? L10n.t("其他时间…", "Other…")) { pickingStart = true }
                             .buttonStyle(.vinyl(startAt != nil ? c : Color(hex: 0x8A8279)))
                             .fontWeight(startAt != nil ? .semibold : .regular)
                     }
@@ -106,19 +106,19 @@ struct TimerScreen: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button("关闭", systemImage: "xmark") { dismiss() } }
+            ToolbarItem(placement: .cancellationAction) { Button(L10n.t("关闭", "Close"), systemImage: "xmark") { dismiss() } }
         }
         // already over: add it with its start and end instead of timing it
         .safeAreaBar(edge: .bottom) {
             Button { adding = true } label: {
-                Label(type == LogType.sleep ? "已经睡过了？补记一段" : "已经喂完了？补记一次", systemImage: "square.and.pencil")
+                Label(type == LogType.sleep ? L10n.t("已经睡过了？补记一段", "Already slept? Log past sleep") : L10n.t("已经喂完了？补记一次", "Already fed? Log past feed"), systemImage: "square.and.pencil")
                     .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 6)
             }
             .buttonStyle(.glass).controlSize(.large)
             .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
         }
         .sheet(isPresented: $pickingStart) {
-            TimeSheet(title: "开始时间", initial: startAt ?? Date()) { startAt = $0 }.lampPresented()
+            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: startAt ?? Date()) { startAt = $0 }.lampPresented()
         }
         .sheet(isPresented: $adding) {
             EntrySheet(entry: LogEntry(type: type, start: ms(Date().addingTimeInterval(type == LogType.sleep ? -3600 : -20 * 60)), end: ms(Date()),

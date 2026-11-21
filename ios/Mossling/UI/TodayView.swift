@@ -144,13 +144,14 @@ private struct NowCard: View {
     private func fact(_ type: String, _ link: String, _ now: Date) -> some View {
         let f = LastLine.fact(type, in: j.logs)
         let c = LogType.color(type)
+        let fallbackLabel = L10n.t("上次" + LogType.name(type), "Last " + L10n.logName(type).lowercased())
         return Button { if let u = URL(string: "mossling://" + link) { openURL(u) } } label: {
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 5) {
                     IconTile(symbol: LogType.symbol(type), color: c, size: 20, round: true)
-                    Text(f?.label ?? ("上次" + LogType.name(type))).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
+                    Text(L10n.isEnglish ? fallbackLabel : (f?.label ?? fallbackLabel)).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
                 }
-                Text(f.map { ago($0.at, now: now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
+                Text(f.map { L10n.agoText($0.at, now: now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
                     .lineLimit(1).minimumScaleFactor(0.7)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -158,7 +159,7 @@ private struct NowCard: View {
             .background(c.opacity(0.14)).printCard(radius: Radius.inner)
         }
         .buttonStyle(.toy)
-        .accessibilityHint("记下一次" + LogType.name(type))
+        .accessibilityHint(L10n.t("记下一次" + LogType.name(type), "Log " + L10n.logName(type).lowercased()))
     }
     private func words(_ a: String, _ b: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
@@ -192,10 +193,10 @@ private struct MonthCard: View {
                 .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(LinearGradient(colors: [night || lamp ? Palette.amber.opacity(0.28) : .white.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(month == 0 ? "出生" : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
-                        if month > 0 { Text("个月").font(.subheadline.weight(.semibold)) }
-                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text("天").font(.subheadline.weight(.semibold)) }
-                        if month != baby { Text(month < baby ? "· 走过的一站" : "· 以后的一站").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
+                        Text(month == 0 ? L10n.t("出生", "Birth") : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
+                        if month > 0 { Text(L10n.t("个月", "mo")).font(.subheadline.weight(.semibold)) }
+                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold)) }
+                        if month != baby { Text(month < baby ? L10n.t("· 走过的一站", "· Past") : L10n.t("· 以后的一站", "· Ahead")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
                     }
                     Text(app.content.month(month).title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
                     // the way through this month to the next, and how many days are left
@@ -212,8 +213,8 @@ private struct MonthCard: View {
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
-        .accessibilityLabel("\(month == 0 ? "出生" : "\(month) 个月")，\(app.content.month(month).title)")
-        .accessibilityHint("打开这个月的全部内容")
+        .accessibilityLabel("\(month == 0 ? L10n.t("出生", "Birth") : L10n.t("\(month) 个月", "\(month) months")), \(app.content.month(month).title)")
+        .accessibilityHint(L10n.t("打开这个月的全部内容", "Open this month's guide"))
     }
 }
 
@@ -294,7 +295,7 @@ struct Topics: View {
     var body: some View {
         let items = app.content.topics.enumerated().map { TopicItem(i: $0.offset, t: $0.element) }
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: "专题", detail: "照护参考")
+            SectionTitle(title: L10n.t("专题", "Guides"), detail: L10n.t("照护参考", "Care Reference"))
             // one card of rows: each title whole on its line, nothing wrapped mid-word, no row half filled
             Box {
                 ForEach(items) { x in
@@ -349,10 +350,10 @@ struct TodayPlayCard: View {
                         if week.count > 1 {
                             Button { withAnimation(reduce ? nil : .snappy) { app.anotherToday(month, j) } } label: {
                                 // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
-                                Text("换一个").padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
+                                Text(L10n.t("换一个", "Swap")).padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                             }
                             .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
-                            .accessibilityHint("在这周的几个活动里换一个")
+                            .accessibilityHint(L10n.t("在这周的几个活动里换一个", "Swap to another play this week"))
                         }
                     }
                     .padding(.horizontal, 4).padding(.top, 20)
@@ -364,16 +365,16 @@ struct TodayPlayCard: View {
                         if !rest.isEmpty {
                             Divider().padding(.horizontal, 14)
                             HStack {
-                                Text("这周还有").font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
+                                Text(L10n.t("这周还有", "Also this week")).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
                                 Spacer(minLength: 4)
-                                Button(action: arrange) { Text("调整").frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }
+                                Button(action: arrange) { Text(L10n.t("调整", "Edit")).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }
                                     .font(.footnote.weight(.semibold)).padding(.vertical, -12)
-                                    .accessibilityHint("换这周的活动")
+                                    .accessibilityHint(L10n.t("换这周的活动", "Adjust this week's plays"))
                             }
                             .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 2)
                             ForEach(rest) { other($0) }
                         } else {
-                            Button(action: arrange) { Text("调整这周的活动").font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44) }
+                            Button(action: arrange) { Text(L10n.t("调整这周的活动", "Adjust this week's plays")).font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44) }
                         }
                     }
                     .padding(.bottom, 4)
@@ -401,7 +402,7 @@ struct TodayPlayCard: View {
     /// 孩子摸索，大人点灯, to the left of the two on the card's edge, resting on the card's top line.
     /// A row of its own (it grows with the text size), as tall as the room the pair needs above the card.
     private var slogan: some View {
-        Text("孩子摸索，大人点灯").font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
             .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
             .frame(maxWidth: .infinity, minHeight: 20, alignment: .bottomTrailing)
             .padding(.trailing, 16 + 88)   // clear of the widest pair (Moss in front, about 87 pt)
@@ -410,13 +411,13 @@ struct TodayPlayCard: View {
     /// 今天一起玩; 醒了 40 分钟 · 一起玩 while the records say the baby woke within six hours (by day, records on);
     /// 醒来后一起玩 while a sleep is being timed.
     private func title(asleep: Bool, now: Date) -> String {
-        guard app.journal else { return "今天一起玩" }
-        if asleep { return "醒来后一起玩" }
+        guard app.journal else { return L10n.t("今天一起玩", "Today's Play") }
+        if asleep { return L10n.t("醒来后一起玩", "Play After Nap") }
         if !night, let woke = j.logs.first(where: { $0.type == LogType.sleep && $0.end != nil })?.end {
             let s = (now.timeIntervalSince1970 * 1000 - woke) / 1000
-            if s >= 0 && s < 6 * 3600 { return "醒了 " + durationValue(s) + " · 一起玩" }
+            if s >= 0 && s < 6 * 3600 { return L10n.t("醒了 " + durationValue(s) + " · 一起玩", "Awake " + L10n.duration(s) + " · Play") }
         }
-        return "今天一起玩"
+        return L10n.t("今天一起玩", "Today's Play")
     }
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
@@ -426,7 +427,7 @@ struct TodayPlayCard: View {
         let big = size.isAccessibilitySize
         let times: Int = app.thisWeek(p, j)
         let last: String = lastPlayed(p)
-        let label: String = "今天一起玩，" + p.name + "，" + (p.domains.first ?? "") + "，\(p.steps.count) 步，" + last + (times > 0 ? "，这周玩过 \(times) 次" : "")
+        let label: String = L10n.t("今天一起玩", "Today's Play") + ", " + p.name + ", " + (p.domains.first ?? "") + ", " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps") + ", " + last
         let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
         return NavigationLink(value: route(p)) {
             layout {
@@ -440,14 +441,14 @@ struct TodayPlayCard: View {
         .contextMenu { PlayActions(play: p, month: month) }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(label)
-        .accessibilityHint("打开，一步步跟着图玩")
+        .accessibilityHint(L10n.t("打开，一步步跟着图玩", "Open step-by-step guide"))
     }
 
     private func lastPlayed(_ p: Play) -> String {
         let rec = app.record(p, j)
         // a play ticked done before plays were dated: played, but when is not known
-        guard let d = rec.last else { return rec.count > 0 ? "玩过" : "第一次玩" }
-        return Day(d) == app.today ? "今天玩过" : "上次 " + Day(d).md
+        guard let d = rec.last else { return rec.count > 0 ? L10n.t("玩过", "Played") : L10n.t("第一次玩", "First time") }
+        return Day(d) == app.today ? L10n.t("今天玩过", "Played today") : L10n.t("上次 " + Day(d).md, "Last \(Day(d).m)/\(Day(d).d)")
     }
 
     @ViewBuilder private func leadArt(_ p: Play, big: Bool) -> some View {
@@ -466,7 +467,7 @@ struct TodayPlayCard: View {
 
     private func leadWords(_ p: Play, last: String, times: Int, big: Bool) -> some View {
         let key = Palette.areaKey(of: p)
-        let area: String = (p.domains.first ?? "") + " · \(p.steps.count) 步"
+        let area: String = (p.domains.first ?? "") + " · " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps")
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 5) {
                 IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
@@ -475,7 +476,7 @@ struct TodayPlayCard: View {
             Text(p.name).font(.headline).foregroundStyle(.primary)
                 .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             if let step = p.steps.first {
-                Text("第 1 步 · " + step).font(.caption).foregroundStyle(Palette.secondaryText)
+                Text(L10n.t("第 1 步 · ", "Step 1 · ") + step).font(.caption).foregroundStyle(Palette.secondaryText)
                     .lineLimit(big ? 4 : 2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
             }
             HStack(spacing: 6) {
@@ -511,7 +512,7 @@ struct TodayPlayCard: View {
     }
     private func otherLabel(_ p: Play, _ times: Int) -> String {
         let area: String = p.domains.first ?? ""
-        return p.name + "，" + area + (times > 0 ? "，这周玩过 \(times) 次" : "")
+        return p.name + ", " + area + (times > 0 ? L10n.t("，这周玩过 \(times) 次", ", \(times)x this week") : "")
     }
 }
 
@@ -550,7 +551,7 @@ private struct BeadCount: View {
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
                         .frame(width: 9, height: 9)
                 }
-                Text("\(times) 次").font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.lampTint).padding(.leading, 2)
+                Text(L10n.t("\(times) 次", "\(times)x")).font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.lampTint).padding(.leading, 2)
             }
         }
         .accessibilityHidden(true)
@@ -573,7 +574,7 @@ struct ShelfEditor: View {
         NavigationStack {
             PlanView(path: .constant(NavigationPath()))
                 .routes(path: .constant(NavigationPath()))
-                .toolbar { ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { dismiss() } } }
+                .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { dismiss() } } }
                 .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
@@ -592,18 +593,18 @@ struct BirthSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                DatePicker("出生日期", selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
+                DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                     .datePickerStyle(.graphical)
                 if first {
                     Section {
-                        Toggle("也记录喂奶、睡眠、尿布", isOn: $records)
-                    } footer: { Text("打开后多一个「记录」页；以后在「我的」里随时可以开关。") }
+                        Toggle(L10n.t("也记录喂奶、睡眠、尿布", "Also track feeds, sleep & diapers"), isOn: $records)
+                    } footer: { Text(L10n.t("打开后多一个「记录」页；以后在「我的」里随时可以开关。", "Adds a Log tab; you can toggle it anytime in Me.")) }
                 }
             }
-            .navigationTitle("出生日期").navigationBarTitleDisplayMode(.inline)
+            .navigationTitle(L10n.t("出生日期", "Birthday")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("取消", systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button("完成", systemImage: "checkmark") { if first { app.journal = records }; app.birth = Day(date); dismiss() } }
+                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if first { app.journal = records }; app.birth = Day(date); dismiss() } }
             }
             .onAppear { if let b = app.birth { date = b.date }; first = !app.onboarded && app.birth == nil }
         }

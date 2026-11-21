@@ -38,7 +38,10 @@ struct Content: Decodable {
         return ([mo.feature].compactMap { $0 } + mo.activities).filter { seen.insert($0).inserted }.compactMap { play($0) }
     }
 
-    static func load(bundle: Bundle = .main) throws -> Content {
+    static func load(bundle: Bundle = .main, english: Bool = L10n.isEnglish) throws -> Content {
+        if english, let enUrl = bundle.url(forResource: "content_en", withExtension: "json") {
+            return try JSONDecoder().decode(Content.self, from: Data(contentsOf: enUrl))
+        }
         let url = bundle.url(forResource: "content", withExtension: "json")!
         return try JSONDecoder().decode(Content.self, from: Data(contentsOf: url))
     }

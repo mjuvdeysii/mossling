@@ -32,10 +32,10 @@ struct PlayView: View {
                 .onScrollVisibilityChange(threshold: 0.2) { v in withAnimation(.easeOut(duration: 0.2)) { scrolled = !v } }
 
                 if !play.prepare.isEmpty || !play.safety.isEmpty {
-                    Fold(title: "开始之前", summary: [play.prepare.isEmpty ? nil : "准备", play.safety.isEmpty ? nil : "安全"].compactMap { $0 }.joined(separator: " · "),
+                    Fold(title: L10n.t("开始之前", "Before You Start"), summary: [play.prepare.isEmpty ? nil : L10n.t("准备", "Prepare"), play.safety.isEmpty ? nil : L10n.t("安全", "Safety")].compactMap { $0 }.joined(separator: " · "),
                          symbol: "tray.full.fill", color: Crayon.caramel, open: $before) {
-                        if !play.prepare.isEmpty { BoxRow(symbol: "tray.full.fill", color: Crayon.caramel, title: "准备", text: play.prepare, last: play.safety.isEmpty) }
-                        if !play.safety.isEmpty { BoxRow(symbol: "exclamationmark.triangle.fill", color: Crayon.tangerine, title: "安全", text: play.safety, last: true) }
+                        if !play.prepare.isEmpty { BoxRow(symbol: "tray.full.fill", color: Crayon.caramel, title: L10n.t("准备", "Prepare"), text: play.prepare, last: play.safety.isEmpty) }
+                        if !play.safety.isEmpty { BoxRow(symbol: "exclamationmark.triangle.fill", color: Crayon.tangerine, title: L10n.t("安全", "Safety"), text: play.safety, last: true) }
                     }
                 }
 
@@ -60,10 +60,10 @@ struct PlayView: View {
                 }
 
                 if !play.observe.isEmpty || !play.pause.isEmpty {
-                    Fold(title: "做的时候", summary: [play.observe.isEmpty ? nil : "看什么", play.pause.isEmpty ? nil : "停下来"].compactMap { $0 }.joined(separator: " · "),
+                    Fold(title: L10n.t("做的时候", "While Playing"), summary: [play.observe.isEmpty ? nil : L10n.t("看什么", "Observe"), play.pause.isEmpty ? nil : L10n.t("停下来", "When to Pause")].compactMap { $0 }.joined(separator: " · "),
                          symbol: "eye.fill", color: Crayon.sky, open: $during) {
-                        if !play.observe.isEmpty { BoxRow(symbol: "eye.fill", color: Crayon.sky, title: "看什么", text: play.observe, last: play.pause.isEmpty) }
-                        if !play.pause.isEmpty { BoxRow(symbol: "hand.raised.fill", color: Crayon.lilac, title: "停下来", text: play.pause, last: true) }
+                        if !play.observe.isEmpty { BoxRow(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("看什么", "Observe"), text: play.observe, last: play.pause.isEmpty) }
+                        if !play.pause.isEmpty { BoxRow(symbol: "hand.raised.fill", color: Crayon.lilac, title: L10n.t("停下来", "When to Pause"), text: play.pause, last: true) }
                     }
                     .id("during")
                 }
@@ -91,7 +91,7 @@ struct PlayView: View {
         .toolbar {
             ToolbarItem(placement: .principal) { Text(play.name).font(.headline).lineLimit(1).opacity(scrolled ? 1 : 0) }
             ToolbarItem(placement: .topBarTrailing) {
-                Menu { PlayActions(play: play, month: month, inPage: true) } label: { Image(systemName: "ellipsis") }.accessibilityLabel("更多")
+                Menu { PlayActions(play: play, month: month, inPage: true) } label: { Image(systemName: "ellipsis") }.accessibilityLabel(L10n.t("更多", "More"))
             }
         }
     }
@@ -172,7 +172,7 @@ private struct StepBeadBar: View {
 
     var body: some View {
         let done = min(current, total)
-        let label = current >= total ? "全部 \(total) 步已完成" : "第 \(current + 1) 步，共 \(total) 步"
+        let label = current >= total ? L10n.t("全部 \(total) 步已完成", "All \(total) steps done") : L10n.t("第 \(current + 1) 步，共 \(total) 步", "Step \(current + 1) of \(total)")
         HStack(spacing: 10) {
             HStack(spacing: 6) {
                 ForEach(0..<total, id: \.self) { i in
@@ -190,11 +190,11 @@ private struct StepBeadBar: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel("第 \(i + 1) 步" + (i < current ? "，已完成" : i == current ? "，当前步骤" : ""))
+                    .accessibilityLabel(L10n.t("第 \(i + 1) 步", "Step \(i + 1)"))
                 }
             }
             Spacer(minLength: 4)
-            Text(current >= total ? "全部完成" : "第 \(done + 1) / \(total) 步")
+            Text(current >= total ? L10n.t("全部完成", "All Done") : L10n.t("第 \(done + 1) / \(total) 步", "Step \(done + 1) / \(total)"))
                 .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
         }
         .padding(.horizontal, 14).padding(.vertical, 6)
@@ -227,7 +227,7 @@ private struct StepCard: View {
         Group {
             if open {
                 VStack(alignment: .leading, spacing: 0) {
-                    if let art { ArtView(name: art, label: "第 \(n) 步的图示", radius: 0) }
+                    if let art { ArtView(name: art, label: L10n.t("第 \(n) 步的图示", "Illustration for step \(n)"), radius: 0) }
                     VStack(alignment: .leading, spacing: 14) {
                         HStack(alignment: .firstTextBaseline, spacing: 12) {
                             badge
@@ -239,7 +239,7 @@ private struct StepCard: View {
                             if art == nil { Duo(primary: companion, size: 40, look: CGPoint(x: 0.2, y: -0.9), poke: true, cheer: arrived) }
                             Spacer(minLength: 8)
                             Button(action: next) {
-                                Label(last ? "做完了" : "下一步", systemImage: last ? "checkmark" : "arrow.down")
+                                Label(last ? L10n.t("做完了", "All Done") : L10n.t("下一步", "Next Step"), systemImage: last ? "checkmark" : "arrow.down")
                                     .font(.subheadline.weight(.semibold)).padding(.horizontal, 6)
                             }
                             .buttonStyle(.vinyl)
@@ -269,7 +269,7 @@ private struct StepCard: View {
             }
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("第 \(n) 步，\(text)" + (done ? "，已做" : ""))
+        .accessibilityLabel(L10n.t("第 \(n) 步，\(text)", "Step \(n), \(text)"))
         .accessibilityAddTraits(open ? [] : .isButton)
     }
 
@@ -306,16 +306,16 @@ struct DoneCount: View {
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
             VStack(alignment: .leading, spacing: 1) {
                 if record.count == 0 {
-                    Text("还没玩过").font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("还没玩过", "Not played yet")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
                 } else {
                     HStack(spacing: 0) {
-                        Text("玩过 ")
+                        Text(L10n.t("玩过 ", "Played "))
                         Ticking(text: "\(record.count)", tint: Palette.bead)
-                        Text(" 次")
+                        Text(L10n.t(" 次", record.count == 1 ? " time" : " times"))
                     }
                     .font(.subheadline.weight(.semibold)).foregroundStyle(Color.primary).fixedSize()
                     if let last = record.last {
-                        Text("上次 \(Day(last).md)").font(.caption).foregroundStyle(Palette.secondaryText)
+                        Text(L10n.t("上次 \(Day(last).md)", "Last \(Day(last).m)/\(Day(last).d)")).font(.caption).foregroundStyle(Palette.secondaryText)
                     }
                 }
             }
@@ -369,7 +369,7 @@ private struct PlayHeader: View {
             HStack(alignment: .center, spacing: 10) {
                 IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(play.domains.joined(separator: "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
+                    Text(play.domains.joined(separator: L10n.isEnglish ? " · " : "、")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.areaInk(key))
                     Text(play.age).font(.caption).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 0)
@@ -379,10 +379,10 @@ private struct PlayHeader: View {
             HStack {
                 DoneCount(record: record, cheer: cheer)
                 Spacer(minLength: 8)
-                Button(action: add) { Label("记一次", systemImage: "plus") }
+                Button(action: add) { Label(L10n.t("记一次", "Log Play"), systemImage: "plus") }
                     .buttonStyle(.vinyl)
                     .overlay { BeadBurst(trigger: cheer) }
-                    .accessibilityLabel("玩过了，记一次")
+                    .accessibilityLabel(L10n.t("玩过了，记一次", "Log one play session"))
             }
         }
         .padding(.horizontal, 4).padding(.bottom, 8)
@@ -395,11 +395,14 @@ private struct FinishedCard: View {
     let count: Int
     let cheer: Int
     var body: some View {
-        let line: String = "记下了第 \(count) 次" + (count >= 3 ? "，越来越熟练" : "")
+        let line: String = L10n.t(
+            "记下了第 \(count) 次" + (count >= 3 ? "，越来越熟练" : ""),
+            "Logged session #\(count)" + (count >= 3 ? " — getting more natural" : "")
+        )
         HStack(spacing: 14) {
             Duo(primary: companion, size: 56, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
             VStack(alignment: .leading, spacing: 3) {
-                Text("做完了").font(.headline)
+                Text(L10n.t("做完了", "All Done")).font(.headline)
                 Text(line).font(.subheadline).foregroundStyle(Palette.secondaryText)
             }
             Spacer(minLength: 0)

@@ -537,5 +537,9 @@ final class ScreenshotTests: XCTestCase {
         defer { L10n.overrideEnglish = nil }
         let m = model(); m.nickname = "Leo"; m.journal = true
         shot("35_you_en", height: 960, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("36_today_en", height: 1100, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        if let p = m.content.play("A11") {
+            shot("36_play_en", height: 1200, tabs(m, PlayView(play: p, month: 6)))
+        }
     }
 }

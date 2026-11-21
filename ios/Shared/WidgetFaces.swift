@@ -209,11 +209,12 @@ struct TodayFace: View {
     }
 
     private var medium: some View {
-        HStack(spacing: 12) {
+        let headerDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
+        return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 0) {
-                head
+                Link(destination: headerDest) { head }
                 Spacer(minLength: 4)
-                if journal { play } else if let t = body_.timers.first { running(t) } else { play }
+                if journal { play } else if let t = body_.timers.first { Link(destination: WidgetLinks.care(t.type)) { running(t) } } else { play }
             }
             if journal {
                 HStack(spacing: 6) {
@@ -225,6 +226,7 @@ struct TodayFace: View {
             }
         }
         .foregroundStyle(.primary)
+        .widgetURL(snap?.playCode.map(WidgetLinks.play) ?? headerDest)
     }
 
     /// A kind of entry as a sticker on a paper card: the sticker, its name and how long ago; a timer that runs shows
@@ -324,12 +326,12 @@ struct TodayFace: View {
                                 .background(WidgetInk.accent.opacity(0.12), in: Circle())
                         }
                         .buttonStyle(.plain)
+                        .invalidatableContent()
                         .accessibilityLabel(L10n.t("换一个活动", "Swap activity"))
                     }
                 }
                 .padding(.horizontal, 13).padding(.vertical, 12)
                 .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                .invalidatableContent()
             }
 
             Spacer(minLength: 0)
@@ -381,6 +383,7 @@ struct TodayFace: View {
             }
         }
         .foregroundStyle(.primary)
+        .widgetURL(snap?.playCode.map(WidgetLinks.play) ?? headerLink)
     }
 }
 
@@ -474,24 +477,31 @@ struct QuickCareFace: View {
                 Text(L10n.t("在「我的」打开记录后即可使用", "Turn on Log in Me to enable")).font(.caption2).foregroundStyle(.secondary)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .widgetURL(WidgetLinks.settings)
         } else if isMedium {
             HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
-                        ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
-                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
-                            .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
+                Link(destination: WidgetLinks.journal) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        HStack(spacing: 6) {
+                            ArtImage(name: WidgetArt.pair).frame(width: 24, height: 24).padding(4).background(Circle().fill(WidgetInk.card))
+                            Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
+                                .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1)
+                        }
+                        Spacer(minLength: 0)
+                        miniFact(L10n.t("上次喂奶", "Last feed"), lastFeed, LogType.nurse)
+                        miniFact(L10n.t("上次醒来", "Last wake"), lastWake, LogType.sleep)
                     }
-                    Spacer(minLength: 0)
-                    miniFact(L10n.t("上次喂奶", "Last feed"), lastFeed, LogType.nurse)
-                    miniFact(L10n.t("上次醒来", "Last wake"), lastWake, LogType.sleep)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent).frame(width: 174)
             }
             .foregroundStyle(.primary)
+            .widgetURL(WidgetLinks.journal)
         } else {
-            grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent).foregroundStyle(.primary)
+            grid(stickerSize: 26, wetCount: wetCount, dirtyCount: dirtyCount, recent: recent)
+                .foregroundStyle(.primary)
+                .widgetURL(WidgetLinks.journal)
         }
     }
 
@@ -799,6 +809,7 @@ enum WidgetLinks {
     static let today = URL(string: "mossling://today")!
     static let journal = URL(string: "mossling://journal")!
     static let book = URL(string: "mossling://book")!
+    static let settings = URL(string: "mossling://settings")!
     static func play(_ code: String) -> URL { URL(string: "mossling://play/\(code)")! }
     static func month(_ m: Int) -> URL { URL(string: "mossling://month/\(m)")! }
     static func care(_ type: String) -> URL { URL(string: "mossling://care/\(type)")! }
