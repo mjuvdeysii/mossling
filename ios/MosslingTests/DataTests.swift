@@ -141,7 +141,7 @@ final class DataTests: XCTestCase {
         XCTAssertEqual(JournalFile.cycleWidgetPlay()?.playCode, "A01")
 
         L10n.overrideEnglish = true; defer { L10n.overrideEnglish = nil }
-        XCTAssertEqual(L10n.logName(LogType.nurse), "Nurse")
+        XCTAssertEqual(L10n.logName(LogType.nurse), "Nursing")
         XCTAssertEqual(L10n.duration(5400), "1h 30m")
     }
 }
