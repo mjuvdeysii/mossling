@@ -175,11 +175,11 @@ private struct XylophoneStudio: View {
                         .foregroundStyle(.primary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.8)
-                    Text(L10n.t("真实木琴泛音实时合成 · 支持连滑和弦", "Real-time rosewood marimba synthesis · glissando ready"))
+                    Text(L10n.t("真实木琴泛音实时合成 · 支持连滑和弦", "Warm rosewood marimba · tap or glide"))
                         .font(.caption)
                         .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.8)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.85)
                 }
                 Spacer(minLength: 0)
             }
@@ -581,9 +581,11 @@ private struct RainstickStudio: View {
 
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.t("轻轻倾斜手机，或用手指拨动金珠", "Tilt your iPhone gently, or stir the beads"))
+                    Text(L10n.t("轻倾手机，或手指拨动金珠", "Tilt gently or stir the beads"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                     Text(L10n.t("26 颗蒙氏金珠与彩木珠 · 轻响雨声", "26 golden & pastel wooden beads · soft rain clicks"))
                         .font(.caption)
                         .foregroundStyle(Palette.secondaryText)

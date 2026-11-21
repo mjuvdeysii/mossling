@@ -258,7 +258,7 @@ struct RainstickPhysics: Sendable {
                 vx: Double((i % 5) - 2) * 0.04,
                 vy: 0.05,
                 radius: r,
-                colorIndex: i % 6,
+                colorIndex: (i - i / 3) % 6,
                 isGold: isGold
             ))
         }
