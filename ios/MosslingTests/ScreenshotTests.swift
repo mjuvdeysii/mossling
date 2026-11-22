@@ -254,38 +254,175 @@ final class ScreenshotTests: XCTestCase {
         shot("34_afterimage", height: 560, page)
     }
     /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
-    /// asks for. The five screens a parent meets first.
+    /// asks for. Eight bilingual (CN + EN) hero screens showcasing the complete v1.3.2 quiet Montessori studio.
     func test35StoreScreens() {
-        // the same morning whenever CI runs: the clock read in a time zone where it is 11:00 now (the night sleep from 00:30), so the last
-        // hours' records never cross midnight and the home says the same thing every time
         defer { Day.testZone = nil }
         let utc: Int = Int(Date().timeIntervalSince1970) % 86_400
         var offset: Int = (11 * 3600 - utc) % 86_400
         if offset > 14 * 3600 { offset -= 86_400 }
         if offset < -12 * 3600 { offset += 86_400 }
         Day.testZone = TimeZone(secondsFromGMT: offset)
-        // a day as it is when the screenshots are taken: today, a baby of six and a half months, records of the last hours
-        let m = model(birth: Day.today.plus(days: -200)); m.today = .today; m.journal = true
+
+        let today = Day.today
+        let birth = today.plus(days: -200)
         let n = ms(Date()), h = 3_600_000.0
-        var b = JournalFile.Body()
-        b.logs = [LogEntry(type: LogType.sleep, start: n - 10.5 * h, end: n - 4 * h),
-                  LogEntry(type: LogType.diaper, start: n - 3.9 * h, detail: "wet"),
-                  LogEntry(type: LogType.nurse, start: n - 3.7 * h, end: n - 3.45 * h, side: "l"),
-                  LogEntry(type: LogType.nurse, start: n - 3.45 * h, end: n - 3.3 * h, side: "r"),
-                  LogEntry(type: LogType.solid, start: n - 2 * h, detail: "米粉"),
-                  LogEntry(type: LogType.diaper, start: n - 1.2 * h, detail: "dirty"),
-                  LogEntry(type: LogType.bottle, start: n - 0.6 * h, amount: 120, detail: "breastmilk")]
-        let quiet = JournalStore(preview: b)
-        var b2 = b; b2.timers = [RunningTimer(type: LogType.nurse, start: n - 9 * 60_000, side: "r")]
-        let feeding = JournalStore(preview: b2)
-        let big: (String, AnyView) -> Void = { name, v in self.shot("store_" + name, height: 956, width: 440, v) }
-        let month = m.babyMonth ?? 6
-        func on<V: View>(_ j: JournalStore, _ v: V) -> AnyView { AnyView(NavigationStack { v }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded)) }
-        big("1_home", on(quiet, TodayView(path: .constant(NavigationPath()))))
-        big("2_play", on(quiet, PlayView(play: m.content.play("A11")!, month: month)))
-        big("3_month", on(quiet, MonthView(month: month)))
-        big("4_journal", on(quiet, JournalView(path: .constant(NavigationPath()))))
-        big("5_timer", AnyView(TimerScreen(type: LogType.nurse).environment(m).environment(feeding).tint(Palette.accent).fontDesign(.rounded)))
+
+        func buildJournal(english: Bool) -> (JournalStore, JournalStore, UUID) {
+            var b = JournalFile.Body()
+            for back in 0..<7 {
+                let d = today.plus(days: -back)
+                let dayStart = d.date
+                func ts(_ hr: Double) -> Double { ms(dayStart.addingTimeInterval(hr * 3600)) }
+                let jitter = Double(back % 3) * 0.25
+                if back == 0 {
+                    b.logs.append(LogEntry(type: LogType.sleep, start: n - 10.5 * h, end: n - 4.0 * h))
+                    b.logs.append(LogEntry(type: LogType.diaper, start: n - 3.9 * h, detail: "wet"))
+                    b.logs.append(LogEntry(type: LogType.nurse, start: n - 3.7 * h, end: n - 3.45 * h, side: "l"))
+                    b.logs.append(LogEntry(type: LogType.nurse, start: n - 3.45 * h, end: n - 3.3 * h, side: "r"))
+                    b.logs.append(LogEntry(type: LogType.solid, start: n - 2.0 * h, detail: english ? "Avocado mash" : "牛油果泥"))
+                    b.logs.append(LogEntry(type: LogType.diaper, start: n - 1.2 * h, detail: "dirty"))
+                    b.logs.append(LogEntry(type: LogType.bottle, start: n - 0.6 * h, amount: 130, detail: "breastmilk"))
+                } else {
+                    b.logs.append(LogEntry(type: LogType.sleep, start: ts(0.0), end: ts(6.2 + jitter)))
+                    b.logs.append(LogEntry(type: LogType.sleep, start: ts(9.4 + jitter), end: ts(10.8 + jitter)))
+                    b.logs.append(LogEntry(type: LogType.sleep, start: ts(13.2 + jitter), end: ts(14.9 + jitter)))
+                    b.logs.append(LogEntry(type: LogType.sleep, start: ts(20.4 + jitter), end: ts(24.0)))
+                    b.logs.append(LogEntry(type: LogType.nurse, start: ts(6.5 + jitter), end: ts(6.8 + jitter), side: "l"))
+                    b.logs.append(LogEntry(type: LogType.nurse, start: ts(11.1 + jitter), end: ts(11.4 + jitter), side: "r"))
+                    b.logs.append(LogEntry(type: LogType.bottle, start: ts(15.2 + jitter), amount: 130, detail: "breastmilk"))
+                    b.logs.append(LogEntry(type: LogType.nurse, start: ts(19.6 + jitter), end: ts(19.9 + jitter), side: "l"))
+                    if back % 2 == 0 {
+                        b.logs.append(LogEntry(type: LogType.play, start: ts(16.2), detail: english ? "A11 Passing toys hand to hand" : "A11 双手物品传递机会"))
+                    }
+                }
+            }
+            b.measures = [Measure(at: ms(today.plus(days: -5).date), weightG: 7450, lengthMm: 660, headMm: 428)]
+            let firstPhoto = First(
+                at: ms(today.plus(days: -6).date),
+                key: "sit",
+                title: english ? "First Sit" : "坐",
+                note: english ? "Sat steady by the warm cushion for ten bright seconds" : "靠着软垫自己坐稳了十几秒，举着木摇铃笑出声"
+            )
+            b.firsts = [
+                First(at: ms(today.plus(days: -55).date), key: "roll", title: english ? "First Roll" : "翻身"),
+                firstPhoto
+            ]
+            let quiet = JournalStore(preview: b)
+            var sleepBody = b
+            sleepBody.timers = [RunningTimer(type: LogType.sleep, start: n - 42 * 60_000)]
+            let sleeping = JournalStore(preview: sleepBody)
+            return (quiet, sleeping, firstPhoto.id)
+        }
+
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 2
+        let samplePhoto = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 240), format: fmt).image { ctx in
+            let cg = ctx.cgContext
+            UIColor(red: 0.96, green: 0.87, blue: 0.72, alpha: 1).setFill()
+            cg.fill(CGRect(x: 0, y: 0, width: 240, height: 240))
+            UIColor(red: 0.34, green: 0.65, blue: 0.56, alpha: 1).setFill()
+            cg.fillEllipse(in: CGRect(x: 56, y: 74, width: 128, height: 128))
+            UIColor(red: 0.95, green: 0.72, blue: 0.25, alpha: 1).setFill()
+            cg.fillEllipse(in: CGRect(x: 150, y: 34, width: 46, height: 46))
+        }
+
+        let sampleFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin",     firstTastedEpochDay: today.plus(days: -18).epochDay, reaction: .loved),
+            FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
+            FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
+            FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain),
+            FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
+            FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
+            FoodRecord(foodId: "blueberry",   firstTastedEpochDay: today.plus(days: -4).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "ricecereal",  firstTastedEpochDay: today.plus(days: -20).epochDay, reaction: .loved),
+            FoodRecord(foodId: "oatmeal",     firstTastedEpochDay: today.plus(days: -7).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "yogurt",      firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "oliveoil",    firstTastedEpochDay: today.plus(days: -1).epochDay,  reaction: .tasted),
+        ])
+
+        func renderGallery(prefix: String, english: Bool) {
+            L10n.overrideEnglish = english
+            let m = model(birth: birth)
+            m.today = today
+            m.journal = true
+            m.nickname = english ? "Leo" : "小满"
+
+            let (quiet, sleeping, photoId) = buildJournal(english: english)
+            FirstPhotoStore.save(samplePhoto, for: photoId)
+            defer { FirstPhotoStore.delete(for: photoId) }
+
+            let caps = CapsuleStore(preview: [
+                TimeCapsule(
+                    title: english ? "Six Months Under Otto's Lamp" : "满半岁那天的灯下小记",
+                    body: english ? "Tonight you sat steady by the soft cushion and giggled at your wooden rattle." : "小满，今天你靠着软垫自己坐稳了十几秒，举着木摇铃笑出声来。",
+                    writtenAt: ms(today.plus(days: -17).date),
+                    writtenAgeLabel: english ? "6 months" : "6 个月",
+                    unlockEpochDay: today.epochDay,
+                    openedAt: nil,
+                    seal: .gold
+                ),
+                TimeCapsule(
+                    title: english ? "To Leo on Your 1st Birthday" : "写给一岁生日的小满",
+                    body: english ? "When you unseal this wax stamp, we will have walked through four seasons together." : "等你拆开这封信的时候，你已经走过一整年的四季啦。",
+                    writtenAt: ms(today.plus(days: -2).date),
+                    writtenAgeLabel: english ? "6 mo 15 d" : "6 个月 15 天",
+                    unlockEpochDay: TimeCapsule.birthdayEpochDay(from: birth, years: 1),
+                    openedAt: nil,
+                    seal: .teal
+                ),
+                TimeCapsule(
+                    title: english ? "Your 100th Bright Day" : "你出生的第一百天",
+                    body: english ? "You smiled wide for the camera while we snapped twenty blurry photos we could never delete." : "今天你对着镜头咧嘴笑出了梨涡，爸爸妈妈拍了二十张糊照片却一张也舍不得删。",
+                    writtenAt: ms(birth.plus(days: 100).date),
+                    writtenAgeLabel: english ? "3 mo 9 d" : "3 个月 9 天",
+                    unlockEpochDay: nil,
+                    openedAt: ms(today.plus(days: -10).date),
+                    seal: .pink
+                )
+            ])
+
+            func nav<V: View>(_ j: JournalStore, _ v: V) -> AnyView {
+                AnyView(NavigationStack { v }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+            }
+
+            // 1. Home + 2x3 Quiet Instruments Dock
+            shot("store_\(prefix)1_home", height: 956, width: 440, nav(quiet, TodayView(path: .constant(NavigationPath()))))
+
+            // 2. Bedside Lamp (4-6 Breathing Halo + Dual-Layer Soundscape Mix)
+            SoundscapeEngine.shared.start(.rain)
+            SoundscapeEngine.shared.toggleLayer(.lullaby)
+            shot("store_\(prefix)2_lamp", dark: true, height: 956, width: 440,
+                 BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(m).environment(sleeping).fontDesign(.rounded))
+            SoundscapeEngine.shared.stop()
+
+            // 3. Sensory Toybox (8-bar Wooden Xylophone with 4-studio picker)
+            shot("store_\(prefix)3_toybox", height: 956, width: 440, nav(quiet, ToyboxView(initialMode: .xylophone)))
+
+            // 4. First Foods Tasting Box (6-color botanical wreath + 14 stamped whole foods)
+            shot("store_\(prefix)4_foods", height: 956, width: 440, nav(quiet, FoodAtlasView(store: sampleFoods)))
+
+            // 5. 24h Polar Circadian Rhythm Dial
+            shot("store_\(prefix)5_rhythm", height: 956, width: 440, nav(quiet, StatsView()))
+
+            // 6. Keepsake Growth Storybook Spread with Polaroid Photo
+            shot("store_\(prefix)6_storybook", height: 956, width: 440,
+                 StorybookView(initialPage: 7).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+
+            // 7. Wax-Sealed Time Capsule Letters
+            shot("store_\(prefix)7_capsules", height: 956, width: 440, nav(quiet, TimeCapsuleListView(store: caps)))
+
+            // 8. Dot-Grid Care Journal with Stickers, Bead Ribbon & Handover Button
+            shot("store_\(prefix)8_journal", height: 956, width: 440, nav(quiet, JournalView(path: .constant(NavigationPath()))))
+        }
+
+        defer {
+            L10n.overrideEnglish = false
+            SoundscapeEngine.shared.stop()
+        }
+        renderGallery(prefix: "", english: false)
+        renderGallery(prefix: "en_", english: true)
     }
     /// A clock that looks forgotten is asked about; a one-tap record is said back with 撤销.
     func test33ChecksAndToast() {
@@ -715,5 +852,63 @@ final class ScreenshotTests: XCTestCase {
         )
         let previewStoreEn = CapsuleStore(preview: [readyCapEn, sealedCapEn])
         shot("47_capsules_en", height: 900, tabs(mEn, TimeCapsuleListView(store: previewStoreEn)))
+    }
+
+    /// Grand finale features: 2×3 Quiet Instruments dock, First Foods 60-item Atlas, Firefly Lantern Jar,
+    /// Bedside Lamp 4–6 Calm Breathing Halo + Dual Soundscape Mix, and Visual Care Handover Studio (CN + EN + Lamp).
+    func test48GrandFinaleFeatures() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        let sampleFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin",     firstTastedEpochDay: today.plus(days: -18).epochDay, reaction: .loved),
+            FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
+            FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
+            FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain),
+            FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
+            FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
+            FoodRecord(foodId: "blueberry",   firstTastedEpochDay: today.plus(days: -4).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "ricecereal",  firstTastedEpochDay: today.plus(days: -20).epochDay, reaction: .loved),
+            FoodRecord(foodId: "oatmeal",     firstTastedEpochDay: today.plus(days: -7).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "yogurt",      firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "oliveoil",    firstTastedEpochDay: today.plus(days: -1).epochDay,  reaction: .tasted),
+        ])
+
+        // 1. Home with balanced 2x3 Quiet Instruments dock (CN Day + Night Lamp)
+        shot("48_today_6dock_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("48_today_6dock_lamp", height: 1260, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+
+        // 2. First Foods Tasting Box (CN Day + Night Lamp)
+        shot("48_food_atlas_zh", height: 1120, tabs(m, FoodAtlasView(store: sampleFoods)))
+        shot("48_food_atlas_lamp", height: 1120, lamp: true, tabs(m, FoodAtlasView(store: sampleFoods).lamp(true)))
+
+        // 3. Sensory Toybox — Firefly Lantern Jar (CN)
+        shot("49_toybox_fireflies_zh", height: 852, tabs(m, ToyboxView(initialMode: .fireflies)))
+
+        // 4. Bedside Lamp — 4-6 Breathing Halo ON + Dual-Layer Soundscape Mix (CN)
+        SoundscapeEngine.shared.start(.rain)
+        SoundscapeEngine.shared.toggleLayer(.lullaby)
+        defer { SoundscapeEngine.shared.stop() }
+        shot("49_lamp_breath_mix_zh", dark: true, height: 852,
+             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(m).environment(journal).fontDesign(.rounded))
+
+        // 5. Visual Care Handover Studio Sheet (CN)
+        shot("50_handover_card_zh", height: 852,
+             HandoverSheet(day: today, baseTextSummary: "【摸索台灯 · 照护交接】小满").environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 6. English variants
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("48_today_6dock_en", height: 1260, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
+        shot("48_food_atlas_en", height: 1120, tabs(mEn, FoodAtlasView(store: sampleFoods)))
+        shot("49_toybox_fireflies_en", height: 852, tabs(mEn, ToyboxView(initialMode: .fireflies)))
+        shot("49_lamp_breath_mix_en", dark: true, height: 852,
+             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(mEn).environment(journal).fontDesign(.rounded))
+        shot("50_handover_card_en", height: 852,
+             HandoverSheet(day: today, baseTextSummary: "[Moss & Otto · Care Handover] Leo").environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
     }
 }

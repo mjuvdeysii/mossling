@@ -1,13 +1,13 @@
 # Release Notes
 
 ## 1.3.2
-A generational craft update for Moss & Otto: introducing a new Home Quiet Instruments dock, a Montessori Sensory Toybox, wax-sealed Time Capsule Letters, Otto's Living Bedside Lamp & soundscapes, a 24-hour Rhythm Dial, a page-turning Growth Storybook, and full English support.
+A flagship craft update for Moss & Otto: introducing a balanced 2×3 Quiet Instruments Home dock, First Foods 60-food tasting box, the Firefly Lantern Jar in Sensory Toybox, Bedside Lamp 4–6 calm breathing halo & dual-layer soundscape mixing, a visual Care Handover studio, and full English & Chinese localization—100% offline.
 
-- **Quiet Instruments Home Dock**: Reach every flagship offline tool in one tap right from Today—Bedside Lamp, Sensory Toybox, 24-Hour Rhythm Dial, Growth Storybook, and Time Capsule Letters.
-- **New Sensory Toybox (Parent-Child Co-Play)**: Three handcrafted, zero-asset Montessori studios—an 8-bar Rosewood Xylophone with glissando, lullaby mode, and Moss following every note; a 26-bead Golden Rainstick driven by gentle phone tilt or finger stir with wooden bead clicks; and 8 museum-grade 0–4 month Newborn High-Contrast Cards.
-- **New Time Capsule Letters**: Write tonight's quiet thought on cotton-paper stationery, stamp an embossed wax seal, and schedule it to unseal on your baby's 1st, 2nd, 3rd, or 5th birthday (stored strictly on this iPhone, with 3× letterpress print sharing).
-- **Otto's Living Bedside Lamp & Soothing Soundscapes**: Zero-glare full-screen midnight lantern with vertical brass-detent dimming, tilt-pendulum glow, four offline real-time soundscapes (Paper Rain, Meadow Breeze, Soft Heartbeat, Wood Lullaby) with lock-screen background playback and cosine auto-fade, plus one-tap midnight sleep & nursing controls.
-- **24-Hour Rhythm Dial, Growth Storybook & Craft Polish**: 7/14-day concentric circadian rings with hourly beam scrubbing and 3× print export; page-turning Growth Storybook with on-device Polaroid Firsts photos; Montessori CoreHaptics tactile feedback; full bilingual experience, refreshed interactive widgets, and silky-smooth 3D scrolling.
+- **New First Foods Tasting Box**: Explore 60 curated whole foods across 6 Montessori categories with common-allergen markers, gentle zero-judgment reactions (Loved / Tasted / Try Again), a 6-color botanical wreath progress ring, optional Care Journal sync, and 3× First Foods Passport poster export.
+- **Sensory Toybox — Now with Firefly Lantern Jar**: Four handcrafted offline co-play studios—8-bar Rosewood Xylophone, 26-bead tilt Montessori Rainstick, the new Firefly Lantern Jar (18 amber & mint fireflies that orbit your fingertip with soft pentatonic wind chimes and a Swirl button), plus 8 newborn 0–4 mo High-Contrast Cards.
+- **Otto's Bedside Lamp — 4–6 Breathing Halo & Dual Soundscape Mix**: Zero-glare midnight lantern with vertical brass-detent dimming, a new 4s inhale / 6s exhale golden breathing halo for late-night soothing, and lock-free dual-layer soundscape mixing (tap `+` to blend e.g. Paper Rain + Wood Lullaby) with background playback and cosine auto-fade.
+- **Visual Care Handover Studio**: Tap the handover icon in Journal to open Passing the Lantern—an offline shift summary card with active timers, last feed/wake/diaper, 4 quick caregiver note chips, 3× cotton-paper visual card sharing, and 1-tap plain-text copy.
+- **Balanced 2×3 Quiet Instruments Home Dock & Keepsakes**: One-tap access to Bedside Lamp, Sensory Toybox, First Foods, 24-Hour Rhythm Dial, page-turning Growth Storybook with on-device Polaroid photos, and wax-sealed Time Capsule Letters.
 
 ## 1.0.1
 More reliable local storage, smoother growth charts, and quieter nighttime polish.

@@ -15,18 +15,36 @@ struct BedsideLampView: View {
     @State private var dragStartBrightness: Double? = nil
     @State private var lastDetentStep: Int = -1
     @State private var showingDimmerHint = true
+    @State private var breathingGuide: Bool
     @State private var soundscape = SoundscapeEngine.shared
     @State private var motion = LampTiltObserver()
     @State private var pulse = false
 
-    init(initialBrightness: Double = 0.72) {
+    init(initialBrightness: Double = 0.72, initialBreathingGuide: Bool = false) {
         _brightness = State(initialValue: max(0.15, min(1.0, initialBrightness)))
+        _breathingGuide = State(initialValue: initialBreathingGuide)
     }
 
     private var activeTimer: RunningTimer? { j.timers.first }
     private var isSleeping: Bool { j.timers.contains { $0.type == LogType.sleep && $0.pausedAt == nil } }
     private var lastNurseSide: String? { j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side }
     private var suggestedSide: String { lastNurseSide == "l" ? "r" : "l" }
+
+    /// Computes smooth 4s inhale / 6s exhale breathing halo progress (0...1) and phase text for calm soothing.
+    nonisolated static func breathingState(at time: TimeInterval) -> (progress: Double, inhaling: Bool, secondsLeft: Int) {
+        let cycle = 10.0
+        let pos = time.truncatingRemainder(dividingBy: cycle)
+        let p = pos < 0 ? pos + cycle : pos
+        if p < 4.0 {
+            let x = p / 4.0
+            let smooth = 0.5 - 0.5 * cos(.pi * x)
+            return (smooth, true, max(1, Int(ceil(4.0 - p))))
+        } else {
+            let x = (p - 4.0) / 6.0
+            let smooth = 0.5 + 0.5 * cos(.pi * x)
+            return (smooth, false, max(1, Int(ceil(10.0 - p))))
+        }
+    }
 
     var body: some View {
         ZStack {
@@ -155,34 +173,34 @@ struct BedsideLampView: View {
                     Text(
                         dragStartBrightness != nil
                             ? L10n.t("暖光 \(Int((brightness * 100).rounded()))%", "Warmth \(Int((brightness * 100).rounded()))%")
-                            : (soundscape.active?.title ?? L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"))
+                            : (soundscape.activeSummary ?? L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"))
                     )
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.amber.opacity(0.72))
+                    .foregroundStyle(Palette.amber.opacity(0.76))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
                     .contentTransition(.opacity)
                 }
             }
 
             Spacer()
 
-            if let kind = soundscape.active {
-                Button {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(.snappy) { soundscape.stop() }
-                } label: {
-                    Image(systemName: "speaker.wave.2.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundStyle(Palette.amber)
-                        .frame(width: 40, height: 40)
-                        .background(Circle().fill(Palette.amber.opacity(0.16)))
-                        .overlay(Circle().strokeBorder(Palette.amber.opacity(0.38), lineWidth: 1))
+            // Calm 4-6 paced breathing guide toggle right on the top bar
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
+                    breathingGuide.toggle()
                 }
-                .buttonStyle(.toy)
-                .accessibilityLabel(L10n.t("停止\(kind.title)", "Stop \(kind.title)"))
-            } else {
-                // Keep header centered symmetrically
-                Color.clear.frame(width: 40, height: 40)
+            } label: {
+                Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(breathingGuide ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
+                    .frame(width: 40, height: 40)
+                    .background(Circle().fill(breathingGuide ? Palette.amber : Color(hex: 0x1A2346).opacity(0.75)))
+                    .overlay(Circle().strokeBorder(Palette.amber.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
             }
+            .buttonStyle(.toy)
+            .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
         }
     }
 
@@ -192,42 +210,73 @@ struct BedsideLampView: View {
         let swayX = reduce ? 0 : motion.roll * 10
         return VStack(spacing: 12) {
             ZStack {
-                // Concentric gentle acoustic ripples when a nursery soundscape is playing
-                if soundscape.isPlaying {
-                    ForEach(0..<3, id: \.self) { idx in
-                        Circle()
-                            .strokeBorder(
-                                Palette.amber.opacity((0.24 - Double(idx) * 0.06) * brightness),
-                                lineWidth: 1.2
-                            )
-                            .frame(
-                                width: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0),
-                                height: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0)
-                            )
-                            .scaleEffect(pulse ? 1.04 : 0.96)
-                            .animation(
-                                reduce ? nil : .easeInOut(duration: 3.8).repeatForever(autoreverses: true).delay(Double(idx) * 0.45),
-                                value: pulse
-                            )
-                    }
-                }
+                if breathingGuide {
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still)) { tl in
+                        let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
+                        let ringSize: CGFloat = 154 + CGFloat(st.progress) * 76
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            Color(hex: 0xFFE5A3).opacity((0.28 + 0.30 * st.progress) * brightness),
+                                            Palette.amber.opacity((0.14 + 0.16 * st.progress) * brightness),
+                                            .clear
+                                        ],
+                                        center: .center,
+                                        startRadius: 20,
+                                        endRadius: ringSize * 0.62
+                                    )
+                                )
+                                .frame(width: ringSize + 44, height: ringSize + 44)
 
-                // Warm amber halo right behind Otto's golden bead
-                Circle()
-                    .fill(
-                        RadialGradient(
-                            colors: [
-                                Color(hex: 0xFFE5A3).opacity(0.55 * brightness),
-                                Palette.amber.opacity(0.28 * brightness),
-                                .clear
-                            ],
-                            center: .center,
-                            startRadius: 4,
-                            endRadius: 118
+                            Circle()
+                                .strokeBorder(Palette.amber.opacity((0.38 + 0.44 * st.progress) * brightness), lineWidth: 2.0)
+                                .frame(width: ringSize, height: ringSize)
+
+                            Circle()
+                                .strokeBorder(Palette.beadLight.opacity((0.18 + 0.22 * st.progress) * brightness), lineWidth: 1.0)
+                                .frame(width: ringSize + 24, height: ringSize + 24)
+                        }
+                    }
+                } else {
+                    // Concentric gentle acoustic ripples when a nursery soundscape is playing
+                    if soundscape.isPlaying {
+                        ForEach(0..<3, id: \.self) { idx in
+                            Circle()
+                                .strokeBorder(
+                                    Palette.amber.opacity((0.24 - Double(idx) * 0.06) * brightness),
+                                    lineWidth: 1.2
+                                )
+                                .frame(
+                                    width: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0),
+                                    height: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0)
+                                )
+                                .scaleEffect(pulse ? 1.04 : 0.96)
+                                .animation(
+                                    reduce ? nil : .easeInOut(duration: 3.8).repeatForever(autoreverses: true).delay(Double(idx) * 0.45),
+                                    value: pulse
+                                )
+                        }
+                    }
+
+                    // Warm amber halo right behind Otto's golden bead
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    Color(hex: 0xFFE5A3).opacity(0.55 * brightness),
+                                    Palette.amber.opacity(0.28 * brightness),
+                                    .clear
+                                ],
+                                center: .center,
+                                startRadius: 4,
+                                endRadius: 118
+                            )
                         )
-                    )
-                    .frame(width: 236, height: 236)
-                    .offset(x: swayX * 0.6, y: -14)
+                        .frame(width: 236, height: 236)
+                        .offset(x: swayX * 0.6, y: -14)
+                }
 
                 Creature(
                     kind: .otto,
@@ -243,17 +292,39 @@ struct BedsideLampView: View {
                 .frame(width: 156, height: 156)
                 .opacity(0.65 + 0.35 * brightness)
             }
-            .frame(height: 220)
+            .frame(height: 224)
 
-            // Quiet tactile affordance cue (non-intrusive, fades gently after first dim)
-            HStack(spacing: 6) {
-                Image(systemName: "arrow.up.and.down")
-                    .font(.caption2.weight(.bold))
-                Text(L10n.t("上下滑动调节暖光亮度", "Slide up or down to dim"))
-                    .font(.caption.weight(.medium))
+            if breathingGuide {
+                TimelineView(.periodic(from: .now, by: 0.25)) { tl in
+                    let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
+                    HStack(spacing: 7) {
+                        Circle()
+                            .fill(Palette.amber.opacity(st.inhaling ? 0.95 : 0.55))
+                            .frame(width: 7, height: 7)
+                        Text(
+                            st.inhaling
+                                ? L10n.t("跟着暖光慢慢吸气 · \(st.secondsLeft)s", "Breathe in slowly · \(st.secondsLeft)s")
+                                : L10n.t("缓缓放松呼气 · \(st.secondsLeft)s", "Breathe out gently · \(st.secondsLeft)s")
+                        )
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.amber.opacity(0.92))
+                        .monospacedDigit()
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(Palette.amber.opacity(0.14)))
+                }
+            } else {
+                // Quiet tactile affordance cue (non-intrusive, fades gently after first dim)
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.up.and.down")
+                        .font(.caption2.weight(.bold))
+                    Text(L10n.t("上下滑动调节暖光亮度", "Slide up or down to dim"))
+                        .font(.caption.weight(.medium))
+                }
+                .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.28))
+                .accessibilityHidden(true)
             }
-            .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.28))
-            .accessibilityHidden(true)
         }
     }
 
@@ -343,12 +414,14 @@ struct BedsideLampView: View {
                 Image(systemName: "waveform")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Palette.amber.opacity(0.85))
-                Text(L10n.t("舒缓声景", "Soothing Soundscapes"))
+                Text(soundscape.isPlaying ? L10n.t("声景混音 · 点 + 可叠一层", "Soundscapes · Tap + to layer") : L10n.t("舒缓声景", "Soothing Soundscapes"))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Palette.lampInk.opacity(0.76))
-                Spacer()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
                 if let rem = soundscape.remainingSeconds {
-                    Text(L10n.t("渐弱倒计时 ", "Fades in ") + clock(Double(rem)))
+                    Text(L10n.t("渐弱 ", "Fades ") + clock(Double(rem)))
                         .font(Typeface.numerals(12, relativeTo: .caption, weight: .semibold))
                         .foregroundStyle(Palette.amber.opacity(0.88))
                 } else if soundscape.isPlaying {
@@ -364,48 +437,73 @@ struct BedsideLampView: View {
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
                 ForEach(SoundscapeKind.allCases) { kind in
-                    let on = soundscape.active == kind
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.8)) {
-                            soundscape.toggle(kind)
-                        }
-                    } label: {
-                        HStack(spacing: 7) {
-                            Image(systemName: kind.symbol)
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
-                                .frame(width: 28, height: 28)
-                                .background(
-                                    Circle().fill(on ? Palette.amber : Palette.amber.opacity(0.14))
-                                )
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(kind.title)
-                                    .font(.footnote.weight(.bold))
-                                    .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.88))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.72)
-                                Text(kind.subtitle)
-                                    .font(.caption2)
-                                    .foregroundStyle(on ? Palette.amber.opacity(0.9) : Palette.lampInk.opacity(0.52))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.72)
+                    let isPrimary = soundscape.active == kind
+                    let isSecondary = soundscape.secondary == kind
+                    let on = isPrimary || isSecondary
+                    HStack(spacing: 4) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.8)) {
+                                soundscape.toggle(kind)
                             }
-                            Spacer(minLength: 0)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: kind.symbol)
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
+                                    .frame(width: 26, height: 26)
+                                    .background(
+                                        Circle().fill(isPrimary ? Palette.amber : (isSecondary ? Palette.beadLight : Palette.amber.opacity(0.14)))
+                                    )
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(kind.title)
+                                        .font(.footnote.weight(.bold))
+                                        .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.88))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.68)
+                                    Text(isSecondary ? L10n.t("已叠第二层", "Layer 2 on") : kind.subtitle)
+                                        .font(.caption2)
+                                        .foregroundStyle(on ? Palette.amber.opacity(0.92) : Palette.lampInk.opacity(0.56))
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.70)
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
                         }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 9)
-                        .background(
-                            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                                .fill(on ? Palette.amber.opacity(0.20) : Color(hex: 0x161E3B).opacity(0.75))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                                .strokeBorder(on ? Palette.amber.opacity(0.65) : Palette.amber.opacity(0.12), lineWidth: 1.2)
-                        )
+                        .buttonStyle(.plain)
+
+                        if soundscape.isPlaying && !isPrimary {
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.8)) {
+                                    soundscape.toggleLayer(kind)
+                                }
+                            } label: {
+                                Image(systemName: isSecondary ? "checkmark" : "plus")
+                                    .font(.system(size: 9, weight: .bold))
+                                    .foregroundStyle(isSecondary ? Color(hex: 0x261700) : Palette.amber.opacity(0.9))
+                                    .frame(width: 20, height: 20)
+                                    .background(Circle().fill(isSecondary ? Palette.beadLight : Palette.amber.opacity(0.18)))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(isSecondary ? L10n.t("移除叠层\(kind.title)", "Remove \(kind.title) layer") : L10n.t("叠加\(kind.title)", "Blend \(kind.title)"))
+                        }
                     }
-                    .buttonStyle(.toy)
-                    .accessibilityAddTraits(on ? .isSelected : [])
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 9)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .fill(isPrimary ? Palette.amber.opacity(0.22) : (isSecondary ? Palette.amber.opacity(0.14) : Color(hex: 0x161E3B).opacity(0.75)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .strokeBorder(
+                                isPrimary ? Palette.amber.opacity(0.72) : (isSecondary ? Palette.beadLight.opacity(0.55) : Palette.amber.opacity(0.12)),
+                                lineWidth: on ? 1.3 : 1.0
+                            )
+                    )
+                    .accessibilityElement(children: .contain)
                 }
             }
 
