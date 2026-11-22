@@ -13,10 +13,30 @@ struct StorybookView: View {
     @State private var pageIndex: Int
     @State private var photoVersion = FirstPhotoVersion.shared
     @Namespace private var trailNS
+    private let foodStore: FoodAtlasStore?
 
     /// `initialPage`: `0` = cover, `1...N` = chronological month spreads (birth -> current), `N + 1` = epilogue.
-    init(initialPage: Int = 0) {
+    init(initialPage: Int = 0, foodStore: FoodAtlasStore? = nil) {
         _pageIndex = State(initialValue: max(0, initialPage))
+        self.foodStore = foodStore
+    }
+
+    private func monthFoods(for page: BookPage) -> [(item: FoodItem, loved: Bool)] {
+        let store = foodStore ?? .shared
+        return store.records.values
+            .filter {
+                let d = $0.firstTastedDay.date
+                return d >= page.from && d < page.to
+            }
+            .sorted { a, b in
+                if a.firstTastedEpochDay != b.firstTastedEpochDay {
+                    return a.firstTastedEpochDay < b.firstTastedEpochDay
+                }
+                return a.foodId < b.foodId
+            }
+            .compactMap { rec in
+                FoodItem.item(id: rec.foodId).map { ($0, rec.reaction == .loved) }
+            }
     }
 
     /// Chronological order (Birth -> Today) so parents read their child's story forward like a real picture book.
@@ -45,8 +65,13 @@ struct StorybookView: View {
                         .tag(0)
 
                     ForEach(Array(pages.enumerated()), id: \.element.month) { offset, page in
-                        StorybookMonthSpread(page: page, spreadNumber: offset + 1, totalMonths: pages.count)
-                            .tag(offset + 1)
+                        StorybookMonthSpread(
+                            page: page,
+                            foods: monthFoods(for: page),
+                            spreadNumber: offset + 1,
+                            totalMonths: pages.count
+                        )
+                        .tag(offset + 1)
                     }
 
                     StorybookEpilogueSpread(totalMonths: pages.count)
@@ -89,6 +114,7 @@ struct StorybookView: View {
         let chapterTitle: String = currentPageData.map { app.content.month($0.month).title } ?? L10n.stretchName(for: app.babyMonth ?? 0)
         let firstLines: [String] = currentPageData?.firsts.prefix(3).map { "★ " + Firsts.displayTitle($0) + " · " + Day($0.date).md } ?? []
         let playNames: [String] = currentPageData?.plays.prefix(3).map(\.play.name) ?? []
+        let foodNames: [String] = currentPageData.map { monthFoods(for: $0).prefix(8).map { $0.item.icon + " " + $0.item.name } } ?? []
         let firstIDs: [UUID] = currentPageData?.firsts.map(\.id) ?? []
 
         let exportPoster = RenderedPoster {
@@ -101,6 +127,7 @@ struct StorybookView: View {
                         chapterTitle: chapterTitle,
                         firstLines: firstLines,
                         playNames: playNames,
+                        foodNames: foodNames,
                         coverImage: ArtIndex.shared.cover(min(pageMonth, 36)).flatMap { ArtCache.shared.image($0, maxPixel: 1024) },
                         firstPhoto: firstIDs.compactMap { FirstPhotoStore.load(for: $0) }.first
                     )
@@ -387,6 +414,7 @@ private struct StorybookMonthSpread: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     let page: BookPage
+    let foods: [(item: FoodItem, loved: Bool)]
     let spreadNumber: Int
     let totalMonths: Int
 
@@ -531,6 +559,45 @@ private struct StorybookMonthSpread: View {
                     }
                 }
 
+                // New First Foods Tasted This Month
+                if !foods.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Label(L10n.t("这个月新尝的味道", "New Tastes This Month"), systemImage: "carrot.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Crayon.ink(Crayon.leaf))
+
+                        FlowRow(spacing: 6, lineSpacing: 6) {
+                            ForEach(foods.prefix(12), id: \.item.id) { entry in
+                                HStack(spacing: 4) {
+                                    Text(entry.item.icon)
+                                        .font(.caption)
+                                    Text(entry.item.name)
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                    if entry.loved {
+                                        Image(systemName: "heart.fill")
+                                            .font(.system(size: 8.5, weight: .bold))
+                                            .foregroundStyle(Crayon.pink)
+                                    }
+                                }
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 5)
+                                .background(
+                                    Capsule().fill(entry.item.category.color.opacity(dark ? 0.22 : 0.13))
+                                )
+                            }
+                            if foods.count > 12 {
+                                Text("+\(foods.count - 12)")
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
+                                    .background(Capsule().fill(Palette.fill))
+                            }
+                        }
+                    }
+                }
+
                 // Quiet Factual Snapshot Row (weight/length/sleep/feeds)
                 let snippets = snapshotLine
                 if !snippets.isEmpty {
@@ -568,7 +635,7 @@ private struct StorybookMonthSpread: View {
                     }
                 }
 
-                if page.empty {
+                if page.empty && foods.isEmpty {
                     Text(L10n.t("这一页静静留白着，记录下这一段成长安安静静走过的日子。", "A quiet page — holding space for the days that passed softly."))
                         .font(.subheadline)
                         .foregroundStyle(Palette.secondaryText)
@@ -723,6 +790,7 @@ private struct StorybookMonthPrintCard: View {
     let chapterTitle: String
     let firstLines: [String]
     let playNames: [String]
+    let foodNames: [String]
     let coverImage: UIImage?
     let firstPhoto: UIImage?
 
@@ -786,6 +854,12 @@ private struct StorybookMonthPrintCard: View {
 
             if !playNames.isEmpty {
                 Text(L10n.t("一起玩过：", "Played: ") + playNames.joined(separator: " · "))
+                    .font(.system(size: 11.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.7))
+            }
+
+            if !foodNames.isEmpty {
+                Text(L10n.t("新尝味道：", "New tastes: ") + foodNames.joined(separator: " · "))
                     .font(.system(size: 11.5, weight: .medium, design: .rounded))
                     .foregroundStyle(ink.opacity(0.7))
             }

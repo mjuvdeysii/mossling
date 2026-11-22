@@ -409,7 +409,7 @@ final class ScreenshotTests: XCTestCase {
 
             // 6. Keepsake Growth Storybook Spread with Polaroid Photo
             shot("store_\(prefix)6_storybook", height: 956, width: 440,
-                 StorybookView(initialPage: 7).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
+                 StorybookView(initialPage: 7, foodStore: sampleFoods).environment(m).environment(quiet).tint(Palette.accent).fontDesign(.rounded))
 
             // 7. Wax-Sealed Time Capsule Letters
             shot("store_\(prefix)7_capsules", height: 956, width: 440, nav(quiet, TimeCapsuleListView(store: caps)))
@@ -746,6 +746,13 @@ final class ScreenshotTests: XCTestCase {
         defer { FirstPhotoStore.delete(for: firstWithPhoto.id) }
 
         let richJournal = JournalStore(preview: b)
+        let bookFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin",   firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .loved),
+            FoodRecord(foodId: "avocado",   firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
+            FoodRecord(foodId: "ricecereal",firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",   firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted, watchSkin: true),
+            FoodRecord(foodId: "blueberry", firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
+        ])
 
         // 1. 24-Hour Circadian Rhythm Dial (CN Day, Scrubbed Spotlight 21:00, Night Lamp, EN Day)
         shot("42_rhythm_dial_zh", height: 1180, NavigationStack { StatsView() }.environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
@@ -766,8 +773,8 @@ final class ScreenshotTests: XCTestCase {
         shot("43_bedside_lamp_zh", dark: true, height: 852, BedsideLampView(initialBrightness: 0.78, previewClock: nightClock).environment(m).environment(sleepJournal).fontDesign(.rounded))
 
         // 3. Keepsake Growth Storybook (CN Cover + CN Month 6 Editorial Spread with Polaroid First Photo)
-        shot("44_storybook_cover_zh", height: 852, StorybookView(initialPage: 0).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
-        shot("44_storybook_spread_zh", height: 852, StorybookView(initialPage: 7).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("44_storybook_cover_zh", height: 852, StorybookView(initialPage: 0, foodStore: bookFoods).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("44_storybook_spread_zh", height: 852, StorybookView(initialPage: 7, foodStore: bookFoods).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
 
         // 4. English variants of all three new hero instruments
         L10n.overrideEnglish = true
@@ -778,7 +785,7 @@ final class ScreenshotTests: XCTestCase {
                 .pageBackground().environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
         SoundscapeEngine.shared.start(.lullaby)
         shot("43_bedside_lamp_en", dark: true, height: 852, BedsideLampView(initialBrightness: 0.82, previewClock: nightClock).environment(mEn).environment(richJournal).fontDesign(.rounded))
-        shot("44_storybook_spread_en", height: 852, StorybookView(initialPage: 7).environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
+        shot("44_storybook_spread_en", height: 852, StorybookView(initialPage: 7, foodStore: bookFoods).environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
     }
 
     /// Screen-1 Quiet Instruments dock, Sensory Toybox (3 studios), and Time Capsule Letters (CN + EN + Lamp).
@@ -790,10 +797,11 @@ final class ScreenshotTests: XCTestCase {
         shot("45_today_instruments_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
         shot("45_today_instruments_lamp", height: 1260, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
 
-        // 2. Sensory Toybox — all 3 studios (Chinese)
+        // 2. Sensory Toybox studios (Chinese)
         shot("46_toybox_xylophone_zh", height: 852, tabs(m, ToyboxView(initialMode: .xylophone)))
-        shot("46_toybox_rainstick_zh", height: 852, tabs(m, ToyboxView(initialMode: .rainstick)))
-        shot("46_toybox_contrast_zh", height: 852, tabs(m, ToyboxView(initialMode: .contrast)))
+        shot("46_toybox_playalong_zh", height: 852, tabs(m, ToyboxView(initialMode: .xylophone, previewPlayAlong: true)))
+        shot("46_toybox_rainstick_zh", height: 852, tabs(m, ToyboxView(initialMode: .rainstick, initialRainstickLayout: .hourglass)))
+        shot("46_toybox_contrast_zh", height: 852, tabs(m, ToyboxView(initialMode: .contrast, initialContrastIndex: 8)))
 
         // 3. Time Capsule Letters (Ready + Sealed + Opened envelopes + unfolded stationery)
         let birth = m.birth!
@@ -903,8 +911,8 @@ final class ScreenshotTests: XCTestCase {
         shot("48_food_atlas_zh", height: 1120, tabs(m, FoodAtlasView(store: sampleFoods)))
         shot("48_food_atlas_lamp", height: 1120, lamp: true, tabs(m, FoodAtlasView(store: sampleFoods).lamp(true)))
 
-        // 3. Sensory Toybox — Firefly Lantern Jar (CN)
-        shot("49_toybox_fireflies_zh", height: 852, tabs(m, ToyboxView(initialMode: .fireflies)))
+        // 3. Sensory Toybox — Firefly Lantern Jar (CN Heart formation)
+        shot("49_toybox_fireflies_zh", height: 852, tabs(m, ToyboxView(initialMode: .fireflies, initialFormation: .heart)))
 
         // 4. Bedside Lamp — 4-6 Breathing Halo ON + Dual-Layer Soundscape Mix (CN)
         SoundscapeEngine.shared.start(.rain)

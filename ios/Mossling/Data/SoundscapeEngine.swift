@@ -4,10 +4,10 @@ import AVFoundation
 import MediaPlayer
 import Observation
 
-/// Four handcrafted nursery soundscapes synthesized in real time via `AVAudioEngine` (zero audio files in bundle,
+/// Six handcrafted nursery soundscapes synthesized in real time via `AVAudioEngine` (zero audio files in bundle,
 /// infinitely non-repeating, zero network). Tuned low and warm to protect infant ears.
 enum SoundscapeKind: String, CaseIterable, Identifiable {
-    case rain, breeze, heartbeat, lullaby
+    case rain, breeze, heartbeat, lullaby, shush, waves
     var id: String { rawValue }
 
     var title: String {
@@ -16,6 +16,8 @@ enum SoundscapeKind: String, CaseIterable, Identifiable {
         case .breeze: L10n.t("草坡微风", "Meadow Breeze")
         case .heartbeat: L10n.t("温暖心跳", "Soft Heartbeat")
         case .lullaby: L10n.t("木琴摇篮", "Wood Lullaby")
+        case .shush: L10n.t("轻声嘘拍", "Gentle Shush")
+        case .waves: L10n.t("暖海潮汐", "Soft Tide")
         }
     }
 
@@ -25,6 +27,8 @@ enum SoundscapeKind: String, CaseIterable, Identifiable {
         case .breeze: L10n.t("随 Otto 慢呼吸", "Soft breath")
         case .heartbeat: L10n.t("舒缓低频轻拍", "64 BPM pulse")
         case .lullaby: L10n.t("五声音阶木琴", "Wood marimba")
+        case .shush: L10n.t("妈妈轻嘘节律", "Soft shushing")
+        case .waves: L10n.t("缓拍细沙海浪", "Slow ocean tide")
         }
     }
 
@@ -34,6 +38,8 @@ enum SoundscapeKind: String, CaseIterable, Identifiable {
         case .breeze: "wind"
         case .heartbeat: "waveform.path.ecg"
         case .lullaby: "music.note"
+        case .shush: "waveform.path"
+        case .waves: "water.waves"
         }
     }
 
@@ -43,6 +49,8 @@ enum SoundscapeKind: String, CaseIterable, Identifiable {
         case .breeze: Crayon.leaf
         case .heartbeat: Crayon.pink
         case .lullaby: Palette.amber
+        case .shush: Crayon.lilac
+        case .waves: Crayon.teal
         }
     }
 }
@@ -206,7 +214,7 @@ final class SoundscapeDSPState: @unchecked Sendable {
                 beat += sin(2 * .pi * 46 * d) * env * 0.50
             }
             return cushion * 0.22 + Float(beat) * 0.58
-        default: // Wood Lullaby: sparse C-major pentatonic soft marimba over whisper breeze
+        case 3: // Wood Lullaby: sparse C-major pentatonic soft marimba over whisper breeze
             let p = nextPink()
             let breeze: Float
             if useSecondaryFilter {
@@ -242,6 +250,45 @@ final class SoundscapeDSPState: @unchecked Sendable {
                 voice2Amp *= 0.999925
             }
             return breeze * 0.14 + notes
+        case 4: // Gentle Shush: velvety 2.4s raised-cosine parent shush cadence over soft warmth
+            let p = nextPink()
+            let band: Float
+            let base: Float
+            if useSecondaryFilter {
+                sLp1 += 0.34 * (p - sLp1)
+                sLp2 += 0.09 * (p - sLp2)
+                band = sLp1 - sLp2
+                base = sLp2
+            } else {
+                lp1 += 0.34 * (p - lp1)
+                lp2 += 0.09 * (p - lp2)
+                band = lp1 - lp2
+                base = lp2
+            }
+            let pos = t.truncatingRemainder(dividingBy: 2.4)
+            let shushEnv: Float = pos < 1.15 ? Float(0.5 - 0.5 * cos(2.0 * .pi * pos / 1.15)) : 0
+            return base * 0.16 + band * (0.10 + 0.56 * shushEnv)
+        default: // Soft Tide: slow 8.2s asymmetric shoreline swell with retiring fine foam
+            let p = nextPink()
+            let norm = t.truncatingRemainder(dividingBy: 8.2) / 8.2
+            let swell: Double = norm < 0.38
+                ? 0.5 - 0.5 * cos(.pi * norm / 0.38)
+                : 0.5 + 0.5 * cos(.pi * (norm - 0.38) / 0.62)
+            let cutoff: Float = 0.022 + 0.115 * Float(swell)
+            let body: Float
+            let foam: Float
+            if useSecondaryFilter {
+                sLp1 += 0.24 * (p - sLp1)
+                sLp2 += cutoff * (sLp1 - sLp2)
+                body = sLp2
+                foam = sLp1 - sLp2
+            } else {
+                lp1 += 0.24 * (p - lp1)
+                lp2 += cutoff * (lp1 - lp2)
+                body = lp2
+                foam = lp1 - lp2
+            }
+            return body * (0.42 + 0.36 * Float(swell)) + foam * (0.14 * Float(swell))
         }
     }
 }

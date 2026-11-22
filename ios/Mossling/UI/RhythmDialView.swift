@@ -61,9 +61,17 @@ struct RhythmDialModel: Sendable {
         let playCount: Int
         let totalDays: Int
     }
+    struct RhythmSummary: Equatable, Sendable {
+        let activeDays: Int
+        let avgSleepHours: Double?
+        let avgFeedsPerDay: Double?
+        let longestSleepHours: Double?
+        let typicalBedtimeHour: Int?
+    }
 
     let rings: [DayRing]
     let totalLogs: Int
+    let summary: RhythmSummary
 
     static func build(logs: [LogEntry], today: Day, days: Int = 7) -> RhythmDialModel {
         let count = max(1, min(30, days))
@@ -71,6 +79,11 @@ struct RhythmDialModel: Sendable {
         var built: [DayRing] = []
         built.reserveCapacity(count)
         var total = 0
+        var sleepDaysCount = 0
+        var totalSleepHours = 0.0
+        var feedDaysCount = 0
+        var totalFeedsCount = 0
+        var activeDays = 0
 
         for idx in 0..<count {
             let back = (count - 1) - idx
@@ -92,11 +105,21 @@ struct RhythmDialModel: Sendable {
                 }
             }
 
+            let daySleepHours = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) / 3600.0 }
+            if daySleepHours > 0 || !sleeps.isEmpty {
+                sleepDaysCount += 1
+                totalSleepHours += daySleepHours
+            }
+
             // Feeds grouped via Feed (one bead per meal, never double-counting left/right sides)
             var feeds: [FeedDot] = []
             for f in allFeeds where f.start >= dayStartMs && f.start < dayEndMs {
                 let hr = ((f.start - dayStartMs) / dayLen) * 24.0
                 feeds.append(FeedDot(hour: hr, isBottle: f.isBottle))
+            }
+            if !feeds.isEmpty {
+                feedDaysCount += 1
+                totalFeedsCount += feeds.count
             }
 
             // Play sessions started on this day
@@ -106,10 +129,50 @@ struct RhythmDialModel: Sendable {
                 plays.append(hr)
             }
 
+            if !sleeps.isEmpty || !feeds.isEmpty || !plays.isEmpty {
+                activeDays += 1
+            }
+
             total += sleeps.count + feeds.count + plays.count
             built.append(DayRing(day: d, ringIndex: idx, sleepSpans: sleeps, feeds: feeds, plays: plays))
         }
-        return RhythmDialModel(rings: built, totalLogs: total)
+
+        let windowStartMs = built.first.map { $0.day.date.timeIntervalSince1970 * 1000 } ?? 0
+        let windowEndMs = today.plus(days: 1).date.timeIntervalSince1970 * 1000
+
+        var longestSleep: Double? = nil
+        var bedtimeHours: [Double] = []
+        for e in logs where e.type == LogType.sleep {
+            guard let endMs = e.end, endMs > e.start, endMs > windowStartMs, e.start < windowEndMs else { continue }
+            let hrs = e.activeSeconds / 3600.0
+            if hrs > 0 {
+                longestSleep = max(longestSleep ?? 0, hrs)
+            }
+            if e.start >= windowStartMs && e.start < windowEndMs && e.activeSeconds >= 3600 {
+                let comp = Day.cal.dateComponents([.hour, .minute], from: e.startDate)
+                let hr = Double(comp.hour ?? 12) + Double(comp.minute ?? 0) / 60.0
+                if hr >= 18.0 || hr < 2.0 {
+                    bedtimeHours.append(hr < 12.0 ? hr + 24.0 : hr)
+                }
+            }
+        }
+
+        let avgSleep = sleepDaysCount > 0 ? totalSleepHours / Double(sleepDaysCount) : nil
+        let avgFeeds = feedDaysCount > 0 ? Double(totalFeedsCount) / Double(feedDaysCount) : nil
+        let typicalBedtime: Int? = if bedtimeHours.count >= 2 {
+            Int((bedtimeHours.reduce(0, +) / Double(bedtimeHours.count)).rounded()) % 24
+        } else {
+            nil
+        }
+
+        let summary = RhythmSummary(
+            activeDays: activeDays,
+            avgSleepHours: avgSleep,
+            avgFeedsPerDay: avgFeeds,
+            longestSleepHours: longestSleep,
+            typicalBedtimeHour: typicalBedtime
+        )
+        return RhythmDialModel(rings: built, totalLogs: total, summary: summary)
     }
 
     /// Factual count of recorded sleep days, feeds, and plays falling within hour `[hour, hour + 1)`.
@@ -295,6 +358,25 @@ struct RhythmDialCard: View {
                 }
             }
 
+            // Quiet factual summary strip (strictly observed averages, zero predictions)
+            let chips = summaryChips(model.summary)
+            if !chips.isEmpty {
+                FlowRow(spacing: 6, lineSpacing: 6) {
+                    ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
+                        HStack(spacing: 5) {
+                            Circle().fill(chip.color).frame(width: 6, height: 6)
+                            Text(chip.text)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(dark ? Palette.lampInk : Crayon.ink(chip.color))
+                                .monospacedDigit()
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(chip.color.opacity(dark ? 0.20 : 0.12)))
+                    }
+                }
+            }
+
             // Quiet legend + ring orientation hint
             if model.totalLogs == 0 {
                 Text(L10n.t("记下几天睡眠与喂奶后，宝宝自己的昼夜节律会一圈一圈浮现出来。", "After a few days of sleep and feed logs, your baby's natural rhythm appears ring by ring."))
@@ -315,6 +397,23 @@ struct RhythmDialCard: View {
         }
         .padding(16)
         .printCard(radius: Radius.card)
+    }
+
+    private func summaryChips(_ s: RhythmDialModel.RhythmSummary) -> [(text: String, color: Color)] {
+        var out: [(String, Color)] = []
+        if let hrs = s.avgSleepHours {
+            out.append((L10n.t("日均睡 \(String(format: "%.1f", hrs))h", "Sleep \(String(format: "%.1f", hrs))h/d"), LogType.color(LogType.sleep)))
+        }
+        if let longest = s.longestSleepHours {
+            out.append((L10n.t("最长一觉 \(String(format: "%.1f", longest))h", "Longest \(String(format: "%.1f", longest))h"), Crayon.sky))
+        }
+        if let feeds = s.avgFeedsPerDay {
+            out.append((L10n.t("日均喂 \(String(format: "%.1f", feeds)) 次", "\(String(format: "%.1f", feeds)) feeds/d"), LogType.color(LogType.nurse)))
+        }
+        if let bed = s.typicalBedtimeHour {
+            out.append((L10n.t("常约 \(String(format: "%02d:00", bed)) 入睡", "Bed ~\(String(format: "%02d:00", bed))"), Palette.amberDeep))
+        }
+        return out
     }
 
     private var spanPicker: some View {
@@ -644,6 +743,18 @@ private struct RhythmPrintPoster: View {
                 Text(L10n.t("外圈为今天", "Outer = Today"))
                     .font(.system(size: 11, weight: .medium, design: .rounded))
                     .foregroundStyle(ink.opacity(0.55))
+            }
+
+            let posterFacts: [String] = [
+                model.summary.avgSleepHours.map { L10n.t("日均睡 \(String(format: "%.1f", $0))h", "Sleep \(String(format: "%.1f", $0))h/d") },
+                model.summary.longestSleepHours.map { L10n.t("最长 \(String(format: "%.1f", $0))h", "Longest \(String(format: "%.1f", $0))h") },
+                model.summary.avgFeedsPerDay.map { L10n.t("日均喂 \(String(format: "%.1f", $0)) 次", "\(String(format: "%.1f", $0)) feeds/d") }
+            ].compactMap { $0 }
+            if !posterFacts.isEmpty {
+                Text(posterFacts.joined(separator: "  ·  "))
+                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.76))
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }
 
             Divider().opacity(0.3)

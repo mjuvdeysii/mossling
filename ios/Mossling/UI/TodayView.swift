@@ -44,11 +44,20 @@ struct TodayView: View {
                 // before the birth date is known too: the same 今天一起玩, from the first month's plays (the week is
                 // chosen anew for the child's month once the date is given)
                 TodayPlayCard(month: baby, story: { path.append(Route.story) }) { arranging = true }
+                let todayLogs = j.logs(on: app.today)
+                let todaySleepCount = todayLogs.filter { $0.type == LogType.sleep && $0.end != nil }.count
+                let todayFeedCount = todayLogs.feeds().count
+                let bookMonths = app.birth != nil ? max(1, min(app.age?.bookMonth ?? 0, 36) + 1) : 0
                 QuietInstrumentsDock(
                     soundscape: soundscape,
                     foodsTasted: foods.tastedCount,
                     capsuleTotal: capsules.items.count,
                     capsuleReady: capsules.readyCount(on: app.today),
+                    toyTodayCount: ToyboxUsage.todayCount(on: app.today),
+                    todaySleepCount: app.journal ? todaySleepCount : 0,
+                    todayFeedCount: app.journal ? todayFeedCount : 0,
+                    bookMonths: bookMonths,
+                    firstsCount: j.firsts.count,
                     openLamp: {
                         TactileEngine.shared.beadClick()
                         showingLamp = true
@@ -99,13 +108,20 @@ private struct QuietInstrumentsDock: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     let soundscape: SoundscapeEngine
     let foodsTasted: Int
     let capsuleTotal: Int
     let capsuleReady: Int
+    let toyTodayCount: Int
+    let todaySleepCount: Int
+    let todayFeedCount: Int
+    let bookMonths: Int
+    let firstsCount: Int
     let openLamp: () -> Void
     let openStorybook: () -> Void
+    @State private var livePulse = false
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -133,7 +149,7 @@ private struct QuietInstrumentsDock: View {
                         color: Palette.amber,
                         title: L10n.t("床头夜灯", "Bedside Lamp"),
                         subtitle: soundscape.activeSummary.map { L10n.t("正播 · \($0)", "On · \($0)") }
-                            ?? L10n.t("调光 · 呼吸 · 声景", "Dimmer · Breath · Sound"),
+                            ?? L10n.t("6 种声景 · 调光 · 呼吸", "6 sounds · Dimmer · Breath"),
                         liveDot: soundscape.isPlaying,
                         badge: nil,
                         dark: dark
@@ -147,7 +163,9 @@ private struct QuietInstrumentsDock: View {
                     instrumentTile(
                         color: Crayon.teal,
                         title: L10n.t("感官玩具盒", "Sensory Toybox"),
-                        subtitle: L10n.t("木琴 · 金珠 · 萤火 · 视卡", "Keys · Beads · Glow · Cards"),
+                        subtitle: toyTodayCount > 0
+                            ? L10n.t("今日共玩 \(toyTodayCount) 次 · 6 首童谣", "\(toyTodayCount) today · 6 melodies")
+                            : L10n.t("6 首童谣 · 3 种音色 · 4 工坊", "6 melodies · 3 timbres · 4 studios"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -177,7 +195,9 @@ private struct QuietInstrumentsDock: View {
                     instrumentTile(
                         color: Crayon.lilac,
                         title: L10n.t("昼夜节律盘", "Rhythm Dial"),
-                        subtitle: L10n.t("24 小时睡眠喂养", "24h sleep & feeds"),
+                        subtitle: (todaySleepCount > 0 || todayFeedCount > 0)
+                            ? L10n.t("今日 \(todaySleepCount) 觉 · \(todayFeedCount) 喂", "Today: \(todaySleepCount) sleep · \(todayFeedCount) feeds")
+                            : L10n.t("24 小时睡眠喂养", "24h sleep & feeds"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -191,7 +211,9 @@ private struct QuietInstrumentsDock: View {
                     instrumentTile(
                         color: Crayon.caramel,
                         title: L10n.t("成长绘本", "Storybook"),
-                        subtitle: L10n.t("翻页绘本 · 相纸", "Page-turn keepsake"),
+                        subtitle: bookMonths > 0
+                            ? L10n.t("已收录 \(bookMonths) 个月 · \(firstsCount) 个第一次", "\(bookMonths) mo · \(firstsCount) firsts")
+                            : L10n.t("翻页绘本 · 相纸", "Page-turn keepsake"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -220,6 +242,21 @@ private struct QuietInstrumentsDock: View {
                 .buttonStyle(.toy)
             }
         }
+        .onAppear {
+            guard soundscape.isPlaying, !reduce, !Perf.still else { return }
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                livePulse = true
+            }
+        }
+        .onChange(of: soundscape.isPlaying) { _, playing in
+            if playing && !reduce && !Perf.still {
+                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                    livePulse = true
+                }
+            } else {
+                livePulse = false
+            }
+        }
     }
 
     private func instrumentTile<Icon: View>(
@@ -243,10 +280,17 @@ private struct QuietInstrumentsDock: View {
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Palette.bead))
                 } else if liveDot {
-                    Circle()
-                        .fill(Palette.amber)
-                        .frame(width: 8, height: 8)
-                        .shadow(color: Palette.amber.opacity(0.7), radius: 4)
+                    ZStack {
+                        if !reduce {
+                            Circle()
+                                .fill(Palette.amber.opacity(livePulse ? 0.35 : 0.12))
+                                .frame(width: livePulse ? 16 : 11, height: livePulse ? 16 : 11)
+                        }
+                        Circle()
+                            .fill(Palette.amber)
+                            .frame(width: 8, height: 8)
+                            .shadow(color: Palette.amber.opacity(0.7), radius: 4)
+                    }
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))

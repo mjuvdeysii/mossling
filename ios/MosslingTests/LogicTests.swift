@@ -785,7 +785,8 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testSoundscapeDualLayerMixingAndToggle() {
-        let pairs: [(Int, Int)] = [(0, 3), (1, 2), (2, 0), (3, 1)]
+        XCTAssertEqual(SoundscapeKind.allCases.count, 6)
+        let pairs: [(Int, Int)] = [(0, 3), (1, 2), (2, 0), (3, 1), (4, 0), (5, 3), (0, 4), (3, 5)]
         for (primary, secondary) in pairs {
             let dsp = SoundscapeDSPState()
             dsp.kindRaw = primary
@@ -970,5 +971,135 @@ final class LogicTests: XCTestCase {
         ]
         let nurseSnap = HandoverSnapshot.build(app: m, journal: JournalStore(preview: nurseBody), day: today, now: now)
         XCTAssertTrue(nurseSnap.lastFeedDetail.contains("13:00"))
+    }
+
+    func testToyboxThreeTimbresAndSixMelodies() {
+        XCTAssertEqual(ToyboxTimbre.allCases.count, 3)
+        XCTAssertEqual(ToyboxMelody.allCases.count, 6)
+
+        for note in ToyboxNote.scale {
+            let synthRuns: [[Float]] = [
+                ToyboxAudioEngine.synthesizeMarimbaSamples(frequency: note.frequency, sampleRate: 44_100, duration: 0.25),
+                ToyboxAudioEngine.synthesizeMusicBoxSamples(frequency: note.frequency, sampleRate: 44_100, duration: 0.25),
+                ToyboxAudioEngine.synthesizeKalimbaSamples(frequency: note.frequency, sampleRate: 44_100, duration: 0.25),
+            ]
+            for samples in synthRuns {
+                XCTAssertGreaterThan(samples.count, 1000)
+                XCTAssertTrue(samples.allSatisfy { $0.isFinite && abs($0) <= 1.0 })
+                XCTAssertGreaterThan(samples.map { abs($0) }.max() ?? 0, 0.03)
+            }
+        }
+
+        for song in ToyboxMelody.allCases {
+            XCTAssertFalse(song.title.isEmpty)
+            XCTAssertFalse(song.subtitle.isEmpty)
+            XCTAssertGreaterThanOrEqual(song.notes.count, 12)
+            for (idx, dur) in song.notes {
+                XCTAssertTrue((0..<ToyboxNote.scale.count).contains(idx), "Melody \(song.rawValue) has out-of-range note index \(idx)")
+                XCTAssertGreaterThan(dur, 0.05)
+            }
+        }
+    }
+
+    func testRainstickLayoutsPegGlowAndTrails() {
+        for layout in RainstickLayout.allCases {
+            var sim = RainstickPhysics.initial(layout: layout)
+            XCTAssertEqual(sim.layout, layout)
+            XCTAssertEqual(sim.beads.count, 26)
+            XCTAssertGreaterThanOrEqual(sim.pegs.count, 10)
+            for _ in 0..<75 {
+                sim.step(dt: 1.0 / 60.0, gx: 0.1, gy: 1.0, touch: CGPoint(x: 0.5, y: 0.3))
+            }
+            for b in sim.beads {
+                XCTAssertTrue(b.x.isFinite && b.y.isFinite && b.vx.isFinite && b.vy.isFinite)
+                XCTAssertGreaterThanOrEqual(b.x, b.radius - 0.0001)
+                XCTAssertLessThanOrEqual(b.x, 1.0 - b.radius + 0.0001)
+                XCTAssertGreaterThanOrEqual(b.y, b.radius - 0.0001)
+                XCTAssertLessThanOrEqual(b.y, 1.0 - b.radius + 0.0001)
+                XCTAssertLessThanOrEqual(b.trail.count, 5)
+            }
+        }
+
+        // Direct peg hit triggers hitEnergy > 0, sets lastHitPegY, and subsequently decays cleanly
+        var hitSim = RainstickPhysics.initial(layout: .cascade)
+        let targetPeg = hitSim.pegs[0]
+        hitSim.beads[0].x = targetPeg.x
+        hitSim.beads[0].y = targetPeg.y - targetPeg.radius - hitSim.beads[0].radius + 0.002
+        hitSim.beads[0].vx = 0
+        hitSim.beads[0].vy = 0.85
+        let hits = hitSim.step(dt: 1.0 / 60.0, gx: 0, gy: 1.0)
+        XCTAssertGreaterThan(hits, 0)
+        XCTAssertGreaterThan(hitSim.pegs[0].hitEnergy, 0)
+        XCTAssertNotNil(hitSim.lastHitPegY)
+        let peakEnergy = hitSim.pegs[0].hitEnergy
+        hitSim.beads[0].x = 0.9
+        hitSim.beads[0].y = 0.9
+        hitSim.step(dt: 1.0 / 30.0, gx: 0, gy: 0)
+        XCTAssertLessThan(hitSim.pegs[0].hitEnergy, peakEnergy)
+    }
+
+    func testFireflyFormationsTrailsAndRipples() {
+        XCTAssertEqual(FireflyFormation.allCases.count, 4)
+        for formation in FireflyFormation.allCases {
+            var sim = FireflyPhysics.initial(formation: formation)
+            XCTAssertEqual(sim.flies.count, 18)
+            sim.spawnRipple(at: CGPoint(x: 0.4, y: 0.5), gold: false)
+            XCTAssertEqual(sim.ripples.count, 1)
+            for idx in 0..<sim.flies.count {
+                if let goal = FireflyPhysics.formationTarget(index: idx, count: sim.flies.count, formation: formation, time: 0.5) {
+                    XCTAssertGreaterThanOrEqual(goal.0, 0.13)
+                    XCTAssertLessThanOrEqual(goal.0, 0.87)
+                    XCTAssertGreaterThanOrEqual(goal.1, 0.13)
+                    XCTAssertLessThanOrEqual(goal.1, 0.87)
+                }
+            }
+            for _ in 0..<25 {
+                sim.step(dt: 1.0 / 60.0, target: nil)
+            }
+            XCTAssertTrue(sim.flies.allSatisfy { $0.trail.count <= 6 && $0.x.isFinite && $0.y.isFinite })
+            // Advance 2 seconds so the initial ripple expires naturally
+            for _ in 0..<60 {
+                sim.step(dt: 1.0 / 30.0, target: nil)
+            }
+            XCTAssertTrue(sim.ripples.isEmpty)
+        }
+    }
+
+    func testContrastCardExpandedCatalog() {
+        XCTAssertEqual(ContrastCardKind.allCases.count, 12)
+        defer { L10n.overrideEnglish = nil }
+        for isEn in [false, true] {
+            L10n.overrideEnglish = isEn
+            for card in ContrastCardKind.allCases {
+                XCTAssertFalse(card.title.isEmpty, "ContrastCard \(card.rawValue) title empty (en=\(isEn))")
+                XCTAssertFalse(card.ageHint.isEmpty, "ContrastCard \(card.rawValue) ageHint empty (en=\(isEn))")
+            }
+        }
+    }
+
+    func testRhythmDialFactualSummary() {
+        let d17 = Day(y: 2026, m: 10, d: 17)
+        let d19 = Day(y: 2026, m: 10, d: 19)
+
+        let overnight1 = LogEntry(type: LogType.sleep, start: t(17, 21, 0), end: t(18, 6, 30)) // 9.5h crossing midnight, bedtime 21:00
+        let nap18 = LogEntry(type: LogType.sleep, start: t(18, 13, 0), end: t(18, 14, 30))       // 1.5h
+        let overnight2 = LogEntry(type: LogType.sleep, start: t(18, 22, 0), end: t(19, 6, 0))  // 8.0h crossing midnight, bedtime 22:00
+        let feed1 = LogEntry(type: LogType.bottle, start: t(18, 8, 0), amount: 120)
+        let feed2 = LogEntry(type: LogType.bottle, start: t(18, 12, 0), amount: 120)
+        let feed3 = LogEntry(type: LogType.nurse, start: t(19, 7, 0), end: t(19, 7, 15), side: "l")
+
+        let model = RhythmDialModel.build(
+            logs: [overnight1, nap18, overnight2, feed1, feed2, feed3],
+            today: d19,
+            days: 3
+        )
+        XCTAssertEqual(model.rings.first?.day, d17)
+        XCTAssertEqual(model.rings.last?.day, d19)
+        XCTAssertEqual(model.summary.activeDays, 3)
+        XCTAssertEqual(model.summary.longestSleepHours ?? 0, 9.5, accuracy: 0.05)
+        XCTAssertEqual(model.summary.avgFeedsPerDay ?? 0, 1.5, accuracy: 0.05) // 2 on d18, 1 on d19
+        XCTAssertNotNil(model.summary.avgSleepHours)
+        // Bedtimes 21:00 and 22:00 round to 22 (21.5 -> 22)
+        XCTAssertTrue([21, 22].contains(model.summary.typicalBedtimeHour ?? -1))
     }
 }

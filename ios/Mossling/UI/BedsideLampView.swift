@@ -1,9 +1,47 @@
 import SwiftUI
 import CoreMotion
 
+/// Color-temperature glow presets for Otto's Bedside Lamp (all melatonin-friendly warm wavelengths).
+enum LampWarmth: String, CaseIterable, Identifiable {
+    case amber, candle, peach
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .amber: L10n.t("琥珀光", "Amber")
+        case .candle: L10n.t("深烛红", "Candle")
+        case .peach: L10n.t("蜜桃暖", "Peach")
+        }
+    }
+
+    var primaryGlow: Color {
+        switch self {
+        case .amber: Palette.amber
+        case .candle: Color(hex: 0xE56547)
+        case .peach: Color(hex: 0xFFD1A3)
+        }
+    }
+
+    var secondaryTint: Color {
+        switch self {
+        case .amber: Palette.lampTint
+        case .candle: Color(hex: 0x9E2F1B)
+        case .peach: Color(hex: 0xE89B6C)
+        }
+    }
+
+    var highlightCore: Color {
+        switch self {
+        case .amber: Color(hex: 0xFFE5A3)
+        case .candle: Color(hex: 0xFF9F84)
+        case .peach: Color(hex: 0xFFF0DB)
+        }
+    }
+}
+
 /// Otto's Living Bedside Lamp (床头夜灯): a full-screen zero-glare midnight sanctuary for 3 a.m. feeds and settling.
-/// Features a vertical thumb-slide warm dimmer with fine brass CoreHaptics detents, subtle gyroscope pendulum glow,
-/// four zero-asset real-time soothing soundscapes with auto-fade, and one-tap midnight care controls.
+/// Features a vertical thumb-slide warm dimmer & double-tap quick-dim, 3 warmth color presets, gyroscope pendulum glow,
+/// six zero-asset real-time soothing soundscapes with dual-layer mixing & auto-fade, and midnight care controls.
 struct BedsideLampView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -12,6 +50,7 @@ struct BedsideLampView: View {
 
     /// Initial brightness (0.15...1.0), configurable for previews and deterministic screenshots.
     @State private var brightness: Double
+    @State private var warmth: LampWarmth
     @State private var dragStartBrightness: Double? = nil
     @State private var lastDetentStep: Int = -1
     @State private var showingDimmerHint = true
@@ -21,9 +60,15 @@ struct BedsideLampView: View {
     @State private var pulse = false
     private let previewClock: Date?
 
-    init(initialBrightness: Double = 0.72, initialBreathingGuide: Bool = false, previewClock: Date? = nil) {
+    init(
+        initialBrightness: Double = 0.72,
+        initialBreathingGuide: Bool = false,
+        initialWarmth: LampWarmth = .amber,
+        previewClock: Date? = nil
+    ) {
         _brightness = State(initialValue: max(0.15, min(1.0, initialBrightness)))
         _breathingGuide = State(initialValue: initialBreathingGuide)
+        _warmth = State(initialValue: initialWarmth)
         self.previewClock = previewClock
     }
 
@@ -65,16 +110,16 @@ struct BedsideLampView: View {
                             .padding(.trailing, 10)
                     }
 
-                Spacer(minLength: 10)
+                Spacer(minLength: 6)
 
-                VStack(spacing: 14) {
+                VStack(spacing: 10) {
                     soundscapeDeck
                     if app.journal {
                         careDock
                     }
                 }
                 .padding(.horizontal, 18)
-                .padding(.bottom, 16)
+                .padding(.bottom, 12)
             }
         }
         .preferredColorScheme(.dark)
@@ -116,8 +161,8 @@ struct BedsideLampView: View {
             // Warm overhead lamp cone that sways gently like a hanging lantern as you hold the phone
             RadialGradient(
                 colors: [
-                    Palette.amber.opacity(0.42 * b * (pulse ? 1.0 : 0.88)),
-                    Palette.lampTint.opacity(0.22 * b),
+                    warmth.primaryGlow.opacity(0.42 * b * (pulse ? 1.0 : 0.88)),
+                    warmth.secondaryTint.opacity(0.22 * b),
                     Color(hex: 0x5E2E04).opacity(0.08 * b),
                     .clear
                 ],
@@ -130,7 +175,7 @@ struct BedsideLampView: View {
             // Soft secondary candle reflection at foot of the nursery table
             RadialGradient(
                 colors: [
-                    Palette.amber.opacity(0.14 * b),
+                    warmth.primaryGlow.opacity(0.14 * b),
                     .clear
                 ],
                 center: UnitPoint(x: 0.5 - swayX / 900, y: 0.88),
@@ -140,7 +185,7 @@ struct BedsideLampView: View {
 
             // Whisper-soft warm dust motes rising in Otto's beam
             if !reduce && !Perf.still {
-                LampDustCanvas(brightness: b)
+                LampDustCanvas(brightness: b, glowColor: warmth.primaryGlow)
             }
         }
         .ignoresSafeArea()
@@ -210,49 +255,60 @@ struct BedsideLampView: View {
 
     private var lanternCenterpiece: some View {
         let swayX = reduce ? 0 : motion.roll * 10
-        return VStack(spacing: 12) {
+        return VStack(spacing: 8) {
             ZStack {
+                Color.clear
+                    .contentShape(Circle())
+                    .onTapGesture(count: 2) {
+                        TactileEngine.shared.dimmerTick()
+                        showingDimmerHint = false
+                        withAnimation(reduce ? nil : .easeInOut(duration: 0.28)) {
+                            brightness = brightness <= 0.35 ? 0.78 : 0.22
+                        }
+                    }
+
                 if breathingGuide {
                     TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
-                        let ringSize: CGFloat = 154 + CGFloat(st.progress) * 76
+                        let ringSize: CGFloat = 132 + CGFloat(st.progress) * 56
                         ZStack {
                             Circle()
                                 .fill(
                                     RadialGradient(
                                         colors: [
-                                            Color(hex: 0xFFE5A3).opacity((0.28 + 0.30 * st.progress) * brightness),
-                                            Palette.amber.opacity((0.14 + 0.16 * st.progress) * brightness),
+                                            warmth.highlightCore.opacity((0.28 + 0.30 * st.progress) * brightness),
+                                            warmth.primaryGlow.opacity((0.14 + 0.16 * st.progress) * brightness),
                                             .clear
                                         ],
                                         center: .center,
-                                        startRadius: 20,
+                                        startRadius: 18,
                                         endRadius: ringSize * 0.62
                                     )
                                 )
-                                .frame(width: ringSize + 44, height: ringSize + 44)
+                                .frame(width: ringSize + 36, height: ringSize + 36)
 
                             Circle()
-                                .strokeBorder(Palette.amber.opacity((0.38 + 0.44 * st.progress) * brightness), lineWidth: 2.0)
+                                .strokeBorder(warmth.primaryGlow.opacity((0.40 + 0.44 * st.progress) * brightness), lineWidth: 2.0)
                                 .frame(width: ringSize, height: ringSize)
 
                             Circle()
-                                .strokeBorder(Palette.beadLight.opacity((0.18 + 0.22 * st.progress) * brightness), lineWidth: 1.0)
-                                .frame(width: ringSize + 24, height: ringSize + 24)
+                                .strokeBorder(warmth.highlightCore.opacity((0.18 + 0.22 * st.progress) * brightness), lineWidth: 1.0)
+                                .frame(width: ringSize + 20, height: ringSize + 20)
                         }
                     }
+                    .allowsHitTesting(false)
                 } else {
                     // Concentric gentle acoustic ripples when a nursery soundscape is playing
                     if soundscape.isPlaying {
                         ForEach(0..<3, id: \.self) { idx in
                             Circle()
                                 .strokeBorder(
-                                    Palette.amber.opacity((0.24 - Double(idx) * 0.06) * brightness),
+                                    warmth.primaryGlow.opacity((0.24 - Double(idx) * 0.06) * brightness),
                                     lineWidth: 1.2
                                 )
                                 .frame(
-                                    width: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0),
-                                    height: 156 + CGFloat(idx) * 44 + (pulse ? 14 : 0)
+                                    width: 136 + CGFloat(idx) * 38 + (pulse ? 12 : 0),
+                                    height: 136 + CGFloat(idx) * 38 + (pulse ? 12 : 0)
                                 )
                                 .scaleEffect(pulse ? 1.04 : 0.96)
                                 .animation(
@@ -260,24 +316,26 @@ struct BedsideLampView: View {
                                     value: pulse
                                 )
                         }
+                        .allowsHitTesting(false)
                     }
 
-                    // Warm amber halo right behind Otto's golden bead
+                    // Warm glow right behind Otto's golden bead
                     Circle()
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    Color(hex: 0xFFE5A3).opacity(0.55 * brightness),
-                                    Palette.amber.opacity(0.28 * brightness),
+                                    warmth.highlightCore.opacity(0.55 * brightness),
+                                    warmth.primaryGlow.opacity(0.28 * brightness),
                                     .clear
                                 ],
                                 center: .center,
                                 startRadius: 4,
-                                endRadius: 118
+                                endRadius: 102
                             )
                         )
-                        .frame(width: 236, height: 236)
-                        .offset(x: swayX * 0.6, y: -14)
+                        .frame(width: 204, height: 204)
+                        .offset(x: swayX * 0.6, y: -12)
+                        .allowsHitTesting(false)
                 }
 
                 Creature(
@@ -291,41 +349,71 @@ struct BedsideLampView: View {
                     label: L10n.t("Otto 提着床头夜灯陪着你们", "Otto holding the warm bedside lamp"),
                     glow: true
                 )
-                .frame(width: 156, height: 156)
+                .frame(width: 136, height: 136)
                 .opacity(0.65 + 0.35 * brightness)
             }
-            .frame(height: 224)
+            .frame(height: 186)
 
-            if breathingGuide {
-                TimelineView(.periodic(from: .now, by: 0.25)) { tl in
-                    let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
-                    HStack(spacing: 7) {
-                        Circle()
-                            .fill(Palette.amber.opacity(st.inhaling ? 0.95 : 0.55))
-                            .frame(width: 7, height: 7)
-                        Text(
-                            st.inhaling
-                                ? L10n.t("跟着暖光慢慢吸气 · \(st.secondsLeft)s", "Breathe in slowly · \(st.secondsLeft)s")
-                                : L10n.t("缓缓放松呼气 · \(st.secondsLeft)s", "Breathe out gently · \(st.secondsLeft)s")
-                        )
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Palette.amber.opacity(0.92))
-                        .monospacedDigit()
+            HStack(spacing: 8) {
+                if breathingGuide {
+                    TimelineView(.periodic(from: .now, by: 0.25)) { tl in
+                        let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(warmth.primaryGlow.opacity(st.inhaling ? 0.95 : 0.55))
+                                .frame(width: 7, height: 7)
+                            Text(
+                                st.inhaling
+                                    ? L10n.t("跟着暖光吸气 · \(st.secondsLeft)s", "Breathe in · \(st.secondsLeft)s")
+                                    : L10n.t("缓缓放松呼气 · \(st.secondsLeft)s", "Breathe out · \(st.secondsLeft)s")
+                            )
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(warmth.primaryGlow.opacity(0.95))
+                            .monospacedDigit()
+                        }
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Palette.amber.opacity(0.14)))
+                } else {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.and.down")
+                            .font(.caption2.weight(.bold))
+                        Text(L10n.t("上下滑动调光 · 双击轻暗", "Slide to dim · 2× tap low"))
+                            .font(.caption.weight(.medium))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
+                    .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.32))
+                    .accessibilityHidden(true)
                 }
-            } else {
-                // Quiet tactile affordance cue (non-intrusive, fades gently after first dim)
+
+                // Compact 3-Warmth Color Swatches (Amber / Candle Red / Peach)
                 HStack(spacing: 6) {
-                    Image(systemName: "arrow.up.and.down")
-                        .font(.caption2.weight(.bold))
-                    Text(L10n.t("上下滑动调节暖光亮度", "Slide up or down to dim"))
-                        .font(.caption.weight(.medium))
+                    ForEach(LampWarmth.allCases) { preset in
+                        let on = warmth == preset
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
+                                warmth = preset
+                            }
+                        } label: {
+                            Circle()
+                                .fill(preset.primaryGlow)
+                                .frame(width: on ? 16 : 13, height: on ? 16 : 13)
+                                .overlay(
+                                    Circle()
+                                        .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
+                                )
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(preset.label)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
                 }
-                .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.28))
-                .accessibilityHidden(true)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
             }
         }
     }
@@ -375,7 +463,7 @@ struct BedsideLampView: View {
                     Capsule()
                         .fill(
                             LinearGradient(
-                                colors: [Color(hex: 0xFFE39E), Palette.lampTint],
+                                colors: [warmth.highlightCore, warmth.secondaryTint],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
@@ -411,7 +499,7 @@ struct BedsideLampView: View {
     // MARK: - Nursery Soundscape Deck
 
     private var soundscapeDeck: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 6) {
                 Image(systemName: "waveform")
                     .font(.caption.weight(.bold))
@@ -437,7 +525,7 @@ struct BedsideLampView: View {
                 }
             }
 
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)], spacing: 7) {
                 ForEach(SoundscapeKind.allCases) { kind in
                     let isPrimary = soundscape.active == kind
                     let isSecondary = soundscape.secondary == kind
@@ -451,18 +539,18 @@ struct BedsideLampView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: kind.symbol)
-                                    .font(.system(size: 13, weight: .semibold))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
-                                    .frame(width: 26, height: 26)
+                                    .frame(width: 24, height: 24)
                                     .background(
                                         Circle().fill(isPrimary ? Palette.amber : (isSecondary ? Palette.beadLight : Palette.amber.opacity(0.14)))
                                     )
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(kind.title)
-                                        .font(.footnote.weight(.bold))
+                                        .font(.caption.weight(.bold))
                                         .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.88))
                                         .lineLimit(1)
-                                        .minimumScaleFactor(0.68)
+                                        .minimumScaleFactor(0.72)
                                     Text(isSecondary ? L10n.t("已叠第二层", "Layer 2 on") : kind.subtitle)
                                         .font(.caption2)
                                         .foregroundStyle(on ? Palette.amber.opacity(0.92) : Palette.lampInk.opacity(0.56))
@@ -485,7 +573,7 @@ struct BedsideLampView: View {
                                 Image(systemName: isSecondary ? "checkmark" : "plus")
                                     .font(.system(size: 9, weight: .bold))
                                     .foregroundStyle(isSecondary ? Color(hex: 0x261700) : Palette.amber.opacity(0.9))
-                                    .frame(width: 20, height: 20)
+                                    .frame(width: 19, height: 19)
                                     .background(Circle().fill(isSecondary ? Palette.beadLight : Palette.amber.opacity(0.18)))
                             }
                             .buttonStyle(.plain)
@@ -493,7 +581,7 @@ struct BedsideLampView: View {
                         }
                     }
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 9)
+                    .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .fill(isPrimary ? Palette.amber.opacity(0.22) : (isSecondary ? Palette.amber.opacity(0.14) : Color(hex: 0x161E3B).opacity(0.75)))
@@ -510,7 +598,7 @@ struct BedsideLampView: View {
             }
 
             if soundscape.isPlaying {
-                VStack(spacing: 10) {
+                VStack(spacing: 8) {
                     // Auto-fade timer pills
                     HStack(spacing: 6) {
                         ForEach(SoundscapeDuration.allCases) { d in
@@ -523,7 +611,7 @@ struct BedsideLampView: View {
                                     .font(.caption.weight(sel ? .bold : .medium))
                                     .foregroundStyle(sel ? Color(hex: 0x241500) : Palette.lampInk.opacity(0.75))
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 7)
+                                    .padding(.vertical, 6)
                                     .background(
                                         Capsule().fill(sel ? Palette.amber : Color(hex: 0x1B2547).opacity(0.8))
                                     )
@@ -565,7 +653,7 @@ struct BedsideLampView: View {
                                     }
                             )
                         }
-                        .frame(height: 28)
+                        .frame(height: 24)
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(L10n.t("声景音量", "Soundscape volume"))
                         .accessibilityValue("\(Int((soundscape.volume * 100).rounded()))%")
@@ -584,7 +672,7 @@ struct BedsideLampView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(14)
+        .padding(11)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Color(hex: 0x121933).opacity(0.76))
@@ -603,7 +691,7 @@ struct BedsideLampView: View {
             TimelineView(.periodic(from: .now, by: 1)) { tl in
                 let now = tl.date.timeIntervalSince1970 * 1000
                 let paused = t.pausedAt != nil
-                VStack(spacing: 10) {
+                VStack(spacing: 8) {
                     HStack(spacing: 12) {
                         Image(systemName: LogType.symbol(t.type))
                             .font(.system(size: 18, weight: .bold))
@@ -661,14 +749,14 @@ struct BedsideLampView: View {
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(Palette.lampInk)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
+                        .padding(.vertical, 10)
                         .background(
                             Capsule().fill(Palette.lampTint.opacity(0.86))
                         )
                     }
                     .buttonStyle(.toy)
                 }
-                .padding(14)
+                .padding(11)
                 .background(
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                         .fill(Color(hex: 0x151D3B).opacity(0.84))
@@ -743,6 +831,7 @@ struct BedsideLampView: View {
 /// Subtle warm dust specks rising gently inside Otto's lantern beam.
 private struct LampDustCanvas: View {
     let brightness: Double
+    var glowColor: Color = Palette.amber
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 24)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in
@@ -759,7 +848,7 @@ private struct LampDustCanvas: View {
                     let a = fade * (0.28 + 0.42 * brightness)
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: x - r * 3.5, y: y - r * 3.5, width: r * 7, height: r * 7)),
-                        with: .radialGradient(Gradient(colors: [Palette.amber.opacity(a * 0.45), .clear]), center: CGPoint(x: x, y: y), startRadius: 0, endRadius: r * 3.5)
+                        with: .radialGradient(Gradient(colors: [glowColor.opacity(a * 0.45), .clear]), center: CGPoint(x: x, y: y), startRadius: 0, endRadius: r * 3.5)
                     )
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
