@@ -16,6 +16,7 @@ struct TodayView: View {
     @State private var showingStorybook = false
     @State private var soundscape = SoundscapeEngine.shared
     @State private var capsules = CapsuleStore.shared
+    @State private var foods = FoodAtlasStore.shared
     private let shelfTip = ShelfTip()
     private let recordsTip = RecordsTip()
 
@@ -45,6 +46,7 @@ struct TodayView: View {
                 TodayPlayCard(month: baby, story: { path.append(Route.story) }) { arranging = true }
                 QuietInstrumentsDock(
                     soundscape: soundscape,
+                    foodsTasted: foods.tastedCount,
                     capsuleTotal: capsules.items.count,
                     capsuleReady: capsules.readyCount(on: app.today),
                     openLamp: {
@@ -91,14 +93,15 @@ struct TodayView: View {
     }
 }
 
-/// 「陪伴小器具 / Quiet Instruments」 — One-tap Montessori studio dock right on the Home screen so Otto's Bedside Lamp,
-/// the Sensory Toybox, the 24-hour Rhythm Dial, the Keepsake Storybook, and Time Capsule Letters are immediately at hand.
+/// 「陪伴小器具 / Quiet Instruments」 — Balanced 2×3 Montessori studio dock right on the Home screen so Otto's Bedside Lamp,
+/// Sensory Toybox, First Foods Tasting Box, 24h Rhythm Dial, Keepsake Storybook, and Time Capsule Letters are one tap away.
 private struct QuietInstrumentsDock: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
 
     let soundscape: SoundscapeEngine
+    let foodsTasted: Int
     let capsuleTotal: Int
     let capsuleReady: Int
     let openLamp: () -> Void
@@ -127,110 +130,119 @@ private struct QuietInstrumentsDock: View {
             LazyVGrid(columns: columns, spacing: 10) {
                 Button(action: openLamp) {
                     instrumentTile(
-                        symbol: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk",
                         color: Palette.amber,
                         title: L10n.t("床头夜灯", "Bedside Lamp"),
-                        subtitle: soundscape.active.map { L10n.t("正播 · \($0.title)", "On · \($0.title)") }
-                            ?? L10n.t("调光 · 助眠声景", "Dimmer & sounds"),
+                        subtitle: soundscape.activeSummary.map { L10n.t("正播 · \($0)", "On · \($0)") }
+                            ?? L10n.t("调光 · 呼吸 · 声景", "Dimmer · Breath · Sound"),
                         liveDot: soundscape.isPlaying,
+                        badge: nil,
                         dark: dark
-                    )
+                    ) {
+                        IconTile(symbol: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk", color: Palette.amber, size: 34)
+                    }
                 }
                 .buttonStyle(.toy)
 
                 NavigationLink(value: Route.toybox(.xylophone)) {
                     instrumentTile(
-                        symbol: "music.note",
                         color: Crayon.teal,
                         title: L10n.t("感官玩具盒", "Sensory Toybox"),
-                        subtitle: L10n.t("木琴 · 金珠 · 视卡", "Xylophone · Beads"),
+                        subtitle: L10n.t("木琴 · 金珠 · 萤火 · 视卡", "Keys · Beads · Glow · Cards"),
                         liveDot: false,
+                        badge: nil,
                         dark: dark
-                    )
+                    ) {
+                        IconTile(symbol: "music.note", color: Crayon.teal, size: 34)
+                    }
+                }
+                .buttonStyle(.toy)
+
+                NavigationLink(value: Route.foodAtlas) {
+                    instrumentTile(
+                        color: Crayon.leaf,
+                        title: L10n.t("百味食盒", "First Foods"),
+                        subtitle: foodsTasted > 0
+                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count) 种味道", "\(foodsTasted) / \(FoodItem.catalog.count) foods tasted")
+                            : L10n.t("60 种辅食味觉图鉴", "60 whole foods atlas"),
+                        liveDot: false,
+                        badge: nil,
+                        dark: dark
+                    ) {
+                        IconTile(symbol: "carrot.fill", color: Crayon.leaf, size: 34)
+                    }
                 }
                 .buttonStyle(.toy)
 
                 NavigationLink(value: JournalRoute.stats) {
                     instrumentTile(
-                        symbol: "sun.and.horizon.fill",
                         color: Crayon.lilac,
                         title: L10n.t("昼夜节律盘", "Rhythm Dial"),
                         subtitle: L10n.t("24 小时睡眠喂养", "24h sleep & feeds"),
                         liveDot: false,
+                        badge: nil,
                         dark: dark
-                    )
+                    ) {
+                        IconTile(symbol: "sun.and.horizon.fill", color: Crayon.lilac, size: 34)
+                    }
                 }
                 .buttonStyle(.toy)
 
                 Button(action: openStorybook) {
                     instrumentTile(
-                        symbol: "book.pages.fill",
                         color: Crayon.caramel,
                         title: L10n.t("成长绘本", "Storybook"),
                         subtitle: L10n.t("翻页绘本 · 相纸", "Page-turn keepsake"),
                         liveDot: false,
+                        badge: nil,
                         dark: dark
-                    )
+                    ) {
+                        IconTile(symbol: "book.pages.fill", color: Crayon.caramel, size: 34)
+                    }
+                }
+                .buttonStyle(.toy)
+
+                NavigationLink(value: Route.capsules) {
+                    instrumentTile(
+                        color: Palette.bead,
+                        title: L10n.t("时光胶囊", "Time Capsules"),
+                        subtitle: capsuleReady > 0
+                            ? L10n.t("到了拆封的日子", "Ready to unseal today")
+                            : (capsuleTotal > 0
+                                ? L10n.t("已封存 \(capsuleTotal) 封信笺", "\(capsuleTotal) sealed letters")
+                                : L10n.t("火漆写给未来的宝宝", "Wax-sealed letters")),
+                        liveDot: false,
+                        badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
+                        dark: dark
+                    ) {
+                        WaxSealBadge(seal: .gold, size: 34)
+                    }
                 }
                 .buttonStyle(.toy)
             }
-
-            // Full-width cotton-paper Time Capsule Letters ribbon
-            NavigationLink(value: Route.capsules) {
-                HStack(spacing: 12) {
-                    WaxSealBadge(seal: .gold, size: 34)
-                    VStack(alignment: .leading, spacing: 2) {
-                        HStack(spacing: 6) {
-                            Text(L10n.t("时光胶囊信笺", "Time Capsule Letters"))
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
-                            if capsuleReady > 0 {
-                                Text(L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready"))
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(Color(hex: 0x4A3300))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(Palette.bead))
-                            }
-                        }
-                        Text(
-                            capsuleReady > 0
-                                ? L10n.t("到了拆封的日子，轻点火漆读一读", "Tap the wax seal to open today")
-                                : (capsuleTotal > 0
-                                    ? L10n.t("已封存 \(capsuleTotal) 封 · 写给未来的宝宝", "\(capsuleTotal) sealed · for future birthdays")
-                                    : L10n.t("盖上一枚火漆，把今晚写给未来的宝宝", "Stamp a wax seal for a future birthday"))
-                        )
-                        .font(.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.85)
-                    }
-                    Spacer(minLength: 4)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.horizontal, 13)
-                .padding(.vertical, 11)
-                .background(
-                    LinearGradient(
-                        colors: [Palette.bead.opacity(dark ? 0.12 : 0.14), Crayon.caramel.opacity(dark ? 0.05 : 0.06)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .printCard(radius: Radius.card)
-            }
-            .buttonStyle(.toy)
         }
     }
 
-    private func instrumentTile(symbol: String, color: Color, title: String, subtitle: String, liveDot: Bool, dark: Bool) -> some View {
+    private func instrumentTile<Icon: View>(
+        color: Color,
+        title: String,
+        subtitle: String,
+        liveDot: Bool,
+        badge: String?,
+        dark: Bool,
+        @ViewBuilder icon: () -> Icon
+    ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                IconTile(symbol: symbol, color: color, size: 34)
+                icon()
                 Spacer(minLength: 4)
-                if liveDot {
+                if let badge {
+                    Text(badge)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color(hex: 0x4A3300))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Palette.bead))
+                } else if liveDot {
                     Circle()
                         .fill(Palette.amber)
                         .frame(width: 8, height: 8)
@@ -252,7 +264,7 @@ private struct QuietInstrumentsDock: View {
                     .font(.caption)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.78)
             }
         }
         .padding(12)

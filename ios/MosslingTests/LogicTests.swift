@@ -782,4 +782,156 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(reloaded.items.isEmpty)
         XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
     }
+
+    @MainActor
+    func testSoundscapeDualLayerMixingAndToggle() {
+        let pairs: [(Int, Int)] = [(0, 3), (1, 2), (2, 0), (3, 1)]
+        for (primary, secondary) in pairs {
+            let dsp = SoundscapeDSPState()
+            dsp.kindRaw = primary
+            dsp.layerKindRaw = secondary
+            dsp.targetGain = 1.0
+            dsp.currentGain = 0.85
+            dsp.layerTargetMix = 0.48
+            dsp.layerCurrentMix = 0.48
+            dsp.userVolume = 0.85
+            dsp.noteCountdown = 12
+            var maxAbs: Float = 0
+            for _ in 0..<2048 {
+                let s = dsp.nextSample(sampleRate: 44_100)
+                XCTAssertTrue(s.isFinite, "Dual layer (\(primary)+\(secondary)) produced non-finite sample")
+                XCTAssertLessThanOrEqual(abs(s), 1.0, "Dual layer (\(primary)+\(secondary)) clipped beyond [-1, 1]")
+                maxAbs = max(maxAbs, abs(s))
+            }
+            XCTAssertGreaterThan(maxAbs, 0.001, "Dual layer (\(primary)+\(secondary)) was silent")
+        }
+
+        let eng = SoundscapeEngine.shared
+        defer { eng.stop() }
+        eng.start(.rain)
+        XCTAssertEqual(eng.active, .rain)
+        XCTAssertNil(eng.secondary)
+        eng.toggleLayer(.rain) // primary cannot also be secondary
+        XCTAssertNil(eng.secondary)
+        eng.toggleLayer(.lullaby)
+        XCTAssertEqual(eng.secondary, .lullaby)
+        XCTAssertTrue(eng.activeSummary?.contains("+") == true)
+        eng.toggleLayer(.lullaby) // toggles back off
+        XCTAssertNil(eng.secondary)
+        eng.stop()
+        XCTAssertNil(eng.active)
+        XCTAssertNil(eng.secondary)
+    }
+
+    func testBedsideLampBreathingGuideCurve() {
+        let s0 = BedsideLampView.breathingState(at: 0.0)
+        XCTAssertTrue(s0.inhaling)
+        XCTAssertEqual(s0.progress, 0.0, accuracy: 0.001)
+        XCTAssertEqual(s0.secondsLeft, 4)
+
+        let s2 = BedsideLampView.breathingState(at: 2.0)
+        XCTAssertTrue(s2.inhaling)
+        XCTAssertEqual(s2.progress, 0.5, accuracy: 0.01)
+        XCTAssertEqual(s2.secondsLeft, 2)
+
+        let s39 = BedsideLampView.breathingState(at: 3.9)
+        XCTAssertTrue(s39.inhaling)
+        XCTAssertGreaterThan(s39.progress, 0.95)
+        XCTAssertEqual(s39.secondsLeft, 1)
+
+        let s4 = BedsideLampView.breathingState(at: 4.0)
+        XCTAssertFalse(s4.inhaling)
+        XCTAssertEqual(s4.progress, 1.0, accuracy: 0.001)
+        XCTAssertEqual(s4.secondsLeft, 6)
+
+        let s7 = BedsideLampView.breathingState(at: 7.0)
+        XCTAssertFalse(s7.inhaling)
+        XCTAssertEqual(s7.progress, 0.5, accuracy: 0.01)
+        XCTAssertEqual(s7.secondsLeft, 3)
+
+        let sNeg = BedsideLampView.breathingState(at: -2.0) // wraps to 8.0s (exhaling)
+        XCTAssertFalse(sNeg.inhaling)
+        XCTAssertEqual(sNeg.secondsLeft, 2)
+    }
+
+    func testFireflyChimeAndPhysicsBounds() {
+        let chime = ToyboxAudioEngine.synthesizeChimeSamples(frequency: 1046.50, sampleRate: 44_100, duration: 0.25)
+        XCTAssertGreaterThan(chime.count, 1000)
+        XCTAssertTrue(chime.allSatisfy { $0.isFinite && abs($0) <= 1.0 })
+        XCTAssertGreaterThan(chime.map { abs($0) }.max() ?? 0, 0.02)
+
+        var sim = FireflyPhysics.initial()
+        XCTAssertEqual(sim.flies.count, 18)
+        sim.swirl()
+        for i in 0..<60 {
+            let target: CGPoint? = i < 30 ? CGPoint(x: 0.35, y: 0.42) : nil
+            sim.step(dt: 1.0 / 60.0, target: target)
+        }
+        XCTAssertGreaterThan(sim.time, 0.9)
+        for f in sim.flies {
+            XCTAssertTrue(f.x.isFinite && f.y.isFinite && f.vx.isFinite && f.vy.isFinite)
+            XCTAssertGreaterThanOrEqual(f.x, 0.089)
+            XCTAssertLessThanOrEqual(f.x, 0.911)
+            XCTAssertGreaterThanOrEqual(f.y, 0.109)
+            XCTAssertLessThanOrEqual(f.y, 0.891)
+        }
+    }
+
+    @MainActor
+    func testFoodAtlasCatalogAndPersistence() {
+        XCTAssertEqual(FoodItem.catalog.count, 60)
+        XCTAssertEqual(Set(FoodItem.catalog.map(\.id)).count, 60, "All 60 food catalog IDs must be unique")
+        for cat in FoodCategory.allCases {
+            XCTAssertGreaterThan(FoodItem.catalog.filter { $0.category == cat }.count, 0, "Category \(cat) must not be empty")
+        }
+        XCTAssertGreaterThanOrEqual(FoodItem.catalog.filter(\.isCommonAllergen).count, 8)
+
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("foods-test-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let store = FoodAtlasStore(fileURL: url)
+        let today = Day(y: 2026, m: 10, d: 19)
+        store.save(FoodRecord(foodId: "avocado", firstTastedEpochDay: today.epochDay, reaction: .loved, note: "压泥", watchSkin: false, times: 1))
+        store.save(FoodRecord(foodId: "eggyolk", firstTastedEpochDay: today.epochDay, reaction: .tasted, note: "1/4 蛋黄", watchSkin: true, times: 1))
+        XCTAssertEqual(store.tastedCount, 2)
+        XCTAssertEqual(store.lovedCount, 1)
+
+        let reloaded = FoodAtlasStore(fileURL: url)
+        XCTAssertEqual(reloaded.tastedCount, 2)
+        XCTAssertEqual(reloaded.record(for: "eggyolk")?.watchSkin, true)
+
+        reloaded.remove(foodId: "avocado")
+        XCTAssertEqual(reloaded.tastedCount, 1)
+        reloaded.clearAll()
+        XCTAssertEqual(reloaded.tastedCount, 0)
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+    }
+
+    @MainActor
+    func testHandoverSnapshotBuildsCompleteSummary() {
+        let d = UserDefaults(suiteName: "handover-\(UUID().uuidString)")!
+        let m = AppModel(defaults: d)
+        let today = Day(y: 2026, m: 10, d: 19)
+        m.today = today
+        m.birth = Day(y: 2026, m: 4, d: 2)
+        m.nickname = "小满"
+
+        var body = JournalFile.Body()
+        let now = Day.cal.date(bySettingHour: 15, minute: 30, second: 0, of: today.date)!
+        body.logs = [
+            LogEntry(type: LogType.sleep, start: t(19, 12, 30), end: t(19, 14, 0)),
+            LogEntry(type: LogType.bottle, start: t(19, 14, 15), amount: 130, detail: "breastmilk"),
+            LogEntry(type: LogType.diaper, start: t(19, 14, 40), detail: "wet"),
+        ]
+        body.timers = [RunningTimer(type: LogType.sleep, start: ms(now) - 18 * 60_000)]
+        let j = JournalStore(preview: body)
+
+        let snap = HandoverSnapshot.build(app: m, journal: j, day: today, now: now, extraNote: "  刚拍完嗝  ")
+        XCTAssertEqual(snap.babyName, "小满")
+        XCTAssertNotNil(snap.activeTimerLine)
+        XCTAssertNotEqual(snap.lastFeedHeadline, "—")
+        XCTAssertNotEqual(snap.lastSleepHeadline, "—")
+        XCTAssertNotEqual(snap.lastDiaperHeadline, "—")
+        XCTAssertEqual(snap.extraNote, "刚拍完嗝")
+    }
 }

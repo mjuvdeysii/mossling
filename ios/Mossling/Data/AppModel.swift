@@ -186,6 +186,7 @@ final class AppModel {
             SoundscapeEngine.shared.stop()
             ToyboxAudioEngine.shared.stop()
             CapsuleStore.shared.clearAll()
+            FoodAtlasStore.shared.clearAll()
         }
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()

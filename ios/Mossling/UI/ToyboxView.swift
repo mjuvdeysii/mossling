@@ -1,23 +1,25 @@
 import SwiftUI
 import CoreMotion
 
-/// The three tactile Montessori co-play studios inside 「感官玩具盒 / Sensory Toybox」.
+/// The four tactile Montessori co-play studios inside 「感官玩具盒 / Sensory Toybox」.
 enum ToyboxMode: String, CaseIterable, Identifiable {
-    case xylophone, rainstick, contrast
+    case xylophone, rainstick, fireflies, contrast
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .xylophone: L10n.t("木琴七音", "Xylophone")
-        case .rainstick: L10n.t("金珠雨棒", "Rainstick")
-        case .contrast: L10n.t("黑白视卡", "Contrast")
+        case .xylophone: L10n.t("木琴", "Keys")
+        case .rainstick: L10n.t("金珠", "Beads")
+        case .fireflies: L10n.t("萤火", "Glow")
+        case .contrast: L10n.t("视卡", "Cards")
         }
     }
 
     var symbol: String {
         switch self {
         case .xylophone: "music.note"
-        case .rainstick: "sparkles"
+        case .rainstick: "circle.grid.3x3.fill"
+        case .fireflies: "sparkles"
         case .contrast: "circle.lefthalf.filled"
         }
     }
@@ -26,7 +28,8 @@ enum ToyboxMode: String, CaseIterable, Identifiable {
         switch self {
         case .xylophone: Crayon.teal
         case .rainstick: Crayon.sunflower
-        case .contrast: Crayon.lilac
+        case .fireflies: Crayon.lilac
+        case .contrast: Crayon.caramel
         }
     }
 }
@@ -34,7 +37,8 @@ enum ToyboxMode: String, CaseIterable, Identifiable {
 /// 「感官玩具盒 / Sensory Toybox」 — An offline, tactile Montessori studio designed for parent-child co-play:
 /// 1) 8-bar graduated wooden xylophone with real-time rosewood marimba DSP & glissando,
 /// 2) 26-bead golden Montessori rainstick driven by gentle phone tilt or finger stir,
-/// 3) 8 museum-grade newborn (0–4 mo) high-contrast visual cards.
+/// 3) 18-firefly twilight lantern jar with pentatonic wind-chime shimmer & finger attraction,
+/// 4) 8 museum-grade newborn (0–4 mo) high-contrast visual cards.
 struct ToyboxView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
@@ -58,6 +62,8 @@ struct ToyboxView: View {
                     XylophoneStudio(dark: dark)
                 case .rainstick:
                     RainstickStudio(dark: dark)
+                case .fireflies:
+                    FireflyJarStudio()
                 case .contrast:
                     ContrastCardStudio(dark: dark)
                 }
@@ -674,7 +680,300 @@ private struct RainstickStudio: View {
     }
 }
 
-// MARK: - Studio 3: Newborn High-Contrast Visual Cards (0–4 mo)
+// MARK: - Studio 3: Firefly Lantern Jar
+
+@MainActor
+private final class FireflySimulation {
+    var physics = FireflyPhysics.initial()
+    var lastFrameDate: Date? = nil
+    var touchPoint: CGPoint? = nil
+
+    func advance(to now: Date) {
+        let dt: Double
+        if let prev = lastFrameDate {
+            dt = min(1.0 / 30.0, max(0.004, now.timeIntervalSince(prev)))
+        } else {
+            dt = 1.0 / 60.0
+        }
+        lastFrameDate = now
+        physics.step(dt: dt, target: touchPoint)
+    }
+
+    func swirl() {
+        physics.swirl()
+    }
+}
+
+private struct FireflyJarStudio: View {
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var sim = FireflySimulation()
+    @State private var swirlCount = 0
+
+    var body: some View {
+        VStack(spacing: 12) {
+            GeometryReader { geo in
+                let jarShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+                VStack(spacing: 0) {
+                    // Warm brushed-brass lantern lid
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                            .fill(
+                                LinearGradient(
+                                    colors: [Color(hex: 0xE5C17B), Color(hex: 0xB8893D), Color(hex: 0x8F6526)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .frame(width: min(148, geo.size.width * 0.44), height: 18)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 9, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.38), lineWidth: 0.75)
+                            )
+                            .shadow(color: .black.opacity(0.28), radius: 4, y: 2)
+
+                        // Subtle horizontal lathe groove on brass cap
+                        Capsule()
+                            .fill(.white.opacity(0.28))
+                            .frame(width: min(124, geo.size.width * 0.36), height: 2)
+                            .offset(y: -3)
+                    }
+                    .zIndex(2)
+                    .padding(.bottom, -5)
+
+                    // Twilight glass lantern jar
+                    ZStack {
+                        jarShape
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color(hex: 0x0B132B),
+                                        Color(hex: 0x152246),
+                                        Color(hex: 0x101A36)
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                            .shadow(color: Color(hex: 0x0A1024).opacity(0.45), radius: 14, y: 6)
+
+                        // Warm twilight horizon bloom along the glass base
+                        jarShape
+                            .fill(
+                                RadialGradient(
+                                    colors: [
+                                        Palette.amber.opacity(0.22),
+                                        Color(hex: 0x4ECBA2).opacity(0.08),
+                                        .clear
+                                    ],
+                                    center: UnitPoint(x: 0.5, y: 0.88),
+                                    startRadius: 12,
+                                    endRadius: max(180, geo.size.width * 0.65)
+                                )
+                            )
+
+                        // 60fps glowing fireflies & fingertip lantern ripple
+                        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still)) { tl in
+                            Canvas(rendersAsynchronously: false) { ctx, size in
+                                if !reduce && !Perf.still {
+                                    sim.advance(to: tl.date)
+                                }
+                                drawFireflies(ctx: &ctx, size: size)
+                            }
+                        }
+                        .clipShape(jarShape)
+                        .contentShape(jarShape)
+                        .gesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { value in
+                                    let w = max(1, geo.size.width)
+                                    let h = max(1, geo.size.height - 14)
+                                    let nx = max(0.08, min(0.92, value.location.x / w))
+                                    let ny = max(0.10, min(0.90, value.location.y / h))
+                                    sim.touchPoint = CGPoint(x: nx, y: ny)
+                                    ToyboxAudioEngine.shared.playFireflyChime(normalizedY: ny)
+                                }
+                                .onEnded { _ in
+                                    sim.touchPoint = nil
+                                }
+                        )
+
+                        // Curved blown-glass reflections on left and right rims
+                        HStack {
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.24), .white.opacity(0.03)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .frame(width: 5)
+                                .padding(.vertical, 34)
+                                .padding(.leading, 14)
+                            Spacer()
+                            Capsule()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [.white.opacity(0.12), .clear],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .frame(width: 3)
+                                .padding(.vertical, 52)
+                                .padding(.trailing, 14)
+                        }
+                        .allowsHitTesting(false)
+
+                        // Subtle glass rim bevel
+                        jarShape
+                            .strokeBorder(
+                                LinearGradient(
+                                    colors: [.white.opacity(0.32), Palette.amber.opacity(0.22), .white.opacity(0.14)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
+                            .allowsHitTesting(false)
+
+                        // Otto watching quietly from the twilight meadow sill
+                        VStack {
+                            Spacer()
+                            HStack {
+                                Spacer()
+                                Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.45, y: -0.45), alive: false, glow: true)
+                                    .frame(width: 48, height: 48)
+                                    .padding(16)
+                                    .allowsHitTesting(false)
+                            }
+                        }
+                    }
+                }
+            }
+            .frame(minHeight: 360)
+
+            // Tactile studio footer card
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t("轻触玻璃牵引萤火，或轻摇流光", "Touch to beckon fireflies, or swirl"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                    Text(L10n.t("18 只暖金与薄荷萤火 · 五声音阶风铃", "18 amber & mint fireflies · pentatonic chimes"))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+                Spacer(minLength: 8)
+                Button {
+                    TactileEngine.shared.beadClick()
+                    sim.swirl()
+                    swirlCount &+= 1
+                    ToyboxAudioEngine.shared.playFireflyChime(normalizedY: 0.28)
+                } label: {
+                    Label(L10n.t("轻摇流光", "Swirl"), systemImage: "sparkles")
+                        .font(.subheadline.weight(.bold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+            }
+            .padding(12)
+            .printCard(radius: Radius.card)
+        }
+    }
+
+    private func drawFireflies(ctx: inout GraphicsContext, size: CGSize) {
+        let time = sim.physics.time
+        // Faint twilight meadow grass silhouettes along the jar floor
+        var floor = Path()
+        floor.move(to: CGPoint(x: 0, y: size.height))
+        floor.addLine(to: CGPoint(x: 0, y: size.height * 0.89))
+        floor.addQuadCurve(
+            to: CGPoint(x: size.width, y: size.height * 0.90),
+            control: CGPoint(x: size.width * 0.48, y: size.height * 0.83)
+        )
+        floor.addLine(to: CGPoint(x: size.width, y: size.height))
+        floor.closeSubpath()
+        ctx.fill(floor, with: .color(Color(hex: 0x091124).opacity(0.75)))
+
+        // Tiny steady twilight starlight dust in upper glass
+        for i in 0..<14 {
+            let sx = size.width * CGFloat(((i * 37 + 13) % 88) + 6) / 100.0
+            let sy = size.height * CGFloat(((i * 23 + 9) % 52) + 8) / 100.0
+            let starR: CGFloat = i % 3 == 0 ? 1.5 : 1.0
+            let twinkle = 0.20 + 0.20 * sin(time * 1.4 + Double(i))
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: sx - starR, y: sy - starR, width: starR * 2, height: starR * 2)),
+                with: .color(Color(hex: 0xFFF3D4).opacity(twinkle))
+            )
+        }
+
+        // Soft beckoning lantern ring while parent or baby's finger touches the glass
+        if let pt = sim.touchPoint {
+            let tx = pt.x * size.width
+            let ty = pt.y * size.height
+            let haloR: CGFloat = 46
+            let ringRect = CGRect(x: tx - haloR, y: ty - haloR, width: haloR * 2, height: haloR * 2)
+            ctx.fill(
+                Path(ellipseIn: ringRect),
+                with: .radialGradient(
+                    Gradient(colors: [Palette.amber.opacity(0.28), Palette.amber.opacity(0.06), .clear]),
+                    center: CGPoint(x: tx, y: ty),
+                    startRadius: 2,
+                    endRadius: haloR
+                )
+            )
+        }
+
+        // 18 glowing fireflies with triple-layer soft radial aura + ivory pearl core
+        for fly in sim.physics.flies {
+            let cx = CGFloat(fly.x) * size.width
+            let cy = CGFloat(fly.y) * size.height
+            let pulse = 0.62 + 0.38 * sin(time * 2.2 + fly.phase)
+            let baseR = CGFloat(fly.size) * 4.8 * CGFloat(0.88 + 0.22 * pulse)
+
+            let glowColor = fly.isMint ? Color(hex: 0x8CEBC5) : Color(hex: 0xFFD46B)
+            let midColor = fly.isMint ? Color(hex: 0xCFFCE7) : Color(hex: 0xFFEAA6)
+
+            // Outer soft lantern aura
+            let outerR = baseR * 4.2
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: cx - outerR, y: cy - outerR, width: outerR * 2, height: outerR * 2)),
+                with: .radialGradient(
+                    Gradient(colors: [glowColor.opacity(0.46 * pulse), glowColor.opacity(0.10 * pulse), .clear]),
+                    center: CGPoint(x: cx, y: cy),
+                    startRadius: 1,
+                    endRadius: outerR
+                )
+            )
+
+            // Middle warm corona
+            let midR = baseR * 1.75
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: cx - midR, y: cy - midR, width: midR * 2, height: midR * 2)),
+                with: .radialGradient(
+                    Gradient(colors: [midColor.opacity(0.85 * pulse), glowColor.opacity(0.25 * pulse), .clear]),
+                    center: CGPoint(x: cx, y: cy),
+                    startRadius: 0.5,
+                    endRadius: midR
+                )
+            )
+
+            // Luminous pearl core
+            let coreR = max(2.2, baseR * 0.65)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: cx - coreR, y: cy - coreR, width: coreR * 2, height: coreR * 2)),
+                with: .color(Color(hex: 0xFFFDF5).opacity(0.85 + 0.15 * pulse))
+            )
+        }
+    }
+}
+
+// MARK: - Studio 4: Newborn High-Contrast Visual Cards (0–4 mo)
 
 enum ContrastCardKind: Int, CaseIterable, Identifiable {
     case rings, checkerboard, spiral, mossSilhouette, sun, crescent, waves, dots

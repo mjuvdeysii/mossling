@@ -109,22 +109,46 @@ final class SoundscapeDSPState: @unchecked Sendable {
         return out
     }
 
-    /// Generates one stereo-compatible mono sample in `[-1, 1]` with smooth gain ramping.
+    /// Secondary ambient harmony layer (`-1` = off, `0...3` = SoundscapeKind index).
+    var layerKindRaw: Int = -1
+    var layerTargetMix: Float = 0.0
+    var layerCurrentMix: Float = 0.0
+    // Independent low-pass state for secondary layer so filters never cross-contaminate
+    var sLp1: Float = 0, sLp2: Float = 0
+
+    /// Generates one stereo-compatible mono sample in `[-1, 1]` with smooth gain ramping and optional dual-layer mix.
     func nextSample(sampleRate sr: Double) -> Float {
         let t = Double(sampleIndex) / sr
         sampleIndex &+= 1
 
-        // Smooth gain ramp (~250ms glide so start/stop/volume never clicks)
+        // Smooth gain ramps (~250ms glide so start/stop/volume/layer transitions never click)
         let desired = targetGain * userVolume
         currentGain += (desired - currentGain) * 0.00018
+        layerCurrentMix += (layerTargetMix - layerCurrentMix) * 0.00018
 
-        let raw: Float
-        switch kindRaw {
+        let primary = synthesizeLayer(kind: kindRaw, t: t, sr: sr, useSecondaryFilter: false)
+        var combined = primary
+        if layerKindRaw >= 0 && layerKindRaw != kindRaw && layerCurrentMix > 0.0005 {
+            let secondary = synthesizeLayer(kind: layerKindRaw, t: t, sr: sr, useSecondaryFilter: true)
+            combined = primary * 0.80 + secondary * (0.58 * layerCurrentMix)
+        }
+        return tanh(combined * currentGain * 1.42)
+    }
+
+    private func synthesizeLayer(kind: Int, t: Double, sr: Double, useSecondaryFilter: Bool) -> Float {
+        switch kind {
         case 0: // Paper Rain: velvety low-passed pink noise + gentle raindrop plinks
             let p = nextPink()
-            lp1 += 0.14 * (p - lp1)
-            lp2 += 0.24 * (lp1 - lp2)
-            // Occasional soft raindrop on paper (~2.5 drops/sec)
+            let filtered: Float
+            if useSecondaryFilter {
+                sLp1 += 0.14 * (p - sLp1)
+                sLp2 += 0.24 * (sLp1 - sLp2)
+                filtered = sLp2
+            } else {
+                lp1 += 0.14 * (p - lp1)
+                lp2 += 0.24 * (lp1 - lp2)
+                filtered = lp2
+            }
             if dropAmp < 0.0008 && (seed & 0x3FFF) == 1 {
                 dropFreq = 680 + Double((seed >> 16) % 520)
                 dropAmp = 0.045 + Float((seed >> 24) % 35) * 0.001
@@ -136,17 +160,32 @@ final class SoundscapeDSPState: @unchecked Sendable {
                 dropPhase += 2 * .pi * dropFreq / sr
                 dropAmp *= 0.9982
             }
-            raw = lp2 * 0.52 + drop
+            return filtered * 0.52 + drop
         case 1: // Meadow Breeze: Otto's 3.8s slow breathing swell over warm brown/pink wind
             let p = nextPink()
             let breath = Float(0.5 + 0.5 * sin(2 * .pi * t / 3.8))
             let cutoff: Float = 0.028 + 0.068 * breath
-            lp1 += cutoff * (p - lp1)
-            lp2 += (cutoff * 0.9) * (lp1 - lp2)
-            raw = lp2 * (0.48 + 0.34 * breath)
+            let filtered: Float
+            if useSecondaryFilter {
+                sLp1 += cutoff * (p - sLp1)
+                sLp2 += (cutoff * 0.9) * (sLp1 - sLp2)
+                filtered = sLp2
+            } else {
+                lp1 += cutoff * (p - lp1)
+                lp2 += (cutoff * 0.9) * (lp1 - lp2)
+                filtered = lp2
+            }
+            return filtered * (0.48 + 0.34 * breath)
         case 2: // Soft Heartbeat: warm 64 BPM muffled double-thump + gentle womb cushion
             let p = nextPink()
-            lp1 += 0.024 * (p - lp1)
+            let cushion: Float
+            if useSecondaryFilter {
+                sLp1 += 0.024 * (p - sLp1)
+                cushion = sLp1
+            } else {
+                lp1 += 0.024 * (p - lp1)
+                cushion = lp1
+            }
             let period = 60.0 / 64.0
             let phase = t.truncatingRemainder(dividingBy: period)
             var beat: Double = 0
@@ -159,13 +198,19 @@ final class SoundscapeDSPState: @unchecked Sendable {
                 let env = exp(-d * 30) * min(1, d / 0.012)
                 beat += sin(2 * .pi * 46 * d) * env * 0.50
             }
-            raw = lp1 * 0.22 + Float(beat) * 0.58
+            return cushion * 0.22 + Float(beat) * 0.58
         default: // Wood Lullaby: sparse C-major pentatonic soft marimba over whisper breeze
             let p = nextPink()
-            lp1 += 0.032 * (p - lp1)
+            let breeze: Float
+            if useSecondaryFilter {
+                sLp1 += 0.032 * (p - sLp1)
+                breeze = sLp1
+            } else {
+                lp1 += 0.032 * (p - lp1)
+                breeze = lp1
+            }
             noteCountdown -= 1
             if noteCountdown <= 0 {
-                // Step gently to a nearby pentatonic note for a lyrical, calming contour
                 let step = Int((seed >> 20) % 5) - 2
                 let idx = max(0, min(Self.pentatonic.count - 1, lastNoteIdx + (step == 0 ? 1 : step)))
                 lastNoteIdx = idx
@@ -176,7 +221,6 @@ final class SoundscapeDSPState: @unchecked Sendable {
                     voice2Freq = freq; voice2Phase = 0; voice2Amp = 0.22
                 }
                 useVoice1.toggle()
-                // Spaced organically between 1.6s and 2.9s
                 noteCountdown = Int(sr * (1.6 + Double((seed >> 12) % 1300) / 1000.0))
             }
             var notes: Float = 0
@@ -190,19 +234,20 @@ final class SoundscapeDSPState: @unchecked Sendable {
                 voice2Phase += 2 * .pi * voice2Freq / sr
                 voice2Amp *= 0.999925
             }
-            raw = lp1 * 0.14 + notes
+            return breeze * 0.14 + notes
         }
-        return tanh(raw * currentGain * 1.45)
     }
 }
 
-/// Manages real-time soothing nursery soundscapes for Otto's Bedside Lamp & Care Timers.
+/// Manages real-time soothing nursery soundscapes (with optional dual-layer harmony mixing) for Otto's Bedside Lamp.
 @Observable
 @MainActor
 final class SoundscapeEngine {
     static let shared = SoundscapeEngine()
 
     private(set) var active: SoundscapeKind? = nil
+    /// Optional second soundscape blended softly underneath `active` (e.g., Paper Rain + Wood Lullaby).
+    private(set) var secondary: SoundscapeKind? = nil
     var duration: SoundscapeDuration = .m30 {
         didSet { if active != nil { scheduleTimer() } }
     }
@@ -213,6 +258,15 @@ final class SoundscapeEngine {
     private(set) var remainingSeconds: Int? = nil
 
     var isPlaying: Bool { active != nil }
+
+    /// Concise display label for the currently playing soundscape or dual mix.
+    var activeSummary: String? {
+        guard let a = active else { return nil }
+        if let b = secondary {
+            return "\(a.title) + \(b.title)"
+        }
+        return a.title
+    }
 
     private let dsp = SoundscapeDSPState()
     private var engine: AVAudioEngine?
@@ -235,13 +289,51 @@ final class SoundscapeEngine {
 
     func toggle(_ kind: SoundscapeKind) {
         if active == kind {
-            stop()
+            if let second = secondary {
+                // Promote secondary layer smoothly to primary instead of abrupt silence
+                secondary = nil
+                dsp.layerKindRaw = -1
+                dsp.layerTargetMix = 0
+                start(second)
+            } else {
+                stop()
+            }
+        } else if secondary == kind {
+            secondary = nil
+            dsp.layerKindRaw = -1
+            dsp.layerTargetMix = 0
         } else {
             start(kind)
         }
     }
 
+    /// Blends a second soundscape softly alongside the active one (or starts it if nothing is playing).
+    func toggleLayer(_ kind: SoundscapeKind) {
+        guard let current = active else {
+            start(kind)
+            return
+        }
+        if kind == current {
+            toggle(kind)
+            return
+        }
+        if secondary == kind {
+            secondary = nil
+            dsp.layerKindRaw = -1
+            dsp.layerTargetMix = 0
+        } else {
+            secondary = kind
+            dsp.layerKindRaw = SoundscapeKind.allCases.firstIndex(of: kind) ?? -1
+            dsp.layerTargetMix = 1.0
+        }
+    }
+
     func start(_ kind: SoundscapeKind) {
+        if secondary == kind {
+            secondary = nil
+            dsp.layerKindRaw = -1
+            dsp.layerTargetMix = 0
+        }
         dsp.kindRaw = SoundscapeKind.allCases.firstIndex(of: kind) ?? 0
         dsp.userVolume = Float(max(0.05, min(1.0, volume)))
         dsp.targetGain = 1.0
@@ -256,7 +348,10 @@ final class SoundscapeEngine {
         countdownTask = nil
         remainingSeconds = nil
         active = nil
+        secondary = nil
         dsp.targetGain = 0.0
+        dsp.layerKindRaw = -1
+        dsp.layerTargetMix = 0.0
         guard !isTestHost else { return }
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(320))

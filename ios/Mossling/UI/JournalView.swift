@@ -19,6 +19,7 @@ struct JournalView: View {
     @State private var measuring: Measure?
     @State private var newFirst: First?
     @State private var showingLamp = false
+    @State private var showingHandover = false
     @State private var soundscape = SoundscapeEngine.shared
     @Environment(\.dynamicTypeSize) private var size
 
@@ -86,10 +87,13 @@ struct JournalView: View {
                 }
                 .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
 
-                ShareLink(item: handoverText) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingHandover = true
+                } label: {
                     Image(systemName: "person.2.wave.2")
                 }
-                .accessibilityLabel(L10n.t("一键交接给家人", "Share care handover"))
+                .accessibilityLabel(L10n.t("打开家庭交接卡", "Open Care Handover Card"))
                 // the rarer records live behind +, not on the page: an entry after the fact, a first, a measurement
                 Menu {
                     Button(L10n.t("补记一条记录", "Add past entry"), systemImage: "square.and.pencil") { editing = LogEntry(type: LogType.bottle, start: defaultTime(), amount: 120) }
@@ -102,6 +106,9 @@ struct JournalView: View {
             }
         }
         .fullScreenCover(isPresented: $showingLamp) { BedsideLampView() }
+        .sheet(isPresented: $showingHandover) {
+            HandoverSheet(day: day, baseTextSummary: handoverText).lampPresented(sheet: true)
+        }
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
         .sheet(isPresented: $pickingDay) {
             NavigationStack {

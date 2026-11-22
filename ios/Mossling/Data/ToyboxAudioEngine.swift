@@ -47,7 +47,9 @@ final class ToyboxAudioEngine {
     private var nextPlayerIndex = 0
     private var noteBuffers: [Int: AVAudioPCMBuffer] = [:]
     private var beadBuffers: [AVAudioPCMBuffer] = []
+    private var chimeBuffers: [AVAudioPCMBuffer] = []
     private var lastBeadSoundAt: TimeInterval = 0
+    private var lastChimeSoundAt: TimeInterval = 0
 
     private var isTestHost: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -122,6 +124,37 @@ final class ToyboxAudioEngine {
         player.play()
     }
 
+    /// Pure deterministic pentatonic wind-chime / celesta sparkle in `[-1, 1]` for the Firefly Lantern Jar.
+    nonisolated static func synthesizeChimeSamples(frequency: Double, sampleRate: Double = 44_100, duration: Double = 0.65) -> [Float] {
+        let count = max(1, Int(duration * sampleRate))
+        var out = [Float](repeating: 0, count: count)
+        let twoPi = 2.0 * Double.pi
+        for i in 0..<count {
+            let t = Double(i) / sampleRate
+            let attack = min(1.0, t / 0.008)
+            let tail = t > duration - 0.04 ? max(0.0, (duration - t) / 0.04) : 1.0
+            let f1 = sin(twoPi * frequency * t) * exp(-t * 4.5)
+            let f2 = sin(twoPi * frequency * 2.0 * t) * exp(-t * 8.5) * 0.28
+            let bell = sin(twoPi * frequency * 2.756 * t) * exp(-t * 16.0) * 0.14
+            let s = (f1 * 0.68 + f2 + bell) * attack * tail * 0.34
+            out[i] = Float(max(-0.95, min(0.95, s)))
+        }
+        return out
+    }
+
+    /// Plays a delicate pentatonic firefly wind-chime scaled smoothly by vertical height `normalizedY` (0 = top/high).
+    func playFireflyChime(normalizedY: Double) {
+        guard !isTestHost else { return }
+        let now = Date().timeIntervalSinceReferenceDate
+        guard now - lastChimeSoundAt >= 0.14 else { return }
+        lastChimeSoundAt = now
+        guard let player = nextPlayer(), let buf = chimeBuffer(normalizedY: normalizedY) else { return }
+        player.volume = 0.72
+        player.stop()
+        player.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
+        player.play()
+    }
+
     /// Stops and releases the toybox audio engine when leaving the studio.
     func stop() {
         for p in players { p.stop() }
@@ -183,6 +216,18 @@ final class ToyboxAudioEngine {
         }
         guard !beadBuffers.isEmpty else { return nil }
         return beadBuffers[Int.random(in: 0..<beadBuffers.count)]
+    }
+
+    private func chimeBuffer(normalizedY: Double) -> AVAudioPCMBuffer? {
+        if chimeBuffers.isEmpty {
+            // High airy C-major pentatonic shimmer (G5, A5, C6, D6, E6, G6)
+            let freqs: [Double] = [783.99, 880.00, 1046.50, 1174.66, 1318.51, 1567.98]
+            chimeBuffers = freqs.compactMap { makeBuffer(from: Self.synthesizeChimeSamples(frequency: $0, sampleRate: sampleRate)) }
+        }
+        guard !chimeBuffers.isEmpty else { return nil }
+        let clamped = max(0.0, min(0.999, 1.0 - normalizedY))
+        let idx = Int(clamped * Double(chimeBuffers.count))
+        return chimeBuffers[max(0, min(chimeBuffers.count - 1, idx))]
     }
 
     private func makeBuffer(from samples: [Float]) -> AVAudioPCMBuffer? {
@@ -388,5 +433,106 @@ struct RainstickPhysics: Sendable {
         }
 
         return impacts
+    }
+}
+
+// MARK: - Firefly Lantern Jar Physics (Pure & Deterministic)
+
+/// Pure 2D physics simulation for 18 softly glowing amber & mint fireflies drifting inside Otto's twilight jar.
+struct FireflyPhysics: Sendable {
+    struct Firefly: Identifiable, Sendable {
+        let id: Int
+        var x: Double
+        var y: Double
+        var vx: Double
+        var vy: Double
+        let phase: Double
+        let size: Double
+        let isMint: Bool
+    }
+
+    var flies: [Firefly]
+    var time: Double = 0
+
+    static func initial() -> FireflyPhysics {
+        var list: [Firefly] = []
+        let count = 18
+        for i in 0..<count {
+            let angle = Double(i) * 2.39996 // golden angle distribution inside glass jar
+            let dist = 0.14 + 0.30 * sqrt(Double(i + 1) / Double(count))
+            let x = 0.5 + cos(angle) * dist
+            let y = 0.5 + sin(angle) * dist
+            list.append(Firefly(
+                id: i,
+                x: max(0.12, min(0.88, x)),
+                y: max(0.14, min(0.86, y)),
+                vx: cos(angle + 1.5) * 0.06,
+                vy: sin(angle + 1.5) * 0.06,
+                phase: Double(i) * 0.72,
+                size: 0.75 + Double(i % 4) * 0.22,
+                isMint: (i % 4 == 0)
+            ))
+        }
+        return FireflyPhysics(flies: list, time: 0)
+    }
+
+    /// Sends all fireflies into a tranquil golden spiral swirl inside the jar.
+    mutating func swirl() {
+        for i in flies.indices {
+            let dx = flies[i].x - 0.5
+            let dy = flies[i].y - 0.5
+            let d = max(0.05, sqrt(dx * dx + dy * dy))
+            // Tangential swirl impulse + gentle inward lift
+            flies[i].vx += (-dy / d) * 0.36 - dx * 0.15
+            flies[i].vy += (dx / d) * 0.36 - dy * 0.15
+        }
+    }
+
+    /// Advances all fireflies by `dt` seconds with gentle harmonic wander and optional fingertip beckoning.
+    mutating func step(dt rawDt: Double, target: CGPoint? = nil) {
+        let dt = max(0.001, min(rawDt, 1.0 / 30.0))
+        time += dt
+
+        for i in flies.indices {
+            let p = flies[i].phase
+            // Organic lazy twilight drift
+            var ax = sin(time * 0.85 + p) * 0.14
+            var ay = cos(time * 0.72 + p * 1.3) * 0.14
+
+            if let target {
+                let tx = Double(target.x)
+                let ty = Double(target.y)
+                let dx = tx - flies[i].x
+                let dy = ty - flies[i].y
+                let dist = max(0.04, sqrt(dx * dx + dy * dy))
+                // Gentle orbital attraction around fingertip so they dance like a lantern halo
+                let pull = min(0.95, 0.42 / dist)
+                ax += (dx / dist) * pull + (-dy / dist) * 0.24
+                ay += (dy / dist) * pull + (dx / dist) * 0.24
+            } else {
+                // Soft recentering inside the jar's warm middle
+                ax += (0.5 - flies[i].x) * 0.18
+                ay += (0.5 - flies[i].y) * 0.18
+            }
+
+            flies[i].vx = (flies[i].vx + ax * dt) * 0.965
+            flies[i].vy = (flies[i].vy + ay * dt) * 0.965
+
+            let speedSq = flies[i].vx * flies[i].vx + flies[i].vy * flies[i].vy
+            if speedSq > 0.36 {
+                let inv = 0.60 / sqrt(speedSq)
+                flies[i].vx *= inv
+                flies[i].vy *= inv
+            }
+
+            flies[i].x += flies[i].vx * dt
+            flies[i].y += flies[i].vy * dt
+
+            // Soft glass wall margins
+            if flies[i].x < 0.09 { flies[i].x = 0.09; flies[i].vx = abs(flies[i].vx) * 0.6 }
+            if flies[i].x > 0.91 { flies[i].x = 0.91; flies[i].vx = -abs(flies[i].vx) * 0.6 }
+            if flies[i].y < 0.11 { flies[i].y = 0.11; flies[i].vy = abs(flies[i].vy) * 0.6 }
+            if flies[i].y > 0.89 { flies[i].y = 0.89; flies[i].vy = -abs(flies[i].vy) * 0.6 }
+        }
     }
 }
