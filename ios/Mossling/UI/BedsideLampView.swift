@@ -440,18 +440,18 @@ struct BedsideLampView: View {
                     let isPrimary = soundscape.active == kind
                     let isSecondary = soundscape.secondary == kind
                     let on = isPrimary || isSecondary
-                    HStack(spacing: 6) {
+                    HStack(spacing: 4) {
                         Button {
                             TactileEngine.shared.beadClick()
                             withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.8)) {
                                 soundscape.toggle(kind)
                             }
                         } label: {
-                            HStack(spacing: 7) {
+                            HStack(spacing: 6) {
                                 Image(systemName: kind.symbol)
-                                    .font(.system(size: 14, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
-                                    .frame(width: 28, height: 28)
+                                    .frame(width: 26, height: 26)
                                     .background(
                                         Circle().fill(isPrimary ? Palette.amber : (isSecondary ? Palette.beadLight : Palette.amber.opacity(0.14)))
                                     )
@@ -460,12 +460,12 @@ struct BedsideLampView: View {
                                         .font(.footnote.weight(.bold))
                                         .foregroundStyle(on ? Palette.lampInk : Palette.lampInk.opacity(0.88))
                                         .lineLimit(1)
-                                        .minimumScaleFactor(0.72)
+                                        .minimumScaleFactor(0.68)
                                     Text(isSecondary ? L10n.t("已叠第二层", "Layer 2 on") : kind.subtitle)
                                         .font(.caption2)
-                                        .foregroundStyle(on ? Palette.amber.opacity(0.92) : Palette.lampInk.opacity(0.52))
+                                        .foregroundStyle(on ? Palette.amber.opacity(0.92) : Palette.lampInk.opacity(0.56))
                                         .lineLimit(1)
-                                        .minimumScaleFactor(0.72)
+                                        .minimumScaleFactor(0.70)
                                 }
                                 Spacer(minLength: 0)
                             }
@@ -481,16 +481,16 @@ struct BedsideLampView: View {
                                 }
                             } label: {
                                 Image(systemName: isSecondary ? "checkmark" : "plus")
-                                    .font(.system(size: 10, weight: .bold))
+                                    .font(.system(size: 9, weight: .bold))
                                     .foregroundStyle(isSecondary ? Color(hex: 0x261700) : Palette.amber.opacity(0.9))
-                                    .frame(width: 22, height: 22)
+                                    .frame(width: 20, height: 20)
                                     .background(Circle().fill(isSecondary ? Palette.beadLight : Palette.amber.opacity(0.18)))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(isSecondary ? L10n.t("移除叠层\(kind.title)", "Remove \(kind.title) layer") : L10n.t("叠加\(kind.title)", "Blend \(kind.title)"))
                         }
                     }
-                    .padding(.horizontal, 9)
+                    .padding(.horizontal, 8)
                     .padding(.vertical, 9)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)

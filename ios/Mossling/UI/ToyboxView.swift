@@ -854,29 +854,29 @@ private struct FireflyJarStudio: View {
             .frame(minHeight: 360)
 
             // Tactile studio footer card
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.t("轻触玻璃牵引萤火，或轻摇流光", "Touch to beckon fireflies, or swirl"))
+                    Text(L10n.t("轻触牵引萤火，或轻摇流光", "Touch to beckon, or swirl"))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.82)
-                    Text(L10n.t("18 只暖金与薄荷萤火 · 五声音阶风铃", "18 amber & mint fireflies · pentatonic chimes"))
+                        .minimumScaleFactor(0.78)
+                    Text(L10n.t("18 只流光萤火 · 五声音阶风铃", "18 fireflies · pentatonic chimes"))
                         .font(.caption)
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                        .minimumScaleFactor(0.78)
                 }
-                Spacer(minLength: 8)
+                Spacer(minLength: 4)
                 Button {
                     TactileEngine.shared.beadClick()
                     sim.swirl()
                     swirlCount &+= 1
                     ToyboxAudioEngine.shared.playFireflyChime(normalizedY: 0.28)
                 } label: {
-                    Label(L10n.t("轻摇流光", "Swirl"), systemImage: "sparkles")
+                    Label(L10n.t("轻摇", "Swirl"), systemImage: "sparkles")
                         .font(.subheadline.weight(.bold))
-                        .padding(.horizontal, 14)
+                        .padding(.horizontal, 12)
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.vinyl(Palette.accentFill, prominent: true))

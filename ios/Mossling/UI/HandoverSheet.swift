@@ -65,7 +65,9 @@ struct HandoverSnapshot: Sendable {
         let lastDiaperHead = lastDiaperDate.map { L10n.agoText($0, now: now, precise: true) } ?? "—"
         let lastDiaperSub = L10n.t("湿 \(wet) · 便 \(dirty)", "\(wet) wet · \(dirty) dirty")
 
-        let todayHead = L10n.t("喂 \(feeds) 次 · 尿布 \(diapers.count)", "\(feeds) feeds · \(diapers.count) diapers")
+        let feedWord = feeds == 1 ? "feed" : "feeds"
+        let diaperWord = diapers.count == 1 ? "diaper" : "diapers"
+        let todayHead = L10n.t("喂 \(feeds) 次 · 尿布 \(diapers.count)", "\(feeds) \(feedWord) · \(diapers.count) \(diaperWord)")
         let latestSpecial = own.filter { $0.type == LogType.solid || $0.type == LogType.medicine || $0.type == LogType.temp }.max { $0.start < $1.start }
         let todaySub: String
         if let sp = latestSpecial {

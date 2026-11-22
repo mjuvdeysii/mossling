@@ -20,10 +20,10 @@ enum SoundscapeKind: String, CaseIterable, Identifiable {
 
     var subtitle: String {
         switch self {
-        case .rain: L10n.t("细雨轻敲暖纸", "Gentle rain on paper")
-        case .breeze: L10n.t("随 Otto 慢呼吸", "Follows Otto's breath")
-        case .heartbeat: L10n.t("舒缓低频轻拍", "Warm 64 BPM pulse")
-        case .lullaby: L10n.t("五声音阶木琴", "Soft wood marimba")
+        case .rain: L10n.t("细雨轻敲暖纸", "Rain on paper")
+        case .breeze: L10n.t("随 Otto 慢呼吸", "Soft breath")
+        case .heartbeat: L10n.t("舒缓低频轻拍", "64 BPM pulse")
+        case .lullaby: L10n.t("五声音阶木琴", "Wood marimba")
         }
     }
 
@@ -314,7 +314,6 @@ final class SoundscapeEngine {
             return
         }
         if kind == current {
-            toggle(kind)
             return
         }
         if secondary == kind {
