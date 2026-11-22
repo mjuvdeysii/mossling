@@ -107,7 +107,7 @@ struct JournalView: View {
         }
         .fullScreenCover(isPresented: $showingLamp) { BedsideLampView() }
         .sheet(isPresented: $showingHandover) {
-            HandoverSheet(day: day, baseTextSummary: handoverText).lampPresented(sheet: true)
+            HandoverSheet(day: app.today).lampPresented(sheet: true)
         }
         .sheet(item: Binding(get: { j.ask.map { Wrap(id: $0) } }, set: { j.ask = $0?.id })) { w in AskSheet(type: w.id, on: day == app.today ? nil : pastNoon).lampPresented() }
         .sheet(isPresented: $pickingDay) {
@@ -168,43 +168,6 @@ struct JournalView: View {
     /// Noon of the day on the page, for a record made while looking at a past day.
     private var pastNoon: Date { Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day.date) ?? day.date.addingTimeInterval(12 * 3600) }
     private func defaultTime() -> Double { day == app.today ? JournalFile.now() : pastNoon.timeIntervalSince1970 * 1000 }
-
-    /// One-tap offline Care Handover summary for partner, grandparents, or nanny (zero cloud required).
-    private var handoverText: String {
-        let now = Date()
-        let logs = j.logs(on: day)
-        let startMs = day.date.timeIntervalSince1970 * 1000
-        let feeds = logs.feedCount(from: startMs)
-        let sleepSec = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
-        let diapers = logs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: day) }
-        let wet = diapers.filter { $0.detail == "wet" || $0.detail == "both" }.count
-        let dirty = diapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-        let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
-        let ageStr = app.age.map { " · " + L10n.ageText($0) } ?? ""
-        var lines: [String] = [
-            L10n.t("【摸索台灯 · 照护交接】\(who)\(ageStr)", "[Moss & Otto · Care Handover] \(who)\(ageStr)")
-        ]
-        if let t = j.timers.first {
-            let status = L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil)
-            let dur = L10n.duration(t.total(now.timeIntervalSince1970 * 1000))
-            lines.append(L10n.t("进行中：\(status)（已 \(dur)）", "Active now: \(status) (\(dur))"))
-        }
-        if let f = j.last(LogType.nurse) {
-            lines.append(L10n.t("上次喂奶：\(L10n.agoText(f, now: now, precise: true))", "Last feed: \(L10n.agoText(f, now: now, precise: true))"))
-        }
-        if let w = j.last(LogType.sleep) {
-            lines.append(L10n.t("上次醒来：\(L10n.agoText(w, now: now, precise: true))", "Last wake: \(L10n.agoText(w, now: now, precise: true))"))
-        }
-        let sleepStr = sleepSec > 0 ? L10n.duration(sleepSec) : "—"
-        lines.append(L10n.t(
-            "今日累计：喂奶 \(feeds) 次 · 睡眠 \(sleepStr) · 尿布 \(diapers.count) 次（湿 \(wet) / 便 \(dirty)）",
-            "Today: \(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepStr) sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers") (\(wet) wet / \(dirty) dirty)"
-        ))
-        if let mo = app.babyMonth, let play = app.todayPlay(mo, j) {
-            lines.append(L10n.t("今日一起玩：\(play.name)", "Today's play: \(play.name)"))
-        }
-        return lines.joined(separator: "\n")
-    }
 }
 
 enum JournalRoute: Hashable { case stats, growth, firsts }

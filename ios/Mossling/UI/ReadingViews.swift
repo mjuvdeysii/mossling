@@ -22,15 +22,61 @@ struct TopicView: View {
 /// Search across plays, months and topics.
 struct SearchView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.openURL) private var openURL
     @Binding var path: NavigationPath
     @State private var q = ""
     var body: some View {
         let c = app.content
         let t = q.trimmingCharacters(in: .whitespaces)
-        let plays = t.isEmpty ? [] : c.activities.filter { $0.name.contains(t) || $0.code.localizedCaseInsensitiveContains(t) || $0.steps.contains { $0.contains(t) } || $0.domains.contains { $0.contains(t) } }
-        let months = t.isEmpty ? [] : c.months.filter { m in m.title.contains(t) || m.domains.contains { $0.text.contains(t) } || m.observe.contains { $0.items.contains { $0.contains(t) } } || m.notes.contains { $0.text.contains(t) } }
-        let topics = t.isEmpty ? [] : c.topics.filter { $0.title.contains(t) || $0.blocks.contains { ($0.text ?? "").contains(t) || ($0.items ?? []).contains { $0.contains(t) } } }
+        let plays = t.isEmpty ? [] : c.activities.filter { $0.name.localizedCaseInsensitiveContains(t) || $0.code.localizedCaseInsensitiveContains(t) || $0.steps.contains { $0.localizedCaseInsensitiveContains(t) } || $0.domains.contains { $0.localizedCaseInsensitiveContains(t) } }
+        let months = t.isEmpty ? [] : c.months.filter { m in m.title.localizedCaseInsensitiveContains(t) || m.domains.contains { $0.text.localizedCaseInsensitiveContains(t) } || m.observe.contains { $0.items.contains { $0.localizedCaseInsensitiveContains(t) } } || m.notes.contains { $0.text.localizedCaseInsensitiveContains(t) } }
+        let topics = t.isEmpty ? [] : c.topics.filter { $0.title.localizedCaseInsensitiveContains(t) || $0.blocks.contains { ($0.text ?? "").localizedCaseInsensitiveContains(t) || ($0.items ?? []).contains { $0.localizedCaseInsensitiveContains(t) } } }
+        let tools = t.isEmpty ? [] : QuietToolResult.all.filter { $0.matches(t) }
+        let foods = t.isEmpty ? [] : FoodItem.catalog.filter { $0.zh.localizedCaseInsensitiveContains(t) || $0.en.localizedCaseInsensitiveContains(t) || $0.category.title.localizedCaseInsensitiveContains(t) }
         List {
+            if !tools.isEmpty {
+                Section(L10n.t("陪伴小器具", "Quiet Instruments")) {
+                    ForEach(tools) { tool in
+                        if let route = tool.route {
+                            NavigationLink(value: route) {
+                                Label { Text(tool.title) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
+                            }
+                        } else if let jRoute = tool.journalRoute {
+                            NavigationLink(value: jRoute) {
+                                Label { Text(tool.title) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
+                            }
+                        } else if let url = tool.url {
+                            Button { openURL(url) } label: {
+                                Label { Text(tool.title).foregroundStyle(.primary) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
+                            }
+                        }
+                    }
+                }
+            }
+            if !foods.isEmpty {
+                Section(L10n.t("百味食盒", "First Foods")) {
+                    ForEach(foods.prefix(6)) { food in
+                        NavigationLink(value: Route.foodAtlas) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(food.name)
+                                    Text(food.category.title + (food.isCommonAllergen ? L10n.t(" · 常见致敏", " · Common allergen") : ""))
+                                        .font(.caption).foregroundStyle(Palette.secondaryText)
+                                }
+                            } icon: {
+                                Text(food.icon).font(.title3).frame(width: 30, height: 30)
+                            }
+                        }
+                    }
+                    if foods.count > 6 {
+                        NavigationLink(value: Route.foodAtlas) {
+                            Text(L10n.t("查看全部 \(foods.count) 项匹配食材…", "See all \(foods.count) matching foods…"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.accent)
+                        }
+                    }
+                }
+            }
             if !plays.isEmpty {
                 Section(L10n.t("活动", "Activities")) { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
                     PlayRowLabel(play: p) } } }
@@ -48,7 +94,7 @@ struct SearchView: View {
                 Section(L10n.t("这周一起玩", "This Week's Plays")) { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
                 Section(L10n.t("专题", "Topics")) { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
             }
-            if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty {
+            if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty && tools.isEmpty && foods.isEmpty {
                 // nothing found: the companion looks this way and that for it
                 VStack(spacing: 8) {
                     TimelineView(.periodic(from: .now, by: 1.3)) { tl in
@@ -58,14 +104,14 @@ struct SearchView: View {
                     }
                     .frame(height: 72).accessibilityHidden(true)
                     Text(L10n.t("没有找到「\(t)」", "No results for \"\(t)\"")).font(.headline)
-                    Text(L10n.t("试试活动的名字、月份或专题", "Try an activity name, month, or topic")).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                    Text(L10n.t("试试活动、月份、辅食或小器具", "Try an activity, month, food, or tool")).font(.subheadline).foregroundStyle(Palette.secondaryText)
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 24)
                 .listRowBackground(Color.clear)
             }
         }
         .scrollContentBackground(.hidden).pageBackground()
-        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.t("活动、月份、专题", "Activities, months, topics"))
+        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.t("活动、月份、专题、辅食或小器具", "Activities, months, foods, or tools"))
         .navigationTitle(L10n.t("搜索", "Search"))
     }
     /// A topic with its own mark, as on the month's page.
@@ -73,6 +119,35 @@ struct SearchView: View {
         let i = app.content.topics.firstIndex { $0.id == tp.id } ?? 0
         return Label { Text(tp.title) } icon: { IconTile(symbol: topicMarks[i % topicMarks.count].0, color: topicMarks[i % topicMarks.count].1) }
     }
+}
+
+private struct QuietToolResult: Identifiable {
+    let id: String
+    let zh: String
+    let en: String
+    let keywords: [String]
+    let symbol: String
+    let color: Color
+    var route: Route? = nil
+    var journalRoute: JournalRoute? = nil
+    var url: URL? = nil
+
+    var title: String { L10n.t(zh, en) }
+
+    func matches(_ q: String) -> Bool {
+        zh.localizedCaseInsensitiveContains(q)
+            || en.localizedCaseInsensitiveContains(q)
+            || keywords.contains { $0.localizedCaseInsensitiveContains(q) }
+    }
+
+    static let all: [QuietToolResult] = [
+        QuietToolResult(id: "lamp", zh: "床头夜灯", en: "Bedside Lamp", keywords: ["夜灯", "声景", "呼吸", "白噪音", "白噪声", "助眠", "sound", "sleep", "breath", "lamp"], symbol: "lamp.desk.fill", color: Palette.amber, url: URL(string: "mossling://lamp")),
+        QuietToolResult(id: "toybox", zh: "感官玩具盒", en: "Sensory Toybox", keywords: ["木琴", "金珠", "雨棒", "萤火", "视卡", "黑白", "xylophone", "rainstick", "fireflies", "contrast"], symbol: "music.note", color: Crayon.teal, route: .toybox(.xylophone)),
+        QuietToolResult(id: "foods", zh: "百味食盒", en: "First Foods", keywords: ["辅食", "食材", "致敏", "食盒", "味觉", "food", "allergen", "solids"], symbol: "carrot.fill", color: Crayon.leaf, route: .foodAtlas),
+        QuietToolResult(id: "rhythm", zh: "昼夜节律盘", en: "Rhythm Dial", keywords: ["节律", "昼夜", "统计", "作息", "rhythm", "dial", "circadian"], symbol: "sun.and.horizon.fill", color: Crayon.lilac, journalRoute: .stats),
+        QuietToolResult(id: "book", zh: "成长绘本", en: "Storybook", keywords: ["绘本", "成长册", "相纸", "book", "storybook"], symbol: "book.pages.fill", color: Crayon.caramel, route: .book),
+        QuietToolResult(id: "capsules", zh: "时光胶囊信笺", en: "Time Capsules", keywords: ["胶囊", "信", "火漆", "capsule", "letter", "wax"], symbol: "envelope.badge.fill", color: Palette.bead, route: .capsules),
+    ]
 }
 
 /// 这周一起玩: the three or four plays of the week, chosen for this month, turned by themselves when the week turns.

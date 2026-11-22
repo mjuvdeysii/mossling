@@ -19,10 +19,12 @@ struct BedsideLampView: View {
     @State private var soundscape = SoundscapeEngine.shared
     @State private var motion = LampTiltObserver()
     @State private var pulse = false
+    private let previewClock: Date?
 
-    init(initialBrightness: Double = 0.72, initialBreathingGuide: Bool = false) {
+    init(initialBrightness: Double = 0.72, initialBreathingGuide: Bool = false, previewClock: Date? = nil) {
         _brightness = State(initialValue: max(0.15, min(1.0, initialBrightness)))
         _breathingGuide = State(initialValue: initialBreathingGuide)
+        self.previewClock = previewClock
     }
 
     private var activeTimer: RunningTimer? { j.timers.first }
@@ -167,7 +169,7 @@ struct BedsideLampView: View {
 
             TimelineView(.periodic(from: .now, by: 30)) { tl in
                 VStack(spacing: 2) {
-                    Text(hm(tl.date))
+                    Text(hm(previewClock ?? tl.date))
                         .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
                         .foregroundStyle(Palette.lampInk.opacity(0.65 + 0.3 * brightness))
                     Text(

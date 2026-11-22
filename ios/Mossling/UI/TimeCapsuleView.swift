@@ -9,6 +9,8 @@ struct TimeCapsuleListView: View {
     @State private var store: CapsuleStore
     @State private var composing = false
     @State private var composeSeedTitle = ""
+    @State private var composeSeedSeal: CapsuleSeal = .gold
+    @State private var composeSeedUnlock: CapsuleComposeSheet.UnlockChoice = .firstBirthday
     @State private var selectedCapsule: TimeCapsule? = nil
 
     init(store: CapsuleStore = .shared) {
@@ -83,6 +85,8 @@ struct TimeCapsuleListView: View {
                 Button {
                     if app.mayKeep() {
                         composeSeedTitle = ""
+                        composeSeedSeal = .gold
+                        composeSeedUnlock = .firstBirthday
                         TactileEngine.shared.beadClick()
                         composing = true
                     }
@@ -93,8 +97,13 @@ struct TimeCapsuleListView: View {
             }
         }
         .sheet(isPresented: $composing) {
-            CapsuleComposeSheet(store: store, initialTitle: composeSeedTitle)
-                .lampPresented(sheet: true)
+            CapsuleComposeSheet(
+                store: store,
+                initialTitle: composeSeedTitle,
+                initialSeal: composeSeedSeal,
+                initialUnlock: composeSeedUnlock
+            )
+            .lampPresented(sheet: true)
         }
         .sheet(item: $selectedCapsule) { cap in
             CapsuleReadSheet(capsule: cap, store: store)
@@ -124,6 +133,8 @@ struct TimeCapsuleListView: View {
             Button {
                 if app.mayKeep() {
                     composeSeedTitle = ""
+                    composeSeedSeal = .gold
+                    composeSeedUnlock = .firstBirthday
                     TactileEngine.shared.beadClick()
                     composing = true
                 }
@@ -148,21 +159,24 @@ struct TimeCapsuleListView: View {
 
     private func emptyPrompts(dark: Bool) -> some View {
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "little one") : app.nickname
-        let prompts: [(String, String, CapsuleSeal)] = [
+        let prompts: [(String, String, CapsuleSeal, CapsuleComposeSheet.UnlockChoice)] = [
             (
                 L10n.t("写给一岁生日的\(who)", "To \(who) on Your 1st Birthday"),
                 L10n.t("记下你现在最喜欢的小动作，和我们每天最盼着的事", "Capture the tiny habits you love right now"),
-                .gold
+                .gold,
+                .firstBirthday
             ),
             (
                 L10n.t("今晚灯下想记住的一件小事", "A Quiet Moment Under the Lamp"),
                 L10n.t("不用写很长，两三句话就足够温暖很久", "Even two quiet sentences become treasure later"),
-                .lilac
+                .lilac,
+                .anytime
             ),
             (
                 L10n.t("等你三岁那年，我们一起读", "For When You Turn Three"),
                 L10n.t("等走完这 37 站成长路，回头看看最初的模样", "To open when our 37-month journey wraps up"),
-                .teal
+                .teal,
+                .thirdBirthday
             ),
         ]
 
@@ -172,6 +186,8 @@ struct TimeCapsuleListView: View {
                 Button {
                     if app.mayKeep() {
                         composeSeedTitle = p.0
+                        composeSeedSeal = p.2
+                        composeSeedUnlock = p.3
                         TactileEngine.shared.beadClick()
                         composing = true
                     }
@@ -283,15 +299,11 @@ private struct EnvelopeCard: View {
                                 .lineLimit(2)
                                 .multilineTextAlignment(.leading)
 
-                            HStack(spacing: 6) {
-                                if !capsule.writtenAgeLabel.isEmpty {
-                                    Text(L10n.t("写于 \(capsule.writtenAgeLabel)", "Written at \(capsule.writtenAgeLabel)"))
-                                } else {
-                                    Text(capsule.writtenDay.ymd)
-                                }
-                                Text("·")
-                                Text(capsule.writtenDay.ymd)
-                            }
+                            Text(
+                                capsule.writtenAgeLabel.isEmpty
+                                    ? capsule.writtenDay.ymd
+                                    : L10n.t("写于 \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)", "Written at \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)")
+                            )
                             .font(.caption)
                             .foregroundStyle(Palette.secondaryText)
                             .lineLimit(1)
@@ -414,9 +426,16 @@ struct CapsuleComposeSheet: View {
         }
     }
 
-    init(store: CapsuleStore, initialTitle: String = "") {
+    init(
+        store: CapsuleStore,
+        initialTitle: String = "",
+        initialSeal: CapsuleSeal = .gold,
+        initialUnlock: UnlockChoice = .firstBirthday
+    ) {
         self.store = store
         _title = State(initialValue: initialTitle)
+        _seal = State(initialValue: initialSeal)
+        _unlockOption = State(initialValue: initialUnlock)
     }
 
     private var availableChoices: [UnlockChoice] {

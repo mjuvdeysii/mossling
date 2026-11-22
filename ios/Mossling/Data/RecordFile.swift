@@ -4,11 +4,12 @@ import UniformTypeIdentifiers
 /// The family's record file: everything recorded, in the same format as the Android app ("app": "mossling"), so it
 /// moves between the two. Also a table of entries and measurements for a spreadsheet or the doctor.
 enum RecordFile {
-    static func json(_ app: AppModel, _ j: JournalFile.Body) -> Data {
+    static func json(_ app: AppModel, _ j: JournalFile.Body, foods: [FoodRecord] = [], capsules: [TimeCapsule] = []) -> Data {
         // everything set and recorded on this phone: the child, the companion, the appearance, the week's shelf, the
         // month records (observed, played, vaccines and check-ups), every entry, every measurement, and what is being
         // timed right now. Android reads the keys it knows and leaves the rest.
         var settings: [String: Any] = ["companion": app.companion.rawValue, "theme": app.theme.rawValue, "nightLight": app.nightLight,
+                                       "tactileSounds": app.tactileSounds, "artStyle": app.artStyle.rawValue,
                                        "journal": app.journal, "shelf": app.shelf]
         if let b = app.birth { settings["birth"] = String(format: "%04d-%02d-%02d", b.y, b.m, b.d) }
         if let s = app.sex { settings["sex"] = s }
@@ -35,15 +36,31 @@ enum RecordFile {
             if let v = t.side { o["side"] = v }; if let v = t.pausedAt { o["pausedAt"] = Int64(v) }
             return o
         }
-        let root: [String: Any] = ["app": "mossling", "v": 1, "at": ISO8601DateFormatter().string(from: Date()),
-                                   "mossling": ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "firsts": firsts, "timers": timers]]
+        var payload: [String: Any] = ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "firsts": firsts, "timers": timers]
+        if !foods.isEmpty {
+            payload["foods"] = foods.sorted { $0.foodId < $1.foodId }.map { f -> [String: Any] in
+                ["foodId": f.foodId, "firstTastedEpochDay": f.firstTastedEpochDay, "reaction": f.reaction.rawValue,
+                 "note": f.note, "watchSkin": f.watchSkin, "times": max(1, f.times)]
+            }
+        }
+        if !capsules.isEmpty {
+            payload["capsules"] = capsules.sorted { $0.writtenAt > $1.writtenAt }.map { c -> [String: Any] in
+                var o: [String: Any] = ["id": c.id.uuidString, "title": c.title, "body": c.body, "writtenAt": Int64(c.writtenAt),
+                                        "writtenAgeLabel": c.writtenAgeLabel, "seal": c.seal.rawValue]
+                if let u = c.unlockEpochDay { o["unlockEpochDay"] = u }
+                if let op = c.openedAt { o["openedAt"] = Int64(op) }
+                return o
+            }
+        }
+        let root: [String: Any] = ["app": "mossling", "v": 1, "at": ISO8601DateFormatter().string(from: Date()), "mossling": payload]
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
 
     enum Failure: Error { case notOurs, saveFailed }
 
     /// Reads a record file and replaces what is on the phone with it.
-    static func load(_ data: Data, into app: AppModel, journal: JournalStore) throws {
+    @MainActor
+    static func load(_ data: Data, into app: AppModel, journal: JournalStore, foodStore: FoodAtlasStore? = nil, capsuleStore: CapsuleStore? = nil) throws {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], root["app"] as? String == "mossling",
               let m = root["mossling"] as? [String: Any] else { throw Failure.notOurs }
         func num(_ v: Any?) -> Double? {
@@ -83,6 +100,39 @@ enum RecordFile {
             return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: num(o["pausedAt"]), pausedTotal: max(0, num(o["pausedTotal"]) ?? 0),
                                 carried: max(0, num(o["carried"]) ?? 0), carriedPause: max(0, num(o["carriedPause"]) ?? 0))
         }
+        let rawFoods = m["foods"] as? [[String: Any]]
+        let parsedFoods: [FoodRecord]? = rawFoods?.compactMap { o in
+            guard let foodId = o["foodId"] as? String, !foodId.isEmpty,
+                  let epochDay = num(o["firstTastedEpochDay"]),
+                  let reactionRaw = o["reaction"] as? String,
+                  let reaction = FoodReaction(rawValue: reactionRaw) else { return nil }
+            return FoodRecord(
+                foodId: foodId,
+                firstTastedEpochDay: Int(epochDay),
+                reaction: reaction,
+                note: o["note"] as? String ?? "",
+                watchSkin: o["watchSkin"] as? Bool ?? false,
+                times: max(1, num(o["times"]).map { Int($0) } ?? 1)
+            )
+        }
+        let rawCapsules = m["capsules"] as? [[String: Any]]
+        let parsedCapsules: [TimeCapsule]? = rawCapsules?.compactMap { o in
+            guard let title = o["title"] as? String, !title.isEmpty,
+                  let capBody = o["body"] as? String, !capBody.isEmpty,
+                  let writtenAt = num(o["writtenAt"]) else { return nil }
+            let id = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
+            let seal = (o["seal"] as? String).flatMap(CapsuleSeal.init(rawValue:)) ?? .gold
+            return TimeCapsule(
+                id: id,
+                title: title,
+                body: capBody,
+                writtenAt: writtenAt,
+                writtenAgeLabel: o["writtenAgeLabel"] as? String ?? "",
+                unlockEpochDay: num(o["unlockEpochDay"]).map { Int($0) },
+                openedAt: num(o["openedAt"]),
+                seal: seal
+            )
+        }
         // write the journal first so a failed disk save never leaves settings half-imported
         guard journal.replaceAll(body) else { throw Failure.saveFailed }
         app.birth = parsedBirth
@@ -92,10 +142,14 @@ enum RecordFile {
         app.look = s["look"] as? String
         app.theme = (s["theme"] as? String).flatMap(ThemeMode.init(rawValue:)) ?? .system
         app.nightLight = s["nightLight"] as? Bool ?? true
+        app.tactileSounds = s["tactileSounds"] as? Bool ?? true
+        app.artStyle = (s["artStyle"] as? String).flatMap(ArtStyle.init(rawValue:)) ?? .vinyl
         app.shelf = s["shelf"] as? String ?? ""
         app.pick = ""
         app.session = ""
         app.replaceTicks(ticks)
+        if let parsedFoods { foodStore?.replaceAll(parsedFoods) }
+        if let parsedCapsules { capsuleStore?.replaceAll(parsedCapsules) }
         let hasRecords = !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty
         app.journal = (s["journal"] as? Bool ?? false) || hasRecords
     }
@@ -103,7 +157,7 @@ enum RecordFile {
     /// Everything recorded, as a document a paediatrician can read, or that a parent can hand to an AI assistant to look
     /// at: who the child is, the growth measurements with WHO percentiles, a day-by-day summary, what was noted and done
     /// month by month, and every entry in order. The app makes no assessment of its own; this is the record, in words.
-    static func summary(_ app: AppModel, _ j: JournalFile.Body) -> Data {
+    static func summary(_ app: AppModel, _ j: JournalFile.Body, foods: [FoodRecord] = []) -> Data {
         func date(_ ms: Double) -> String { let d = Day(Date(timeIntervalSince1970: ms / 1000)); return String(format: "%04d-%02d-%02d", d.y, d.m, d.d) }
         func time(_ ms: Double) -> String { hm(Date(timeIntervalSince1970: ms / 1000)) }
         var o = L10n.t("# 摸索台灯 · 成长与照护记录\n\n", "# Moss & Otto · Growth & care record\n\n")
@@ -129,6 +183,28 @@ enum RecordFile {
                 let d = Day(f.date)
                 let age = app.birth.map { b in Firsts.age(from: b, to: d) } ?? ""
                 o += String(format: "| %04d-%02d-%02d | ", d.y, d.m, d.d) + age + " | " + Firsts.displayTitle(f) + " | " + (f.note ?? "").replacingOccurrences(of: "|", with: pipe).replacingOccurrences(of: "\n", with: " ") + " |\n"
+            }
+        }
+
+        // first foods
+        if !foods.isEmpty {
+            let sortedFoods = foods.sorted { a, b in
+                a.firstTastedEpochDay != b.firstTastedEpochDay ? a.firstTastedEpochDay < b.firstTastedEpochDay : a.foodId < b.foodId
+            }
+            let loved = sortedFoods.filter { $0.reaction == .loved }.count
+            let watching = sortedFoods.filter(\.watchSkin).count
+            let watchSuffix = watching > 0 ? L10n.t("，其中 \(watching) 项标记留意反应", ", \(watching) flagged to watch") : ""
+            o += L10n.t("\n## 百味食盒（辅食探索）\n\n已尝 \(sortedFoods.count) / \(FoodItem.catalog.count) 种常见食材，\(loved) 种很喜欢\(watchSuffix)。\n\n| 初尝日期 | 食材 | 类别 | 反应 | 次数 | 致敏 / 留意 | 备注 |\n|---|---|---|---|---|---|---|\n", "\n## First Foods\n\n\(sortedFoods.count) / \(FoodItem.catalog.count) foods tasted, \(loved) loved\(watchSuffix).\n\n| Date | Food | Category | Reaction | Times | Allergen / Watch | Note |\n|---|---|---|---|---|---|---|\n")
+            for r in sortedFoods {
+                let d = r.firstTastedDay
+                let item = FoodItem.item(id: r.foodId)
+                let name = item?.name ?? r.foodId
+                let cat = item?.category.title ?? ""
+                var flags: [String] = []
+                if item?.isCommonAllergen == true { flags.append(L10n.t("常见致敏", "Allergen")) }
+                if r.watchSkin { flags.append(L10n.t("留意反应", "Watch")) }
+                let note = r.note.replacingOccurrences(of: "|", with: pipe).replacingOccurrences(of: "\n", with: " ")
+                o += "| " + String(format: "%04d-%02d-%02d", d.y, d.m, d.d) + " | " + name + " | " + cat + " | " + r.reaction.title + " | \(max(1, r.times)) | " + flags.joined(separator: listSep) + " | " + note + " |\n"
             }
         }
 

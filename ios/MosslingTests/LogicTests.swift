@@ -808,16 +808,41 @@ final class LogicTests: XCTestCase {
 
         let eng = SoundscapeEngine.shared
         defer { eng.stop() }
+        eng.duration = .m30
         eng.start(.rain)
         XCTAssertEqual(eng.active, .rain)
         XCTAssertNil(eng.secondary)
+        let initialRem = eng.remainingSeconds
         eng.toggleLayer(.rain) // primary cannot also be secondary
         XCTAssertNil(eng.secondary)
         eng.toggleLayer(.lullaby)
         XCTAssertEqual(eng.secondary, .lullaby)
         XCTAssertTrue(eng.activeSummary?.contains("+") == true)
-        eng.toggleLayer(.lullaby) // toggles back off
+        eng.toggleLayer(.lullaby) // toggles back off smoothly
         XCTAssertNil(eng.secondary)
+
+        // Promoting secondary to primary preserves remaining countdown instead of resetting timer
+        eng.toggleLayer(.breeze)
+        XCTAssertEqual(eng.secondary, .breeze)
+        eng.toggle(.rain)
+        XCTAssertEqual(eng.active, .breeze)
+        XCTAssertNil(eng.secondary)
+        XCTAssertEqual(eng.remainingSeconds, initialRem)
+
+        // DSP fades layerCurrentMix smoothly down to 0 and then clears layerKindRaw
+        let fadeState = SoundscapeDSPState()
+        fadeState.kindRaw = 0
+        fadeState.layerKindRaw = 3
+        fadeState.targetGain = 1.0
+        fadeState.currentGain = 0.8
+        fadeState.layerTargetMix = 0.0
+        fadeState.layerCurrentMix = 0.01
+        for _ in 0..<20_000 {
+            _ = fadeState.nextSample(sampleRate: 44_100)
+        }
+        XCTAssertEqual(fadeState.layerKindRaw, -1)
+        XCTAssertEqual(fadeState.layerCurrentMix, 0.0)
+
         eng.stop()
         XCTAssertNil(eng.active)
         XCTAssertNil(eng.secondary)
@@ -933,5 +958,17 @@ final class LogicTests: XCTestCase {
         XCTAssertNotEqual(snap.lastSleepHeadline, "—")
         XCTAssertNotEqual(snap.lastDiaperHeadline, "—")
         XCTAssertEqual(snap.extraNote, "刚拍完嗝")
+        XCTAssertTrue(snap.plainText.contains(snap.lastFeedHeadline))
+        XCTAssertTrue(snap.plainText.contains("刚拍完嗝"))
+        XCTAssertTrue(snap.plainText.contains("130"))
+
+        // Nursing continuation feed uses feed startDate consistently with LastFact
+        var nurseBody = JournalFile.Body()
+        nurseBody.logs = [
+            LogEntry(type: LogType.nurse, start: t(19, 13, 0), end: t(19, 13, 10), side: "l"),
+            LogEntry(type: LogType.nurse, start: t(19, 13, 10), end: t(19, 13, 20), side: "r")
+        ]
+        let nurseSnap = HandoverSnapshot.build(app: m, journal: JournalStore(preview: nurseBody), day: today, now: now)
+        XCTAssertTrue(nurseSnap.lastFeedDetail.contains("13:00"))
     }
 }

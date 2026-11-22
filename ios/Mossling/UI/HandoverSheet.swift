@@ -18,6 +18,25 @@ struct HandoverSnapshot: Sendable {
     let todayDetail: String
     let extraNote: String
 
+    var plainText: String {
+        let headerAge = ageText.isEmpty ? "" : " · \(ageText)"
+        var lines: [String] = [
+            L10n.t("【摸索台灯 · 照护交接】\(babyName)\(headerAge)（\(dateLabel) \(timeLabel)）",
+                   "[Moss & Otto · Care Handover] \(babyName)\(headerAge) (\(dateLabel) \(timeLabel))")
+        ]
+        if let activeTimerLine {
+            lines.append(activeTimerLine)
+        }
+        lines.append(L10n.t("上次喂奶：\(lastFeedHeadline)（\(lastFeedDetail)）", "Last feed: \(lastFeedHeadline) (\(lastFeedDetail))"))
+        lines.append(L10n.t("上次醒来：\(lastSleepHeadline)（\(lastSleepDetail)）", "Last wake: \(lastSleepHeadline) (\(lastSleepDetail))"))
+        lines.append(L10n.t("上次尿布：\(lastDiaperHeadline)（\(lastDiaperDetail)）", "Last diaper: \(lastDiaperHeadline) (\(lastDiaperDetail))"))
+        lines.append(L10n.t("今日节奏：\(todayHeadline) · \(todayDetail)", "Today: \(todayHeadline) · \(todayDetail)"))
+        if !extraNote.isEmpty {
+            lines.append(L10n.t("交接备注：\(extraNote)", "Handover note: \(extraNote)"))
+        }
+        return lines.joined(separator: "\n")
+    }
+
     @MainActor
     static func build(app: AppModel, journal: JournalStore, day: Day, now: Date = Date(), extraNote: String = "") -> HandoverSnapshot {
         let logs = journal.logs(on: day)
@@ -40,13 +59,14 @@ struct HandoverSnapshot: Sendable {
             return L10n.t("进行中：\(status)（已 \(dur)）", "Active now: \(status) (\(dur))")
         }
 
-        let lastFeedEntry = journal.logs.filter { $0.type == LogType.nurse || $0.type == LogType.bottle }.max { $0.start < $1.start }
+        let lastFeedFact = LastFact.of(LogType.nurse, in: journal.logs)
+        let lastFeedObj = journal.logs.feeds().last
         let lastFeedHead: String
         let lastFeedSub: String
-        if let f = lastFeedEntry {
-            let at = Date(timeIntervalSince1970: (f.end ?? f.start) / 1000)
+        if let f = lastFeedObj {
+            let at = lastFeedFact?.at ?? f.startDate
             lastFeedHead = L10n.agoText(at, now: now, precise: true)
-            if f.type == LogType.bottle, let ml = f.amount, ml > 0 {
+            if f.isBottle, let ml = f.first.amount, ml > 0 {
                 lastFeedSub = L10n.t("\(hm(at)) · 瓶喂 \(ml) 毫升", "\(hm(at)) · " + L10n.volume(ml: ml))
             } else {
                 lastFeedSub = L10n.t("\(hm(at)) · 今日共 \(feeds) 次", "\(hm(at)) · \(feeds) today")
@@ -108,7 +128,7 @@ struct HandoverSheet: View {
     @Environment(\.lamp) private var lamp
 
     let day: Day
-    let baseTextSummary: String
+    var previewNow: Date? = nil
 
     @State private var note = ""
     @State private var copied = false
@@ -119,109 +139,107 @@ struct HandoverSheet: View {
             : ["刚拍完嗝，准备小睡", "奶瓶已温好在厨房", "今天胃口很好", "醒来后可以一起玩"]
     }
 
-    private var fullTextSummary: String {
-        let trimmed = note.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return baseTextSummary }
-        return baseTextSummary + "\n" + L10n.t("交接备注：\(trimmed)", "Handover note: \(trimmed)")
-    }
-
     var body: some View {
         let dark = lamp || scheme == .dark
-        let snap = HandoverSnapshot.build(app: app, journal: j, day: day, extraNote: note)
-        let poster = RenderedPoster {
-            let card = HandoverPoster(snapshot: snap)
-            let renderer = ImageRenderer(content: card)
-            renderer.scale = 3.0
-            return renderer.uiImage
-        }
 
         NavigationStack {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 16) {
-                    // Live cotton-paper handover card preview
-                    HandoverCardContent(snapshot: snap, companion: app.companion, dark: dark)
-                        .printCard(radius: Radius.card)
-
-                    // Optional handover note with 4 balanced quick chips
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text(L10n.t("给下一位照护者留一句（可选）", "Quick note for next caregiver (optional)"))
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(.primary)
-
-                        LazyVGrid(
-                            columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-                            spacing: 8
-                        ) {
-                            ForEach(quickNotes, id: \.self) { chip in
-                                let active = note == chip
-                                Button {
-                                    TactileEngine.shared.beadClick()
-                                    note = active ? "" : chip
-                                } label: {
-                                    Text(chip)
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(active ? .white : .primary)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.8)
-                                        .frame(maxWidth: .infinity)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 8)
-                                        .background(Capsule().fill(active ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                                        .overlay(Capsule().strokeBorder(Palette.outline.opacity(active ? 0 : 0.3), lineWidth: 0.75))
-                                }
-                                .buttonStyle(.plain)
-                            }
-                        }
-
-                        TextField(L10n.t("例如：半小时前刚吃过维生素 D", "e.g. Vitamin D given 30m ago"), text: $note)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 10)
-                            .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(dark ? Palette.lampCard : Palette.card))
-                            .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
-                    }
-
-                    // Primary Share Visual Card + Secondary Copy Plain Text
-                    VStack(spacing: 10) {
-                        ShareLink(
-                            item: poster,
-                            preview: SharePreview(
-                                L10n.t("\(snap.babyName)的照护交接卡", "\(snap.babyName)'s Care Handover Card")
-                            )
-                        ) {
-                            Label(L10n.t("分享精美交接卡图片", "Share Visual Handover Card"), systemImage: "square.and.arrow.up")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 13)
-                        }
-                        .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
-
-                        Button {
-                            UIPasteboard.general.string = fullTextSummary
-                            TactileEngine.shared.goldChime()
-                            withAnimation(.snappy) { copied = true }
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .seconds(2))
-                                withAnimation(.snappy) { copied = false }
-                            }
-                        } label: {
-                            Label(
-                                copied ? L10n.t("已复制纯文字交接单", "Copied Text Summary") : L10n.t("复制纯文字发给家人", "Copy Plain Text"),
-                                systemImage: copied ? "checkmark.circle.fill" : "doc.on.doc"
-                            )
-                            .font(.subheadline.weight(.bold))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 11)
-                        }
-                        .buttonStyle(.vinyl(copied ? Crayon.leaf : Crayon.caramel))
-                    }
-
-                    Text(L10n.t("全部内容仅在本机即时生成，不上传云端，可直接发给伴侣、长辈或阿姨。", "Generated locally on your phone with zero cloud upload — ready for partner, grandparents, or nanny."))
-                        .font(.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                        .frame(maxWidth: .infinity, alignment: .center)
-                        .multilineTextAlignment(.center)
+            TimelineView(.periodic(from: .now, by: 30)) { tl in
+                let currentNow = previewNow ?? tl.date
+                let snap = HandoverSnapshot.build(app: app, journal: j, day: day, now: currentNow, extraNote: note)
+                let poster = RenderedPoster {
+                    let card = HandoverPoster(snapshot: snap)
+                    let renderer = ImageRenderer(content: card)
+                    renderer.scale = 3.0
+                    return renderer.uiImage
                 }
-                .padding(16)
+
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        // Live cotton-paper handover card preview
+                        HandoverCardContent(snapshot: snap, companion: app.companion, dark: dark)
+                            .printCard(radius: Radius.card)
+
+                        // Optional handover note with 4 balanced quick chips
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(L10n.t("给下一位照护者留一句（可选）", "Quick note for next caregiver (optional)"))
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+
+                            LazyVGrid(
+                                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                                spacing: 8
+                            ) {
+                                ForEach(quickNotes, id: \.self) { chip in
+                                    let active = note == chip
+                                    Button {
+                                        TactileEngine.shared.beadClick()
+                                        note = active ? "" : chip
+                                    } label: {
+                                        Text(chip)
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(active ? .white : .primary)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.8)
+                                            .frame(maxWidth: .infinity)
+                                            .padding(.horizontal, 10)
+                                            .padding(.vertical, 8)
+                                            .background(Capsule().fill(active ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                                            .overlay(Capsule().strokeBorder(Palette.outline.opacity(active ? 0 : 0.3), lineWidth: 0.75))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+
+                            TextField(L10n.t("例如：半小时前刚吃过维生素 D", "e.g. Vitamin D given 30m ago"), text: $note)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 10)
+                                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(dark ? Palette.lampCard : Palette.card))
+                                .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
+                        }
+
+                        // Primary Share Visual Card + Secondary Copy Plain Text
+                        VStack(spacing: 10) {
+                            ShareLink(
+                                item: poster,
+                                preview: SharePreview(
+                                    L10n.t("\(snap.babyName)的照护交接卡", "\(snap.babyName)'s Care Handover Card")
+                                )
+                            ) {
+                                Label(L10n.t("分享精美交接卡图片", "Share Visual Handover Card"), systemImage: "square.and.arrow.up")
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 13)
+                            }
+                            .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+
+                            Button {
+                                UIPasteboard.general.string = snap.plainText
+                                TactileEngine.shared.goldChime()
+                                withAnimation(.snappy) { copied = true }
+                                Task { @MainActor in
+                                    try? await Task.sleep(for: .seconds(2))
+                                    withAnimation(.snappy) { copied = false }
+                                }
+                            } label: {
+                                Label(
+                                    copied ? L10n.t("已复制纯文字交接单", "Copied Text Summary") : L10n.t("复制纯文字发给家人", "Copy Plain Text"),
+                                    systemImage: copied ? "checkmark.circle.fill" : "doc.on.doc"
+                                )
+                                .font(.subheadline.weight(.bold))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 11)
+                            }
+                            .buttonStyle(.vinyl(copied ? Crayon.leaf : Crayon.caramel))
+                        }
+
+                        Text(L10n.t("全部内容仅在本机即时生成，不上传云端，可直接发给伴侣、长辈或阿姨。", "Generated locally on your phone with zero cloud upload — ready for partner, grandparents, or nanny."))
+                            .font(.caption)
+                            .foregroundStyle(Palette.secondaryText)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding(16)
+                }
             }
             .pageBackground(tone: Crayon.sunflower)
             .navigationTitle(L10n.t("交接给下一位点灯人", "Passing the Lantern"))
@@ -441,6 +459,11 @@ private struct HandoverPoster: View {
         .padding(22)
         .frame(width: 360)
         .background(paper)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .strokeBorder(Color(hex: 0xC6A982).opacity(0.35), lineWidth: 1)
+                .padding(6)
+        )
     }
 
     private func posterCell(title: String, value: String, detail: String, tint: Color, ink: Color, muted: Color) -> some View {

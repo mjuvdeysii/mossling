@@ -32,7 +32,7 @@ enum FirstPhotoStore {
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
             let target = url(for: id, in: dir)
-            try data.write(to: target, options: .atomic)
+            try data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             if dir == folder {
                 cache.setObject(resized, forKey: id.uuidString as NSString)
                 Task { @MainActor in FirstPhotoVersion.shared.bump() }

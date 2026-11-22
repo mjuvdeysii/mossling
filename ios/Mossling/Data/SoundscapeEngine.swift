@@ -1,6 +1,7 @@
 import Foundation
 import SwiftUI
 import AVFoundation
+import MediaPlayer
 import Observation
 
 /// Four handcrafted nursery soundscapes synthesized in real time via `AVAudioEngine` (zero audio files in bundle,
@@ -125,6 +126,12 @@ final class SoundscapeDSPState: @unchecked Sendable {
         let desired = targetGain * userVolume
         currentGain += (desired - currentGain) * 0.00018
         layerCurrentMix += (layerTargetMix - layerCurrentMix) * 0.00018
+        if layerTargetMix <= 0.0001 && layerCurrentMix <= 0.0005 && layerKindRaw >= 0 {
+            layerCurrentMix = 0
+            layerKindRaw = -1
+            sLp1 = 0
+            sLp2 = 0
+        }
 
         let primary = synthesizeLayer(kind: kindRaw, t: t, sr: sr, useSecondaryFilter: false)
         var combined = primary
@@ -249,7 +256,12 @@ final class SoundscapeEngine {
     /// Optional second soundscape blended softly underneath `active` (e.g., Paper Rain + Wood Lullaby).
     private(set) var secondary: SoundscapeKind? = nil
     var duration: SoundscapeDuration = .m30 {
-        didSet { if active != nil { scheduleTimer() } }
+        didSet {
+            if active != nil {
+                scheduleTimer()
+                updateNowPlaying()
+            }
+        }
     }
     var volume: Double = 0.72 {
         didSet { dsp.userVolume = Float(max(0.05, min(1.0, volume))) }
@@ -272,6 +284,8 @@ final class SoundscapeEngine {
     private var engine: AVAudioEngine?
     private var sourceNode: AVAudioSourceNode?
     private var countdownTask: Task<Void, Never>?
+    private var observersRegistered = false
+    private var remoteCommandsConfigured = false
     private var isTestHost: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
@@ -290,20 +304,19 @@ final class SoundscapeEngine {
     func toggle(_ kind: SoundscapeKind) {
         if active == kind {
             if let second = secondary {
-                // Promote secondary layer smoothly to primary instead of abrupt silence
+                // Promote secondary layer smoothly to primary without clicking or losing countdown
                 secondary = nil
-                dsp.layerKindRaw = -1
                 dsp.layerTargetMix = 0
-                start(second)
+                start(second, preserveTimer: true)
             } else {
                 stop()
             }
         } else if secondary == kind {
             secondary = nil
-            dsp.layerKindRaw = -1
             dsp.layerTargetMix = 0
+            updateNowPlaying()
         } else {
-            start(kind)
+            start(kind, preserveTimer: active != nil)
         }
     }
 
@@ -318,28 +331,42 @@ final class SoundscapeEngine {
         }
         if secondary == kind {
             secondary = nil
-            dsp.layerKindRaw = -1
             dsp.layerTargetMix = 0
         } else {
+            let nextIdx = SoundscapeKind.allCases.firstIndex(of: kind) ?? -1
+            if dsp.layerKindRaw != nextIdx {
+                dsp.sLp1 = 0
+                dsp.sLp2 = 0
+                dsp.layerCurrentMix = 0
+                dsp.layerKindRaw = nextIdx
+            }
             secondary = kind
-            dsp.layerKindRaw = SoundscapeKind.allCases.firstIndex(of: kind) ?? -1
             dsp.layerTargetMix = 1.0
         }
+        updateNowPlaying()
     }
 
-    func start(_ kind: SoundscapeKind) {
+    func start(_ kind: SoundscapeKind, preserveTimer: Bool = false) {
         if secondary == kind {
             secondary = nil
-            dsp.layerKindRaw = -1
             dsp.layerTargetMix = 0
         }
         dsp.kindRaw = SoundscapeKind.allCases.firstIndex(of: kind) ?? 0
         dsp.userVolume = Float(max(0.05, min(1.0, volume)))
-        dsp.targetGain = 1.0
+        if let rem = remainingSeconds, preserveTimer {
+            dsp.targetGain = Self.fadeMultiplier(remaining: Double(rem), fadeDuration: 20)
+        } else {
+            dsp.targetGain = 1.0
+        }
         active = kind
-        scheduleTimer()
+        if !preserveTimer || (duration != .continuous && countdownTask == nil) {
+            scheduleTimer()
+        }
         guard !isTestHost else { return }
         startAudioGraph()
+        registerSessionObserversIfNeeded()
+        setupRemoteCommandsIfNeeded()
+        updateNowPlaying()
     }
 
     func stop() {
@@ -349,9 +376,9 @@ final class SoundscapeEngine {
         active = nil
         secondary = nil
         dsp.targetGain = 0.0
-        dsp.layerKindRaw = -1
         dsp.layerTargetMix = 0.0
         guard !isTestHost else { return }
+        clearNowPlaying()
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(320))
             guard let self, self.active == nil else { return }
@@ -423,5 +450,109 @@ final class SoundscapeEngine {
         sourceNode = nil
         engine = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+    }
+
+    private func registerSessionObserversIfNeeded() {
+        guard !observersRegistered else { return }
+        observersRegistered = true
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] note in
+            let typeVal = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            let optVal = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt
+            Task { @MainActor [weak self] in
+                self?.handleInterruption(typeVal: typeVal, optVal: optVal)
+            }
+        }
+        nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil) { [weak self] note in
+            let reasonVal = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            Task { @MainActor [weak self] in
+                self?.handleRouteChange(reasonVal: reasonVal)
+            }
+        }
+    }
+
+    private func handleInterruption(typeVal: UInt?, optVal: UInt?) {
+        guard let typeVal, let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
+        switch type {
+        case .began:
+            dsp.targetGain = 0
+        case .ended:
+            guard active != nil else { return }
+            let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
+            if opts.contains(.shouldResume) || engine?.isRunning == false {
+                try? AVAudioSession.sharedInstance().setActive(true)
+                if engine?.isRunning != true {
+                    teardownAudioGraph()
+                    startAudioGraph()
+                }
+                if let rem = remainingSeconds {
+                    dsp.targetGain = Self.fadeMultiplier(remaining: Double(rem), fadeDuration: 20)
+                } else {
+                    dsp.targetGain = 1.0
+                }
+                updateNowPlaying()
+            }
+        @unknown default:
+            break
+        }
+    }
+
+    private func handleRouteChange(reasonVal: UInt?) {
+        guard active != nil, let reasonVal,
+              let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
+        if reason == .oldDeviceUnavailable {
+            // Unplugging headphones gently stops playback instead of startling a sleeping baby over speaker
+            stop()
+            return
+        }
+        if engine?.isRunning != true {
+            teardownAudioGraph()
+            startAudioGraph()
+            updateNowPlaying()
+        }
+    }
+
+    private func setupRemoteCommandsIfNeeded() {
+        guard !remoteCommandsConfigured else { return }
+        remoteCommandsConfigured = true
+        let cc = MPRemoteCommandCenter.shared()
+        cc.pauseCommand.isEnabled = true
+        cc.pauseCommand.addTarget { [weak self] _ in
+            Task { @MainActor [weak self] in self?.stop() }
+            return .success
+        }
+        cc.stopCommand.isEnabled = true
+        cc.stopCommand.addTarget { [weak self] _ in
+            Task { @MainActor [weak self] in self?.stop() }
+            return .success
+        }
+        cc.togglePlayPauseCommand.isEnabled = true
+        cc.togglePlayPauseCommand.addTarget { [weak self] _ in
+            Task { @MainActor [weak self] in
+                if self?.isPlaying == true { self?.stop() }
+            }
+            return .success
+        }
+    }
+
+    private func updateNowPlaying() {
+        guard !isTestHost, let title = activeSummary else { return }
+        var info: [String: Any] = [
+            MPMediaItemPropertyTitle: title,
+            MPMediaItemPropertyArtist: L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"),
+            MPNowPlayingInfoPropertyPlaybackRate: 1.0,
+            MPNowPlayingInfoPropertyIsLiveStream: duration == .continuous,
+        ]
+        if let rem = remainingSeconds, duration != .continuous {
+            let total = Double(duration.rawValue * 60)
+            info[MPMediaItemPropertyPlaybackDuration] = total
+            info[MPNowPlayingInfoPropertyElapsedPlaybackTime] = max(0, total - Double(rem))
+        }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = info
+    }
+
+    private func clearNowPlaying() {
+        guard !isTestHost else { return }
+        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 }

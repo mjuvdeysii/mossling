@@ -142,6 +142,11 @@ final class CapsuleStore {
         }
     }
 
+    func replaceAll(_ list: [TimeCapsule]) {
+        items = list.sorted { $0.writtenAt > $1.writtenAt }
+        persist()
+    }
+
     func readyCount(on today: Day) -> Int {
         items.filter { $0.isReadyToOpen(on: today) }.count
     }
@@ -151,7 +156,7 @@ final class CapsuleStore {
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try JSONEncoder().encode(items)
-            try data.write(to: url, options: .atomic)
+            try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
             // Silent resilience: never crash on transient I/O errors
         }

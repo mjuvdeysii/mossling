@@ -35,8 +35,8 @@ struct DataView: View {
         }
         var detail: String {
             switch self {
-            case .summary: L10n.t("孩子的资料、生长测量与百分位、每天的喂奶睡眠尿布汇总、每月记下的事、全部记录，按时间排好的一份文档", "Child profile, growth measurements with percentiles, daily feeding, sleep and diaper totals, monthly notes, and every entry in order")
-            case .backup: L10n.t("全部设置与记录，包括正在进行的计时；可以导回摸索台灯", "All settings and records, including active timers; can be imported back into Moss & Otto")
+            case .summary: L10n.t("孩子的资料、生长测量与百分位、百味食盒辅食记录、每天汇总、每月记下的事与全部记录", "Child profile, growth measurements with percentiles, First Foods tasting log, daily totals, monthly notes, and every entry")
+            case .backup: L10n.t("全部设置与记录（含百味食盒、时光胶囊与进行中计时）；可以导回摸索台灯", "All settings and records (including First Foods, Time Capsules, and active timers); can be imported back into Moss & Otto")
             case .table: L10n.t("每一条记录一行，可用 Numbers 或 Excel 打开", "One entry per row, ready to open in Numbers or Excel")
             }
         }
@@ -130,7 +130,13 @@ struct DataView: View {
 
     private func export(_ k: Export) {
         let body = JournalFile.read()
-        let data: Data = switch k { case .summary: RecordFile.summary(app, body); case .backup: RecordFile.json(app, body); case .table: RecordFile.csv(body) }
+        let foods = Array(FoodAtlasStore.shared.records.values)
+        let capsules = CapsuleStore.shared.items
+        let data: Data = switch k {
+        case .summary: RecordFile.summary(app, body, foods: foods)
+        case .backup: RecordFile.json(app, body, foods: foods, capsules: capsules)
+        case .table: RecordFile.csv(body)
+        }
         let d = Day.today, t = hm(Date()).replacingOccurrences(of: ":", with: "")
         let name = "\(L10n.appName)-\(k.fileSlug)-" + String(format: "%04d%02d%02d", d.y, d.m, d.d) + "-\(t).\(k.ext)"
         do {
@@ -147,7 +153,7 @@ struct DataView: View {
 
     private func load(_ url: URL) {
         let ok = url.startAccessingSecurityScopedResource(); defer { if ok { url.stopAccessingSecurityScopedResource() } }
-        do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j); message = L10n.t("已导入", "Imported") }
+        do { try RecordFile.load(Data(contentsOf: url), into: app, journal: j, foodStore: .shared, capsuleStore: .shared); message = L10n.t("已导入", "Imported") }
         catch RecordFile.Failure.notOurs { message = L10n.t("这不是摸索台灯导出的备份文件", "This isn't a Moss & Otto backup file.") }
         catch RecordFile.Failure.saveFailed { message = L10n.t("没有导入成功，请检查 iPhone 的存储空间后再试。", "Couldn't import the backup. Check your iPhone storage and try again.") }
         catch { message = L10n.t("没有导入成功，文件可能已损坏", "Couldn't import the backup. The file may be damaged.") }

@@ -11,6 +11,7 @@ struct FoodAtlasView: View {
 
     @State private var store: FoodAtlasStore
     @State private var filter: Filter = .all
+    @State private var query = ""
     @State private var editingItem: FoodItem? = nil
 
     enum Filter: Hashable, Identifiable {
@@ -47,11 +48,18 @@ struct FoodAtlasView: View {
     }
 
     private var filteredItems: [FoodItem] {
-        switch filter {
+        let base: [FoodItem] = switch filter {
         case .all: FoodItem.catalog
         case .category(let c): FoodItem.catalog.filter { $0.category == c }
         case .allergen: FoodItem.catalog.filter(\.isCommonAllergen)
         case .untasted: FoodItem.catalog.filter { store.record(for: $0.id) == nil }
+        }
+        let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !q.isEmpty else { return base }
+        return base.filter {
+            $0.zh.localizedCaseInsensitiveContains(q)
+                || $0.en.localizedCaseInsensitiveContains(q)
+                || $0.category.title.localizedCaseInsensitiveContains(q)
         }
     }
 
@@ -75,50 +83,79 @@ struct FoodAtlasView: View {
             VStack(alignment: .leading, spacing: 16) {
                 wreathHeroCard(dark: dark)
 
-                // Clean category filter strip
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        ForEach(allFilters) { f in
-                            let selected = filter == f
-                            Button {
-                                TactileEngine.shared.beadClick()
-                                withAnimation(.snappy) { filter = f }
-                            } label: {
-                                Text(f.label)
-                                    .font(.footnote.weight(.bold))
-                                    .foregroundStyle(selected ? .white : .primary)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 7)
-                                    .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                                    .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.32), lineWidth: 0.75))
-                            }
-                            .buttonStyle(.plain)
+                // Wrapping Montessori filter tray (zero horizontal clipping)
+                FlowRow(spacing: 7, lineSpacing: 7) {
+                    ForEach(allFilters) { f in
+                        let selected = filter == f
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(.snappy) { filter = f }
+                        } label: {
+                            Text(f.label)
+                                .font(.footnote.weight(.bold))
+                                .foregroundStyle(selected ? .white : .primary)
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                                .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.32), lineWidth: 0.75))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
                     }
-                    .padding(.horizontal, 2)
                 }
 
                 if filter == .allergen {
-                    HStack(spacing: 8) {
+                    let allergens = FoodItem.catalog.filter(\.isCommonAllergen)
+                    let introduced = allergens.filter { store.record(for: $0.id) != nil }.count
+                    HStack(alignment: .top, spacing: 8) {
                         Image(systemName: "info.circle.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Palette.lampTint)
-                        Text(L10n.t("常见致敏食材建议白天首次少量尝试，观察皮肤与大便反应；有家族过敏史请先咨询儿科医生。", "Common allergens are best offered in tiny amounts earlier in the day while watching for skin or tummy changes. Ask your pediatrician if you have allergy concerns."))
-                            .font(.caption)
-                            .foregroundStyle(Palette.secondaryText)
-                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.t("已尝 \(introduced) / \(allergens.count) 种常见致敏食材", "\(introduced) of \(allergens.count) common allergens introduced"))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Text(L10n.t("常见致敏食材建议白天首次少量尝试，观察皮肤与大便反应；有家族过敏史请先咨询儿科医生。", "Common allergens are best offered in tiny amounts earlier in the day while watching for skin or tummy changes. Ask your pediatrician if you have allergy concerns."))
+                                .font(.caption)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
                     .padding(12)
                     .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.amber.opacity(dark ? 0.12 : 0.14)))
                 }
 
-                LazyVGrid(columns: columns, spacing: 10) {
-                    ForEach(filteredItems) { item in
-                        let rec = store.record(for: item.id)
-                        FoodStampTile(item: item, record: rec, dark: dark) {
-                            if app.mayKeep() {
-                                TactileEngine.shared.beadClick()
-                                editingItem = item
+                if filteredItems.isEmpty {
+                    VStack(spacing: 8) {
+                        Creature(kind: .moss, mood: .open, look: CGPoint(x: 0.4, y: 0.2), alive: false)
+                            .frame(width: 52, height: 52)
+                        Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                             ? L10n.t("这一栏都尝遍啦", "Everything here has been tasted")
+                             : L10n.t("没有找到「\(query)」", "No foods matching \"\(query)\""))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                            Button(L10n.t("显示全部食材", "Show all 60 foods")) {
+                                query = ""
+                                filter = .all
+                            }
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Palette.accent)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(24)
+                    .printCard(radius: Radius.card)
+                } else {
+                    LazyVGrid(columns: columns, spacing: 10) {
+                        ForEach(filteredItems) { item in
+                            let rec = store.record(for: item.id)
+                            FoodStampTile(item: item, record: rec, dark: dark) {
+                                if app.mayKeep() {
+                                    TactileEngine.shared.beadClick()
+                                    editingItem = item
+                                }
                             }
                         }
                     }
@@ -130,6 +167,7 @@ struct FoodAtlasView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.leaf)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .automatic), prompt: L10n.t("搜索 60 种食材…", "Search 60 foods…"))
         .navigationTitle(L10n.t("百味食盒", "First Foods"))
         .navigationBarTitleDisplayMode(.large)
         .toolbar {
@@ -256,7 +294,9 @@ private struct FoodStampTile: View {
     var body: some View {
         let tasted = record != nil
         let catColor = item.category.color
-        Button(action: tap) {
+        let watch = record?.watchSkin == true
+        let times = max(1, record?.times ?? 1)
+        return Button(action: tap) {
             VStack(spacing: 6) {
                 ZStack(alignment: .topTrailing) {
                     ZStack {
@@ -271,6 +311,15 @@ private struct FoodStampTile: View {
                             .font(.system(size: 26))
                             .saturation(tasted ? 1.0 : 0.72)
                             .opacity(tasted ? 1.0 : 0.82)
+                    }
+                    .overlay(alignment: .topLeading) {
+                        if watch {
+                            Circle()
+                                .fill(Palette.amber)
+                                .frame(width: 10, height: 10)
+                                .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.4))
+                                .offset(x: -1, y: -1)
+                        }
                     }
 
                     if let rec = record {
@@ -297,10 +346,19 @@ private struct FoodStampTile: View {
                     .minimumScaleFactor(0.76)
 
                 if let rec = record {
-                    Text(rec.firstTastedDay.md)
-                        .font(.caption2)
-                        .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
+                    if watch {
+                        Text(times >= 2 ? L10n.t("留意 · ×\(times)", "Watch · ×\(times)") : L10n.t("留意反应", "Watch"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    } else {
+                        Text(times >= 2 ? "\(rec.firstTastedDay.md) · ×\(times)" : rec.firstTastedDay.md)
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    }
                 } else {
                     Text(item.isCommonAllergen ? L10n.t("致敏留意", "Allergen") : item.category.title)
                         .font(.caption2)
@@ -322,7 +380,21 @@ private struct FoodStampTile: View {
         }
         .buttonStyle(.toy)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(item.name + (record.map { ", \($0.reaction.title), \($0.firstTastedDay.md)" } ?? L10n.t("，尚未尝过", ", not tasted yet")))
+        .accessibilityLabel(accessibilityText(record: record, times: times, watch: watch))
+    }
+
+    private func accessibilityText(record: FoodRecord?, times: Int, watch: Bool) -> String {
+        var parts = [item.name]
+        if item.isCommonAllergen { parts.append(L10n.t("常见致敏", "common allergen")) }
+        if let rec = record {
+            parts.append(rec.reaction.title)
+            parts.append(rec.firstTastedDay.md)
+            if times >= 2 { parts.append(L10n.t("尝过 \(times) 次", "\(times) times")) }
+            if watch { parts.append(L10n.t("需留意反应", "watch skin or tummy")) }
+        } else {
+            parts.append(L10n.t("尚未尝过", "not tasted yet"))
+        }
+        return parts.joined(separator: ", ")
     }
 }
 
@@ -342,6 +414,7 @@ private struct FoodTasteSheet: View {
     @State private var tastedDate: Date
     @State private var note: String
     @State private var watchSkin: Bool
+    @State private var times: Int
     @State private var alsoLogJournal: Bool
 
     init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore) {
@@ -352,6 +425,7 @@ private struct FoodTasteSheet: View {
         _tastedDate = State(initialValue: existing?.firstTastedDay.date ?? Date())
         _note = State(initialValue: existing?.note ?? "")
         _watchSkin = State(initialValue: existing?.watchSkin ?? false)
+        _times = State(initialValue: max(1, existing?.times ?? 1))
         _alsoLogJournal = State(initialValue: existing == nil)
     }
 
@@ -441,6 +515,48 @@ private struct FoodTasteSheet: View {
                         .padding(.horizontal, 14)
                         .padding(.vertical, 10)
 
+                        if existing != nil {
+                            Divider().padding(.leading, 14)
+                            HStack {
+                                Text(L10n.t("尝过次数", "Times offered"))
+                                    .font(.subheadline.weight(.semibold))
+                                Spacer()
+                                HStack(spacing: 12) {
+                                    Button {
+                                        if times > 1 {
+                                            TactileEngine.shared.beadClick()
+                                            times -= 1
+                                        }
+                                    } label: {
+                                        Image(systemName: "minus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(times > 1 ? Palette.accent : Palette.secondaryText.opacity(0.35))
+                                    }
+                                    .buttonStyle(.plain)
+                                    .disabled(times <= 1)
+                                    .accessibilityLabel(L10n.t("减少次数", "Decrease times"))
+
+                                    Text("\(times)")
+                                        .font(Typeface.numerals(17, relativeTo: .headline, weight: .bold))
+                                        .frame(minWidth: 24)
+                                        .multilineTextAlignment(.center)
+
+                                    Button {
+                                        TactileEngine.shared.beadClick()
+                                        times += 1
+                                    } label: {
+                                        Image(systemName: "plus.circle.fill")
+                                            .font(.title3)
+                                            .foregroundStyle(Palette.accent)
+                                    }
+                                    .buttonStyle(.plain)
+                                    .accessibilityLabel(L10n.t("增加一次", "Increase times"))
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                        }
+
                         if app.journal && existing == nil {
                             Divider().padding(.leading, 14)
                             Toggle(isOn: $alsoLogJournal) {
@@ -511,7 +627,7 @@ private struct FoodTasteSheet: View {
                             reaction: reaction,
                             note: note.trimmingCharacters(in: .whitespacesAndNewlines),
                             watchSkin: watchSkin,
-                            times: (existing?.times ?? 0) + (existing == nil ? 1 : 0)
+                            times: max(1, times)
                         )
                         store.save(rec)
                         if app.journal && existing == nil && alsoLogJournal {
@@ -557,6 +673,21 @@ private struct FoodPassportPoster: View {
                 Spacer()
             }
 
+            // 6-category botanical summary dots
+            HStack(spacing: 10) {
+                ForEach(FoodCategory.allCases) { cat in
+                    let count = tasted.filter { $0.category == cat }.count
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(count > 0 ? cat.color : cat.color.opacity(0.28))
+                            .frame(width: 7, height: 7)
+                        Text("\(count)")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundStyle(count > 0 ? ink : ink.opacity(0.45))
+                    }
+                }
+            }
+
             Divider().opacity(0.35)
 
             if tasted.isEmpty {
@@ -578,6 +709,15 @@ private struct FoodPassportPoster: View {
                         .frame(maxWidth: .infinity)
                         .background(RoundedRectangle(cornerRadius: 10).fill(item.category.color.opacity(0.14)))
                     }
+                }
+
+                if tasted.count > 24 {
+                    Text(L10n.t("+ \(tasted.count - 24) 种更多味道", "+\(tasted.count - 24) more tastes"))
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(teal)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(teal.opacity(0.12)))
                 }
             }
 

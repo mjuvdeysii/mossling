@@ -240,13 +240,18 @@ final class FoodAtlasStore {
         }
     }
 
+    func replaceAll(_ list: [FoodRecord]) {
+        records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
+        persist()
+    }
+
     private func persist() {
         guard let url = fileURL else { return }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let sorted = records.values.sorted { $0.foodId < $1.foodId }
             let data = try JSONEncoder().encode(sorted)
-            try data.write(to: url, options: .atomic)
+            try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
         } catch {
             // Silent resilience on transient I/O errors
         }

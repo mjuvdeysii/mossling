@@ -330,13 +330,13 @@ final class ScreenshotTests: XCTestCase {
             FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
             FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
             FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved),
-            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain, times: 3),
             FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
             FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
             FoodRecord(foodId: "blueberry",   firstTastedEpochDay: today.plus(days: -4).epochDay,  reaction: .tasted),
             FoodRecord(foodId: "ricecereal",  firstTastedEpochDay: today.plus(days: -20).epochDay, reaction: .loved),
             FoodRecord(foodId: "oatmeal",     firstTastedEpochDay: today.plus(days: -7).epochDay,  reaction: .tasted),
-            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted, watchSkin: true),
             FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
             FoodRecord(foodId: "yogurt",      firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
             FoodRecord(foodId: "oliveoil",    firstTastedEpochDay: today.plus(days: -1).epochDay,  reaction: .tasted),
@@ -393,8 +393,9 @@ final class ScreenshotTests: XCTestCase {
             // 2. Bedside Lamp (4-6 Breathing Halo + Dual-Layer Soundscape Mix)
             SoundscapeEngine.shared.start(.rain)
             SoundscapeEngine.shared.toggleLayer(.lullaby)
+            let nightClock = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 22, minute: 15)) ?? today.date.addingTimeInterval(22 * 3600 + 15 * 60)
             shot("store_\(prefix)2_lamp", dark: true, height: 956, width: 440,
-                 BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(m).environment(sleeping).fontDesign(.rounded))
+                 BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true, previewClock: nightClock).environment(m).environment(sleeping).fontDesign(.rounded))
             SoundscapeEngine.shared.stop()
 
             // 3. Sensory Toybox (8-bar Wooden Xylophone with 4-studio picker)
@@ -759,9 +760,10 @@ final class ScreenshotTests: XCTestCase {
         var sleepBody = b
         sleepBody.timers = [RunningTimer(type: LogType.sleep, start: ms(Date()) - 42 * 60_000)]
         let sleepJournal = JournalStore(preview: sleepBody)
+        let nightClock = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 22, minute: 15)) ?? today.date.addingTimeInterval(22 * 3600 + 15 * 60)
         SoundscapeEngine.shared.start(.rain)
         defer { SoundscapeEngine.shared.stop() }
-        shot("43_bedside_lamp_zh", dark: true, height: 852, BedsideLampView(initialBrightness: 0.78).environment(m).environment(sleepJournal).fontDesign(.rounded))
+        shot("43_bedside_lamp_zh", dark: true, height: 852, BedsideLampView(initialBrightness: 0.78, previewClock: nightClock).environment(m).environment(sleepJournal).fontDesign(.rounded))
 
         // 3. Keepsake Growth Storybook (CN Cover + CN Month 6 Editorial Spread with Polaroid First Photo)
         shot("44_storybook_cover_zh", height: 852, StorybookView(initialPage: 0).environment(m).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
@@ -775,7 +777,7 @@ final class ScreenshotTests: XCTestCase {
              ScrollView { RhythmDialCard(nowHour: 15.5, initialInspectedHour: 21).padding(16) }
                 .pageBackground().environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
         SoundscapeEngine.shared.start(.lullaby)
-        shot("43_bedside_lamp_en", dark: true, height: 852, BedsideLampView(initialBrightness: 0.82).environment(mEn).environment(richJournal).fontDesign(.rounded))
+        shot("43_bedside_lamp_en", dark: true, height: 852, BedsideLampView(initialBrightness: 0.82, previewClock: nightClock).environment(mEn).environment(richJournal).fontDesign(.rounded))
         shot("44_storybook_spread_en", height: 852, StorybookView(initialPage: 7).environment(mEn).environment(richJournal).tint(Palette.accent).fontDesign(.rounded))
     }
 
@@ -865,17 +867,33 @@ final class ScreenshotTests: XCTestCase {
             FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
             FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
             FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved),
-            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain, times: 3),
             FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
             FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
             FoodRecord(foodId: "blueberry",   firstTastedEpochDay: today.plus(days: -4).epochDay,  reaction: .tasted),
             FoodRecord(foodId: "ricecereal",  firstTastedEpochDay: today.plus(days: -20).epochDay, reaction: .loved),
             FoodRecord(foodId: "oatmeal",     firstTastedEpochDay: today.plus(days: -7).epochDay,  reaction: .tasted),
-            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted, watchSkin: true),
             FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
             FoodRecord(foodId: "yogurt",      firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
             FoodRecord(foodId: "oliveoil",    firstTastedEpochDay: today.plus(days: -1).epochDay,  reaction: .tasted),
         ])
+
+        let nightClock = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 22, minute: 15)) ?? today.date.addingTimeInterval(22 * 3600 + 15 * 60)
+        let handoverNow = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 20, minute: 15)) ?? today.date.addingTimeInterval(20 * 3600 + 15 * 60)
+
+        var zhBody = JournalFile.Body()
+        zhBody.logs = [
+            LogEntry(type: LogType.bottle, start: self.at(19, 40), amount: 120),
+            LogEntry(type: LogType.diaper, start: self.at(18, 5), detail: "wet"),
+            LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"),
+            LogEntry(type: LogType.nurse, start: self.at(16, 28), end: self.at(16, 40), side: "r", detail: "paused:120000"),
+            LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
+            LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "米粉"),
+            LogEntry(type: LogType.sleep, start: self.at(0, 0) - 2 * 3_600_000, end: self.at(6, 30)),
+        ]
+        zhBody.timers = [RunningTimer(type: LogType.nurse, start: ms(handoverNow) - 12 * 60_000, side: "l")]
+        let jZh = JournalStore(preview: zhBody)
 
         // 1. Home with balanced 2x3 Quiet Instruments dock (CN Day + Night Lamp)
         shot("48_today_6dock_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
@@ -893,22 +911,35 @@ final class ScreenshotTests: XCTestCase {
         SoundscapeEngine.shared.toggleLayer(.lullaby)
         defer { SoundscapeEngine.shared.stop() }
         shot("49_lamp_breath_mix_zh", dark: true, height: 852,
-             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(m).environment(journal).fontDesign(.rounded))
+             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true, previewClock: nightClock).environment(m).environment(journal).fontDesign(.rounded))
 
         // 5. Visual Care Handover Studio Sheet (CN)
         shot("50_handover_card_zh", height: 852,
-             HandoverSheet(day: today, baseTextSummary: "【摸索台灯 · 照护交接】小满").environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+             HandoverSheet(day: today, previewNow: handoverNow).environment(m).environment(jZh).tint(Palette.accent).fontDesign(.rounded))
 
         // 6. English variants
         L10n.overrideEnglish = true
         defer { L10n.overrideEnglish = nil }
         let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        var enBody = JournalFile.Body()
+        enBody.logs = [
+            LogEntry(type: LogType.bottle, start: self.at(19, 40), amount: 120),
+            LogEntry(type: LogType.diaper, start: self.at(18, 5), detail: "wet"),
+            LogEntry(type: LogType.nurse, start: self.at(16, 10), end: self.at(16, 28), side: "l"),
+            LogEntry(type: LogType.nurse, start: self.at(16, 28), end: self.at(16, 40), side: "r", detail: "paused:120000"),
+            LogEntry(type: LogType.sleep, start: self.at(13, 0), end: self.at(14, 35)),
+            LogEntry(type: LogType.solid, start: self.at(11, 30), detail: "Oat cereal"),
+            LogEntry(type: LogType.sleep, start: self.at(0, 0) - 2 * 3_600_000, end: self.at(6, 30)),
+        ]
+        enBody.timers = [RunningTimer(type: LogType.nurse, start: ms(handoverNow) - 12 * 60_000, side: "l")]
+        let jEn = JournalStore(preview: enBody)
+
         shot("48_today_6dock_en", height: 1260, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
         shot("48_food_atlas_en", height: 1120, tabs(mEn, FoodAtlasView(store: sampleFoods)))
         shot("49_toybox_fireflies_en", height: 852, tabs(mEn, ToyboxView(initialMode: .fireflies)))
         shot("49_lamp_breath_mix_en", dark: true, height: 852,
-             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true).environment(mEn).environment(journal).fontDesign(.rounded))
+             BedsideLampView(initialBrightness: 0.80, initialBreathingGuide: true, previewClock: nightClock).environment(mEn).environment(journal).fontDesign(.rounded))
         shot("50_handover_card_en", height: 852,
-             HandoverSheet(day: today, baseTextSummary: "[Moss & Otto · Care Handover] Leo").environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+             HandoverSheet(day: today, previewNow: handoverNow).environment(mEn).environment(jEn).tint(Palette.accent).fontDesign(.rounded))
     }
 }

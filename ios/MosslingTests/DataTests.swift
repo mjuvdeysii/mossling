@@ -149,4 +149,79 @@ final class DataTests: XCTestCase {
         XCTAssertEqual(L10n.logName(LogType.nurse), "Nursing")
         XCTAssertEqual(L10n.duration(5400), "1h 30m")
     }
+
+    func testBackupRoundTripsFoodsCapsulesAndSettings() throws {
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let dir = FileManager.default.temporaryDirectory.appendingPathComponent("backup-v132-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        let foodsURL = dir.appendingPathComponent("foods.json")
+        let capsURL = dir.appendingPathComponent("capsules.json")
+        let foodStore = FoodAtlasStore(fileURL: foodsURL)
+        let capStore = CapsuleStore(fileURL: capsURL)
+
+        let today = Day(y: 2026, m: 10, d: 19)
+        let foods = [
+            FoodRecord(foodId: "broccoli", firstTastedEpochDay: today.plus(days: -5).epochDay, reaction: .tryAgain, note: "清蒸", watchSkin: false, times: 3),
+            FoodRecord(foodId: "eggyolk", firstTastedEpochDay: today.plus(days: -2).epochDay, reaction: .tasted, note: "1/4个", watchSkin: true, times: 1)
+        ]
+        let capID = UUID()
+        let capsules = [
+            TimeCapsule(
+                id: capID,
+                title: "灯下小记",
+                body: "今晚安静睡着啦",
+                writtenAt: Day(y: 2026, m: 10, d: 18).date.timeIntervalSince1970 * 1000,
+                writtenAgeLabel: "6 个月",
+                unlockEpochDay: today.plus(days: 30).epochDay,
+                openedAt: nil,
+                seal: .lilac
+            )
+        ]
+
+        let srcApp = model()
+        srcApp.tactileSounds = false
+        srcApp.artStyle = .flat
+        let data = RecordFile.json(srcApp, body(), foods: foods, capsules: capsules)
+
+        let dstApp = AppModel(defaults: UserDefaults(suiteName: "dst-\(UUID().uuidString)")!)
+        let dstJournal = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(data, into: dstApp, journal: dstJournal, foodStore: foodStore, capsuleStore: capStore)
+
+        XCTAssertFalse(dstApp.tactileSounds)
+        XCTAssertEqual(dstApp.artStyle, .flat)
+        XCTAssertEqual(foodStore.tastedCount, 2)
+        XCTAssertEqual(foodStore.record(for: "broccoli")?.times, 3)
+        XCTAssertEqual(foodStore.record(for: "eggyolk")?.watchSkin, true)
+        XCTAssertEqual(capStore.items.count, 1)
+        XCTAssertEqual(capStore.items.first?.id, capID)
+        XCTAssertEqual(capStore.items.first?.seal, .lilac)
+
+        // Legacy backup without foods/capsules keys preserves existing iOS First Foods & Time Capsules
+        let legacyData = RecordFile.json(srcApp, body())
+        try RecordFile.load(legacyData, into: dstApp, journal: dstJournal, foodStore: foodStore, capsuleStore: capStore)
+        XCTAssertEqual(foodStore.tastedCount, 2)
+        XCTAssertEqual(capStore.items.count, 1)
+    }
+
+    func testSummaryIncludesFirstFoodsAndWatchFlags() throws {
+        let today = Day(y: 2026, m: 10, d: 19)
+        let foods = [
+            FoodRecord(foodId: "broccoli", firstTastedEpochDay: today.plus(days: -5).epochDay, reaction: .tryAgain, note: "软花朵", watchSkin: false, times: 3),
+            FoodRecord(foodId: "eggyolk", firstTastedEpochDay: today.plus(days: -2).epochDay, reaction: .tasted, note: "1/4蛋黄", watchSkin: true, times: 1)
+        ]
+        let zh = try XCTUnwrap(String(data: RecordFile.summary(model(), body(), foods: foods), encoding: .utf8))
+        XCTAssertTrue(zh.contains("## 百味食盒（辅食探索）"))
+        XCTAssertTrue(zh.contains("西兰花"))
+        XCTAssertTrue(zh.contains("留意反应"))
+        XCTAssertTrue(zh.contains("常见致敏"))
+
+        L10n.overrideEnglish = true; defer { L10n.overrideEnglish = nil }
+        let en = try XCTUnwrap(String(data: RecordFile.summary(model(), body(), foods: foods), encoding: .utf8))
+        XCTAssertTrue(en.contains("## First Foods"))
+        XCTAssertTrue(en.contains("Egg Yolk"))
+        XCTAssertTrue(en.contains("Watch"))
+        XCTAssertTrue(en.contains("Allergen"))
+    }
 }
