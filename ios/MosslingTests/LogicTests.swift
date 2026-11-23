@@ -1195,4 +1195,43 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(big.allSatisfy { (10...300).contains($0) })
         XCTAssertEqual(Set(big).count, big.count)
     }
+
+    func testActivityMotionSpecsCoverAll46Plays() throws {
+        let content = try Content.load()
+        XCTAssertEqual(content.activities.count, 46)
+        let specs = ActivityMotionIndex.specsByCode
+        XCTAssertEqual(specs.count, 46, "Every activity must be registered in ActivityMotionSpecs.json")
+
+        for play in content.activities {
+            let spec = try XCTUnwrap(specs[play.code], "Missing motion spec for \(play.code)")
+            XCTAssertFalse(spec.prop.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertFalse(spec.zhCue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            XCTAssertFalse(spec.enCue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+            let hasEmoji = (spec.zhCue + spec.enCue).unicodeScalars.contains { $0.properties.isEmojiPresentation }
+            XCTAssertFalse(hasEmoji, "Motion cues must contain zero Emoji: \(play.code)")
+        }
+    }
+
+    func testEarSafeVolumeGuardThresholdsAndCadence() {
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.0), .muted)
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.35), .safe)
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.60), .safe)
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.61), .loud)
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.95), .loud)
+
+        // First-ever Toybox sound visit: always shows helpful comfort meter
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.35, context: .toybox, hasSeenToyboxGuide: false, dismissedThisSession: false))
+
+        // Repeat Toybox visits: stay quiet when volume is comfortably inside baby-safe zone (1%...60%)
+        XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.38, context: .toybox, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        // Repeat Toybox visits: softly re-surface only if volume is too loud (>60%) or muted (<1%)
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.78, context: .toybox, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.0, context: .toybox, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        // Respect dismissal within the same session
+        XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.85, context: .toybox, hasSeenToyboxGuide: true, dismissedThisSession: true))
+
+        // Bedside Lamp: whispers only when high volume (>62%)
+        XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.50, context: .lamp, hasSeenToyboxGuide: false, dismissedThisSession: false))
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.74, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+    }
 }

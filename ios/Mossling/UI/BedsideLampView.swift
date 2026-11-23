@@ -58,17 +58,20 @@ struct BedsideLampView: View {
     @State private var soundscape = SoundscapeEngine.shared
     @State private var motion = LampTiltObserver()
     @State private var pulse = false
+    @State private var volumeMonitor: EarSafeVolumeMonitor
     private let previewClock: Date?
 
     init(
         initialBrightness: Double = 0.72,
         initialBreathingGuide: Bool = false,
         initialWarmth: LampWarmth = .amber,
-        previewClock: Date? = nil
+        previewClock: Date? = nil,
+        previewVolume: Float? = nil
     ) {
         _brightness = State(initialValue: max(0.15, min(1.0, initialBrightness)))
         _breathingGuide = State(initialValue: initialBreathingGuide)
         _warmth = State(initialValue: initialWarmth)
+        _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
         self.previewClock = previewClock
     }
 
@@ -113,6 +116,14 @@ struct BedsideLampView: View {
                 Spacer(minLength: 6)
 
                 VStack(spacing: 10) {
+                    if soundscape.isPlaying && volumeMonitor.shouldShow(for: .lamp) {
+                        LampHighVolumePill(volumePercent: volumeMonitor.volumePercent) {
+                            withAnimation(.snappy) {
+                                volumeMonitor.acknowledge(context: .lamp)
+                            }
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                    }
                     soundscapeDeck
                     if app.journal {
                         careDock
@@ -127,6 +138,7 @@ struct BedsideLampView: View {
         .gesture(dimmerGesture)
         .onAppear {
             UIApplication.shared.isIdleTimerDisabled = true
+            volumeMonitor.start()
             if !reduce {
                 motion.start()
                 withAnimation(.easeInOut(duration: 3.8).repeatForever(autoreverses: true)) {
@@ -136,6 +148,7 @@ struct BedsideLampView: View {
         }
         .onDisappear {
             UIApplication.shared.isIdleTimerDisabled = false
+            volumeMonitor.stop()
             motion.stop()
         }
         .accessibilityElement(children: .contain)

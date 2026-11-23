@@ -128,10 +128,16 @@ struct HandoverSheet: View {
     @Environment(\.lamp) private var lamp
 
     let day: Day
-    var previewNow: Date? = nil
+    let previewNow: Date?
 
-    @State private var note = ""
+    @State private var note: String
     @State private var copied = false
+
+    init(day: Day, previewNow: Date? = nil, initialNote: String = "") {
+        self.day = day
+        self.previewNow = previewNow
+        _note = State(initialValue: initialNote)
+    }
 
     private var quickNotes: [String] {
         L10n.isEnglish
@@ -262,8 +268,15 @@ private struct HandoverCardContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 12) {
-                Duo(primary: companion, size: 46, mood: .open, night: dark)
+            PassingLanternArt(dark: dark)
+                .frame(height: 112)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .strokeBorder(Palette.amber.opacity(dark ? 0.25 : 0.30), lineWidth: 0.9)
+                )
+
+            HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t("\(snapshot.babyName) · 照护交接卡", "\(snapshot.babyName) · Care Handover"))
                         .font(.headline)
@@ -389,8 +402,245 @@ private struct HandoverCardContent: View {
     }
 }
 
+/// Pure synchronous vector storybook header depicting Otto (zero-blush sandstone pebble with no arms) gently extending
+/// his glowing golden lantern bead across a luminous arc to Mochi (the cream rice-cake caregiver companion wearing a coral
+/// knit beanie and warm rosy cheeks). Synchronous Canvas guarantees crisp rendering in both live preview & 3× posters.
+struct PassingLanternArt: View {
+    let dark: Bool
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let groundY = h * 0.84
+
+            // 1. Soft cotton / lamp-lit backdrop wash
+            let skyColors: [Color] = dark
+                ? [Color(hex: 0x151D3D), Color(hex: 0x1E274B), Color(hex: 0x182040)]
+                : [Color(hex: 0xFDF6EA), Color(hex: 0xF9ECD8), Color(hex: 0xFBF7F0)]
+            ctx.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .linearGradient(Gradient(colors: skyColors), startPoint: .zero, endPoint: CGPoint(x: w, y: h))
+            )
+
+            // Soft horizon hill curve
+            var meadow = Path()
+            meadow.move(to: CGPoint(x: 0, y: groundY + 4))
+            meadow.addQuadCurve(to: CGPoint(x: w, y: groundY + 4), control: CGPoint(x: w * 0.5, y: groundY - 14))
+            meadow.addLine(to: CGPoint(x: w, y: h))
+            meadow.addLine(to: CGPoint(x: 0, y: h))
+            meadow.closeSubpath()
+            ctx.fill(meadow, with: .color(dark ? Color(hex: 0x222C52) : Color(hex: 0xF2E7D5)))
+
+            // 2. Central glowing lantern bead position (between Otto and Mochi)
+            let ottoX = w * 0.31
+            let ottoFootY = groundY + 1
+            let mochiX = w * 0.69
+            let mochiFootY = groundY + 1
+            let beadCenter = CGPoint(x: w * 0.485, y: h * 0.42)
+
+            // Broad golden passing-glow halo centered at the lantern bead
+            var halo = Path()
+            halo.addEllipse(in: CGRect(x: beadCenter.x - 56, y: beadCenter.y - 56, width: 112, height: 112))
+            ctx.fill(
+                halo,
+                with: .radialGradient(
+                    Gradient(colors: [Palette.amber.opacity(dark ? 0.42 : 0.48), Palette.beadLight.opacity(0.18), .clear]),
+                    center: beadCenter,
+                    startRadius: 2,
+                    endRadius: 56
+                )
+            )
+
+            // Dotted light transfer arc from lantern bead toward Mochi
+            var passArc = Path()
+            passArc.move(to: beadCenter)
+            passArc.addQuadCurve(
+                to: CGPoint(x: mochiX - 18, y: mochiFootY - 22),
+                control: CGPoint(x: w * 0.59, y: h * 0.25)
+            )
+            ctx.stroke(
+                passArc,
+                with: .color(Palette.bead.opacity(dark ? 0.62 : 0.55)),
+                style: StrokeStyle(lineWidth: 1.8, lineCap: .round, dash: [3, 4.5])
+            )
+
+            // Floating warm light motes
+            let motes: [(CGFloat, CGFloat, CGFloat)] = [
+                (0.41, 0.24, 2.2), (0.55, 0.22, 2.8), (0.58, 0.36, 1.9), (0.45, 0.58, 1.7), (0.62, 0.52, 2.1)
+            ]
+            for (fx, fy, r) in motes {
+                var dot = Path()
+                dot.addEllipse(in: CGRect(x: w * fx - r, y: h * fy - r, width: r * 2, height: r * 2))
+                ctx.fill(dot, with: .color(Palette.beadLight.opacity(dark ? 0.85 : 0.90)))
+            }
+
+            // 3. LEFT COMPANION: OTTO (Matte warm sandstone pebble, ZERO blush, ZERO arms)
+            var ottoShadow = Path()
+            ottoShadow.addEllipse(in: CGRect(x: ottoX - 24, y: ottoFootY - 4, width: 48, height: 8))
+            ctx.fill(ottoShadow, with: .color(Color(hex: 0x3A2E20).opacity(dark ? 0.36 : 0.14)))
+
+            // Graceful dark twig stem curving out from Otto toward the center lantern bead
+            var stem = Path()
+            let stemBase = CGPoint(x: ottoX + 8, y: ottoFootY - 48)
+            stem.move(to: stemBase)
+            stem.addCurve(
+                to: beadCenter,
+                control1: CGPoint(x: ottoX + 16, y: h * 0.20),
+                control2: CGPoint(x: w * 0.44, y: h * 0.18)
+            )
+            ctx.stroke(stem, with: .color(Color(hex: 0x4E4234)), style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
+
+            // Golden glowing lantern bead
+            var beadPath = Path()
+            beadPath.addEllipse(in: CGRect(x: beadCenter.x - 8, y: beadCenter.y - 8, width: 16, height: 16))
+            ctx.fill(
+                beadPath,
+                with: .radialGradient(
+                    Gradient(colors: [Color(hex: 0xFFF7D6), Palette.beadLight, Palette.bead]),
+                    center: CGPoint(x: beadCenter.x - 2, y: beadCenter.y - 2),
+                    startRadius: 1,
+                    endRadius: 10
+                )
+            )
+            ctx.stroke(beadPath, with: .color(Color(hex: 0x9C6F08).opacity(0.4)), lineWidth: 0.8)
+
+            // Otto's plump tapered sandstone pebble dome
+            let ottoW: CGFloat = 46
+            let ottoH: CGFloat = 50
+            let ottoRect = CGRect(x: ottoX - ottoW / 2, y: ottoFootY - ottoH, width: ottoW, height: ottoH)
+            var ottoBody = Path()
+            ottoBody.move(to: CGPoint(x: ottoX, y: ottoRect.minY))
+            ottoBody.addCurve(
+                to: CGPoint(x: ottoRect.maxX, y: ottoRect.maxY - 12),
+                control1: CGPoint(x: ottoRect.maxX - 4, y: ottoRect.minY),
+                control2: CGPoint(x: ottoRect.maxX, y: ottoRect.midY - 2)
+            )
+            ottoBody.addQuadCurve(
+                to: CGPoint(x: ottoX, y: ottoRect.maxY),
+                control: CGPoint(x: ottoRect.maxX, y: ottoRect.maxY)
+            )
+            ottoBody.addQuadCurve(
+                to: CGPoint(x: ottoRect.minX, y: ottoRect.maxY - 12),
+                control: CGPoint(x: ottoRect.minX, y: ottoRect.maxY)
+            )
+            ottoBody.addCurve(
+                to: CGPoint(x: ottoX, y: ottoRect.minY),
+                control1: CGPoint(x: ottoRect.minX, y: ottoRect.midY - 2),
+                control2: CGPoint(x: ottoRect.minX + 4, y: ottoRect.minY)
+            )
+            ottoBody.closeSubpath()
+            ctx.fill(
+                ottoBody,
+                with: .radialGradient(
+                    Gradient(colors: [Color(hex: 0xECE0CE), Color(hex: 0xD2BE9F), Color(hex: 0xB39A79)]),
+                    center: CGPoint(x: ottoX - 6, y: ottoRect.minY + 14),
+                    startRadius: 4,
+                    endRadius: 42
+                )
+            )
+            ctx.stroke(ottoBody, with: .color(Color(hex: 0x6A5842).opacity(dark ? 0.55 : 0.35)), lineWidth: 1.1)
+
+            // Otto's calm sleepy half-lidded eyes looking slightly right toward Mochi (NO blush!)
+            let ottoEyeY = ottoRect.minY + 25
+            for dx: CGFloat in [-5.5, 9.5] {
+                let ex = ottoX + dx
+                var eyeWhite = Path()
+                eyeWhite.addEllipse(in: CGRect(x: ex - 4.2, y: ottoEyeY - 3.6, width: 8.4, height: 7.2))
+                ctx.fill(eyeWhite, with: .color(Color(hex: 0xFFFDF8)))
+                var pupil = Path()
+                pupil.addEllipse(in: CGRect(x: ex - 1.4, y: ottoEyeY - 2.0, width: 4.5, height: 4.5))
+                ctx.fill(pupil, with: .color(Color(hex: 0x1F201D)))
+                // Heavy calm upper lid
+                var lid = Path()
+                lid.addRect(CGRect(x: ex - 4.5, y: ottoEyeY - 4.0, width: 9.0, height: 3.3))
+                ctx.fill(lid, with: .color(Color(hex: 0xCEBA9A)))
+                var crease = Path()
+                crease.move(to: CGPoint(x: ex - 4.2, y: ottoEyeY - 0.7))
+                crease.addLine(to: CGPoint(x: ex + 4.2, y: ottoEyeY - 0.7))
+                ctx.stroke(crease, with: .color(Color(hex: 0x4A3F32)), lineWidth: 1.1)
+            }
+            var ottoSmile = Path()
+            ottoSmile.move(to: CGPoint(x: ottoX + 0.5, y: ottoEyeY + 7.5))
+            ottoSmile.addQuadCurve(to: CGPoint(x: ottoX + 4.5, y: ottoEyeY + 7.5), control: CGPoint(x: ottoX + 2.5, y: ottoEyeY + 9.4))
+            ctx.stroke(ottoSmile, with: .color(Color(hex: 0x4A3F32)), style: StrokeStyle(lineWidth: 1.2, lineCap: .round))
+
+            // 4. RIGHT COMPANION: MOCHI (Cream rice-cake caregiver companion with coral knit beanie & warm soft cheeks)
+            var mochiShadow = Path()
+            mochiShadow.addEllipse(in: CGRect(x: mochiX - 25, y: mochiFootY - 4, width: 50, height: 8))
+            ctx.fill(mochiShadow, with: .color(Color(hex: 0x3A2E20).opacity(dark ? 0.36 : 0.14)))
+
+            let mochiW: CGFloat = 46
+            let mochiH: CGFloat = 46
+            let mochiRect = CGRect(x: mochiX - mochiW / 2, y: mochiFootY - mochiH, width: mochiW, height: mochiH)
+            let mochiBody = RoundedRectangle(cornerRadius: 21, style: .continuous).path(in: mochiRect)
+            ctx.fill(
+                mochiBody,
+                with: .radialGradient(
+                    Gradient(colors: [Color(hex: 0xFFFDF8), Color(hex: 0xFAF0DF), Color(hex: 0xEADAC2)]),
+                    center: CGPoint(x: mochiX - 7, y: mochiRect.minY + 14),
+                    startRadius: 4,
+                    endRadius: 40
+                )
+            )
+            ctx.stroke(mochiBody, with: .color(Color(hex: 0x7A624B).opacity(dark ? 0.45 : 0.30)), lineWidth: 1.1)
+
+            // Mochi's terracotta-coral knit beanie & pom-pom
+            let hatRect = CGRect(x: mochiX - 21, y: mochiRect.minY - 11, width: 42, height: 22)
+            var hatDome = Path()
+            hatDome.addRoundedRect(in: hatRect, cornerSize: CGSize(width: 19, height: 18))
+            ctx.fill(
+                hatDome,
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0xEE8065), Color(hex: 0xD95C42)]),
+                    startPoint: CGPoint(x: hatRect.midX, y: hatRect.minY),
+                    endPoint: CGPoint(x: hatRect.midX, y: hatRect.maxY)
+                )
+            )
+            // Yarn pom-pom
+            var pom = Path()
+            pom.addEllipse(in: CGRect(x: mochiX - 5.5, y: hatRect.minY - 6.5, width: 11, height: 11))
+            ctx.fill(pom, with: .color(Color(hex: 0xF59982)))
+            // Folded ribbed cuff
+            let cuffRect = CGRect(x: mochiX - 22.5, y: mochiRect.minY + 2, width: 45, height: 9.5)
+            let cuff = RoundedRectangle(cornerRadius: 4.5, style: .continuous).path(in: cuffRect)
+            ctx.fill(cuff, with: .color(Color(hex: 0xE66A50)))
+            ctx.stroke(cuff, with: .color(Color(hex: 0xB8422B).opacity(0.45)), lineWidth: 0.9)
+            for ribX in stride(from: cuffRect.minX + 6, to: cuffRect.maxX - 4, by: 6.5) {
+                var rib = Path()
+                rib.move(to: CGPoint(x: ribX, y: cuffRect.minY + 1.5))
+                rib.addLine(to: CGPoint(x: ribX, y: cuffRect.maxY - 1.5))
+                ctx.stroke(rib, with: .color(Color(hex: 0xB8422B).opacity(0.35)), lineWidth: 1.0)
+            }
+
+            // Mochi's soft warm rosy cheeks (caregiver character!)
+            let mEyeY = mochiRect.minY + 23
+            for dx: CGFloat in [-13.5, 7.5] {
+                var cheek = Path()
+                cheek.addEllipse(in: CGRect(x: mochiX + dx - 4.2, y: mEyeY + 3.5, width: 8.4, height: 5.2))
+                ctx.fill(cheek, with: .color(Color(hex: 0xF2998A).opacity(0.46)))
+            }
+
+            // Mochi's serene happy arc eyes turned kindly left toward Otto's lantern
+            for dx: CGFloat in [-8.5, 4.5] {
+                var eyeArc = Path()
+                eyeArc.move(to: CGPoint(x: mochiX + dx - 3.6, y: mEyeY + 1))
+                eyeArc.addQuadCurve(
+                    to: CGPoint(x: mochiX + dx + 3.6, y: mEyeY + 1),
+                    control: CGPoint(x: mochiX + dx, y: mEyeY - 3.8)
+                )
+                ctx.stroke(eyeArc, with: .color(Color(hex: 0x3B2F26)), style: StrokeStyle(lineWidth: 1.7, lineCap: .round))
+            }
+            var mochiSmile = Path()
+            mochiSmile.move(to: CGPoint(x: mochiX - 4.2, y: mEyeY + 6.5))
+            mochiSmile.addQuadCurve(to: CGPoint(x: mochiX + 0.5, y: mEyeY + 6.5), control: CGPoint(x: mochiX - 1.8, y: mEyeY + 9.0))
+            ctx.stroke(mochiSmile, with: .color(Color(hex: 0x3B2F26)), style: StrokeStyle(lineWidth: 1.4, lineCap: .round))
+        }
+    }
+}
+
 /// 3× cotton-paper print poster for WeChat / iMessage / AirDrop sharing via `RenderedPoster`.
-private struct HandoverPoster: View {
+struct HandoverPoster: View {
     let snapshot: HandoverSnapshot
 
     var body: some View {
@@ -399,7 +649,15 @@ private struct HandoverPoster: View {
         let muted = Color(hex: 0x6A6156)
         let teal = Color(hex: 0x0B7D74)
 
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
+            PassingLanternArt(dark: false)
+                .frame(height: 86)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .strokeBorder(Palette.amber.opacity(0.32), lineWidth: 0.9)
+                )
+
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.t("交接给下一位点灯人", "Passing the Lantern"))

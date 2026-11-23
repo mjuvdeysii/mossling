@@ -24,6 +24,8 @@ enum ToyboxMode: String, CaseIterable, Identifiable {
         }
     }
 
+    var hasSound: Bool { self != .contrast }
+
     var tone: Color {
         switch self {
         case .xylophone: Crayon.teal
@@ -71,6 +73,7 @@ struct ToyboxView: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var mode: ToyboxMode
     @State private var recordedSession = false
+    @State private var volumeMonitor: EarSafeVolumeMonitor
     @Namespace private var pillNS
 
     private let previewPlayAlong: Bool
@@ -83,9 +86,12 @@ struct ToyboxView: View {
         previewPlayAlong: Bool = false,
         initialFormation: FireflyFormation = .drift,
         initialRainstickLayout: RainstickLayout = .cascade,
-        initialContrastIndex: Int = 0
+        initialContrastIndex: Int = 0,
+        previewVolume: Float? = nil,
+        previewShowVolumeGuard: Bool = false
     ) {
         _mode = State(initialValue: initialMode)
+        _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume, previewForceShow: previewShowVolumeGuard))
         self.previewPlayAlong = previewPlayAlong
         self.initialFormation = initialFormation
         self.initialRainstickLayout = initialRainstickLayout
@@ -97,6 +103,15 @@ struct ToyboxView: View {
         VStack(spacing: 10) {
             coPlayReminder(dark: dark)
             modePicker(dark: dark)
+
+            if mode.hasSound && volumeMonitor.shouldShow(for: .toybox) {
+                EarSafeVolumeCard(monitor: volumeMonitor, dark: dark) {
+                    withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.84)) {
+                        volumeMonitor.acknowledge(context: .toybox)
+                    }
+                }
+                .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
+            }
 
             Group {
                 switch mode {
@@ -133,8 +148,12 @@ struct ToyboxView: View {
         .pageBackground(tone: mode.tone)
         .navigationTitle(L10n.t("感官玩具盒", "Sensory Toybox"))
         .navigationBarTitleDisplayMode(.inline)
+        .onAppear {
+            volumeMonitor.start()
+        }
         .onDisappear {
             ToyboxAudioEngine.shared.stop()
+            volumeMonitor.stop()
         }
     }
 
@@ -345,11 +364,11 @@ private struct XylophoneStudio: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         } else {
-                            Text(lastNote.map { "\($0.numberLabel) · \($0.solfege) (\($0.pitchName))" } ?? L10n.t("轻敲或上下滑过木条", "Tap or glide across the bars"))
+                            Text(lastNote.map { "\($0.numberLabel) · \($0.solfege) (\($0.pitchName))" } ?? L10n.t("轻敲或上下滑过木条", "Tap or glide bars"))
                                 .font(.subheadline.weight(.bold))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.78)
+                                .minimumScaleFactor(0.76)
                             Text(L10n.t("\(timbre.title)离线合成 · \(melody.title)", "\(timbre.title) · \(melody.title)"))
                                 .font(.caption)
                                 .foregroundStyle(Palette.secondaryText)
@@ -389,6 +408,7 @@ private struct XylophoneStudio: View {
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .background(Capsule().fill(Palette.accent.opacity(dark ? 0.22 : 0.12)))
+                        .fixedSize(horizontal: true, vertical: false)
                     }
                     .accessibilityLabel(L10n.t("选择童谣曲目", "Choose melody"))
                 }

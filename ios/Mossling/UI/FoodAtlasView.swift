@@ -8,11 +8,15 @@ struct FoodAtlasView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     @State private var store: FoodAtlasStore
     @State private var filter: Filter = .all
     @State private var query = ""
     @State private var editingItem: FoodItem? = nil
+    @State private var recentlyStampedId: String? = nil
+    @State private var mossTapCount: Int = 0
+    @State private var leafBurstTrigger: Int = 0
 
     enum Filter: Hashable, Identifiable {
         case all
@@ -151,7 +155,12 @@ struct FoodAtlasView: View {
                     LazyVGrid(columns: columns, spacing: 10) {
                         ForEach(filteredItems) { item in
                             let rec = store.record(for: item.id)
-                            FoodStampTile(item: item, record: rec, dark: dark) {
+                            FoodStampTile(
+                                item: item,
+                                record: rec,
+                                dark: dark,
+                                justStamped: recentlyStampedId == item.id
+                            ) {
                                 if app.mayKeep() {
                                     TactileEngine.shared.beadClick()
                                     editingItem = item
@@ -182,8 +191,18 @@ struct FoodAtlasView: View {
             }
         }
         .sheet(item: $editingItem) { item in
-            FoodTasteSheet(item: item, existing: store.record(for: item.id), store: store)
-                .lampPresented(sheet: true)
+            FoodTasteSheet(item: item, existing: store.record(for: item.id), store: store) { savedId in
+                withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.56)) {
+                    recentlyStampedId = savedId
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(1400))
+                    if recentlyStampedId == savedId {
+                        recentlyStampedId = nil
+                    }
+                }
+            }
+            .lampPresented(sheet: true)
         }
     }
 
@@ -208,8 +227,26 @@ struct FoodAtlasView: View {
                         .font(.headline)
                         .foregroundStyle(.primary)
                     Spacer(minLength: 0)
-                    Creature(kind: .moss, mood: store.tastedCount > 0 ? .happy : .open, look: CGPoint(x: -0.6, y: 0.2), alive: false)
-                        .frame(width: 34, height: 34)
+                    Button {
+                        TactileEngine.shared.vinylPop()
+                        mossTapCount += 1
+                        if mossTapCount % 3 == 0 {
+                            leafBurstTrigger += 1
+                        }
+                    } label: {
+                        Creature(
+                            kind: .moss,
+                            mood: store.tastedCount > 0 || mossTapCount > 0 ? .happy : .open,
+                            look: CGPoint(x: -0.6, y: 0.2),
+                            alive: !reduce,
+                            poke: true,
+                            notice: mossTapCount
+                        )
+                        .frame(width: 38, height: 38)
+                        .overlay { MintLeafBurst(trigger: leafBurstTrigger) }
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.t("摸一摸 Moss，轻点三次会飘出嫩芽", "Tap Moss gently — three taps drift out mint leaves"))
                 }
                 Text(
                     store.tastedCount == 0
@@ -284,12 +321,53 @@ private struct FoodWreathCanvas: View {
     }
 }
 
+/// Botanical mint leaves fluttering upward when the user pokes Moss three times in the tasting box header.
+private struct MintLeafBurst: View {
+    let trigger: Int
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    private static let leaves: [(dx: CGFloat, up: CGFloat, tilt: Double, col: Color)] = [
+        (-18, 34, -28, Palette.mint),
+        (0, 44, 12, Palette.mintLight),
+        (16, 36, 32, Crayon.leaf),
+        (-9, 28, -14, Palette.beadLight),
+        (11, 30, 22, Palette.mintPale)
+    ]
+
+    var body: some View {
+        if reduce { EmptyView() } else {
+            Color.clear
+                .overlay {
+                    KeyframeAnimator(initialValue: 0.0, trigger: trigger) { t in
+                        ZStack {
+                            ForEach(Array(Self.leaves.enumerated()), id: \.offset) { _, lf in
+                                Capsule(style: .continuous)
+                                    .fill(lf.col)
+                                    .frame(width: 8, height: 4.5)
+                                    .rotationEffect(.degrees(lf.tilt * (0.4 + t)))
+                                    .offset(x: lf.dx * t, y: -lf.up * t - 8)
+                                    .opacity(t <= 0 || t >= 1 ? 0 : 1 - max(0, t - 0.65) / 0.35)
+                            }
+                        }
+                    } keyframes: { _ in
+                        LinearKeyframe(0.0, duration: 0.0)
+                        LinearKeyframe(1.0, duration: 0.95)
+                        LinearKeyframe(0.0, duration: 0.0)
+                    }
+                }
+                .allowsHitTesting(false)
+        }
+    }
+}
+
 /// One tactile Montessori tasting dish tile inside the 60-food grid.
 private struct FoodStampTile: View {
     let item: FoodItem
     let record: FoodRecord?
     let dark: Bool
+    var justStamped: Bool = false
     let tap: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         let tasted = record != nil
@@ -300,6 +378,12 @@ private struct FoodStampTile: View {
             VStack(spacing: 6) {
                 ZStack(alignment: .topTrailing) {
                     ZStack {
+                        if justStamped && !reduce {
+                            Circle()
+                                .strokeBorder(Palette.bead.opacity(0.68), lineWidth: 2.2)
+                                .frame(width: 54, height: 54)
+                                .transition(.scale.combined(with: .opacity))
+                        }
                         Circle()
                             .fill(
                                 tasted
@@ -310,6 +394,9 @@ private struct FoodStampTile: View {
                         FoodGlyphView(food: item, size: 32)
                             .saturation(tasted ? 1.0 : 0.72)
                             .opacity(tasted ? 1.0 : 0.85)
+                    }
+                    .phaseAnimator(reduce ? [1.0] : [1.0, 1.16, 0.96, 1.03, 1.0], trigger: justStamped) { view, scale in
+                        view.scaleEffect(scale)
                     }
                     .overlay(alignment: .topLeading) {
                         if watch {
@@ -408,6 +495,7 @@ private struct FoodTasteSheet: View {
     let item: FoodItem
     let existing: FoodRecord?
     let store: FoodAtlasStore
+    let onSaved: (String) -> Void
 
     @State private var reaction: FoodReaction
     @State private var tastedDate: Date
@@ -416,10 +504,11 @@ private struct FoodTasteSheet: View {
     @State private var times: Int
     @State private var alsoLogJournal: Bool
 
-    init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore) {
+    init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore, onSaved: @escaping (String) -> Void = { _ in }) {
         self.item = item
         self.existing = existing
         self.store = store
+        self.onSaved = onSaved
         _reaction = State(initialValue: existing?.reaction ?? .loved)
         _tastedDate = State(initialValue: existing?.firstTastedDay.date ?? Date())
         _note = State(initialValue: existing?.note ?? "")
@@ -634,6 +723,7 @@ private struct FoodTasteSheet: View {
                             _ = j.record(LogEntry(type: LogType.solid, start: JournalFile.now(), detail: detail))
                         }
                         TactileEngine.shared.goldChime()
+                        onSaved(item.id)
                         dismiss()
                     }
                     .fontWeight(.bold)

@@ -1058,4 +1058,50 @@ final class ScreenshotTests: XCTestCase {
              NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
                  .environment(mEn).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
     }
+
+    /// Batch 2B Showcase: Smart Ear-Safe Volume Check (loud & safe), PlayView Living Motion Stage + Mat-Side Co-Play,
+    /// Mochi × Otto Passing the Lantern Handover (sheet + 3× poster), and EN parity.
+    func test51V2Batch2BShowcase() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        // 1. Ear-Safe Volume Check in Toybox (Loud warning 78% + Safe comfort 38%)
+        shot("51_toybox_volume_loud_zh", height: 852,
+             tabs(m, ToyboxView(initialMode: .xylophone, previewVolume: 0.78, previewShowVolumeGuard: true)))
+        shot("51_toybox_volume_safe_zh", height: 852,
+             tabs(m, ToyboxView(initialMode: .rainstick, previewVolume: 0.38, previewShowVolumeGuard: true)))
+
+        // 2. De-tasked PlayView Living Stage (A11 graspPass) & Mat-Side Focus Mode (A19 stackBuild)
+        let playA11 = m.content.play("A11")!
+        let playA19 = m.content.play("A19")!
+        shot("51_play_living_stage_zh", height: 1320, tabs(m, PlayView(play: playA11, month: 6)))
+        shot("51_play_matside_zh", height: 852,
+             MatSideCoPlayView(play: playA19, month: 10, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 3. Mochi × Otto Passing the Lantern Handover (Live Sheet + 3× Poster)
+        let handoverNow = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 20, minute: 15)) ?? today.date
+        shot("51_handover_mochi_otto_zh", height: 852,
+             HandoverSheet(day: today, previewNow: handoverNow, initialNote: "刚拍完嗝，准备小睡")
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        let snap = HandoverSnapshot.build(app: m, journal: journal, day: today, now: handoverNow, extraNote: "刚拍完嗝，准备小睡")
+        shot("51_handover_poster_3x_zh", height: 560, width: 393, HandoverPoster(snapshot: snap))
+
+        // 4. Bedside Lamp High-Volume Midnight Safety Pill
+        SoundscapeEngine.shared.start(.rain)
+        defer { SoundscapeEngine.shared.stop() }
+        let nightClock = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 22, minute: 45)) ?? today.date
+        shot("51_lamp_volume_guard_zh", dark: true, height: 852,
+             BedsideLampView(initialBrightness: 0.72, previewClock: nightClock, previewVolume: 0.80)
+                 .environment(m).environment(journal).fontDesign(.rounded))
+
+        // 5. English Parity (PlayView Living Stage + Loud Volume Check)
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        let playA11En = mEn.content.play("A11")!
+        shot("51_play_living_stage_en", height: 1320, tabs(mEn, PlayView(play: playA11En, month: 6)))
+        shot("51_toybox_volume_loud_en", height: 852,
+             tabs(mEn, ToyboxView(initialMode: .xylophone, previewVolume: 0.78, previewShowVolumeGuard: true)))
+    }
 }
