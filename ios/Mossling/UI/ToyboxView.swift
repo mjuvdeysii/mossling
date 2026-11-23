@@ -950,6 +950,7 @@ private struct RainstickStudio: View {
     let dark: Bool
     let onInteract: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
     @State private var sim: RainstickSimulation
     @State private var layout: RainstickLayout
     @State private var chimeMode = false
@@ -1059,9 +1060,9 @@ private struct RainstickStudio: View {
                                 .padding(11)
                         )
 
-                    TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still)) { tl in
+                    TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         Canvas(rendersAsynchronously: false) { ctx, size in
-                            if !reduce && !Perf.still {
+                            if !reduce && !Perf.still && scenePhase == .active {
                                 sim.advance(to: tl.date)
                             }
                             drawBoard(ctx: &ctx, size: size)
@@ -1154,7 +1155,14 @@ private struct RainstickStudio: View {
             .printCard(radius: Radius.card)
         }
         .onAppear {
-            if !reduce { sim.startMotion() }
+            if !reduce && scenePhase == .active { sim.startMotion() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active && !reduce {
+                sim.startMotion()
+            } else {
+                sim.stopMotion()
+            }
         }
         .onDisappear {
             sim.stopMotion()
@@ -1340,6 +1348,7 @@ private final class FireflySimulation {
 private struct FireflyJarStudio: View {
     let onInteract: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
     @State private var sim: FireflySimulation
     @State private var formation: FireflyFormation
     @State private var swirlCount = 0
@@ -1462,9 +1471,9 @@ private struct FireflyJarStudio: View {
                             )
 
                         // 60fps glowing fireflies, comet trails & fingertip lantern ripples
-                        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still)) { tl in
+                        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                             Canvas(rendersAsynchronously: false) { ctx, size in
-                                if !reduce && !Perf.still {
+                                if !reduce && !Perf.still && scenePhase == .active {
                                     sim.advance(to: tl.date)
                                 }
                                 drawFireflies(ctx: &ctx, size: size)

@@ -483,12 +483,14 @@ struct Grain: View {
 struct Motes: View {
     var scale: Double = 1
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.scrolling) private var scrolling
     var body: some View {
         // the lamp's first fireflies, drawn as they were then (a Canvas, off the main thread): each a warm core in a
         // wide soft halo, rising slowly through the whole page from below to the top and round again, swaying, glowing
         // and dimming as it goes — every one always somewhere on its way, so the page is never left without them
         if ArtStyle.current == .flat {
-            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce || Perf.still)) { tl in
+            TimelineView(.animation(minimumInterval: 1.0 / 30, paused: reduce || Perf.still || scenePhase != .active || scrolling.moving)) { tl in
                 Canvas(rendersAsynchronously: true) { ctx, size in
                     let t = reduce ? 0 : tl.date.timeIntervalSinceReferenceDate
                     func firefly(_ x: Double, _ y: Double, _ a: Double, _ r: Double) {

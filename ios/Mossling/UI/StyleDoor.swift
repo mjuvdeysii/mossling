@@ -215,6 +215,7 @@ struct Wash: View {
     let light: Bool
     /// A fixed moment to draw (for still pictures of it); nil runs it in time.
     var at: Double? = nil
+    @Environment(\.accessibilityReduceMotion) private var reduce
     /// When the wash has covered the screen (the world changes then), and the whole length of it.
     static let covered: Double = 0.62
     static let length: Double = 1.55
@@ -222,7 +223,7 @@ struct Wash: View {
     private static let paper = Color(hex: 0xF7F0E3)
 
     var body: some View {
-        TimelineView(.animation) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: at != nil || reduce || Perf.still)) { tl in
             let t = at ?? tl.date.timeIntervalSince(start)
             Canvas { ctx, size in draw(&ctx, size, t) }
         }

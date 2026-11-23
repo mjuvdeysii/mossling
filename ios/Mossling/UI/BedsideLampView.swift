@@ -176,8 +176,10 @@ struct BedsideLampView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
                 applyScreenDimmerIfAllowed()
+                if !reduce { motion.start() }
             } else {
                 restoreScreenBrightness()
+                motion.stop()
             }
         }
         .onDisappear {
@@ -369,7 +371,7 @@ struct BedsideLampView: View {
                     }
 
                 if breathingGuide {
-                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still)) { tl in
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
                         let ringSize: CGFloat = 132 + CGFloat(st.progress) * 56
                         ZStack {
@@ -457,7 +459,7 @@ struct BedsideLampView: View {
 
             HStack(spacing: 8) {
                 if breathingGuide {
-                    TimelineView(.periodic(from: .now, by: 0.25)) { tl in
+                    TimelineView(.animation(minimumInterval: 0.25, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
                         HStack(spacing: 6) {
                             Circle()
@@ -940,8 +942,11 @@ struct BedsideLampView: View {
 private struct LampDustCanvas: View {
     let brightness: Double
     var glowColor: Color = Palette.amber
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
+
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 24)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduce || Perf.still || scenePhase != .active || brightness < 0.08)) { tl in
             Canvas(rendersAsynchronously: true) { ctx, size in
                 let t = tl.date.timeIntervalSinceReferenceDate
                 for i in 0..<18 {

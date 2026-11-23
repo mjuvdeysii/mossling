@@ -14,8 +14,9 @@ enum ThemeMode: String, CaseIterable { case system, light, dark
     var scheme: ColorScheme? { switch self { case .system: nil; case .light: .light; case .dark: .dark } }
 }
 
-/// Selectable spring feel curves for Otto's Golden Bulb pull-cord (blind-tested in Batch 4 before lock-in).
+/// Selectable spring feel curves for Otto's Golden Bulb pull-cord (locked to `.warm` in v2.0).
 enum BulbSpringPreset: String, CaseIterable, Identifiable, Sendable {
+    static let locked: BulbSpringPreset = .warm
     case airy, warm, grounded
     var id: String { rawValue }
 
@@ -127,7 +128,8 @@ final class AppModel {
             Task { @MainActor in TactileEngine.shared.soundEnabled = enabled }
         }
     }
-    var bulbPreset: BulbSpringPreset { didSet { d.set(bulbPreset.rawValue, forKey: "bulbSpringPreset") } }
+    /// Locked spring curve for Otto's Golden Bulb pull-cord in v2.0 (automatically migrates beta overrides).
+    var bulbPreset: BulbSpringPreset { .locked }
     /// Persistent Otto Bedside Lamp settings so 3 a.m. dimness, warmth, and 4–6 breathing state survive reopens.
     var lampBrightness: Double {
         didSet {
@@ -172,7 +174,6 @@ final class AppModel {
         let sounds = d.object(forKey: "tactileSounds") == nil ? true : d.bool(forKey: "tactileSounds")
         tactileSounds = sounds
         Task { @MainActor in TactileEngine.shared.soundEnabled = sounds }
-        bulbPreset = BulbSpringPreset(rawValue: d.string(forKey: "bulbSpringPreset") ?? "") ?? .warm
         let storedLampBrightness = d.object(forKey: "lampBrightness") as? Double ?? 0.72
         lampBrightness = max(0.15, min(1.0, storedLampBrightness))
         lampWarmthRaw = d.string(forKey: "lampWarmthRaw") ?? "amber"
@@ -268,7 +269,7 @@ final class AppModel {
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
-        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true; bulbPreset = .warm
+        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
         lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
     }
 

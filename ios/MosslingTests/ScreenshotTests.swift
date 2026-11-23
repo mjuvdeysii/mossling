@@ -257,7 +257,7 @@ final class ScreenshotTests: XCTestCase {
         shot("34_afterimage", height: 560, page)
     }
     /// The App Store's 6.9-inch screenshots: 440 × 956 points at 3× = 1320 × 2868 pixels, the size App Store Connect
-    /// asks for. Eight bilingual (CN + EN) hero screens showcasing the complete v1.3.2 quiet Montessori studio.
+    /// asks for. Ten bilingual (CN + EN) hero screens showcasing the complete v2.0 quiet Montessori studio.
     func test35StoreScreens() {
         defer { Day.testZone = nil }
         let utc: Int = Int(Date().timeIntervalSince1970) % 86_400
@@ -419,6 +419,14 @@ final class ScreenshotTests: XCTestCase {
 
             // 8. Dot-Grid Care Journal with Stickers, Bead Ribbon & Handover Button
             shot("store_\(prefix)8_journal", height: 956, width: 440, nav(quiet, JournalView(path: .constant(NavigationPath()))))
+
+            // 9. Kid's Book Kinetic Step Diagram Stage (4:3 Die-Cut Art & Page Folio)
+            if let playA11 = m.content.play("A11") {
+                shot("store_\(prefix)9_play", height: 956, width: 440, nav(quiet, PlayView(play: playA11, month: 6)))
+            }
+
+            // 10. Paper-Cut 3-Land Vertical Bead Journey & Keepsake Shelf
+            shot("store_\(prefix)10_journey", height: 956, width: 440, nav(quiet, JourneyHubView()))
         }
 
         defer {
@@ -1334,5 +1342,25 @@ final class ScreenshotTests: XCTestCase {
                  ToyboxView(initialMode: .xylophone, previewVolume: 0.45, previewShowVolumeGuard: true)
              }
              .environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
+
+    /// Round 4 Creative Alchemy (v2.0 RC): Kid's Book completion stamp keepsake card, clean v2.0 About page
+    /// with locked `.warm` Otto bulb spring, and English 01/03 editorial folio + kinetic overlay.
+    func test55V2ReleaseCandidatePolish() {
+        let m = model(); m.journal = true
+        let playA11 = m.content.play("A11")!
+
+        shot("55_play_finished_keepsake_zh", height: 956,
+             tabs(m, PlayView(play: playA11, month: 6, initialStep: playA11.steps.count)))
+
+        shot("55_about_clean_2_0_zh", height: 956,
+             tabs(m, AboutView()))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        let playA11En = mEn.content.play("A11")!
+        shot("55_play_folio_kinetic_en", height: 956,
+             tabs(mEn, PlayView(play: playA11En, month: 6)))
     }
 }

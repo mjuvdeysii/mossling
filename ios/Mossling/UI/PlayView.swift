@@ -16,10 +16,19 @@ struct PlayView: View {
     let play: Play
     let month: Int
     var initialMatMode: Bool = false
+    var initialStep: Int = 0
 
     @State private var scrolled = false
     @State private var cheer = 0
-    @State private var open = 0
+    @State private var open: Int
+
+    init(play: Play, month: Int, initialMatMode: Bool = false, initialStep: Int = 0) {
+        self.play = play
+        self.month = month
+        self.initialMatMode = initialMatMode
+        self.initialStep = initialStep
+        _open = State(initialValue: min(max(0, initialStep), play.steps.count))
+    }
     @State private var before = false
     /// What to watch for and when to stop is safety: open from the start, not folded away.
     @State private var during = true
@@ -55,9 +64,11 @@ struct PlayView: View {
                         .id("stage")
                     } else {
                         FinishedCard(
+                            play: play,
                             companion: app.companion,
                             count: rec.count,
                             cheer: cheer,
+                            dark: dark,
                             onReplay: { go(0, proxy) }
                         )
                         .transition(reduce ? .opacity : .scale(scale: 0.94).combined(with: .opacity))
@@ -517,9 +528,11 @@ struct MatSideCoPlayView: View {
                 VStack(spacing: 18) {
                     if finished {
                         FinishedCard(
+                            play: play,
                             companion: companion,
                             count: max(1, cheerCount),
                             cheer: cheerTrigger,
+                            dark: dark,
                             onReplay: { onSelectStep(0) }
                         )
                         .padding(.top, 12)
@@ -852,33 +865,89 @@ private struct PlayHeader: View {
     }
 }
 
-/// The steps finished: the companions come out to cheer, here, in the page, with the count.
+/// The steps finished: a Kid's Book Gold-Bead Stamp Keepsake Card with the final step miniature, wax seal, and cheering Duo.
 private struct FinishedCard: View {
+    let play: Play
     let companion: Kind
     let count: Int
     let cheer: Int
+    let dark: Bool
     var onReplay: (() -> Void)? = nil
 
+    @Environment(\.girlArt) private var girl
+
     var body: some View {
-        let line: String = L10n.t(
-            "记下了第 \(count) 次" + (count >= 3 ? "，越来越熟练" : ""),
-            "Logged session #\(count)" + (count >= 3 ? " — getting more natural" : "")
-        )
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 14) {
-                Duo(primary: companion, size: 58, look: CGPoint(x: 0.5, y: -0.3), cheer: cheer)
+        let lastArt = ArtIndex.shared.steps(play.code).last
+        let thumbImg = lastArt.flatMap { name -> UIImage? in
+            let shown = ArtIndex.variant(name, girl: girl)
+            return Perf.noArt ? nil : (ArtCache.shared.cached(shown, maxPixel: 240) ?? ArtCache.shared.image(shown, maxPixel: 240))
+        }
+        let line: String = count > 0
+            ? L10n.t(
+                "已盖下第 \(count) 枚金珠印章" + (count >= 3 ? " · 越来越默契" : ""),
+                "Stamped session #\(count)" + (count >= 3 ? " — getting more natural" : "")
+            )
+            : L10n.t("已盖下今天这一页的金珠印章", "Gold wax stamp earned for this page")
+
+        VStack(alignment: .leading, spacing: 14) {
+            ZStack {
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(dark ? Color(hex: 0x151D3B) : Color(hex: 0xFDF7EA))
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.30), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+
+                HStack(spacing: 12) {
+                    if let thumbImg {
+                        ZStack(alignment: .top) {
+                            Image(uiImage: thumbImg)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 76, height: 57)
+                                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .padding(3)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(dark ? Palette.lampCard : .white)
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75)
+                                )
+                                .shadow(color: .black.opacity(0.10), radius: 3, y: 2)
+                                .rotationEffect(.degrees(-3))
+
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
+                                .frame(width: 22, height: 7)
+                                .offset(y: -3)
+                        }
+                    }
+
+                    Spacer(minLength: 4)
+
+                    WaxSealBadge(seal: .gold, size: 42)
+
+                    Spacer(minLength: 4)
+
+                    Duo(primary: companion, size: 54, look: CGPoint(x: -0.4, y: -0.2), cheer: cheer)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+            .frame(height: 88)
+
+            HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.t("做完了", "All Done"))
-                        .font(.headline)
+                    Text(L10n.t("这一页玩完啦", "Page Complete"))
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.primary)
                     Text(line)
                         .font(.subheadline)
                         .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
-            }
-            if let onReplay {
-                HStack {
-                    Spacer(minLength: 0)
+                Spacer(minLength: 4)
+                if let onReplay {
                     Button(action: onReplay) {
                         Label(L10n.t("再玩一遍", "Play Again"), systemImage: "arrow.counterclockwise")
                             .font(.subheadline.weight(.semibold))

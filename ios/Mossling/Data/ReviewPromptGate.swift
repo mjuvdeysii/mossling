@@ -29,7 +29,7 @@ enum ReviewPromptGate {
     }
 
     static func appVersion(bundle: Bundle = .main) -> String {
-        (bundle.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "1.3.2"
+        (bundle.infoDictionary?["CFBundleShortVersionString"] as? String) ?? "2.0"
     }
 
     /// Requests an in-app review calmly after a joyful daytime keepsake confirmation (at most once per version / 60 days).

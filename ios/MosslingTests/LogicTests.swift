@@ -1132,17 +1132,16 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testBulbSpringPresetsAndPersistence() {
+        XCTAssertEqual(BulbSpringPreset.locked, .warm)
         for preset in BulbSpringPreset.allCases {
             XCTAssertGreaterThan(preset.response, 0.2)
             XCTAssertGreaterThan(preset.dampingFraction, 0.4)
             XCTAssertGreaterThan(preset.triggerThreshold, 15)
         }
         let d = UserDefaults(suiteName: "bulb-preset-\(UUID().uuidString)")!
+        d.set(BulbSpringPreset.airy.rawValue, forKey: "bulbSpringPreset")
         let m1 = AppModel(defaults: d)
         XCTAssertEqual(m1.bulbPreset, .warm)
-        m1.bulbPreset = .airy
-        let m2 = AppModel(defaults: d)
-        XCTAssertEqual(m2.bulbPreset, .airy)
     }
 
     func testDayChapterPartitioningAndSummaries() {

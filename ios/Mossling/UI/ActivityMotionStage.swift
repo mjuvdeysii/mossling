@@ -252,6 +252,19 @@ struct ActivityMotionStage: View {
                 .phaseAnimator(reduce ? [1.0] : [1.0, 1.022, 1.0], trigger: bounceTrigger) { view, scaleVal in
                     view.scaleEffect(scaleVal)
                 }
+                .overlay(alignment: .topTrailing) {
+                    if stepCount > 1 {
+                        Text(String(format: "%02d / %02d", stepIndex + 1, stepCount))
+                            .font(.caption2.weight(.bold).monospacedDigit())
+                            .foregroundStyle(dark ? Palette.lampInk : Palette.text)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.88)))
+                            .overlay(Capsule().strokeBorder(stageColor.opacity(dark ? 0.35 : 0.24), lineWidth: 0.75))
+                            .padding(10)
+                            .allowsHitTesting(false)
+                    }
+                }
 
                 // Bottom picture-book caption bar: step-specific kinetic badge + Montessori step bead track
                 HStack(alignment: .center, spacing: 8) {
@@ -326,9 +339,15 @@ struct StepKineticOverlay: View {
     let pulseAt: Date
     let pulseOrigin: CGPoint?
     let reduce: Bool
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.scrolling) private var scrolling
+
+    private static let burstColors: [Color] = [
+        Palette.bead, Crayon.tangerine, Crayon.mint, Crayon.sky, Crayon.lilac
+    ]
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still)) { tl in
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still || scenePhase != .active || scrolling.moving)) { tl in
             let now = tl.date
             let phase = (reduce || Perf.still) ? 0.56 : now.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 2.2) / 2.2
             let pulseAge = pulseAt == .distantPast ? 9.9 : max(0, now.timeIntervalSince(pulseAt))
@@ -419,17 +438,31 @@ struct StepKineticOverlay: View {
                     ctx.fill(Path(ellipseIn: CGRect(x: sx - 4.5, y: h * 0.25 - 4.5, width: 9, height: 9)), with: .color(Palette.beadLight))
                 }
 
-                // Interactive tap replay ring where finger touched
+                // Interactive tap replay ring & pastel starburst beads where finger touched
                 if pulseStrength > 0.01 {
                     let origin = pulseOrigin ?? CGPoint(x: 0.5, y: 0.48)
                     let px = size.width * min(0.92, max(0.08, origin.x))
                     let py = size.height * min(0.88, max(0.12, origin.y))
-                    let pr = CGFloat(14 + (1.0 - pulseStrength) * Double(min(w, h) * 0.32))
+                    let prog = 1.0 - pulseStrength
+                    let pr = CGFloat(14 + prog * Double(min(w, h) * 0.32))
                     ctx.stroke(
                         Path(ellipseIn: CGRect(x: px - pr, y: py - pr, width: pr * 2, height: pr * 2)),
                         with: .color(Palette.bead.opacity(pulseStrength * 0.85)),
                         lineWidth: 2.6
                     )
+
+                    let count = Self.burstColors.count
+                    let starDist = CGFloat(10 + prog * 34)
+                    for i in 0..<count {
+                        let angle = CGFloat(i) * (.pi * 2 / CGFloat(count)) - .pi / 2 + CGFloat(prog * 0.45)
+                        let sx = px + cos(angle) * starDist
+                        let sy = py + sin(angle) * starDist
+                        let sr = CGFloat(3.4 * pulseStrength + 1.4)
+                        ctx.fill(
+                            Path(ellipseIn: CGRect(x: sx - sr, y: sy - sr, width: sr * 2, height: sr * 2)),
+                            with: .color(Self.burstColors[i].opacity(pulseStrength * 0.92))
+                        )
+                    }
                 }
             }
         }
