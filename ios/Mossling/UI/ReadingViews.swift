@@ -114,6 +114,7 @@ struct SearchView: View {
         .scrollContentBackground(.hidden).pageBackground()
         .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.t("活动、月份、专题、辅食或小器具", "Activities, months, foods, or tools"))
         .navigationTitle(L10n.t("搜索", "Search"))
+        .toolbar(.hidden, for: .tabBar)
     }
     /// A topic with its own mark, as on the month's page.
     private func topicLabel(_ tp: Topic) -> some View {

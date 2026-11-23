@@ -139,18 +139,11 @@ private struct QuietInstrumentsDock: View {
             : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
         VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                GoldBead(size: 9)
-                Text(L10n.t("陪伴小器具", "Quiet Instruments"))
-                    .font(.title3.weight(.bold))
-                    .accessibilityAddTraits(.isHeader)
-                Spacer(minLength: 4)
-                Text(L10n.t("离线 · 随时点亮", "Offline · Ready"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-            }
-            .padding(.horizontal, 4)
-            .padding(.top, 6)
+            SectionTitle(
+                title: L10n.t("陪伴小器具", "Quiet Instruments"),
+                detail: L10n.t("离线 · 随时点亮", "Offline · Ready")
+            )
+            .padding(.top, -14)
 
             LazyVGrid(columns: columns, spacing: 10) {
                 Button(action: openLamp) {

@@ -462,6 +462,7 @@ struct AboutView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationDestination(isPresented: $story) { StoryView() }
         .navigationTitle(L10n.t("关于摸索台灯", "About Moss & Otto")).navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func aboutGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
@@ -515,6 +516,7 @@ struct StoryView: View {
         }
         .pageBackground()
         .navigationTitle(L10n.t("摸索台灯的故事", "Our Story")).navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func pair(_ word: String, _ who: String, _ line: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
@@ -707,6 +709,7 @@ struct SourcesView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("内容来源", "Sources")).navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     private func whoLine(_ label: String, _ text: String) -> some View {
@@ -737,6 +740,7 @@ struct LicensesView: View {
         }
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle(L10n.t("许可与致谢", "Licenses & Credits"))
+        .toolbar(.hidden, for: .tabBar)
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
         VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }

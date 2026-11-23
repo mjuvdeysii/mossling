@@ -343,11 +343,23 @@ struct FirstsView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
     @State private var editing: First?
-    @State private var adding = false
+    @State private var draftNew: First?
     /// The first just kept: its bead on the thread blooms like a drop of colour on wet paper, once.
     @State private var fresh: First.ID?
 
+    private var suggestedCharms: [Firsts.Kind] {
+        Array(
+            Firsts.ordered(around: app.babyMonth).filter { k in
+                !j.firsts.contains { f in
+                    f.key == k.id || f.title.contains(k.zh) || f.title.localizedCaseInsensitiveContains(k.en)
+                }
+            }
+            .prefix(6)
+        )
+    }
+
     var body: some View {
+        let charms = suggestedCharms
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 summary
@@ -363,11 +375,51 @@ struct FirstsView: View {
                     }
                     if let b = app.birth { BirthRow(birth: b) }
                 }
+                if !charms.isEmpty {
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionTitle(
+                            title: L10n.t("这段时间常遇见的第一次", "Moments Around This Stage"),
+                            detail: L10n.t("轻点直接记下", "Tap to keep")
+                        )
+                        VStack(alignment: .leading, spacing: 12) {
+                            WrapLayout(spacing: 8) {
+                                ForEach(charms) { k in
+                                    Button {
+                                        TactileEngine.shared.beadClick()
+                                        draftNew = First(at: ms(Date()), key: k.id, title: k.title)
+                                    } label: {
+                                        HStack(spacing: 6) {
+                                            Image(systemName: k.symbol)
+                                                .font(.caption.weight(.bold))
+                                                .foregroundStyle(Crayon.ink(k.color))
+                                            Text(k.title)
+                                                .font(.subheadline.weight(.semibold))
+                                                .foregroundStyle(.primary)
+                                        }
+                                        .padding(.horizontal, 11)
+                                        .padding(.vertical, 7)
+                                        .background(Capsule().fill(k.color.opacity(lamp ? 0.22 : 0.12)))
+                                        .overlay(Capsule().strokeBorder(k.color.opacity(lamp ? 0.38 : 0.26), lineWidth: 0.85))
+                                    }
+                                    .buttonStyle(.toy)
+                                }
+                            }
+                            Text(L10n.t("只是温柔的灵感提示，从不是进度表；随时也可以点右上角 + 自定义。", "Gentle inspiration only — never a checklist. Tap + anytime to write your own."))
+                                .font(.caption)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        .padding(14)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
+                    }
+                }
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
         .pageBackground(tone: Palette.bead)
         .navigationTitle(L10n.t("第一次", "Firsts"))
+        .toolbar(.hidden, for: .tabBar)
         .onChange(of: j.firsts.map(\.id)) { old, new in
             guard let n = new.first(where: { !old.contains($0) }) else { return }
             fresh = n
@@ -375,7 +427,7 @@ struct FirstsView: View {
         }
 
         .sheet(item: $editing) { f in FirstSheet(first: f, isNew: false).lampPresented() }
-        .sheet(isPresented: $adding) { FirstSheet(first: First(at: ms(Date()), title: ""), isNew: true).lampPresented() }
+        .sheet(item: $draftNew) { f in FirstSheet(first: f, isNew: true).lampPresented() }
     }
 
     private var summary: some View {
@@ -390,7 +442,7 @@ struct FirstsView: View {
                     .font(.footnote).foregroundStyle(Palette.secondaryText).lineLimit(2)
             }
             Spacer(minLength: 0)
-            Button { adding = true } label: { Image(systemName: "plus").font(.headline).frame(width: 44, height: 40) }
+            Button { draftNew = First(at: ms(Date()), title: "") } label: { Image(systemName: "plus").font(.headline).frame(width: 44, height: 40) }
                 .buttonStyle(.vinyl(Palette.bead, prominent: true))
                 .accessibilityLabel(L10n.t("记一个第一次", "Log a first"))
         }

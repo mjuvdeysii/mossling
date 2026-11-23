@@ -390,39 +390,53 @@ struct OnboardingView: View {
             .ignoresSafeArea(edges: .top)
             .sensoryFeedback(.selection, trigger: chose)
 
-            VStack(spacing: 6) {
-                Text(L10n.appName).font(.largeTitle.weight(.bold))
-                Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
-                Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
-                    .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
-                // who the two are, in one line (their parts as child and grown-up are for the pictures only)
-                Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Me."))
-                    .font(.footnote).foregroundStyle(Palette.secondaryText)
-                    .padding(.top, 4)
-            }
-            .multilineTextAlignment(.center)
-            .padding(.top, 14).padding(.horizontal, 24)
-
-            VStack(spacing: 10) {
-                Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                    .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
-                Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                    .buttonStyle(.glass).controlSize(.large)
-                // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
+            VStack(spacing: 0) {
                 VStack(spacing: 6) {
-                    Text(L10n.t("本应用陪伴家庭养育，不能替代医生的诊断和建议。", "A quiet companion for home parenting — not a substitute for medical advice."))
-                        .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
-                    HStack(spacing: 16) {
-                        ForEach([(L10n.t("使用条款", "Terms"), "TERMS"), (L10n.t("隐私政策", "Privacy"), "PRIVACY"), (L10n.t("免责声明", "Disclaimer"), "DISCLAIMER")], id: \.1) { t, f in
-                            Button(t) { doc = f }.font(.caption.weight(.semibold))
+                    Text(L10n.appName).font(.largeTitle.weight(.bold))
+                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
+                    Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
+                        .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                    // who the two are, in one line (their parts as child and grown-up are for the pictures only)
+                    Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Me."))
+                        .font(.footnote).foregroundStyle(Palette.secondaryText)
+                        .padding(.top, 4)
+                }
+                .multilineTextAlignment(.center)
+                .padding(.top, 20).padding(.horizontal, 24)
+
+                VStack(spacing: 10) {
+                    Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+                    Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glass).controlSize(.large)
+                    // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
+                    VStack(spacing: 6) {
+                        Text(L10n.t("本应用陪伴家庭养育，不能替代医生的诊断和建议。", "A quiet companion for home parenting — not a substitute for medical advice."))
+                            .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
+                        HStack(spacing: 16) {
+                            ForEach([(L10n.t("使用条款", "Terms"), "TERMS"), (L10n.t("隐私政策", "Privacy"), "PRIVACY"), (L10n.t("免责声明", "Disclaimer"), "DISCLAIMER")], id: \.1) { t, f in
+                                Button(t) { doc = f }.font(.caption.weight(.semibold))
+                            }
                         }
                     }
+                    .padding(.horizontal, 12).padding(.vertical, 8)
+                    .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                    .padding(.top, 4)
                 }
-                .padding(.horizontal, 12).padding(.vertical, 8)
-                .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-                .padding(.top, 4)
+                .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
             }
-            .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
+            .frame(maxWidth: .infinity)
+            .background(
+                UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
+                    .fill(LinearGradient(colors: [Palette.background, Palette.background.opacity(0.96), .clear], startPoint: .top, endPoint: .bottom))
+                    .shadow(color: .black.opacity(0.16), radius: 12, y: -4)
+            )
+            .overlay(alignment: .top) {
+                UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
+                    .strokeBorder(Color(hex: 0xEADAC2).opacity(0.55), lineWidth: 0.75)
+                    .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.14)))
+            }
+            .padding(.top, -22)
         }
         .pageBackground()
         .task {

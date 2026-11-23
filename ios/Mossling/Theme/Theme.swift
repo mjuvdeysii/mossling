@@ -603,15 +603,36 @@ struct ValueText: View {
 
 /// A heading between cards on a scrolling page.
 struct SectionTitle: View {
+    @Environment(\.dynamicTypeSize) private var type
     let title: String
     var detail: String? = nil
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            // every section starts at a golden bead, the same bead as the counts and the growth chain
-            GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-            Text(title).font(.title3.weight(.bold))
-            Spacer()
-            if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
+        Group {
+            if type.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(alignment: .firstTextBaseline, spacing: 8) {
+                        // every section starts at a golden bead, the same bead as the counts and the growth chain
+                        GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                        Text(title).font(.title3.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                    }
+                    if let detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 18)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    // every section starts at a golden bead, the same bead as the counts and the growth chain
+                    GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
+                    Text(title).font(.title3.weight(.bold))
+                    Spacer()
+                    if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
+                }
+            }
         }
         .padding(.horizontal, 4).padding(.top, 20)
         .accessibilityAddTraits(.isHeader)
