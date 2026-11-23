@@ -110,12 +110,14 @@ struct StorybookView: View {
         let playCount = pages.reduce(0) { $0 + $1.plays.reduce(0) { $0 + $1.times } }
         let firstCount = pages.reduce(0) { $0 + $1.firsts.count }
         let currentPageData: BookPage? = (index >= 1 && index <= pages.count) ? pages[index - 1] : nil
+        let isEpilogue = index > pages.count
         let pageMonth = currentPageData?.month
         let chapterTitle: String = currentPageData.map { app.content.month($0.month).title } ?? L10n.stretchName(for: app.babyMonth ?? 0)
         let firstLines: [String] = currentPageData?.firsts.prefix(3).map { "· " + Firsts.displayTitle($0) + " · " + Day($0.date).md } ?? []
         let playNames: [String] = currentPageData?.plays.prefix(3).map(\.play.name) ?? []
         let foodNames: [String] = currentPageData.map { monthFoods(for: $0).prefix(8).map(\.item.name) } ?? []
         let firstIDs: [UUID] = currentPageData?.firsts.map(\.id) ?? []
+        let tastedCount = (foodStore ?? .shared).tastedCount
 
         let exportPoster = RenderedPoster {
             let view: AnyView
@@ -130,6 +132,17 @@ struct StorybookView: View {
                         foodNames: foodNames,
                         coverImage: ArtIndex.shared.cover(min(pageMonth, 36)).flatMap { ArtCache.shared.image($0, maxPixel: 1024) },
                         firstPhoto: firstIDs.compactMap { FirstPhotoStore.load(for: $0) }.first
+                    )
+                )
+            } else if isEpilogue {
+                view = AnyView(
+                    StorybookEpiloguePrintCard(
+                        babyName: who,
+                        ageLabel: ageLabel,
+                        monthCount: monthCount,
+                        playCount: playCount,
+                        firstCount: firstCount,
+                        foodCount: tastedCount
                     )
                 )
             } else {
@@ -896,6 +909,75 @@ private struct StorybookMonthPrintCard: View {
                 .foregroundStyle(ink.opacity(0.55))
         }
         .padding(24)
+        .frame(width: 360)
+        .background(paper)
+    }
+}
+
+private struct StorybookEpiloguePrintCard: View {
+    let babyName: String
+    let ageLabel: String?
+    let monthCount: Int
+    let playCount: Int
+    let firstCount: Int
+    let foodCount: Int
+
+    var body: some View {
+        let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
+        let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
+        let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
+        let bead = Color(red: 0xD4 / 255, green: 0xA2 / 255, blue: 0x1C / 255)
+
+        VStack(spacing: 16) {
+            HStack(spacing: 6) {
+                Circle().fill(bead).frame(width: 7, height: 7)
+                Text(L10n.t("绘本尾声", "EPILOGUE"))
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .foregroundStyle(teal)
+                Circle().fill(bead).frame(width: 7, height: 7)
+            }
+
+            VStack(spacing: 6) {
+                Text(L10n.t("故事仍在继续", "The Story Goes On"))
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                    .foregroundStyle(ink)
+                if let ageLabel {
+                    Text("\(babyName) · \(ageLabel)")
+                        .font(.system(size: 13, weight: .semibold, design: .rounded))
+                        .foregroundStyle(teal)
+                }
+            }
+
+            Text(L10n.t(
+                "这本绘本已经收录了 \(monthCount) 个月份。以后每一个新玩的托盘、每一次小发现，都会自己长成下一页。",
+                "This keepsake holds \(monthCount) \(monthCount == 1 ? "month" : "months") so far. Every new play tray and tiny discovery will gently become the next page."
+            ))
+            .font(.system(size: 12.5, weight: .regular, design: .rounded))
+            .lineSpacing(5)
+            .multilineTextAlignment(.center)
+            .foregroundStyle(ink.opacity(0.82))
+
+            HStack(spacing: 12) {
+                Text(L10n.t("\(monthCount) 个月", "\(monthCount) mo"))
+                Text("·")
+                Text(L10n.t("\(playCount) 次共玩", "\(playCount) plays"))
+                Text("·")
+                Text(L10n.t("\(firstCount) 个第一次", "\(firstCount) firsts"))
+                if foodCount > 0 {
+                    Text("·")
+                    Text(L10n.t("\(foodCount) 味", "\(foodCount) tastes"))
+                }
+            }
+            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+            .foregroundStyle(ink.opacity(0.70))
+
+            Divider().opacity(0.3)
+
+            Text(L10n.t("摸索台灯 · 孩子摸索，大人点灯", "Moss & Otto · They explore. You hold the light."))
+                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .foregroundStyle(ink.opacity(0.55))
+        }
+        .padding(26)
         .frame(width: 360)
         .background(paper)
     }

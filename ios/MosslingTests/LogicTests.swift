@@ -1460,4 +1460,32 @@ final class LogicTests: XCTestCase {
         engine.clearAutoFadeNotice()
         XCTAssertFalse(engine.didFinishAutoFade)
     }
+
+    func testTimeCapsuleSealedDaysSpan() {
+        let written = Day(y: 2026, m: 4, d: 2)
+        let writtenMs = written.date.timeIntervalSince1970 * 1000 + 12 * 3600 * 1000
+        let openDay = Day(y: 2026, m: 10, d: 19)
+        let openMs = openDay.date.timeIntervalSince1970 * 1000 + 18 * 3600 * 1000
+
+        // While still sealed: measures span against today's reference day
+        let sealed = TimeCapsule(
+            title: "给秋天的信",
+            body: "愿你慢慢长大",
+            writtenAt: writtenMs,
+            writtenAgeLabel: "出生",
+            unlockEpochDay: openDay.epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        XCTAssertNil(sealed.openedDay)
+        XCTAssertEqual(sealed.sealedDays(on: openDay), openDay.epochDay - written.epochDay)
+        // Clamped to zero even if reference day is earlier than written day
+        XCTAssertEqual(sealed.sealedDays(on: written.plus(days: -3)), 0)
+
+        // Once opened: freezes span on the exact day the wax seal was broken
+        var opened = sealed
+        opened.openedAt = openMs
+        XCTAssertEqual(opened.openedDay, openDay)
+        XCTAssertEqual(opened.sealedDays(on: openDay.plus(days: 30)), openDay.epochDay - written.epochDay)
+    }
 }

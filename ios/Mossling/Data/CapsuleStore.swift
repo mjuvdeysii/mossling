@@ -56,6 +56,16 @@ struct TimeCapsule: Identifiable, Codable, Equatable, Sendable {
         unlockEpochDay.map { Day(epochDay: $0) }
     }
 
+    var openedDay: Day? {
+        openedAt.map { Day(Date(timeIntervalSince1970: $0 / 1000)) }
+    }
+
+    /// Number of calendar days elapsed between sealing and opening (or `referenceDay` if not yet opened).
+    func sealedDays(on referenceDay: Day) -> Int {
+        let endDay = openedDay ?? referenceDay
+        return max(0, endDay.epochDay - writtenDay.epochDay)
+    }
+
     func isLocked(on today: Day) -> Bool {
         if openedAt != nil { return false }
         guard let target = unlockEpochDay else { return false }

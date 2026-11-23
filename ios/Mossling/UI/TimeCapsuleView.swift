@@ -688,22 +688,38 @@ struct CapsuleReadSheet: View {
     let store: CapsuleStore
 
     @State private var isOpened: Bool
+    @State private var openedTimestamp: Double?
     @State private var confirmEarlyOpen = false
     @State private var confirmDelete = false
+    @State private var sealPressProgress: Double = 0
+    @State private var isPressingSeal = false
+    @State private var showHoldHint = false
+    @State private var sealHoldTask: Task<Void, Never>? = nil
+    @State private var lastDetentStep = 0
 
     init(capsule: TimeCapsule, store: CapsuleStore) {
         self.capsule = capsule
         self.store = store
         _isOpened = State(initialValue: capsule.openedAt != nil)
+        _openedTimestamp = State(initialValue: capsule.openedAt)
+    }
+
+    private var resolvedCapsule: TimeCapsule {
+        var current = store.items.first(where: { $0.id == capsule.id }) ?? capsule
+        if current.openedAt == nil, isOpened {
+            current.openedAt = openedTimestamp ?? Date().timeIntervalSince1970 * 1000
+        }
+        return current
     }
 
     var body: some View {
+        let liveCapsule = resolvedCapsule
         let dark = lamp || scheme == .dark
-        let locked = !isOpened && capsule.isLocked(on: app.today)
+        let locked = !isOpened && liveCapsule.isLocked(on: app.today)
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
 
         let poster = RenderedPoster {
-            let card = CapsulePrintPoster(capsule: capsule, babyName: who)
+            let card = CapsulePrintPoster(capsule: liveCapsule, babyName: who, today: app.today)
             let renderer = ImageRenderer(content: card)
             renderer.scale = 3.0
             return renderer.uiImage
@@ -713,9 +729,10 @@ struct CapsuleReadSheet: View {
             ScrollView {
                 VStack(spacing: 18) {
                     if isOpened {
-                        stationeryPage(dark: dark)
+                        stationeryPage(capsule: liveCapsule, dark: dark)
+                            .transition(reduce ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
                     } else {
-                        sealedCeremonyView(dark: dark, locked: locked)
+                        sealedCeremonyView(capsule: liveCapsule, dark: dark, locked: locked)
                     }
                 }
                 .padding(20)
@@ -723,6 +740,7 @@ struct CapsuleReadSheet: View {
             .pageBackground(tone: Crayon.caramel)
             .navigationTitle(isOpened ? L10n.t("时光信笺", "Time Capsule") : L10n.t("火漆封存中", "Sealed Envelope"))
             .navigationBarTitleDisplayMode(.inline)
+            .onDisappear { cancelSealHold() }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.t("关闭", "Close")) { dismiss() }
@@ -731,7 +749,7 @@ struct CapsuleReadSheet: View {
                     if isOpened {
                         ShareLink(
                             item: poster,
-                            preview: SharePreview(capsule.title)
+                            preview: SharePreview(liveCapsule.title)
                         ) {
                             Image(systemName: "square.and.arrow.up")
                         }
@@ -749,14 +767,14 @@ struct CapsuleReadSheet: View {
                 Button(L10n.t("再等等", "Keep Sealed"), role: .cancel) {}
                 Button(L10n.t("现在拆封", "Unseal Now")) { unsealNow() }
             } message: {
-                if let target = capsule.unlockDay {
+                if let target = liveCapsule.unlockDay {
                     Text(L10n.t("原定在 \(target.ymd) 拆封，随时也可以提前读一读。", "Scheduled for \(target.ymd). You are always free to open it now."))
                 }
             }
             .alert(L10n.t("删除这封信？", "Delete This Letter?"), isPresented: $confirmDelete) {
                 Button(L10n.t("取消", "Cancel"), role: .cancel) {}
                 Button(L10n.t("删除", "Delete"), role: .destructive) {
-                    store.delete(id: capsule.id)
+                    store.delete(id: liveCapsule.id)
                     dismiss()
                 }
             } message: {
@@ -765,69 +783,141 @@ struct CapsuleReadSheet: View {
         }
     }
 
-    private func sealedCeremonyView(dark: Bool, locked: Bool) -> some View {
+    private func sealedCeremonyView(capsule: TimeCapsule, dark: Bool, locked: Bool) -> some View {
         let daysLeft = capsule.daysUntilUnlock(on: app.today)
         return VStack(spacing: 22) {
             Spacer(minLength: 16)
 
-            Button {
+            VStack(spacing: 18) {
                 if locked {
-                    confirmEarlyOpen = true
-                } else {
-                    unsealNow()
-                }
-            } label: {
-                VStack(spacing: 18) {
-                    WaxSealBadge(seal: capsule.seal, size: 88)
-
-                    VStack(spacing: 6) {
-                        Text(capsule.title)
-                            .font(.title3.weight(.bold))
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.center)
-
-                        Text(
-                            capsule.writtenAgeLabel.isEmpty
-                                ? L10n.t("封存于 \(capsule.writtenDay.ymd)", "Sealed on \(capsule.writtenDay.ymd)")
-                                : L10n.t("写于 \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)", "Written at \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)")
-                        )
-                        .font(.footnote)
-                        .foregroundStyle(Palette.secondaryText)
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        confirmEarlyOpen = true
+                    } label: {
+                        WaxSealBadge(seal: capsule.seal, size: 88)
                     }
-
-                    if locked, let target = capsule.unlockDay {
-                        VStack(spacing: 4) {
-                            Text(L10n.t("还剩 \(daysLeft) 天", "\(daysLeft) \(daysLeft == 1 ? "day" : "days") to go"))
-                                .font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
-                                .foregroundStyle(Palette.accent)
-                            Text(L10n.t("约定拆封日：\(target.ymd)", "Unseals on \(target.ymd)"))
-                                .font(.caption)
-                                .foregroundStyle(Palette.secondaryText)
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("火漆印章，约定在 \(capsule.unlockDay?.ymd ?? "") 拆封", "Wax seal, scheduled for \(capsule.unlockDay?.ymd ?? "")"))
+                    .accessibilityHint(L10n.t("轻点可提前揭开", "Tap to break seal early"))
+                } else {
+                    ZStack {
+                        if !reduce {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [capsule.seal.color.opacity(0.45 * sealPressProgress), .clear],
+                                        center: .center,
+                                        startRadius: 24,
+                                        endRadius: 68
+                                    )
+                                )
+                                .frame(width: 136, height: 136)
                         }
-                        .padding(.top, 4)
-                    } else {
-                        Text(L10n.t("轻点火漆，拆开这封信", "Tap the wax seal to unseal"))
+
+                        Circle()
+                            .stroke(capsule.seal.color.opacity(0.18), lineWidth: 4)
+                            .frame(width: 106, height: 106)
+
+                        Circle()
+                            .trim(from: 0, to: sealPressProgress)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [Palette.beadLight, capsule.seal.color],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                style: StrokeStyle(lineWidth: 4.5, lineCap: .round)
+                            )
+                            .rotationEffect(.degrees(-90))
+                            .frame(width: 106, height: 106)
+
+                        WaxSealBadge(seal: capsule.seal, size: 88)
+                            .scaleEffect(reduce ? 1.0 : (1.0 - 0.08 * sealPressProgress))
+                    }
+                    .frame(width: 120, height: 120)
+                    .contentShape(Circle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { _ in
+                                if !isPressingSeal {
+                                    beginSealHold()
+                                }
+                            }
+                            .onEnded { _ in
+                                endSealHold()
+                            }
+                    )
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityLabel(L10n.t("按住火漆印章揭开信封", "Press and hold wax seal to unseal"))
+                    .accessibilityAction { unsealNow() }
+                }
+
+                VStack(spacing: 6) {
+                    Text(capsule.title)
+                        .font(.title3.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .multilineTextAlignment(.center)
+
+                    Text(
+                        capsule.writtenAgeLabel.isEmpty
+                            ? L10n.t("封存于 \(capsule.writtenDay.ymd)", "Sealed on \(capsule.writtenDay.ymd)")
+                            : L10n.t("写于 \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)", "Written at \(capsule.writtenAgeLabel) · \(capsule.writtenDay.ymd)")
+                    )
+                    .font(.footnote)
+                    .foregroundStyle(Palette.secondaryText)
+                }
+
+                if locked, let target = capsule.unlockDay {
+                    VStack(spacing: 4) {
+                        Text(L10n.t("还剩 \(daysLeft) 天", "\(daysLeft) \(daysLeft == 1 ? "day" : "days") to go"))
+                            .font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                            .foregroundStyle(Palette.accent)
+                        Text(L10n.t("约定拆封日：\(target.ymd)", "Unseals on \(target.ymd)"))
+                            .font(.caption)
+                            .foregroundStyle(Palette.secondaryText)
+                    }
+                    .padding(.top, 4)
+                } else {
+                    VStack(spacing: 8) {
+                        Button {
+                            unsealNow()
+                        } label: {
+                            Text(
+                                isPressingSeal
+                                    ? L10n.t("正在融化火漆…", "Warming the wax seal…")
+                                    : L10n.t("轻点或按住火漆，拆开这封信", "Hold wax seal or tap to unseal")
+                            )
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 20)
                             .padding(.vertical, 10)
                             .background(Capsule().fill(Palette.accentFill))
+                        }
+                        .buttonStyle(.toy)
+
+                        if showHoldHint {
+                            Text(L10n.t("按住上方火漆圆章 0.7 秒慢慢融开，或轻点按钮直接开启", "Hold the wax seal for a moment to melt it open, or tap the button"))
+                                .font(.caption2)
+                                .foregroundStyle(Palette.secondaryText)
+                                .multilineTextAlignment(.center)
+                                .transition(.opacity)
+                        }
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 32)
-                .frame(maxWidth: .infinity)
-                .background(
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(dark ? Palette.lampCard : Color(hex: 0xFDF9F1))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .strokeBorder(capsule.seal.color.opacity(0.45), lineWidth: 1.5)
-                )
-                .shadow(color: .black.opacity(dark ? 0.35 : 0.10), radius: 14, y: 6)
             }
-            .buttonStyle(.toy)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 32)
+            .frame(maxWidth: .infinity)
+            .background(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(dark ? Palette.lampCard : Color(hex: 0xFDF9F1))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .strokeBorder(capsule.seal.color.opacity(0.45), lineWidth: 1.5)
+            )
+            .shadow(color: .black.opacity(dark ? 0.35 : 0.10), radius: 14, y: 6)
 
             if locked {
                 Button {
@@ -841,8 +931,9 @@ struct CapsuleReadSheet: View {
         }
     }
 
-    private func stationeryPage(dark: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 16) {
+    private func stationeryPage(capsule: TimeCapsule, dark: Bool) -> some View {
+        let waitedDays = capsule.sealedDays(on: app.today)
+        return VStack(alignment: .leading, spacing: 16) {
             HStack(alignment: .center, spacing: 12) {
                 WaxSealBadge(seal: capsule.seal, size: 40)
                 VStack(alignment: .leading, spacing: 2) {
@@ -857,6 +948,26 @@ struct CapsuleReadSheet: View {
                 }
                 Spacer()
                 Duo(primary: app.companion, size: 42, poke: false, night: dark)
+            }
+
+            if waitedDays > 0 {
+                HStack(spacing: 6) {
+                    Image(systemName: "hourglass")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                    Text(
+                        L10n.t(
+                            "这封信静静等待了 \(waitedDays) 天",
+                            "Waited quietly for \(waitedDays) \(waitedDays == 1 ? "day" : "days")"
+                        )
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(dark ? Palette.lampInk : Crayon.ink(Palette.bead))
+                    .monospacedDigit()
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.16)))
             }
 
             Text(capsule.title)
@@ -895,10 +1006,60 @@ struct CapsuleReadSheet: View {
         .shadow(color: .black.opacity(dark ? 0.35 : 0.10), radius: 12, y: 5)
     }
 
+    private func beginSealHold() {
+        if reduce {
+            unsealNow()
+            return
+        }
+        isPressingSeal = true
+        lastDetentStep = 0
+        TactileEngine.shared.dimmerTick()
+        sealHoldTask?.cancel()
+        sealHoldTask = Task { @MainActor in
+            let steps = 26
+            for step in 1...steps {
+                try? await Task.sleep(for: .milliseconds(25))
+                guard !Task.isCancelled, isPressingSeal else { return }
+                let next = Double(step) / Double(steps)
+                sealPressProgress = next
+                let detent = Int(next * 4)
+                if detent > lastDetentStep && detent < 4 {
+                    lastDetentStep = detent
+                    TactileEngine.shared.dimmerTick()
+                }
+            }
+            guard !Task.isCancelled, isPressingSeal else { return }
+            isPressingSeal = false
+            unsealNow()
+        }
+    }
+
+    private func endSealHold() {
+        guard isPressingSeal else { return }
+        let completed = sealPressProgress >= 0.98
+        cancelSealHold()
+        if !completed {
+            withAnimation(reduce ? nil : .spring(response: 0.30, dampingFraction: 0.78)) {
+                sealPressProgress = 0
+                showHoldHint = true
+            }
+        }
+    }
+
+    private func cancelSealHold() {
+        sealHoldTask?.cancel()
+        sealHoldTask = nil
+        isPressingSeal = false
+    }
+
     private func unsealNow() {
-        store.open(id: capsule.id)
+        cancelSealHold()
+        let nowMs = Date().timeIntervalSince1970 * 1000
+        openedTimestamp = nowMs
+        store.open(id: capsule.id, now: nowMs)
         TactileEngine.shared.goldChime()
         withAnimation(reduce ? nil : .spring(response: 0.44, dampingFraction: 0.80)) {
+            sealPressProgress = 1
             isOpened = true
         }
     }
@@ -908,11 +1069,13 @@ struct CapsuleReadSheet: View {
 private struct CapsulePrintPoster: View {
     let capsule: TimeCapsule
     let babyName: String
+    var today: Day = .today
 
     var body: some View {
         let paper = Color(hex: 0xFBF7F0)
         let ink = Color(hex: 0x241F1B)
         let teal = Color(hex: 0x0B7D74)
+        let waitedDays = capsule.sealedDays(on: today)
 
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -930,6 +1093,14 @@ private struct CapsulePrintPoster: View {
                     .foregroundStyle(ink.opacity(0.55))
                 }
                 Spacer()
+                if waitedDays > 0 {
+                    Text(L10n.t("封存 \(waitedDays) 天", "\(waitedDays)d sealed"))
+                        .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                        .foregroundStyle(Color(hex: 0x7A5700))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Color(hex: 0xEDCB6A).opacity(0.42)))
+                }
             }
 
             Text(capsule.title)
