@@ -14,6 +14,7 @@ struct MosslingWidgets: WidgetBundle {
         SleepControl()
         NurseControl()
         WetDiaperControl()
+        BedsideLampControl()
     }
 }
 
@@ -122,12 +123,23 @@ struct BedsideLampWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "bedside-lamp", provider: TodayProvider()) { e in
             BedsideLampWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) {
-                BedsideLampFace.backdrop
+                BedsideLampContainerBackground()
             }
         }
         .configurationDisplayName(L10n.t("床头台灯", "Bedside Lamp"))
         .description(L10n.t("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。", "Warm amber StandBy lamp with live timer and direct tap to timer or night log."))
         .supportedFamilies([.systemSmall, .systemMedium])
+    }
+}
+
+private struct BedsideLampContainerBackground: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    var body: some View {
+        if renderingMode == .fullColor {
+            BedsideLampFace.backdrop
+        } else {
+            Color.clear
+        }
     }
 }
 
@@ -199,6 +211,19 @@ struct WetDiaperControl: ControlWidget {
         }
         .displayName(L10n.res("记湿尿布", "Log Wet Diaper"))
         .description(L10n.res("在控制中心或锁屏一键记下一次湿尿布。", "Log a wet diaper in one tap from Control Center or Lock Screen."))
+    }
+}
+
+struct BedsideLampControl: ControlWidget {
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: "control.lamp") {
+            ControlWidgetButton(action: OpenBedsideLampIntent()) {
+                Label(L10n.t("床头夜灯", "Bedside Lamp"), systemImage: "lamp.desk.fill")
+            }
+            .tint(BedsideLampFace.amber)
+        }
+        .displayName(L10n.res("床头夜灯", "Bedside Lamp"))
+        .description(L10n.res("在控制中心或锁屏一键点亮暖琥珀床头夜灯与助眠声景。", "Open Otto's warm low-glare Bedside Lamp & soundscapes in one tap."))
     }
 }
 

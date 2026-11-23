@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// 「时光胶囊信笺 / Time Capsule Letters」 — Offline cotton-paper letters sealed with embossed Montessori wax stamps
 /// to be unsealed on a child's future birthday or quiet milestone, with 3× letterpress keepsake poster export.
@@ -418,6 +419,7 @@ struct CapsuleComposeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.requestReview) private var requestReview
 
     let store: CapsuleStore
     @State private var title: String
@@ -640,6 +642,13 @@ struct CapsuleComposeSheet: View {
         )
         store.save(cap)
         TactileEngine.shared.goldChime()
+        let keepsakes = store.items.count + FoodAtlasStore.shared.tastedCount
+        ReviewPromptGate.tryTrigger(
+            perform: { requestReview() },
+            isDarkMode: scheme == .dark,
+            isBedsideLamp: lamp,
+            keepsakeCount: keepsakes
+        )
         dismiss()
     }
 }

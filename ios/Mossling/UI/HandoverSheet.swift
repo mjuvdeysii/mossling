@@ -499,6 +499,7 @@ struct PassingLanternArt: View {
                 hatDome.addRoundedRect(in: hatRect, cornerSize: CGSize(width: 19, height: 18))
                 ctx.fill(hatDome, with: .color(Color(hex: 0xE66A50)))
             }
+            .accessibilityLabel(L10n.t("Otto 把暖金灯珠的光递给戴珊瑚针织帽的 Mochi", "Otto gently passing warm lantern light toward Mochi in a coral knit beanie"))
         }
     }
 }

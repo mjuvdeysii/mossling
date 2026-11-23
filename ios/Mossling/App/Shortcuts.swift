@@ -29,5 +29,38 @@ struct MosslingShortcuts: AppShortcutsProvider {
             shortTitle: "照护计时",
             systemImageName: "moon.zzz.fill"
         )
+        AppShortcut(
+            intent: QuickLogBottleIntent(),
+            phrases: [
+                "用\(.applicationName)记瓶喂",
+                "用\(.applicationName)记\(\.$milk)",
+                "在\(.applicationName)记一顿\(\.$milk)",
+                "Log a bottle in \(.applicationName)",
+                "Log \(\.$milk) bottle in \(.applicationName)",
+            ],
+            shortTitle: "记瓶喂",
+            systemImageName: "waterbottle.fill"
+        )
+        AppShortcut(
+            intent: BabyCareStatusIntent(),
+            phrases: [
+                "用\(.applicationName)看宝宝近况",
+                "问\(.applicationName)宝宝上次喂奶",
+                "Check baby status in \(.applicationName)",
+                "How long since last feed in \(.applicationName)",
+            ],
+            shortTitle: "宝宝近况",
+            systemImageName: "sparkles"
+        )
+        AppShortcut(
+            intent: OpenBedsideLampIntent(),
+            phrases: [
+                "用\(.applicationName)打开床头夜灯",
+                "打开\(.applicationName)夜灯",
+                "Open bedside lamp in \(.applicationName)",
+            ],
+            shortTitle: "床头夜灯",
+            systemImageName: "lamp.desk.fill"
+        )
     }
 }

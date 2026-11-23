@@ -429,6 +429,29 @@ struct DaySwimlaneChart: View {
                     )
                 }
                 .frame(height: 66)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.t("24 小时睡眠、喂奶与照护时间轨", "24-hour Sleep, Feeds & Care tracks"))
+                .accessibilityValue(swimlaneAccessibilityValue)
+                .accessibilityAdjustableAction { dir in
+                    let chrono = chronologicalDayLogs
+                    guard !chrono.isEmpty else { return }
+                    let currentIdx = inspectedEntry.flatMap { cur in chrono.firstIndex { $0.id == cur.id } }
+                    let nextIdx: Int
+                    switch dir {
+                    case .increment:
+                        nextIdx = currentIdx.map { min(chrono.count - 1, $0 + 1) } ?? 0
+                    case .decrement:
+                        nextIdx = currentIdx.map { max(0, $0 - 1) } ?? (chrono.count - 1)
+                    default:
+                        return
+                    }
+                    let target = chrono[nextIdx]
+                    inspectedEntry = target
+                    let d0 = day.date.timeIntervalSince1970 * 1000
+                    let f = max(0, min(1, (target.start - d0) / 86_400_000.0))
+                    scrubFraction = f
+                    TactileEngine.shared.dimmerTick()
+                }
             }
 
             // Interactive 4-phase time axis buttons (jumps cleanly to that chapter below)
@@ -454,6 +477,41 @@ struct DaySwimlaneChart: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel(L10n.t("24 小时睡眠、喂奶与照护三轨时间条", "24-hour Sleep, Feeds & Care 3-track swimlane"))
+    }
+
+    private var chronologicalDayLogs: [LogEntry] {
+        let d0 = day.date.timeIntervalSince1970 * 1000
+        let d1 = d0 + 86_400_000.0
+        return logs.filter { e in
+            let matchesFilter = only.map { JournalKinds.matches(e.type, $0) } ?? true
+            return matchesFilter && (e.end ?? e.start) >= d0 && e.start <= d1
+        }.sorted { $0.start < $1.start }
+    }
+
+    private var swimlaneAccessibilityValue: String {
+        if let e = inspectedEntry {
+            let val = e.value(on: day)
+            return hm(e.startDate) + " " + LogType.name(e.type) + (val.isEmpty ? "" : " " + val)
+        }
+        let chrono = chronologicalDayLogs
+        guard !chrono.isEmpty else {
+            return L10n.t("今天暂无记录", "No entries recorded for this day")
+        }
+        let feeds = logs.feeds().count
+        let diapers = logs.filter { $0.type == LogType.diaper }.count
+        let sleepSecs = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
+        var parts: [String] = []
+        if sleepSecs > 0 {
+            parts.append(L10n.t("睡眠 \(minutesOf(sleepSecs))", "Sleep \(minutesOf(sleepSecs))"))
+        }
+        if feeds > 0 {
+            parts.append(L10n.t("喂奶 \(feeds) 次", "\(feeds) feeds"))
+        }
+        if diapers > 0 {
+            parts.append(L10n.t("尿布 \(diapers) 次", "\(diapers) diapers"))
+        }
+        let prefix = parts.isEmpty ? L10n.t("共 \(chrono.count) 条", "\(chrono.count) entries") : parts.joined(separator: L10n.isEnglish ? ", " : "、")
+        return prefix + L10n.t("，上下滑动逐条聆听", ". Swipe up or down to step through entries.")
     }
 
     static func nearestEntry(atFraction f: CGFloat, day: Day, logs: [LogEntry], only: String?) -> LogEntry? {

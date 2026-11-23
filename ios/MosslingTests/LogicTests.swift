@@ -1267,4 +1267,92 @@ final class LogicTests: XCTestCase {
             XCTAssertFalse(ActivityMotionStage.propSymbol(for: spec.prop, fallback: spec.template).isEmpty)
         }
     }
+
+    func testQuickLogBottleAndBabyCareStatusSummary() {
+        let day = Day(y: 2026, m: 10, d: 19)
+        let now = day.date.addingTimeInterval(15 * 3600 + 30 * 60)
+        let nowMs = now.timeIntervalSince1970 * 1000
+        let snap = Snapshot(
+            birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay,
+            nickname: "小苔",
+            companion: "Otto",
+            journal: true,
+            consented: true
+        )
+        var body = JournalFile.Body()
+        body.logs = [
+            LogEntry(type: LogType.sleep, start: nowMs - 4 * 3600_000, end: nowMs - 2 * 3600_000),
+            LogEntry(type: LogType.bottle, start: nowMs - 90 * 60_000, amount: 110, detail: "breastmilk"),
+            LogEntry(type: LogType.diaper, start: nowMs - 70 * 60_000, detail: "wet"),
+            LogEntry(type: LogType.diaper, start: nowMs - 30 * 60_000, detail: "both"),
+        ]
+        body.timers = [
+            RunningTimer(type: LogType.nurse, start: nowMs - 14 * 60_000, side: "l")
+        ]
+
+        L10n.overrideEnglish = false
+        let zh = BabyCareStatusSummary.build(body: body, snap: snap, now: now)
+        XCTAssertEqual(zh.babyName, "小苔")
+        XCTAssertNotNil(zh.activeTimerLabel)
+        XCTAssertEqual(zh.todayWetDiapers, 2)
+        XCTAssertEqual(zh.todayDirtyDiapers, 1)
+        XCTAssertTrue(zh.dialogText.contains("小苔"))
+        XCTAssertTrue(zh.dialogText.contains("湿 2 便 1"))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let en = BabyCareStatusSummary.build(body: body, snap: snap, now: now)
+        XCTAssertNotNil(en.activeTimerLabel)
+        XCTAssertEqual(en.todayWetDiapers, 2)
+        XCTAssertEqual(en.todayDirtyDiapers, 1)
+        XCTAssertTrue(en.dialogText.contains("2 wet, 1 dirty"))
+        XCTAssertTrue(en.lastFeedNote?.contains("Bottle") == true)
+    }
+
+    func testReviewPromptGateDaytimeAndCadence() {
+        let dayNoon = Day.cal.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 14, minute: 30))!
+        let night = Day.cal.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 21, minute: 45))!
+        let early = Day.cal.date(from: DateComponents(year: 2026, month: 11, day: 20, hour: 6, minute: 45))!
+        let oldDate = Day.cal.date(byAdding: .day, value: -75, to: dayNoon)!
+        let recentDate = Day.cal.date(byAdding: .day, value: -20, to: dayNoon)!
+
+        XCTAssertTrue(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 3,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        // Blocks night hours, dark mode, and bedside lamp mode
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: night, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: early, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: true, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: true, keepsakeCount: 5,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        // Blocks fewer than 3 keepsakes, same version, and within 60 days
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 2,
+            currentVersion: "1.3.2", lastPromptedVersion: nil, lastPromptedAt: nil
+        ))
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "1.3.2", lastPromptedVersion: "1.3.2", lastPromptedAt: oldDate
+        ))
+        XCTAssertFalse(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "2.0", lastPromptedVersion: "1.3.2", lastPromptedAt: recentDate
+        ))
+        XCTAssertTrue(ReviewPromptGate.shouldRequestReview(
+            now: dayNoon, isDarkMode: false, isBedsideLamp: false, keepsakeCount: 5,
+            currentVersion: "2.0", lastPromptedVersion: "1.3.2", lastPromptedAt: oldDate
+        ))
+    }
 }

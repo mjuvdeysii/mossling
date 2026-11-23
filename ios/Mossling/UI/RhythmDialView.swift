@@ -520,7 +520,27 @@ struct RhythmDialCard: View {
 
     private func accessibilitySummary(model: RhythmDialModel) -> String {
         guard let h = inspectedHour else {
-            return L10n.t("共 \(model.totalLogs) 条记录，上下滑动按小时查看", "\(model.totalLogs) entries. Swipe up or down to inspect by hour.")
+            var pieces: [String] = []
+            if let sleepH = model.summary.avgSleepHours {
+                pieces.append(L10n.t(
+                    String(format: "日均睡眠 %.1f 小时", sleepH),
+                    String(format: "averaging %.1f hr sleep daily", sleepH)
+                ))
+            }
+            if let feeds = model.summary.avgFeedsPerDay {
+                pieces.append(L10n.t(
+                    String(format: "日均喂奶 %.1f 次", feeds),
+                    String(format: "%.1f feeds per day", feeds)
+                ))
+            }
+            if let longestH = model.summary.longestSleepHours {
+                pieces.append(L10n.t(
+                    String(format: "最长连续小睡 %.1f 小时", longestH),
+                    String(format: "longest stretch %.1f hr", longestH)
+                ))
+            }
+            let detail = pieces.isEmpty ? "" : (L10n.isEnglish ? ": " : "，") + pieces.joined(separator: L10n.isEnglish ? ", " : "、")
+            return L10n.t("共 \(model.totalLogs) 条记录\(detail)。上下滑动按小时查看", "\(model.totalLogs) entries\(detail). Swipe up or down to inspect by hour.")
         }
         let info = model.inspect(hour: h)
         return L10n.t(

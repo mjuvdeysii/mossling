@@ -28,6 +28,12 @@ struct TimerScreen: View {
     @State private var pickingStart = false
     @State private var showingLamp = false
     @State private var soundscape = SoundscapeEngine.shared
+    @State private var volumeMonitor: EarSafeVolumeMonitor
+
+    init(type: String, previewVolume: Float? = nil) {
+        self.type = type
+        _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
+    }
 
     var body: some View {
         let c = LogType.color(type)
@@ -55,6 +61,8 @@ struct TimerScreen: View {
             .navigationBarTitleDisplayMode(.inline)
             .toasts(bottom: true)
         }
+        .onAppear { volumeMonitor.start() }
+        .onDisappear { volumeMonitor.stop() }
         .fullScreenCover(isPresented: $showingLamp) {
             BedsideLampView()
         }
@@ -136,9 +144,9 @@ struct TimerScreen: View {
         .safeAreaBar(edge: .bottom) {
             Button { adding = true } label: {
                 Label(type == LogType.sleep ? L10n.t("已经睡过了？补记一段", "Already slept? Log past sleep") : L10n.t("已经喂完了？补记一次", "Already fed? Log past feed"), systemImage: "square.and.pencil")
-                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity).padding(.vertical, 6)
+                    .font(.subheadline.weight(.semibold)).frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glass).controlSize(.large)
+            .buttonStyle(.vinyl(c, prominent: false, large: true))
             .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
         }
         .sheet(isPresented: $pickingStart) {
@@ -164,17 +172,16 @@ struct TimerScreen: View {
         TimelineView(.periodic(from: .now, by: 1)) { tl in
             let now = tl.date.timeIntervalSince1970 * 1000
             ScrollView {
-                VStack(spacing: 18) {
+                VStack(spacing: 12) {
                     if let q = question(t, now) {
                         Check(text: q.text, keep: q.keep, end: q.end, color: c,
                               onKeep: { acked.insert(q.key) }, onEnd: { ending = true })
                     }
-                    Duo(primary: app.companion, size: 62,
+                    Duo(primary: app.companion, size: 50,
                         mood: type == LogType.sleep && !paused ? .sleep : .open,
                         look: type == LogType.nurse ? CGPoint(x: side == "l" ? -0.9 : 0.9, y: 0.6) : CGPoint(x: 0, y: 0.5),
                         poke: true, night: lamp)
                         .frame(maxWidth: .infinity)
-                        .padding(.top, 4)
                     LastLine(type: type, until: t.start - t.carried - t.carriedPause, compact: true)
 
                     if type == LogType.nurse {
@@ -209,39 +216,10 @@ struct TimerScreen: View {
                     .padding(.vertical, 12)
                     .printCard(radius: Radius.card)
 
-                    // Quick Bedside Lamp & Soothing Soundscape pill right under the timer stats
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        showingLamp = true
-                    } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: soundscape.isPlaying ? "waveform" : "lamp.desk.fill")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(Palette.lampTint)
-                            Text(
-                                soundscape.active.map { L10n.t("床头夜灯 · \($0.title)", "Bedside Lamp · \($0.title)") }
-                                    ?? L10n.t("打开床头夜灯与舒缓声景", "Open Bedside Lamp & Soundscapes")
-                            )
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            Spacer(minLength: 4)
-                            Image(systemName: "chevron.right")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.tertiary)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 11)
-                        .printCard(radius: Radius.inner)
-                    }
-                    .buttonStyle(.toy)
-
-                    if type != LogType.sleep {
-                        Button { picking = true } label: {
-                            Label(L10n.t("开始于 ", "Started ") + whenLabel(Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000)), systemImage: "clock")
-                                .font(.subheadline).monospacedDigit()
-                        }
-                        .buttonStyle(.glass)
-                    }
+                    cockpitControls(
+                        startedAt: Date(timeIntervalSince1970: (t.start - t.carried - t.carriedPause) / 1000),
+                        color: c
+                    )
                 }
                 .padding(.horizontal, 20).padding(.bottom, 24)
             }
@@ -272,9 +250,9 @@ struct TimerScreen: View {
         .safeAreaBar(edge: .bottom) {
             Button { j.stop(type); dismiss() } label: {
                 Label(type == LogType.sleep ? L10n.t("醒了，记下", "Awake — Save") : L10n.t("喂完了，记下", "Done — Save"), systemImage: "checkmark")
-                    .font(.headline).frame(maxWidth: .infinity).padding(.vertical, 10)
+                    .font(.headline).frame(maxWidth: .infinity)
             }
-            .buttonStyle(.glassProminent).tint(Crayon.fill(c, lamp)).controlSize(.large)
+            .buttonStyle(.vinyl(Crayon.fill(c, lamp), prominent: true, large: true))
             .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: paused)
@@ -288,6 +266,96 @@ struct TimerScreen: View {
                       initial: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date(),
                       notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in j.stop(type, at: d); dismiss() }
                 .lampPresented()
+        }
+    }
+
+    /// Mid-feed cockpit controls (Bedside Lamp & 1-tap soundscape toggle, high-volume guard, and 1-tap diaper log).
+    @ViewBuilder
+    private func cockpitControls(startedAt: Date, color c: Color) -> some View {
+        if soundscape.isPlaying && volumeMonitor.shouldShow(for: .lamp) {
+            LampHighVolumePill(volumePercent: volumeMonitor.volumePercent) {
+                volumeMonitor.acknowledge(context: .lamp)
+            }
+        }
+
+        HStack(spacing: 10) {
+            Button {
+                TactileEngine.shared.beadClick()
+                showingLamp = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: soundscape.isPlaying ? "waveform" : "lamp.desk.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Palette.lampTint)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(soundscape.activeSummary ?? L10n.t("床头夜灯与舒缓声景", "Bedside Lamp & Sound"))
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                        Text(
+                            soundscape.isPlaying
+                                ? L10n.t("轻点调节夜灯暖光与混音", "Tap to tune lamp glow & mix")
+                                : L10n.t("不刺眼夜灯 · 内置助眠声", "Low-glare lamp & soothing audio")
+                        )
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(1)
+                    }
+                    Spacer(minLength: 4)
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    soundscape.toggleQuick()
+                }
+            } label: {
+                Label(
+                    soundscape.isPlaying ? L10n.t("停声", "Mute") : soundscape.lastUsedKind.title,
+                    systemImage: soundscape.isPlaying ? "pause.fill" : "play.fill"
+                )
+                .lineLimit(1)
+            }
+            .buttonStyle(.vinyl(soundscape.isPlaying ? Palette.amber : c))
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .printCard(radius: Radius.inner)
+
+        HStack(spacing: 8) {
+            HStack(spacing: 5) {
+                Image(systemName: LogType.symbol(LogType.diaper))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Crayon.ink(LogType.color(LogType.diaper)))
+                Text(L10n.t("顺手记尿布", "Diaper"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+            }
+            Spacer(minLength: 4)
+            ForEach(["wet", "dirty", "both"], id: \.self) { kind in
+                let label = kind == "wet" ? L10n.t("湿", "Wet") : kind == "dirty" ? L10n.t("便", "Dirty") : L10n.t("都有", "Both")
+                Button(label) {
+                    TactileEngine.shared.beadClick()
+                    _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
+                }
+                .buttonStyle(.vinyl(LogType.color(LogType.diaper)))
+                .lineLimit(1)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .printCard(radius: Radius.inner)
+
+        if type != LogType.sleep {
+            Button { picking = true } label: {
+                Label(L10n.t("开始于 ", "Started ") + whenLabel(startedAt), systemImage: "clock")
+                    .font(.subheadline)
+                    .monospacedDigit()
+            }
+            .buttonStyle(.vinyl(c))
         }
     }
 

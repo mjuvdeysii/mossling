@@ -46,21 +46,40 @@ struct MonthView: View {
         let mo = app.content.month(month), m = month
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // the month's picture beside its title, as on the month card (not a screen-wide picture above it)
-                HStack(alignment: .center, spacing: 14) {
-                    if let f = ArtIndex.shared.cover(m) {
-                        ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: type.isAccessibilitySize ? 112 : 148)
-                    }
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
-                        if let b = app.birth {
-                            let d = b.plus(months: m)
-                            let dateStr = L10n.isEnglish ? "\(d.m)/\(d.d)" : d.md
-                            Label(dateStr + (app.babyMonth == m ? L10n.t(" · 宝宝在这一站", " · Current chapter") : ""), systemImage: "calendar")
-                                .font(.caption).foregroundStyle(Palette.secondaryText)
+                // the month's picture beside its title (stacks cleanly on Accessibility text sizes)
+                Group {
+                    if type.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 10) {
+                            if let f = ArtIndex.shared.cover(m) {
+                                ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: 148)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                                if let b = app.birth {
+                                    let d = b.plus(months: m)
+                                    let dateStr = L10n.isEnglish ? "\(d.m)/\(d.d)" : d.md
+                                    Label(dateStr + (app.babyMonth == m ? L10n.t(" · 宝宝在这一站", " · Current chapter") : ""), systemImage: "calendar")
+                                        .font(.caption).foregroundStyle(Palette.secondaryText)
+                                }
+                            }
+                        }
+                    } else {
+                        HStack(alignment: .center, spacing: 14) {
+                            if let f = ArtIndex.shared.cover(m) {
+                                ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: 148)
+                            }
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
+                                if let b = app.birth {
+                                    let d = b.plus(months: m)
+                                    let dateStr = L10n.isEnglish ? "\(d.m)/\(d.d)" : d.md
+                                    Label(dateStr + (app.babyMonth == m ? L10n.t(" · 宝宝在这一站", " · Current chapter") : ""), systemImage: "calendar")
+                                        .font(.caption).foregroundStyle(Palette.secondaryText)
+                                }
+                            }
+                            Spacer(minLength: 0)
                         }
                     }
-                    Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 16).padding(.top, 4)
                 MonthBody(month: m).padding(.horizontal, 16).padding(.top, 14)
@@ -157,15 +176,41 @@ struct MonthParts: View {
     let month: Int
     var body: some View {
         let mo = app.content.month(month), m = month
-        let parts = parts(mo, m)
-        VStack(alignment: .leading, spacing: 10) {
+        let all = parts(mo, m)
+        let trackable = all.filter { $0.total > 0 }
+        let reading = all.filter { $0.total == 0 }
+        let columns = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: type.isAccessibilitySize ? 1 : 2)
+
+        VStack(alignment: .leading, spacing: 12) {
             SectionTitle(title: L10n.t("这个月", "This Month"))
-            // one card of rows, whatever their number: the mark, the part, what it holds, its progress where it has one
-            Box {
-                ForEach(Array(parts.enumerated()), id: \.offset) { i, p in
-                    let row = BoxRow(symbol: p.symbol, color: p.color, title: p.title, text: p.note, last: i == parts.count - 1, opens: true)
-                    if let r = p.route { NavigationLink(value: r) { row }.buttonStyle(.plain) }
-                    else { NavigationLink(value: JournalRoute.growth) { row }.buttonStyle(.plain) }
+
+            if !trackable.isEmpty {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(Array(trackable.enumerated()), id: \.offset) { _, p in
+                        let card = BigPart(symbol: p.symbol, color: p.color, title: p.title, done: p.done, total: p.total)
+                        if let r = p.route {
+                            NavigationLink(value: r) { card }.buttonStyle(.toy)
+                        } else {
+                            NavigationLink(value: JournalRoute.growth) { card }.buttonStyle(.toy)
+                        }
+                    }
+                }
+            }
+
+            if !reading.isEmpty {
+                LazyVGrid(columns: columns, spacing: 10) {
+                    ForEach(Array(reading.enumerated()), id: \.offset) { _, p in
+                        let card = MonthTile(symbol: p.symbol, color: p.color, title: p.title, note: p.note) {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                        }
+                        if let r = p.route {
+                            NavigationLink(value: r) { card }.buttonStyle(.toy)
+                        } else {
+                            NavigationLink(value: JournalRoute.growth) { card }.buttonStyle(.toy)
+                        }
+                    }
                 }
             }
         }
@@ -200,13 +245,20 @@ private struct BigPart: View {
                 Spacer(minLength: 0)
                 Ring(done: done, total: total, color: color, size: 34)
             }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.headline).foregroundStyle(.primary)
-                Text("\(done) / \(total)").font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Crayon.ink(color))
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text("\(done) / \(total)")
+                    .font(Typeface.numerals(13, relativeTo: .footnote))
+                    .foregroundStyle(Crayon.ink(color))
             }
         }
-        .padding(14).frame(maxWidth: .infinity, alignment: .leading)
-        .background(color.opacity(0.12)).printCard(radius: Radius.card)
+        .padding(14)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+        .background(color.opacity(0.12))
+        .printCard(radius: Radius.card)
         .accessibilityElement(children: .combine)
     }
 }
@@ -221,13 +273,20 @@ struct MonthTile<Accessory: View>: View {
                 IconTile(symbol: symbol, color: color, size: 36).frame(maxWidth: .infinity, alignment: .leading)
                 accessory.scaleEffect(0.8)
             }
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary).lineLimit(2).minimumScaleFactor(0.8)
-                Text(note ?? " ").font(.caption2).foregroundStyle(Palette.secondaryText).lineLimit(2).monospacedDigit()
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(note ?? " ")
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .monospacedDigit()
             }
         }
         .padding(11)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .printCard(radius: Radius.card)
         .accessibilityElement(children: .combine)
     }

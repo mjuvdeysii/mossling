@@ -300,6 +300,8 @@ final class SoundscapeEngine {
     static let shared = SoundscapeEngine()
 
     private(set) var active: SoundscapeKind? = nil
+    /// Remembers the most recently played soundscape for 1-tap resuming inside the timer cockpit.
+    private(set) var lastUsedKind: SoundscapeKind = .rain
     /// Optional second soundscape blended softly underneath `active` (e.g., Paper Rain + Wood Lullaby).
     private(set) var secondary: SoundscapeKind? = nil
     var duration: SoundscapeDuration = .m30 {
@@ -367,6 +369,15 @@ final class SoundscapeEngine {
         }
     }
 
+    /// One-tap cockpit toggle: stops if currently playing, or resumes the last chosen nursery soundscape.
+    func toggleQuick() {
+        if isPlaying {
+            stop()
+        } else {
+            start(lastUsedKind)
+        }
+    }
+
     /// Blends a second soundscape softly alongside the active one (or starts it if nothing is playing).
     func toggleLayer(_ kind: SoundscapeKind) {
         guard let current = active else {
@@ -406,6 +417,7 @@ final class SoundscapeEngine {
             dsp.targetGain = 1.0
         }
         active = kind
+        lastUsedKind = kind
         if !preserveTimer || (duration != .continuous && countdownTask == nil) {
             scheduleTimer()
         }

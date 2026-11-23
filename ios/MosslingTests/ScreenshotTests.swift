@@ -1133,4 +1133,125 @@ final class ScreenshotTests: XCTestCase {
         shot("52_capsules_desk_zh", height: 852,
              tabs(m, TimeCapsuleListView(store: CapsuleStore(preview: []))))
     }
+
+    /// Batch 3B: Zero-Touch StandBy Nursery Beacon (Full + Night Red Accented), Siri Cotton-Paper Status Snippet,
+    /// Midnight CareTimer Cockpit (vinyl controls, 1-tap soundscape & high-volume guard, quick diaper),
+    /// and Two-Tier Monthly Gallery (ZH + AX3 English Inclusivity).
+    func test53Batch3BNurseryBeaconAndInclusivity() {
+        let m = model(); m.journal = true
+        let liveNow = Date()
+        let liveMs = ms(liveNow)
+
+        let snap = Snapshot(
+            birthEpochDay: m.birth?.epochDay,
+            nickname: "小苔",
+            companion: "Otto",
+            journal: true,
+            playCode: "A11",
+            playName: "左右手倒手",
+            consented: true
+        )
+        var idle = JournalFile.Body()
+        idle.logs = [
+            LogEntry(type: LogType.sleep, start: liveMs - 14 * 3600_000, end: liveMs - 11 * 3600_000),
+            LogEntry(type: LogType.nurse, start: liveMs - 10 * 3600_000, end: liveMs - 9 * 3600_000 - 40 * 60_000, side: "l"),
+            LogEntry(type: LogType.sleep, start: liveMs - 6 * 3600_000, end: liveMs - 4 * 3600_000 - 15 * 60_000),
+            LogEntry(type: LogType.bottle, start: liveMs - 95 * 60_000, amount: 110, detail: "breastmilk"),
+            LogEntry(type: LogType.diaper, start: liveMs - 45 * 60_000, detail: "wet"),
+        ]
+        var timing = idle
+        timing.timers = [RunningTimer(type: LogType.nurse, start: liveMs - 12 * 60_000, side: "r")]
+
+        func widgetTile<BG: View>(_ w: CGFloat, _ h: CGFloat, bg: BG, _ content: some View) -> some View {
+            content
+                .padding(16)
+                .frame(width: w, height: h)
+                .background(bg)
+                .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+        }
+
+        // 1. StandBy Full-Color Nursery Beacon
+        shot("53_standby_beacon_full_zh", dark: true, height: 610,
+             VStack(spacing: 16) {
+                 HStack(spacing: 16) {
+                     widgetTile(170, 170, bg: BedsideLampFace.backdrop,
+                                BedsideLampFace(date: liveNow, snap: snap, body_: timing, isMedium: false))
+                     widgetTile(170, 170, bg: BedsideLampFace.backdrop,
+                                BedsideLampFace(date: liveNow, snap: snap, body_: idle, isMedium: false))
+                 }
+                 widgetTile(360, 170, bg: BedsideLampFace.backdrop,
+                            BedsideLampFace(date: liveNow, snap: snap, body_: timing, isMedium: true))
+                 widgetTile(360, 170, bg: BedsideLampFace.backdrop,
+                            BedsideLampFace(date: liveNow, snap: snap, body_: idle, isMedium: true))
+             }
+             .padding(16)
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+             .background(Color(hex: 0x070A18))
+             .fontDesign(.rounded))
+
+        // 2. Siri Cotton-Paper Status Snippet
+        let activeSummary = BabyCareStatusSummary.build(body: timing, snap: snap, now: liveNow)
+        let idleSummary = BabyCareStatusSummary.build(body: idle, snap: snap, now: liveNow)
+        shot("53_siri_status_snippet_zh", height: 480,
+             VStack(spacing: 16) {
+                 BabyCareStatusSnippetView(summary: activeSummary)
+                 BabyCareStatusSnippetView(summary: idleSummary)
+             }
+             .padding(16)
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+             .background(Color(hex: 0xECE7DE))
+             .fontDesign(.rounded))
+
+        // 3. Midnight CareTimer Cockpit (vinyl buttons, 1-tap soundscape + high-volume guard, quick diaper)
+        let timerJournal = JournalStore(preview: timing)
+        SoundscapeEngine.shared.start(.lullaby)
+        defer { SoundscapeEngine.shared.stop() }
+        shot("53_care_timer_cockpit_lamp_zh", dark: true, height: 852, lamp: true,
+             TimerScreen(type: LogType.nurse, previewVolume: 0.86)
+                 .lampPresented(sheet: false)
+                 .environment(m)
+                 .environment(timerJournal)
+                 .environment(MascotDirector())
+                 .tint(Palette.accent)
+                 .fontDesign(.rounded))
+
+        // 4. Two-Tier Monthly Gallery (ZH Standard)
+        shot("53_grow_month_gallery_zh", height: 1520, tabs(m, MonthView(month: 4)))
+
+        // 5. StandBy Night Mode Red Accented + AX3 Monthly Gallery (English Parity)
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let snapEn = Snapshot(
+            birthEpochDay: m.birth?.epochDay,
+            nickname: "Leo",
+            companion: "Moss",
+            journal: true,
+            consented: true
+        )
+        shot("53_standby_beacon_accented_en", dark: true, height: 610,
+             VStack(spacing: 16) {
+                 HStack(spacing: 16) {
+                     widgetTile(170, 170, bg: Color(hex: 0x090609),
+                                BedsideLampFace(date: liveNow, snap: snapEn, body_: timing, isMedium: false, forceAccentedPreview: true))
+                     widgetTile(170, 170, bg: Color(hex: 0x090609),
+                                BedsideLampFace(date: liveNow, snap: snapEn, body_: idle, isMedium: false, forceAccentedPreview: true))
+                 }
+                 widgetTile(360, 170, bg: Color(hex: 0x090609),
+                            BedsideLampFace(date: liveNow, snap: snapEn, body_: timing, isMedium: true, forceAccentedPreview: true))
+                 widgetTile(360, 170, bg: Color(hex: 0x090609),
+                            BedsideLampFace(date: liveNow, snap: snapEn, body_: idle, isMedium: true, forceAccentedPreview: true))
+             }
+             .padding(16)
+             .frame(maxWidth: .infinity, maxHeight: .infinity)
+             .background(Color.black)
+             .fontDesign(.rounded))
+
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("53_grow_month_ax3_en", height: 1560,
+             tabs(mEn, MonthView(month: 4))
+                 .environment(\.dynamicTypeSize, .accessibility3))
+        shot("53_grow_parts_ax3_en", height: 1480,
+             tabs(mEn, ScrollView { MonthParts(month: 4).padding(16) }.pageBackground())
+                 .environment(\.dynamicTypeSize, .accessibility3))
+    }
 }

@@ -1,4 +1,5 @@
 import SwiftUI
+import StoreKit
 
 /// 「百味食盒 / First Foods Tasting Box」 — Tactile Montessori tasting catalog of 60 whole foods across 6 botanical
 /// trays. Zero scores, zero guilt, offline-only, with 3× Tasting Passport poster export and optional Journal logging.
@@ -208,18 +209,20 @@ struct FoodAtlasView: View {
 
     private func wreathHeroCard(dark: Bool) -> some View {
         HStack(spacing: 14) {
-            ZStack {
-                FoodWreathCanvas(store: store, dark: dark)
-                    .frame(width: 98, height: 98)
-                VStack(spacing: 0) {
-                    Ticking(text: "\(store.tastedCount)")
-                        .font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
-                        .foregroundStyle(.primary)
-                    Text("/ \(FoodItem.catalog.count)")
-                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
-                        .foregroundStyle(Palette.secondaryText)
+                ZStack {
+                    FoodWreathCanvas(store: store, dark: dark)
+                        .frame(width: 98, height: 98)
+                    VStack(spacing: 0) {
+                        Ticking(text: "\(store.tastedCount)")
+                            .font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
+                            .foregroundStyle(.primary)
+                        Text("/ \(FoodItem.catalog.count)")
+                            .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
+                            .foregroundStyle(Palette.secondaryText)
+                    }
                 }
-            }
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(wreathAccessibilityLabel)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
@@ -283,6 +286,18 @@ struct FoodAtlasView: View {
             )
         )
         .printCard(radius: Radius.card)
+    }
+
+    private var wreathAccessibilityLabel: String {
+        let nonEmpty = FoodCategory.allCases.compactMap { cat -> String? in
+            let count = store.tastedCount(in: cat)
+            return count > 0 ? "\(cat.title) \(count)" : nil
+        }
+        let catSummary = nonEmpty.isEmpty ? "" : (L10n.isEnglish ? ", including " : "，涵盖 ") + nonEmpty.joined(separator: L10n.isEnglish ? ", " : "、")
+        return L10n.t(
+            "百味花环进度：\(store.tastedCount) 除以 \(FoodItem.catalog.count) 种，最喜欢 \(store.lovedCount) 种\(catSummary)",
+            "Tasting wreath: \(store.tastedCount) of \(FoodItem.catalog.count) foods explored, \(store.lovedCount) favorites\(catSummary)"
+        )
     }
 }
 
@@ -491,6 +506,7 @@ private struct FoodTasteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.requestReview) private var requestReview
 
     let item: FoodItem
     let existing: FoodRecord?
@@ -723,6 +739,13 @@ private struct FoodTasteSheet: View {
                             _ = j.record(LogEntry(type: LogType.solid, start: JournalFile.now(), detail: detail))
                         }
                         TactileEngine.shared.goldChime()
+                        let keepsakes = store.tastedCount + CapsuleStore.shared.items.count
+                        ReviewPromptGate.tryTrigger(
+                            perform: { requestReview() },
+                            isDarkMode: scheme == .dark,
+                            isBedsideLamp: lamp,
+                            keepsakeCount: keepsakes
+                        )
                         onSaved(item.id)
                         dismiss()
                     }

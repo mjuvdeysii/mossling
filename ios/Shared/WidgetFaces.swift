@@ -635,9 +635,13 @@ struct BedsideLampFace: View {
     let snap: Snapshot?
     let body_: JournalFile.Body
     let isMedium: Bool
+    var forceAccentedPreview: Bool = false
+
+    @Environment(\.widgetRenderingMode) private var renderingMode
 
     static let lampBase = Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255)
     static let amber = Color(red: 0xF5 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
+    static let sleepMist = Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255)
 
     /// Full-bleed night-lamp backdrop used in `containerBackground(for: .widget)` so the amber glow never clips.
     static var backdrop: some View {
@@ -652,70 +656,239 @@ struct BedsideLampFace: View {
         }
     }
 
+    private var accented: Bool { forceAccentedPreview || renderingMode != .fullColor }
+    private var primaryAccent: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x4D / 255) : Self.amber }
+    private var primaryInk: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x8F / 255, blue: 0x7A / 255) : .white }
     private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
+    private var horizonWindow: (startMs: Double, endMs: Double, sleeps: [(Double, Double)], feeds: [Double]) {
+        let endMs = date.timeIntervalSince1970 * 1000
+        let span = 86_400_000.0
+        let startMs = endMs - span
+        var sleepSpans: [(Double, Double)] = []
+        for e in body_.logs where e.type == LogType.sleep {
+            let eEnd = e.end ?? endMs
+            guard eEnd >= startMs && e.start <= endMs else { continue }
+            let a = max(0.0, (e.start - startMs) / span)
+            let b = min(1.0, (eEnd - startMs) / span)
+            if b > a { sleepSpans.append((a, b)) }
+        }
+        let feedPts = body_.logs.feeds().compactMap { f -> Double? in
+            guard f.start >= startMs && f.start <= endMs else { return nil }
+            return max(0.0, min(1.0, (f.start - startMs) / span))
+        }
+        return (startMs, endMs, sleepSpans, feedPts)
+    }
 
     var body: some View {
         let cardDark = Color(red: 0x19 / 255, green: 0x21 / 255, blue: 0x3F / 255)
-        VStack(alignment: .leading, spacing: 8) {
+        let wakeTint = accented ? primaryInk.opacity(0.88) : Self.sleepMist
+        VStack(alignment: .leading, spacing: isMedium ? 8 : 6) {
             HStack(alignment: .center, spacing: 8) {
-                ArtImage(name: WidgetArt.pair)
-                    .frame(width: 34, height: 34)
-                    .padding(5)
-                    .background(Circle().fill(cardDark))
+                ZStack {
+                    if accented {
+                        Circle()
+                            .strokeBorder(primaryAccent.opacity(0.45), lineWidth: 1)
+                    } else {
+                        Circle().fill(cardDark)
+                    }
+                    ArtImage(name: WidgetArt.pair)
+                        .frame(width: isMedium ? 30 : 28, height: isMedium ? 30 : 28)
+                        .widgetAccentable()
+                }
+                .frame(width: isMedium ? 38 : 34, height: isMedium ? 38 : 34)
+
                 VStack(alignment: .leading, spacing: 1) {
-                    Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName)
-                        .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(primaryAccent)
+                            .frame(width: 6, height: 6)
+                            .widgetAccentable()
+                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(primaryAccent)
+                            .lineLimit(1)
+                            .widgetAccentable()
+                    }
                     if let a = age {
-                        Text(L10n.livedDays(a.lived)).font(.caption.weight(.bold)).foregroundStyle(.white.opacity(0.86)).monospacedDigit()
+                        Text(L10n.livedDays(a.lived))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(primaryInk.opacity(0.86))
+                            .monospacedDigit()
+                            .lineLimit(1)
                     }
                 }
-                Spacer(minLength: 0)
+                Spacer(minLength: 4)
+
+                if isMedium {
+                    headerControl(cardDark: cardDark)
+                }
             }
+
             Spacer(minLength: 0)
+
             if let t = body_.timers.first {
                 HStack(alignment: .center, spacing: 10) {
-                    ArtImage(name: WidgetArt.sticker(t.type)).frame(width: isMedium ? 36 : 28, height: isMedium ? 36 : 28)
+                    ArtImage(name: WidgetArt.sticker(t.type))
+                        .frame(width: isMedium ? 36 : 26, height: isMedium ? 36 : 26)
+                        .widgetAccentable()
                     VStack(alignment: .leading, spacing: 1) {
                         Text(L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil))
-                            .font(.caption2.weight(.semibold)).foregroundStyle(Self.amber)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(primaryAccent)
+                            .lineLimit(1)
+                            .widgetAccentable()
                         if let p = t.pausedAt {
-                            Text(L10n.duration(t.total(p))).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                            Text(L10n.duration(t.total(p)))
+                                .font(WidgetInk.numerals(isMedium ? 38 : 26))
+                                .foregroundStyle(primaryInk)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
+                                .widgetAccentable()
                         } else {
-                            Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(isMedium ? 30 : 22)).foregroundStyle(.white)
+                            Text(t.countsFrom, style: .timer)
+                                .font(WidgetInk.numerals(isMedium ? 38 : 26))
+                                .foregroundStyle(primaryInk)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                                 .contentTransition(.numericText(countsDown: false))
+                                .widgetAccentable()
                         }
                     }
                 }
             } else if isMedium {
                 HStack(spacing: 18) {
                     Link(destination: WidgetLinks.care(LogType.nurse)) {
-                        lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
+                        lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, primaryAccent, inkColor: primaryInk)
                     }
                     Link(destination: WidgetLinks.care(LogType.sleep)) {
-                        lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                        lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, wakeTint, inkColor: primaryInk)
                     }
                 }
             } else {
                 VStack(alignment: .leading, spacing: 5) {
-                    lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, Self.amber)
-                    lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, Color(red: 0x94 / 255, green: 0xBC / 255, blue: 0xFF / 255))
+                    lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, primaryAccent, inkColor: primaryInk)
+                    lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, wakeTint, inkColor: primaryInk)
                 }
             }
+
+            horizonStrip(sleepTint: wakeTint)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
         .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp)
     }
 
-    private func lampMetric(_ label: String, _ at: Date?, _ tint: Color) -> some View {
-        VStack(alignment: .leading, spacing: 1) {
-            Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.white.opacity(0.62))
-            Text(at.map { L10n.agoText($0, now: date, precise: isMedium) } ?? "—")
-                .font(.system(size: isMedium ? 16 : 13, weight: .bold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(tint).lineLimit(1).minimumScaleFactor(0.75)
+    @ViewBuilder
+    private func headerControl(cardDark: Color) -> some View {
+        let shape = Capsule(style: .continuous)
+        let activeTimer = body_.timers.first
+        let label = activeTimer.map {
+            $0.pausedAt == nil ? L10n.t("暂停", "Pause") : L10n.t("继续", "Resume")
+        } ?? L10n.t("睡觉", "Sleep")
+        let symbol = activeTimer.map {
+            $0.pausedAt == nil ? "pause.fill" : "play.fill"
+        } ?? "moon.zzz.fill"
+
+        Group {
+            if let t = activeTimer {
+                Button(intent: TimerIntent(type: t.type, action: "pause")) {
+                    Label(label, systemImage: symbol)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(primaryAccent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Group {
+                                if accented {
+                                    shape.strokeBorder(primaryAccent.opacity(0.45), lineWidth: 1)
+                                } else {
+                                    shape.fill(cardDark).overlay(shape.strokeBorder(Self.amber.opacity(0.32), lineWidth: 1))
+                                }
+                            }
+                        )
+                }
+                .buttonStyle(.plain)
+            } else {
+                Button(intent: ToggleCareTimerIntent(careType: .sleep)) {
+                    Label(label, systemImage: symbol)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundStyle(primaryAccent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(
+                            Group {
+                                if accented {
+                                    shape.strokeBorder(primaryAccent.opacity(0.45), lineWidth: 1)
+                                } else {
+                                    shape.fill(cardDark).overlay(shape.strokeBorder(Self.amber.opacity(0.28), lineWidth: 1))
+                                }
+                            }
+                        )
+                }
+                .buttonStyle(.plain)
+            }
         }
+        .widgetAccentable()
+    }
+
+    private func lampMetric(_ label: String, _ at: Date?, _ tint: Color, inkColor: Color) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            Text(label)
+                .font(.system(size: 10, weight: .semibold, design: .rounded))
+                .foregroundStyle(inkColor.opacity(0.68))
+            Text(at.map { L10n.agoText($0, now: date, precise: isMedium) } ?? "—")
+                .font(.system(size: isMedium ? 22 : 15, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+                .widgetAccentable()
+        }
+    }
+
+    /// 24-hour micro-horizon bead strip readable at bedside distance (pure static layout for WidgetKit).
+    private func horizonStrip(sleepTint: Color) -> some View {
+        let horizon = horizonWindow
+        return GeometryReader { geo in
+            let w = max(1, geo.size.width)
+            let midY = geo.size.height / 2
+            ZStack(alignment: .leading) {
+                Capsule(style: .continuous)
+                    .fill(primaryInk.opacity(accented ? 0.22 : 0.14))
+                    .frame(height: 2.5)
+                    .position(x: w / 2, y: midY)
+
+                ForEach(Array(horizon.sleeps.enumerated()), id: \.offset) { _, span in
+                    let x0 = CGFloat(span.0) * w
+                    let x1 = CGFloat(span.1) * w
+                    let segW = max(5, x1 - x0)
+                    Capsule(style: .continuous)
+                        .fill(sleepTint.opacity(accented ? 0.55 : 0.48))
+                        .frame(width: segW, height: 5)
+                        .position(x: x0 + segW / 2, y: midY)
+                }
+
+                ForEach(Array(horizon.feeds.enumerated()), id: \.offset) { _, pt in
+                    let bx = max(3, min(w - 3, CGFloat(pt) * w))
+                    Circle()
+                        .fill(primaryAccent)
+                        .frame(width: 5, height: 5)
+                        .position(x: bx, y: midY)
+                        .widgetAccentable()
+                }
+
+                Circle()
+                    .fill(primaryAccent)
+                    .frame(width: 7, height: 7)
+                    .overlay(Circle().stroke(accented ? .clear : Self.lampBase, lineWidth: 1))
+                    .position(x: w - 3.5, y: midY)
+                    .widgetAccentable()
+            }
+        }
+        .frame(height: 10)
+        .accessibilityHidden(true)
     }
 }
 
