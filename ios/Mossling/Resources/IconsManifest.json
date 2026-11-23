@@ -1,0 +1,121 @@
+{
+  "version": "2.0.0",
+  "tools": [
+    {
+      "id": "bedside_lamp",
+      "asset3D": "tool_bedside_lamp_3d.webp",
+      "asset2D": "tool_bedside_lamp_2d.webp",
+      "fallbackSymbol": "lamp.desk.fill",
+      "accentHex": "F0AA3C"
+    },
+    {
+      "id": "sensory_toybox",
+      "asset3D": "tool_sensory_toybox_3d.webp",
+      "asset2D": "tool_sensory_toybox_2d.webp",
+      "fallbackSymbol": "music.note",
+      "accentHex": "2EA89C"
+    },
+    {
+      "id": "first_foods",
+      "asset3D": "tool_first_foods_3d.webp",
+      "asset2D": "tool_first_foods_2d.webp",
+      "fallbackSymbol": "carrot.fill",
+      "accentHex": "5B9A4B"
+    },
+    {
+      "id": "rhythm_dial",
+      "asset3D": "tool_rhythm_dial_3d.webp",
+      "asset2D": "tool_rhythm_dial_2d.webp",
+      "fallbackSymbol": "sun.and.horizon.fill",
+      "accentHex": "7A6FC4"
+    },
+    {
+      "id": "storybook",
+      "asset3D": "tool_storybook_3d.webp",
+      "asset2D": "tool_storybook_2d.webp",
+      "fallbackSymbol": "book.pages.fill",
+      "accentHex": "C68446"
+    },
+    {
+      "id": "time_capsules",
+      "asset3D": "tool_time_capsules_3d.webp",
+      "asset2D": "tool_time_capsules_2d.webp",
+      "fallbackSymbol": "envelope.fill",
+      "accentHex": "D4A21C"
+    },
+    {
+      "id": "journey",
+      "asset3D": "tool_journey_3d.webp",
+      "asset2D": "tool_journey_2d.webp",
+      "fallbackSymbol": "point.topleft.down.to.point.bottomright.curvepath",
+      "accentHex": "D4A21C"
+    }
+  ],
+  "foods": [
+    { "id": "pumpkin",     "asset3D": "food_pumpkin_3d.webp",     "asset2D": "food_pumpkin_2d.webp",     "category": "veggie",    "glyphKind": "pumpkin",     "primaryHex": "E87D2F", "secondaryHex": "F5A44C", "detailHex": "4F7942" },
+    { "id": "sweetpotato", "asset3D": "food_sweetpotato_3d.webp", "asset2D": "food_sweetpotato_2d.webp", "category": "veggie",    "glyphKind": "sweetpotato", "primaryHex": "C4514C", "secondaryHex": "F4B254", "detailHex": "8F3438" },
+    { "id": "carrot",      "asset3D": "food_carrot_3d.webp",      "asset2D": "food_carrot_2d.webp",      "category": "veggie",    "glyphKind": "carrot",      "primaryHex": "EE7A2E", "secondaryHex": "F8A64E", "detailHex": "4B8B4A" },
+    { "id": "broccoli",    "asset3D": "food_broccoli_3d.webp",    "asset2D": "food_broccoli_2d.webp",    "category": "veggie",    "glyphKind": "broccoli",    "primaryHex": "3F8E4D", "secondaryHex": "64B368", "detailHex": "87BE6A" },
+    { "id": "avocado",     "asset3D": "food_avocado_3d.webp",     "asset2D": "food_avocado_2d.webp",     "category": "veggie",    "glyphKind": "avocado",     "primaryHex": "4B7C3B", "secondaryHex": "BDD86D", "detailHex": "7A4C2C" },
+    { "id": "spinach",     "asset3D": "food_spinach_3d.webp",     "asset2D": "food_spinach_2d.webp",     "category": "veggie",    "glyphKind": "leafy",       "primaryHex": "378649", "secondaryHex": "63B46C", "detailHex": "256436" },
+    { "id": "tomato",      "asset3D": "food_tomato_3d.webp",      "asset2D": "food_tomato_2d.webp",      "category": "veggie",    "glyphKind": "tomato",      "primaryHex": "DE4B43", "secondaryHex": "F57B6B", "detailHex": "488A47" },
+    { "id": "pea",         "asset3D": "food_pea_3d.webp",         "asset2D": "food_pea_2d.webp",         "category": "veggie",    "glyphKind": "peaPod",      "primaryHex": "529E48", "secondaryHex": "8BD169", "detailHex": "3B7A34" },
+    { "id": "potato",      "asset3D": "food_potato_3d.webp",      "asset2D": "food_potato_2d.webp",      "category": "veggie",    "glyphKind": "potato",      "primaryHex": "C79B63", "secondaryHex": "E5C58E", "detailHex": "8A643B" },
+    { "id": "corn",        "asset3D": "food_corn_3d.webp",        "asset2D": "food_corn_2d.webp",        "category": "veggie",    "glyphKind": "corn",        "primaryHex": "F1BD32", "secondaryHex": "FFE070", "detailHex": "52994A" },
+    { "id": "cucumber",    "asset3D": "food_cucumber_3d.webp",    "asset2D": "food_cucumber_2d.webp",    "category": "veggie",    "glyphKind": "cucumber",    "primaryHex": "3F8E4E", "secondaryHex": "A8DC89", "detailHex": "2C6939" },
+    { "id": "mushroom",    "asset3D": "food_mushroom_3d.webp",    "asset2D": "food_mushroom_2d.webp",    "category": "veggie",    "glyphKind": "mushroom",    "primaryHex": "8C5B3E", "secondaryHex": "EFE3CF", "detailHex": "5B3A26" },
+
+    { "id": "banana",      "asset3D": "food_banana_3d.webp",      "asset2D": "food_banana_2d.webp",      "category": "fruit",     "glyphKind": "banana",      "primaryHex": "F2C438", "secondaryHex": "FFF099", "detailHex": "8A6A34" },
+    { "id": "apple",       "asset3D": "food_apple_3d.webp",       "asset2D": "food_apple_2d.webp",       "category": "fruit",     "glyphKind": "apple",       "primaryHex": "D94B43", "secondaryHex": "F57B6E", "detailHex": "4F8B48" },
+    { "id": "pear",        "asset3D": "food_pear_3d.webp",        "asset2D": "food_pear_2d.webp",        "category": "fruit",     "glyphKind": "pear",        "primaryHex": "DFC661", "secondaryHex": "F8EA9E", "detailHex": "7A5638" },
+    { "id": "blueberry",   "asset3D": "food_blueberry_3d.webp",   "asset2D": "food_blueberry_2d.webp",   "category": "fruit",     "glyphKind": "berries",     "primaryHex": "4E66B2", "secondaryHex": "8198DF", "detailHex": "2F417A" },
+    { "id": "strawberry",  "asset3D": "food_strawberry_3d.webp",  "asset2D": "food_strawberry_2d.webp",  "category": "fruit",     "glyphKind": "strawberry",  "primaryHex": "DF4856", "secondaryHex": "F6808B", "detailHex": "4B8F4C" },
+    { "id": "mango",       "asset3D": "food_mango_3d.webp",       "asset2D": "food_mango_2d.webp",       "category": "fruit",     "glyphKind": "mango",       "primaryHex": "F29B30", "secondaryHex": "F9D14C", "detailHex": "4B8947" },
+    { "id": "peach",       "asset3D": "food_peach_3d.webp",       "asset2D": "food_peach_2d.webp",       "category": "fruit",     "glyphKind": "peach",       "primaryHex": "F0866B", "secondaryHex": "FAC699", "detailHex": "518E4B" },
+    { "id": "kiwi",        "asset3D": "food_kiwi_3d.webp",        "asset2D": "food_kiwi_2d.webp",        "category": "fruit",     "glyphKind": "kiwi",        "primaryHex": "8A6440", "secondaryHex": "8EC450", "detailHex": "EBF6BC" },
+    { "id": "watermelon",  "asset3D": "food_watermelon_3d.webp",  "asset2D": "food_watermelon_2d.webp",  "category": "fruit",     "glyphKind": "watermelon",  "primaryHex": "E25259", "secondaryHex": "F59194", "detailHex": "4B8D47" },
+    { "id": "orange",      "asset3D": "food_orange_3d.webp",      "asset2D": "food_orange_2d.webp",      "category": "fruit",     "glyphKind": "citrus",      "primaryHex": "EF8A26", "secondaryHex": "F7BA4E", "detailHex": "4E8A47" },
+    { "id": "grape",       "asset3D": "food_grape_3d.webp",       "asset2D": "food_grape_2d.webp",       "category": "fruit",     "glyphKind": "grapeCluster","primaryHex": "7A56A6", "secondaryHex": "A985D1", "detailHex": "5B8A49" },
+    { "id": "melon",       "asset3D": "food_melon_3d.webp",       "asset2D": "food_melon_2d.webp",       "category": "fruit",     "glyphKind": "melonSlice",  "primaryHex": "EC9E5B", "secondaryHex": "FAD09B", "detailHex": "8AB068" },
+
+    { "id": "ricecereal",  "asset3D": "food_ricecereal_3d.webp",  "asset2D": "food_ricecereal_2d.webp",  "category": "grain",     "glyphKind": "porridgeBowl","primaryHex": "EBD8B8", "secondaryHex": "FFF7EA", "detailHex": "B4814C" },
+    { "id": "oatmeal",     "asset3D": "food_oatmeal_3d.webp",     "asset2D": "food_oatmeal_2d.webp",     "category": "grain",     "glyphKind": "wheatSheaf",  "primaryHex": "C79D4C", "secondaryHex": "EAD08A", "detailHex": "916E2C" },
+    { "id": "millet",      "asset3D": "food_millet_3d.webp",      "asset2D": "food_millet_2d.webp",      "category": "grain",     "glyphKind": "porridgeBowl","primaryHex": "EBB844", "secondaryHex": "FBE38E", "detailHex": "C88D32" },
+    { "id": "rice",        "asset3D": "food_rice_3d.webp",        "asset2D": "food_rice_2d.webp",        "category": "grain",     "glyphKind": "riceBowl",    "primaryHex": "FBF8F0", "secondaryHex": "EAE2D2", "detailHex": "4E8082" },
+    { "id": "noodles",     "asset3D": "food_noodles_3d.webp",     "asset2D": "food_noodles_2d.webp",     "category": "grain",     "glyphKind": "noodleBowl",  "primaryHex": "F4DC9A", "secondaryHex": "D99A4E", "detailHex": "7A4B2E" },
+    { "id": "bread",       "asset3D": "food_bread_3d.webp",       "asset2D": "food_bread_2d.webp",       "category": "grain",     "glyphKind": "toast",       "primaryHex": "C48947", "secondaryHex": "F3DEC0", "detailHex": "8E5D2B" },
+    { "id": "pasta",       "asset3D": "food_pasta_3d.webp",       "asset2D": "food_pasta_2d.webp",       "category": "grain",     "glyphKind": "pastaSpiral", "primaryHex": "EAB949", "secondaryHex": "FAD878", "detailHex": "BA8525" },
+    { "id": "quinoa",      "asset3D": "food_quinoa_3d.webp",      "asset2D": "food_quinoa_2d.webp",      "category": "grain",     "glyphKind": "seedDish",    "primaryHex": "CEAA7A", "secondaryHex": "EED5AC", "detailHex": "8E6B41" },
+    { "id": "yam",         "asset3D": "food_yam_3d.webp",         "asset2D": "food_yam_2d.webp",         "category": "grain",     "glyphKind": "rootSlice",   "primaryHex": "B48C63", "secondaryHex": "FAF4EA", "detailHex": "876342" },
+    { "id": "taro",        "asset3D": "food_taro_3d.webp",        "asset2D": "food_taro_2d.webp",        "category": "grain",     "glyphKind": "rootSlice",   "primaryHex": "9B7EA8", "secondaryHex": "E8DCEB", "detailHex": "6B527A" },
+
+    { "id": "eggyolk",     "asset3D": "food_eggyolk_3d.webp",     "asset2D": "food_eggyolk_2d.webp",     "category": "protein",   "glyphKind": "eggYolk",     "primaryHex": "F3AF2E", "secondaryHex": "FFF7E6", "detailHex": "E57D24" },
+    { "id": "wholeegg",    "asset3D": "food_wholeegg_3d.webp",    "asset2D": "food_wholeegg_2d.webp",    "category": "protein",   "glyphKind": "wholeEgg",    "primaryHex": "F3DEC2", "secondaryHex": "FFF8EE", "detailHex": "D4A97E" },
+    { "id": "salmon",      "asset3D": "food_salmon_3d.webp",      "asset2D": "food_salmon_2d.webp",      "category": "protein",   "glyphKind": "fishFillet",  "primaryHex": "EA7C5D", "secondaryHex": "FBE5DC", "detailHex": "C85B40" },
+    { "id": "cod",         "asset3D": "food_cod_3d.webp",         "asset2D": "food_cod_2d.webp",         "category": "protein",   "glyphKind": "fish",        "primaryHex": "9EB3C8", "secondaryHex": "F5F7FA", "detailHex": "5B748F" },
+    { "id": "beef",        "asset3D": "food_beef_3d.webp",        "asset2D": "food_beef_2d.webp",        "category": "protein",   "glyphKind": "meatCut",     "primaryHex": "B84F4B", "secondaryHex": "E6AEAA", "detailHex": "873230" },
+    { "id": "pork",        "asset3D": "food_pork_3d.webp",        "asset2D": "food_pork_2d.webp",        "category": "protein",   "glyphKind": "meatCut",     "primaryHex": "DF908E", "secondaryHex": "F7D5D0", "detailHex": "BA6663" },
+    { "id": "chicken",     "asset3D": "food_chicken_3d.webp",     "asset2D": "food_chicken_2d.webp",     "category": "protein",   "glyphKind": "poultry",     "primaryHex": "E0AA6E", "secondaryHex": "F6D7AE", "detailHex": "B07B41" },
+    { "id": "shrimp",      "asset3D": "food_shrimp_3d.webp",      "asset2D": "food_shrimp_2d.webp",      "category": "protein",   "glyphKind": "shrimp",      "primaryHex": "EE7A5C", "secondaryHex": "FBB79B", "detailHex": "C6553B" },
+    { "id": "tofu",        "asset3D": "food_tofu_3d.webp",        "asset2D": "food_tofu_2d.webp",        "category": "protein",   "glyphKind": "tofuCube",    "primaryHex": "F9F2DF", "secondaryHex": "E8DCB8", "detailHex": "5C9654" },
+    { "id": "liver",       "asset3D": "food_liver_3d.webp",       "asset2D": "food_liver_2d.webp",       "category": "protein",   "glyphKind": "spoonPowder", "primaryHex": "96584C", "secondaryHex": "D8C0A2", "detailHex": "6E3A30" },
+    { "id": "lentils",     "asset3D": "food_lentils_3d.webp",     "asset2D": "food_lentils_2d.webp",     "category": "protein",   "glyphKind": "seedDish",    "primaryHex": "D67247", "secondaryHex": "F0A079", "detailHex": "A14A27" },
+    { "id": "chickpea",    "asset3D": "food_chickpea_3d.webp",    "asset2D": "food_chickpea_2d.webp",    "category": "protein",   "glyphKind": "seedDish",    "primaryHex": "DAB571", "secondaryHex": "F4DCA9", "detailHex": "AE8744" },
+
+    { "id": "yogurt",      "asset3D": "food_yogurt_3d.webp",      "asset2D": "food_yogurt_2d.webp",      "category": "dairySeed", "glyphKind": "yogurtJar",   "primaryHex": "F7F4EC", "secondaryHex": "D8E6EF", "detailHex": "6EA4C8" },
+    { "id": "cheese",      "asset3D": "food_cheese_3d.webp",      "asset2D": "food_cheese_2d.webp",      "category": "dairySeed", "glyphKind": "cheeseWedge", "primaryHex": "F2C249", "secondaryHex": "FFE387", "detailHex": "CF9828" },
+    { "id": "sesame",      "asset3D": "food_sesame_3d.webp",      "asset2D": "food_sesame_2d.webp",      "category": "dairySeed", "glyphKind": "seedDish",    "primaryHex": "3C3C42", "secondaryHex": "6A6A72", "detailHex": "D9C39E" },
+    { "id": "peanut",      "asset3D": "food_peanut_3d.webp",      "asset2D": "food_peanut_2d.webp",      "category": "dairySeed", "glyphKind": "peanut",      "primaryHex": "C6975B", "secondaryHex": "E5C18A", "detailHex": "996E39" },
+    { "id": "walnut",      "asset3D": "food_walnut_3d.webp",      "asset2D": "food_walnut_2d.webp",      "category": "dairySeed", "glyphKind": "walnut",      "primaryHex": "9F7046", "secondaryHex": "CCA276", "detailHex": "6F4A2B" },
+    { "id": "almond",      "asset3D": "food_almond_3d.webp",      "asset2D": "food_almond_2d.webp",      "category": "dairySeed", "glyphKind": "almond",      "primaryHex": "B77F4B", "secondaryHex": "DDB07C", "detailHex": "875830" },
+    { "id": "chia",        "asset3D": "food_chia_3d.webp",        "asset2D": "food_chia_2d.webp",        "category": "dairySeed", "glyphKind": "seedDish",    "primaryHex": "5B616C", "secondaryHex": "9FA5AE", "detailHex": "C5C8CE" },
+    { "id": "butter",      "asset3D": "food_butter_3d.webp",      "asset2D": "food_butter_2d.webp",      "category": "dairySeed", "glyphKind": "butterPat",   "primaryHex": "F6D76A", "secondaryHex": "FFF0A6", "detailHex": "C9C0B0" },
+
+    { "id": "seaweed",     "asset3D": "food_seaweed_3d.webp",     "asset2D": "food_seaweed_2d.webp",     "category": "gentle",    "glyphKind": "seaweedSheet","primaryHex": "365C43", "secondaryHex": "578766", "detailHex": "243D2D" },
+    { "id": "oliveoil",    "asset3D": "food_oliveoil_3d.webp",    "asset2D": "food_oliveoil_2d.webp",    "category": "gentle",    "glyphKind": "oilDrop",     "primaryHex": "9BB33D", "secondaryHex": "D7DF6E", "detailHex": "5F7A2E" },
+    { "id": "jujube",      "asset3D": "food_jujube_3d.webp",      "asset2D": "food_jujube_2d.webp",      "category": "gentle",    "glyphKind": "dateFruit",   "primaryHex": "A83B37", "secondaryHex": "D05D54", "detailHex": "6B211F" },
+    { "id": "lotus",       "asset3D": "food_lotus_3d.webp",       "asset2D": "food_lotus_2d.webp",       "category": "gentle",    "glyphKind": "lotusPetal",  "primaryHex": "EB8FA8", "secondaryHex": "F9DCE5", "detailHex": "F1CE66" },
+    { "id": "woodear",     "asset3D": "food_woodear_3d.webp",     "asset2D": "food_woodear_2d.webp",     "category": "gentle",    "glyphKind": "snowFungus",  "primaryHex": "F5EBD8", "secondaryHex": "FFFBF2", "detailHex": "D2BA92" },
+    { "id": "ginger",      "asset3D": "food_ginger_3d.webp",      "asset2D": "food_ginger_2d.webp",      "category": "gentle",    "glyphKind": "gingerRoot",  "primaryHex": "DFB66E", "secondaryHex": "F5DA9D", "detailHex": "6E9E56" }
+  ]
+}

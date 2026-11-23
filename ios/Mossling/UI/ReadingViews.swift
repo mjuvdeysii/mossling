@@ -64,7 +64,7 @@ struct SearchView: View {
                                         .font(.caption).foregroundStyle(Palette.secondaryText)
                                 }
                             } icon: {
-                                Text(food.icon).font(.title3).frame(width: 30, height: 30)
+                                FoodGlyphView(food: food, size: 28)
                             }
                         }
                     }

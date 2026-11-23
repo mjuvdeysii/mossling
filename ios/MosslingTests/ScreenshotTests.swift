@@ -950,4 +950,34 @@ final class ScreenshotTests: XCTestCase {
         shot("50_handover_card_en", height: 852,
              HandoverSheet(day: today, previewNow: handoverNow).environment(mEn).environment(jEn).tint(Palette.accent).fontDesign(.rounded))
     }
+
+    /// v2.0 Batch 1 Showcase: Three-Halo Home (3D/2D/Lamp), Vertical Journey Hub, and 0-Emoji First Foods Atlas.
+    func test49V2Batch1Showcase() {
+        let m = model(); m.journal = true
+        let today = m.today
+        let sampleFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin",     firstTastedEpochDay: today.plus(days: -18).epochDay, reaction: .loved),
+            FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
+            FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
+            FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain, times: 3),
+            FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
+            FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
+            FoodRecord(foodId: "blueberry",   firstTastedEpochDay: today.plus(days: -4).epochDay,  reaction: .tasted),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted, watchSkin: true),
+            FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
+        ])
+
+        shot("49_home_halo_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("49_home_halo_lamp", height: 1260, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+
+        let savedStyle = ArtStyle.current
+        ArtStyle.current = .flat
+        defer { ArtStyle.current = savedStyle }
+        shot("49_home_halo_2d", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        ArtStyle.current = savedStyle
+
+        shot("49_journey_hub_zh", height: 1320, tabs(m, JourneyHubView()))
+        shot("49_foods_0emoji_zh", height: 1120, tabs(m, FoodAtlasView(store: sampleFoods)))
+    }
 }

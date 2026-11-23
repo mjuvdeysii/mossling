@@ -233,10 +233,6 @@ struct FlatCreature: View {
         // the anti-aliased edge of the white would leave a pale ring under the lid: cover it with the skin
         if lid > 0 { ctx.stroke(Path(ellipseIn: r.insetBy(dx: -0.4, dy: -0.4)), with: .color(skin), lineWidth: 1.2) }
     }
-    private func cheeks(_ ctx: inout GraphicsContext, _ pts: [CGPoint], _ face: Mood) {
-        guard face == .happy || face == .wow else { return }
-        for p in pts { ctx.fill(Path(ellipseIn: CGRect(x: p.x - 4, y: p.y - 2.4, width: 8, height: 4.8)), with: .color(Crayon.pink.opacity(0.75))) }
-    }
     private func mouth(_ ctx: inout GraphicsContext, _ at: CGPoint, _ face: Mood) {
         switch face {
         case .wow: ctx.fill(Path(ellipseIn: CGRect(x: at.x - 2.2, y: at.y - 2.6, width: 4.4, height: 5.6)), with: .color(Palette.ink))
@@ -271,10 +267,11 @@ struct FlatCreature: View {
         leaves.fill(Shapes.mintA, with: .color(Palette.mint))
         leaves.fill(Shapes.mintD, with: .color(Palette.mintPale))
         leaves.fill(Shapes.mintC, with: .color(Palette.mintPale))
+        leaves.stroke(Shapes.mintVeins, with: .color(Palette.mintVein.opacity(0.45)), style: StrokeStyle(lineWidth: 0.6, lineCap: .round))
         leg(&ctx, 33); leg(&ctx, 59)
         armsDraw(&ctx, pose, left: CGPoint(x: 19, y: 62), right: CGPoint(x: 83, y: 60), Palette.mossDeep, wave)
         body(&ctx, Shapes.mossBody, Palette.moss, under: Shapes.mossUnder, Palette.mossDeep)
-        cheeks(&ctx, [CGPoint(x: 35, y: 64), CGPoint(x: 66, y: 64)], face)
+        ctx.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.70)))
         eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss, face)
         eye(&ctx, 58, 55, 6.4, 7.4, look, lid, Palette.moss, face)
         mouth(&ctx, CGPoint(x: 50.5, y: 68), face)
@@ -296,7 +293,6 @@ struct FlatCreature: View {
         leg(&ctx, 38); leg(&ctx, 56)
         armsDraw(&ctx, pose, left: CGPoint(x: 29, y: 60), right: CGPoint(x: 72, y: 58), Palette.rodDeep, wave)
         body(&ctx, Shapes.ottoBody, Palette.rod, under: Shapes.ottoDip, Palette.rodDeep)
-        cheeks(&ctx, [CGPoint(x: 64, y: 58)], face)
         eye(&ctx, 51, 44, 12.5, 11.5, look, face == .wow ? 0 : lid, Palette.rod, face)
         if yawning > 0.02 {
             ctx.fill(Path(ellipseIn: CGRect(x: 51 - 2.6 * yawning, y: 63 - 4 * yawning, width: 5.2 * yawning, height: 9 * yawning)), with: .color(Palette.ink))

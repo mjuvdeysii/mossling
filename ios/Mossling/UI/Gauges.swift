@@ -163,9 +163,15 @@ struct WhenChips: View {
                         .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
                         .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                 }
-                Button(ago == nil ? L10n.t("其他时间 ✓", "Other ✓") : L10n.t("其他时间…", "Other…")) { picking = true }
-                    .buttonStyle(.vinyl(ago == nil ? tint : Color(hex: 0x8A8279)))
-                    .fontWeight(ago == nil ? .semibold : .regular)
+                Button { picking = true } label: {
+                    if ago == nil {
+                        Label(L10n.t("其他时间", "Other"), systemImage: "checkmark")
+                    } else {
+                        Text(L10n.t("其他时间…", "Other…"))
+                    }
+                }
+                .buttonStyle(.vinyl(ago == nil ? tint : Color(hex: 0x8A8279)))
+                .fontWeight(ago == nil ? .semibold : .regular)
             }
         }
         .padding(16)

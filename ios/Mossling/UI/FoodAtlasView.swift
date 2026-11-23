@@ -307,10 +307,9 @@ private struct FoodStampTile: View {
                                     : (dark ? Color.white.opacity(0.05) : Palette.fill.opacity(0.75))
                             )
                             .frame(width: 48, height: 48)
-                        Text(item.icon)
-                            .font(.system(size: 26))
+                        FoodGlyphView(food: item, size: 32)
                             .saturation(tasted ? 1.0 : 0.72)
-                            .opacity(tasted ? 1.0 : 0.82)
+                            .opacity(tasted ? 1.0 : 0.85)
                     }
                     .overlay(alignment: .topLeading) {
                         if watch {
@@ -446,7 +445,7 @@ private struct FoodTasteSheet: View {
                             Circle()
                                 .fill(item.category.color.opacity(dark ? 0.28 : 0.18))
                                 .frame(width: 62, height: 62)
-                            Text(item.icon).font(.system(size: 34))
+                            FoodGlyphView(food: item, size: 42)
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name)
@@ -698,8 +697,8 @@ private struct FoodPassportPoster: View {
             } else {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 8) {
                     ForEach(tasted.prefix(24)) { item in
-                        VStack(spacing: 2) {
-                            Text(item.icon).font(.system(size: 22))
+                        VStack(spacing: 3) {
+                            FoodGlyphView(food: item, size: 26, flat: false)
                             Text(item.name)
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 .foregroundStyle(ink)

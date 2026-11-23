@@ -14,6 +14,64 @@ enum ThemeMode: String, CaseIterable { case system, light, dark
     var scheme: ColorScheme? { switch self { case .system: nil; case .light: .light; case .dark: .dark } }
 }
 
+/// Selectable spring feel curves for Otto's Golden Bulb pull-cord (blind-tested in Batch 4 before lock-in).
+enum BulbSpringPreset: String, CaseIterable, Identifiable, Sendable {
+    case airy, warm, grounded
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .airy: L10n.t("轻盈", "Airy")
+        case .warm: L10n.t("温润", "Warm")
+        case .grounded: L10n.t("沉稳", "Grounded")
+        }
+    }
+
+    var response: Double {
+        switch self {
+        case .airy: 0.34
+        case .warm: 0.44
+        case .grounded: 0.56
+        }
+    }
+
+    var dampingFraction: Double {
+        switch self {
+        case .airy: 0.62
+        case .warm: 0.74
+        case .grounded: 0.86
+        }
+    }
+
+    var resistance: CGFloat {
+        switch self {
+        case .airy: 0.62
+        case .warm: 0.50
+        case .grounded: 0.40
+        }
+    }
+
+    var maxStretch: CGFloat {
+        switch self {
+        case .airy: 46
+        case .warm: 40
+        case .grounded: 34
+        }
+    }
+
+    var triggerThreshold: CGFloat {
+        switch self {
+        case .airy: 26
+        case .warm: 26
+        case .grounded: 24
+        }
+    }
+
+    var springAnimation: Animation {
+        .spring(response: response, dampingFraction: dampingFraction)
+    }
+}
+
 extension AppLanguage {
     var label: String { switch self { case .system: L10n.t("自动", "Auto"); case .zh: "中文"; case .en: "English" } }
 }
@@ -69,6 +127,7 @@ final class AppModel {
             Task { @MainActor in TactileEngine.shared.soundEnabled = enabled }
         }
     }
+    var bulbPreset: BulbSpringPreset { didSet { d.set(bulbPreset.rawValue, forKey: "bulbSpringPreset") } }
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
@@ -100,6 +159,7 @@ final class AppModel {
         let sounds = d.object(forKey: "tactileSounds") == nil ? true : d.bool(forKey: "tactileSounds")
         tactileSounds = sounds
         Task { @MainActor in TactileEngine.shared.soundEnabled = sounds }
+        bulbPreset = BulbSpringPreset(rawValue: d.string(forKey: "bulbSpringPreset") ?? "") ?? .warm
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
@@ -172,7 +232,7 @@ final class AppModel {
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
-                  "artStyle", "nightLight", "tactileSounds", "mapSeenMonth"] { d.removeObject(forKey: k) }
+                  "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "mapSeenMonth"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
         // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
@@ -191,7 +251,7 @@ final class AppModel {
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
-        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
+        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true; bulbPreset = .warm
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

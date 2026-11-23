@@ -228,12 +228,13 @@ private final class XylophoneFX {
     }
 
     struct FloatNote {
+        enum ParticleShape { case eighthNote, star }
         let id = UUID()
         let x: Double
         let y: Double
         let vx: Double
         let vy: Double
-        let glyph: String
+        let shape: ParticleShape
         let color: Color
         let born: TimeInterval
     }
@@ -247,18 +248,18 @@ private final class XylophoneFX {
         particles.removeAll { now - $0.born > 0.95 }
         rings.append(WaveRing(nx: nx, ny: ny, color: color, born: now, maxRadius: goldCelebration ? 0.42 : 0.28))
 
-        let glyphs = ["♪", "♫", "✦"]
+        let shapes: [FloatNote.ParticleShape] = [.eighthNote, .eighthNote, .star]
         let count = goldCelebration ? 8 : 3
         for i in 0..<count {
             let spread = Double(i - count / 2)
             let pColor = goldCelebration ? Palette.bead : (i == 2 ? Palette.bead : color)
-            let pGlyph = goldCelebration ? (i % 2 == 0 ? "✦" : "♫") : glyphs[i % glyphs.count]
+            let pShape = goldCelebration ? (i % 2 == 0 ? FloatNote.ParticleShape.star : .eighthNote) : shapes[i % shapes.count]
             particles.append(FloatNote(
                 x: nx + spread * 0.035,
                 y: ny,
                 vx: spread * (goldCelebration ? 0.14 : 0.06),
                 vy: -(0.16 + Double(i % 3) * 0.05),
-                glyph: pGlyph,
+                shape: pShape,
                 color: pColor,
                 born: now
             ))
@@ -324,11 +325,20 @@ private struct XylophoneStudio: View {
 
                     VStack(alignment: .leading, spacing: 2) {
                         if playAlong, let targetNote {
-                            Text("\(melody.title) · \(playAlongStep + 1)/\(stepCount)" + (completedCount > 0 ? " · \(completedCount)★" : ""))
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.78)
+                            HStack(spacing: 5) {
+                                Text("\(melody.title) · \(playAlongStep + 1)/\(stepCount)")
+                                if completedCount > 0 {
+                                    HStack(spacing: 2) {
+                                        Text("· \(completedCount)")
+                                        Image(systemName: "star.fill").font(.caption2)
+                                    }
+                                    .foregroundStyle(Palette.bead)
+                                }
+                            }
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
                             Text(L10n.t("轻点发光的「\(targetNote.numberLabel) \(targetNote.solfege)」", "Tap glowing \(targetNote.numberLabel) · \(targetNote.solfege)"))
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(Palette.accent)
@@ -472,12 +482,26 @@ private struct XylophoneStudio: View {
                                     let px = (p.x + p.vx * age) * Double(size.width)
                                     let py = (p.y + p.vy * age) * Double(size.height)
                                     let alpha = (1.0 - prog) * (prog < 0.15 ? prog / 0.15 : 1.0)
-                                    let resolved = ctx.resolve(
-                                        Text(p.glyph)
-                                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                                            .foregroundStyle(p.color.opacity(alpha))
-                                    )
-                                    ctx.draw(resolved, at: CGPoint(x: px, y: py), anchor: .center)
+                                    let tint = p.color.opacity(alpha)
+                                    switch p.shape {
+                                    case .eighthNote:
+                                        ctx.fill(Path(ellipseIn: CGRect(x: px - 4.5, y: py + 1.5, width: 7.5, height: 5.5)), with: .color(tint))
+                                        var stem = Path()
+                                        stem.move(to: CGPoint(x: px + 2, y: py + 4))
+                                        stem.addLine(to: CGPoint(x: px + 2, y: py - 8))
+                                        stem.addQuadCurve(to: CGPoint(x: px + 7.5, y: py - 3.5), control: CGPoint(x: px + 6.5, y: py - 7))
+                                        ctx.stroke(stem, with: .color(tint), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+                                    case .star:
+                                        var star = Path()
+                                        let r: Double = 6.5
+                                        star.move(to: CGPoint(x: px, y: py - r))
+                                        star.addQuadCurve(to: CGPoint(x: px + r, y: py), control: CGPoint(x: px + 1.5, y: py - 1.5))
+                                        star.addQuadCurve(to: CGPoint(x: px, y: py + r), control: CGPoint(x: px + 1.5, y: py + 1.5))
+                                        star.addQuadCurve(to: CGPoint(x: px - r, y: py), control: CGPoint(x: px - 1.5, y: py + 1.5))
+                                        star.addQuadCurve(to: CGPoint(x: px, y: py - r), control: CGPoint(x: px - 1.5, y: py - 1.5))
+                                        star.closeSubpath()
+                                        ctx.fill(star, with: .color(tint))
+                                    }
                                 }
                             }
                         }

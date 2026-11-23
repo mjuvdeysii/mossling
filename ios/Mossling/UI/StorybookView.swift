@@ -112,9 +112,9 @@ struct StorybookView: View {
         let currentPageData: BookPage? = (index >= 1 && index <= pages.count) ? pages[index - 1] : nil
         let pageMonth = currentPageData?.month
         let chapterTitle: String = currentPageData.map { app.content.month($0.month).title } ?? L10n.stretchName(for: app.babyMonth ?? 0)
-        let firstLines: [String] = currentPageData?.firsts.prefix(3).map { "★ " + Firsts.displayTitle($0) + " · " + Day($0.date).md } ?? []
+        let firstLines: [String] = currentPageData?.firsts.prefix(3).map { "· " + Firsts.displayTitle($0) + " · " + Day($0.date).md } ?? []
         let playNames: [String] = currentPageData?.plays.prefix(3).map(\.play.name) ?? []
-        let foodNames: [String] = currentPageData.map { monthFoods(for: $0).prefix(8).map { $0.item.icon + " " + $0.item.name } } ?? []
+        let foodNames: [String] = currentPageData.map { monthFoods(for: $0).prefix(8).map(\.item.name) } ?? []
         let firstIDs: [UUID] = currentPageData?.firsts.map(\.id) ?? []
 
         let exportPoster = RenderedPoster {
@@ -569,8 +569,7 @@ private struct StorybookMonthSpread: View {
                         FlowRow(spacing: 6, lineSpacing: 6) {
                             ForEach(foods.prefix(12), id: \.item.id) { entry in
                                 HStack(spacing: 4) {
-                                    Text(entry.item.icon)
-                                        .font(.caption)
+                                    FoodGlyphView(food: entry.item, size: 15)
                                     Text(entry.item.name)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.primary)

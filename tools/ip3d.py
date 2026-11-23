@@ -245,10 +245,6 @@ def build_moss(x=0.0, look=(0.45, 0.7), happy=False, lean=0.0, lid=0.0, er=0.105
             parts.append(tube(f"moss_shut{s}", [(s * ex - 0.075, sy - 0.0, ez - 0.01), (s * ex, sy - 0.022, ez + dz * 1.2), (s * ex + 0.075, sy - 0.0, ez - 0.01)], 0.016, M["pupil"]))
         else:
             parts += eye(f"moss_eye{s}", (s * ex, sy + 0.025, ez), er * 1.12, look, scale=(0.8, 0.5, 1.16), lid=lid, skin=M["moss"], pupil=pupil)
-    if not shut or shut != "flat":   # a baby's soft pink cheeks, always
-        for s in (-1, 1):
-            cz = m["cz"] + 0.03; cx = s * 0.33
-            parts.append(sphere(f"moss_cheek{s}", (cx, moss_surface_y(cx, cz) + 0.02, cz), (0.07, 0.022, 0.055), M["cheek"]))
     parent(parts, root)
     root.location = (x, 0, hop); root.rotation_euler = (0, math.radians(lean), 0)
     if hop > 0: root.scale = (1 - hop * 0.35, 1 - hop * 0.35, 1 + hop * 0.7)   # stretched in the air
@@ -299,7 +295,6 @@ def build_otto(x=0.0, look=(-0.3, 0.0), lid=0.3, glow=1.0, lean=0.0, happy=False
     elif happy:
         sy = otto_surface_y(0, ez)
         parts.append(tube("otto_smile", [(-0.12, sy + 0.01, ez - 0.02), (0.0, sy - 0.015, ez + 0.06), (0.12, sy + 0.01, ez - 0.02)], 0.016, M["pupil"]))
-        parts.append(sphere("otto_cheek", (0.24, otto_surface_y(0.24, ez - 0.14) + 0.01, ez - 0.14), (0.065, 0.015, 0.04), M["cheek"]))
     else:
         parts += eye("otto_eye", (0.0, otto_surface_y(0, ez) + 0.06, ez), 0.21, look, scale=(1.05, 0.5, 0.95), lid=lid, skin=M["otto"], pupil=0.57)
         if bags:

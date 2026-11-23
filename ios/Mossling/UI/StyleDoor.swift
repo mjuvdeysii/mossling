@@ -19,6 +19,31 @@ import SwiftUI
     var frame: CGRect = .zero
     /// Where the colour fell, as a fraction of the picture.
     var impact = CGPoint(x: 0.45, y: 0.5)
+
+    /// Triggers a watercolor wash transition between 3D soft-vinyl and 2D cut-paper styles from an arbitrary screen anchor.
+    @MainActor
+    func toggleArtStyle(from anchorFrame: CGRect, impact: CGPoint = CGPoint(x: 0.5, y: 0.5), app: AppModel, reduce: Bool) {
+        let target: ArtStyle = app.artStyle == .vinyl ? .flat : .vinyl
+        transition(to: target, from: anchorFrame, impact: impact, app: app, reduce: reduce)
+    }
+
+    @MainActor
+    func transition(to target: ArtStyle, from anchorFrame: CGRect, impact: CGPoint = CGPoint(x: 0.5, y: 0.5), app: AppModel, reduce: Bool) {
+        guard phase == .idle else { return }
+        frame = anchorFrame
+        self.impact = impact
+        if reduce {
+            app.artStyle = target
+            return
+        }
+        phase = target == .flat ? .wash(start: Date()) : .bloom(start: Date())
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(Int(Wash.covered * 1000) + 20))
+            app.artStyle = target
+            try? await Task.sleep(for: .milliseconds(Int((Wash.length - Wash.covered) * 1000)))
+            self.phase = .idle
+        }
+    }
 }
 
 /// The story page's title picture, as the door.
@@ -87,17 +112,7 @@ struct StyleDoor<Content: View>: View {
     }
 
     private func run() {
-        StyleShift.shared.frame = frame
-        StyleShift.shared.impact = impact
-        if reduce { app.artStyle = .flat; return }
-        StyleShift.shared.phase = .wash(start: Date())
-        // the world changes under the wash once it covers the screen
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(Int(Wash.covered * 1000) + 20))
-            app.artStyle = .flat
-            try? await Task.sleep(for: .milliseconds(Int((Wash.length - Wash.covered) * 1000)))
-            StyleShift.shared.phase = .idle
-        }
+        StyleShift.shared.transition(to: .flat, from: frame, impact: impact, app: app, reduce: reduce)
     }
 
     private func moved() {
@@ -114,16 +129,7 @@ struct StyleDoor<Content: View>: View {
     private func reset() { held = nil; withAnimation(.easeOut(duration: 0.25)) { progress = 0 } }
 
     private func bloom() {
-        StyleShift.shared.frame = frame
-        StyleShift.shared.impact = CGPoint(x: 0.5, y: 0.55)
-        if reduce { app.artStyle = .vinyl; return }
-        StyleShift.shared.phase = .bloom(start: Date())
-        Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(Int(Wash.covered * 1000) + 20))
-            app.artStyle = .vinyl
-            try? await Task.sleep(for: .milliseconds(Int((Wash.length - Wash.covered) * 1000)))
-            StyleShift.shared.phase = .idle
-        }
+        StyleShift.shared.transition(to: .vinyl, from: frame, impact: CGPoint(x: 0.5, y: 0.55), app: app, reduce: reduce)
     }
 }
 

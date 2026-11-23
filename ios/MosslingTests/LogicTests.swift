@@ -1102,4 +1102,46 @@ final class LogicTests: XCTestCase {
         // Bedtimes 21:00 and 22:00 round to 22 (21.5 -> 22)
         XCTAssertTrue([21, 22].contains(model.summary.typicalBedtimeHour ?? -1))
     }
+
+    func testIconsManifestCompletenessAndResolution() {
+        let resolver = IconAssetResolver(bundle: Bundle(for: LogicTests.self))
+        let resolved = resolver.manifest != nil ? resolver : IconAssetResolver.shared
+        guard let manifest = resolved.manifest else {
+            XCTFail("IconsManifest.json failed to decode from bundle")
+            return
+        }
+        XCTAssertEqual(manifest.foods.count, 60)
+        XCTAssertEqual(Set(manifest.foods.map(\.id)), Set(FoodItem.catalog.map(\.id)), "Every FoodItem must have a manifest entry")
+
+        let requiredTools = ["bedside_lamp", "sensory_toybox", "first_foods", "rhythm_dial", "storybook", "time_capsules", "journey"]
+        XCTAssertEqual(Set(manifest.tools.map(\.id)), Set(requiredTools))
+        for spec in manifest.foods {
+            XCTAssertFalse(spec.glyphKind.isEmpty)
+            XCTAssertEqual(spec.primaryHex.count, 6)
+            XCTAssertEqual(spec.secondaryHex.count, 6)
+            XCTAssertEqual(spec.detailHex.count, 6)
+        }
+    }
+
+    func testFoodCatalogHasZeroEmoji() {
+        XCTAssertEqual(FoodItem.catalog.count, 60)
+        let mirror = Mirror(reflecting: FoodItem.catalog[0])
+        let labels = mirror.children.compactMap(\.label)
+        XCTAssertFalse(labels.contains("icon"), "FoodItem must not expose an emoji icon field")
+    }
+
+    @MainActor
+    func testBulbSpringPresetsAndPersistence() {
+        for preset in BulbSpringPreset.allCases {
+            XCTAssertGreaterThan(preset.response, 0.2)
+            XCTAssertGreaterThan(preset.dampingFraction, 0.4)
+            XCTAssertGreaterThan(preset.triggerThreshold, 15)
+        }
+        let d = UserDefaults(suiteName: "bulb-preset-\(UUID().uuidString)")!
+        let m1 = AppModel(defaults: d)
+        XCTAssertEqual(m1.bulbPreset, .warm)
+        m1.bulbPreset = .airy
+        let m2 = AppModel(defaults: d)
+        XCTAssertEqual(m2.bulbPreset, .airy)
+    }
 }

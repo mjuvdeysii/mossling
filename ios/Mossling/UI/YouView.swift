@@ -429,6 +429,40 @@ struct AboutView: View {
                 }
 
                 aboutGroup(L10n.t("帮助", "Help")) {
+                    // Temporary real-device blind-test selector for Otto's bulb spring feel (locked in Batch 4)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 10) {
+                            IconTile(symbol: "lamp.desk.fill", color: Palette.amber, size: 28, round: true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(L10n.t("灯珠手感实验", "Bulb Physics Lab"))
+                                    .font(.subheadline.weight(.semibold))
+                                Text(L10n.t("调整首页灯珠下拉与回弹的物理阻尼", "Tune pull-cord damping feel for v2.0"))
+                                    .font(.caption2)
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        HStack(spacing: 6) {
+                            ForEach(BulbSpringPreset.allCases) { preset in
+                                let selected = app.bulbPreset == preset
+                                Button {
+                                    TactileEngine.shared.beadClick()
+                                    app.bulbPreset = preset
+                                } label: {
+                                    Text(preset.title)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(selected ? .white : .primary)
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 6)
+                                        .background(Capsule().fill(selected ? Palette.accentFill : Palette.fill))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(selected ? .isSelected : [])
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14).padding(.vertical, 11)
+                    Divider().padding(.leading, 52).opacity(0.5)
                     Button { Guide.replayNextLaunch(); replay = true } label: {
                         HStack(spacing: 10) {
                             IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)

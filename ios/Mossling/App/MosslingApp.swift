@@ -3,7 +3,7 @@ import LocalAuthentication
 import TipKit
 
 enum Route: Hashable {
-    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book, toybox(ToyboxMode), capsules, foodAtlas
+    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book, toybox(ToyboxMode), capsules, foodAtlas, journey
 }
 
 @main
@@ -254,6 +254,8 @@ struct RootView: View {
             pushToday(.capsules)
         case "foods":
             pushToday(.foodAtlas)
+        case "journey":
+            pushToday(.journey)
         case "journal":
             guard app.mayKeep() else { return }
             journal.focus = nil
@@ -354,6 +356,7 @@ private struct RouteView: View {
         case let .toybox(mode): ToyboxView(initialMode: mode)
         case .capsules: TimeCapsuleListView()
         case .foodAtlas: FoodAtlasView()
+        case .journey: JourneyHubView().zoomDestination(route)
         }
     }
 }

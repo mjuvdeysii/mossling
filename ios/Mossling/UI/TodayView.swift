@@ -31,8 +31,8 @@ struct TodayView: View {
                 // a feed or a sleep being timed is what matters most while it runs: it leads the page
                 let running = !j.timers.isEmpty || night
                 if running && app.journal && app.age != nil { NowCard(month: baby) }
-                MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
-                    .zoomSource(Route.month(baby))
+                MonthCard(month: baby, baby: baby) { path.append(Route.journey) }
+                    .zoomSource(Route.journey)
                 if app.age != nil { DueCard(month: baby) }
                 if !running && app.journal && app.age != nil { NowCard(month: baby) }
                 if app.age != nil {
@@ -43,7 +43,16 @@ struct TodayView: View {
                 if app.age != nil { TipView(shelfTip) }
                 // before the birth date is known too: the same 今天一起玩, from the first month's plays (the week is
                 // chosen anew for the child's month once the date is given)
-                TodayPlayCard(month: baby, story: { path.append(Route.story) }) { arranging = true }
+                TodayPlayCard(
+                    month: baby,
+                    soundscapeActive: soundscape.isPlaying,
+                    openLamp: {
+                        TactileEngine.shared.beadClick()
+                        showingLamp = true
+                    },
+                    story: { path.append(Route.story) },
+                    arrange: { arranging = true }
+                )
                 let todayLogs = j.logs(on: app.today)
                 let todaySleepCount = todayLogs.filter { $0.type == LogType.sleep && $0.end != nil }.count
                 let todayFeedCount = todayLogs.feeds().count
@@ -154,7 +163,7 @@ private struct QuietInstrumentsDock: View {
                         badge: nil,
                         dark: dark
                     ) {
-                        IconTile(symbol: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk", color: Palette.amber, size: 34)
+                        ToolArtBadge(toolId: "bedside_lamp", size: 36, active: soundscape.isPlaying)
                     }
                 }
                 .buttonStyle(.toy)
@@ -170,7 +179,7 @@ private struct QuietInstrumentsDock: View {
                         badge: nil,
                         dark: dark
                     ) {
-                        IconTile(symbol: "music.note", color: Crayon.teal, size: 34)
+                        ToolArtBadge(toolId: "sensory_toybox", size: 36)
                     }
                 }
                 .buttonStyle(.toy)
@@ -186,7 +195,7 @@ private struct QuietInstrumentsDock: View {
                         badge: nil,
                         dark: dark
                     ) {
-                        IconTile(symbol: "carrot.fill", color: Crayon.leaf, size: 34)
+                        ToolArtBadge(toolId: "first_foods", size: 36)
                     }
                 }
                 .buttonStyle(.toy)
@@ -202,7 +211,7 @@ private struct QuietInstrumentsDock: View {
                         badge: nil,
                         dark: dark
                     ) {
-                        IconTile(symbol: "sun.and.horizon.fill", color: Crayon.lilac, size: 34)
+                        ToolArtBadge(toolId: "rhythm_dial", size: 36)
                     }
                 }
                 .buttonStyle(.toy)
@@ -218,7 +227,7 @@ private struct QuietInstrumentsDock: View {
                         badge: nil,
                         dark: dark
                     ) {
-                        IconTile(symbol: "book.pages.fill", color: Crayon.caramel, size: 34)
+                        ToolArtBadge(toolId: "storybook", size: 36)
                     }
                 }
                 .buttonStyle(.toy)
@@ -236,7 +245,7 @@ private struct QuietInstrumentsDock: View {
                         badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
                         dark: dark
                     ) {
-                        WaxSealBadge(seal: .gold, size: 34)
+                        WaxSealBadge(seal: .gold, size: 36)
                     }
                 }
                 .buttonStyle(.toy)
@@ -471,6 +480,14 @@ private struct MonthCard: View {
                     if month == baby, let a = app.age, a.days + a.toNext > 0 {
                         MonthProgress(days: a.days, toNext: a.toNext, next: month + 1).padding(.top, 2)
                     }
+                    HStack(spacing: 5) {
+                        GoldBead(size: 7)
+                        Text(L10n.t("串珠旅程 · 37 站与纪念书架", "37-Station Journey & Keepsakes"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Palette.accent)
+                            .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    }
+                    .padding(.top, 2)
                 }
                 .foregroundStyle(.primary)
                 Spacer(minLength: 0)
@@ -482,7 +499,7 @@ private struct MonthCard: View {
         }
         .buttonStyle(.toy)
         .accessibilityLabel("\(month == 0 ? L10n.t("出生", "Birth") : L10n.t("\(month) 个月", "\(month) months")), \(app.content.month(month).title)")
-        .accessibilityHint(L10n.t("打开这个月的全部内容", "Open this month's guide"))
+        .accessibilityHint(L10n.t("打开串珠旅程与本月指南", "Open 37-station Journey and month guide"))
     }
 }
 
@@ -593,12 +610,15 @@ struct TodayPlayCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(JournalStore.self) private var j
     let month: Int
+    var soundscapeActive: Bool = false
+    var openLamp: () -> Void = {}
     /// Their story: nothing says there is more — tap the two on the card's edge and they hop; keep tapping and on the
     /// third they take you into it.
     let story: () -> Void
     let arrange: () -> Void
     @State private var hops = 0
     @State private var lamp = false
+    @State private var bulbPullProgress: CGFloat = 0
     private var flat: Bool { ArtStyle.current == .flat }
 
     var body: some View {
@@ -693,26 +713,42 @@ struct TodayPlayCard: View {
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
 
-    /// Today's play: the picture of its first step, and what to know before starting.
+    /// Today's play — Halo 1 Lamp Desk Hero Stage: generous top artwork lit by Otto's interactive pull-cord bulb
+    /// (isolated above the NavigationLink for clean gesture separation), with bold title & Step 1 cue cleanly below.
     private func lead(_ p: Play) -> some View {
         let big = size.isAccessibilitySize
         let times: Int = app.thisWeek(p, j)
         let last: String = lastPlayed(p)
         let label: String = L10n.t("今天一起玩", "Today's Play") + ", " + p.name + ", " + (p.domains.first ?? "") + ", " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps") + ", " + last
-        let layout = big ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
-        return NavigationLink(value: route(p)) {
-            layout {
-                leadArt(p, big: big)
-                leadWords(p, last: last, times: times, big: big)
+        return ZStack(alignment: .topLeading) {
+            NavigationLink(value: route(p)) {
+                VStack(alignment: .leading, spacing: 12) {
+                    leadArt(p, big: big)
+                        .overlay {
+                            LampConeOverlay(intensity: bulbPullProgress, night: night)
+                                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                        }
+                    leadWords(p, last: last, times: times, big: big)
+                        .padding(.horizontal, 4)
+                }
+                .padding(12)
+                .contentShape(Rectangle())
             }
-            .padding(14)
-            .contentShape(Rectangle())
+            .buttonStyle(.toy)
+            .contextMenu { PlayActions(play: p, month: month) }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(label)
+            .accessibilityHint(L10n.t("打开，一步步跟着图玩", "Open step-by-step guide"))
+
+            // Interactive Otto Golden Bulb pull-cord anchored at top-leading of the hero frame, clear of Duo on the top-right
+            OttoBulbControl(
+                soundscapeActive: soundscapeActive,
+                pullProgress: $bulbPullProgress,
+                onOpenLamp: openLamp
+            )
+            .padding(.top, 12)
+            .padding(.leading, 16)
         }
-        .buttonStyle(.toy)
-        .contextMenu { PlayActions(play: p, month: month) }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(label)
-        .accessibilityHint(L10n.t("打开，一步步跟着图玩", "Open step-by-step guide"))
     }
 
     private func lastPlayed(_ p: Play) -> String {
@@ -726,12 +762,13 @@ struct TodayPlayCard: View {
         let key = Palette.areaKey(of: p)
         Group {
             if let art = ArtIndex.shared.steps(p.code).first {
-                ArtView(name: art, radius: Radius.tile).aspectRatio(4 / 3, contentMode: .fit)
+                ArtFill(name: art)
             } else {
                 TrayTile(code: p.code, color: Palette.area(key), flat: flat)
             }
         }
-        .frame(width: big ? 200 : 112, height: big ? 150 : 84)
+        .frame(maxWidth: .infinity)
+        .frame(height: big ? 210 : 184)
         .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .zoomSource(route(p))
     }
