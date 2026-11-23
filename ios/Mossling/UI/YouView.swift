@@ -638,7 +638,7 @@ struct SourcesView: View {
                                 IconTile(symbol: "clock.badge.checkmark.fill", color: Crayon.aqua, size: 28, round: true)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(L10n.t("WHO 每天的节奏参考", "WHO Daily Rhythm Reference")).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                    Text(L10n.t("0–3 岁活动、睡眠与屏幕建议（2019）", "Activity, sleep & screen guidelines, ages 0–3 (2019)")).font(.caption).foregroundStyle(Palette.secondaryText)
+                                    Text(L10n.t("0–3 岁活动、睡眠与屏幕建议（2019）", "0–3 yr activity, sleep & screen guide (2019)")).font(.caption).foregroundStyle(Palette.secondaryText)
                                 }
                                 Spacer(minLength: 0)
                                 Image(systemName: "chevron.down")

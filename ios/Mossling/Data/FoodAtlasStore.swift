@@ -201,6 +201,41 @@ final class FoodAtlasStore {
 
     var tastedCount: Int { records.count }
     var lovedCount: Int { records.values.filter { $0.reaction == .loved }.count }
+    var tryAgainCount: Int { records.values.filter { $0.reaction == .tryAgain }.count }
+    var allergenIntroducedCount: Int { FoodItem.catalog.filter { $0.isCommonAllergen && records[$0.id] != nil }.count }
+    var allergenTotalCount: Int { FoodItem.catalog.filter(\.isCommonAllergen).count }
+
+    /// Ordered next-taste candidates: gentle retries (`.tryAgain`) first, then curated starter staples that remain
+    /// untried, followed by remaining untried whole foods in catalog order.
+    func suggestedBiteCandidates() -> [FoodItem] {
+        let retryIds = Set(records.values.filter { $0.reaction == .tryAgain }.map(\.foodId))
+        let retries = FoodItem.catalog.filter { retryIds.contains($0.id) }
+        let starterOrder = ["ricecereal", "pumpkin", "sweetpotato", "carrot", "avocado", "broccoli", "banana", "apple", "eggyolk", "oatmeal"]
+        let starters = starterOrder.compactMap { FoodItem.item(id: $0) }.filter { records[$0.id] == nil }
+        let starterSet = Set(starters.map(\.id))
+        let restUntried = FoodItem.catalog.filter { records[$0.id] == nil && !starterSet.contains($0.id) }
+        return retries + starters + restUntried
+    }
+
+    @discardableResult
+    func quickStamp(foodId: String, reaction: FoodReaction, today: Day) -> FoodRecord {
+        if var existing = records[foodId] {
+            existing.reaction = reaction
+            save(existing)
+            return existing
+        }
+        let created = FoodRecord(foodId: foodId, firstTastedEpochDay: today.epochDay, reaction: reaction, times: 1)
+        save(created)
+        return created
+    }
+
+    @discardableResult
+    func incrementTimes(foodId: String) -> FoodRecord? {
+        guard var existing = records[foodId] else { return nil }
+        existing.times = max(1, existing.times) + 1
+        save(existing)
+        return existing
+    }
 
     func record(for foodId: String) -> FoodRecord? {
         records[foodId]

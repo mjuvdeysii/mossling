@@ -1363,4 +1363,57 @@ final class ScreenshotTests: XCTestCase {
         shot("55_play_folio_kinetic_en", height: 956,
              tabs(mEn, PlayView(play: playA11En, month: 6)))
     }
+
+    /// Round 11 Three-Pillar Creative Alchemy (`v2.0 RC8 · Batch 11`):
+    /// Interactive Montessori Tasting Cabinet (`FoodAtlasView`) in empty 0/60 state, with active thumb-zone
+    /// Quick-Stamp Dock, in Night Lamp mode, plus warm `BirthSheet` greeting header.
+    func test56FoodCabinetAndFixes() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        let emptyFoods = FoodAtlasStore(preview: [])
+        shot("56_food_cabinet_empty_zh", height: 956, tabs(m, FoodAtlasView(store: emptyFoods)))
+
+        let sampleFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin",     firstTastedEpochDay: today.plus(days: -18).epochDay, reaction: .loved),
+            FoodRecord(foodId: "sweetpotato", firstTastedEpochDay: today.plus(days: -16).epochDay, reaction: .loved),
+            FoodRecord(foodId: "carrot",      firstTastedEpochDay: today.plus(days: -14).epochDay, reaction: .tasted),
+            FoodRecord(foodId: "avocado",     firstTastedEpochDay: today.plus(days: -11).epochDay, reaction: .loved, times: 3),
+            FoodRecord(foodId: "broccoli",    firstTastedEpochDay: today.plus(days: -9).epochDay,  reaction: .tryAgain, times: 2),
+            FoodRecord(foodId: "banana",      firstTastedEpochDay: today.plus(days: -12).epochDay, reaction: .loved),
+            FoodRecord(foodId: "apple",       firstTastedEpochDay: today.plus(days: -10).epochDay, reaction: .loved),
+            FoodRecord(foodId: "ricecereal",  firstTastedEpochDay: today.plus(days: -20).epochDay, reaction: .loved),
+            FoodRecord(foodId: "eggyolk",     firstTastedEpochDay: today.plus(days: -6).epochDay,  reaction: .tasted, watchSkin: true),
+            FoodRecord(foodId: "salmon",      firstTastedEpochDay: today.plus(days: -3).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "yogurt",      firstTastedEpochDay: today.plus(days: -2).epochDay,  reaction: .loved),
+            FoodRecord(foodId: "oliveoil",    firstTastedEpochDay: today.plus(days: -1).epochDay,  reaction: .tasted),
+        ])
+        shot("56_food_cabinet_stamp_dock_zh", height: 956,
+             tabs(m, FoodAtlasView(store: sampleFoods, previewSelectedFoodId: "avocado")))
+        shot("56_food_cabinet_lamp_zh", height: 956, lamp: true,
+             tabs(m, FoodAtlasView(store: sampleFoods).lamp(true)))
+
+        let mNew = model(birth: nil); mNew.onboarded = false
+        shot("56_birth_sheet_zh", height: 852,
+             BirthSheet().environment(mNew).tint(Palette.accent).fontDesign(.rounded))
+
+        struct RealPlayTabHost: View {
+            @Namespace private var zoomNS
+            @State private var path = NavigationPath([Route.play("A11", 6)])
+            var body: some View {
+                TabView(selection: .constant(0)) {
+                    Tab(value: 0) {
+                        NavigationStack(path: $path) {
+                            TodayView(path: $path).routes(path: $path)
+                        }
+                        .environment(\.zoomNS, zoomNS)
+                    } label: {
+                        Label(L10n.t("本月", "Today"), systemImage: "leaf.fill")
+                    }
+                }
+            }
+        }
+        shot("56_play_real_tabview_zh", height: 852,
+             RealPlayTabHost().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
 }

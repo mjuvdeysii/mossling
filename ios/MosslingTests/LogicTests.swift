@@ -1488,4 +1488,40 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(opened.openedDay, openDay)
         XCTAssertEqual(opened.sealedDays(on: openDay.plus(days: 30)), openDay.epochDay - written.epochDay)
     }
+
+    @MainActor
+    func testFoodAtlasQuickStampIncrementAndSuggestions() {
+        let day = Day(y: 2026, m: 10, d: 20)
+        let store = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin", firstTastedEpochDay: day.plus(days: -5).epochDay, reaction: .loved, times: 1),
+            FoodRecord(foodId: "broccoli", firstTastedEpochDay: day.plus(days: -3).epochDay, reaction: .tryAgain, times: 2),
+        ])
+
+        XCTAssertEqual(store.tryAgainCount, 1)
+        XCTAssertGreaterThan(store.allergenTotalCount, 10)
+        XCTAssertEqual(store.allergenIntroducedCount, 0)
+
+        // Gentle retry foods appear first in suggestedBiteCandidates before starter untried foods
+        let candidates = store.suggestedBiteCandidates()
+        XCTAssertEqual(candidates.first?.id, "broccoli")
+        XCTAssertTrue(candidates.dropFirst().contains { $0.id == "ricecereal" })
+
+        // Quick stamping an untried allergen records first taste and updates allergen count
+        let egg = store.quickStamp(foodId: "eggyolk", reaction: .tasted, today: day)
+        XCTAssertEqual(egg.firstTastedEpochDay, day.epochDay)
+        XCTAssertEqual(egg.reaction, .tasted)
+        XCTAssertEqual(egg.times, 1)
+        XCTAssertEqual(store.allergenIntroducedCount, 1)
+
+        // Updating reaction via quickStamp preserves original first taste day and times
+        let updated = store.quickStamp(foodId: "broccoli", reaction: .loved, today: day.plus(days: 4))
+        XCTAssertEqual(updated.firstTastedEpochDay, day.plus(days: -3).epochDay)
+        XCTAssertEqual(updated.times, 2)
+        XCTAssertEqual(updated.reaction, .loved)
+        XCTAssertEqual(store.tryAgainCount, 0)
+
+        // Incrementing tasting exposure count preserves everything else
+        let incremented = store.incrementTimes(foodId: "pumpkin")
+        XCTAssertEqual(incremented?.times, 2)
+    }
 }

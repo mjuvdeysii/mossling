@@ -479,6 +479,7 @@ private struct MonthCard: View {
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(Palette.accent)
                             .lineLimit(type.isAccessibilitySize ? nil : 1)
+                            .minimumScaleFactor(0.84)
                     }
                     .padding(.top, 2)
                 }
@@ -948,14 +949,33 @@ struct BirthSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
-                    .datePickerStyle(.graphical)
+                Section {
+                    HStack(spacing: 12) {
+                        Duo(primary: app.companion, size: 46)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(L10n.t("孩子的第一天", "Baby's Day One"))
+                                .font(.headline)
+                            Text(L10n.t("我们从这一天开始，一月一站陪着长大。", "Your 37-month journey starts from this gentle date."))
+                                .font(.caption)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                    .listRowBackground(Color.clear)
+                }
+                Section {
+                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
+                        .datePickerStyle(.graphical)
+                }
                 if first {
                     Section {
                         Toggle(L10n.t("也记录喂奶、睡眠、尿布", "Also track feeds, sleep & diapers"), isOn: $records)
                     } footer: { Text(L10n.t("打开后多一个「记录」页；以后在「我的」里随时可以开关。", "Adds a Log tab; you can toggle it anytime in Me.")) }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .pageBackground(tone: Palette.bead)
             .navigationTitle(L10n.t("出生日期", "Birthday")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }

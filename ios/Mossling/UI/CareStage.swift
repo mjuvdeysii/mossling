@@ -21,6 +21,18 @@ struct CareStage: View {
                 .fill(LinearGradient(colors: [c.opacity(lamp ? 0.3 : 0.28), c.opacity(lamp ? 0.1 : 0.08)], startPoint: .topTrailing, endPoint: .bottomLeading))
                 .background(lamp ? Palette.lampCard : Color.clear, in: RoundedRectangle(cornerRadius: Radius.stage, style: .continuous))
             Drift(kind: Drift.kind(of: type), color: c, still: reduce)
+                .mask(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .white, location: 0.16),
+                            .init(color: .white, location: 0.84),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .bottom,
+                        endPoint: .top
+                    )
+                )
                 .clipShape(RoundedRectangle(cornerRadius: Radius.stage, style: .continuous))
                 .accessibilityHidden(true)
             HStack(alignment: .bottom, spacing: 0) {

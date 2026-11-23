@@ -1,8 +1,9 @@
 import SwiftUI
 import StoreKit
 
-/// 「百味食盒 / First Foods Tasting Box」 — Tactile Montessori tasting catalog of 60 whole foods across 6 botanical
-/// trays. Zero scores, zero guilt, offline-only, with 3× Tasting Passport poster export and optional Journal logging.
+/// 「百味食盒 / First Foods Tasting Cabinet」 — Interactive Montessori bento cabinet of 60 whole foods across 6 collapsible
+/// botanical drawers with dual category + state rails, smart Next-Bite shuffle bench, thumb-zone Quick-Stamp Dock, and
+/// 3× Tasting Passport poster export. Zero scores, zero guilt, offline-only.
 struct FoodAtlasView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -10,61 +11,90 @@ struct FoodAtlasView: View {
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.requestReview) private var requestReview
 
     @State private var store: FoodAtlasStore
-    @State private var filter: Filter = .all
+    @State private var selectedCategory: FoodCategory? = nil
+    @State private var stateFilter: StateFilter = .all
+    @State private var collapsedCategories: Set<FoodCategory> = []
+    @State private var selectedFoodId: String? = nil
+    @State private var suggestionOffset: Int = 0
     @State private var query = ""
     @State private var editingItem: FoodItem? = nil
     @State private var recentlyStampedId: String? = nil
     @State private var mossTapCount: Int = 0
     @State private var leafBurstTrigger: Int = 0
 
-    enum Filter: Hashable, Identifiable {
-        case all
-        case category(FoodCategory)
-        case allergen
-        case untasted
-
-        var id: String {
-            switch self {
-            case .all: "all"
-            case .category(let c): "cat-\(c.rawValue)"
-            case .allergen: "allergen"
-            case .untasted: "untasted"
-            }
-        }
+    enum StateFilter: String, CaseIterable, Identifiable {
+        case all, untasted, allergen, loved, tryAgain
+        var id: String { rawValue }
 
         var label: String {
             switch self {
-            case .all: L10n.t("全部 60 种", "All 60")
-            case .category(let c): c.title
-            case .allergen: L10n.t("常见致敏", "Allergens")
+            case .all: L10n.t("全部状态", "All")
             case .untasted: L10n.t("还未尝过", "To Try")
+            case .allergen: L10n.t("常见致敏", "Allergens")
+            case .loved: L10n.t("很喜欢", "Loved")
+            case .tryAgain: L10n.t("再试试", "Retry")
+            }
+        }
+
+        func matches(_ item: FoodItem, record: FoodRecord?) -> Bool {
+            switch self {
+            case .all: true
+            case .untasted: record == nil
+            case .allergen: item.isCommonAllergen
+            case .loved: record?.reaction == .loved
+            case .tryAgain: record?.reaction == .tryAgain
             }
         }
     }
 
-    init(store: FoodAtlasStore = .shared) {
+    init(store: FoodAtlasStore = .shared, previewSelectedFoodId: String? = nil) {
         _store = State(initialValue: store)
+        _selectedFoodId = State(initialValue: previewSelectedFoodId)
     }
 
-    private var allFilters: [Filter] {
-        [.all] + FoodCategory.allCases.map { .category($0) } + [.allergen, .untasted]
-    }
-
-    private var filteredItems: [FoodItem] {
-        let base: [FoodItem] = switch filter {
-        case .all: FoodItem.catalog
-        case .category(let c): FoodItem.catalog.filter { $0.category == c }
-        case .allergen: FoodItem.catalog.filter(\.isCommonAllergen)
-        case .untasted: FoodItem.catalog.filter { store.record(for: $0.id) == nil }
-        }
+    private func matchingItems(in category: FoodCategory? = nil) -> [FoodItem] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !q.isEmpty else { return base }
-        return base.filter {
-            $0.zh.localizedCaseInsensitiveContains(q)
-                || $0.en.localizedCaseInsensitiveContains(q)
-                || $0.category.title.localizedCaseInsensitiveContains(q)
+        return FoodItem.catalog.filter { item in
+            if let category, item.category != category { return false }
+            let rec = store.record(for: item.id)
+            guard stateFilter.matches(item, record: rec) else { return false }
+            guard !q.isEmpty else { return true }
+            return item.zh.localizedCaseInsensitiveContains(q)
+                || item.en.localizedCaseInsensitiveContains(q)
+                || item.category.title.localizedCaseInsensitiveContains(q)
+        }
+    }
+
+    private func performQuickStamp(food: FoodItem, reaction: FoodReaction) {
+        guard app.mayKeep() else { return }
+        let wasUntasted = store.record(for: food.id) == nil
+        _ = store.quickStamp(foodId: food.id, reaction: reaction, today: app.today)
+        if wasUntasted && app.journal {
+            _ = j.record(LogEntry(type: LogType.solid, start: JournalFile.now(), detail: food.name))
+        }
+        TactileEngine.shared.goldChime()
+        triggerStampBounce(for: food.id)
+        let keepsakes = store.tastedCount + CapsuleStore.shared.items.count
+        ReviewPromptGate.tryTrigger(
+            perform: { requestReview() },
+            isDarkMode: scheme == .dark,
+            isBedsideLamp: lamp,
+            keepsakeCount: keepsakes
+        )
+    }
+
+    private func triggerStampBounce(for foodId: String) {
+        withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.56)) {
+            recentlyStampedId = foodId
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(1400))
+            if recentlyStampedId == foodId {
+                recentlyStampedId = nil
+            }
         }
     }
 
@@ -80,92 +110,50 @@ struct FoodAtlasView: View {
             return renderer.uiImage
         }
 
+        let trimmedQuery = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        let candidates = store.suggestedBiteCandidates()
+        let nextCandidate = candidates.isEmpty ? nil : candidates[suggestionOffset % candidates.count]
         let columns: [GridItem] = type.isAccessibilitySize
-            ? [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+            ? Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+            : Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+
+        let directItems = matchingItems(in: selectedCategory)
+        let activeDrawers = FoodCategory.allCases.filter { !matchingItems(in: $0).isEmpty }
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 14) {
                 wreathHeroCard(dark: dark)
 
-                // Wrapping Montessori filter tray (zero horizontal clipping)
-                FlowRow(spacing: 7, lineSpacing: 7) {
-                    ForEach(allFilters) { f in
-                        let selected = filter == f
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            withAnimation(.snappy) { filter = f }
-                        } label: {
-                            Text(f.label)
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(selected ? .white : .primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                                .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.32), lineWidth: 0.75))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(selected ? .isSelected : [])
-                    }
+                if trimmedQuery.isEmpty, let candidate = nextCandidate {
+                    nextBiteBench(candidate: candidate, dark: dark)
                 }
 
-                if filter == .allergen {
-                    let allergens = FoodItem.catalog.filter(\.isCommonAllergen)
-                    let introduced = allergens.filter { store.record(for: $0.id) != nil }.count
-                    HStack(alignment: .top, spacing: 8) {
-                        Image(systemName: "info.circle.fill")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(Palette.lampTint)
-                            .padding(.top, 2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.t("已尝 \(introduced) / \(allergens.count) 种常见致敏食材", "\(introduced) of \(allergens.count) common allergens introduced"))
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text(L10n.t("常见致敏食材建议白天首次少量尝试，观察皮肤与大便反应；有家族过敏史请先咨询儿科医生。", "Common allergens are best offered in tiny amounts earlier in the day while watching for skin or tummy changes. Ask your pediatrician if you have allergy concerns."))
-                                .font(.caption)
-                                .foregroundStyle(Palette.secondaryText)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                    .padding(12)
-                    .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.amber.opacity(dark ? 0.12 : 0.14)))
+                filterRails(dark: dark)
+
+                if stateFilter == .allergen {
+                    allergenCallout(dark: dark)
                 }
 
-                if filteredItems.isEmpty {
-                    VStack(spacing: 8) {
-                        Creature(kind: .moss, mood: .open, look: CGPoint(x: 0.4, y: 0.2), alive: false)
-                            .frame(width: 52, height: 52)
-                        Text(query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-                             ? L10n.t("这一栏都尝遍啦", "Everything here has been tasted")
-                             : L10n.t("没有找到「\(query)」", "No foods matching \"\(query)\""))
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(.primary)
-                        if !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                            Button(L10n.t("显示全部食材", "Show all 60 foods")) {
-                                query = ""
-                                filter = .all
-                            }
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Palette.accent)
+                if selectedCategory == nil && trimmedQuery.isEmpty {
+                    if activeDrawers.isEmpty {
+                        emptyStateCard
+                    } else {
+                        ForEach(activeDrawers) { cat in
+                            botanicalDrawer(
+                                category: cat,
+                                items: matchingItems(in: cat),
+                                columns: columns,
+                                dark: dark
+                            )
                         }
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(24)
-                    .printCard(radius: Radius.card)
                 } else {
-                    LazyVGrid(columns: columns, spacing: 10) {
-                        ForEach(filteredItems) { item in
-                            let rec = store.record(for: item.id)
-                            FoodStampTile(
-                                item: item,
-                                record: rec,
-                                dark: dark,
-                                justStamped: recentlyStampedId == item.id
-                            ) {
-                                if app.mayKeep() {
-                                    TactileEngine.shared.beadClick()
-                                    editingItem = item
-                                }
+                    if directItems.isEmpty {
+                        emptyStateCard
+                    } else {
+                        LazyVGrid(columns: columns, spacing: 8) {
+                            ForEach(directItems) { item in
+                                specimenCell(item: item, dark: dark)
                             }
                         }
                     }
@@ -173,7 +161,7 @@ struct FoodAtlasView: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 8)
-            .padding(.bottom, 36)
+            .padding(.bottom, selectedFoodId == nil ? 36 : 118)
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.leaf)
@@ -192,38 +180,40 @@ struct FoodAtlasView: View {
                 .accessibilityLabel(L10n.t("分享百味护照", "Share First Foods Passport"))
             }
         }
+        .safeAreaInset(edge: .bottom) {
+            if let id = selectedFoodId, let activeItem = FoodItem.item(id: id) {
+                quickStampDock(item: activeItem, dark: dark)
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 6)
+                    .transition(reduce ? .opacity : .move(edge: .bottom).combined(with: .opacity))
+            }
+        }
         .sheet(item: $editingItem) { item in
             FoodTasteSheet(item: item, existing: store.record(for: item.id), store: store) { savedId in
-                withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.56)) {
-                    recentlyStampedId = savedId
-                }
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(1400))
-                    if recentlyStampedId == savedId {
-                        recentlyStampedId = nil
-                    }
-                }
+                triggerStampBounce(for: savedId)
             }
             .lampPresented(sheet: true)
         }
     }
 
+    // MARK: - Compact Interactive Hero
+
     private func wreathHeroCard(dark: Bool) -> some View {
-        HStack(spacing: 14) {
-                ZStack {
-                    FoodWreathCanvas(store: store, dark: dark)
-                        .frame(width: 98, height: 98)
-                    VStack(spacing: 0) {
-                        Ticking(text: "\(store.tastedCount)")
-                            .font(Typeface.numerals(26, relativeTo: .title2, weight: .bold))
-                            .foregroundStyle(.primary)
-                        Text("/ \(FoodItem.catalog.count)")
-                            .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
-                            .foregroundStyle(Palette.secondaryText)
-                    }
+        HStack(spacing: 12) {
+            ZStack {
+                FoodWreathCanvas(store: store, dark: dark)
+                    .frame(width: 82, height: 82)
+                VStack(spacing: 0) {
+                    Ticking(text: "\(store.tastedCount)")
+                        .font(Typeface.numerals(23, relativeTo: .title2, weight: .bold))
+                        .foregroundStyle(.primary)
+                    Text("/ \(FoodItem.catalog.count)")
+                        .font(Typeface.numerals(10, relativeTo: .caption2, weight: .semibold))
+                        .foregroundStyle(Palette.secondaryText)
                 }
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(wreathAccessibilityLabel)
+            }
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(wreathAccessibilityLabel)
 
             VStack(alignment: .leading, spacing: 5) {
                 HStack(spacing: 6) {
@@ -246,39 +236,54 @@ struct FoodAtlasView: View {
                             poke: true,
                             notice: mossTapCount
                         )
-                        .frame(width: 38, height: 38)
+                        .frame(width: 34, height: 34)
                         .overlay { MintLeafBurst(trigger: leafBurstTrigger) }
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("摸一摸 Moss，轻点三次会飘出嫩芽", "Tap Moss gently — three taps drift out mint leaves"))
                 }
+
                 Text(
                     store.tastedCount == 0
-                        ? L10n.t("轻点任意食材，记下宝宝第一次尝到它的样子与反应。", "Tap any food to stamp the day your baby first tasted it.")
-                        : L10n.t("已尝过 \(store.tastedCount) 种味道，其中 \(store.lovedCount) 种很喜欢。慢慢尝，不赶进度。", "\(store.tastedCount) tastes explored · \(store.lovedCount) favorites. No rush, one bite at a time.")
+                        ? L10n.t("轻点食材原地盖章，或分门折叠挑选。", "Tap any food to quick-stamp below, or fold drawers.")
+                        : L10n.t("已尝过 \(store.tastedCount) 种味道 · \(store.lovedCount) 种很喜欢。", "\(store.tastedCount) explored · \(store.lovedCount) loved. One gentle bite at a time.")
                 )
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-                // Compact 6-category botanical dot summary
-                HStack(spacing: 8) {
+                // Interactive 6-category quick jump dots
+                HStack(spacing: 6) {
                     ForEach(FoodCategory.allCases) { cat in
                         let c = store.tastedCount(in: cat)
-                        HStack(spacing: 3) {
-                            Circle()
-                                .fill(c > 0 ? cat.color : cat.color.opacity(0.28))
-                                .frame(width: 7, height: 7)
-                            Text("\(c)")
-                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                                .foregroundStyle(c > 0 ? .primary : Palette.secondaryText)
+                        let active = selectedCategory == cat
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                selectedCategory = active ? nil : cat
+                            }
+                        } label: {
+                            HStack(spacing: 3) {
+                                Circle()
+                                    .fill(c > 0 ? cat.color : cat.color.opacity(0.32))
+                                    .frame(width: 7, height: 7)
+                                Text("\(c)")
+                                    .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                    .foregroundStyle(active ? Palette.accent : (c > 0 ? .primary : Palette.secondaryText))
+                            }
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(active ? cat.color.opacity(dark ? 0.24 : 0.16) : .clear))
+                            .overlay(Capsule().strokeBorder(active ? cat.color.opacity(0.55) : .clear, lineWidth: 1))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("筛选\(cat.title)", "Filter \(cat.title)"))
                     }
                 }
-                .padding(.top, 2)
+                .padding(.top, 1)
             }
         }
-        .padding(14)
+        .padding(12)
         .background(
             LinearGradient(
                 colors: [Crayon.leaf.opacity(dark ? 0.14 : 0.14), Crayon.sunflower.opacity(dark ? 0.05 : 0.06)],
@@ -287,6 +292,423 @@ struct FoodAtlasView: View {
             )
         )
         .printCard(radius: Radius.card)
+    }
+
+    // MARK: - Next Bite Inspiration Bench
+
+    private func nextBiteBench(candidate: FoodItem, dark: Bool) -> some View {
+        let existing = store.record(for: candidate.id)
+        let isRetry = existing?.reaction == .tryAgain
+        let color = candidate.category.color
+        let subtitle: String = if let existing, isRetry {
+            L10n.t("温柔再试 · 已试过 \(max(1, existing.times)) 次", "Gentle retry · tried ×\(max(1, existing.times))")
+        } else if candidate.isCommonAllergen {
+            L10n.t("\(candidate.category.title) · 常见致敏建议白天试", "\(candidate.category.title) · offer earlier in the day")
+        } else {
+            L10n.t("今日试味灵感 · \(candidate.category.title)", "Next bite idea · \(candidate.category.title)")
+        }
+
+        return HStack(spacing: 10) {
+            ZStack {
+                Circle()
+                    .fill(color.opacity(dark ? 0.28 : 0.18))
+                    .frame(width: 42, height: 42)
+                FoodGlyphView(food: candidate, size: 28)
+            }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(subtitle)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(isRetry ? Crayon.ink(Crayon.sunflower) : (candidate.isCommonAllergen ? (dark ? Palette.amber : Crayon.ink(Palette.amber)) : Palette.secondaryText))
+                    .lineLimit(1)
+                Text(candidate.name)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    selectedFoodId = candidate.id
+                }
+            }
+
+            Spacer(minLength: 4)
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    suggestionOffset += 1
+                }
+            } label: {
+                Image(systemName: "arrow.trianglehead.2.clockwise")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .frame(width: 34, height: 34)
+                    .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill))
+            }
+            .buttonStyle(.toy)
+            .accessibilityLabel(L10n.t("换一种推荐食材", "Shuffle next food idea"))
+
+            Button {
+                performQuickStamp(food: candidate, reaction: .tasted)
+                withAnimation(reduce ? nil : .snappy) {
+                    selectedFoodId = candidate.id
+                }
+            } label: {
+                Text(isRetry ? L10n.t("再尝一次", "Retried") : L10n.t("尝到了", "Stamped"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 8)
+                    .background(Capsule().fill(Palette.accentFill))
+            }
+            .buttonStyle(.toy)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(color.opacity(dark ? 0.10 : 0.07))
+        )
+        .printCard(radius: Radius.card)
+    }
+
+    // MARK: - Dual-Track Composable Filter Rails
+
+    private func filterRails(dark: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    drawerTabPill(
+                        title: L10n.t("全部分类 \(FoodItem.catalog.count)", "All \(FoodItem.catalog.count)"),
+                        color: Palette.accent,
+                        selected: selectedCategory == nil,
+                        showDot: false,
+                        dark: dark
+                    ) {
+                        selectedCategory = nil
+                    }
+
+                    ForEach(FoodCategory.allCases) { cat in
+                        let done = store.tastedCount(in: cat)
+                        let total = store.totalCount(in: cat)
+                        drawerTabPill(
+                            title: "\(cat.title) \(done)/\(total)",
+                            color: cat.color,
+                            selected: selectedCategory == cat,
+                            showDot: true,
+                            dark: dark
+                        ) {
+                            selectedCategory = (selectedCategory == cat) ? nil : cat
+                        }
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(StateFilter.allCases) { sf in
+                        let on = stateFilter == sf
+                        let label: String = switch sf {
+                        case .allergen: L10n.t("致敏 \(store.allergenIntroducedCount)/\(store.allergenTotalCount)", "Allergens \(store.allergenIntroducedCount)/\(store.allergenTotalCount)")
+                        case .loved where store.lovedCount > 0: "\(sf.label) \(store.lovedCount)"
+                        case .tryAgain where store.tryAgainCount > 0: "\(sf.label) \(store.tryAgainCount)"
+                        default: sf.label
+                        }
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                stateFilter = sf
+                            }
+                        } label: {
+                            Text(label)
+                                .font(.caption.weight(on ? .bold : .semibold))
+                                .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
+                                .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+                .padding(.vertical, 1)
+            }
+        }
+    }
+
+    private func drawerTabPill(title: String, color: Color, selected: Bool, showDot: Bool, dark: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            TactileEngine.shared.beadClick()
+            withAnimation(reduce ? nil : .snappy) {
+                action()
+            }
+        } label: {
+            HStack(spacing: 5) {
+                if showDot {
+                    Circle()
+                        .fill(selected ? .white : color)
+                        .frame(width: 7, height: 7)
+                }
+                Text(title)
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(selected ? .white : .primary)
+            }
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+            .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.28), lineWidth: 0.75))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+
+    private func allergenCallout(dark: Bool) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: "info.circle.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Palette.lampTint)
+                .padding(.top, 2)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.t("已尝 \(store.allergenIntroducedCount) / \(store.allergenTotalCount) 种常见致敏食材", "\(store.allergenIntroducedCount) of \(store.allergenTotalCount) common allergens introduced"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                Text(L10n.t("常见致敏食材建议白天首次少量尝试，观察皮肤与大便反应；有家族过敏史请先咨询儿科医生。", "Common allergens are best offered in tiny amounts earlier in the day while watching for skin or tummy changes. Ask your pediatrician if you have allergy concerns."))
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(12)
+        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.amber.opacity(dark ? 0.12 : 0.14)))
+    }
+
+    // MARK: - Collapsible Botanical Bento Drawers & Specimen Grid
+
+    private func botanicalDrawer(category: FoodCategory, items: [FoodItem], columns: [GridItem], dark: Bool) -> some View {
+        let collapsed = collapsedCategories.contains(category)
+        let done = store.tastedCount(in: category)
+        let total = max(1, store.totalCount(in: category))
+        let frac = min(1.0, Double(done) / Double(total))
+
+        return VStack(alignment: .leading, spacing: 10) {
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    if collapsed {
+                        collapsedCategories.remove(category)
+                    } else {
+                        collapsedCategories.insert(category)
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    IconTile(symbol: category.symbol, color: category.color, size: 24, round: true)
+                    Text(category.title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                    Spacer(minLength: 4)
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(category.color.opacity(dark ? 0.20 : 0.16))
+                            .frame(width: 44, height: 5)
+                        Capsule()
+                            .fill(category.color)
+                            .frame(width: max(done > 0 ? 5 : 0, 44 * frac), height: 5)
+                    }
+                    Text("\(done)/\(total)")
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                        .foregroundStyle(Palette.secondaryText)
+                    Image(systemName: "chevron.down")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(collapsed ? -90 : 0))
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(collapsed ? L10n.t("展开这一层", "Expand drawer") : L10n.t("收起这一层", "Collapse drawer"))
+
+            if !collapsed {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(items) { item in
+                        specimenCell(item: item, dark: dark)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .printCard(radius: Radius.card)
+    }
+
+    private func specimenCell(item: FoodItem, dark: Bool) -> some View {
+        let rec = store.record(for: item.id)
+        return FoodSpecimenChip(
+            item: item,
+            record: rec,
+            dark: dark,
+            isSelected: selectedFoodId == item.id,
+            justStamped: recentlyStampedId == item.id
+        ) {
+            TactileEngine.shared.beadClick()
+            withAnimation(reduce ? nil : .snappy) {
+                selectedFoodId = (selectedFoodId == item.id) ? nil : item.id
+            }
+        }
+        .contextMenu {
+            ForEach(FoodReaction.allCases) { r in
+                Button(r.title, systemImage: r.symbol) {
+                    performQuickStamp(food: item, reaction: r)
+                    selectedFoodId = item.id
+                }
+            }
+            Divider()
+            Button(L10n.t("详细记录与做法…", "Edit date & notes…"), systemImage: "square.and.pencil") {
+                if app.mayKeep() {
+                    editingItem = item
+                }
+            }
+        }
+    }
+
+    private var emptyStateCard: some View {
+        VStack(spacing: 8) {
+            Creature(kind: .moss, mood: .open, look: CGPoint(x: 0.4, y: 0.2), alive: false)
+                .frame(width: 52, height: 52)
+            Text(!query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+                 ? L10n.t("没有找到「\(query)」", "No foods matching \"\(query)\"")
+                 : L10n.t("这一筛选暂时没有食材", "No foods match this filter"))
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(.primary)
+            Button(L10n.t("显示全部 60 种", "Show all 60 foods")) {
+                withAnimation(reduce ? nil : .snappy) {
+                    query = ""
+                    selectedCategory = nil
+                    stateFilter = .all
+                }
+            }
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(Palette.accent)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .printCard(radius: Radius.card)
+    }
+
+    // MARK: - Inline Thumb-Zone Quick-Stamp Dock
+
+    private func quickStampDock(item: FoodItem, dark: Bool) -> some View {
+        let rec = store.record(for: item.id)
+        let color = item.category.color
+        let statusLine: String = if let rec {
+            L10n.t("\(rec.firstTastedDay.md) · 已试 \(max(1, rec.times)) 次", "\(rec.firstTastedDay.md) · tried ×\(max(1, rec.times))")
+        } else {
+            L10n.t("轻点下方表情即刻盖章", "Tap a stamp below to log right here")
+        }
+
+        return VStack(spacing: 10) {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .fill(color.opacity(dark ? 0.28 : 0.18))
+                        .frame(width: 36, height: 36)
+                    FoodGlyphView(food: item, size: 24)
+                }
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(item.name)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                    Text(statusLine)
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 4)
+                if rec != nil {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        _ = store.incrementTimes(foodId: item.id)
+                        triggerStampBounce(for: item.id)
+                    } label: {
+                        Text("+1")
+                            .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
+                            .foregroundStyle(Crayon.ink(color))
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(color.opacity(dark ? 0.22 : 0.14)))
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("尝过次数加一", "Add one tasting"))
+                }
+                Button {
+                    if app.mayKeep() {
+                        TactileEngine.shared.beadClick()
+                        editingItem = item
+                    }
+                } label: {
+                    Text(L10n.t("详情", "Edit"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Palette.accent.opacity(dark ? 0.20 : 0.12)))
+                }
+                .buttonStyle(.toy)
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) {
+                        selectedFoodId = nil
+                    }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("收起快捷盖章栏", "Close quick-stamp dock"))
+            }
+
+            HStack(spacing: 8) {
+                ForEach(FoodReaction.allCases) { r in
+                    let on = rec?.reaction == r
+                    Button {
+                        performQuickStamp(food: item, reaction: r)
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: r.symbol)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(on ? .white : r.color)
+                            Text(r.title)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(on ? .white : .primary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(on ? r.color : (dark ? Color.white.opacity(0.07) : Palette.fill.opacity(0.75))))
+                    }
+                    .buttonStyle(.toy)
+                }
+            }
+        }
+        .padding(12)
+        .background(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(dark ? Palette.lampCard : Palette.card)
+                .shadow(color: .black.opacity(dark ? 0.42 : 0.14), radius: 14, y: 4)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .strokeBorder(color.opacity(dark ? 0.38 : 0.28), lineWidth: 1)
+        )
     }
 
     private var wreathAccessibilityLabel: String {
@@ -311,9 +733,9 @@ private struct FoodWreathCanvas: View {
         Canvas { ctx, size in
             let center = CGPoint(x: size.width / 2, y: size.height / 2)
             let radius = min(size.width, size.height) * 0.42
-            let lineW: CGFloat = 9.0
+            let lineW: CGFloat = 8.0
             let cats = FoodCategory.allCases
-            let gap = 0.12 // radians
+            let gap = 0.12
             let slice = (2.0 * .pi - gap * Double(cats.count)) / Double(cats.count)
 
             for (idx, cat) in cats.enumerated() {
@@ -376,11 +798,12 @@ private struct MintLeafBurst: View {
     }
 }
 
-/// One tactile Montessori tasting dish tile inside the 60-food grid.
-private struct FoodStampTile: View {
+/// Compact 4-column specimen chip inside each botanical drawer: zero redundant category repetition.
+private struct FoodSpecimenChip: View {
     let item: FoodItem
     let record: FoodRecord?
     let dark: Bool
+    var isSelected: Bool = false
     var justStamped: Bool = false
     let tap: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
@@ -390,26 +813,27 @@ private struct FoodStampTile: View {
         let catColor = item.category.color
         let watch = record?.watchSkin == true
         let times = max(1, record?.times ?? 1)
+
         return Button(action: tap) {
-            VStack(spacing: 6) {
+            VStack(spacing: 4) {
                 ZStack(alignment: .topTrailing) {
                     ZStack {
                         if justStamped && !reduce {
                             Circle()
-                                .strokeBorder(Palette.bead.opacity(0.68), lineWidth: 2.2)
-                                .frame(width: 54, height: 54)
+                                .strokeBorder(Palette.bead.opacity(0.68), lineWidth: 2)
+                                .frame(width: 44, height: 44)
                                 .transition(.scale.combined(with: .opacity))
                         }
                         Circle()
                             .fill(
                                 tasted
                                     ? catColor.opacity(dark ? 0.26 : 0.18)
-                                    : (dark ? Color.white.opacity(0.05) : Palette.fill.opacity(0.75))
+                                    : (dark ? Color.white.opacity(0.05) : Palette.fill.opacity(0.72))
                             )
-                            .frame(width: 48, height: 48)
-                        FoodGlyphView(food: item, size: 32)
-                            .saturation(tasted ? 1.0 : 0.72)
-                            .opacity(tasted ? 1.0 : 0.85)
+                            .frame(width: 38, height: 38)
+                        FoodGlyphView(food: item, size: 26)
+                            .saturation(tasted ? 1.0 : 0.78)
+                            .opacity(tasted ? 1.0 : 0.88)
                     }
                     .phaseAnimator(reduce ? [1.0] : [1.0, 1.16, 0.96, 1.03, 1.0], trigger: justStamped) { view, scale in
                         view.scaleEffect(scale)
@@ -418,25 +842,25 @@ private struct FoodStampTile: View {
                         if watch {
                             Circle()
                                 .fill(Palette.amber)
-                                .frame(width: 10, height: 10)
-                                .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.4))
+                                .frame(width: 8, height: 8)
+                                .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
                                 .offset(x: -1, y: -1)
                         }
                     }
 
                     if let rec = record {
                         Image(systemName: rec.reaction.symbol)
-                            .font(.system(size: 11, weight: .bold))
+                            .font(.system(size: 9, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 20, height: 20)
+                            .frame(width: 16, height: 16)
                             .background(Circle().fill(rec.reaction.color))
-                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.5))
-                            .offset(x: 4, y: -3)
+                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
+                            .offset(x: 3, y: -2)
                     } else if item.isCommonAllergen {
                         Circle()
                             .fill(Palette.amber)
-                            .frame(width: 8, height: 8)
-                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
+                            .frame(width: 7, height: 7)
+                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.1))
                             .offset(x: 1, y: 1)
                     }
                 }
@@ -444,43 +868,55 @@ private struct FoodStampTile: View {
                 Text(item.name)
                     .font(.caption.weight(tasted ? .bold : .semibold))
                     .foregroundStyle(tasted ? .primary : Palette.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.75)
 
                 if let rec = record {
                     if watch {
-                        Text(times >= 2 ? L10n.t("留意 · ×\(times)", "Watch · ×\(times)") : L10n.t("留意反应", "Watch"))
-                            .font(.caption2.weight(.semibold))
+                        Text(times >= 2 ? L10n.t("留意·×\(times)", "Watch·×\(times)") : L10n.t("留意", "Watch"))
+                            .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     } else {
-                        Text(times >= 2 ? "\(rec.firstTastedDay.md) · ×\(times)" : rec.firstTastedDay.md)
-                            .font(.caption2)
+                        Text(times >= 2 ? "×\(times)" : rec.firstTastedDay.md)
+                            .font(.system(size: 10, weight: .medium, design: .rounded))
                             .foregroundStyle(Palette.secondaryText)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
                     }
-                } else {
-                    Text(item.isCommonAllergen ? L10n.t("致敏留意", "Allergen") : item.category.title)
-                        .font(.caption2)
-                        .foregroundStyle(item.isCommonAllergen ? (dark ? Palette.amber : Crayon.ink(Palette.amber)) : Palette.secondaryText.opacity(0.72))
+                } else if item.isCommonAllergen {
+                    Text(L10n.t("致敏", "Allergen"))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
                         .lineLimit(1)
                 }
             }
-            .padding(.horizontal, 6)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: 76, maxHeight: .infinity, alignment: .top)
             .background(
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .fill(tasted ? catColor.opacity(dark ? 0.14 : 0.08) : (dark ? Palette.lampCard : Palette.card))
+                    .fill(
+                        isSelected
+                            ? catColor.opacity(dark ? 0.22 : 0.14)
+                            : (tasted ? catColor.opacity(dark ? 0.12 : 0.08) : (dark ? Color.white.opacity(0.04) : Palette.background.opacity(0.72)))
+                    )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .strokeBorder(tasted ? catColor.opacity(dark ? 0.55 : 0.45) : Palette.outline.opacity(0.22), lineWidth: tasted ? 1.4 : 0.75)
+                    .strokeBorder(
+                        isSelected
+                            ? Palette.accent
+                            : (tasted ? catColor.opacity(dark ? 0.50 : 0.40) : Palette.outline.opacity(0.18)),
+                        lineWidth: isSelected ? 1.8 : (tasted ? 1.2 : 0.65)
+                    )
             )
+            .scaleEffect(isSelected && !reduce ? 1.03 : 1.0)
         }
         .buttonStyle(.toy)
+        .frame(maxHeight: .infinity)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityText(record: record, times: times, watch: watch))
     }
