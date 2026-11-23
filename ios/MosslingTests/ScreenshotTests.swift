@@ -1104,4 +1104,33 @@ final class ScreenshotTests: XCTestCase {
         shot("51_toybox_volume_loud_en", height: 852,
              tabs(mEn, ToyboxView(initialMode: .xylophone, previewVolume: 0.78, previewShowVolumeGuard: true)))
     }
+
+    /// Round 1 Picture-Book Art Renaissance: Home Diorama Stage, PlayView Living Stage & Mat Mode,
+    /// Mochi × Otto Illustrated Passing the Lantern Card + 3× Poster, 3-Land Panoramic Journey, Storybook Cover, and Capsules Desk.
+    func test52PictureBookRenaissance() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        shot("52_home_renaissance_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+
+        let playA11 = m.content.play("A11")!
+        let playA19 = m.content.play("A19")!
+        shot("52_play_storybook_zh", height: 1260, tabs(m, PlayView(play: playA11, month: 6)))
+        shot("52_play_matside_zh", height: 852,
+             MatSideCoPlayView(play: playA19, month: 10, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        let handoverNow = Day.cal.date(from: DateComponents(year: today.y, month: today.m, day: today.d, hour: 20, minute: 15)) ?? today.date
+        shot("52_handover_lantern_zh", height: 852,
+             HandoverSheet(day: today, previewNow: handoverNow, initialNote: "刚拍完嗝，准备小睡")
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        let snap = HandoverSnapshot.build(app: m, journal: journal, day: today, now: handoverNow, extraNote: "刚拍完嗝，准备小睡")
+        shot("52_handover_poster_3x_zh", height: 670, width: 393, HandoverPoster(snapshot: snap))
+
+        shot("52_journey_lands_zh", height: 1460, tabs(m, JourneyHubView()))
+        shot("52_storybook_cover_zh", height: 852,
+             StorybookView(initialPage: 0).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        shot("52_capsules_desk_zh", height: 852,
+             tabs(m, TimeCapsuleListView(store: CapsuleStore(preview: []))))
+    }
 }

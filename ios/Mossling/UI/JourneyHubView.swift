@@ -359,18 +359,65 @@ struct JourneyHubView: View {
     // MARK: - Section 3: Vertical Winding Bead Chain
 
     private func landSection(land: Land, months: [Int]) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                IconTile(symbol: land.symbol, color: land.crayon, size: 24, round: true)
-                Text(land.name)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Text(land.years)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-                Spacer(minLength: 0)
+        let plate = StoryPlate.forLand(land)
+        let hasPlate = StoryPlateLoader.image(for: plate) != nil
+
+        return VStack(alignment: .leading, spacing: 10) {
+            if hasPlate {
+                ZStack(alignment: .bottomLeading) {
+                    LivingStoryPlateView(plate: plate, dark: dark, alive: false)
+                        .frame(height: 144)
+                        .frame(maxWidth: .infinity)
+
+                    LinearGradient(
+                        colors: [.clear, Color.black.opacity(0.62)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 76)
+                    .allowsHitTesting(false)
+
+                    HStack(alignment: .bottom, spacing: 8) {
+                        HStack(spacing: 8) {
+                            IconTile(symbol: land.symbol, color: land.crayon, size: 26, round: true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(land.name)
+                                    .font(.headline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                Text(land.years)
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.white.opacity(0.86))
+                            }
+                        }
+                        Spacer(minLength: 4)
+                        Text(L10n.t("\(months.count) 站", "\(months.count) stations"))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Color.black.opacity(0.38)))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 10)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                        .strokeBorder(land.crayon.opacity(dark ? 0.45 : 0.30), lineWidth: 1)
+                )
+            } else {
+                HStack(spacing: 8) {
+                    IconTile(symbol: land.symbol, color: land.crayon, size: 24, round: true)
+                    Text(land.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                    Text(land.years)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                    Spacer(minLength: 0)
+                }
+                .padding(.horizontal, 4)
             }
-            .padding(.horizontal, 4)
 
             VStack(spacing: 0) {
                 ForEach(Array(months.enumerated()), id: \.element) { idx, m in

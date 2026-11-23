@@ -760,15 +760,18 @@ struct TodayPlayCard: View {
 
     @ViewBuilder private func leadArt(_ p: Play, big: Bool) -> some View {
         let key = Palette.areaKey(of: p)
+        let plate = StoryPlate.forTemplate(ActivityMotionIndex.spec(for: p).template)
         Group {
-            if let art = ArtIndex.shared.steps(p.code).first {
+            if StoryPlateLoader.image(for: plate) != nil {
+                LivingStoryPlateView(plate: plate, dark: night, alive: true)
+            } else if let art = ArtIndex.shared.steps(p.code).first {
                 ArtFill(name: art)
             } else {
                 TrayTile(code: p.code, color: Palette.area(key), flat: flat)
             }
         }
         .frame(maxWidth: .infinity)
-        .frame(height: big ? 210 : 184)
+        .frame(height: big ? 216 : 194)
         .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .zoomSource(route(p))
     }

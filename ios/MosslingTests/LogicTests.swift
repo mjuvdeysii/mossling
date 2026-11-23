@@ -1234,4 +1234,21 @@ final class LogicTests: XCTestCase {
         XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.50, context: .lamp, hasSeenToyboxGuide: false, dismissedThisSession: false))
         XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.74, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
     }
+
+    func testCoreStoryPlatesBundleAndResolveAllSurfaces() {
+        XCTAssertEqual(StoryPlate.corePlates.count, 9)
+        for plate in StoryPlate.corePlates {
+            XCTAssertNotNil(StoryPlateLoader.image(named: plate.rawValue), "Missing core stop-motion plate in bundle: \(plate.rawValue)")
+        }
+        XCTAssertEqual(StoryPlate.allCases.count, 14)
+        for plate in StoryPlate.allCases {
+            XCTAssertNotNil(StoryPlateLoader.image(for: plate), "Unresolved plate or fallback: \(plate.rawValue)")
+        }
+        for template in ActivityMotionTemplate.allCases {
+            XCTAssertNotNil(StoryPlateLoader.image(for: StoryPlate.forTemplate(template)), "Missing plate for \(template)")
+        }
+        for land in Land.allCases {
+            XCTAssertNotNil(StoryPlateLoader.image(for: StoryPlate.forLand(land)), "Missing land plate for \(land)")
+        }
+    }
 }

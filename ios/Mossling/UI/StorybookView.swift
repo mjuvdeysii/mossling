@@ -314,7 +314,13 @@ private struct StorybookCoverSpread: View {
                         // Taped heirloom cover frame
                         ZStack(alignment: .bottomTrailing) {
                             Group {
-                                if let f = ArtIndex.shared.cover(mo) {
+                                if let plate = StoryPlateLoader.image(for: .storybookCover) {
+                                    Image(uiImage: plate)
+                                        .resizable()
+                                        .aspectRatio(contentMode: .fill)
+                                        .aspectRatio(4 / 3, contentMode: .fit)
+                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                                } else if let f = ArtIndex.shared.cover(mo) {
                                     ArtView(name: f, label: L10n.t("封面插画", "Cover illustration"), radius: 12)
                                 } else {
                                     ZStack { StagePlate(); GrowingChild(month: mo).padding(16) }
@@ -333,8 +339,10 @@ private struct StorybookCoverSpread: View {
                                     .offset(y: -7)
                             }
 
-                            Duo(primary: app.companion, size: 54, mood: .happy, poke: true, night: dark)
-                                .offset(x: 6, y: 12)
+                            if StoryPlateLoader.image(for: .storybookCover) == nil {
+                                Duo(primary: app.companion, size: 54, mood: .happy, poke: true, night: dark)
+                                    .offset(x: 6, y: 12)
+                            }
                         }
                         .padding(.horizontal, 12)
 

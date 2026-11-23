@@ -113,8 +113,23 @@ struct TimeCapsuleListView: View {
 
     private func heroCard(dark: Bool, readyCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 12) {
+            if StoryPlateLoader.image(for: .capsuleDesk) != nil {
+                LivingStoryPlateView(
+                    plate: .capsuleDesk,
+                    dark: dark,
+                    alive: true,
+                    accessibilityLabel: L10n.t("暖灯下封存火漆信笺的书桌插画", "Keepsake writing desk illuminated by Otto's warm lantern")
+                )
+                .frame(height: 156)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.28), lineWidth: 0.9)
+                )
+            }
+
             HStack(spacing: 14) {
-                WaxSealBadge(seal: .gold, size: 48)
+                WaxSealBadge(seal: .gold, size: 46)
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.t("写给未来的宝宝", "Letters for Future Days"))
                         .font(.headline)

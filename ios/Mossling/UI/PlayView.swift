@@ -318,7 +318,7 @@ private struct PlayLivingHeroCard: View {
                         HStack(spacing: 4) {
                             Image(systemName: showGuideArt ? "sparkles" : "photo")
                                 .font(.caption2.weight(.bold))
-                            Text(showGuideArt ? L10n.t("活体演示", "Live Motion") : L10n.t("步骤图示", "Guide Art"))
+                            Text(showGuideArt ? L10n.t("绘本场景", "Diorama") : L10n.t("步骤图示", "Guide Art"))
                                 .font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(dark ? Palette.lampInk : Palette.text)
@@ -577,7 +577,7 @@ struct MatSideCoPlayView: View {
                                     HStack(spacing: 4) {
                                         Image(systemName: showGuideArt ? "sparkles" : "photo")
                                             .font(.caption2.weight(.bold))
-                                        Text(showGuideArt ? L10n.t("活体演示", "Live Motion") : L10n.t("步骤图示", "Guide Art"))
+                                        Text(showGuideArt ? L10n.t("绘本场景", "Diorama") : L10n.t("步骤图示", "Guide Art"))
                                             .font(.caption2.weight(.bold))
                                     }
                                     .foregroundStyle(dark ? Palette.lampInk : Palette.text)
