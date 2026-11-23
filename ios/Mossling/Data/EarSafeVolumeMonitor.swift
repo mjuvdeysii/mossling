@@ -204,114 +204,98 @@ struct EarSafeVolumeCard: View {
         let v = CGFloat(max(0, min(1, monitor.volume)))
         let tintInk = dark ? tone.mix(with: .white, by: 0.28) : Crayon.ink(tone)
 
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .center, spacing: 8) {
                 ZStack {
                     Circle()
                         .fill(tone.opacity(dark ? 0.24 : 0.16))
-                        .frame(width: 32, height: 32)
+                        .frame(width: 26, height: 26)
                     Image(systemName: monitor.level == .muted ? "speaker.slash.fill" : (monitor.level == .loud ? "ear.trianglebadge.exclamationmark" : "ear.and.waveform"))
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.system(size: 12, weight: .bold))
                         .foregroundStyle(tintInk)
                 }
 
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(headline)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.84)
-                    Text(bodyCopy)
-                        .font(.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
+                Text(headline)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.76)
 
-                Spacer(minLength: 0)
-            }
+                Spacer(minLength: 4)
 
-            // Live 3-zone hardware volume bar: keeps the 20%–55% baby-safe green zone visibly framed even when loud!
-            VStack(spacing: 4) {
-                GeometryReader { g in
-                    let w = g.size.width
-                    let markerX = max(7, min(w - 7, w * v))
-                    let safeColor = dark ? Crayon.leaf.mix(with: .white, by: 0.2) : Crayon.ink(Crayon.leaf)
-                    ZStack(alignment: .leading) {
-                        // Full background track
-                        Capsule()
-                            .fill(dark ? Color.white.opacity(0.08) : Palette.fill)
-                            .frame(height: 10)
-
-                        // Soft warm caution tail (62% - 100%)
-                        Capsule()
-                            .fill(Crayon.tangerine.opacity(dark ? 0.26 : 0.20))
-                            .frame(width: w * 0.38, height: 10)
-                            .offset(x: w * 0.62)
-
-                        // Active live volume fill
-                        Capsule()
-                            .fill(tone.opacity(monitor.level == .loud ? 0.72 : 0.90))
-                            .frame(width: max(10, w * v), height: 10)
-
-                        // Crisp framed green baby-safe zone (20% - 55%) layered over track so target zone is always unmistakable
-                        RoundedRectangle(cornerRadius: 5, style: .continuous)
-                            .fill(Crayon.leaf.opacity(dark ? 0.28 : 0.22))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                                    .strokeBorder(safeColor.opacity(0.85), lineWidth: 1.5)
-                            )
-                            .frame(width: w * 0.35, height: 12)
-                            .offset(x: w * 0.20)
-
-                        // Live hardware volume bead indicator
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 15, height: 15)
-                            .overlay(Circle().strokeBorder(tone, lineWidth: 2.5))
-                            .shadow(color: .black.opacity(0.18), radius: 2, y: 1)
-                            .position(x: markerX, y: 5)
-                    }
-                    .animation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.8), value: v)
-                }
-                .frame(height: 15)
-
-                HStack {
-                    Text(L10n.t("0% 静音", "0%"))
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Palette.secondaryText)
-                    Spacer()
-                    Text(L10n.t("绿色护耳带 20%–55%", "Baby-Safe 20%–55%"))
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(dark ? Crayon.leaf.mix(with: .white, by: 0.25) : Crayon.ink(Crayon.leaf))
-                    Spacer()
-                    Text("\(pct)%")
-                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                        .foregroundStyle(tintInk)
-                }
-            }
-
-            HStack {
-                Spacer(minLength: 0)
                 Button {
                     TactileEngine.shared.beadClick()
                     onAcknowledge()
                 } label: {
                     Label(
                         monitor.level == .loud
-                            ? L10n.t("已调轻 · 开始玩", "Volume Lowered · Play")
-                            : L10n.t("音量合适 · 开始玩", "Sounds Good · Play"),
+                            ? L10n.t("已调轻", "Lowered")
+                            : L10n.t("合适 · 开玩", "Safe · Play"),
                         systemImage: "checkmark"
                     )
-                    .font(.caption.weight(.bold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
                     .background(Capsule().fill(monitor.level == .loud ? Crayon.tangerine : Palette.accentFill))
+                    .fixedSize(horizontal: true, vertical: false)
                 }
                 .buttonStyle(.toy)
             }
+
+            // Compact live 3-zone hardware volume bar (~8pt height) keeping 20%–55% baby-safe band crisp
+            VStack(spacing: 3) {
+                GeometryReader { g in
+                    let w = g.size.width
+                    let markerX = max(6, min(w - 6, w * v))
+                    let safeColor = dark ? Crayon.leaf.mix(with: .white, by: 0.2) : Crayon.ink(Crayon.leaf)
+                    ZStack(alignment: .leading) {
+                        Capsule()
+                            .fill(dark ? Color.white.opacity(0.08) : Palette.fill)
+                            .frame(height: 8)
+
+                        Capsule()
+                            .fill(Crayon.tangerine.opacity(dark ? 0.26 : 0.20))
+                            .frame(width: w * 0.38, height: 8)
+                            .offset(x: w * 0.62)
+
+                        Capsule()
+                            .fill(tone.opacity(monitor.level == .loud ? 0.72 : 0.90))
+                            .frame(width: max(8, w * v), height: 8)
+
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Crayon.leaf.opacity(dark ? 0.28 : 0.22))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .strokeBorder(safeColor.opacity(0.85), lineWidth: 1.4)
+                            )
+                            .frame(width: w * 0.35, height: 10)
+                            .offset(x: w * 0.20)
+
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 13, height: 13)
+                            .overlay(Circle().strokeBorder(tone, lineWidth: 2.2))
+                            .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
+                            .position(x: markerX, y: 4)
+                    }
+                    .animation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.8), value: v)
+                }
+                .frame(height: 13)
+
+                HStack {
+                    Text(L10n.t("绿色护耳带 20%–55%", "Baby-Safe 20%–55%"))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(dark ? Crayon.leaf.mix(with: .white, by: 0.25) : Crayon.ink(Crayon.leaf))
+                    Spacer()
+                    Text(L10n.t("侧键微调 · \(pct)%", "Side keys · \(pct)%"))
+                        .font(Typeface.numerals(10, relativeTo: .caption2, weight: .semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                }
+            }
         }
-        .padding(11)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 8)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(dark ? Palette.lampCard : Palette.card)

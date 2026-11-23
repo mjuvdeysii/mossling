@@ -37,6 +37,7 @@ struct GrowthBookView: View {
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle(L10n.t("成长册", "Growth Book"))
         .navigationSubtitle(subtitle)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if !pages.isEmpty {

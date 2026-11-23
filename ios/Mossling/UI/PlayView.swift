@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// One play, presented around a tactile Montessori living stage rather than a task checklist:
-/// - **Living Play Stage** at the top: interactive `ActivityMotionStage` (3D/2D `Moss` & `Otto` + custom wood/linen props)
-///   switchable with each step's original illustration (`ArtView`) so all 146 studio drawings remain one tap away.
+/// One play, presented around a tactile Montessori kinetic picture-book stage rather than a task checklist:
+/// - **Kinetic Step Diagram Stage** at the top: every step displays its own real die-cut/cut-paper illustration
+///   (`ArtIndex.steps`) layered with step-coupled Scandinavian crayon kinetic vectors & page-turn transitions.
 /// - **Mat-Side Co-Play Focus Mode** (`MatSideCoPlayView`): 1-tap full-screen distraction-free card designed to rest
 ///   beside the baby's play mat with swipe gestures, thumb-sized controls, screen-awake lock, and instant safety notes.
 /// - **Authoritative Prep & Safety Drawers**: `prepare`, `safety`, `observe`, and `pause` remain intact and clear.
@@ -23,8 +23,6 @@ struct PlayView: View {
     @State private var before = false
     /// What to watch for and when to stop is safety: open from the start, not folded away.
     @State private var during = true
-    /// Toggles between the new interactive Montessori motion stage and the original step illustration (`ArtView`).
-    @State private var showGuideArt = false
     @State private var matMode = false
     /// The count when the page was opened: a count above it means this visit already recorded a time (by 记一次,
     /// the menu, or the last step) — derived from the records, not kept beside them.
@@ -43,16 +41,14 @@ struct PlayView: View {
                             withAnimation(.easeOut(duration: 0.2)) { scrolled = !v }
                         }
 
-                    // 1. Unified Living Play Stage or Completion Celebration
+                    // 1. Unified Kinetic Picture-Book Stage or Completion Celebration
                     if open < play.steps.count {
                         PlayLivingHeroCard(
                             play: play,
                             stepIndex: open,
                             stepText: play.steps[open],
-                            artName: open < art.count ? art[open] : nil,
                             companion: app.companion,
                             dark: dark,
-                            showGuideArt: $showGuideArt,
                             onPrev: open > 0 ? { go(open - 1, proxy) } : nil,
                             onNext: { go(open + 1, proxy) }
                         )
@@ -165,6 +161,7 @@ struct PlayView: View {
         .onChange(of: j.plays(play.code).count) { old, new in countChanged(old, new) }
         .navigationTitle(play.name)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
                 Text(play.name)
@@ -273,10 +270,8 @@ private struct PlayLivingHeroCard: View {
     let play: Play
     let stepIndex: Int
     let stepText: String
-    let artName: String?
     let companion: Kind
     let dark: Bool
-    @Binding var showGuideArt: Bool
     let onPrev: (() -> Void)?
     let onNext: () -> Void
 
@@ -285,52 +280,32 @@ private struct PlayLivingHeroCard: View {
     var body: some View {
         let last = stepIndex == play.steps.count - 1
         let areaKey = Palette.areaKey(of: play)
-        let areaColor = Palette.area(areaKey)
 
         VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topTrailing) {
-                if showGuideArt, let artName {
-                    ArtView(name: artName, label: L10n.t("第 \(stepIndex + 1) 步的图示", "Illustration for step \(stepIndex + 1)"), radius: 0)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 210)
-                        .clipped()
-                } else {
-                    ActivityMotionStage(
-                        play: play,
-                        stepIndex: stepIndex,
-                        stepCount: play.steps.count,
-                        companion: companion,
-                        compact: false,
-                        dark: dark
-                    )
-                    .padding(.horizontal, 12)
-                    .padding(.top, 12)
-                }
-
-                // Visual switcher pill when this step also has an illustration in art/
-                if artName != nil {
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(reduce ? nil : .snappy) {
-                            showGuideArt.toggle()
+            ActivityMotionStage(
+                play: play,
+                stepIndex: stepIndex,
+                stepCount: play.steps.count,
+                stepText: stepText,
+                companion: companion,
+                compact: false,
+                dark: dark
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 12)
+            .gesture(
+                DragGesture(minimumDistance: 42)
+                    .onEnded { value in
+                        guard abs(value.translation.width) > abs(value.translation.height) * 1.25 else { return }
+                        if value.translation.width < -52 {
+                            TactileEngine.shared.pageTurn()
+                            onNext()
+                        } else if value.translation.width > 52, let onPrev {
+                            TactileEngine.shared.pageTurn()
+                            onPrev()
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: showGuideArt ? "sparkles" : "photo")
-                                .font(.caption2.weight(.bold))
-                            Text(showGuideArt ? L10n.t("绘本场景", "Diorama") : L10n.t("步骤图示", "Guide Art"))
-                                .font(.caption2.weight(.bold))
-                        }
-                        .foregroundStyle(dark ? Palette.lampInk : Palette.text)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.92)))
-                        .overlay(Capsule().strokeBorder(areaColor.opacity(0.35), lineWidth: 0.8))
                     }
-                    .buttonStyle(.plain)
-                    .padding(showGuideArt ? 10 : 18)
-                }
-            }
+            )
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline, spacing: 11) {
@@ -353,10 +328,12 @@ private struct PlayLivingHeroCard: View {
                                 .font(.subheadline.weight(.semibold))
                         }
                         .buttonStyle(.vinyl(Crayon.caramel))
-                    } else if !showGuideArt {
-                        Text(L10n.t("轻点上方画面互动", "Tap stage to play"))
+                    } else {
+                        Text(L10n.t("轻点上方插画重播 · 左右扫翻步", "Tap diagram to replay · Swipe to step"))
                             .font(.caption.weight(.medium))
                             .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                     }
 
                     Spacer(minLength: 4)
@@ -472,7 +449,6 @@ struct MatSideCoPlayView: View {
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
 
-    @State private var showGuideArt = false
     @State private var showSafetySheet = false
 
     private var hasGuidance: Bool {
@@ -483,7 +459,6 @@ struct MatSideCoPlayView: View {
         let dark = lamp || scheme == .dark
         let areaKey = Palette.areaKey(of: play)
         let areaColor = Palette.area(areaKey)
-        let art = ArtIndex.shared.steps(play.code)
         let total = max(1, play.steps.count)
         let finished = currentStep >= play.steps.count
 
@@ -549,46 +524,15 @@ struct MatSideCoPlayView: View {
                         )
                         .padding(.top, 12)
                     } else {
-                        let artName = currentStep < art.count ? art[currentStep] : nil
-                        ZStack(alignment: .topTrailing) {
-                            if showGuideArt, let artName {
-                                ArtView(name: artName, label: L10n.t("第 \(currentStep + 1) 步的图示", "Illustration for step \(currentStep + 1)"), radius: Radius.card)
-                                    .frame(maxWidth: .infinity)
-                                    .frame(height: 230)
-                                    .clipped()
-                            } else {
-                                ActivityMotionStage(
-                                    play: play,
-                                    stepIndex: currentStep,
-                                    stepCount: play.steps.count,
-                                    companion: companion,
-                                    compact: false,
-                                    dark: dark
-                                )
-                            }
-
-                            if artName != nil {
-                                Button {
-                                    TactileEngine.shared.beadClick()
-                                    withAnimation(reduce ? nil : .snappy) {
-                                        showGuideArt.toggle()
-                                    }
-                                } label: {
-                                    HStack(spacing: 4) {
-                                        Image(systemName: showGuideArt ? "sparkles" : "photo")
-                                            .font(.caption2.weight(.bold))
-                                        Text(showGuideArt ? L10n.t("绘本场景", "Diorama") : L10n.t("步骤图示", "Guide Art"))
-                                            .font(.caption2.weight(.bold))
-                                    }
-                                    .foregroundStyle(dark ? Palette.lampInk : Palette.text)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
-                                    .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.92)))
-                                }
-                                .buttonStyle(.plain)
-                                .padding(10)
-                            }
-                        }
+                        ActivityMotionStage(
+                            play: play,
+                            stepIndex: currentStep,
+                            stepCount: play.steps.count,
+                            stepText: play.steps[currentStep],
+                            companion: companion,
+                            compact: false,
+                            dark: dark
+                        )
 
                         VStack(alignment: .leading, spacing: 12) {
                             HStack(spacing: 8) {

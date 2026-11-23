@@ -760,21 +760,56 @@ struct TodayPlayCard: View {
 
     @ViewBuilder private func leadArt(_ p: Play, big: Bool) -> some View {
         let key = Palette.areaKey(of: p)
-        let plate = StoryPlate.forTemplate(ActivityMotionIndex.spec(for: p).template)
-        Group {
-            if flat, let art = ArtIndex.shared.steps(p.code).first {
-                ArtFill(name: art)
-            } else if StoryPlateLoader.image(for: plate) != nil {
-                LivingStoryPlateView(plate: plate, dark: night, alive: true, companion: app.companion)
-            } else if let art = ArtIndex.shared.steps(p.code).first {
-                ArtFill(name: art)
+        let action = StepKineticAction.infer(
+            stepText: p.steps.first ?? ActivityMotionIndex.spec(for: p).cue,
+            stepIndex: 0,
+            stepCount: p.steps.count,
+            template: ActivityMotionIndex.spec(for: p).template
+        )
+        let firstStepArt = ArtIndex.shared.steps(p.code).first
+        let shownName = firstStepArt.map { ArtIndex.variant($0, girl: app.drawsGirl) }
+        let readyImg = shownName.flatMap { name in
+            Perf.noArt ? nil : (ArtCache.shared.cached(name, maxPixel: 800) ?? ArtCache.shared.image(name, maxPixel: 800))
+        }
+
+        ZStack(alignment: .bottomLeading) {
+            Color(hex: night ? 0x161E3D : 0xFAF4E8)
+
+            if let readyImg {
+                Image(uiImage: readyImg)
+                    .resizable()
+                    .scaledToFit()
+            } else if let art = firstStepArt {
+                ArtFill(name: art, label: p.name)
             } else {
                 TrayTile(code: p.code, color: Palette.area(key), flat: flat)
             }
+
+            if night {
+                Color(hex: 0x0A1026).opacity(0.22)
+            }
+
+            HStack(spacing: 5) {
+                Image(systemName: action.symbol)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.areaInk(key))
+                Text(action.label)
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(night ? Palette.lampInk : Palette.text)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill((night ? Palette.lampCard : .white).opacity(0.90)))
+            .overlay(Capsule().strokeBorder(Palette.area(key).opacity(0.32), lineWidth: 0.75))
+            .padding(10)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: big ? 216 : 194)
+        .aspectRatio(firstStepArt.map { ArtIndex.shared.ratio($0) } ?? (4.0 / 3.0), contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                .strokeBorder(Palette.area(key).opacity(night ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+        )
         .zoomSource(route(p))
     }
 

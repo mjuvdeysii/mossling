@@ -1235,21 +1235,40 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.74, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
     }
 
-    func testCoreStoryPlatesBundleAndResolveAllSurfaces() {
-        XCTAssertEqual(StoryPlate.corePlates.count, 9)
-        for plate in StoryPlate.corePlates {
-            XCTAssertNotNil(StoryPlateLoader.image(named: plate.rawValue), "Missing core stop-motion plate in bundle: \(plate.rawValue)")
+    @MainActor func testAll46PlaysResolveStepIllustrationsAndKineticActions() throws {
+        let content = try Content.load()
+        XCTAssertEqual(content.activities.count, 46)
+
+        let originalStyle = ArtStyle.current
+        defer { ArtStyle.current = originalStyle }
+
+        for play in content.activities {
+            let steps = ArtIndex.shared.steps(play.code)
+            XCTAssertFalse(steps.isEmpty, "Missing step diagram array for \(play.code)")
+            let spec = ActivityMotionIndex.spec(for: play)
+
+            for (idx, stepName) in steps.enumerated() {
+                ArtStyle.current = .vinyl
+                XCTAssertNotNil(ArtCache.shared.image(stepName, maxPixel: 480), "Missing 3D step image \(stepName) for \(play.code)[\(idx)]")
+                ArtStyle.current = .flat
+                XCTAssertNotNil(ArtCache.shared.image(stepName, maxPixel: 480), "Missing 2D step image for \(stepName) (\(play.code)[\(idx)])")
+
+                let text = idx < play.steps.count ? play.steps[idx] : spec.cue
+                let action = StepKineticAction.infer(stepText: text, stepIndex: idx, stepCount: play.steps.count, template: spec.template)
+                XCTAssertFalse(action.label.isEmpty)
+                XCTAssertFalse(action.symbol.isEmpty)
+            }
         }
-        XCTAssertEqual(StoryPlate.allCases.count, 14)
-        for plate in StoryPlate.allCases {
-            XCTAssertNotNil(StoryPlateLoader.image(for: plate), "Unresolved plate or fallback: \(plate.rawValue)")
-        }
-        for template in ActivityMotionTemplate.allCases {
-            XCTAssertNotNil(StoryPlateLoader.image(for: StoryPlate.forTemplate(template)), "Missing plate for \(template)")
-        }
-        for land in Land.allCases {
-            XCTAssertNotNil(StoryPlateLoader.image(for: StoryPlate.forLand(land)), "Missing land plate for \(land)")
-        }
+
+        // Bilingual kinetic cue inference checks
+        XCTAssertEqual(StepKineticAction.infer(stepText: "停下来等一等宝宝的回应", stepIndex: 1, stepCount: 3, template: .soundWave), .pauseWatch)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "Wait and watch for a response", stepIndex: 1, stepCount: 3, template: .soundWave), .pauseWatch)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "左右慢慢移动让眼睛追视", stepIndex: 0, stepCount: 3, template: .graspPass), .sideSweep)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "Sweep side to side slowly", stepIndex: 0, stepCount: 3, template: .graspPass), .sideSweep)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "轻轻摇响铃铛", stepIndex: 0, stepCount: 3, template: .soundWave), .soundRipple)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "把积木往上叠高", stepIndex: 1, stepCount: 3, template: .stackBuild), .liftStack)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "把环轻轻递到手中", stepIndex: 0, stepCount: 3, template: .graspPass), .offerArc)
+        XCTAssertEqual(StepKineticAction.infer(stepText: "抱着宝宝温柔对笑", stepIndex: 0, stepCount: 3, template: .gentleHold), .gentleSway)
     }
 
     func testActivityMotionStageStepProgressAndPropSymbols() throws {

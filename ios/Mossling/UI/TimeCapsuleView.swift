@@ -7,6 +7,7 @@ struct TimeCapsuleListView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var store: CapsuleStore
     @State private var composing = false
     @State private var composeSeedTitle = ""
@@ -81,6 +82,7 @@ struct TimeCapsuleListView: View {
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle(L10n.t("时光胶囊信笺", "Time Capsules"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {
@@ -114,20 +116,39 @@ struct TimeCapsuleListView: View {
 
     private func heroCard(dark: Bool, readyCount: Int) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            if StoryPlateLoader.image(for: .capsuleDesk) != nil {
-                LivingStoryPlateView(
-                    plate: .capsuleDesk,
-                    dark: dark,
-                    alive: true,
-                    accessibilityLabel: L10n.t("暖灯下封存火漆信笺的书桌插画", "Keepsake writing desk illuminated by Otto's warm lantern")
-                )
-                .frame(height: 156)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.28), lineWidth: 0.9)
-                )
+            // Kid's Picture-Book layered cotton envelope vignette with die-cut Otto holding the evening light
+            ZStack {
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(dark ? Color(hex: 0x151D3B) : Color(hex: 0xFDF7EA))
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.28), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
+
+                HStack(spacing: 12) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(dark ? Color(hex: 0x263159) : Color.white)
+                            .frame(width: 72, height: 52)
+                            .rotationEffect(.degrees(-6))
+                            .shadow(color: .black.opacity(0.10), radius: 3, y: 2)
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .fill(dark ? Color(hex: 0x1F294D) : Color(hex: 0xFAF1DF))
+                            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.bead.opacity(0.45), lineWidth: 1))
+                            .frame(width: 72, height: 52)
+                            .overlay { WaxSealBadge(seal: .gold, size: 22) }
+                            .rotationEffect(.degrees(3))
+                    }
+                    .padding(.leading, 8)
+
+                    Spacer(minLength: 4)
+
+                    Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.2), alive: !reduce, glow: dark)
+                        .frame(width: 58, height: 58)
+                        .padding(.trailing, 8)
+                }
+                .padding(.vertical, 12)
             }
+            .frame(height: 92)
+            .accessibilityHidden(true)
 
             HStack(spacing: 14) {
                 WaxSealBadge(seal: .gold, size: 46)
@@ -419,6 +440,7 @@ struct CapsuleComposeSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.requestReview) private var requestReview
 
     let store: CapsuleStore

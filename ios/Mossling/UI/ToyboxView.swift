@@ -74,6 +74,7 @@ struct ToyboxView: View {
     @State private var mode: ToyboxMode
     @State private var recordedSession = false
     @State private var volumeMonitor: EarSafeVolumeMonitor
+    @State private var manualShowVolumeCard = false
     @Namespace private var pillNS
 
     private let previewPlayAlong: Bool
@@ -101,12 +102,12 @@ struct ToyboxView: View {
     var body: some View {
         let dark = lamp || scheme == .dark
         VStack(spacing: 10) {
-            coPlayReminder(dark: dark)
             modePicker(dark: dark)
 
-            if mode.hasSound && volumeMonitor.shouldShow(for: .toybox) {
+            if mode.hasSound && (manualShowVolumeCard || volumeMonitor.shouldShow(for: .toybox)) {
                 EarSafeVolumeCard(monitor: volumeMonitor, dark: dark) {
                     withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.84)) {
+                        manualShowVolumeCard = false
                         volumeMonitor.acknowledge(context: .toybox)
                     }
                 }
@@ -143,11 +144,39 @@ struct ToyboxView: View {
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .padding(.horizontal, 16)
-        .padding(.top, 6)
+        .padding(.top, 8)
         .padding(.bottom, 14)
         .pageBackground(tone: mode.tone)
         .navigationTitle(L10n.t("感官玩具盒", "Sensory Toybox"))
+        .navigationSubtitle(L10n.t("亲子轻点共玩 · 不单独看屏", "Co-play together · No solo screen"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar(.hidden, for: .tabBar)
+        .toolbar {
+            if mode.hasSound {
+                ToolbarItem(placement: .topBarTrailing) {
+                    let levelColor: Color = volumeMonitor.level == .loud ? Crayon.tangerine : (volumeMonitor.level == .muted ? Crayon.sky : Crayon.leaf)
+                    let sym = volumeMonitor.level == .muted ? "speaker.slash.fill" : (volumeMonitor.level == .loud ? "ear.trianglebadge.exclamationmark" : "ear.and.waveform")
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.84)) {
+                            manualShowVolumeCard.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(levelColor)
+                                .frame(width: 6, height: 6)
+                            Image(systemName: sym)
+                                .font(.caption.weight(.bold))
+                            Text("\(volumeMonitor.volumePercent)%")
+                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                        }
+                        .foregroundStyle(Crayon.ink(levelColor))
+                    }
+                    .accessibilityLabel(L10n.t("音量护耳监测：\(volumeMonitor.volumePercent)%", "Ear-safe volume monitor: \(volumeMonitor.volumePercent)%"))
+                }
+            }
+        }
         .onAppear {
             volumeMonitor.start()
         }
@@ -161,30 +190,6 @@ struct ToyboxView: View {
         guard !recordedSession else { return }
         recordedSession = true
         ToyboxUsage.recordInteraction()
-    }
-
-    private func coPlayReminder(dark: Bool) -> some View {
-        HStack(spacing: 8) {
-            Image(systemName: "hand.raised.fingers.spread.fill")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Palette.accent)
-            Text(L10n.t("和宝宝一起轻点共玩，不单独给宝宝看屏幕", "Co-play together — never solo screen time"))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Palette.secondaryText)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 7)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .fill(dark ? Palette.lampCard.opacity(0.85) : Palette.card.opacity(0.85))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75)
-        )
     }
 
     private func modePicker(dark: Bool) -> some View {
@@ -337,10 +342,10 @@ private struct XylophoneStudio: View {
 
         VStack(spacing: 10) {
             // Top Companion Card + 6-Melody Menu + 3-Timbre Switcher
-            VStack(spacing: 8) {
+            VStack(spacing: 7) {
                 HStack(spacing: 10) {
                     Creature(kind: .moss, mood: mossMood, look: mossTargetLook, alive: true, poke: true, notice: noteNotice)
-                        .frame(width: 56, height: 56)
+                        .frame(width: 46, height: 46)
 
                     VStack(alignment: .leading, spacing: 2) {
                         if playAlong, let targetNote {
@@ -443,10 +448,10 @@ private struct XylophoneStudio: View {
                 }
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 9)
+            .padding(.vertical, 8)
             .printCard(radius: Radius.card)
 
-            // Wooden xylophone board with tap, glissando, ripple rings & Follow-the-Glow highlight
+            // Rosewood resonator marimba with satin beveled tone bars, brushed brass studs & ripple acoustics
             GeometryReader { geo in
                 let bars = orderedNotes
                 let verticalInset: CGFloat = 12
@@ -455,7 +460,17 @@ private struct XylophoneStudio: View {
                 let barH = max(28, (usableH - spacing * CGFloat(bars.count - 1)) / CGFloat(bars.count))
 
                 ZStack {
-                    // Beechwood resonator rails behind the rainbow bars
+                    // Subtle warm horizontal beechwood grain across acoustic soundboard
+                    VStack(spacing: geo.size.height / 9) {
+                        ForEach(0..<8, id: \.self) { idx in
+                            Rectangle()
+                                .fill((dark ? Color.white : Color(hex: 0x8F6B3E)).opacity(idx.isMultiple(of: 2) ? 0.045 : 0.02))
+                                .frame(height: 1)
+                        }
+                    }
+                    .padding(.horizontal, 14)
+
+                    // Twin sculpted walnut/beechwood resonator rails behind the rainbow tone bars
                     HStack(spacing: geo.size.width * 0.24) {
                         woodRail(dark: dark)
                         woodRail(dark: dark)
@@ -531,11 +546,20 @@ private struct XylophoneStudio: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .fill(dark ? Color(hex: 0x151D38) : Color(hex: 0xF5EFE3))
+                        .fill(
+                            LinearGradient(
+                                colors: dark
+                                    ? [Color(hex: 0x19203A), Color(hex: 0x11172D)]
+                                    : [Color(hex: 0xF5ECDC), Color(hex: 0xEAD9BE)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .shadow(color: .black.opacity(dark ? 0.30 : 0.10), radius: 8, y: 4)
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .strokeBorder(dark ? Palette.amber.opacity(0.18) : Color(hex: 0xC69A6B).opacity(0.32), lineWidth: 1)
+                        .strokeBorder(dark ? Palette.amber.opacity(0.22) : Color(hex: 0xB89060).opacity(0.45), lineWidth: 1.5)
                 )
                 .contentShape(Rectangle())
                 .gesture(
@@ -613,18 +637,22 @@ private struct XylophoneStudio: View {
     }
 
     private func woodRail(dark: Bool) -> some View {
-        RoundedRectangle(cornerRadius: 8, style: .continuous)
-            .fill(
-                LinearGradient(
-                    colors: dark
-                        ? [Color(hex: 0x3D3028), Color(hex: 0x2B211B)]
-                        : [Color(hex: 0xD8B489), Color(hex: 0xBC9062)],
-                    startPoint: .leading,
-                    endPoint: .trailing
+        ZStack {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: dark
+                            ? [Color(hex: 0x4A3A2E), Color(hex: 0x2B211B)]
+                            : [Color(hex: 0xE1BE92), Color(hex: 0xBC8F5E)],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
                 )
-            )
-            .frame(width: 14)
-            .shadow(color: .black.opacity(dark ? 0.35 : 0.12), radius: 3, y: 2)
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(.white.opacity(dark ? 0.14 : 0.45), lineWidth: 0.75)
+        }
+        .frame(width: 16)
+        .shadow(color: .black.opacity(dark ? 0.38 : 0.16), radius: 3, y: 2)
     }
 
     private func xylophoneBar(note: ToyboxNote, maxWidth: CGFloat, height: CGFloat, normalizedY: Double, isTarget: Bool) -> some View {
@@ -987,36 +1015,48 @@ private struct RainstickStudio: View {
 
             GeometryReader { geo in
                 let boardShape = RoundedRectangle(cornerRadius: 28, style: .continuous)
+                let innerShape = RoundedRectangle(cornerRadius: 20, style: .continuous)
                 ZStack {
-                    // Warm wooden Montessori tray frame
+                    // Turned & chamfered beechwood Montessori box outer frame
                     boardShape
                         .fill(
                             LinearGradient(
                                 colors: dark
-                                    ? [Color(hex: 0x262038), Color(hex: 0x161A31)]
-                                    : [Color(hex: 0xE7D5B8), Color(hex: 0xD3BA92)],
+                                    ? [Color(hex: 0x2E263D), Color(hex: 0x191D33)]
+                                    : [Color(hex: 0xEAD7B7), Color(hex: 0xCBAE81)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
-                        .shadow(color: .black.opacity(dark ? 0.38 : 0.14), radius: 10, y: 5)
+                        .overlay(
+                            boardShape
+                                .strokeBorder(
+                                    LinearGradient(
+                                        colors: [.white.opacity(dark ? 0.18 : 0.55), .black.opacity(0.16)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 1.5
+                                )
+                        )
+                        .shadow(color: .black.opacity(dark ? 0.40 : 0.16), radius: 12, y: 6)
 
-                    // Inner felt / satin-wood tray recessed well
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    // Inner felt & satin-wood shaker well with recessed bevel shadow
+                    innerShape
                         .fill(
                             LinearGradient(
                                 colors: dark
-                                    ? [Color(hex: 0x0F152D), Color(hex: 0x141C3A)]
-                                    : [Color(hex: 0xFAF5EA), Color(hex: 0xF1E7D5)],
+                                    ? [Color(hex: 0x0E142B), Color(hex: 0x151E3C)]
+                                    : [Color(hex: 0xFAF4E8), Color(hex: 0xEFE4D0)],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
                         )
-                        .padding(10)
+                        .padding(11)
                         .overlay(
-                            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                                .strokeBorder(dark ? Palette.amber.opacity(0.18) : Color(hex: 0xB89464).opacity(0.45), lineWidth: 1.5)
-                                .padding(10)
+                            innerShape
+                                .strokeBorder(dark ? Palette.amber.opacity(0.24) : Color(hex: 0xA88250).opacity(0.55), lineWidth: 1.5)
+                                .padding(11)
                         )
 
                     TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still)) { tl in
@@ -1027,14 +1067,14 @@ private struct RainstickStudio: View {
                             drawBoard(ctx: &ctx, size: size)
                         }
                     }
-                    .padding(14)
+                    .padding(15)
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { value in
                                 onInteract()
-                                let w = max(1, geo.size.width - 28)
-                                let h = max(1, geo.size.height - 28)
+                                let w = max(1, geo.size.width - 30)
+                                let h = max(1, geo.size.height - 30)
                                 sim.touchPoint = CGPoint(
                                     x: max(0, min(1, value.location.x / w)),
                                     y: max(0, min(1, value.location.y / h))
@@ -1044,6 +1084,27 @@ private struct RainstickStudio: View {
                                 sim.touchPoint = nil
                             }
                     )
+
+                    // Tempered acrylic cover sheen across shaker window
+                    innerShape
+                        .fill(
+                            LinearGradient(
+                                colors: [.white.opacity(dark ? 0.08 : 0.24), .clear, .white.opacity(dark ? 0.03 : 0.08)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .padding(11)
+                        .allowsHitTesting(false)
+
+                    // Four tiny brass cabinet corner dowels anchoring the glass top
+                    VStack {
+                        HStack { brassCornerStud; Spacer(); brassCornerStud }
+                        Spacer()
+                        HStack { brassCornerStud; Spacer(); brassCornerStud }
+                    }
+                    .padding(17)
+                    .allowsHitTesting(false)
 
                     // Subtle Otto tracking beads calmly from the bottom-right rim
                     VStack {
@@ -1098,6 +1159,20 @@ private struct RainstickStudio: View {
         .onDisappear {
             sim.stopMotion()
         }
+    }
+
+    private var brassCornerStud: some View {
+        Circle()
+            .fill(
+                RadialGradient(
+                    colors: [Palette.beadLight, Palette.bead, Color(hex: 0x7A570C)],
+                    center: UnitPoint(x: 0.35, y: 0.3),
+                    startRadius: 0,
+                    endRadius: 4
+                )
+            )
+            .frame(width: 7, height: 7)
+            .overlay(Circle().strokeBorder(.black.opacity(0.22), lineWidth: 0.5))
     }
 
     private func drawBoard(ctx: inout GraphicsContext, size: CGSize) {
@@ -1309,43 +1384,61 @@ private struct FireflyJarStudio: View {
             }
 
             GeometryReader { geo in
-                let jarShape = RoundedRectangle(cornerRadius: 34, style: .continuous)
+                let jarShape = RoundedRectangle(cornerRadius: 40, style: .continuous)
+                let neckW = min(192, geo.size.width * 0.54)
+                let capW = min(168, geo.size.width * 0.46)
                 VStack(spacing: 0) {
-                    // Warm brushed-brass lantern lid
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
+                    // Integrated apothecary lantern collar + brushed brass lid seated cleanly onto the glass shoulder
+                    VStack(spacing: -2) {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Color(hex: 0xE9CA88), Color(hex: 0xBC8C3F), Color(hex: 0x875D20)],
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .frame(width: capW, height: 15)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                        .strokeBorder(.white.opacity(0.38), lineWidth: 0.75)
+                                )
+                            Capsule()
+                                .fill(.white.opacity(0.32))
+                                .frame(width: capW * 0.76, height: 2)
+                                .offset(y: -3)
+                        }
+                        .zIndex(2)
+
+                        // Threaded brass & smoky-glass lantern neck uniting cap to jar body with zero gap
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
                             .fill(
                                 LinearGradient(
-                                    colors: [Color(hex: 0xE5C17B), Color(hex: 0xB8893D), Color(hex: 0x8F6526)],
+                                    colors: [Color(hex: 0x9C702F), Color(hex: 0x26355F)],
                                     startPoint: .top,
                                     endPoint: .bottom
                                 )
                             )
-                            .frame(width: min(148, geo.size.width * 0.44), height: 18)
+                            .frame(width: neckW, height: 11)
                             .overlay(
-                                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                                    .strokeBorder(.white.opacity(0.38), lineWidth: 0.75)
+                                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                                    .strokeBorder(.white.opacity(0.24), lineWidth: 1)
                             )
-                            .shadow(color: .black.opacity(0.28), radius: 4, y: 2)
-
-                        // Subtle horizontal lathe groove on brass cap
-                        Capsule()
-                            .fill(.white.opacity(0.28))
-                            .frame(width: min(124, geo.size.width * 0.36), height: 2)
-                            .offset(y: -3)
+                            .zIndex(1)
                     }
-                    .zIndex(2)
+                    .shadow(color: .black.opacity(0.32), radius: 5, y: 2)
                     .padding(.bottom, -5)
 
-                    // Twilight glass lantern jar
+                    // Twilight curved blown-glass lantern jar
                     ZStack {
                         jarShape
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color(hex: 0x0B132B),
+                                        Color(hex: 0x0A1228),
                                         Color(hex: 0x152246),
-                                        Color(hex: 0x101A36)
+                                        Color(hex: 0x0F1934)
                                     ],
                                     startPoint: .top,
                                     endPoint: .bottom
@@ -1353,13 +1446,13 @@ private struct FireflyJarStudio: View {
                             )
                             .shadow(color: Color(hex: 0x0A1024).opacity(0.45), radius: 14, y: 6)
 
-                        // Warm twilight horizon bloom along the glass base
+                        // Warm twilight horizon bloom along the jar glass base
                         jarShape
                             .fill(
                                 RadialGradient(
                                     colors: [
-                                        Palette.amber.opacity(0.22),
-                                        Color(hex: 0x4ECBA2).opacity(0.08),
+                                        Palette.amber.opacity(0.24),
+                                        Color(hex: 0x4ECBA2).opacity(0.10),
                                         .clear
                                     ],
                                     center: UnitPoint(x: 0.5, y: 0.88),
@@ -1384,7 +1477,7 @@ private struct FireflyJarStudio: View {
                                 .onChanged { value in
                                     onInteract()
                                     let w = max(1, geo.size.width)
-                                    let h = max(1, geo.size.height - 14)
+                                    let h = max(1, geo.size.height - 18)
                                     let nx = max(0.08, min(0.92, value.location.x / w))
                                     let ny = max(0.10, min(0.90, value.location.y / h))
                                     let pt = CGPoint(x: nx, y: ny)
@@ -1397,43 +1490,43 @@ private struct FireflyJarStudio: View {
                                 }
                         )
 
-                        // Curved blown-glass reflections on left and right rims
+                        // Curved blown-glass reflections on left, top shoulder & right rims
                         HStack {
                             Capsule()
                                 .fill(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.24), .white.opacity(0.03)],
+                                        colors: [.white.opacity(0.28), .white.opacity(0.03)],
                                         startPoint: .top,
                                         endPoint: .bottom
                                     )
                                 )
                                 .frame(width: 5)
-                                .padding(.vertical, 34)
+                                .padding(.vertical, 30)
                                 .padding(.leading, 14)
                             Spacer()
                             Capsule()
                                 .fill(
                                     LinearGradient(
-                                        colors: [.white.opacity(0.12), .clear],
+                                        colors: [.white.opacity(0.14), .clear],
                                         startPoint: .top,
                                         endPoint: .bottom
                                     )
                                 )
                                 .frame(width: 3)
-                                .padding(.vertical, 52)
+                                .padding(.vertical, 48)
                                 .padding(.trailing, 14)
                         }
                         .allowsHitTesting(false)
 
-                        // Subtle glass rim bevel
+                        // Double glass-wall refraction bevel
                         jarShape
                             .strokeBorder(
                                 LinearGradient(
-                                    colors: [.white.opacity(0.32), Palette.amber.opacity(0.22), .white.opacity(0.14)],
+                                    colors: [.white.opacity(0.36), Palette.amber.opacity(0.24), .white.opacity(0.16)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 ),
-                                lineWidth: 1.5
+                                lineWidth: 1.75
                             )
                             .allowsHitTesting(false)
 

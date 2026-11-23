@@ -47,6 +47,9 @@ final class ScreenshotTests: XCTestCase {
         try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
         try? img.pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios_\(name).png"))
         window.isHidden = true
+        host.view.removeFromSuperview()
+        window.rootViewController = nil
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
     }
 
     /// Whether any of a grid of sample points is not fully transparent.
@@ -1105,8 +1108,8 @@ final class ScreenshotTests: XCTestCase {
              tabs(mEn, ToyboxView(initialMode: .xylophone, previewVolume: 0.78, previewShowVolumeGuard: true)))
     }
 
-    /// Round 1 Picture-Book Art Renaissance: Home Diorama Stage, PlayView Living Stage & Mat Mode,
-    /// Mochi × Otto Illustrated Passing the Lantern Card + 3× Poster, 3-Land Panoramic Journey, Storybook Cover, and Capsules Desk.
+    /// Authentic Kid's Book Kinetic Art Overhaul: real per-step illustrations with animated crayon diagrams,
+    /// die-cut sticker Mochi × Otto handover scene, paper-cut Land Journey hills, Storybook cover, and Capsules Desk.
     func test52PictureBookRenaissance() {
         let m = model(); m.journal = true
         let today = m.today
@@ -1116,6 +1119,36 @@ final class ScreenshotTests: XCTestCase {
         let playA11 = m.content.play("A11")!
         let playA19 = m.content.play("A19")!
         shot("52_play_storybook_zh", height: 1260, tabs(m, PlayView(play: playA11, month: 6)))
+        shot(
+            "52_play_steps_kinetic_zh",
+            height: 980,
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    Text("A11 · Step-by-Step Real Kid-Book Diagrams + Kinetic Cues")
+                        .font(.headline.weight(.bold))
+                        .padding(.horizontal, 4)
+                    ForEach(0..<min(3, playA11.steps.count), id: \.self) { idx in
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("第 \(idx + 1) 步：\(playA11.steps[idx])")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.secondary)
+                            ActivityMotionStage(
+                                play: playA11,
+                                stepIndex: idx,
+                                stepCount: playA11.steps.count,
+                                stepText: playA11.steps[idx],
+                                companion: .moss,
+                                compact: true,
+                                dark: false
+                            )
+                        }
+                    }
+                }
+                .padding(16)
+            }
+            .background(Palette.paper)
+            .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)
+        )
         shot("52_play_matside_zh", height: 852,
              MatSideCoPlayView(play: playA19, month: 10, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
                  .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
@@ -1253,5 +1286,53 @@ final class ScreenshotTests: XCTestCase {
         shot("53_grow_parts_ax3_en", height: 1480,
              tabs(mEn, ScrollView { MonthParts(month: 4).padding(16) }.pageBackground())
                  .environment(\.dynamicTypeSize, .accessibility3))
+    }
+
+    /// Round 3 Creative Alchemy: Tactile Montessori Tabletop Renaissance — compact Ear-Safe Volume HUD,
+    /// zero header overlap, hidden pushed TabBar headroom, rosewood Marimba, chamfered hardwood & glass Rainstick,
+    /// apothecary collared Firefly Lantern Jar, and unified 3D sculpted Home studio instrument badges.
+    func test54CreativeAlchemyTabletopRenaissance() {
+        let m = model(); m.journal = true
+
+        // 1. Pushed Marimba + compact Ear-Safe Volume HUD inside TabView+NavigationStack (verifies `<` back clearance, hidden TabBar & compact HUD)
+        shot("54_toybox_marimba_compact_guard_zh", height: 852,
+             TabView(selection: .constant(0)) {
+                 Tab(value: 0) {
+                     NavigationStack(path: .constant(["toy"])) {
+                         Color.clear
+                             .navigationDestination(for: String.self) { _ in
+                                 ToyboxView(initialMode: .xylophone, previewVolume: 0.45, previewShowVolumeGuard: true)
+                             }
+                     }
+                 } label: { Label(L10n.t("本月", "Today"), systemImage: "leaf.fill") }
+             }
+             .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 2. Turned beechwood & tempered-glass Rainstick Studio
+        shot("54_toybox_rainstick_wood_zh", height: 852,
+             NavigationStack {
+                 ToyboxView(initialMode: .rainstick, previewVolume: 0.40)
+             }
+             .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 3. Integrated apothecary collar & curved blown-glass Firefly Jar (Heart constellation)
+        shot("54_toybox_firefly_jar_zh", dark: true, height: 852,
+             NavigationStack {
+                 ToyboxView(initialMode: .fireflies, initialFormation: .heart, previewVolume: 0.35)
+             }
+             .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 4. Unified 3D Sculpted Home Studio Dock + Play Hero
+        shot("54_home_studio_dock_3d_zh", height: 1460, tabs(m, TodayView(path: .constant(NavigationPath()))))
+
+        // 5. English Parity (Marimba + compact HUD)
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("54_toybox_marimba_en", height: 852,
+             NavigationStack {
+                 ToyboxView(initialMode: .xylophone, previewVolume: 0.45, previewShowVolumeGuard: true)
+             }
+             .environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
     }
 }

@@ -403,104 +403,131 @@ private struct HandoverCardContent: View {
     }
 }
 
-/// Synchronous picture-book diorama showing Otto (deep twilight-indigo one-eyed lantern pebble) extending his golden
-/// lantern glow toward Mochi (ivory rice-cake caregiver companion wearing a coral knit beanie) across the nursery table.
+/// Synchronous Kid's Picture-Book die-cut sticker diorama showing canonical white-outlined Otto extending a
+/// Scandinavian crayon-orange dashed passing arc & warm amber lantern beads toward white-outlined Mochi.
 struct PassingLanternArt: View {
     let dark: Bool
 
     var body: some View {
-        if let img = StoryPlateLoader.image(for: .handoverLantern) {
-            ZStack {
-                Image(uiImage: img)
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                if dark {
-                    Color(hex: 0x090E22).opacity(0.24)
-                }
+        let ottoImg = Perf.noArt ? nil : (ArtCache.shared.cached("ip_otto_idle.webp", maxPixel: 320) ?? ArtCache.shared.image("ip_otto_idle.webp", maxPixel: 320))
+        Canvas { ctx, size in
+            let w = size.width
+            let h = size.height
+            let groundY = h * 0.80
+
+            // Picture-book backdrop matching official 146 step illustrations
+            let skyTop = dark ? Color(hex: 0x131B38) : Color(hex: 0xFFFDF8)
+            let skyBot = dark ? Color(hex: 0x1A2347) : Color(hex: 0xFDF9EF)
+            ctx.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .linearGradient(Gradient(colors: [skyTop, skyBot]), startPoint: .zero, endPoint: CGPoint(x: 0, y: h))
+            )
+
+            // Centered soft butter-cream sun disc halo
+            let discR = min(w, h) * 0.44
+            let discCenter = CGPoint(x: w * 0.50, y: h * 0.50)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: discCenter.x - discR, y: discCenter.y - discR, width: discR * 2, height: discR * 2)),
+                with: .color(dark ? Palette.amber.opacity(0.08) : Color(hex: 0xFEF3D6))
+            )
+
+            // Soft Scandinavian butter-yellow ground band
+            ctx.fill(
+                Path(CGRect(x: 0, y: groundY, width: w, height: h - groundY)),
+                with: .color(dark ? Color(hex: 0x1F2A52) : Color(hex: 0xFCE5AC))
+            )
+
+            // Paper mat plate bridging Otto and Mochi
+            let matRect = CGRect(x: w * 0.16, y: groundY - 4, width: w * 0.68, height: 10)
+            ctx.fill(
+                RoundedRectangle(cornerRadius: 5, style: .continuous).path(in: matRect),
+                with: .color(dark ? Color(hex: 0x2F3B68) : Color(hex: 0xD2C6E3))
+            )
+
+            let ottoCenterX = w * 0.30
+            let mochiCenterX = w * 0.70
+
+            // Warm Scandinavian crayon-orange dashed handover arrow arcing Otto -> Mochi
+            let arcStart = CGPoint(x: ottoCenterX + w * 0.10, y: h * 0.28)
+            let arcEnd = CGPoint(x: mochiCenterX - w * 0.10, y: h * 0.34)
+            let arcCtrl = CGPoint(x: w * 0.50, y: h * 0.14)
+            var passArc = Path()
+            passArc.move(to: arcStart)
+            passArc.addQuadCurve(to: arcEnd, control: arcCtrl)
+            ctx.stroke(
+                passArc,
+                with: .color(dark ? Palette.amber : Crayon.tangerine),
+                style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round, dash: [8, 6])
+            )
+            // Arrowhead nib
+            var head = Path()
+            head.move(to: CGPoint(x: arcEnd.x - 10, y: arcEnd.y - 6))
+            head.addLine(to: arcEnd)
+            head.addLine(to: CGPoint(x: arcEnd.x - 9, y: arcEnd.y + 7))
+            ctx.stroke(head, with: .color(dark ? Palette.amber : Crayon.tangerine), style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round))
+
+            // Glowing golden lantern bead resting along the passing arc
+            let beadCenter = CGPoint(x: w * 0.49, y: h * 0.22)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: beadCenter.x - 16, y: beadCenter.y - 16, width: 32, height: 32)),
+                with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.45), .clear]), center: beadCenter, startRadius: 2, endRadius: 16)
+            )
+            ctx.fill(Path(ellipseIn: CGRect(x: beadCenter.x - 6, y: beadCenter.y - 6, width: 12, height: 12)), with: .color(Palette.bead))
+            ctx.stroke(Path(ellipseIn: CGRect(x: beadCenter.x - 6, y: beadCenter.y - 6, width: 12, height: 12)), with: .color(.white.opacity(0.85)), lineWidth: 1.5)
+
+            // Contact shadows under both companions
+            ctx.fill(Path(ellipseIn: CGRect(x: ottoCenterX - 28, y: groundY - 4, width: 56, height: 9)), with: .color(.black.opacity(dark ? 0.35 : 0.12)))
+            ctx.fill(Path(ellipseIn: CGRect(x: mochiCenterX - 26, y: groundY - 4, width: 52, height: 9)), with: .color(.black.opacity(dark ? 0.35 : 0.12)))
+
+            // Canonical Otto (using genuine white-outlined die-cut studio sprite when decoded)
+            let spriteH = h * 0.62
+            if let ottoImg {
+                let ratio = ottoImg.size.width / max(1, ottoImg.size.height)
+                let sw = spriteH * ratio
+                let rect = CGRect(x: ottoCenterX - sw * 0.5, y: groundY - spriteH + 4, width: sw, height: spriteH)
+                ctx.draw(Image(uiImage: ottoImg), in: rect)
+            } else {
+                let ottoRect = CGRect(x: ottoCenterX - 23, y: groundY - 56, width: 46, height: 56)
+                let ottoBody = RoundedRectangle(cornerRadius: 22, style: .continuous).path(in: ottoRect)
+                ctx.fill(ottoBody, with: .color(Palette.rod))
+                ctx.stroke(ottoBody, with: .color(.white), lineWidth: 3)
             }
-            .clipped()
-            .accessibilityLabel(L10n.t("Otto 把暖金灯珠的光递给戴珊瑚针织帽的 Mochi", "Otto gently passing warm lantern light toward Mochi in a coral knit beanie"))
-        } else {
-            Canvas { ctx, size in
-                let w = size.width
-                let h = size.height
-                let groundY = h * 0.84
 
-                let skyColors: [Color] = dark
-                    ? [Color(hex: 0x151D3D), Color(hex: 0x1E274B), Color(hex: 0x182040)]
-                    : [Color(hex: 0xFDF6EA), Color(hex: 0xF9ECD8), Color(hex: 0xFBF7F0)]
-                ctx.fill(
-                    Path(CGRect(origin: .zero, size: size)),
-                    with: .linearGradient(Gradient(colors: skyColors), startPoint: .zero, endPoint: CGPoint(x: w, y: h))
-                )
+            // Matching white die-cut sticker Mochi (warm ivory pebble + matte coral knit beanie, zero blush)
+            let mochiW: CGFloat = min(68, w * 0.17)
+            let mochiH: CGFloat = mochiW * 0.88
+            let mochiBodyRect = CGRect(x: mochiCenterX - mochiW / 2, y: groundY - mochiH, width: mochiW, height: mochiH)
+            let beanieRect = CGRect(x: mochiCenterX - mochiW * 0.44, y: mochiBodyRect.minY - mochiH * 0.24, width: mochiW * 0.88, height: mochiH * 0.42)
+            let bodyPath = RoundedRectangle(cornerRadius: mochiH * 0.46, style: .continuous).path(in: mochiBodyRect)
+            let beaniePath = RoundedRectangle(cornerRadius: mochiH * 0.20, style: .continuous).path(in: beanieRect)
 
-                var meadow = Path()
-                meadow.move(to: CGPoint(x: 0, y: groundY + 4))
-                meadow.addQuadCurve(to: CGPoint(x: w, y: groundY + 4), control: CGPoint(x: w * 0.5, y: groundY - 14))
-                meadow.addLine(to: CGPoint(x: w, y: h))
-                meadow.addLine(to: CGPoint(x: 0, y: h))
-                meadow.closeSubpath()
-                ctx.fill(meadow, with: .color(dark ? Color(hex: 0x222C52) : Color(hex: 0xF2E7D5)))
+            // Crisp creamy-white paper die-cut rim around Mochi so Mochi matches Otto's cut-out edge
+            ctx.stroke(bodyPath, with: .color(dark ? Color(hex: 0xF3ECE0).opacity(0.85) : .white), style: StrokeStyle(lineWidth: 6.5, lineJoin: .round))
+            ctx.stroke(beaniePath, with: .color(dark ? Color(hex: 0xF3ECE0).opacity(0.85) : .white), style: StrokeStyle(lineWidth: 6.5, lineJoin: .round))
 
-                let ottoX = w * 0.31
-                let ottoFootY = groundY + 1
-                let mochiX = w * 0.69
-                let mochiFootY = groundY + 1
-                let beadCenter = CGPoint(x: w * 0.485, y: h * 0.42)
+            // Mochi sculpted matte-ivory pebble body & coral beanie
+            ctx.fill(
+                bodyPath,
+                with: .linearGradient(Gradient(colors: [Color(hex: 0xFFF9EE), Color(hex: 0xEFE1CB)]), startPoint: CGPoint(x: mochiCenterX, y: mochiBodyRect.minY), endPoint: CGPoint(x: mochiCenterX, y: mochiBodyRect.maxY))
+            )
+            ctx.fill(
+                beaniePath,
+                with: .linearGradient(Gradient(colors: [Color(hex: 0xF07B60), Color(hex: 0xD95941)]), startPoint: CGPoint(x: mochiCenterX, y: beanieRect.minY), endPoint: CGPoint(x: mochiCenterX, y: beanieRect.maxY))
+            )
+            // Small pom-pom on Mochi's beanie
+            let pomRect = CGRect(x: mochiCenterX - 5, y: beanieRect.minY - 7, width: 10, height: 9)
+            ctx.fill(Path(ellipseIn: pomRect), with: .color(Color(hex: 0xF69C82)))
 
-                var halo = Path()
-                halo.addEllipse(in: CGRect(x: beadCenter.x - 56, y: beadCenter.y - 56, width: 112, height: 112))
-                ctx.fill(
-                    halo,
-                    with: .radialGradient(
-                        Gradient(colors: [Palette.amber.opacity(dark ? 0.42 : 0.48), Palette.beadLight.opacity(0.18), .clear]),
-                        center: beadCenter,
-                        startRadius: 2,
-                        endRadius: 56
-                    )
-                )
-
-                // Canonical deep twilight-indigo ONE-EYED Otto (zero blush, zero arms)
-                var ottoShadow = Path()
-                ottoShadow.addEllipse(in: CGRect(x: ottoX - 24, y: ottoFootY - 4, width: 48, height: 8))
-                ctx.fill(ottoShadow, with: .color(Color(hex: 0x1A2140).opacity(dark ? 0.38 : 0.16)))
-
-                var stem = Path()
-                stem.move(to: CGPoint(x: ottoX + 4, y: ottoFootY - 48))
-                stem.addCurve(to: beadCenter, control1: CGPoint(x: ottoX + 16, y: h * 0.18), control2: CGPoint(x: w * 0.44, y: h * 0.16))
-                ctx.stroke(stem, with: .color(Palette.rod), style: StrokeStyle(lineWidth: 2.6, lineCap: .round))
-
-                var beadPath = Path()
-                beadPath.addEllipse(in: CGRect(x: beadCenter.x - 8, y: beadCenter.y - 8, width: 16, height: 16))
-                ctx.fill(beadPath, with: .color(Palette.bead))
-
-                let ottoRect = CGRect(x: ottoX - 22, y: ottoFootY - 50, width: 44, height: 50)
-                let ottoBody = RoundedRectangle(cornerRadius: 21, style: .continuous).path(in: ottoRect)
-                ctx.fill(ottoBody, with: .linearGradient(Gradient(colors: [Palette.rod, Palette.rodDeep]), startPoint: CGPoint(x: ottoX, y: ottoRect.minY), endPoint: CGPoint(x: ottoX, y: ottoRect.maxY)))
-
-                // Single heavy-lidded eye
-                let eyeY = ottoRect.minY + 23
-                var eyeWhite = Path()
-                eyeWhite.addEllipse(in: CGRect(x: ottoX - 8, y: eyeY - 6, width: 16, height: 12))
-                ctx.fill(eyeWhite, with: .color(.white))
-                var pupil = Path()
-                pupil.addEllipse(in: CGRect(x: ottoX - 3, y: eyeY - 3, width: 8, height: 8))
-                ctx.fill(pupil, with: .color(Palette.ink))
-                var lid = Path()
-                lid.addRect(CGRect(x: ottoX - 9, y: eyeY - 7, width: 18, height: 6))
-                ctx.fill(lid, with: .color(Palette.rod))
-
-                // Mochi (right)
-                let mochiRect = CGRect(x: mochiX - 23, y: mochiFootY - 46, width: 46, height: 46)
-                let mochiBody = RoundedRectangle(cornerRadius: 21, style: .continuous).path(in: mochiRect)
-                ctx.fill(mochiBody, with: .color(Color(hex: 0xFAF0DF)))
-                let hatRect = CGRect(x: mochiX - 21, y: mochiRect.minY - 11, width: 42, height: 22)
-                var hatDome = Path()
-                hatDome.addRoundedRect(in: hatRect, cornerSize: CGSize(width: 19, height: 18))
-                ctx.fill(hatDome, with: .color(Color(hex: 0xE66A50)))
+            // Curious Mochi eyes turned left toward Otto's lantern light
+            let eyeY = mochiBodyRect.minY + mochiH * 0.44
+            for dx in [-8.0, 4.0] {
+                let sclera = CGRect(x: mochiCenterX + dx - 4.5, y: eyeY - 4.5, width: 9, height: 9)
+                ctx.fill(Path(ellipseIn: sclera), with: .color(.white))
+                let pupil = CGRect(x: mochiCenterX + dx - 3.8, y: eyeY - 2.6, width: 5.5, height: 5.5)
+                ctx.fill(Path(ellipseIn: pupil), with: .color(Palette.ink))
             }
-            .accessibilityLabel(L10n.t("Otto 把暖金灯珠的光递给戴珊瑚针织帽的 Mochi", "Otto gently passing warm lantern light toward Mochi in a coral knit beanie"))
         }
+        .accessibilityLabel(L10n.t("Otto 把暖金灯珠的光递给戴珊瑚针织帽的 Mochi", "Otto gently passing warm lantern light toward Mochi in a coral knit beanie"))
     }
 }
 

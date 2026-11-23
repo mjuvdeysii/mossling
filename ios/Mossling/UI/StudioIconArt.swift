@@ -539,92 +539,180 @@ struct ToolArtBadge: View {
         }
     }
 
+    private func drawCushion(_ ctx: inout GraphicsContext, tint: Color) {
+        let rect = CGRect(x: 6, y: 6, width: 88, height: 88)
+        let bg = RoundedRectangle(cornerRadius: 28, style: .continuous).path(in: rect)
+        if flat {
+            ctx.fill(bg, with: .color(tint.opacity(0.16)))
+            ctx.stroke(bg, with: .color(Palette.ink.opacity(0.22)), lineWidth: 2)
+        } else {
+            ctx.fill(
+                bg,
+                with: .radialGradient(
+                    Gradient(colors: [
+                        tint.mix(with: .white, by: 0.72),
+                        tint.mix(with: .white, by: 0.56),
+                        tint.mix(with: .black, by: 0.04)
+                    ]),
+                    center: CGPoint(x: 32, y: 28),
+                    startRadius: 4,
+                    endRadius: 88
+                )
+            )
+            ctx.stroke(
+                bg,
+                with: .linearGradient(
+                    Gradient(colors: [.white.opacity(0.85), tint.opacity(0.22)]),
+                    startPoint: CGPoint(x: 6, y: 6),
+                    endPoint: CGPoint(x: 94, y: 94)
+                ),
+                lineWidth: 2.2
+            )
+        }
+    }
+
+    private func sculptShape(_ ctx: inout GraphicsContext, _ path: Path, _ color: Color, highlight: Color? = nil) {
+        if flat {
+            ctx.fill(path, with: .color(color))
+            ctx.stroke(path, with: .color(Palette.ink.opacity(0.25)), lineWidth: 1.8)
+            return
+        }
+        let b = path.boundingRect
+        let top = highlight ?? color.mix(with: .white, by: 0.30)
+        let bot = color.mix(with: .black, by: 0.20)
+        ctx.fill(
+            path,
+            with: .radialGradient(
+                Gradient(colors: [top, color, bot]),
+                center: CGPoint(x: b.minX + b.width * 0.32, y: b.minY + b.height * 0.28),
+                startRadius: 1,
+                endRadius: max(b.width, b.height) * 0.85
+            )
+        )
+    }
+
     private func drawTool(_ ctx: inout GraphicsContext) {
         switch toolId {
         case "bedside_lamp":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(active ? Palette.amber.opacity(0.24) : Palette.rod.opacity(0.14)))
-            var arc = Path()
-            arc.move(to: CGPoint(x: 58, y: 78))
-            arc.addCurve(to: CGPoint(x: 34, y: 40), control1: CGPoint(x: 62, y: 18), control2: CGPoint(x: 34, y: 14))
-            ctx.stroke(arc, with: .color(Palette.rod), style: StrokeStyle(lineWidth: 6.5, lineCap: .round))
-            ctx.fill(Path(roundedRect: CGRect(x: 42, y: 74, width: 32, height: 10), cornerRadius: 5), with: .color(Palette.rodDeep))
-            if active {
-                ctx.fill(Path(ellipseIn: CGRect(x: 12, y: 20, width: 44, height: 44)),
-                         with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.75), Palette.amber.opacity(0)]), center: CGPoint(x: 34, y: 42), startRadius: 2, endRadius: 22))
+            let dusk = active ? Palette.amber : Palette.rod
+            if flat {
+                drawCushion(&ctx, tint: dusk)
+            } else {
+                let rect = CGRect(x: 6, y: 6, width: 88, height: 88)
+                let bg = RoundedRectangle(cornerRadius: 28, style: .continuous).path(in: rect)
+                ctx.fill(
+                    bg,
+                    with: .radialGradient(
+                        Gradient(colors: [
+                            active ? Color(hex: 0x3A345C) : Color(hex: 0x29335E),
+                            Color(hex: 0x151D3B)
+                        ]),
+                        center: CGPoint(x: 34, y: 30),
+                        startRadius: 4,
+                        endRadius: 85
+                    )
+                )
+                ctx.stroke(bg, with: .color(Palette.amber.opacity(active ? 0.55 : 0.28)), lineWidth: 2)
             }
-            ctx.fill(Path(ellipseIn: CGRect(x: 24, y: 34, width: 20, height: 20)), with: .color(active ? Palette.amber : Palette.bead))
-            ctx.fill(Path(ellipseIn: CGRect(x: 29, y: 38, width: 6, height: 6)), with: .color(Palette.beadLight))
+            ctx.fill(Path(ellipseIn: CGRect(x: 34, y: 74, width: 42, height: 11)), with: .color(.black.opacity(0.32)))
+            sculptShape(&ctx, Path(roundedRect: CGRect(x: 36, y: 71, width: 38, height: 11), cornerRadius: 5.5), Color(hex: 0x7A573B))
+            var arc = Path()
+            arc.move(to: CGPoint(x: 56, y: 72))
+            arc.addCurve(to: CGPoint(x: 36, y: 40), control1: CGPoint(x: 64, y: 20), control2: CGPoint(x: 38, y: 16))
+            ctx.stroke(arc, with: .color(Color(hex: 0x7B8EC2)), style: StrokeStyle(lineWidth: 7.5, lineCap: .round))
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: 11, y: 19, width: 50, height: 50)),
+                with: .radialGradient(
+                    Gradient(colors: [Palette.amber.opacity(active ? 0.85 : 0.45), Palette.amber.opacity(0)]),
+                    center: CGPoint(x: 36, y: 44),
+                    startRadius: 2,
+                    endRadius: 25
+                )
+            )
+            sculptShape(&ctx, Path(ellipseIn: CGRect(x: 24, y: 33, width: 24, height: 24)), active ? Palette.amber : Palette.bead, highlight: Palette.beadLight)
+            ctx.fill(Path(ellipseIn: CGRect(x: 29, y: 37, width: 7, height: 6)), with: .color(.white.opacity(0.75)))
 
         case "sensory_toybox":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(Crayon.teal.opacity(0.16)))
+            drawCushion(&ctx, tint: Crayon.teal)
             let bars: [(CGFloat, CGFloat, Color)] = [
-                (20, 56, Crayon.cherry),
-                (38, 50, Crayon.sunflower),
-                (56, 44, Crayon.teal),
-                (74, 38, Crayon.sky),
+                (23, 56, Crayon.cherry),
+                (41, 49, Crayon.sunflower),
+                (59, 42, Crayon.teal),
+                (77, 36, Crayon.sky),
             ]
+            // Twin horizontal maple resonator rails behind keys
+            sculptShape(&ctx, Path(roundedRect: CGRect(x: 16, y: 58, width: 68, height: 10), cornerRadius: 4), Color(hex: 0xC69A6B))
             for (x, h, col) in bars {
                 let y = 76 - h
-                let bar = RoundedRectangle(cornerRadius: 5).path(in: CGRect(x: x - 6, y: y, width: 12, height: h))
-                ctx.fill(bar, with: .color(col))
-                ctx.fill(Path(ellipseIn: CGRect(x: x - 2, y: y + 6, width: 4, height: 4)), with: .color(.white.opacity(0.75)))
+                let shadow = RoundedRectangle(cornerRadius: 6).path(in: CGRect(x: x - 6.5, y: y + 3, width: 13, height: h))
+                if !flat { ctx.fill(shadow, with: .color(.black.opacity(0.16))) }
+                let bar = RoundedRectangle(cornerRadius: 6).path(in: CGRect(x: x - 6.5, y: y, width: 13, height: h))
+                sculptShape(&ctx, bar, col)
+                sculptShape(&ctx, Path(ellipseIn: CGRect(x: x - 2.3, y: y + 5, width: 4.6, height: 4.6)), Palette.bead, highlight: Palette.beadLight)
             }
 
         case "first_foods":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(Crayon.leaf.opacity(0.16)))
-            let dish = Path(ellipseIn: CGRect(x: 16, y: 18, width: 68, height: 64))
-            ctx.fill(dish, with: .color(Color(hex: 0xFBF6EA)))
-            ctx.stroke(dish, with: .color(Crayon.caramel.opacity(0.55)), lineWidth: 3)
-            // Three colorful whole foods tucked in bento segments
-            ctx.fill(Path(ellipseIn: CGRect(x: 27, y: 30, width: 20, height: 20)), with: .color(Crayon.tangerine))
-            ctx.fill(Path(ellipseIn: CGRect(x: 52, y: 30, width: 20, height: 20)), with: .color(Crayon.leaf))
-            ctx.fill(Path(ellipseIn: CGRect(x: 40, y: 50, width: 20, height: 20)), with: .color(Crayon.cherry))
+            drawCushion(&ctx, tint: Crayon.leaf)
+            if !flat {
+                ctx.fill(Path(ellipseIn: CGRect(x: 18, y: 23, width: 64, height: 61)), with: .color(Color(hex: 0x7A5E3B).opacity(0.22)))
+            }
+            let dish = Path(ellipseIn: CGRect(x: 17, y: 19, width: 66, height: 62))
+            sculptShape(&ctx, dish, Color(hex: 0xFAF4E8), highlight: .white)
+            ctx.stroke(dish, with: .color(Crayon.caramel.opacity(0.45)), lineWidth: 2.5)
+            // Three glossy dimensional whole foods inside glazed bowl
+            for (cx, cy, col) in [(36.0, 41.0, Crayon.tangerine), (62.0, 41.0, Crayon.leaf), (49.0, 61.0, Crayon.cherry)] {
+                if !flat { ctx.fill(Path(ellipseIn: CGRect(x: cx - 10, y: cy - 7, width: 20, height: 20)), with: .color(.black.opacity(0.14))) }
+                sculptShape(&ctx, Path(ellipseIn: CGRect(x: cx - 10, y: cy - 10, width: 20, height: 20)), col)
+                ctx.fill(Path(ellipseIn: CGRect(x: cx - 5, y: cy - 6, width: 6, height: 4)), with: .color(.white.opacity(0.55)))
+            }
 
         case "rhythm_dial":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(Crayon.lilac.opacity(0.16)))
-            var topArc = Path(); topArc.addArc(center: CGPoint(x: 50, y: 50), radius: 28, startAngle: .degrees(180), endAngle: .degrees(360), clockwise: false)
+            drawCushion(&ctx, tint: Crayon.lilac)
+            if !flat {
+                ctx.fill(Path(ellipseIn: CGRect(x: 20, y: 22, width: 60, height: 60)), with: .color(.black.opacity(0.12)))
+            }
+            ctx.fill(Path(ellipseIn: CGRect(x: 21, y: 21, width: 58, height: 58)), with: .color(Color(hex: 0xFFFDF8).opacity(0.82)))
+            var topArc = Path(); topArc.addArc(center: CGPoint(x: 50, y: 50), radius: 26, startAngle: .degrees(185), endAngle: .degrees(355), clockwise: false)
             ctx.stroke(topArc, with: .color(Crayon.sunflower), style: StrokeStyle(lineWidth: 10, lineCap: .round))
-            var botArc = Path(); botArc.addArc(center: CGPoint(x: 50, y: 50), radius: 28, startAngle: .degrees(0), endAngle: .degrees(180), clockwise: false)
+            var botArc = Path(); botArc.addArc(center: CGPoint(x: 50, y: 50), radius: 26, startAngle: .degrees(5), endAngle: .degrees(175), clockwise: false)
             ctx.stroke(botArc, with: .color(Palette.rod), style: StrokeStyle(lineWidth: 10, lineCap: .round))
-            ctx.fill(Path(ellipseIn: CGRect(x: 42, y: 15, width: 16, height: 16)), with: .color(Palette.bead))
+            sculptShape(&ctx, Path(ellipseIn: CGRect(x: 41, y: 14, width: 18, height: 18)), Palette.bead, highlight: Palette.beadLight)
 
         case "storybook":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(Crayon.caramel.opacity(0.20)))
-            // Warm caramel linen hardboard cover framing crisp cream spreads
-            let cover = RoundedRectangle(cornerRadius: 8).path(in: CGRect(x: 14, y: 23, width: 72, height: 54))
-            ctx.fill(cover, with: .color(Crayon.caramel))
+            drawCushion(&ctx, tint: Crayon.caramel)
+            if !flat {
+                ctx.fill(RoundedRectangle(cornerRadius: 10).path(in: CGRect(x: 15, y: 27, width: 70, height: 52)), with: .color(.black.opacity(0.18)))
+            }
+            let cover = RoundedRectangle(cornerRadius: 9).path(in: CGRect(x: 14, y: 23, width: 72, height: 54))
+            sculptShape(&ctx, cover, Crayon.caramel)
             let leftPage = RoundedRectangle(cornerRadius: 4).path(in: CGRect(x: 19, y: 27, width: 30, height: 46))
             let rightPage = RoundedRectangle(cornerRadius: 4).path(in: CGRect(x: 51, y: 27, width: 30, height: 46))
-            ctx.fill(leftPage, with: .color(Palette.paper))
-            ctx.fill(rightPage, with: .color(Color(hex: 0xF5EAD4)))
-            ctx.fill(Path(ellipseIn: CGRect(x: 26, y: 37, width: 16, height: 16)), with: .color(Crayon.leaf.opacity(0.75)))
-            // Bookmark ribbon
+            sculptShape(&ctx, leftPage, Palette.paper, highlight: .white)
+            sculptShape(&ctx, rightPage, Color(hex: 0xF5EAD4), highlight: Palette.paper)
+            sculptShape(&ctx, Path(ellipseIn: CGRect(x: 26, y: 38, width: 16, height: 16)), Crayon.leaf)
             var rib = Path()
             rib.move(to: CGPoint(x: 60, y: 27)); rib.addLine(to: CGPoint(x: 70, y: 27))
-            rib.addLine(to: CGPoint(x: 70, y: 55)); rib.addLine(to: CGPoint(x: 65, y: 49))
-            rib.addLine(to: CGPoint(x: 60, y: 55)); rib.closeSubpath()
-            ctx.fill(rib, with: .color(Palette.bead))
+            rib.addLine(to: CGPoint(x: 70, y: 56)); rib.addLine(to: CGPoint(x: 65, y: 50))
+            rib.addLine(to: CGPoint(x: 60, y: 56)); rib.closeSubpath()
+            sculptShape(&ctx, rib, Palette.bead, highlight: Palette.beadLight)
 
         case "journey":
-            let bg = RoundedRectangle(cornerRadius: 26).path(in: CGRect(x: 8, y: 8, width: 84, height: 84))
-            ctx.fill(bg, with: .color(Palette.bead.opacity(0.16)))
+            drawCushion(&ctx, tint: Palette.bead)
             var road = Path()
-            road.move(to: CGPoint(x: 34, y: 78))
-            road.addCurve(to: CGPoint(x: 62, y: 22), control1: CGPoint(x: 70, y: 60), control2: CGPoint(x: 28, y: 40))
-            ctx.stroke(road, with: .color(Crayon.leaf.opacity(0.75)), style: StrokeStyle(lineWidth: 6, lineCap: .round))
-            ctx.fill(Path(ellipseIn: CGRect(x: 26, y: 70, width: 16, height: 16)), with: .color(Crayon.leaf))
-            ctx.fill(Path(ellipseIn: CGRect(x: 42, y: 42, width: 18, height: 18)), with: .color(Palette.bead))
-            ctx.fill(Path(ellipseIn: CGRect(x: 54, y: 16, width: 16, height: 16)), with: .color(Crayon.sky))
+            road.move(to: CGPoint(x: 32, y: 78))
+            road.addCurve(to: CGPoint(x: 64, y: 22), control1: CGPoint(x: 72, y: 60), control2: CGPoint(x: 28, y: 40))
+            ctx.stroke(road, with: .color(Crayon.leaf.opacity(0.75)), style: StrokeStyle(lineWidth: 6.5, lineCap: .round))
+            for (bx, by, br, col) in [(25.0, 69.0, 17.0, Crayon.leaf), (41.0, 41.0, 19.0, Palette.bead), (55.0, 16.0, 17.0, Crayon.sky)] {
+                if !flat { ctx.fill(Path(ellipseIn: CGRect(x: bx, y: by + 2.5, width: br, height: br)), with: .color(.black.opacity(0.18))) }
+                sculptShape(&ctx, Path(ellipseIn: CGRect(x: bx, y: by, width: br, height: br)), col)
+                ctx.fill(Path(ellipseIn: CGRect(x: bx + br * 0.25, y: by + br * 0.2, width: br * 0.3, height: br * 0.22)), with: .color(.white.opacity(0.7)))
+            }
 
         default:
+            drawCushion(&ctx, tint: Palette.accent)
             let sym = IconAssetResolver.shared.toolSpec(for: toolId)?.fallbackSymbol ?? "sparkles"
             let resolved = ctx.resolve(Image(systemName: sym))
-            ctx.draw(resolved, in: CGRect(x: 20, y: 20, width: 60, height: 60))
+            ctx.draw(resolved, in: CGRect(x: 24, y: 24, width: 52, height: 52))
         }
     }
 }

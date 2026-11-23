@@ -180,6 +180,7 @@ struct FoodAtlasView: View {
         .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .automatic), prompt: L10n.t("搜索 60 种食材…", "Search 60 foods…"))
         .navigationTitle(L10n.t("百味食盒", "First Foods"))
         .navigationBarTitleDisplayMode(.large)
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 ShareLink(

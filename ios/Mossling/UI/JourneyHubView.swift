@@ -136,6 +136,7 @@ struct JourneyHubView: View {
             .pageBackground(tone: Land.of(baby).crayon)
             .navigationTitle(L10n.t("串珠旅程", "Journey"))
             .navigationBarTitleDisplayMode(.large)
+            .toolbar(.hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -358,66 +359,150 @@ struct JourneyHubView: View {
 
     // MARK: - Section 3: Vertical Winding Bead Chain
 
+    private func landCoverMonth(for land: Land) -> Int {
+        switch land {
+        case .meadow: 4
+        case .forest: 16
+        case .river: 28
+        }
+    }
+
+    private func landTagline(for land: Land) -> String {
+        switch land {
+        case .meadow: L10n.t("轻抱与初视 · 从第一天起慢慢熟络", "Warm holds & first gazes · gentle beginnings")
+        case .forest: L10n.t("指物与学步 · 用小手和脚步认识世界", "First steps & pointing · curious hands at work")
+        case .river: L10n.t("假装与共读 · 语言和想象正悄悄发芽", "Pretend play & stories · language comes alive")
+        }
+    }
+
     private func landSection(land: Land, months: [Int]) -> some View {
-        let plate = StoryPlate.forLand(land)
-        let hasPlate = StoryPlateLoader.image(for: plate) != nil
-
         return VStack(alignment: .leading, spacing: 10) {
-            if hasPlate {
-                ZStack(alignment: .bottomLeading) {
-                    LivingStoryPlateView(plate: plate, dark: dark, alive: false)
-                        .frame(height: 144)
-                        .frame(maxWidth: .infinity)
-
-                    LinearGradient(
-                        colors: [.clear, Color.black.opacity(0.62)],
-                        startPoint: .top,
-                        endPoint: .bottom
+            ZStack {
+                // Kid's book cut-paper rolling hills & stitched footpath backdrop
+                Canvas { ctx, size in
+                    let skyTop = dark ? Color(hex: 0x241F1A) : Color(hex: 0xFFFBF2)
+                    let skyBot = dark ? land.ground.opacity(0.65) : land.ground.opacity(0.85)
+                    ctx.fill(
+                        Path(CGRect(origin: .zero, size: size)),
+                        with: .linearGradient(
+                            Gradient(colors: [skyTop, skyBot]),
+                            startPoint: .zero,
+                            endPoint: CGPoint(x: 0, y: size.height)
+                        )
                     )
-                    .frame(height: 76)
-                    .allowsHitTesting(false)
 
-                    HStack(alignment: .bottom, spacing: 8) {
+                    let orbCenter = CGPoint(x: size.width * 0.56, y: size.height * 0.30)
+                    let orbRect = CGRect(x: orbCenter.x - 22, y: orbCenter.y - 22, width: 44, height: 44)
+                    ctx.fill(
+                        Path(ellipseIn: orbRect),
+                        with: .color(dark ? Color(hex: 0xF5D26B).opacity(0.22) : Color(hex: 0xFFE9A8).opacity(0.85))
+                    )
+
+                    var backHill = Path()
+                    backHill.move(to: CGPoint(x: 0, y: size.height * 0.70))
+                    backHill.addQuadCurve(
+                        to: CGPoint(x: size.width, y: size.height * 0.62),
+                        control: CGPoint(x: size.width * 0.48, y: size.height * 0.44)
+                    )
+                    backHill.addLine(to: CGPoint(x: size.width, y: size.height))
+                    backHill.addLine(to: CGPoint(x: 0, y: size.height))
+                    backHill.closeSubpath()
+                    ctx.fill(backHill, with: .color(land.crayon.opacity(dark ? 0.24 : 0.20)))
+
+                    var frontHill = Path()
+                    frontHill.move(to: CGPoint(x: 0, y: size.height * 0.84))
+                    frontHill.addQuadCurve(
+                        to: CGPoint(x: size.width, y: size.height * 0.78),
+                        control: CGPoint(x: size.width * 0.56, y: size.height * 0.66)
+                    )
+                    frontHill.addLine(to: CGPoint(x: size.width, y: size.height))
+                    frontHill.addLine(to: CGPoint(x: 0, y: size.height))
+                    frontHill.closeSubpath()
+                    ctx.fill(frontHill, with: .color(land.crayon.opacity(dark ? 0.34 : 0.30)))
+
+                    var path = Path()
+                    path.move(to: CGPoint(x: 16, y: size.height * 0.90))
+                    path.addCurve(
+                        to: CGPoint(x: size.width - 98, y: size.height * 0.84),
+                        control1: CGPoint(x: size.width * 0.30, y: size.height * 0.76),
+                        control2: CGPoint(x: size.width * 0.52, y: size.height * 0.95)
+                    )
+                    ctx.stroke(
+                        path,
+                        with: .color((dark ? Color.white : Color(hex: 0xFFF9EE)).opacity(0.75)),
+                        style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 5])
+                    )
+                }
+                .allowsHitTesting(false)
+
+                HStack(alignment: .center, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 8) {
-                            IconTile(symbol: land.symbol, color: land.crayon, size: 26, round: true)
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(land.name)
-                                    .font(.headline.weight(.bold))
-                                    .foregroundStyle(.white)
-                                Text(land.years)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(.white.opacity(0.86))
-                            }
+                            IconTile(symbol: land.symbol, color: land.crayon, size: 28, round: true)
+                            Text(land.name)
+                                .font(.headline.weight(.bold))
+                                .foregroundStyle(.primary)
                         }
-                        Spacer(minLength: 4)
-                        Text(L10n.t("\(months.count) 站", "\(months.count) stations"))
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4)
-                            .background(Capsule().fill(Color.black.opacity(0.38)))
+
+                        HStack(spacing: 6) {
+                            Text(land.years)
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Palette.secondaryText)
+
+                            Text(L10n.t("\(months.count) 站", "\(months.count) stations"))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(land.crayon.mix(with: .black, by: dark ? 0.0 : 0.28))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(
+                                    Capsule().fill(dark ? Palette.lampCard.opacity(0.85) : Color.white.opacity(0.85))
+                                )
+                        }
+
+                        Text(landTagline(for: land))
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(2)
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 10)
+
+                    Spacer(minLength: 4)
+
+                    if let coverName = ArtIndex.shared.cover(landCoverMonth(for: land)) {
+                        ZStack(alignment: .top) {
+                            ArtView(name: coverName, label: land.name, radius: 13)
+                                .frame(width: 88, height: 66)
+                                .padding(4)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
+                                )
+                                .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
+                                .rotationEffect(.degrees(3))
+
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
+                                .frame(width: 24, height: 8)
+                                .offset(y: -4)
+                                .rotationEffect(.degrees(-2))
+                        }
+                    }
                 }
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .strokeBorder(land.crayon.opacity(dark ? 0.45 : 0.30), lineWidth: 1)
-                )
-            } else {
-                HStack(spacing: 8) {
-                    IconTile(symbol: land.symbol, color: land.crayon, size: 24, round: true)
-                    Text(land.name)
-                        .font(.headline)
-                        .foregroundStyle(.primary)
-                    Text(land.years)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 4)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
             }
+            .frame(minHeight: 112)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                    .strokeBorder(
+                        land.crayon.opacity(dark ? 0.45 : 0.34),
+                        style: StrokeStyle(lineWidth: 1.2, dash: [6, 4])
+                    )
+            )
 
             VStack(spacing: 0) {
                 ForEach(Array(months.enumerated()), id: \.element) { idx, m in
