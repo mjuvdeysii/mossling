@@ -16,6 +16,7 @@ struct TopicView: View {
         }
         .pageBackground()
         .navigationTitle(topic.title).navigationBarTitleDisplayMode(.large)
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -156,8 +157,14 @@ private struct QuietToolResult: Identifiable {
 struct PlanView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     @Binding var path: NavigationPath
+    @State private var areaFilter: String? = nil
+    @State private var unplayedOnly = false
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         let m = app.babyMonth ?? 0
         let current = app.weekShelf(m)
         let codes = current.plays.map(\.code)
@@ -166,6 +173,15 @@ struct PlanView: View {
         let monday = app.today.monday.date, before = app.today.monday.plus(days: -7).date
         let lastWeek = app.content.activities.filter { p in !codes.contains(p.code) && j.plays(p.code).contains { $0.startDate >= before && $0.startDate < monday } }
         let more = Shelf.candidates(app.content, m).filter { p in !codes.contains(p.code) && !lastWeek.contains(p) }
+        let availableAreas = ["A", "B", "C", "D", "E", "F"].filter { key in
+            more.contains { Palette.areaKey(of: $0) == key }
+        }
+        let filteredMore = more.filter { p in
+            let matchesArea = areaFilter == nil || Palette.areaKey(of: p) == areaFilter
+            let matchesUnplayed = !unplayedOnly || app.record(p, j).count == 0
+            return matchesArea && matchesUnplayed
+        }
+
         List {
             Section {
                 // changing the week is taking off and adding: each row says which, with its own button (no swipe to
@@ -187,10 +203,73 @@ struct PlanView: View {
             if !lastWeek.isEmpty {
                 Section(L10n.t("上周玩过", "Played Last Week")) { ForEach(lastWeek) { p in addRow(p, codes: codes, full: full) } }
             }
-            Section(L10n.t("这个月还可以玩 · \(more.count) 个", "More for This Month · \(more.count)")) { ForEach(more) { p in addRow(p, codes: codes, full: full) } }
+            Section(L10n.t("这个月还可以玩 · \(filteredMore.count) 个", "More for This Month · \(filteredMore.count)")) {
+                if more.count > 3 {
+                    WrapLayout(spacing: 6) {
+                        let allSelected = areaFilter == nil && !unplayedOnly
+                        shelfChip(L10n.t("全部", "All"), selected: allSelected, color: nil, dark: dark) {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(.snappy) { areaFilter = nil; unplayedOnly = false }
+                        }
+                        shelfChip(L10n.t("还没玩过", "Unplayed"), selected: unplayedOnly, color: Palette.bead, dark: dark) {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(.snappy) { unplayedOnly.toggle() }
+                        }
+                        ForEach(availableAreas, id: \.self) { key in
+                            let on = areaFilter == key
+                            shelfChip(Palette.areaShortName(key), selected: on, color: Palette.area(key), dark: dark) {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(.snappy) { areaFilter = on ? nil : key }
+                            }
+                        }
+                    }
+                    .listRowInsets(EdgeInsets(top: 10, leading: 14, bottom: 10, trailing: 14))
+                }
+                if filteredMore.isEmpty {
+                    Text(L10n.t("当前筛选下没有更多玩法，换个分类看看", "No more picks in this filter"))
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.secondaryText)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.vertical, 8)
+                } else {
+                    ForEach(filteredMore) { p in addRow(p, codes: codes, full: full) }
+                }
+            }
         }
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle(L10n.t("这周一起玩", "This Week"))
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    private func shelfChip(_ title: String, selected: Bool, color: Color?, dark: Bool, action: @escaping () -> Void) -> some View {
+        let dotColor = color ?? Palette.accent
+        return Button(action: action) {
+            HStack(spacing: 5) {
+                if let color {
+                    Circle().fill(color).frame(width: 7, height: 7)
+                }
+                Text(title)
+            }
+            .font(.caption.weight(selected ? .bold : .semibold))
+            .foregroundStyle(selected ? (color == nil ? .white : (dark ? .white : Crayon.ink(dotColor))) : .primary)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .background(
+                Capsule().fill(
+                    selected
+                        ? (color == nil ? AnyShapeStyle(Palette.accentFill) : AnyShapeStyle(dotColor.opacity(dark ? 0.28 : 0.16)))
+                        : AnyShapeStyle(dark ? Palette.lampCard : Palette.card)
+                )
+            )
+            .overlay(
+                Capsule().strokeBorder(
+                    selected ? (color == nil ? Color.clear : Crayon.ink(dotColor)) : Palette.outline.opacity(0.28),
+                    lineWidth: selected ? 1.25 : 0.75
+                )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
     }
     private func addRow(_ p: Play, codes: [String], full: Bool) -> some View {
         HStack {

@@ -17,22 +17,48 @@ struct ConsentSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(L10n.t("使用前，请阅读以下文件：", "Before you begin, please review:")).font(.body)
-                    VStack(alignment: .leading, spacing: 8) {
-                        docLink(L10n.t("《隐私政策》（含儿童个人信息保护规则）", "Privacy Policy (incl. children's data)"), "PRIVACY")
-                        docLink(L10n.t("《使用条款》", "Terms of Use"), "TERMS")
-                        docLink(L10n.t("《免责声明》", "Disclaimer"), "DISCLAIMER")
+                    // Warm editorial picture-book greeting header (verbatim compliance text preserved below)
+                    HStack(alignment: .center, spacing: 14) {
+                        Duo(primary: .moss, size: 52)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
+                                .font(.headline)
+                                .foregroundStyle(Palette.accent)
+                            Text(L10n.t("使用前，请阅读以下文件：", "Before you begin, please review:"))
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
                     }
-                    VStack(alignment: .leading, spacing: 10) {
-                        point(L10n.t("本应用不需要账号、不联网，不含广告、统计或任何第三方 SDK。", "No account, no internet connection, no ads, no analytics, and no third-party SDKs."))
-                        point(L10n.t("你填写的孩子信息，包括出生日期、小名、性别、生长测量，以及喂养、睡眠、尿布、体温、用药等照护记录，属于不满十四周岁儿童的个人信息，其中包含健康信息。这些信息只保存在这台设备上，开发者无法获取。", "Everything you enter about your child — birthday, nickname, sex, growth measurements, and care logs — is sensitive child health data. It stays only on this iPhone; the developer never sees or receives it."))
-                        point(L10n.t("你可以随时在「我的 › 数据」中导出、清除全部数据，或撤回同意。", "You can export or erase all data, or withdraw consent, anytime in Me › Data."))
+                    .padding(.horizontal, 4)
+
+                    VStack(spacing: 0) {
+                        docLink(L10n.t("《隐私政策》（含儿童个人信息保护规则）", "Privacy Policy (incl. children's data)"), "PRIVACY", symbol: "hand.raised.fill", color: Crayon.sky)
+                        Divider().padding(.leading, 52).opacity(0.5)
+                        docLink(L10n.t("《使用条款》", "Terms of Use"), "TERMS", symbol: "doc.text.fill", color: Crayon.pebble)
+                        Divider().padding(.leading, 52).opacity(0.5)
+                        docLink(L10n.t("《免责声明》", "Disclaimer"), "DISCLAIMER", symbol: "exclamationmark.shield.fill", color: Crayon.tangerine)
                     }
+                    .printCard(radius: Radius.card)
+
+                    VStack(spacing: 0) {
+                        point(L10n.t("本应用不需要账号、不联网，不含广告、统计或任何第三方 SDK。", "No account, no internet connection, no ads, no analytics, and no third-party SDKs."), symbol: "wifi.slash", color: Crayon.teal)
+                        Divider().padding(.leading, 52).opacity(0.5)
+                        point(L10n.t("你填写的孩子信息，包括出生日期、小名、性别、生长测量，以及喂养、睡眠、尿布、体温、用药等照护记录，属于不满十四周岁儿童的个人信息，其中包含健康信息。这些信息只保存在这台设备上，开发者无法获取。", "Everything you enter about your child — birthday, nickname, sex, growth measurements, and care logs — is sensitive child health data. It stays only on this iPhone; the developer never sees or receives it."), symbol: "iphone.gen3", color: Crayon.lilac)
+                        Divider().padding(.leading, 52).opacity(0.5)
+                        point(L10n.t("你可以随时在「我的 › 数据」中导出、清除全部数据，或撤回同意。", "You can export or erase all data, or withdraw consent, anytime in Me › Data."), symbol: "arrow.uturn.backward.circle.fill", color: Crayon.leaf)
+                    }
+                    .printCard(radius: Radius.card)
+
                     Text(L10n.t("点「同意」，表示你是孩子的父母或其他监护人，同意本应用按上述文件在本机保存和使用这些信息。点「不同意」，仍可浏览全部玩法和月龄内容，但不能填写孩子资料和记录；此前已经保存的信息仍只在这台手机上，可在「我的 › 数据」导出或清除。以后需要时，可以再次选择同意。", "By tapping Agree, you confirm you are the child's parent or legal guardian and consent to storing and using this information locally on this device. If you tap Not Now, you can still browse all activities and monthly guides without saving child profile or care logs; any data already saved stays on this device and can be exported or erased in Me › Data. You can agree later at any time."))
-                        .font(.subheadline).foregroundStyle(Palette.secondaryText)
+                        .font(.footnote).foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, 4)
                 }
-                .padding(20)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
             }
             .safeAreaBar(edge: .bottom) { buttons }
             .navigationTitle(L10n.t("欢迎使用摸索台灯", "Welcome to Moss & Otto"))
@@ -63,21 +89,35 @@ struct ConsentSheet: View {
         if !yes { app.journal = false }
     }
 
-    private func docLink(_ title: String, _ name: String) -> some View {
+    private func docLink(_ title: String, _ name: String, symbol: String, color: Color) -> some View {
         Button { doc = name } label: {
-            HStack(spacing: 6) {
-                Text(title).font(.body.weight(.semibold))
+            HStack(spacing: 10) {
+                IconTile(symbol: symbol, color: color, size: 28, round: true)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                Spacer(minLength: 4)
                 Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
             }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
         }
-        .tint(Palette.accent)
+        .buttonStyle(.toy)
     }
 
-    private func point(_ t: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text("·").font(.body.weight(.bold))
-            Text(t).font(.subheadline).fixedSize(horizontal: false, vertical: true)
+    private func point(_ t: String, symbol: String, color: Color) -> some View {
+        HStack(alignment: .top, spacing: 10) {
+            IconTile(symbol: symbol, color: color, size: 28, round: true)
+            Text(t)
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
     }
 }
 

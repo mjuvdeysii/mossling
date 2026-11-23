@@ -346,9 +346,19 @@ struct AreasView: View {
                 // the month's focus first, then the rest in their usual order
                 let ordered = mo.domains.filter { $0.key == mo.focus } + mo.domains.filter { $0.key != mo.focus }
                 ForEach(Array(ordered.enumerated()), id: \.offset) { _, d in
-                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: Palette.area(d.key), detail: d.key == mo.focus ? L10n.t("本月重点", "Focus") : nil) {
+                    let isFocus = d.key == mo.focus
+                    let color = Palette.area(d.key)
+                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: color, detail: isFocus ? L10n.t("本月重点", "Focus") : nil) {
                         Text(rich(d.text)).font(.body).fixedSize(horizontal: false, vertical: true)
                     }
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(isFocus ? color.opacity(0.45) : .clear, lineWidth: 1.5)
+                    )
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .fill(isFocus ? color.opacity(0.06) : .clear)
+                    )
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
@@ -356,6 +366,7 @@ struct AreasView: View {
         .pageBackground()
         .navigationTitle(L10n.t("六个方面", "Six Areas"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -416,9 +427,18 @@ struct CareView: View {
                 Text(L10n.t(
                     "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
                     "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
-                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                ))
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(Palette.fill.opacity(0.65))
+                )
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.horizontal, 16).padding(.bottom, 48)
         }
         .pageBackground()
         .navigationTitle(L10n.t("接种与儿保", "Care & Checkups"))
@@ -426,6 +446,7 @@ struct CareView: View {
             let moLabel = m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")
             return moLabel + " · " + $0.plus(months: m).md
         } ?? (m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")))
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -451,6 +472,7 @@ struct NotesView: View {
         .pageBackground()
         .navigationTitle(L10n.t("还要知道", "Good to Know"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -598,5 +620,6 @@ struct ObserveView: View {
         .pageBackground()
         .navigationTitle(L10n.t("可以留意", "What to Notice"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
+        .toolbar(.hidden, for: .tabBar)
     }
 }

@@ -65,6 +65,16 @@ enum Palette {
         case "D": "face.smiling.inverse"; case "E": "house.fill"; default: "cross.case.fill"
         }
     }
+    static func areaShortName(_ key: String) -> String {
+        switch key.prefix(1) {
+        case "A": L10n.t("语言", "Language")
+        case "B": L10n.t("大运动", "Motor")
+        case "C": L10n.t("精细认知", "Fine & Mind")
+        case "D": L10n.t("社交情绪", "Social")
+        case "E": L10n.t("生活自理", "Life")
+        default: L10n.t("照护安全", "Care")
+        }
+    }
     /// The area a play belongs to, from its first domain.
     static func areaKey(of play: Play) -> String {
         let d = (play.domains.first ?? "").lowercased()
