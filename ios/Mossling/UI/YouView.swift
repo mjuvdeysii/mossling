@@ -24,7 +24,7 @@ struct YouView: View {
 
                 // settings, as rows of one card: unified 28pt icons, 14pt padding, 52pt hairline dividers
                 let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
-                VStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 0) {
                     AppearanceRow()
                         .padding(.horizontal, 14).padding(.vertical, 10)
                     Divider().padding(.leading, 52).opacity(0.5)
@@ -265,11 +265,12 @@ private struct Swatch: View {
     let mode: ThemeMode
     let on: Bool
     let pick: () -> Void
+    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
         Button(action: pick) {
             ZStack(alignment: .bottom) {
                 preview
-                    .frame(height: 38)
+                    .frame(height: type.isAccessibilitySize ? 54 : 38)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
                     .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
                     .overlay(alignment: .topTrailing) {
@@ -812,11 +813,14 @@ private struct AppearanceRow: View {
         }
     }
     var body: some View {
-        if type.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) { label; swatches }
-        } else {
-            HStack(spacing: 10) { label; Spacer(minLength: 4); swatches }
+        Group {
+            if type.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) { label; swatches }
+            } else {
+                HStack(spacing: 10) { label; Spacer(minLength: 4); swatches }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -851,10 +855,13 @@ private struct LanguageRow: View {
         .sensoryFeedback(.selection, trigger: app.language)
     }
     var body: some View {
-        if type.isAccessibilitySize {
-            VStack(alignment: .leading, spacing: 8) { label; pills }
-        } else {
-            HStack(spacing: 10) { label; Spacer(minLength: 4); pills }
+        Group {
+            if type.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) { label; pills }
+            } else {
+                HStack(spacing: 10) { label; Spacer(minLength: 4); pills }
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

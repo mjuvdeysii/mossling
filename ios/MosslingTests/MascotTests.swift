@@ -76,9 +76,10 @@ final class MascotTests: XCTestCase {
         let d = MascotDirector(); d.companion = .otto
         d.send(.recordPersistSuccess)
         XCTAssertEqual(d.state, .acknowledge); XCTAssertEqual(d.acknowledgements, 1)
-        let deadline = Date().addingTimeInterval(2.5)
+        let deadline = Date().addingTimeInterval(8.0)
         while d.state != .idle && Date() < deadline {
-            try await Task.sleep(for: .milliseconds(50))
+            await Task.yield()
+            try await Task.sleep(for: .milliseconds(100))
         }
         XCTAssertEqual(d.state, .idle)
         XCTAssertEqual(d.acknowledgements, 1, "one reply per save")

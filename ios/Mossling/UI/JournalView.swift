@@ -810,6 +810,10 @@ private struct DayPage: View {
                 }
                 .padding(.vertical, 2)
             } else if !logs.isEmpty {
+                DayFilterRail(logs: logs, day: day, only: only) { k in
+                    TactileEngine.shared.beadClick()
+                    withAnimation(.snappy) { only = k }
+                }
                 DayChapterLedger(
                     day: day,
                     today: today,
@@ -838,6 +842,81 @@ enum JournalKinds {
     }
     static func name(_ key: String) -> String { key == "feed" ? L10n.t("喂奶", "Feeds") : LogType.name(key) }
     static func type(_ key: String) -> String { key == "feed" ? LogType.nurse : key }
+}
+
+/// Instant one-tap category filter rail above day ledger entries so dense newborn days (30+ rows) scan without clutter.
+private struct DayFilterRail: View {
+    let logs: [LogEntry]
+    let day: Day
+    let only: String?
+    let pick: (String?) -> Void
+
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
+
+    private var items: [(key: String, count: Int)] {
+        let d0 = day.date.timeIntervalSince1970 * 1000
+        var result: [(String, Int)] = []
+        let feeds = logs.feedCount(from: d0)
+        if feeds > 0 { result.append(("feed", feeds)) }
+        let order = [LogType.sleep, LogType.diaper, LogType.solid, LogType.bath, LogType.temp, LogType.medicine, LogType.play, LogType.note]
+        for type in order {
+            let n = logs.filter { $0.type == type }.count
+            if n > 0 { result.append((type, n)) }
+        }
+        return result
+    }
+
+    var body: some View {
+        let dark = lamp || scheme == .dark
+        let categories = items
+        if categories.count >= 2 || only != nil {
+            let total = categories.reduce(0) { $0 + $1.count }
+            WrapLayout(spacing: 6) {
+                Button { pick(nil) } label: {
+                    let selected = only == nil
+                    HStack(spacing: 4) {
+                        Text(L10n.t("全部", "All"))
+                        Text("\(total)")
+                            .monospacedDigit()
+                            .opacity(selected ? 0.9 : 0.72)
+                    }
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(selected ? .white : .primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                    .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.28), lineWidth: 0.75))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(only == nil ? .isSelected : [])
+
+                ForEach(categories, id: \.key) { item in
+                    let on = only == item.key
+                    let color = LogType.color(JournalKinds.type(item.key))
+                    Button { pick(on ? nil : item.key) } label: {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(color)
+                                .frame(width: 7, height: 7)
+                            Text(JournalKinds.name(item.key))
+                            Text("\(item.count)")
+                                .monospacedDigit()
+                                .foregroundStyle(on ? Crayon.ink(color) : Palette.secondaryText)
+                        }
+                        .font(.caption.weight(on ? .bold : .semibold))
+                        .foregroundStyle(on ? Crayon.ink(color) : .primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(on ? color.opacity(dark ? 0.28 : 0.16) : (dark ? Palette.lampCard : Palette.card)))
+                        .overlay(Capsule().strokeBorder(on ? Crayon.ink(color) : Palette.outline.opacity(0.28), lineWidth: on ? 1.25 : 0.75))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+        }
+    }
 }
 
 /// The other kinds recorded on the day, as small chips with their counts; tap one to see only it.
@@ -1227,6 +1306,7 @@ private struct DayChapterLedger: View {
     @ScaledMetric private var timeWidth: CGFloat = 52
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.dynamicTypeSize) private var type
     @Environment(\.lamp) private var lamp
 
     private func isExpanded(_ chapter: DayChapter, index: Int, chapters: [DayChapter], totalRows: Int) -> Bool {
@@ -1295,23 +1375,37 @@ private struct DayChapterLedger: View {
                                     }
                                 }
                             } label: {
-                                HStack(spacing: 8) {
+                                HStack(alignment: type.isAccessibilitySize ? .top : .center, spacing: 8) {
                                     Image(systemName: chapter.period.symbol)
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(chapter.period.tint)
-                                    Text(chapter.period.title)
-                                        .font(.subheadline.weight(.bold))
-                                        .foregroundStyle(.primary)
-                                    Text(chapter.summaryLine)
-                                        .font(.caption.weight(.medium))
-                                        .foregroundStyle(Palette.secondaryText)
-                                        .lineLimit(1)
-                                        .minimumScaleFactor(0.75)
+                                        .padding(.top, type.isAccessibilitySize ? 3 : 0)
+                                    if type.isAccessibilitySize {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(chapter.period.title)
+                                                .font(.subheadline.weight(.bold))
+                                                .foregroundStyle(.primary)
+                                            Text(chapter.summaryLine)
+                                                .font(.caption.weight(.medium))
+                                                .foregroundStyle(Palette.secondaryText)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                        }
+                                    } else {
+                                        Text(chapter.period.title)
+                                            .font(.subheadline.weight(.bold))
+                                            .foregroundStyle(.primary)
+                                        Text(chapter.summaryLine)
+                                            .font(.caption.weight(.medium))
+                                            .foregroundStyle(Palette.secondaryText)
+                                            .lineLimit(1)
+                                            .minimumScaleFactor(0.75)
+                                    }
                                     Spacer(minLength: 4)
                                     Image(systemName: "chevron.down")
                                         .font(.caption2.weight(.bold))
                                         .foregroundStyle(.tertiary)
                                         .rotationEffect(.degrees(expanded ? 180 : 0))
+                                        .padding(.top, type.isAccessibilitySize ? 4 : 0)
                                 }
                                 .padding(.horizontal, 10)
                                 .padding(.vertical, 8)
@@ -1441,9 +1535,12 @@ private struct CompactEntryRow: View {
                         .font(Typeface.numerals(11, relativeTo: .caption2, weight: .medium))
                         .foregroundStyle(Palette.secondaryText)
                 } else if isToday {
-                    Text(ago(entry.endDate ?? entry.startDate, now: now))
-                        .font(.caption2)
-                        .foregroundStyle(Palette.secondaryText)
+                    let ref = entry.endDate ?? entry.startDate
+                    if abs(now.timeIntervalSince(ref)) < 18 * 3600 {
+                        Text(ago(ref, now: now))
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryText)
+                    }
                 }
             }
             .frame(width: timeWidth, alignment: .topLeading)

@@ -51,6 +51,7 @@ enum Crayon {
         case sky: dyn(0x1F6DB8, 0x7DB8F2)
         case tangerine, peach, caramel: dyn(0xB8550C, 0xFFA066)
         case lilac: dyn(0x6A48C8, 0xB39CF4)
+        case pebble: dyn(0x5E574F, 0xD2CAC0)
         default: c
         }
     }

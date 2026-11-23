@@ -111,11 +111,11 @@ struct TimerScreen: View {
                         ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
                             Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) { withAnimation(.snappy) { startAt = nil; startAgo = m } }
-                                .buttonStyle(.vinyl(on ? c : Color(hex: 0x8A8279)))
+                                .buttonStyle(.vinyl(on ? c : Crayon.pebble))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
                         Button(startAt.map { whenLabel($0) } ?? L10n.t("其他时间…", "Other…")) { pickingStart = true }
-                            .buttonStyle(.vinyl(startAt != nil ? c : Color(hex: 0x8A8279)))
+                            .buttonStyle(.vinyl(startAt != nil ? c : Crayon.pebble))
                             .fontWeight(startAt != nil ? .semibold : .regular)
                     }
                 }
