@@ -49,13 +49,21 @@ struct GrowthView: View {
                     "数据来源：世界卫生组织（WHO）儿童生长标准（2006）。百分位表示在同龄同性别儿童中的位置，不是评分；生长情况以儿童保健医生的评估为准。",
                     "Source: WHO Child Growth Standards (2006). Percentiles show where a measurement falls among peers of the same age and sex — never a score. Always follow your pediatrician's assessment."
                 ))
-                    .font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                    .font(.footnote).foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                            .fill(Palette.fill.opacity(0.65))
+                    )
             }
             .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("生长曲线", "Growth Curve"))
+        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) { Button(L10n.t("记一次测量", "Log measurement"), systemImage: "plus") { editing = Measure(at: ms(Date())) } }
         }
@@ -292,6 +300,7 @@ struct StatsView: View {
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("昼夜节律", "Rhythm & Week"))
+        .toolbar(.hidden, for: .tabBar)
     }
     /// Each of the last seven days: feeds, hours asleep, nappies, minutes at the breast (pauses left out), bottle ml.
     private func week() -> [(Day, Int, Double, Int, Double, Double)] {

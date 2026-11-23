@@ -203,6 +203,7 @@ struct CheckRow: View {
     let text: String
     let on: Bool
     var tag: String? = nil
+    var accent: Color = Palette.accent
     var last = false
     let toggle: () -> Void
     var body: some View {
@@ -210,7 +211,7 @@ struct CheckRow: View {
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 14) {
                     Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title2)
-                        .foregroundStyle(on ? Palette.accent : Color(uiColor: .tertiaryLabel))
+                        .foregroundStyle(on ? Crayon.ink(accent) : accent.opacity(0.45))
                         .contentTransition(.symbolEffect(.replace))
                     VStack(alignment: .leading, spacing: 2) {
                         Text(text).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
@@ -219,6 +220,7 @@ struct CheckRow: View {
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 11)
+                .background(on ? accent.opacity(0.06) : .clear)
                 if !last { Divider().padding(.leading, 56) }
             }
             .contentShape(Rectangle())

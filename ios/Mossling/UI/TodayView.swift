@@ -606,6 +606,8 @@ private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: Strin
 struct TodayPlayCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var envLamp
     @Environment(\.dynamicTypeSize) private var size
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(JournalStore.self) private var j
@@ -760,6 +762,8 @@ struct TodayPlayCard: View {
 
     @ViewBuilder private func leadArt(_ p: Play, big: Bool) -> some View {
         let key = Palette.areaKey(of: p)
+        let darkStage = night || envLamp || scheme == .dark
+        let toneInk = darkStage ? Palette.area(key).mix(with: .white, by: 0.25) : Palette.areaInk(key)
         let action = StepKineticAction.infer(
             stepText: p.steps.first ?? ActivityMotionIndex.spec(for: p).cue,
             stepIndex: 0,
@@ -773,7 +777,7 @@ struct TodayPlayCard: View {
         }
 
         ZStack(alignment: .bottomLeading) {
-            Color(hex: night ? 0x161E3D : 0xFAF4E8)
+            Color(hex: darkStage ? 0x161E3D : 0xFAF4E8)
 
             if let readyImg {
                 Image(uiImage: readyImg)
@@ -785,14 +789,14 @@ struct TodayPlayCard: View {
                 TrayTile(code: p.code, color: Palette.area(key), flat: flat)
             }
 
-            if night {
+            if darkStage {
                 Color(hex: 0x0A1026).opacity(0.22)
             }
 
             StepKineticOverlay(
                 action: action,
                 accent: Palette.area(key),
-                dark: night,
+                dark: darkStage,
                 pulseAt: .distantPast,
                 pulseOrigin: nil,
                 reduce: reduce
@@ -802,15 +806,15 @@ struct TodayPlayCard: View {
             HStack(spacing: 5) {
                 Image(systemName: action.symbol)
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(Palette.areaInk(key))
+                    .foregroundStyle(toneInk)
                 Text(action.label)
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(night ? Palette.lampInk : Palette.text)
+                    .foregroundStyle(darkStage ? Palette.lampInk : Palette.text)
             }
             .padding(.horizontal, 9)
             .padding(.vertical, 4)
-            .background(Capsule().fill((night ? Palette.lampCard : .white).opacity(0.90)))
-            .overlay(Capsule().strokeBorder(Palette.area(key).opacity(0.32), lineWidth: 0.75))
+            .background(Capsule().fill((darkStage ? Palette.lampCard : .white).opacity(0.90)))
+            .overlay(Capsule().strokeBorder(Palette.area(key).opacity(darkStage ? 0.42 : 0.32), lineWidth: 0.75))
             .padding(10)
         }
         .frame(maxWidth: .infinity)
@@ -818,7 +822,7 @@ struct TodayPlayCard: View {
         .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
         .overlay(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(Palette.area(key).opacity(night ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+                .strokeBorder(Palette.area(key).opacity(darkStage ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
         )
         .zoomSource(route(p))
     }

@@ -391,35 +391,107 @@ extension AppModel {
     }
 }
 
+private struct BeadJourneyRibbon: View {
+    let title: String
+    let subtitle: String
+    let beads: [(filled: Bool, color: Color)]
+    var pill: (text: String, color: Color)? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center, spacing: 8) {
+                GoldBead(size: 10)
+                Text(title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 4)
+                if let pill {
+                    Text(pill.text)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Crayon.ink(pill.color))
+                        .lineLimit(1)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(pill.color.opacity(0.14)))
+                }
+            }
+
+            if !beads.isEmpty {
+                WrapLayout(spacing: 6) {
+                    ForEach(Array(beads.prefix(24).enumerated()), id: \.offset) { _, b in
+                        Circle()
+                            .fill(
+                                b.filled
+                                    ? AnyShapeStyle(RadialGradient(colors: [b.color.mix(with: .white, by: 0.35), b.color], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: 7))
+                                    : AnyShapeStyle(Palette.secondaryText.opacity(0.18))
+                            )
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(b.filled ? b.color.opacity(0.25) : b.color.opacity(0.35), lineWidth: 0.75)
+                            )
+                            .shadow(color: b.filled ? b.color.opacity(0.28) : .clear, radius: 2, y: 1)
+                            .frame(width: 10, height: 10)
+                    }
+                }
+                .accessibilityHidden(true)
+            }
+
+            Text(subtitle)
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: Radius.card)
+    }
+}
+
 struct CareView: View {
     @Environment(AppModel.self) private var app
     let month: Int
     var body: some View {
         let mo = app.content.month(month), m = month
+        let earlier = app.duePending(before: m)
+        let vDone = mo.vaccines.indices.filter { app.ticked(m, TickKind.vaccine, "\($0)") }.count
+        let cDone = mo.checkups.indices.filter { app.ticked(m, TickKind.checkup, "\($0)") }.count
+        let monthDone = vDone + cDone
+        let monthTotal = mo.vaccines.count + mo.checkups.count
+        let careBeads: [(filled: Bool, color: Color)] =
+            mo.vaccines.indices.map { (app.ticked(m, TickKind.vaccine, "\($0)"), Crayon.cherry) }
+            + mo.checkups.indices.map { (app.ticked(m, TickKind.checkup, "\($0)"), Crayon.teal) }
+
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if monthTotal > 0 || !earlier.isEmpty {
+                    BeadJourneyRibbon(
+                        title: L10n.t("本月已记 \(monthDone) / \(monthTotal)", "\(monthDone) / \(monthTotal) logged this month"),
+                        subtitle: L10n.t("轻点记下已完成的接种与儿保，只为方便回看。", "Tap to keep a calm record of vaccines and well-child visits."),
+                        beads: careBeads,
+                        pill: earlier.isEmpty ? nil : (L10n.t("之前未勾 \(earlier.count) 项", "\(earlier.count) earlier"), Crayon.tangerine)
+                    )
+                }
                 // first: what the two months before left unticked (overdue is the most pressing); ticked here,
                 // it is kept under its own month
-                let earlier = app.duePending(before: m)
                 if !earlier.isEmpty {
-                    Box(title: L10n.t("之前没勾的", "Earlier unchecked")) {
+                    Box(title: L10n.t("之前没勾的", "Earlier unchecked"), detail: L10n.t("\(earlier.count) 项", "\(earlier.count)")) {
                         ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
                             let moText = d.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(d.month) 个月", d.month == 1 ? "1 month" : "\(d.month) months")
-                            CheckRow(text: d.text + " · " + moText, on: app.ticked(d.month, d.kind, d.key), last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
+                            CheckRow(text: d.text + " · " + moText, on: app.ticked(d.month, d.kind, d.key), accent: Crayon.tangerine, last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
                         }
                     }
                 }
                 if !mo.vaccines.isEmpty {
-                    Box(title: L10n.t("接种", "Vaccines")) {
+                    Box(title: L10n.t("接种", "Vaccines"), detail: "\(vDone) / \(mo.vaccines.count)") {
                         ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
-                            CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), last: i == mo.vaccines.count - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
+                            CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), accent: Crayon.cherry, last: i == mo.vaccines.count - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
                         }
                     }
                 }
                 if !mo.checkups.isEmpty {
-                    Box(title: L10n.t("儿童保健", "Well-Child Visits")) {
+                    Box(title: L10n.t("儿童保健", "Well-Child Visits"), detail: "\(cDone) / \(mo.checkups.count)") {
                         ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
-                            CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
+                            CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), accent: Crayon.teal, last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
                         }
                     }
                 }
@@ -506,6 +578,7 @@ struct RhythmView: View {
         .pageBackground()
         .navigationTitle(L10n.t("一天的节奏", "Daily Rhythm"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
+        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -596,16 +669,42 @@ struct ObserveView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     let month: Int
+
+    private func observeColor(for area: String) -> Color {
+        let low = area.lowercased()
+        if area.contains("社会") || area.contains("情绪") || low.contains("social") || low.contains("emotion") { return Crayon.pink }
+        if area.contains("语言") || area.contains("沟通") || low.contains("language") || low.contains("comm") { return Crayon.teal }
+        if area.contains("认知") || low.contains("cognitive") { return Crayon.sunflower }
+        if area.contains("运动") || low.contains("motor") || low.contains("move") { return Crayon.tangerine }
+        return Palette.accent
+    }
+
     var body: some View {
         let mo = app.content.month(month)
+        let obsBeads: [(filled: Bool, color: Color)] = mo.observe.enumerated().flatMap { gi, g in
+            let col = observeColor(for: g.area)
+            return g.items.indices.map { ii in (app.ticked(month, TickKind.observed, "\(gi)-\(ii)"), col) }
+        }
+        let obsTotal = obsBeads.count
+        let obsDone = obsBeads.filter(\.filled).count
+
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if obsTotal > 0 {
+                    BeadJourneyRibbon(
+                        title: L10n.t("已留意 \(obsDone) / \(obsTotal)", "\(obsDone) / \(obsTotal) noticed"),
+                        subtitle: L10n.t("记下已经看到的小瞬间，每个孩子都有自己的节奏。", "Mark moments you've spotted — every child moves at their own pace."),
+                        beads: obsBeads
+                    )
+                }
                 // each area a list of ticks, as 接种与儿保: one line each, no tile stretched round a short line
                 ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
-                    Box(title: g.area) {
+                    let color = observeColor(for: g.area)
+                    let groupDone = g.items.indices.filter { app.ticked(month, TickKind.observed, "\(gi)-\($0)") }.count
+                    Box(title: g.area, detail: "\(groupDone) / \(g.items.count)") {
                         ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
                             let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
-                            CheckRow(text: t, on: on, last: ii == g.items.count - 1) { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) }
+                            CheckRow(text: t, on: on, accent: color, last: ii == g.items.count - 1) { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) }
                                 .sensoryFeedback(.selection, trigger: on)
                         }
                     }
@@ -613,7 +712,16 @@ struct ObserveView: View {
                 Text(L10n.t(
                     "这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。",
                     "These are signs many children show around this age. If you haven't noticed one yet, mention it at your next well-child visit — every child moves at their own pace."
-                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
+                ))
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(Palette.fill.opacity(0.65))
+                )
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }

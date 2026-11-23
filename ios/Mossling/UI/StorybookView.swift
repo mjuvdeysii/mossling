@@ -333,8 +333,9 @@ private struct StorybookCoverSpread: View {
                                     .offset(y: -7)
                             }
 
-                            Duo(primary: app.companion, size: 54, mood: .happy, poke: true, night: dark)
-                                .offset(x: 6, y: 12)
+                            WaxSealBadge(seal: .gold, size: 44)
+                                .rotationEffect(.degrees(-6))
+                                .offset(x: 8, y: 12)
                         }
                         .padding(.horizontal, 12)
 
@@ -385,6 +386,31 @@ private struct StorybookCoverSpread: View {
                         )
                     )
                     .printCard(radius: Radius.stage)
+                    .overlay(alignment: .leading) {
+                        ZStack(alignment: .leading) {
+                            LinearGradient(
+                                colors: [
+                                    (dark ? Color.black.opacity(0.22) : Color(hex: 0x6B4A2B).opacity(0.08)),
+                                    .clear
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .frame(width: 16)
+
+                            Rectangle()
+                                .fill(dark ? Color.white.opacity(0.08) : Color(hex: 0x6B4A2B).opacity(0.11))
+                                .frame(width: 1)
+                                .offset(x: 12)
+
+                            Rectangle()
+                                .fill(dark ? Color.black.opacity(0.25) : Color.white.opacity(0.55))
+                                .frame(width: 0.75)
+                                .offset(x: 13.5)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.stage, style: .continuous))
+                        .allowsHitTesting(false)
+                    }
                 }
                 .padding(.horizontal, 18)
                 .padding(.vertical, 8)
