@@ -317,6 +317,8 @@ final class SoundscapeEngine {
     }
     /// Remaining seconds when a finite auto-fade timer is active; nil for continuous or stopped.
     private(set) var remainingSeconds: Int? = nil
+    /// Becomes `true` only when a finite auto-fade timer reaches zero naturally (used to dim the Bedside Lamp into ember rest).
+    private(set) var didFinishAutoFade: Bool = false
 
     var isPlaying: Bool { active != nil }
 
@@ -378,8 +380,13 @@ final class SoundscapeEngine {
         }
     }
 
+    func clearAutoFadeNotice() {
+        didFinishAutoFade = false
+    }
+
     /// Blends a second soundscape softly alongside the active one (or starts it if nothing is playing).
     func toggleLayer(_ kind: SoundscapeKind) {
+        didFinishAutoFade = false
         guard let current = active else {
             start(kind)
             return
@@ -405,6 +412,7 @@ final class SoundscapeEngine {
     }
 
     func start(_ kind: SoundscapeKind, preserveTimer: Bool = false) {
+        didFinishAutoFade = false
         if secondary == kind {
             secondary = nil
             dsp.layerTargetMix = 0
@@ -429,6 +437,7 @@ final class SoundscapeEngine {
     }
 
     func stop() {
+        didFinishAutoFade = false
         countdownTask?.cancel()
         countdownTask = nil
         remainingSeconds = nil
@@ -443,6 +452,11 @@ final class SoundscapeEngine {
             guard let self, self.active == nil else { return }
             self.teardownAudioGraph()
         }
+    }
+
+    private func completeAutoFade() {
+        stop()
+        didFinishAutoFade = true
     }
 
     private func scheduleTimer() {
@@ -465,7 +479,7 @@ final class SoundscapeEngine {
                 self.dsp.targetGain = Self.fadeMultiplier(remaining: Double(left), fadeDuration: 20)
             }
             if !Task.isCancelled {
-                self?.stop()
+                self?.completeAutoFade()
             }
         }
     }

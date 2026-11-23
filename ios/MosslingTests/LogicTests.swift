@@ -1418,4 +1418,46 @@ final class LogicTests: XCTestCase {
         // Never raises brightness if the user's phone is already darker than the lamp ceiling
         XCTAssertEqual(BedsideLampView.targetScreenBrightness(lampBrightness: 1.0, savedSystemBrightness: 0.12), 0.12, accuracy: 0.001)
     }
+
+    @MainActor func testBedsideLampEmberFadeCouplingAndWarmthTokens() {
+        // Above 20s remaining (or continuous): preserves user's chosen brightness untouched
+        XCTAssertEqual(
+            BedsideLampView.effectiveBrightness(baseBrightness: 0.80, remainingSeconds: 45, isFinitePlaying: true, emberResting: false),
+            0.80,
+            accuracy: 0.001
+        )
+        XCTAssertEqual(
+            BedsideLampView.effectiveBrightness(baseBrightness: 0.80, remainingSeconds: 5, isFinitePlaying: false, emberResting: false),
+            0.80,
+            accuracy: 0.001
+        )
+
+        // During final 20s auto-fade: tapers smoothly along SoundscapeEngine's cosine envelope toward 0.12
+        let at20 = BedsideLampView.effectiveBrightness(baseBrightness: 0.80, remainingSeconds: 20, isFinitePlaying: true, emberResting: false)
+        let at10 = BedsideLampView.effectiveBrightness(baseBrightness: 0.80, remainingSeconds: 10, isFinitePlaying: true, emberResting: false)
+        let at0 = BedsideLampView.effectiveBrightness(baseBrightness: 0.80, remainingSeconds: 0, isFinitePlaying: true, emberResting: false)
+        XCTAssertEqual(at20, 0.80, accuracy: 0.001)
+        XCTAssertEqual(at10, 0.46, accuracy: 0.001)
+        XCTAssertEqual(at0, 0.12, accuracy: 0.001)
+
+        // Post-fade ember rest settles quietly to 0.10 regardless of prior base brightness
+        XCTAssertEqual(
+            BedsideLampView.effectiveBrightness(baseBrightness: 0.90, remainingSeconds: nil, isFinitePlaying: false, emberResting: true),
+            0.10,
+            accuracy: 0.001
+        )
+
+        // All warmth presets expose distinct labels and non-empty semantic tokens
+        XCTAssertEqual(Set(LampWarmth.allCases.map(\.id)).count, 3)
+
+        // SoundscapeEngine manual stop never flags natural auto-fade ember rest
+        let engine = SoundscapeEngine.shared
+        engine.duration = .m15
+        engine.start(.rain)
+        XCTAssertFalse(engine.didFinishAutoFade)
+        engine.stop()
+        XCTAssertFalse(engine.didFinishAutoFade)
+        engine.clearAutoFadeNotice()
+        XCTAssertFalse(engine.didFinishAutoFade)
+    }
 }

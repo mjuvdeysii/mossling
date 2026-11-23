@@ -37,6 +37,46 @@ enum LampWarmth: String, CaseIterable, Identifiable {
         case .peach: Color(hex: 0xFFF0DB)
         }
     }
+
+    var onPrimaryInk: Color {
+        switch self {
+        case .amber: Color(hex: 0x261700)
+        case .candle: Color(hex: 0x1F0603)
+        case .peach: Color(hex: 0x2B1608)
+        }
+    }
+
+    var actionFill: Color {
+        switch self {
+        case .amber: Palette.lampTint
+        case .candle: Color(hex: 0x9E2F1B)
+        case .peach: Color(hex: 0xB86438)
+        }
+    }
+
+    var actionInk: Color {
+        switch self {
+        case .amber: Palette.lampInk
+        case .candle: Color(hex: 0xFFE8DF)
+        case .peach: Color(hex: 0xFFF2E6)
+        }
+    }
+
+    var secondaryBadgeFill: Color {
+        switch self {
+        case .amber: Palette.beadLight
+        case .candle: Color(hex: 0xFFB8A6)
+        case .peach: Color(hex: 0xFFE4CC)
+        }
+    }
+
+    var dustCoreColor: Color {
+        switch self {
+        case .amber: Color(hex: 0xFFEBC0)
+        case .candle: Color(hex: 0xFFB8A2)
+        case .peach: Color(hex: 0xFFF2E0)
+        }
+    }
 }
 
 /// Otto's Living Bedside Lamp (床头夜灯): a full-screen zero-glare midnight sanctuary for 3 a.m. feeds and settling.
@@ -62,6 +102,7 @@ struct BedsideLampView: View {
     @State private var volumeMonitor: EarSafeVolumeMonitor
     @State private var countedPresentation = false
     @State private var savedScreenBrightness: CGFloat? = nil
+    @State private var emberResting = false
     private let previewClock: Date?
     private let persistsToAppModel: Bool
 
@@ -79,6 +120,37 @@ struct BedsideLampView: View {
         _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
         self.previewClock = previewClock
         self.persistsToAppModel = initialBrightness == nil && initialBreathingGuide == nil && initialWarmth == nil && previewClock == nil
+    }
+
+    /// Computes live lamp brightness coupled with any finite soundscape auto-fade envelope and post-fade ember rest.
+    nonisolated static func effectiveBrightness(
+        baseBrightness: Double,
+        remainingSeconds: Int?,
+        isFinitePlaying: Bool,
+        emberResting: Bool
+    ) -> Double {
+        let clampedBase = max(0.15, min(1.0, baseBrightness))
+        if emberResting {
+            return 0.10
+        }
+        guard isFinitePlaying, let rem = remainingSeconds, rem <= 20 else {
+            return clampedBase
+        }
+        let fade = Double(SoundscapeEngine.fadeMultiplier(remaining: Double(rem), fadeDuration: 20))
+        return 0.12 + (clampedBase - 0.12) * fade
+    }
+
+    private var isFiniteSoundscapePlaying: Bool {
+        soundscape.isPlaying && soundscape.duration != .continuous
+    }
+
+    private var displayedBrightness: Double {
+        Self.effectiveBrightness(
+            baseBrightness: brightness,
+            remainingSeconds: soundscape.remainingSeconds,
+            isFinitePlaying: isFiniteSoundscapePlaying,
+            emberResting: emberResting
+        )
     }
 
     /// Maps the Bedside Lamp dimmer (0.15...1.0) to a gentle physical screen ceiling without ever raising user brightness.
@@ -161,7 +233,12 @@ struct BedsideLampView: View {
                 warmth = LampWarmth(rawValue: app.lampWarmthRaw) ?? .amber
                 breathingGuide = app.lampBreathingGuide
             }
-            UIApplication.shared.isIdleTimerDisabled = true
+            if soundscape.didFinishAutoFade && !soundscape.isPlaying && persistsToAppModel {
+                emberResting = true
+                UIApplication.shared.isIdleTimerDisabled = false
+            } else {
+                UIApplication.shared.isIdleTimerDisabled = true
+            }
             volumeMonitor.start()
             if scenePhase == .active {
                 applyScreenDimmerIfAllowed()
@@ -172,6 +249,23 @@ struct BedsideLampView: View {
                     pulse = true
                 }
             }
+        }
+        .onChange(of: soundscape.didFinishAutoFade) { _, finished in
+            guard finished, !soundscape.isPlaying else { return }
+            withAnimation(reduce ? nil : .easeOut(duration: 0.9)) {
+                emberResting = true
+            }
+            UIApplication.shared.isIdleTimerDisabled = false
+            applyScreenDimmerIfAllowed()
+        }
+        .onChange(of: soundscape.isPlaying) { _, playing in
+            if playing {
+                rekindleFromEmber()
+            }
+        }
+        .onChange(of: soundscape.remainingSeconds) { _, rem in
+            guard isFiniteSoundscapePlaying, let rem, rem <= 20, scenePhase == .active else { return }
+            applyScreenDimmerIfAllowed()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
@@ -195,6 +289,16 @@ struct BedsideLampView: View {
         .accessibilityElement(children: .contain)
     }
 
+    private func rekindleFromEmber() {
+        soundscape.clearAutoFadeNotice()
+        guard emberResting else { return }
+        withAnimation(reduce ? nil : .easeOut(duration: 0.35)) {
+            emberResting = false
+        }
+        UIApplication.shared.isIdleTimerDisabled = true
+        applyScreenDimmerIfAllowed()
+    }
+
     private var canAdjustHardwareScreen: Bool {
         previewClock == nil
             && !Perf.still
@@ -214,7 +318,7 @@ struct BedsideLampView: View {
             savedScreenBrightness = screen.brightness
         }
         let baseline = Double(savedScreenBrightness ?? screen.brightness)
-        let target = CGFloat(Self.targetScreenBrightness(lampBrightness: brightness, savedSystemBrightness: baseline))
+        let target = CGFloat(Self.targetScreenBrightness(lampBrightness: displayedBrightness, savedSystemBrightness: baseline))
         if abs(screen.brightness - target) > 0.01 {
             screen.brightness = target
         }
@@ -239,7 +343,7 @@ struct BedsideLampView: View {
     private var backdrop: some View {
         let swayX = reduce ? 0 : motion.roll * 26
         let swayY = reduce ? 0 : motion.pitch * 18
-        let b = brightness
+        let b = displayedBrightness
         return ZStack {
             // Deep OLED-friendly midnight indigo sinking smoothly to near-black when dimmed
             LinearGradient(
@@ -278,7 +382,7 @@ struct BedsideLampView: View {
 
             // Whisper-soft warm dust motes rising in Otto's beam
             if !reduce && !Perf.still {
-                LampDustCanvas(brightness: b, glowColor: warmth.primaryGlow)
+                LampDustCanvas(brightness: b, glowColor: warmth.primaryGlow, coreColor: warmth.dustCoreColor)
             }
         }
         .ignoresSafeArea()
@@ -298,7 +402,7 @@ struct BedsideLampView: View {
                     .foregroundStyle(Palette.lampInk.opacity(0.86))
                     .frame(width: 40, height: 40)
                     .background(Circle().fill(Color(hex: 0x1A2346).opacity(0.75)))
-                    .overlay(Circle().strokeBorder(Palette.amber.opacity(0.22), lineWidth: 1))
+                    .overlay(Circle().strokeBorder(warmth.primaryGlow.opacity(0.22), lineWidth: 1))
             }
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t("关闭夜灯", "Close Bedside Lamp"))
@@ -309,14 +413,16 @@ struct BedsideLampView: View {
                 VStack(spacing: 2) {
                     Text(hm(previewClock ?? tl.date))
                         .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
-                        .foregroundStyle(Palette.lampInk.opacity(0.65 + 0.3 * brightness))
+                        .foregroundStyle(Palette.lampInk.opacity(0.55 + 0.4 * displayedBrightness))
                     Text(
                         dragStartBrightness != nil
                             ? L10n.t("暖光 \(Int((brightness * 100).rounded()))%", "Warmth \(Int((brightness * 100).rounded()))%")
-                            : (soundscape.activeSummary ?? L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"))
+                            : (emberResting
+                                ? L10n.t("声景已随夜色轻褪", "Ember rest · sound faded")
+                                : (soundscape.activeSummary ?? L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp")))
                     )
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.amber.opacity(0.76))
+                    .foregroundStyle(warmth.primaryGlow.opacity(0.82))
                     .lineLimit(1)
                     .minimumScaleFactor(0.78)
                     .contentTransition(.opacity)
@@ -328,6 +434,7 @@ struct BedsideLampView: View {
             // Calm 4-6 paced breathing guide toggle right on the top bar
             Button {
                 TactileEngine.shared.beadClick()
+                rekindleFromEmber()
                 withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
                     breathingGuide.toggle()
                 }
@@ -340,12 +447,12 @@ struct BedsideLampView: View {
                         .font(.caption2.weight(.bold))
                         .lineLimit(1)
                 }
-                .foregroundStyle(breathingGuide ? Color(hex: 0x261700) : Palette.amber.opacity(0.90))
+                .foregroundStyle(breathingGuide ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
                 .padding(.horizontal, 10)
                 .frame(height: 36)
                 .frame(minWidth: 40)
-                .background(Capsule().fill(breathingGuide ? Palette.amber : Color(hex: 0x1A2346).opacity(0.75)))
-                .overlay(Capsule().strokeBorder(Palette.amber.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
+                .background(Capsule().fill(breathingGuide ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
+                .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
             }
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
@@ -356,13 +463,22 @@ struct BedsideLampView: View {
 
     private var lanternCenterpiece: some View {
         let swayX = reduce ? 0 : motion.roll * 10
+        let b = displayedBrightness
+        let resting = emberResting || isSleeping
         return VStack(spacing: 8) {
             ZStack {
                 Color.clear
                     .contentShape(Circle())
+                    .onTapGesture {
+                        if emberResting {
+                            TactileEngine.shared.beadClick()
+                            rekindleFromEmber()
+                        }
+                    }
                     .onTapGesture(count: 2) {
                         TactileEngine.shared.dimmerTick()
                         showingDimmerHint = false
+                        rekindleFromEmber()
                         withAnimation(reduce ? nil : .easeInOut(duration: 0.28)) {
                             brightness = brightness <= 0.35 ? 0.78 : 0.22
                         }
@@ -370,7 +486,7 @@ struct BedsideLampView: View {
                         commitLampPreferences()
                     }
 
-                if breathingGuide {
+                if breathingGuide && !emberResting {
                     TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
                         let ringSize: CGFloat = 132 + CGFloat(st.progress) * 56
@@ -379,8 +495,8 @@ struct BedsideLampView: View {
                                 .fill(
                                     RadialGradient(
                                         colors: [
-                                            warmth.highlightCore.opacity((0.28 + 0.30 * st.progress) * brightness),
-                                            warmth.primaryGlow.opacity((0.14 + 0.16 * st.progress) * brightness),
+                                            warmth.highlightCore.opacity((0.28 + 0.30 * st.progress) * b),
+                                            warmth.primaryGlow.opacity((0.14 + 0.16 * st.progress) * b),
                                             .clear
                                         ],
                                         center: .center,
@@ -391,11 +507,11 @@ struct BedsideLampView: View {
                                 .frame(width: ringSize + 36, height: ringSize + 36)
 
                             Circle()
-                                .strokeBorder(warmth.primaryGlow.opacity((0.40 + 0.44 * st.progress) * brightness), lineWidth: 2.0)
+                                .strokeBorder(warmth.primaryGlow.opacity((0.40 + 0.44 * st.progress) * b), lineWidth: 2.0)
                                 .frame(width: ringSize, height: ringSize)
 
                             Circle()
-                                .strokeBorder(warmth.highlightCore.opacity((0.18 + 0.22 * st.progress) * brightness), lineWidth: 1.0)
+                                .strokeBorder(warmth.highlightCore.opacity((0.18 + 0.22 * st.progress) * b), lineWidth: 1.0)
                                 .frame(width: ringSize + 20, height: ringSize + 20)
                         }
                     }
@@ -406,7 +522,7 @@ struct BedsideLampView: View {
                         ForEach(0..<3, id: \.self) { idx in
                             Circle()
                                 .strokeBorder(
-                                    warmth.primaryGlow.opacity((0.24 - Double(idx) * 0.06) * brightness),
+                                    warmth.primaryGlow.opacity((0.24 - Double(idx) * 0.06) * b),
                                     lineWidth: 1.2
                                 )
                                 .frame(
@@ -427,8 +543,8 @@ struct BedsideLampView: View {
                         .fill(
                             RadialGradient(
                                 colors: [
-                                    warmth.highlightCore.opacity(0.55 * brightness),
-                                    warmth.primaryGlow.opacity(0.28 * brightness),
+                                    warmth.highlightCore.opacity(0.55 * b),
+                                    warmth.primaryGlow.opacity(0.28 * b),
                                     .clear
                                 ],
                                 center: .center,
@@ -443,22 +559,42 @@ struct BedsideLampView: View {
 
                 Creature(
                     kind: .otto,
-                    mood: isSleeping ? .sleep : .open,
+                    mood: resting ? .sleep : .open,
                     look: CGPoint(x: 0, y: 0.2),
-                    lid: isSleeping ? 0.9 : 0.52,
+                    lid: emberResting ? 0.92 : (isSleeping ? 0.9 : 0.52),
                     lean: reduce ? 0 : motion.roll * 5.0,
-                    alive: true,
+                    alive: !emberResting,
                     poke: true,
                     label: L10n.t("Otto 提着床头夜灯陪着你们", "Otto holding the warm bedside lamp"),
                     glow: true
                 )
                 .frame(width: 136, height: 136)
-                .opacity(0.65 + 0.35 * brightness)
+                .opacity(0.55 + 0.45 * b)
             }
             .frame(height: 186)
 
             HStack(spacing: 8) {
-                if breathingGuide {
+                if emberResting {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                    } label: {
+                        HStack(spacing: 6) {
+                            Circle()
+                                .fill(warmth.primaryGlow.opacity(0.75))
+                                .frame(width: 6, height: 6)
+                            Text(L10n.t("安睡余烬 · 轻点重燃暖光", "Ember rest · Tap to rekindle"))
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(warmth.primaryGlow.opacity(0.92))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                        }
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.14)))
+                    }
+                    .buttonStyle(.plain)
+                } else if breathingGuide {
                     TimelineView(.animation(minimumInterval: 0.25, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
                         HStack(spacing: 6) {
@@ -497,6 +633,7 @@ struct BedsideLampView: View {
                         let on = warmth == preset
                         Button {
                             TactileEngine.shared.beadClick()
+                            rekindleFromEmber()
                             withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
                                 warmth = preset
                             }
@@ -529,6 +666,7 @@ struct BedsideLampView: View {
             .onChanged { value in
                 guard abs(value.translation.height) > abs(value.translation.width) * 1.15 else { return }
                 if dragStartBrightness == nil {
+                    rekindleFromEmber()
                     dragStartBrightness = brightness
                     showingDimmerHint = false
                 }
@@ -554,14 +692,15 @@ struct BedsideLampView: View {
 
     private var dimmerRail: some View {
         let active = dragStartBrightness != nil
+        let b = displayedBrightness
         return VStack(spacing: 6) {
             Image(systemName: "sun.max.fill")
                 .font(.system(size: 10, weight: .bold))
-                .foregroundStyle(Palette.amber.opacity(active ? 0.9 : 0.42))
+                .foregroundStyle(warmth.primaryGlow.opacity(active ? 0.9 : 0.42))
 
             GeometryReader { g in
                 let h = g.size.height
-                let normalized = (brightness - 0.15) / 0.85
+                let normalized = max(0.0, min(1.0, (b - 0.15) / 0.85))
                 let fillH = max(8, h * normalized)
                 ZStack(alignment: .bottom) {
                     Capsule()
@@ -588,8 +727,9 @@ struct BedsideLampView: View {
         .padding(.horizontal, 4)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.t("夜灯亮度", "Lamp brightness"))
-        .accessibilityValue("\(Int((brightness * 100).rounded()))%")
+        .accessibilityValue("\(Int((b * 100).rounded()))%")
         .accessibilityAdjustableAction { dir in
+            rekindleFromEmber()
             switch dir {
             case .increment:
                 brightness = min(1.0, brightness + 0.1)
@@ -613,7 +753,7 @@ struct BedsideLampView: View {
             HStack(spacing: 6) {
                 Image(systemName: "waveform")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Palette.amber.opacity(0.85))
+                    .foregroundStyle(warmth.primaryGlow.opacity(0.85))
                 Text(soundscape.isPlaying ? L10n.t("声景混音 · 点 + 可叠一层", "Soundscapes · Tap + to layer") : L10n.t("舒缓声景", "Soothing Soundscapes"))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Palette.lampInk.opacity(0.76))
@@ -623,11 +763,11 @@ struct BedsideLampView: View {
                 if let rem = soundscape.remainingSeconds {
                     Text(L10n.t("渐弱 ", "Fades ") + clock(Double(rem)))
                         .font(Typeface.numerals(12, relativeTo: .caption, weight: .semibold))
-                        .foregroundStyle(Palette.amber.opacity(0.88))
+                        .foregroundStyle(warmth.primaryGlow.opacity(0.90))
                 } else if soundscape.isPlaying {
                     Text(L10n.t("持续轻播", "Continuous"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.amber.opacity(0.75))
+                        .foregroundStyle(warmth.primaryGlow.opacity(0.78))
                 } else {
                     Text(L10n.t("离线实时合成", "Offline DSP"))
                         .font(.caption2.weight(.medium))
@@ -643,6 +783,7 @@ struct BedsideLampView: View {
                     HStack(spacing: 4) {
                         Button {
                             TactileEngine.shared.beadClick()
+                            rekindleFromEmber()
                             withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.8)) {
                                 soundscape.toggle(kind)
                             }
@@ -650,10 +791,10 @@ struct BedsideLampView: View {
                             HStack(spacing: 6) {
                                 Image(systemName: kind.symbol)
                                     .font(.system(size: 12, weight: .semibold))
-                                    .foregroundStyle(on ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
+                                    .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.90))
                                     .frame(width: 24, height: 24)
                                     .background(
-                                        Circle().fill(isPrimary ? Palette.amber : (isSecondary ? Palette.beadLight : Palette.amber.opacity(0.14)))
+                                        Circle().fill(isPrimary ? warmth.primaryGlow : (isSecondary ? warmth.secondaryBadgeFill : warmth.primaryGlow.opacity(0.14)))
                                     )
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(kind.title)
@@ -663,7 +804,7 @@ struct BedsideLampView: View {
                                         .minimumScaleFactor(0.72)
                                     Text(isSecondary ? L10n.t("已叠第二层", "Layer 2 on") : kind.subtitle)
                                         .font(.caption2)
-                                        .foregroundStyle(on ? Palette.amber.opacity(0.92) : Palette.lampInk.opacity(0.56))
+                                        .foregroundStyle(on ? warmth.primaryGlow.opacity(0.94) : Palette.lampInk.opacity(0.56))
                                         .lineLimit(1)
                                         .minimumScaleFactor(0.70)
                                 }
@@ -676,15 +817,16 @@ struct BedsideLampView: View {
                         if soundscape.isPlaying && !isPrimary {
                             Button {
                                 TactileEngine.shared.beadClick()
+                                rekindleFromEmber()
                                 withAnimation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.8)) {
                                     soundscape.toggleLayer(kind)
                                 }
                             } label: {
                                 Image(systemName: isSecondary ? "checkmark" : "plus")
                                     .font(.system(size: 9, weight: .bold))
-                                    .foregroundStyle(isSecondary ? Color(hex: 0x261700) : Palette.amber.opacity(0.9))
+                                    .foregroundStyle(isSecondary ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
                                     .frame(width: 19, height: 19)
-                                    .background(Circle().fill(isSecondary ? Palette.beadLight : Palette.amber.opacity(0.18)))
+                                    .background(Circle().fill(isSecondary ? warmth.secondaryBadgeFill : warmth.primaryGlow.opacity(0.18)))
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(isSecondary ? L10n.t("移除叠层\(kind.title)", "Remove \(kind.title) layer") : L10n.t("叠加\(kind.title)", "Blend \(kind.title)"))
@@ -694,12 +836,12 @@ struct BedsideLampView: View {
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                            .fill(isPrimary ? Palette.amber.opacity(0.22) : (isSecondary ? Palette.amber.opacity(0.14) : Color(hex: 0x161E3B).opacity(0.75)))
+                            .fill(isPrimary ? warmth.primaryGlow.opacity(0.22) : (isSecondary ? warmth.primaryGlow.opacity(0.14) : Color(hex: 0x161E3B).opacity(0.75)))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .strokeBorder(
-                                isPrimary ? Palette.amber.opacity(0.72) : (isSecondary ? Palette.beadLight.opacity(0.55) : Palette.amber.opacity(0.12)),
+                                isPrimary ? warmth.primaryGlow.opacity(0.72) : (isSecondary ? warmth.secondaryBadgeFill.opacity(0.55) : warmth.primaryGlow.opacity(0.12)),
                                 lineWidth: on ? 1.3 : 1.0
                             )
                     )
@@ -719,11 +861,11 @@ struct BedsideLampView: View {
                             } label: {
                                 Text(d.label)
                                     .font(.caption.weight(sel ? .bold : .medium))
-                                    .foregroundStyle(sel ? Color(hex: 0x241500) : Palette.lampInk.opacity(0.75))
+                                    .foregroundStyle(sel ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.75))
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 6)
                                     .background(
-                                        Capsule().fill(sel ? Palette.amber : Color(hex: 0x1B2547).opacity(0.8))
+                                        Capsule().fill(sel ? warmth.primaryGlow : Color(hex: 0x1B2547).opacity(0.8))
                                     )
                             }
                             .buttonStyle(.toy)
@@ -745,12 +887,12 @@ struct BedsideLampView: View {
                                     .fill(Color.white.opacity(0.12))
                                     .frame(height: 6)
                                 Capsule()
-                                    .fill(LinearGradient(colors: [Palette.lampTint, Palette.amber], startPoint: .leading, endPoint: .trailing))
+                                    .fill(LinearGradient(colors: [warmth.secondaryTint, warmth.primaryGlow], startPoint: .leading, endPoint: .trailing))
                                     .frame(width: max(6, thumbX), height: 6)
                                 Circle()
-                                    .fill(RadialGradient(colors: [Palette.beadLight, Palette.amber], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11))
+                                    .fill(RadialGradient(colors: [warmth.highlightCore, warmth.primaryGlow], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11))
                                     .frame(width: 18, height: 18)
-                                    .overlay(Circle().strokeBorder(Color(hex: 0x241500).opacity(0.45), lineWidth: 1))
+                                    .overlay(Circle().strokeBorder(warmth.onPrimaryInk.opacity(0.45), lineWidth: 1))
                                     .offset(x: thumbX - 9)
                             }
                             .frame(maxHeight: .infinity)
@@ -789,7 +931,7 @@ struct BedsideLampView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(Palette.amber.opacity(0.16), lineWidth: 1)
+                .strokeBorder(warmth.primaryGlow.opacity(0.16), lineWidth: 1)
         )
     }
 
@@ -805,9 +947,9 @@ struct BedsideLampView: View {
                     HStack(spacing: 12) {
                         Image(systemName: LogType.symbol(t.type))
                             .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(Palette.amber)
+                            .foregroundStyle(warmth.primaryGlow)
                             .frame(width: 38, height: 38)
-                            .background(Circle().fill(Palette.amber.opacity(0.16)))
+                            .background(Circle().fill(warmth.primaryGlow.opacity(0.16)))
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(L10n.timerStatus(t.type, side: t.side, paused: paused))
@@ -815,13 +957,14 @@ struct BedsideLampView: View {
                                 .foregroundStyle(Palette.lampInk)
                             Text(clock(t.total(now)))
                                 .font(Typeface.numerals(22, relativeTo: .title2, weight: .bold))
-                                .foregroundStyle(Palette.amber)
+                                .foregroundStyle(warmth.primaryGlow)
                         }
                         Spacer(minLength: 4)
 
                         if t.type == LogType.nurse {
                             Button {
                                 TactileEngine.shared.beadClick()
+                                rekindleFromEmber()
                                 withAnimation(.snappy) { j.switchSide(t.type) }
                             } label: {
                                 Label(t.side == "l" ? L10n.t("换右", "Right") : L10n.t("换左", "Left"), systemImage: "arrow.left.arrow.right")
@@ -836,6 +979,7 @@ struct BedsideLampView: View {
 
                         Button {
                             TactileEngine.shared.beadClick()
+                            rekindleFromEmber()
                             withAnimation(.snappy) { j.togglePause(t.type) }
                         } label: {
                             Image(systemName: paused ? "play.fill" : "pause.fill")
@@ -850,6 +994,7 @@ struct BedsideLampView: View {
 
                     Button {
                         TactileEngine.shared.goldChime()
+                        rekindleFromEmber()
                         withAnimation(.snappy) { j.stop(t.type) }
                     } label: {
                         Label(
@@ -857,11 +1002,11 @@ struct BedsideLampView: View {
                             systemImage: "checkmark"
                         )
                         .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Palette.lampInk)
+                        .foregroundStyle(warmth.actionInk)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                         .background(
-                            Capsule().fill(Palette.lampTint.opacity(0.86))
+                            Capsule().fill(warmth.actionFill.opacity(0.90))
                         )
                     }
                     .buttonStyle(.toy)
@@ -873,7 +1018,7 @@ struct BedsideLampView: View {
                 )
                 .overlay(
                     RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .strokeBorder(Palette.amber.opacity(0.24), lineWidth: 1)
+                        .strokeBorder(warmth.primaryGlow.opacity(0.24), lineWidth: 1)
                 )
             }
         } else {
@@ -885,6 +1030,7 @@ struct BedsideLampView: View {
                 ) {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
                     withAnimation(.snappy) { j.start(LogType.sleep, openFocus: false) }
                 }
 
@@ -895,6 +1041,7 @@ struct BedsideLampView: View {
                 ) {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
                     withAnimation(.snappy) { j.start(LogType.nurse, side: suggestedSide, openFocus: false) }
                 }
             }
@@ -906,9 +1053,9 @@ struct BedsideLampView: View {
             HStack(spacing: 10) {
                 Image(systemName: symbol)
                     .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(Palette.amber)
+                    .foregroundStyle(warmth.primaryGlow)
                     .frame(width: 34, height: 34)
-                    .background(Circle().fill(Palette.amber.opacity(0.15)))
+                    .background(Circle().fill(warmth.primaryGlow.opacity(0.15)))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.subheadline.weight(.bold))
@@ -931,7 +1078,7 @@ struct BedsideLampView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .strokeBorder(Palette.amber.opacity(0.20), lineWidth: 1)
+                    .strokeBorder(warmth.primaryGlow.opacity(0.20), lineWidth: 1)
             )
         }
         .buttonStyle(.toy)
@@ -942,6 +1089,7 @@ struct BedsideLampView: View {
 private struct LampDustCanvas: View {
     let brightness: Double
     var glowColor: Color = Palette.amber
+    var coreColor: Color = Color(hex: 0xFFEBC0)
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.scenePhase) private var scenePhase
 
@@ -965,7 +1113,7 @@ private struct LampDustCanvas: View {
                     )
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
-                        with: .color(Color(hex: 0xFFEBC0).opacity(a))
+                        with: .color(coreColor.opacity(a))
                     )
                 }
             }
