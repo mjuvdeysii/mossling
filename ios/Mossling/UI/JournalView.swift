@@ -28,6 +28,7 @@ struct JournalView: View {
     @State private var expandedPeriods: Set<DayPeriod> = []
     @State private var touchedPeriods = false
     @State private var expandAllChapters = false
+    @State private var scrubbingSwimlane = false
     @Environment(\.dynamicTypeSize) private var size
 
     init(path: Binding<NavigationPath>, only: String? = nil, initialDay: Day? = nil, initialQuickTray: String? = nil) {
@@ -51,6 +52,7 @@ struct JournalView: View {
             expandedPeriods = []
             touchedPeriods = false
             expandAllChapters = false
+            scrubbingSwimlane = false
         }
     }
 
@@ -110,6 +112,7 @@ struct JournalView: View {
                             expandedPeriods: $expandedPeriods,
                             touchedPeriods: $touchedPeriods,
                             expandAllChapters: $expandAllChapters,
+                            scrubbingSwimlane: $scrubbingSwimlane,
                             edit: { editing = $0 },
                             delete: { j.delete($0) },
                             pick: { pickingDay = true },
@@ -130,6 +133,7 @@ struct JournalView: View {
                         ))
                     }
                     .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
+                        guard !scrubbingSwimlane else { return }
                         let dx = v.translation.width, dy = v.translation.height
                         guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
                         let next = day.plus(days: dx < 0 ? 1 : -1)
@@ -729,6 +733,7 @@ private struct DayPage: View {
     @Binding var expandedPeriods: Set<DayPeriod>
     @Binding var touchedPeriods: Bool
     @Binding var expandAllChapters: Bool
+    @Binding var scrubbingSwimlane: Bool
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
     var pick: () -> Void = {}
@@ -792,6 +797,7 @@ private struct DayPage: View {
                 logs: logs,
                 timers: timers,
                 only: $only,
+                isScrubbing: $scrubbingSwimlane,
                 onSelectPeriod: jumpToPeriod,
                 onEditEntry: edit
             )

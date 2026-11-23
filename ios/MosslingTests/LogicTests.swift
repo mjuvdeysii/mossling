@@ -1251,4 +1251,20 @@ final class LogicTests: XCTestCase {
             XCTAssertNotNil(StoryPlateLoader.image(for: StoryPlate.forLand(land)), "Missing land plate for \(land)")
         }
     }
+
+    func testActivityMotionStageStepProgressAndPropSymbols() throws {
+        XCTAssertEqual(ActivityMotionStage.stepProgress(stepIndex: 0, stepCount: 1), 0, accuracy: 0.001)
+        XCTAssertEqual(ActivityMotionStage.stepProgress(stepIndex: 0, stepCount: 4), 0, accuracy: 0.001)
+        XCTAssertEqual(ActivityMotionStage.stepProgress(stepIndex: 1, stepCount: 3), 0.5, accuracy: 0.001)
+        XCTAssertEqual(ActivityMotionStage.stepProgress(stepIndex: 9, stepCount: 3), 1.0, accuracy: 0.001)
+
+        XCTAssertEqual(ActivityMotionStage.propSymbol(for: "bell", fallback: .soundWave), "bell.and.waves.left.and.right.fill")
+        XCTAssertEqual(ActivityMotionStage.propSymbol(for: "unknownProp", fallback: .stackBuild), "square.stack.3d.up.fill")
+
+        let content = try Content.load()
+        for play in content.activities {
+            let spec = ActivityMotionIndex.spec(for: play)
+            XCTAssertFalse(ActivityMotionStage.propSymbol(for: spec.prop, fallback: spec.template).isEmpty)
+        }
+    }
 }

@@ -314,8 +314,27 @@ struct DaySwimlaneChart: View {
     let logs: [LogEntry]
     let timers: [RunningTimer]
     @Binding var only: String?
+    @Binding var isScrubbing: Bool
     let onSelectPeriod: (DayPeriod) -> Void
     let onEditEntry: (LogEntry) -> Void
+
+    init(
+        day: Day,
+        logs: [LogEntry],
+        timers: [RunningTimer],
+        only: Binding<String?>,
+        isScrubbing: Binding<Bool> = .constant(false),
+        onSelectPeriod: @escaping (DayPeriod) -> Void,
+        onEditEntry: @escaping (LogEntry) -> Void
+    ) {
+        self.day = day
+        self.logs = logs
+        self.timers = timers
+        self._only = only
+        self._isScrubbing = isScrubbing
+        self.onSelectPeriod = onSelectPeriod
+        self.onEditEntry = onEditEntry
+    }
 
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
@@ -387,6 +406,7 @@ struct DaySwimlaneChart: View {
                     .gesture(
                         DragGesture(minimumDistance: 0)
                             .onChanged { val in
+                                if !isScrubbing { isScrubbing = true }
                                 // Exclude 24pt leading icon rail when computing time fraction
                                 let plotWidth = max(1, geo.size.width - 24)
                                 let raw = (val.location.x - 24) / plotWidth
@@ -400,6 +420,7 @@ struct DaySwimlaneChart: View {
                                 }
                             }
                             .onEnded { _ in
+                                isScrubbing = false
                                 lastSnappedId = nil
                                 if inspectedEntry == nil {
                                     scrubFraction = nil

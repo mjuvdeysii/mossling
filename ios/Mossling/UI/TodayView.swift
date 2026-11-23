@@ -762,8 +762,10 @@ struct TodayPlayCard: View {
         let key = Palette.areaKey(of: p)
         let plate = StoryPlate.forTemplate(ActivityMotionIndex.spec(for: p).template)
         Group {
-            if StoryPlateLoader.image(for: plate) != nil {
-                LivingStoryPlateView(plate: plate, dark: night, alive: true)
+            if flat, let art = ArtIndex.shared.steps(p.code).first {
+                ArtFill(name: art)
+            } else if StoryPlateLoader.image(for: plate) != nil {
+                LivingStoryPlateView(plate: plate, dark: night, alive: true, companion: app.companion)
             } else if let art = ArtIndex.shared.steps(p.code).first {
                 ArtFill(name: art)
             } else {

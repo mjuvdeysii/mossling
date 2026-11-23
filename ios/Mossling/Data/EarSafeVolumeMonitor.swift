@@ -137,6 +137,10 @@ final class EarSafeVolumeMonitor {
                 guard let self else { return }
                 self.volume = next
                 let nextLevel = EarSafeVolumeLevel.of(next)
+                if self.previousLevel != .loud && nextLevel == .loud {
+                    // Re-arm safety guard when hardware volume crosses upward into the loud zone.
+                    self.dismissedThisSession = false
+                }
                 if self.previousLevel == .loud && nextLevel == .safe {
                     TactileEngine.shared.beadClick()
                 }

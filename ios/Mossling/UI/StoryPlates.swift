@@ -106,18 +106,24 @@ enum StoryPlateLoader {
     }
 }
 
-/// Renders a genuine miniature picture-book plate with gentle optical warmth, optional slow dust motes & interactive golden tap ripple.
+/// Renders a genuine miniature picture-book plate with gentle optical warmth, optional slow dust motes & interactive companion-coupled tap ripple.
 struct LivingStoryPlateView: View {
     let plate: StoryPlate
     var dark: Bool = false
     var alive: Bool = true
     var pulseAt: Date = .distantPast
+    var pulseOrigin: CGPoint? = nil
+    var stepProgress: CGFloat? = nil
+    var companion: Kind? = nil
     var accessibilityLabel: String = ""
 
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         let img = StoryPlateLoader.image(for: plate)
+        let clampedProgress = stepProgress.map { min(1, max(0, $0)) } ?? 0
+        let stepScale: CGFloat = stepProgress == nil ? 1.0 : (1.0 + clampedProgress * 0.045)
+        let stepOffsetX: CGFloat = stepProgress == nil ? 0.0 : ((0.5 - clampedProgress) * 10.0)
         GeometryReader { geo in
             ZStack {
                 if let img {
@@ -134,17 +140,20 @@ struct LivingStoryPlateView: View {
                                     .resizable()
                                     .aspectRatio(contentMode: .fill)
                                     .frame(width: geo.size.width, height: geo.size.height)
-                                    .scaleEffect(breathe)
-                                    .offset(x: panX)
+                                    .scaleEffect(breathe * stepScale)
+                                    .offset(x: panX + stepOffsetX)
+                                    .animation(.smooth(duration: 0.45), value: clampedProgress)
 
                                 if dark {
                                     Color(hex: 0x0B1126).opacity(0.24)
                                 }
 
-                                // Soft sunlit / lamplight motes + interactive tap ripple (zero state mutation)
+                                // Soft sunlit / lamplight motes + companion-coupled interactive tap ripple (zero state mutation)
                                 Canvas { ctx, size in
-                                    let cx = size.width * 0.5
-                                    let cy = size.height * 0.48
+                                    let origin = pulseOrigin ?? CGPoint(x: 0.5, y: 0.48)
+                                    let cx = size.width * min(0.92, max(0.08, origin.x))
+                                    let cy = size.height * min(0.88, max(0.12, origin.y))
+                                    let isMoss = companion == .moss
                                     for i in 0..<7 {
                                         let seed = Double(i) * 1.93
                                         let cycle = (t * 0.14 + seed * 0.37).truncatingRemainder(dividingBy: 1.0)
@@ -154,13 +163,35 @@ struct LivingStoryPlateView: View {
                                         let alpha = sin(cycle * .pi) * (dark ? 0.55 : 0.45)
                                         var mote = Path()
                                         mote.addEllipse(in: CGRect(x: mx - r, y: my - r, width: r * 2, height: r * 2))
-                                        ctx.fill(mote, with: .color(Palette.beadLight.opacity(alpha)))
+                                        let moteColor = (isMoss && i.isMultiple(of: 2)) ? Palette.mintLight : Palette.beadLight
+                                        ctx.fill(mote, with: .color(moteColor.opacity(alpha)))
                                     }
                                     if pulseStrength > 0.01 {
-                                        let rad = CGFloat((1.0 - pulseStrength) * Double(min(size.width, size.height) * 0.44) + 16)
+                                        let maxRad = Double(min(size.width, size.height) * 0.38)
+                                        let rad = CGFloat((1.0 - pulseStrength) * maxRad + 14)
                                         var ring = Path()
                                         ring.addEllipse(in: CGRect(x: cx - rad, y: cy - rad, width: rad * 2, height: rad * 2))
-                                        ctx.stroke(ring, with: .color(Palette.bead.opacity(pulseStrength * 0.75)), lineWidth: 2.8)
+                                        let primaryColor = isMoss ? Palette.mint : Palette.bead
+                                        ctx.stroke(ring, with: .color(primaryColor.opacity(pulseStrength * 0.80)), lineWidth: 2.6)
+
+                                        // Secondary companion echo: Otto throws an inner warm bead ring; Moss scatters mint dots
+                                        if isMoss {
+                                            for k in 0..<5 {
+                                                let angle = Double(k) * (.pi * 2 / 5) + (1.0 - pulseStrength) * 0.5
+                                                let dist = rad * 0.78
+                                                let lx = cx + cos(angle) * dist
+                                                let ly = cy + sin(angle) * dist
+                                                let lr: CGFloat = 3.2 * CGFloat(pulseStrength)
+                                                var leafDot = Path()
+                                                leafDot.addEllipse(in: CGRect(x: lx - lr, y: ly - lr, width: lr * 2, height: lr * 2))
+                                                ctx.fill(leafDot, with: .color(Palette.mintPale.opacity(pulseStrength * 0.90)))
+                                            }
+                                        } else {
+                                            let innerRad = max(6, rad * 0.58)
+                                            var innerRing = Path()
+                                            innerRing.addEllipse(in: CGRect(x: cx - innerRad, y: cy - innerRad, width: innerRad * 2, height: innerRad * 2))
+                                            ctx.stroke(innerRing, with: .color(Palette.beadLight.opacity(pulseStrength * 0.75)), lineWidth: 1.8)
+                                        }
                                     }
                                 }
                                 .allowsHitTesting(false)
@@ -172,6 +203,8 @@ struct LivingStoryPlateView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fill)
                                 .frame(width: geo.size.width, height: geo.size.height)
+                                .scaleEffect(reduce ? 1.0 : stepScale)
+                                .offset(x: reduce ? 0 : stepOffsetX)
                             if dark {
                                 Color(hex: 0x0B1126).opacity(0.24)
                             }

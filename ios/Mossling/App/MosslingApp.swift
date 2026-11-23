@@ -102,17 +102,20 @@ struct RootView: View {
                 mascot.companion = app.companion
                 mascot.timing = !journal.timers.isEmpty
                 TactileEngine.shared.soundEnabled = app.tactileSounds
-                TactileEngine.shared.quietNight = scheme == .dark || journal.timers.contains { $0.type == LogType.sleep }
+                TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || journal.timers.contains { $0.type == LogType.sleep }
                 if scheme == .dark { mascot.send(.nightmodeEnabled) }
                 journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
             .onChange(of: scheme) { _, s in
                 mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled)
-                TactileEngine.shared.quietNight = s == .dark || journal.timers.contains { $0.type == LogType.sleep }
+                TactileEngine.shared.quietNight = s == .dark || showingBedsideLamp || journal.timers.contains { $0.type == LogType.sleep }
+            }
+            .onChange(of: showingBedsideLamp) { _, active in
+                TactileEngine.shared.quietNight = scheme == .dark || active || journal.timers.contains { $0.type == LogType.sleep }
             }
             .onChange(of: journal.timers) { _, timers in
-                TactileEngine.shared.quietNight = scheme == .dark || timers.contains { $0.type == LogType.sleep }
+                TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || timers.contains { $0.type == LogType.sleep }
             }
             .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
             .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }

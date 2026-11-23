@@ -604,7 +604,7 @@ struct MatSideCoPlayView: View {
                                 .foregroundStyle(.primary)
                                 .fixedSize(horizontal: false, vertical: true)
 
-                            Text(L10n.t("轻点上方画面可与 Moss 互动 · 左右轻扫也能切步", "Tap the stage to play with Moss · Swipe left or right to step"))
+                            Text(L10n.t("轻点上方画面可与 \(companion.rawValue) 互动 · 左右轻扫也能切步", "Tap the stage to play with \(companion.rawValue) · Swipe left or right to step"))
                                 .font(.caption)
                                 .foregroundStyle(Palette.secondaryText)
                         }
