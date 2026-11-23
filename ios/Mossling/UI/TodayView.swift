@@ -789,6 +789,16 @@ struct TodayPlayCard: View {
                 Color(hex: 0x0A1026).opacity(0.22)
             }
 
+            StepKineticOverlay(
+                action: action,
+                accent: Palette.area(key),
+                dark: night,
+                pulseAt: .distantPast,
+                pulseOrigin: nil,
+                reduce: reduce
+            )
+            .allowsHitTesting(false)
+
             HStack(spacing: 5) {
                 Image(systemName: action.symbol)
                     .font(.caption2.weight(.bold))

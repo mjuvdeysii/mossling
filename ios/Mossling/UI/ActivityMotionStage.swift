@@ -319,7 +319,7 @@ struct ActivityMotionStage: View {
 }
 
 /// Pure vector kinetic picture-book diagram overlay tuned for clarity without obscuring Otto & Moss.
-private struct StepKineticOverlay: View {
+struct StepKineticOverlay: View {
     let action: StepKineticAction
     let accent: Color
     let dark: Bool

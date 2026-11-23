@@ -1374,4 +1374,49 @@ final class LogicTests: XCTestCase {
             currentVersion: "2.0", lastPromptedVersion: "1.3.2", lastPromptedAt: oldDate
         ))
     }
+
+    @MainActor
+    func testBedsideLampPreferencesPersistAndClear() {
+        let suiteName = "app.mossling.tests.lamp.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+
+        let model = AppModel(defaults: defaults)
+        XCTAssertEqual(model.lampBrightness, 0.72, accuracy: 0.001)
+        XCTAssertEqual(model.lampWarmthRaw, "amber")
+        XCTAssertFalse(model.lampBreathingGuide)
+        XCTAssertFalse(model.isBedsideLampOpen)
+
+        model.lampBrightness = 0.05 // clamps to 0.15 floor
+        XCTAssertEqual(model.lampBrightness, 0.15, accuracy: 0.001)
+        model.lampBrightness = 0.24
+        model.lampWarmthRaw = LampWarmth.candle.rawValue
+        model.lampBreathingGuide = true
+        model.bedsideLampPresentedCount = 1
+        XCTAssertTrue(model.isBedsideLampOpen)
+
+        let reloaded = AppModel(defaults: defaults)
+        XCTAssertEqual(reloaded.lampBrightness, 0.24, accuracy: 0.001)
+        XCTAssertEqual(reloaded.lampWarmthRaw, "candle")
+        XCTAssertTrue(reloaded.lampBreathingGuide)
+
+        reloaded.clearAll()
+        XCTAssertEqual(reloaded.lampBrightness, 0.72, accuracy: 0.001)
+        XCTAssertEqual(reloaded.lampWarmthRaw, "amber")
+        XCTAssertFalse(reloaded.lampBreathingGuide)
+    }
+
+    func testBedsideLampScreenBrightnessCeilingNeverExceedsSystemBaseline() {
+        // Dimming down in a bright room lowers the ceiling monotonically
+        let minDim = BedsideLampView.targetScreenBrightness(lampBrightness: 0.15, savedSystemBrightness: 0.90)
+        let midDim = BedsideLampView.targetScreenBrightness(lampBrightness: 0.50, savedSystemBrightness: 0.90)
+        let maxDim = BedsideLampView.targetScreenBrightness(lampBrightness: 1.00, savedSystemBrightness: 0.90)
+        XCTAssertEqual(minDim, 0.06, accuracy: 0.001)
+        XCTAssertLessThan(minDim, midDim)
+        XCTAssertLessThan(midDim, maxDim)
+        XCTAssertEqual(maxDim, 0.50, accuracy: 0.001)
+
+        // Never raises brightness if the user's phone is already darker than the lamp ceiling
+        XCTAssertEqual(BedsideLampView.targetScreenBrightness(lampBrightness: 1.0, savedSystemBrightness: 0.12), 0.12, accuracy: 0.001)
+    }
 }

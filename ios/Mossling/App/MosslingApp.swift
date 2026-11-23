@@ -50,6 +50,11 @@ struct RootView: View {
 
     private var isLocked: Bool { app.lock && locked }
 
+    /// Synchronizes TactileEngine's silent-night shield across dark theme, sleep timers, and any Bedside Lamp cover.
+    private func syncQuietNight() {
+        TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
+    }
+
     /// Turns the week when it has gone by, counting each play's times from the records.
     private func roll(fresh: Bool = false) {
         app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }, fresh: fresh)
@@ -102,21 +107,18 @@ struct RootView: View {
                 mascot.companion = app.companion
                 mascot.timing = !journal.timers.isEmpty
                 TactileEngine.shared.soundEnabled = app.tactileSounds
-                TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || journal.timers.contains { $0.type == LogType.sleep }
+                syncQuietNight()
                 if scheme == .dark { mascot.send(.nightmodeEnabled) }
                 journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
             .onChange(of: scheme) { _, s in
                 mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled)
-                TactileEngine.shared.quietNight = s == .dark || showingBedsideLamp || journal.timers.contains { $0.type == LogType.sleep }
+                syncQuietNight()
             }
-            .onChange(of: showingBedsideLamp) { _, active in
-                TactileEngine.shared.quietNight = scheme == .dark || active || journal.timers.contains { $0.type == LogType.sleep }
-            }
-            .onChange(of: journal.timers) { _, timers in
-                TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || timers.contains { $0.type == LogType.sleep }
-            }
+            .onChange(of: showingBedsideLamp) { _, _ in syncQuietNight() }
+            .onChange(of: app.isBedsideLampOpen) { _, _ in syncQuietNight() }
+            .onChange(of: journal.timers) { _, _ in syncQuietNight() }
             .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
             .onChange(of: app.shelf) { _, _ in mascot.send(.activityRecommendationChanged) }
     }

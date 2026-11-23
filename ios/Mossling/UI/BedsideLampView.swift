@@ -46,6 +46,7 @@ struct BedsideLampView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     /// Initial brightness (0.15...1.0), configurable for previews and deterministic screenshots.
@@ -59,20 +60,33 @@ struct BedsideLampView: View {
     @State private var motion = LampTiltObserver()
     @State private var pulse = false
     @State private var volumeMonitor: EarSafeVolumeMonitor
+    @State private var countedPresentation = false
+    @State private var savedScreenBrightness: CGFloat? = nil
     private let previewClock: Date?
+    private let persistsToAppModel: Bool
 
     init(
-        initialBrightness: Double = 0.72,
-        initialBreathingGuide: Bool = false,
-        initialWarmth: LampWarmth = .amber,
+        initialBrightness: Double? = nil,
+        initialBreathingGuide: Bool? = nil,
+        initialWarmth: LampWarmth? = nil,
         previewClock: Date? = nil,
         previewVolume: Float? = nil
     ) {
-        _brightness = State(initialValue: max(0.15, min(1.0, initialBrightness)))
-        _breathingGuide = State(initialValue: initialBreathingGuide)
-        _warmth = State(initialValue: initialWarmth)
+        let clamped = max(0.15, min(1.0, initialBrightness ?? 0.72))
+        _brightness = State(initialValue: clamped)
+        _breathingGuide = State(initialValue: initialBreathingGuide ?? false)
+        _warmth = State(initialValue: initialWarmth ?? .amber)
         _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
         self.previewClock = previewClock
+        self.persistsToAppModel = initialBrightness == nil && initialBreathingGuide == nil && initialWarmth == nil && previewClock == nil
+    }
+
+    /// Maps the Bedside Lamp dimmer (0.15...1.0) to a gentle physical screen ceiling without ever raising user brightness.
+    nonisolated static func targetScreenBrightness(lampBrightness: Double, savedSystemBrightness: Double) -> Double {
+        let clampedSaved = max(0.0, min(1.0, savedSystemBrightness))
+        let norm = max(0.0, min(1.0, (lampBrightness - 0.15) / 0.85))
+        let ceiling = 0.06 + norm * 0.44
+        return min(clampedSaved, ceiling)
     }
 
     private var activeTimer: RunningTimer? { j.timers.first }
@@ -133,12 +147,25 @@ struct BedsideLampView: View {
                 .padding(.bottom, 12)
             }
         }
+        .lamp(true)
         .preferredColorScheme(.dark)
         .statusBarHidden(false)
         .gesture(dimmerGesture)
         .onAppear {
+            if !countedPresentation {
+                countedPresentation = true
+                app.bedsideLampPresentedCount += 1
+            }
+            if persistsToAppModel {
+                brightness = app.lampBrightness
+                warmth = LampWarmth(rawValue: app.lampWarmthRaw) ?? .amber
+                breathingGuide = app.lampBreathingGuide
+            }
             UIApplication.shared.isIdleTimerDisabled = true
             volumeMonitor.start()
+            if scenePhase == .active {
+                applyScreenDimmerIfAllowed()
+            }
             if !reduce {
                 motion.start()
                 withAnimation(.easeInOut(duration: 3.8).repeatForever(autoreverses: true)) {
@@ -146,12 +173,63 @@ struct BedsideLampView: View {
                 }
             }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                applyScreenDimmerIfAllowed()
+            } else {
+                restoreScreenBrightness()
+            }
+        }
         .onDisappear {
+            if countedPresentation {
+                countedPresentation = false
+                app.bedsideLampPresentedCount = max(0, app.bedsideLampPresentedCount - 1)
+            }
+            restoreScreenBrightness()
             UIApplication.shared.isIdleTimerDisabled = false
             volumeMonitor.stop()
             motion.stop()
         }
         .accessibilityElement(children: .contain)
+    }
+
+    private var canAdjustHardwareScreen: Bool {
+        previewClock == nil
+            && !Perf.still
+            && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil
+    }
+
+    private var activeScreen: UIScreen? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first(where: { $0.activationState == .foregroundActive })?.screen
+            ?? UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first?.screen
+    }
+
+    private func applyScreenDimmerIfAllowed() {
+        guard canAdjustHardwareScreen, let screen = activeScreen else { return }
+        if savedScreenBrightness == nil {
+            savedScreenBrightness = screen.brightness
+        }
+        let baseline = Double(savedScreenBrightness ?? screen.brightness)
+        let target = CGFloat(Self.targetScreenBrightness(lampBrightness: brightness, savedSystemBrightness: baseline))
+        if abs(screen.brightness - target) > 0.01 {
+            screen.brightness = target
+        }
+    }
+
+    private func restoreScreenBrightness() {
+        guard let saved = savedScreenBrightness else { return }
+        savedScreenBrightness = nil
+        guard canAdjustHardwareScreen, let screen = activeScreen else { return }
+        screen.brightness = saved
+    }
+
+    private func commitLampPreferences() {
+        guard persistsToAppModel else { return }
+        app.lampBrightness = brightness
+        app.lampWarmthRaw = warmth.rawValue
+        app.lampBreathingGuide = breathingGuide
     }
 
     // MARK: - Living Midnight Backdrop & Gyro Pendulum Light
@@ -251,13 +329,21 @@ struct BedsideLampView: View {
                 withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
                     breathingGuide.toggle()
                 }
+                commitLampPreferences()
             } label: {
-                Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(breathingGuide ? Color(hex: 0x261700) : Palette.amber.opacity(0.88))
-                    .frame(width: 40, height: 40)
-                    .background(Circle().fill(breathingGuide ? Palette.amber : Color(hex: 0x1A2346).opacity(0.75)))
-                    .overlay(Circle().strokeBorder(Palette.amber.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
+                HStack(spacing: 5) {
+                    Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text(L10n.t("4–6 呼吸", "4–6"))
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(breathingGuide ? Color(hex: 0x261700) : Palette.amber.opacity(0.90))
+                .padding(.horizontal, 10)
+                .frame(height: 36)
+                .frame(minWidth: 40)
+                .background(Capsule().fill(breathingGuide ? Palette.amber : Color(hex: 0x1A2346).opacity(0.75)))
+                .overlay(Capsule().strokeBorder(Palette.amber.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
             }
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
@@ -278,6 +364,8 @@ struct BedsideLampView: View {
                         withAnimation(reduce ? nil : .easeInOut(duration: 0.28)) {
                             brightness = brightness <= 0.35 ? 0.78 : 0.22
                         }
+                        applyScreenDimmerIfAllowed()
+                        commitLampPreferences()
                     }
 
                 if breathingGuide {
@@ -410,6 +498,7 @@ struct BedsideLampView: View {
                             withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
                                 warmth = preset
                             }
+                            commitLampPreferences()
                         } label: {
                             Circle()
                                 .fill(preset.primaryGlow)
@@ -446,6 +535,7 @@ struct BedsideLampView: View {
                 let delta = -Double(value.translation.height) / 340.0
                 let clamped = max(0.15, min(1.0, start + delta))
                 brightness = clamped
+                applyScreenDimmerIfAllowed()
                 let step = Int((clamped * 20).rounded()) // 5% mechanical brass detents
                 if step != lastDetentStep {
                     lastDetentStep = step
@@ -453,6 +543,7 @@ struct BedsideLampView: View {
                 }
             }
             .onEnded { _ in
+                commitLampPreferences()
                 withAnimation(.easeOut(duration: 0.25)) {
                     dragStartBrightness = nil
                 }
@@ -500,9 +591,13 @@ struct BedsideLampView: View {
             switch dir {
             case .increment:
                 brightness = min(1.0, brightness + 0.1)
+                applyScreenDimmerIfAllowed()
+                commitLampPreferences()
                 TactileEngine.shared.dimmerTick()
             case .decrement:
                 brightness = max(0.15, brightness - 0.1)
+                applyScreenDimmerIfAllowed()
+                commitLampPreferences()
                 TactileEngine.shared.dimmerTick()
             default: break
             }

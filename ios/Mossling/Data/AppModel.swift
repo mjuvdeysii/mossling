@@ -128,6 +128,19 @@ final class AppModel {
         }
     }
     var bulbPreset: BulbSpringPreset { didSet { d.set(bulbPreset.rawValue, forKey: "bulbSpringPreset") } }
+    /// Persistent Otto Bedside Lamp settings so 3 a.m. dimness, warmth, and 4–6 breathing state survive reopens.
+    var lampBrightness: Double {
+        didSet {
+            let clamped = max(0.15, min(1.0, lampBrightness))
+            if clamped != lampBrightness { lampBrightness = clamped; return }
+            d.set(clamped, forKey: "lampBrightness")
+        }
+    }
+    var lampWarmthRaw: String { didSet { d.set(lampWarmthRaw, forKey: "lampWarmthRaw") } }
+    var lampBreathingGuide: Bool { didSet { d.set(lampBreathingGuide, forKey: "lampBreathingGuide") } }
+    /// Tracks active BedsideLampView presentations across any tab/timer/deep-link so TactileEngine stays strictly silent.
+    var bedsideLampPresentedCount: Int = 0
+    var isBedsideLampOpen: Bool { bedsideLampPresentedCount > 0 }
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
@@ -160,6 +173,10 @@ final class AppModel {
         tactileSounds = sounds
         Task { @MainActor in TactileEngine.shared.soundEnabled = sounds }
         bulbPreset = BulbSpringPreset(rawValue: d.string(forKey: "bulbSpringPreset") ?? "") ?? .warm
+        let storedLampBrightness = d.object(forKey: "lampBrightness") as? Double ?? 0.72
+        lampBrightness = max(0.15, min(1.0, storedLampBrightness))
+        lampWarmthRaw = d.string(forKey: "lampWarmthRaw") ?? "amber"
+        lampBreathingGuide = d.bool(forKey: "lampBreathingGuide")
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
@@ -232,7 +249,7 @@ final class AppModel {
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
-                  "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "mapSeenMonth"] { d.removeObject(forKey: k) }
+                  "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "lampBrightness", "lampWarmthRaw", "lampBreathingGuide", "mapSeenMonth"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
         // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
@@ -252,6 +269,7 @@ final class AppModel {
         Guide.replayNextLaunch()
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
         theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true; bulbPreset = .warm
+        lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).
