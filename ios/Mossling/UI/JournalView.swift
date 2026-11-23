@@ -21,58 +21,140 @@ struct JournalView: View {
     @State private var showingLamp = false
     @State private var showingHandover = false
     @State private var soundscape = SoundscapeEngine.shared
+    @State private var activeQuickTray: String? = nil
+    @State private var quickTrayMilk: String = "formula"
+    @State private var showSecondaryStickers = false
+    @State private var showPastStickers = false
+    @State private var expandedPeriods: Set<DayPeriod> = []
+    @State private var touchedPeriods = false
+    @State private var expandAllChapters = false
     @Environment(\.dynamicTypeSize) private var size
 
-    init(path: Binding<NavigationPath>, only: String? = nil) {
+    init(path: Binding<NavigationPath>, only: String? = nil, initialDay: Day? = nil, initialQuickTray: String? = nil) {
         _path = path
         _only = State(initialValue: only)
+        if let initialDay {
+            _day = State(initialValue: initialDay)
+            _opened = State(initialValue: true)
+        }
+        _activeQuickTray = State(initialValue: initialQuickTray)
     }
 
     private func move(to next: Day) {
         guard next != day else { return }
         dayDirection = next.epochDay > day.epochDay ? 1 : -1
         TactileEngine.shared.pageTurn()
-        withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.86)) { day = next }
+        withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.86)) {
+            day = next
+            showPastStickers = false
+            activeQuickTray = nil
+            expandedPeriods = []
+            touchedPeriods = false
+            expandAllChapters = false
+        }
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 18) {
-                TipView(StickerTip())
-                // what is running comes first on the page, above the stickers — at night it is what is looked for
-                ForEach(j.timers, id: \.type) { t in RunningRow(timer: t) }
-                StickerSheet(timers: j.timers, month: app.babyMonth, last: { j.last($0) }, tap: tap)
-                WeekStrip(today: app.today, day: day, pick: move(to:))
-                // any day: tap its date for a calendar, or swipe the page sideways for the day before or after
-                ZStack {
-                    DayPage(day: day, today: app.today, logs: j.logs(on: day), timers: j.timers, only: $only, edit: { editing = $0 }, delete: { j.delete($0) }, pick: { pickingDay = true })
+        let dayLogs = j.logs(on: day)
+        let lastBottle = j.logs.first { $0.type == LogType.bottle }
+        let defaultMilk = lastBottle.flatMap { ["breastmilk", "formula"].contains($0.detail ?? "") ? $0.detail : nil } ?? "formula"
+
+        ScrollViewReader { scrollProxy in
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    TipView(StickerTip())
+                    // what is running comes first on the page, above the stickers — at night it is what is looked for
+                    ForEach(j.timers, id: \.type) { t in RunningRow(timer: t) }
+                    QuickLogDock(
+                        isToday: day == app.today,
+                        day: day,
+                        entryCount: dayLogs.rows().count,
+                        timers: j.timers,
+                        month: app.babyMonth,
+                        last: { j.last($0) },
+                        lastBottleMl: lastBottle?.amount,
+                        activeQuickTray: $activeQuickTray,
+                        quickTrayMilk: $quickTrayMilk,
+                        showSecondary: $showSecondaryStickers,
+                        showPastStickers: $showPastStickers,
+                        jumpToToday: { move(to: app.today) },
+                        tap: tap,
+                        quickDiaper: { kind in
+                            let t = day == app.today ? JournalFile.now() : ms(pastNoon)
+                            if j.record(LogEntry(type: LogType.diaper, start: t, detail: kind)) {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(reduce ? nil : .snappy) { activeQuickTray = nil }
+                            }
+                        },
+                        quickBottle: { ml, milk in
+                            let t = day == app.today ? JournalFile.now() : ms(pastNoon)
+                            if j.record(LogEntry(type: LogType.bottle, start: t, amount: ml, detail: milk)) {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(reduce ? nil : .snappy) { activeQuickTray = nil }
+                            }
+                        },
+                        openDetailed: { type in
+                            withAnimation(reduce ? nil : .snappy) { activeQuickTray = nil }
+                            j.ask = type
+                        }
+                    )
+                    WeekStrip(today: app.today, day: day, pick: move(to:))
+                    // any day: tap its date for a calendar, or swipe the page sideways for the day before or after
+                    ZStack {
+                        DayPage(
+                            day: day,
+                            today: app.today,
+                            logs: dayLogs,
+                            timers: j.timers,
+                            only: $only,
+                            expandedPeriods: $expandedPeriods,
+                            touchedPeriods: $touchedPeriods,
+                            expandAllChapters: $expandAllChapters,
+                            edit: { editing = $0 },
+                            delete: { j.delete($0) },
+                            pick: { pickingDay = true },
+                            jumpToPeriod: { period in
+                                withAnimation(reduce ? nil : .snappy) {
+                                    touchedPeriods = true
+                                    expandedPeriods.insert(period)
+                                }
+                                withAnimation(reduce ? nil : .smooth.delay(0.08)) {
+                                    scrollProxy.scrollTo("chapter-\(period.rawValue)", anchor: .top)
+                                }
+                            }
+                        )
                         .id(day.epochDay)
                         .transition(reduce ? .opacity : .asymmetric(
                             insertion: .opacity.combined(with: .offset(x: dayDirection * 22)),
                             removal: .opacity.combined(with: .offset(x: -dayDirection * 22))
                         ))
+                    }
+                    .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
+                        let dx = v.translation.width, dy = v.translation.height
+                        guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
+                        let next = day.plus(days: dx < 0 ? 1 : -1)
+                        guard next.epochDay <= app.today.epochDay, app.birth.map({ next.epochDay >= $0.epochDay }) ?? true else { return }
+                        move(to: next)
+                    })
+                    let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
+                    pair {
+                        NavigationLink(value: JournalRoute.stats) { tile(L10n.t("昼夜节律", "Rhythm & 7d"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
+                        NavigationLink(value: JournalRoute.growth) { tile(L10n.t("生长曲线", "Growth Curve"), "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
+                    }
+                    // the two tiles side by side are one height: top and bottom edges line up
+                    .fixedSize(horizontal: false, vertical: true)
                 }
-                .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
-                    let dx = v.translation.width, dy = v.translation.height
-                    guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
-                    let next = day.plus(days: dx < 0 ? 1 : -1)
-                    guard next.epochDay <= app.today.epochDay, app.birth.map({ next.epochDay >= $0.epochDay }) ?? true else { return }
-                    move(to: next)
-                })
-                let pair = size.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 12)) : AnyLayout(HStackLayout(spacing: 12))
-                pair {
-                    NavigationLink(value: JournalRoute.stats) { tile(L10n.t("昼夜节律", "Rhythm & 7d"), "chart.bar.fill", Crayon.lilac) { WeekBars(today: app.today, count: { j.logs(on: $0).rows().count }) } }.buttonStyle(.toy)
-                    NavigationLink(value: JournalRoute.growth) { tile(L10n.t("生长曲线", "Growth Curve"), "chart.line.uptrend.xyaxis", Crayon.tangerine) { LastMeasure(m: j.measures.max { $0.at < $1.at }) } }.buttonStyle(.toy)
-                }
-                // the two tiles side by side are one height: top and bottom edges line up
-                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 16).padding(.bottom, 32)
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.pink)
         .sensoryFeedback(.selection, trigger: day)
         .navigationTitle(L10n.t("记录", "Journal"))
+        .onAppear {
+            if !opened { day = app.today; opened = true }
+            quickTrayMilk = defaultMilk
+        }
         .toolbar {
             if day != app.today {
                 ToolbarItem(placement: .topBarLeading) { Button(L10n.t("今天", "Today")) { move(to: app.today) } }
@@ -133,7 +215,6 @@ struct JournalView: View {
         // when the date turns, when a widget deep link asks to log today, or when the app comes back after a while away
         .onChange(of: app.today) { _, t in day = t }
         .onChange(of: j.jumpToToday) { _, _ in day = app.today }
-        .onAppear { if !opened { day = app.today; opened = true } }   // the first time only
         .onChange(of: phase) { _, p in
             if p == .background { leftAt = Date() }
             if p == .active, let l = leftAt, Date().timeIntervalSince(l) > 1800 { day = app.today; leftAt = nil }
@@ -236,17 +317,31 @@ private struct LastMeasure: View {
 struct Wrap: Identifiable { let id: String }
 
 
-/// The sheet of stickers, in two tiers by how often they are used. Above, the few recorded many times a day — 亲喂,
-/// 瓶喂, 睡觉, 尿布, and 辅食 once the child is eating it (from six months) — as large stickers with how long ago the
-/// last one was. Below a hairline, the rest — a bath, a temperature, a medicine, a measurement, a note — as one row of
-/// small stickers, named but without times: things done once a day or less need finding, not watching.
-private struct StickerSheet: View {
+/// Context-aware quick log dock:
+/// - When viewing history: collapses into a serene 1-line summary + Back to Today pill, giving 90% of the screen to review.
+/// - When viewing Today: primary stickers with 0.6s inline Diaper & Smart-Bottle trays, plus a quiet expandable secondary tray.
+private struct QuickLogDock: View {
+    let isToday: Bool
+    let day: Day
+    let entryCount: Int
     let timers: [RunningTimer]
     let month: Int?
     let last: (String) -> Date?
+    let lastBottleMl: Int?
+    @Binding var activeQuickTray: String?
+    @Binding var quickTrayMilk: String
+    @Binding var showSecondary: Bool
+    @Binding var showPastStickers: Bool
+    let jumpToToday: () -> Void
     let tap: (String) -> Void
+    let quickDiaper: (String) -> Void
+    let quickBottle: (Int, String) -> Void
+    let openDetailed: (String) -> Void
+
     @Environment(\.dynamicTypeSize) private var size
-    /// At the accessibility sizes the stickers wrap three to a row instead of shrinking to fit one.
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.lamp) private var lamp
+
     @ViewBuilder private func row<C: View>(_ spacing: CGFloat, @ViewBuilder _ content: () -> C) -> some View {
         if size.isAccessibilitySize {
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 4, alignment: .top), count: 3), spacing: 10, content: content)
@@ -254,28 +349,234 @@ private struct StickerSheet: View {
             HStack(alignment: .top, spacing: spacing, content: content)
         }
     }
+
     var body: some View {
         let eating = (month ?? 0) >= 6
         let often = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper] + (eating ? [LogType.solid] : [])
         let rarely = LogType.buttons.filter { !often.contains($0) }
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-            VStack(spacing: 10) {
-                row(4) {
-                    ForEach(often, id: \.self) { t in
-                        let run = timers.first { $0.type == t }
-                        Sticker(type: t, running: run != nil, paused: run?.pausedAt != nil,
+
+        if !isToday && !showPastStickers {
+            // Historical review mode: 1 compact contextual strip (reclaims ~165pt for reading logs)
+            HStack(spacing: 10) {
+                Image(systemName: "calendar")
+                    .font(.footnote.weight(.bold))
+                    .foregroundStyle(Palette.accent)
+                Text(L10n.isEnglish ? "Reviewing \(day.md) · \(entryCount)" : "正在回看 \(day.md) · \(entryCount) 条")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Spacer(minLength: 4)
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) { showPastStickers = true }
+                } label: {
+                    Label(L10n.t("补记", "Add"), systemImage: "plus")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Palette.accent.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: jumpToToday) {
+                    Text(L10n.t("回今天", "Today"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Palette.accentFill))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .printCard(radius: Radius.card)
+        } else {
+            TimelineView(.periodic(from: .now, by: 60)) { tl in
+                VStack(spacing: 10) {
+                    if !isToday {
+                        HStack {
+                            Text(L10n.t("补记到 \(day.md)", "Log to \(day.md)"))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Palette.accent)
+                            Spacer()
+                            Button {
+                                withAnimation(reduce ? nil : .snappy) {
+                                    showPastStickers = false
+                                    activeQuickTray = nil
+                                }
+                            } label: {
+                                Label(L10n.t("收起", "Hide"), systemImage: "chevron.up")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 6)
+                    }
+
+                    row(4) {
+                        ForEach(often, id: \.self) { t in
+                            let run = timers.first { $0.type == t }
+                            let isTrayOpen = activeQuickTray == t
+                            Sticker(
+                                type: t,
+                                running: run != nil,
+                                selected: isTrayOpen,
+                                paused: run?.pausedAt != nil,
                                 since: run.map { L10n.duration($0.total(tl.date.timeIntervalSince1970 * 1000)) } ?? last(t).map { L10n.agoText($0, now: tl.date) },
-                                size: often.count > 4 ? 50 : 56) { tap(t) }
+                                size: often.count > 4 ? 50 : 54
+                            ) {
+                                if t == LogType.diaper || t == LogType.bottle {
+                                    TactileEngine.shared.beadClick()
+                                    withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.82)) {
+                                        activeQuickTray = (activeQuickTray == t) ? nil : t
+                                    }
+                                } else {
+                                    activeQuickTray = nil
+                                    tap(t)
+                                }
+                            }
+                        }
+                    }
+
+                    // 0.6s inline Diaper quick-save tray
+                    if activeQuickTray == LogType.diaper {
+                        inlineDiaperTray
+                    } else if activeQuickTray == LogType.bottle {
+                        inlineBottleTray
+                    }
+
+                    Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1).padding(.horizontal, 6)
+
+                    if showSecondary {
+                        VStack(spacing: 8) {
+                            row(2) {
+                                ForEach(rarely, id: \.self) { t in
+                                    SmallSticker(type: t) {
+                                        withAnimation(reduce ? nil : .snappy) { showSecondary = false }
+                                        tap(t)
+                                    }
+                                }
+                            }
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(reduce ? nil : .snappy) { showSecondary = false }
+                            } label: {
+                                Label(L10n.t("收起更多贴纸", "Collapse More"), systemImage: "chevron.up")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                    .padding(.vertical, 2)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    } else {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) { showSecondary = true }
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(L10n.t("更多记录：", "More:"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                Text(rarely.map { LogType.name($0) }.joined(separator: " · "))
+                                    .font(.caption.weight(.medium))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.down")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 2)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-                Rectangle().fill(Color.primary.opacity(0.07)).frame(height: 1).padding(.horizontal, 6)
-                row(2) {
-                    ForEach(rarely, id: \.self) { t in SmallSticker(type: t) { tap(t) } }
+                .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
+                .printCard(radius: Radius.card)
+            }
+        }
+    }
+
+    private var inlineDiaperTray: some View {
+        let c = LogType.color(LogType.diaper)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(L10n.t("点一下直接记下尿布（当前时间）", "1-tap instant diaper log"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Crayon.ink(c))
+                Spacer()
+                Button(L10n.t("改时间…", "Time…")) { openDetailed(LogType.diaper) }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+            }
+            FlowRow(spacing: 8, lineSpacing: 8) {
+                ForEach([("wet", L10n.t("湿", "Wet")), ("dirty", L10n.t("便", "Dirty")), ("both", L10n.t("都有", "Both"))], id: \.0) { code, label in
+                    Button { quickDiaper(code) } label: {
+                        Text(label)
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(Capsule().fill(Crayon.fill(c, lamp)))
+                    }
+                    .buttonStyle(.toy)
                 }
             }
-            .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
-            .printCard(radius: Radius.card)
         }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(c.opacity(lamp ? 0.14 : 0.10)))
+        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
+    }
+
+    private var inlineBottleTray: some View {
+        let c = LogType.color(LogType.bottle)
+        let suggestions = SmartBottleVolumes.suggestions(lastMl: lastBottleMl)
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                ForEach([("formula", L10n.t("配方奶", "Formula")), ("breastmilk", L10n.t("母乳", "Breast milk"))], id: \.0) { code, title in
+                    let on = quickTrayMilk == code
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        quickTrayMilk = code
+                    } label: {
+                        Text(title)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(on ? .white : .primary)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(on ? Palette.accentFill : (lamp ? Palette.lampCard : Palette.card)))
+                    }
+                    .buttonStyle(.plain)
+                }
+                Spacer(minLength: 4)
+                Button(L10n.t("刻度与时间…", "Detail…")) { openDetailed(LogType.bottle) }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+            }
+            FlowRow(spacing: 8, lineSpacing: 8) {
+                ForEach(suggestions, id: \.self) { ml in
+                    Button { quickBottle(ml, quickTrayMilk) } label: {
+                        Text("\(ml) ml")
+                            .font(Typeface.numerals(14, relativeTo: .subheadline, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 13)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Crayon.fill(c, lamp)))
+                    }
+                    .buttonStyle(.toy)
+                }
+            }
+        }
+        .padding(10)
+        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(c.opacity(lamp ? 0.14 : 0.10)))
+        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .top)))
     }
 }
 
@@ -303,6 +604,7 @@ private struct SmallSticker: View {
 
 private struct Sticker: View {
     let type: String, running: Bool
+    var selected = false
     var paused = false
     let since: String?
     var size: CGFloat = 48
@@ -316,7 +618,7 @@ private struct Sticker: View {
         Button { pops += 1; action() } label: {
             VStack(spacing: 4) {
                 IconTile(symbol: LogType.symbol(type), color: c, size: size, round: true)
-                    .overlay(Circle().stroke(c.opacity(running ? 0.4 : 0), lineWidth: 4).padding(-5))
+                    .overlay(Circle().stroke(c.opacity(running || selected ? 0.45 : 0), lineWidth: 4).padding(-5))
                     // 3D: the sticker squashes into the page and springs back up, like a soft toy pressed
                     .keyframeAnimator(initialValue: CGFloat(1), trigger: pops) { v, k in
                         v.scaleEffect(x: 2 - k, y: k, anchor: .bottom)
@@ -424,14 +726,27 @@ private struct DayPage: View {
     let timers: [RunningTimer]
     /// One kind to look at alone ("feed" = breast and bottle together), or nil for the whole day.
     @Binding var only: String?
+    @Binding var expandedPeriods: Set<DayPeriod>
+    @Binding var touchedPeriods: Bool
+    @Binding var expandAllChapters: Bool
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
     var pick: () -> Void = {}
+    var jumpToPeriod: (DayPeriod) -> Void = { _ in }
 
     var body: some View {
         let shown = only.map { k in logs.filter { JournalKinds.matches($0.type, k) } } ?? logs
+        let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+        let ageStr = app.age.map { L10n.ageText($0) } ?? ""
+        let dayPoster = RenderedPoster {
+            let view = DaySheetPoster(babyName: who, ageText: ageStr, day: day, logs: logs)
+            let renderer = ImageRenderer(content: view)
+            renderer.scale = 3.0
+            return renderer.uiImage
+        }
+
         VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 Button(action: pick) {
                     HStack(alignment: .center, spacing: 12) {
                         Text("\(day.d)").font(Typeface.numerals(36, relativeTo: .largeTitle, weight: .bold))
@@ -452,13 +767,34 @@ private struct DayPage: View {
                 .buttonStyle(.toy)
                 .accessibilityHint(L10n.t("选另一天", "Choose another day"))
                 Spacer()
+                if !logs.isEmpty {
+                    ShareLink(
+                        item: dayPoster,
+                        preview: SharePreview(L10n.t("\(who)\(day.md)手账长图", "\(who)'s Day Sheet · \(day.md)"))
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Palette.accent)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(Palette.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("导出本日完整一张长图", "Export full-day sheet image"))
+                }
                 DayCompanion(lamp: lamp, empty: logs.isEmpty, hush: day == today && timers.contains { $0.type == LogType.sleep && $0.pausedAt == nil })
             }
             // every number on the page is a way in: tap a total (or one of the other kinds) to see only that kind
             Totals(logs: logs, day: day, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
             OtherKinds(logs: logs, only: only) { k in withAnimation(.snappy) { only = only == k ? nil : k } }
             if let k = only { FocusLine(kind: k, logs: shown, all: j.logs, day: day) { withAnimation(.snappy) { only = nil } } }
-            DayRibbon(day: day, logs: logs, timers: timers, only: only)
+            DaySwimlaneChart(
+                day: day,
+                logs: logs,
+                timers: timers,
+                only: $only,
+                onSelectPeriod: jumpToPeriod,
+                onEditEntry: edit
+            )
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 // an empty day: the two dozing beside one line, not a stage of its own
                 HStack(spacing: 10) {
@@ -468,7 +804,17 @@ private struct DayPage: View {
                 }
                 .padding(.vertical, 2)
             } else if !logs.isEmpty {
-                DayTimeline(day: day, today: today, logs: shown, all: j.logs, edit: edit, delete: delete, gaps: only == nil)
+                DayChapterLedger(
+                    day: day,
+                    today: today,
+                    logs: shown,
+                    only: only,
+                    expandedPeriods: $expandedPeriods,
+                    touchedPeriods: $touchedPeriods,
+                    expandAll: $expandAllChapters,
+                    edit: edit,
+                    delete: delete
+                )
             }
         }
         .padding(16)
@@ -612,59 +958,7 @@ private struct RunningRow: View {
     }
 }
 
-/// The day from midnight to midnight: feeds and sleeps as bars of their length, everything else as a dot.
-private struct DayRibbon: View {
-    let day: Day, logs: [LogEntry], timers: [RunningTimer]
-    var only: String? = nil
-    @Environment(\.lamp) private var lamp
-    var body: some View {
-        let d0 = day.date.timeIntervalSince1970 * 1000, span = 86_400_000.0
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-            let now = tl.date.timeIntervalSince1970 * 1000
-            VStack(spacing: 6) {
-                Canvas { ctx, size in paint(&ctx, size, d0: d0, span: span, now: now) }
-                    .frame(height: 30)
-                HStack { ForEach(["00:00", "06:00", "12:00", "18:00"], id: \.self) { Text($0).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit().frame(maxWidth: .infinity, alignment: .leading) } }
-            }
-        }
-        .accessibilityElement().accessibilityLabel(L10n.t("这一天的串珠：\(logs.count) 颗", "Day bead ribbon: \(logs.count) entries"))
-    }
-
-    /// The day as a string of beads, like the Montessori bead chains: a cord from midnight to midnight, a bead for
-    /// each entry in its colour, a long bead for each feed or sleep as long as it lasted, and the golden bead — Otto's —
-    /// where the day has got to.
-    /// The bead's colour: its kind's, or faded back when another kind is being looked at alone.
-    private func shade(_ t: String) -> Color { only.map { JournalKinds.matches(t, $0) } ?? true ? LogType.color(t) : LogType.color(t).opacity(0.16) }
-    private func paint(_ ctx: inout GraphicsContext, _ size: CGSize, d0: Double, span: Double, now: Double) {
-        let w: CGFloat = size.width, mid: CGFloat = size.height / 2
-        func x(_ t: Double) -> CGFloat { CGFloat(max(0, min(1, (t - d0) / span))) * w }
-        var cord = Path(); cord.move(to: CGPoint(x: 0, y: mid)); cord.addLine(to: CGPoint(x: w, y: mid))
-        ctx.stroke(cord, with: .color(Color.secondary.opacity(0.35)), style: StrokeStyle(lineWidth: 2, lineCap: .round))
-        for hr in [6.0, 12, 18] {
-            let hx = x(d0 + hr * 3_600_000)
-            ctx.fill(Path(ellipseIn: CGRect(x: hx - 1.5, y: mid - 1.5, width: 3, height: 3)), with: .color(Color.secondary.opacity(0.5)))
-        }
-        func bead(_ r: CGRect, _ c: Color) {
-            let p = Path(roundedRect: r, cornerRadius: r.height / 2)
-            // flat beads, as the month's beads: colour and a soft darker rim, no gloss
-            ctx.fill(p, with: .color(c))
-            ctx.stroke(p, with: .color(c.opacity(0.55)), lineWidth: 1)   // a faded bead fades its rim too
-        }
-        let spans = logs.compactMap { e in e.end.map { (e.type, e.start, $0) } } + timers.map { ($0.type, $0.start, now) }
-        for (t, a, b) in spans where b > d0 && a < d0 + span {
-            let h: CGFloat = t == LogType.sleep ? 18 : 14
-            bead(CGRect(x: x(a), y: mid - h / 2, width: max(h, x(b) - x(a)), height: h), shade(t))
-        }
-        for e in logs where e.end == nil {
-            bead(CGRect(x: x(e.start) - 6, y: mid - 6, width: 12, height: 12), shade(e.type))
-        }
-        if now > d0 && now < d0 + span {
-            let gx = x(now)
-            if lamp { ctx.fill(Path(ellipseIn: CGRect(x: gx - 15, y: mid - 15, width: 30, height: 30)), with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.6), Palette.amber.opacity(0)]), center: CGPoint(x: gx, y: mid), startRadius: 2, endRadius: 15)) }
-            bead(CGRect(x: gx - 8, y: mid - 8, width: 16, height: 16), lamp ? Palette.amber : Palette.bead)
-        }
-    }
-}
+// Replaced cleanly by DaySwimlaneCanvas + DaySwimlaneChart in DayLedger.swift
 
 
 /// The paper of the journal: a faint dot grid rendered once as a 16 pt tile (avoids drawing thousands of Canvas circles per scroll/resize).
@@ -912,72 +1206,175 @@ extension LogEntry {
     }
 }
 
-/// The day's entries on a time line, newest at the top: the clock time in the left column with how long ago under it
-/// (today), a rail in the kind's colour — a feed or a sleep drawn as a bar as long as it lasted, everything else as a
-/// bead — and, where the day was quiet for a while, the gap written on the rail.
-private struct DayTimeline: View {
+/// Four-Chapter Collapsible Day Ledger (`夜晚 / 下午 / 上午 / 深夜`) with smart default expansion so high-frequency
+/// newborn days (35+ entries) scan effortlessly on one screen while preserving every entry and full metadata.
+private struct DayChapterLedger: View {
     let day: Day, today: Day
     let logs: [LogEntry]
-    /// Every entry, for intervals that reach back to the day before.
-    var all: [LogEntry] = []
+    let only: String?
+    @Binding var expandedPeriods: Set<DayPeriod>
+    @Binding var touchedPeriods: Bool
+    @Binding var expandAll: Bool
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
-    /// Quiet stretches are written only on the whole day; one kind alone shows its own intervals instead.
-    var gaps = true
-    @ScaledMetric private var timeWidth: CGFloat = 54
 
+    @ScaledMetric private var timeWidth: CGFloat = 52
     @Environment(JournalStore.self) private var j
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.lamp) private var lamp
 
-    /// A row's face: the entry itself, or for a feed of two sides one entry spanning the whole feed (from its first
-    /// side's start to its last side's end, its pauses together), keyed by the first side.
-    static func face(_ parts: [LogEntry]) -> LogEntry {
-        guard parts.count > 1, let a = parts.first, let z = parts.last else { return parts[0] }
-        let paused = parts.reduce(0) { $0 + $1.pausedSeconds }
-        return LogEntry(id: a.id, type: a.type, start: a.start, end: z.end, detail: paused > 0 ? "paused:\(Int(paused * 1000))" : nil)
+    private func isExpanded(_ chapter: DayChapter, index: Int, chapters: [DayChapter], totalRows: Int) -> Bool {
+        if expandAll || only != nil || chapters.count <= 1 || totalRows <= 8 { return true }
+        if !touchedPeriods { return index == 0 }
+        return expandedPeriods.contains(chapter.period)
     }
 
     var body: some View {
         let d0 = day.date.timeIntervalSince1970 * 1000
-        let rows = logs.rows().sorted { max($0[0].start, d0) > max($1[0].start, d0) }
-        let sorted = rows.map(Self.face)
-        // the latest moment anything older had reached: a quiet stretch is measured from there, not from the entry
-        // just below (a long sleep can outlast a nappy changed during it)
-        let reached: [Double] = {
-            var out = Array(repeating: 0.0, count: sorted.count), m = -Double.infinity
-            for i in sorted.indices.reversed() { m = Swift.max(m, sorted[i].end ?? sorted[i].start); out[i] = m }
-            return out
-        }()
+        let chapters = DayChapter.build(day: day, logs: logs)
+        let totalRows = chapters.reduce(0) { $0 + $1.rowCount }
+        let gaps = (only == nil)
+
         TimelineView(.periodic(from: .now, by: 60)) { tl in
-            VStack(spacing: 0) {
-                ForEach(Array(sorted.enumerated()), id: \.element.id) { i, e in
-                    let parts = rows[i]
-                    if i > 0 {
-                        // a quiet stretch: only when nothing at all happened for a long while (3 hours or more);
-                        // between two feeds the row itself says how long since the last one
-                        let newer = sorted[i - 1]
-                        let gap = (max(newer.start, d0) - reached[i]) / 1000
-                        if gaps && gap >= 3 * 3600 { GapRow(seconds: gap, timeWidth: timeWidth) }
-                    }
-                    TimelineRow(entry: e, parts: parts, day: day, isToday: day == today && i == 0, now: tl.date, timeWidth: timeWidth, since: feedInterval(parts[0]))
-                        .transition(.opacity.combined(with: .move(edge: .leading)))
-                        .contentShape(Rectangle())
-                        .onTapGesture { edit(parts[0]) }
-                        // VoiceOver: the row is a button that opens the editor; deleting is one of its actions
-                        .accessibilityAddTraits(.isButton)
-                        .accessibilityHint(L10n.t("修改这条记录", "Edit this entry"))
-                        .accessibilityAction(named: parts.count > 1 ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除", "Delete")) { remove(parts) }
-                        .contextMenu {
-                            if parts.count > 1 {
-                                // a feed of two sides: each side can still be changed on its own; deleting takes the feed
-                                ForEach(parts) { p in
-                                    Button(L10n.t("修改" + (p.side == "r" ? "右侧" : "左侧"), "Edit " + (p.side == "r" ? "Right" : "Left")) + " · " + hm(p.startDate), systemImage: "pencil") { edit(p) }
+            VStack(alignment: .leading, spacing: 10) {
+                if chapters.count > 1 && totalRows > 8 && only == nil {
+                    HStack(spacing: 8) {
+                        Text(L10n.isEnglish ? "By time of day · \(totalRows) entries" : "分时段手账 · 共 \(totalRows) 条")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Palette.secondaryText)
+                        Spacer(minLength: 4)
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                expandAll.toggle()
+                                if expandAll {
+                                    touchedPeriods = true
+                                    expandedPeriods = Set(chapters.map(\.period))
+                                } else {
+                                    touchedPeriods = true
+                                    expandedPeriods = Set(chapters.prefix(1).map(\.period))
                                 }
-                                Button(L10n.t("删除这一顿", "Delete feed"), systemImage: "trash", role: .destructive) { remove(parts) }
-                            } else {
-                                Button(L10n.t("修改", "Edit"), systemImage: "pencil") { edit(e) }
-                                Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { delete(e) }
                             }
+                        } label: {
+                            Text(expandAll ? L10n.t("收起早先", "Collapse") : L10n.t("全部展开", "Expand All"))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Palette.accent)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(Palette.accent.opacity(0.12)))
                         }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(.top, 2)
+                }
+
+                ForEach(Array(chapters.enumerated()), id: \.element.id) { cIndex, chapter in
+                    let expanded = isExpanded(chapter, index: cIndex, chapters: chapters, totalRows: totalRows)
+                    VStack(alignment: .leading, spacing: 4) {
+                        if chapters.count > 1 {
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                withAnimation(reduce ? nil : .snappy) {
+                                    if !touchedPeriods {
+                                        touchedPeriods = true
+                                        if let first = chapters.first {
+                                            expandedPeriods = totalRows <= 8 ? Set(chapters.map(\.period)) : [first.period]
+                                        }
+                                    }
+                                    if expandedPeriods.contains(chapter.period) {
+                                        expandedPeriods.remove(chapter.period)
+                                        expandAll = false
+                                    } else {
+                                        expandedPeriods.insert(chapter.period)
+                                    }
+                                }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: chapter.period.symbol)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(chapter.period.tint)
+                                    Text(chapter.period.title)
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(.primary)
+                                    Text(chapter.summaryLine)
+                                        .font(.caption.weight(.medium))
+                                        .foregroundStyle(Palette.secondaryText)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.75)
+                                    Spacer(minLength: 4)
+                                    Image(systemName: "chevron.down")
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(.tertiary)
+                                        .rotationEffect(.degrees(expanded ? 180 : 0))
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                                        .fill(chapter.period.tint.opacity(lamp ? 0.14 : 0.09))
+                                )
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .id("chapter-\(chapter.period.rawValue)")
+                        }
+
+                        if expanded {
+                            let rows = chapter.rows
+                            let reached: [Double] = {
+                                var out = Array(repeating: 0.0, count: rows.count), m = -Double.infinity
+                                for i in rows.indices.reversed() {
+                                    m = Swift.max(m, rows[i].face.end ?? rows[i].face.start)
+                                    out[i] = m
+                                }
+                                return out
+                            }()
+
+                            VStack(spacing: 0) {
+                                ForEach(Array(rows.enumerated()), id: \.element.id) { i, group in
+                                    let e = group.face
+                                    let parts = group.parts
+                                    if i > 0 {
+                                        let newer = rows[i - 1].face
+                                        let gap = (max(newer.start, d0) - reached[i]) / 1000
+                                        if gaps && gap >= 3 * 3600 {
+                                            GapRow(seconds: gap, timeWidth: timeWidth)
+                                        }
+                                    }
+                                    CompactEntryRow(
+                                        entry: e,
+                                        parts: parts,
+                                        day: day,
+                                        isToday: day == today && cIndex == 0 && i == 0,
+                                        now: tl.date,
+                                        timeWidth: timeWidth,
+                                        since: feedInterval(parts[0])
+                                    )
+                                    .transition(.opacity)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { edit(parts[0]) }
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityHint(L10n.t("修改这条记录", "Edit this entry"))
+                                    .accessibilityAction(named: parts.count > 1 ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除", "Delete")) { remove(parts) }
+                                    .contextMenu {
+                                        if parts.count > 1 {
+                                            ForEach(parts) { p in
+                                                Button(L10n.t("修改" + (p.side == "r" ? "右侧" : "左侧"), "Edit " + (p.side == "r" ? "Right" : "Left")) + " · " + hm(p.startDate), systemImage: "pencil") { edit(p) }
+                                            }
+                                            Button(L10n.t("删除这一顿", "Delete feed"), systemImage: "trash", role: .destructive) { remove(parts) }
+                                        } else {
+                                            Button(L10n.t("修改", "Edit"), systemImage: "pencil") { edit(e) }
+                                            Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { delete(e) }
+                                        }
+                                    }
+                                    if i < rows.count - 1 {
+                                        Divider().padding(.leading, timeWidth + 32).opacity(0.35)
+                                    }
+                                }
+                            }
+                            .padding(.top, 2)
+                        }
+                    }
                 }
             }
         }
@@ -986,12 +1383,8 @@ private struct DayTimeline: View {
     private func remove(_ parts: [LogEntry]) {
         if parts.count > 1 { withAnimation(.snappy) { j.delete(parts) } } else { delete(parts[0]) }
     }
-}
 
-extension DayTimeline {
-    /// For a feed (a breast feed's first side, or a bottle): the time since the previous feed began, from all the
-    /// records (the previous feed may be on the day before). The second side of the same feed gets none.
-    func feedInterval(_ e: LogEntry) -> Double? {
+    private func feedInterval(_ e: LogEntry) -> Double? {
         guard e.type == LogType.nurse || e.type == LogType.bottle else { return nil }
         return j.feedIntervalByID[e.id]
     }
@@ -1002,10 +1395,10 @@ private struct GapRow: View {
     let seconds: Double
     let timeWidth: CGFloat
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 10) {
             Color.clear.frame(width: timeWidth, height: 1)
             Line().stroke(Color.secondary.opacity(0.4), style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [2, 5]))
-                .frame(width: 28, height: 28)
+                .frame(width: 24, height: 22)
             Text(labeled(L10n.t("相隔", "Quiet"), durationValue(seconds))).font(.caption.weight(.medium)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             Spacer(minLength: 0)
         }
@@ -1014,80 +1407,73 @@ private struct GapRow: View {
     private struct Line: Shape { func path(in r: CGRect) -> Path { var p = Path(); p.move(to: CGPoint(x: r.midX, y: r.minY)); p.addLine(to: CGPoint(x: r.midX, y: r.maxY)); return p } }
 }
 
-/// One entry on the time line.
-private struct TimelineRow: View {
+/// High-craft compact ledger row preserving every timestamp, duration, pause, feeding side & interval metadata.
+private struct CompactEntryRow: View {
     let entry: LogEntry
-    /// The entries this row stands for: the entry alone, or the sides of one breast feed, oldest first.
     var parts: [LogEntry] = []
     let day: Day
-    /// The newest row of today: only it says how long ago (the rest read by their clock times).
     let isToday: Bool
     let now: Date
     let timeWidth: CGFloat
-    /// For a feed: how long since the feed before it began (start to start, as a feeding interval is counted).
     var since: Double? = nil
 
     var body: some View {
         let c = LogType.color(entry.type)
-        // a feed of two sides: its length is the sides' together, and the sides come first in the details, in order
         let joined = parts.count > 1
         let value = joined ? durationValue(parts.reduce(0) { $0 + $1.seconds(on: day) }) : entry.value(on: day)
         let sides = joined ? parts.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.seconds(on: day)) }.joined(separator: " · ") : nil
-        let span = entry.end != nil ? entry.seconds(on: day) : 0
-        // a bar grows with the length: 1 pt for every 3 minutes, between 0 and 90 pt beyond the sticker
-        let bar = entry.end != nil ? CGFloat(min(90, span / 180)) : 0
-        // each short piece ("共 8 小时 30 分") stays whole; a line breaks only between pieces
-        let meta: [String] = [sides, entry.meta(on: day, endShown: bar > 24), since.map { labeled(L10n.t("距上一顿", "Gap"), durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
+        let showEnd = entry.endDate != nil && entry.seconds(on: day) >= 1800
+        let meta: [String] = [sides, entry.meta(on: day, endShown: showEnd), since.map { labeled(L10n.t("距上一顿", "Gap"), durationValue($0)) }].compactMap { $0 }.filter { !$0.isEmpty }
             .joined(separator: " · ").components(separatedBy: " · ").filter { !$0.isEmpty }
-        HStack(alignment: .top, spacing: 12) {
+
+        HStack(alignment: .top, spacing: 10) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(entry.carriedOver(into: day) ? "00:00" : hm(entry.startDate)).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
-                if let e = entry.endDate, bar > 24 {
-                    Spacer(minLength: 0)
-                    Text(Day(e) > day ? "24:00" : hm(e)).font(Typeface.numerals(13, relativeTo: .footnote, weight: .medium)).foregroundStyle(Palette.secondaryText)
+                Text(entry.carriedOver(into: day) ? "00:00" : hm(entry.startDate))
+                    .font(Typeface.numerals(15, relativeTo: .subheadline, weight: .semibold))
+                if let e = entry.endDate, showEnd {
+                    Text(Day(e) > day ? "24:00" : hm(e))
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .medium))
+                        .foregroundStyle(Palette.secondaryText)
                 } else if isToday {
-                    Text(ago(entry.endDate ?? entry.startDate, now: now)).font(.caption2).foregroundStyle(Palette.secondaryText)
+                    Text(ago(entry.endDate ?? entry.startDate, now: now))
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
                 }
             }
-            .frame(width: timeWidth, height: bar > 24 ? 24 + bar : nil, alignment: .topLeading)
-            VStack(spacing: 0) {
-                IconTile(symbol: LogType.symbol(entry.type), color: c, size: 28, round: true)
-                if entry.end != nil {
-                    Capsule().fill(LinearGradient(colors: [c.mix(with: .white, by: 0.3), c], startPoint: .leading, endPoint: .trailing))
-                        .frame(width: 8, height: max(6, bar)).padding(.top, -4)
-                        .overlay(Capsule().fill(.white.opacity(0.45)).frame(width: 2).padding(.vertical, 3).offset(x: -1.5))
-                }
+            .frame(width: timeWidth, alignment: .topLeading)
+
+            HStack(spacing: 4) {
+                Capsule()
+                    .fill(c)
+                    .frame(width: 3, height: entry.end != nil ? 22 : 14)
+                IconTile(symbol: LogType.symbol(entry.type), color: c, size: 22, round: true)
             }
-            .frame(width: 28)
+            .frame(width: 28, alignment: .leading)
+
             VStack(alignment: .leading, spacing: 2) {
-                // the kind and its value on one line when they fit; at large text, one under the other (never wider than
-                // the screen)
                 ViewThatFits(in: .horizontal) {
                     HStack(alignment: .firstTextBaseline) {
-                        Text(LogType.name(entry.type)).font(.body)
+                        Text(LogType.name(entry.type)).font(.subheadline.weight(.semibold))
                         Spacer(minLength: 8)
-                        Text(value).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold)).fixedSize()
+                        Text(value).font(Typeface.numerals(15, relativeTo: .subheadline, weight: .semibold)).foregroundStyle(Crayon.ink(c)).fixedSize()
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(LogType.name(entry.type)).font(.body)
-                        Text(value).font(Typeface.numerals(16, relativeTo: .body, weight: .semibold))
+                        Text(LogType.name(entry.type)).font(.subheadline.weight(.semibold))
+                        Text(value).font(Typeface.numerals(15, relativeTo: .subheadline, weight: .semibold)).foregroundStyle(Crayon.ink(c))
                     }
                 }
-                // the details as pieces: a line breaks only between them, and the · only stands between two on a line
                 if !meta.isEmpty {
                     DotFlow {
                         ForEach(Array(meta.enumerated()), id: \.offset) { i, piece in
                             if i > 0 { Text("·") }
-                            // a piece already kept by units (距上一顿 3 小时 30 分) may break between them; others stay whole
                             Text(piece.contains("\u{00A0}") ? piece : unbroken(piece)).fixedSize(horizontal: false, vertical: true)
                         }
                     }
-                    .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    .font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
                     .accessibilityElement(children: .ignore).accessibilityLabel(meta.joined(separator: L10n.t("，", ", ")))
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 3)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)

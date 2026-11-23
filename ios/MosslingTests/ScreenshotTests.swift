@@ -980,4 +980,82 @@ final class ScreenshotTests: XCTestCase {
         shot("49_journey_hub_zh", height: 1320, tabs(m, JourneyHubView()))
         shot("49_foods_0emoji_zh", height: 1120, tabs(m, FoodAtlasView(store: sampleFoods)))
     }
+
+    /// Batch 2A ADA Redesign Stress Test: Exact 37-entry newborn day (16 feeds, 11h25m sleep, 7 diapers, medicine, play),
+    /// 3-track interactive swimlane scrubber, collapsed history bar, 0.6s inline bottle quick-tray, and 1-page DaySheetPoster!
+    func test50JournalAdaRedesign() {
+        let nov18 = Day(y: 2026, m: 11, d: 18)
+        let nov17 = Day(y: 2026, m: 11, d: 17)
+        let nov19 = Day(y: 2026, m: 11, d: 19)
+        let m = model(birth: Day(y: 2026, m: 10, d: 1))
+        m.today = nov19
+        m.journal = true
+        func tAt(_ d: Day, _ h: Int, _ mi: Int) -> Double {
+            Day.cal.date(bySettingHour: h, minute: mi, second: 0, of: d.date)!.timeIntervalSince1970 * 1000
+        }
+
+        var body = JournalFile.Body()
+        body.logs = [
+            LogEntry(type: LogType.sleep, start: tAt(nov17, 23, 30), end: tAt(nov18, 1, 41)),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 1, 36), end: tAt(nov18, 1, 43), side: "l", detail: "paused:60000"),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 1, 41), detail: "wet"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 1, 41), end: tAt(nov18, 3, 47)),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 3, 47), end: tAt(nov18, 3, 58), side: "l"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 3, 49), end: tAt(nov18, 6, 4)),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 5, 10), detail: "wet"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 6, 4), end: tAt(nov18, 6, 8), side: "l"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 7, 52), end: tAt(nov18, 7, 54), side: "r"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 7, 53), end: tAt(nov18, 8, 0)),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 8, 1), end: tAt(nov18, 8, 3), side: "l"),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 8, 11), detail: "both"),
+            LogEntry(type: LogType.medicine, start: tAt(nov18, 8, 31), detail: "维生素 AD"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 8, 41), end: tAt(nov18, 8, 45), side: "l"),
+            LogEntry(type: LogType.play, start: tAt(nov18, 9, 20), detail: "A1 户外声音观察"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 9, 34), end: tAt(nov18, 10, 16)),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 10, 50), detail: "wet"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 10, 56), end: tAt(nov18, 11, 2), side: "l"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 12, 22), end: tAt(nov18, 12, 32)),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 12, 32), end: tAt(nov18, 12, 35), side: "l"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 12, 35), end: tAt(nov18, 14, 19)),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 14, 19), end: tAt(nov18, 14, 39), side: "l", detail: "paused:240000"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 14, 19), end: tAt(nov18, 16, 18), detail: "paused:300000"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 15, 57), end: tAt(nov18, 16, 3), side: "l"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 16, 3) + 15_000, end: tAt(nov18, 16, 8), side: "r", detail: "paused:60000"),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 16, 12), detail: "wet"),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 16, 41), detail: "dirty"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 16, 47), end: tAt(nov18, 16, 51), side: "l"),
+            LogEntry(type: LogType.bottle, start: tAt(nov18, 18, 25), amount: 20, detail: "breastmilk"),
+            LogEntry(type: LogType.sleep, start: tAt(nov18, 19, 40), end: tAt(nov18, 20, 25)),
+            LogEntry(type: LogType.bottle, start: tAt(nov18, 19, 51), amount: 30, detail: "breastmilk"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 21, 39), end: tAt(nov18, 21, 45), side: "l"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 21, 45) + 15_000, end: tAt(nov18, 21, 48), side: "r", detail: "paused:120000"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 22, 15), end: tAt(nov18, 22, 19), side: "l"),
+            LogEntry(type: LogType.diaper, start: tAt(nov18, 23, 27), detail: "both"),
+            LogEntry(type: LogType.nurse, start: tAt(nov18, 23, 30), end: tAt(nov18, 23, 36), side: "r"),
+            // Today (Nov 19) sample entry
+            LogEntry(type: LogType.bottle, start: tAt(nov19, 9, 10), amount: 30, detail: "breastmilk"),
+        ]
+        let denseStore = JournalStore(preview: body)
+
+        shot("50_journal_newborn37_past_zh", height: 1100,
+             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
+                 .environment(m).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+        shot("50_journal_today_quicktray_zh", height: 920,
+             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov19, initialQuickTray: LogType.bottle) }
+                 .environment(m).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+        shot("50_journal_lamp", height: 1100, lamp: true,
+             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
+                 .environment(m).environment(denseStore).lamp(true).tint(Palette.accent).fontDesign(.rounded))
+
+        // 1-image complete DaySheetPoster (must fit all 37 entries on ONE single crisp sheet)
+        let posterView = DaySheetPoster(babyName: m.nickname, ageText: "1个月18天", day: nov18, logs: denseStore.logs(on: nov18))
+        shot("50_day_sheet_poster_zh", height: 1020, width: 420, posterView)
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(birth: Day(y: 2026, m: 10, d: 1)); mEn.nickname = "Leo"; mEn.today = nov19; mEn.journal = true
+        shot("50_journal_en", height: 1100,
+             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
+                 .environment(mEn).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+    }
 }

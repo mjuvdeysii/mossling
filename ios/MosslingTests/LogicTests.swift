@@ -1144,4 +1144,55 @@ final class LogicTests: XCTestCase {
         let m2 = AppModel(defaults: d)
         XCTAssertEqual(m2.bulbPreset, .airy)
     }
+
+    func testDayChapterPartitioningAndSummaries() {
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let day = Day(y: 2026, m: 11, d: 18)
+        let prev = Day(y: 2026, m: 11, d: 17)
+        func msAt(_ d: Day, _ h: Int, _ m: Int) -> Double {
+            Day.cal.date(bySettingHour: h, minute: m, second: 0, of: d.date)!.timeIntervalSince1970 * 1000
+        }
+
+        let logs: [LogEntry] = [
+            // Overnight carried over + morning/afternoon/evening
+            LogEntry(type: LogType.sleep, start: msAt(prev, 23, 30), end: msAt(day, 1, 41)),
+            LogEntry(type: LogType.nurse, start: msAt(day, 1, 36), end: msAt(day, 1, 42), side: "l"),
+            LogEntry(type: LogType.diaper, start: msAt(day, 1, 41), detail: "wet"),
+            LogEntry(type: LogType.nurse, start: msAt(day, 8, 1), end: msAt(day, 8, 5), side: "l"),
+            LogEntry(type: LogType.medicine, start: msAt(day, 8, 31), detail: "Vitamin AD"),
+            LogEntry(type: LogType.sleep, start: msAt(day, 12, 35), end: msAt(day, 14, 19)),
+            // Two-sided contiguous nursing feed within 120s join window (must group into 1 feed row!)
+            LogEntry(type: LogType.nurse, start: msAt(day, 15, 57), end: msAt(day, 16, 3), side: "l"),
+            LogEntry(type: LogType.nurse, start: msAt(day, 16, 3) + 20_000, end: msAt(day, 16, 8), side: "r"),
+            LogEntry(type: LogType.diaper, start: msAt(day, 16, 41), detail: "dirty"),
+            LogEntry(type: LogType.bottle, start: msAt(day, 19, 51), amount: 30, detail: "breastmilk"),
+            LogEntry(type: LogType.sleep, start: msAt(day, 19, 40), end: msAt(day, 20, 25)),
+        ]
+
+        let chapters = DayChapter.build(day: day, logs: logs)
+        XCTAssertEqual(chapters.map(\.period), [.evening, .afternoon, .morning, .overnight])
+        // Total grouped rows: 10 (two-sided 15:57 nursing collapsed into 1 row!)
+        XCTAssertEqual(chapters.reduce(0) { $0 + $1.rowCount }, 10)
+        // Overnight includes carried-over sleep (23:30..01:41 -> clamped to 00:00..01:41 on Nov 18 = 101 min)
+        let overnight = chapters.last!
+        XCTAssertEqual(overnight.feedCount, 1)
+        XCTAssertEqual(overnight.diaperCount, 1)
+        XCTAssertEqual(overnight.sleepSeconds, 101 * 60, accuracy: 2.0)
+        // Afternoon combined two-sided feed counts as 1 feed
+        let afternoon = chapters[1]
+        XCTAssertEqual(afternoon.feedCount, 1)
+        XCTAssertEqual(afternoon.diaperCount, 1)
+        XCTAssertEqual(DayPeriod.of(timestampMs: msAt(prev, 23, 30), on: day), .overnight)
+    }
+
+    func testSmartBottleVolumeSuggestions() {
+        XCTAssertEqual(SmartBottleVolumes.suggestions(lastMl: nil), [60, 90, 120, 150])
+        XCTAssertEqual(SmartBottleVolumes.suggestions(lastMl: 30), [20, 30, 45, 60])
+        XCTAssertEqual(SmartBottleVolumes.suggestions(lastMl: 120), [90, 120, 150, 180])
+        let big = SmartBottleVolumes.suggestions(lastMl: 290)
+        XCTAssertEqual(big, big.sorted())
+        XCTAssertTrue(big.allSatisfy { (10...300).contains($0) })
+        XCTAssertEqual(Set(big).count, big.count)
+    }
 }
