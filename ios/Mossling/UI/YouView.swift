@@ -400,22 +400,28 @@ private struct ThemeLanguageCard: View {
     }
 
     private var langPills: some View {
-        HStack(spacing: 6) {
-            ForEach(AppLanguage.allCases, id: \.self) { lang in
-                let on = app.language == lang
-                Button {
-                    withAnimation(.snappy) { app.language = lang }
-                } label: {
-                    Text(lang.label)
-                        .font(.caption.weight(on ? .bold : .semibold))
-                        .foregroundStyle(on ? .white : .primary)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                        .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.25), lineWidth: 0.8))
-                }
-                .buttonStyle(.toy)
-                .accessibilityAddTraits(on ? .isSelected : [])
+        let pills = ForEach(AppLanguage.allCases, id: \.self) { lang in
+            let on = app.language == lang
+            Button {
+                withAnimation(.snappy) { app.language = lang }
+            } label: {
+                Text(lang.label)
+                    .font(.caption.weight(on ? .bold : .semibold))
+                    .foregroundStyle(on ? .white : .primary)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                    .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.25), lineWidth: 0.8))
+            }
+            .buttonStyle(.toy)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
+
+        return Group {
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 6, lineSpacing: 6) { pills }
+            } else {
+                HStack(spacing: 6) { pills }
             }
         }
         .sensoryFeedback(.selection, trigger: app.language)
@@ -724,9 +730,17 @@ private struct DataRow: View {
         HStack(spacing: 10) {
             IconTile(symbol: symbol, color: color, size: 28, round: true)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                Text(title)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
                 if let detail, !detail.isEmpty {
-                    Text(detail).font(.caption).foregroundStyle(Palette.secondaryText)
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             Spacer(minLength: 0)

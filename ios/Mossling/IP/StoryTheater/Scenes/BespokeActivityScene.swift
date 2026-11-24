@@ -6,6 +6,7 @@ enum BespokeActivityID: String, CaseIterable, Sendable {
     case n01, n02, n03, n04, n05, n06
     case a01, a02, a03, a04
     case a05, a06, a07, a08, a09, a10, a11, a12, a13, a14
+    case a15, a16, a17, a18, a19, a20, a21, a22, a23, a24
 
     var code: String {
         rawValue.uppercased()
@@ -258,6 +259,106 @@ enum BespokeActivitySceneRegistry {
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
                 komorebiStrength: 0.78
             )
+        case .a15:
+            return BespokeSceneMetadata(
+                id: .a15,
+                cameraGrammar: "wide-sunlit-quilted-floor-mat",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.56, 0.56, 0.62],
+                audioAnchors: [.clothSwish, .woodTap, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                komorebiStrength: 0.86
+            )
+        case .a16:
+            return BespokeSceneMetadata(
+                id: .a16,
+                cameraGrammar: "sunlit-shelf-sightline-triangle",
+                durations: [4.4, 4.6, 4.6, 4.8],
+                posterPhases: [0.54, 0.56, 0.54, 0.60],
+                audioAnchors: [.none, .softChime, .none, .woodTap],
+                lightKeyNormalized: CGPoint(x: 0.26, y: 0.14),
+                komorebiStrength: 0.80
+            )
+        case .a17:
+            return BespokeSceneMetadata(
+                id: .a17,
+                cameraGrammar: "entryway-sunlight-greeting-arch",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.55, 0.56, 0.62],
+                audioAnchors: [.softChime, .softChime, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.14),
+                komorebiStrength: 0.82
+            )
+        case .a18:
+            return BespokeSceneMetadata(
+                id: .a18,
+                cameraGrammar: "low-angle-ball-rolling-corridor",
+                durations: [4.4, 4.6, 4.8],
+                posterPhases: [0.54, 0.56, 0.60],
+                audioAnchors: [.clothSwish, .vinylPop, .clothSwish],
+                lightKeyNormalized: CGPoint(x: 0.50, y: 0.14),
+                komorebiStrength: 0.78
+            )
+        case .a19:
+            return BespokeSceneMetadata(
+                id: .a19,
+                cameraGrammar: "sculpted-beech-block-tower-macro",
+                durations: [4.6, 4.8, 5.0],
+                posterPhases: [0.56, 0.58, 0.64],
+                audioAnchors: [.woodTap, .woodTap, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.78, y: 0.14),
+                komorebiStrength: 0.80
+            )
+        case .a20:
+            return BespokeSceneMetadata(
+                id: .a20,
+                cameraGrammar: "low-montessori-table-care-studio",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.54, 0.56, 0.62],
+                audioAnchors: [.clothSwish, .clothSwish, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.26, y: 0.15),
+                komorebiStrength: 0.82
+            )
+        case .a21:
+            return BespokeSceneMetadata(
+                id: .a21,
+                cameraGrammar: "balanced-dual-wooden-trays-closeup",
+                durations: [4.4, 4.6, 4.8],
+                posterPhases: [0.54, 0.56, 0.60],
+                audioAnchors: [.woodTap, .softChime, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.50, y: 0.14),
+                komorebiStrength: 0.76
+            )
+        case .a22:
+            return BespokeSceneMetadata(
+                id: .a22,
+                cameraGrammar: "botanical-card-tabletop-flatlay",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.55, 0.56, 0.62],
+                audioAnchors: [.woodTap, .clothSwish, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.15),
+                komorebiStrength: 0.78
+            )
+        case .a23:
+            return BespokeSceneMetadata(
+                id: .a23,
+                cameraGrammar: "cozy-reading-cushion-book-nook",
+                durations: [4.5, 4.8, 4.8],
+                posterPhases: [0.54, 0.56, 0.62],
+                audioAnchors: [.clothSwish, .softChime, .clothSwish],
+                lightKeyNormalized: CGPoint(x: 0.28, y: 0.16),
+                komorebiStrength: 0.74
+            )
+        case .a24:
+            return BespokeSceneMetadata(
+                id: .a24,
+                cameraGrammar: "clipped-cotton-sketchpad-studio",
+                durations: [4.4, 4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.56, 0.62, 0.60],
+                audioAnchors: [.woodTap, .clothSwish, .vinylPop, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                komorebiStrength: 0.82
+            )
         }
     }
 
@@ -324,6 +425,16 @@ enum BespokeActivitySceneRegistry {
         case .a12: SceneA12_PeekabooHands(ctx: context)
         case .a13: SceneA13_TappingSounds(ctx: context)
         case .a14: SceneA14_BasketInOut(ctx: context)
+        case .a15: SceneA15_FreeFloorExploration(ctx: context)
+        case .a16: SceneA16_FollowGazeName(ctx: context)
+        case .a17: SceneA17_EverydayGestures(ctx: context)
+        case .a18: SceneA18_RollingSoftBall(ctx: context)
+        case .a19: SceneA19_StackingChunkyBlocks(ctx: context)
+        case .a20: SceneA20_WipingTidying(ctx: context)
+        case .a21: SceneA21_TwoSimpleChoices(ctx: context)
+        case .a22: SceneA22_MatchingPicturesObjects(ctx: context)
+        case .a23: SceneA23_TurningPagesPointing(ctx: context)
+        case .a24: SceneA24_FreeScribblingCrayons(ctx: context)
         }
     }
 }

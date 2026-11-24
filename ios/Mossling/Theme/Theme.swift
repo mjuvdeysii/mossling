@@ -124,7 +124,7 @@ struct IconTile: View {
     var round = false
     @ScaledMetric private var scale: CGFloat = 1
 
-    static func sticker(_ symbol: String) -> String? {
+    nonisolated static func sticker(_ symbol: String) -> String? {
         // a few marks share one object (export and import in one row are still the parcel going out)
         let alias = ["square.and.arrow.up.on.square": "square.and.arrow.up", "list.bullet.clipboard": "list.bullet.clipboard.fill"]
         let n = "ic_" + (alias[symbol] ?? symbol).replacingOccurrences(of: ".", with: "_") + ".webp"

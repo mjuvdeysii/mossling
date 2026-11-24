@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 21（v2.0 正式发布候选 18 · Batch C 独立小动画 `A15–A24` · Tab 3 蒙氏纪念书架与折叠三境章节 · Swift 6 零警告与 Tab 3/4 无障碍精修）**：
+  - **【Bespoke 独立活动动画 Batch C（`A15–A24` 共 10 部完全独立短片 · 累计 30 / 46）】**：严格遵循 `docs/IP.md`（Otto 永远无手、零腮红、零气泡、`1:1` Pixar 3D × Ghibli 2D 地面坐标对齐）手工编排 `A15`（绗缝游戏垫清障与木环自由探索）、`A16`（矮柜木鸟共同注意追视光弧）、`A17`（门拱下波浪天线与薄荷叶无手致意）、`A18`（六瓣布球滚动物理自转与回合拉长）、`A19`（正式升格的三层倒角木积木搭高与欢呼倒塌）、`A20`（实用生活矮桌擦水珠与棉布入篮）、`A21`（双桦木托盘二选一高亮询问）、`A22`（植物梨卡片与实木梨配对落点）、`A23`（前展书架选书翻页与随心合书）与 `A24`（棉纸胶带粗蜡笔自由有机笔触），注册至 `BespokeActivitySceneRegistry`（累计 30 部独立镜头语法），补全 `testRound21BespokeBatchCScenesAndKeepsakeTab` 与 `test71Round21BespokeBatchCAndKeepsakesUpgrade`。
+  - **【创意炼金术升级 · Tab 3 蒙氏纪念藏品盒与三境折叠章节】**：将 `JourneyHubView` 四格入口升级为数据驱动的实体微缩质感藏品（`MiniStorybookArtifact` 布面书脊绘本、`MiniPolaroidArtifact` 胶带拍立得直显最近照片、`MiniCapsuleEnvelopeArtifact` 对应火漆色信封与待拆微光、`MiniGrowthCurveArtifact` WHO P15–P85 曲线配实时体重金珠折线）；在头卡下方新增「草地 / 森林小丘 / 小河村庄」三境进度跳转条，并将 37 站珠链按三境收纳进平滑 `CalmAccordion` 剪纸章节（默认仅展开宝宝当前王国，大幅压缩首屏滑屏长度）。
+  - **【修复 Fix】**：彻底清零 `TimeCapsuleView.swift:18`、`Components.swift:86` / `Theme.swift:127` Swift 6 主线程隔离警告及 `LogicTests.swift:577` 未使用变量警告；修复 `JourneyHubView` 深色/平面未来珠子数字对比度与 AX2/AX3 `FlowRow` 折行，同步强化 `YouView` 语言胶囊与 `EditorialViews` 引用卡及隐私一图读懂在 AX2 下的自适应排版。
+
 - **Batch 20（v2.0 正式发布候选 17 · Batch B 独立小动画 `A05–A14` · Tab 2 台灯活态呼吸光晕与 AX2 无障碍修复 · ADA 2027 方法论沉淀）**：
   - **【Bespoke 独立活动动画 Batch B（`A05–A14` 共 10 部完全独立短片）】**：按 Pixar 3D × Studio Ghibli 2D 双画风同构标准逐一手工落地 `A05`（凸窗手铃声源转头弧）、`A06`（5 步大开本绘本瓢虫点读与自主合书）、`A07`（竹帘长廊童谣节律四拍与风铃晃动）、`A08`（双材质棉布绒球与直槽桦木触感碟）、`A09`（壁挂榉木安全镜内置实时镜像反射）、`A10`（户外公园草坡木漏日与滑翔小鸟仰视）、`A11`（中线缝合地垫砂钟摇铃跨中线 8 字传递）、`A12`（恪守 Otto 无手正典的暖亚麻帘布躲猫猫）、`A13`（声学木砖轻敲与快慢对比声波）、`A14`（前后分层藤编百宝箱入篮与出篮），并在 `BespokeActivitySceneRegistry` 完成 20 部（`N01–N06`、`A01–A14`）独立镜头语法注册与 `testRound20BespokeBatchBScenesAndLampHub` / `test70Round20BespokeBatchBShowcases` 四模态渲染校验。
   - **【Tab 2 `LampHubView` 三板块升级 & ADA 2027 方法论】**：修复节律卡底排 3 枚导航胶囊在 AX2 超大字号下的换行与省略号截断；将 6 枚声景胶囊活跃态升级为低眩光褪黑素护眼高对比描边配发光指示点（WCAG AAA）；为 Otto 床头暖灯加入受 `scrolling.moving`、`Reduce Motion` 与可视区域门禁保护的 3.8s 呼吸声光脉冲；同步沉淀双语核心开发与设计规范至 `docs/METHODOLOGY.md`。

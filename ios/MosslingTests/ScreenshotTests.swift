@@ -2035,4 +2035,37 @@ final class ScreenshotTests: XCTestCase {
         shot("70_tab2_lamp_ax2_zh", height: 1240,
              tabs(m, LampHubView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
     }
+
+    /// Round 21 — Batch C Bespoke Activity Showcases (A16, A19, A21, A24), Tab 3 Keepsakes Cabinet & Tab 4 AX2.
+    func test71Round21BespokeBatchCAndKeepsakesUpgrade() {
+        defer {
+            ArtStyle.current = .vinyl
+            L10n.overrideEnglish = nil
+        }
+        let m = model(); m.journal = true
+
+        for (code, step, phase) in [("A16", 0, 0.54), ("A19", 2, 0.64), ("A21", 1, 0.56), ("A24", 2, 0.62)] {
+            if let script = LivingBookCatalog.script(for: code) {
+                let plate = showcase2x2(
+                    tl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: false),
+                    tr: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: false),
+                    bl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: true),
+                    br: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: true)
+                )
+                shot("71_showcase_\(code.lowercased())_4modes", height: 520, plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+            }
+        }
+
+        shot("71_tab3_keepsakes_day_zh", height: 1220, tabs(m, JourneyHubView(isRootTab: true)))
+        shot("71_tab3_keepsakes_night_zh", height: 1220, lamp: true,
+             tabs(m, JourneyHubView(isRootTab: true).lamp(true).environment(\.night, true)))
+        shot("71_tab3_keepsakes_ax2_zh", height: 1460,
+             tabs(m, JourneyHubView(isRootTab: true)).dynamicTypeSize(.accessibility2))
+        shot("71_tab4_studio_ax2_zh", height: 1460,
+             tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("71_tab3_keepsakes_en", height: 1220, tabs(mEn, JourneyHubView(isRootTab: true)))
+    }
 }

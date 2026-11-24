@@ -270,33 +270,44 @@ struct SourcesView: View {
         let keyId = "\(index)-\(source.code)"
 
         return VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .center, spacing: 6) {
-                Text(String(format: "[%02d]", index))
-                    .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                    .foregroundStyle(Palette.secondaryText)
-
-                Text(orgBadge)
+            let indexText = Text(String(format: "[%02d]", index))
+                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                .foregroundStyle(Palette.secondaryText)
+            let orgPill = Text(orgBadge)
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(dark ? cat.tint : Crayon.ink(cat.tint))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2.5)
+                .background(Capsule().fill(cat.tint.opacity(dark ? 0.22 : 0.14)))
+            let orgName = Text(source.org)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryText)
+                .lineLimit(type.isAccessibilitySize ? nil : 1)
+                .fixedSize(horizontal: false, vertical: true)
+            let yearPill = year.map { y in
+                Text(y)
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(dark ? cat.tint : Crayon.ink(cat.tint))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.secondaryText)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2.5)
-                    .background(Capsule().fill(cat.tint.opacity(dark ? 0.22 : 0.14)))
+                    .background(Capsule().fill(Palette.fill.opacity(dark ? 0.35 : 0.85)))
+            }
 
-                Text(source.org)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
-
-                Spacer(minLength: 4)
-
-                if let year {
-                    Text(year)
-                        .font(.caption2.weight(.bold))
-                        .monospacedDigit()
-                        .foregroundStyle(Palette.secondaryText)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2.5)
-                        .background(Capsule().fill(Palette.fill.opacity(dark ? 0.35 : 0.85)))
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 6, lineSpacing: 6) {
+                    indexText
+                    orgPill
+                    orgName
+                    if let yearPill { yearPill }
+                }
+            } else {
+                HStack(alignment: .center, spacing: 6) {
+                    indexText
+                    orgPill
+                    orgName
+                    Spacer(minLength: 4)
+                    if let yearPill { yearPill }
                 }
             }
 
@@ -313,7 +324,7 @@ struct SourcesView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 8) {
+            let sourceLink = Group {
                 if let urlStr = source.url, let url = URL(string: urlStr), let host {
                     Link(destination: url) {
                         HStack(spacing: 5) {
@@ -321,6 +332,8 @@ struct SourcesView: View {
                                 .font(.caption2.weight(.semibold))
                             Text("\(host) · " + L10n.t("查看原文", "Source"))
                                 .font(.caption.weight(.semibold))
+                                .lineLimit(type.isAccessibilitySize ? nil : 1)
+                                .fixedSize(horizontal: false, vertical: true)
                             Image(systemName: "arrow.up.right")
                                 .font(.system(size: 9, weight: .bold))
                         }
@@ -331,31 +344,44 @@ struct SourcesView: View {
                     }
                     .buttonStyle(.plain)
                 }
+            }
 
-                Spacer(minLength: 4)
-
-                Button {
-                    UIPasteboard.general.string = SourceCitationClassifier.formattedCitation(index: index, source: source)
-                    TactileEngine.shared.beadClick()
-                    copiedId = keyId
-                    Task { @MainActor in
-                        try? await Task.sleep(for: .seconds(1.8))
-                        if copiedId == keyId { copiedId = nil }
-                    }
-                } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: copiedId == keyId ? "checkmark" : "doc.on.doc")
-                            .font(.caption2.weight(.bold))
-                        Text(copiedId == keyId ? L10n.t("已复制引文", "Copied") : L10n.t("复制引文", "Cite"))
-                            .font(.caption2.weight(.semibold))
-                    }
-                    .foregroundStyle(copiedId == keyId ? Palette.accent : Palette.secondaryText)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(Palette.fill.opacity(dark ? 0.35 : 0.80)))
+            let citeButton = Button {
+                UIPasteboard.general.string = SourceCitationClassifier.formattedCitation(index: index, source: source)
+                TactileEngine.shared.beadClick()
+                copiedId = keyId
+                Task { @MainActor in
+                    try? await Task.sleep(for: .seconds(1.8))
+                    if copiedId == keyId { copiedId = nil }
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.t("复制第 \(index) 条标准引文", "Copy formatted citation \(index)"))
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: copiedId == keyId ? "checkmark" : "doc.on.doc")
+                        .font(.caption2.weight(.bold))
+                    Text(copiedId == keyId ? L10n.t("已复制引文", "Copied") : L10n.t("复制引文", "Cite"))
+                        .font(.caption2.weight(.semibold))
+                }
+                .foregroundStyle(copiedId == keyId ? Palette.accent : Palette.secondaryText)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Palette.fill.opacity(dark ? 0.35 : 0.80)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t("复制第 \(index) 条标准引文", "Copy formatted citation \(index)"))
+
+            Group {
+                if type.isAccessibilitySize {
+                    FlowRow(spacing: 8, lineSpacing: 6) {
+                        sourceLink
+                        citeButton
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        sourceLink
+                        Spacer(minLength: 4)
+                        citeButton
+                    }
+                }
             }
             .padding(.top, 2)
         }
@@ -390,6 +416,7 @@ struct DocView: View {
     let name: String
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var type
 
     private var rawText: String {
         let resURL = (L10n.isEnglish ? Bundle.main.url(forResource: name + "_EN", withExtension: "md") : nil)
@@ -488,11 +515,14 @@ struct DocView: View {
             ("person.crop.circle.badge.xmark", L10n.t("无需账号", "No Account Needed"), Crayon.leaf),
             ("trash.fill", L10n.t("本机可随时清空", "Full Local Control"), Crayon.caramel)
         ]
+        let cols = type.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
         return VStack(alignment: .leading, spacing: 10) {
             Text(L10n.t("隐私承诺一图读懂", "Privacy at a Glance"))
                 .font(.caption.weight(.bold))
                 .foregroundStyle(Palette.secondaryText)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+            LazyVGrid(columns: cols, spacing: 8) {
                 ForEach(badges, id: \.1) { sym, title, col in
                     HStack(spacing: 7) {
                         Image(systemName: sym)
@@ -501,7 +531,8 @@ struct DocView: View {
                         Text(title)
                             .font(.caption.weight(.semibold))
                             .foregroundStyle(.primary)
-                            .lineLimit(1)
+                            .lineLimit(type.isAccessibilitySize ? nil : 1)
+                            .fixedSize(horizontal: false, vertical: true)
                             .minimumScaleFactor(0.8)
                         Spacer(minLength: 0)
                     }
@@ -625,8 +656,8 @@ struct ReleaseNotesView: View {
                 color: Palette.amber,
                 title: L10n.t("Pixar 3D × Ghibli 2D 活态绘本与独立动画", "Living Picture-Book Stage (3D & 2D)"),
                 detail: L10n.t(
-                    "加入柔光棚拍与手绘水彩双风格画面，推出首批 10 部完全独立手工编排的活动小动画与第 6 月旗舰草原野餐封面。",
-                    "Paired soft-vinyl warm studio lighting with hand-tinted watercolor textures, launching bespoke step animations for early newborn/infant milestones and the Month 6 flagship picnic cover."
+                    "加入柔光棚拍与手绘水彩双风格画面，推出 30 部覆盖 0–24 个月的完全独立手工编排活动小动画与第 6 月旗舰草原野餐封面。",
+                    "Paired soft-vinyl warm studio lighting with hand-tinted watercolor textures, featuring 30 bespoke step animations across 0–24 months and the Month 6 flagship picnic cover."
                 )
             ),
             ReleaseFeature(

@@ -593,7 +593,8 @@ final class LogicTests: XCTestCase {
         // Last nursing feed begins at its first side (f2a), not its second side (f2b)
         XCTAssertEqual(j.last(LogType.nurse), f2a.startDate)
         XCTAssertEqual(j.last(LogType.sleep), endsAtMidnight.endDate)
-        // Day indexing includes overnight carryover on d19, excludes sleep ending at exact 00:00 of d20
+        // Day indexing includes f1 on d18, overnight carryover on d19, excludes sleep ending at exact 00:00 of d20
+        XCTAssertTrue(j.logs(on: d18).contains { $0.id == f1.id })
         XCTAssertTrue(j.logs(on: d19).contains { $0.id == overnight.id })
         XCTAssertFalse(j.logs(on: d20).contains { $0.id == endsAtMidnight.id })
         // O(1) play lookup and count
@@ -2423,11 +2424,11 @@ final class LogicTests: XCTestCase {
             "A01", "A02", "A03", "A04",
             "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13", "A14"
         ]
-        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedAll)
+        XCTAssertTrue(BespokeActivitySceneRegistry.registeredCodes.isSuperset(of: expectedAll))
 
         let batchBCodes: [BespokeActivityID] = [.a05, .a06, .a07, .a08, .a09, .a10, .a11, .a12, .a13, .a14]
         let allGrammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
-        XCTAssertEqual(allGrammars.count, 20)
+        XCTAssertEqual(allGrammars.count, BespokeActivityID.allCases.count)
 
         let content = try Content.load()
         for id in batchBCodes {
@@ -2471,5 +2472,116 @@ final class LogicTests: XCTestCase {
             .environment(envJournal)
             .dynamicTypeSize(.accessibility2)
         XCTAssertNotNil(ImageRenderer(content: lampAx2).uiImage)
+    }
+
+    @MainActor
+    func testRound21BespokeBatchCScenesAndKeepsakeTab() throws {
+        let expectedAll: Set<String> = [
+            "N01", "N02", "N03", "N04", "N05", "N06",
+            "A01", "A02", "A03", "A04",
+            "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13", "A14",
+            "A15", "A16", "A17", "A18", "A19", "A20", "A21", "A22", "A23", "A24"
+        ]
+        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedAll)
+        XCTAssertEqual(BespokeActivityID.allCases.count, 30)
+
+        let allGrammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
+        XCTAssertEqual(allGrammars.count, 30, "Each of 30 bespoke scenes must own a unique cameraGrammar")
+
+        let batchCCodes: [BespokeActivityID] = [.a15, .a16, .a17, .a18, .a19, .a20, .a21, .a22, .a23, .a24]
+        let content = try Content.load()
+        for id in batchCCodes {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let play = try XCTUnwrap(content.play(id.code), "Missing play for \(id.code)")
+            let steps = play.steps.count
+            XCTAssertEqual(meta.durations.count, steps, "Durations count mismatch for \(id.code)")
+            XCTAssertEqual(meta.posterPhases.count, steps, "PosterPhases count mismatch for \(id.code)")
+            XCTAssertEqual(meta.audioAnchors.count, steps, "AudioAnchors count mismatch for \(id.code)")
+
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            for step in [0, max(0, steps - 1)] {
+                for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
+                    let stage = LivingBookStage(
+                        script: script,
+                        stepIndex: step,
+                        companion: .moss,
+                        dark: dark,
+                        accent: Crayon.teal,
+                        posterPhase: meta.posterPhases[step],
+                        interactive: false,
+                        forceFlat: flat
+                    )
+                    .frame(width: 280, height: 210)
+                    let img = ImageRenderer(content: stage).uiImage
+                    XCTAssertNotNil(img, "ImageRenderer returned nil for \(id.code) step=\(step) dark=\(dark) flat=\(flat)")
+                    XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+                }
+            }
+        }
+
+        // Pure JourneyKeepsakeMetrics validation
+        XCTAssertTrue(JourneyKeepsakeMetrics.normalizedWeights(from: []).isEmpty)
+        XCTAssertNil(JourneyKeepsakeMetrics.latestWeightText(from: []))
+
+        let samples = [
+            Measure(at: 1000, weightG: 3400),
+            Measure(at: 2000, weightG: 5200),
+            Measure(at: 3000, weightG: 7400)
+        ]
+        let normed = JourneyKeepsakeMetrics.normalizedWeights(from: samples)
+        XCTAssertEqual(normed.count, 3)
+        XCTAssertEqual(normed.first ?? -1, 0.15, accuracy: 0.001)
+        XCTAssertEqual(normed.last ?? -1, 0.85, accuracy: 0.001)
+        XCTAssertEqual(JourneyKeepsakeMetrics.latestWeightText(from: samples), "7.4 kg")
+
+        let pMeadow = JourneyKeepsakeMetrics.landProgress(land: .meadow, babyMonth: 6, hasBirth: true)
+        XCTAssertEqual(pMeadow.lived, 7)
+        XCTAssertEqual(pMeadow.total, 12)
+        let pRiver = JourneyKeepsakeMetrics.landProgress(land: .river, babyMonth: 6, hasBirth: true)
+        XCTAssertEqual(pRiver.lived, 0)
+        XCTAssertEqual(pRiver.total, 13)
+
+        // Render Tab 3 (Day, Night, AX2), Tab 4 (AX2), and Privacy DocView (AX2) cleanly
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round21-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.journal = true
+        var body = JournalFile.Body()
+        body.measures = samples
+        body.firsts = [First(at: 2000, key: "smile", title: "第一次微笑")]
+        let envJournal = JournalStore(preview: body)
+
+        let tab3Day = JourneyHubView(isRootTab: true)
+            .frame(width: 393, height: 960)
+            .environment(envApp)
+            .environment(envJournal)
+        XCTAssertNotNil(ImageRenderer(content: tab3Day).uiImage)
+
+        let tab3Night = JourneyHubView(isRootTab: true)
+            .frame(width: 393, height: 960)
+            .lamp(true)
+            .environment(\.colorScheme, .dark)
+            .environment(envApp)
+            .environment(envJournal)
+        XCTAssertNotNil(ImageRenderer(content: tab3Night).uiImage)
+
+        let tab3Ax2 = JourneyHubView(isRootTab: true)
+            .frame(width: 393, height: 1120)
+            .environment(envApp)
+            .environment(envJournal)
+            .dynamicTypeSize(.accessibility2)
+        XCTAssertNotNil(ImageRenderer(content: tab3Ax2).uiImage)
+
+        let tab4Ax2 = YouView(path: .constant(NavigationPath()))
+            .frame(width: 393, height: 1120)
+            .environment(envApp)
+            .environment(envJournal)
+            .dynamicTypeSize(.accessibility2)
+        XCTAssertNotNil(ImageRenderer(content: tab4Ax2).uiImage)
+
+        let docAx2 = DocView(name: "PRIVACY")
+            .frame(width: 393, height: 960)
+            .dynamicTypeSize(.accessibility2)
+        XCTAssertNotNil(ImageRenderer(content: docAx2).uiImage)
     }
 }

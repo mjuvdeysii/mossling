@@ -23,6 +23,48 @@ enum JourneyStripMetrics {
     }
 }
 
+/// Pure, testable keepsake shelf & Land progress calculations for Tab 3 (`JourneyHubView`).
+enum JourneyKeepsakeMetrics {
+    static func normalizedWeights(from measures: [Measure], limit: Int = 6) -> [Double] {
+        let sorted = measures
+            .compactMap { m -> (at: Double, weightG: Double)? in
+                guard let g = m.weightG, g > 0 else { return nil }
+                return (m.at, Double(g))
+            }
+            .sorted { $0.at < $1.at }
+        let recent = Array(sorted.suffix(max(1, limit)))
+        guard !recent.isEmpty else { return [] }
+        if recent.count == 1 { return [0.55] }
+        let weights = recent.map(\.weightG)
+        guard let minW = weights.min(), let maxW = weights.max() else { return [] }
+        let span = maxW - minW
+        if span < 1.0 {
+            return Array(repeating: 0.55, count: weights.count)
+        }
+        return weights.map { 0.15 + 0.70 * (($0 - minW) / span) }
+    }
+
+    static func latestWeightText(from measures: [Measure]) -> String? {
+        let latest = measures
+            .filter { ($0.weightG ?? 0) > 0 }
+            .max { $0.at < $1.at }
+        guard let g = latest?.weightG, g > 0 else { return nil }
+        return String(format: "%.1f kg", Double(g) / 1000.0)
+    }
+
+    static func landProgress(land: Land, babyMonth: Int, hasBirth: Bool) -> (lived: Int, total: Int) {
+        let range: ClosedRange<Int> = switch land {
+        case .meadow: 0...11
+        case .forest: 12...23
+        case .river: 24...36
+        }
+        guard hasBirth else { return (0, range.count) }
+        let m = JourneyStripMetrics.clampedMonth(babyMonth)
+        let lived = range.filter { $0 <= m }.count
+        return (lived, range.count)
+    }
+}
+
 /// 4:3 Picture-Book Month Cover Postcard replacing the legacy square map vignette across Today & JourneyHub.
 struct MonthPostcardArt: View {
     let month: Int
@@ -236,7 +278,9 @@ struct JourneyHubView: View {
     @State private var scope: StationScope = .all
     @State private var quietBeads = false
     @State private var showingStorybook = false
+    @State private var expandedLandsOverride: Set<Land>? = nil
     @State private var capsules = CapsuleStore.shared
+    @State private var photoVersion = FirstPhotoVersion.shared
 
     enum StationScope: String, CaseIterable, Identifiable {
         case all, lived
@@ -252,6 +296,9 @@ struct JourneyHubView: View {
     private var baby: Int { max(0, min(app.babyMonth ?? 0, 36)) }
     private var dark: Bool { lamp || scheme == .dark }
     private var flat: Bool { ArtStyle.current == .flat }
+    private var activeExpandedLands: Set<Land> {
+        expandedLandsOverride ?? [Land.of(baby)]
+    }
 
     private var visibleLands: [Land] {
         if scope == .lived && app.birth != nil {
@@ -281,10 +328,11 @@ struct JourneyHubView: View {
     }
 
     var body: some View {
+        let _ = photoVersion.tick
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    currentStationHero
+                    currentStationHero(proxy: proxy)
 
                     keepsakeShelf
 
@@ -305,7 +353,12 @@ struct JourneyHubView: View {
                                     let on = scope == item
                                     Button {
                                         TactileEngine.shared.beadClick()
-                                        withAnimation(reduce ? nil : .snappy) { scope = item }
+                                        withAnimation(reduce ? nil : .snappy) {
+                                            scope = item
+                                            if item == .lived {
+                                                expandedLandsOverride = Set(Land.allCases)
+                                            }
+                                        }
                                     } label: {
                                         Text(item.title)
                                             .font(.footnote.weight(.bold))
@@ -340,8 +393,8 @@ struct JourneyHubView: View {
                         }
                     }
 
-                    // Pure vertical winding Montessori bead chain grouped by the 3 Lands
-                    VStack(alignment: .leading, spacing: 20) {
+                    // Collapsible vertical winding Montessori bead chain grouped by the 3 Lands
+                    VStack(alignment: .leading, spacing: 16) {
                         ForEach(visibleLands, id: \.rawValue) { land in
                             let list = months(in: land)
                             if !list.isEmpty {
@@ -367,6 +420,11 @@ struct JourneyHubView: View {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         TactileEngine.shared.beadClick()
+                        var next = activeExpandedLands
+                        next.insert(Land.of(baby))
+                        withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                            expandedLandsOverride = next
+                        }
                         withAnimation(reduce ? nil : .spring(response: 0.48, dampingFraction: 0.82)) {
                             proxy.scrollTo("station-\(baby)", anchor: .center)
                         }
@@ -384,7 +442,7 @@ struct JourneyHubView: View {
 
     // MARK: - Section 1: Current Station Hero
 
-    private var currentStationHero: some View {
+    private func currentStationHero(proxy: ScrollViewProxy) -> some View {
         let mo = app.content.month(baby)
         let land = Land.of(baby)
         let monthFrac = app.age.map { JourneyStripMetrics.monthProgressFraction(days: $0.days, toNext: $0.toNext) } ?? 0
@@ -393,9 +451,12 @@ struct JourneyHubView: View {
                 ? L10n.t("\(a.toNext) 天后满 \(baby + 1) 个月", "\(a.toNext)d to mo \(baby + 1)")
                 : nil
         }
+        let headerLayout = type.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 14) {
+            headerLayout {
                 MonthPostcardArt(
                     month: baby,
                     festive: app.age?.days == 0 && app.age != nil,
@@ -404,7 +465,7 @@ struct JourneyHubView: View {
                 )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
+                    FlowRow(spacing: 6, lineSpacing: 4) {
                         Label(land.name, systemImage: land.symbol)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
@@ -437,7 +498,9 @@ struct JourneyHubView: View {
                         .lineLimit(type.isAccessibilitySize ? nil : 2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                Spacer(minLength: 0)
+                if !type.isAccessibilitySize {
+                    Spacer(minLength: 0)
+                }
             }
 
             MiniJourneyBeadStrip(
@@ -449,12 +512,16 @@ struct JourneyHubView: View {
                 night: lamp
             )
 
+            landChapterJumpStrip(proxy: proxy)
+
             NavigationLink(value: Route.month(baby)) {
                 HStack(spacing: 8) {
                     Image(systemName: "book.closed.fill")
                         .font(.subheadline.weight(.bold))
                     Text(L10n.t("本月发育要点与活动", "This Month's Guide"))
                         .font(.subheadline.weight(.bold))
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.right")
                         .font(.caption.weight(.bold))
@@ -477,7 +544,83 @@ struct JourneyHubView: View {
         .printCard(radius: Radius.card)
     }
 
-    // MARK: - Section 2: 2×2 Keepsake Shelf (Zero Horizontal Scroll)
+    @ViewBuilder
+    private func landChapterJumpStrip(proxy: ScrollViewProxy) -> some View {
+        let hasBirth = app.birth != nil
+        let chips = ForEach(visibleLands, id: \.rawValue) { land in
+            let isHere = land == Land.of(baby)
+            let isExpanded = activeExpandedLands.contains(land)
+            let prog = JourneyKeepsakeMetrics.landProgress(land: land, babyMonth: baby, hasBirth: hasBirth)
+            let frac = prog.total > 0 ? CGFloat(prog.lived) / CGFloat(prog.total) : 0
+
+            Button {
+                TactileEngine.shared.beadClick()
+                var next = activeExpandedLands
+                next.insert(land)
+                withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                    expandedLandsOverride = next
+                }
+                withAnimation(reduce ? nil : .spring(response: 0.48, dampingFraction: 0.82)) {
+                    proxy.scrollTo("land-\(land.rawValue)", anchor: .top)
+                }
+            } label: {
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(land.crayon)
+                            .frame(width: 6, height: 6)
+                        Text(land.name)
+                            .font(.caption2.weight(isHere ? .bold : .semibold))
+                            .foregroundStyle(isHere ? (dark ? land.crayon : Crayon.ink(land.crayon)) : .primary)
+                            .lineLimit(type.isAccessibilitySize ? nil : 1)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 2)
+                        Text(hasBirth ? "\(prog.lived)/\(prog.total)" : "\(prog.total)")
+                            .font(Typeface.numerals(10, relativeTo: .caption2, weight: .bold))
+                            .foregroundStyle(Palette.secondaryText)
+                    }
+
+                    GeometryReader { g in
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(land.crayon.opacity(dark ? 0.22 : 0.16))
+                            if frac > 0 {
+                                Capsule()
+                                    .fill(land.crayon.opacity(dark ? 0.88 : 0.80))
+                                    .frame(width: max(4, g.size.width * frac))
+                            }
+                        }
+                    }
+                    .frame(height: 3.5)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(isHere ? land.crayon.opacity(dark ? 0.18 : 0.11) : (dark ? Palette.lampCard.opacity(0.68) : Palette.card.opacity(0.78)))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .strokeBorder(
+                            isHere ? land.crayon.opacity(dark ? 0.60 : 0.48) : (isExpanded ? land.crayon.opacity(0.28) : Palette.outline.opacity(0.18)),
+                            lineWidth: isHere ? 1.2 : 0.75
+                        )
+                )
+            }
+            .buttonStyle(.toy)
+            .accessibilityLabel(L10n.t("跳至\(land.name)章节，\(land.years)", "Jump to \(land.name), \(land.years)"))
+            .accessibilityAddTraits(isHere ? .isSelected : [])
+        }
+
+        if type.isAccessibilitySize {
+            FlowRow(spacing: 6, lineSpacing: 6) { chips }
+        } else {
+            HStack(spacing: 6) { chips }
+        }
+    }
+
+    // MARK: - Section 2: 2×2 Montessori Keepsake Cabinet (Zero Horizontal Scroll)
 
     private var keepsakeShelf: some View {
         let cols = type.isAccessibilitySize
@@ -486,9 +629,12 @@ struct JourneyHubView: View {
         let bookMonths = app.birth != nil ? max(1, min(app.age?.bookMonth ?? 0, 36) + 1) : 0
         let capsuleTotal = capsules.items.count
         let capsuleReady = capsules.readyCount(on: app.today)
+        let latestSeal = capsules.items.first?.seal ?? .gold
+        let weights = JourneyKeepsakeMetrics.normalizedWeights(from: j.measures)
+        let latestWeight = JourneyKeepsakeMetrics.latestWeightText(from: j.measures)
 
         return VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: L10n.t("纪念书架", "Keepsake Shelf"))
+            SectionTitle(title: L10n.t("纪念书架", "Keepsake Cabinet"))
 
             LazyVGrid(columns: cols, spacing: 10) {
                 if app.birth != nil {
@@ -501,7 +647,7 @@ struct JourneyHubView: View {
                             detail: L10n.t("已收录 \(bookMonths) 个月", "\(bookMonths) mo collected"),
                             tint: Crayon.caramel
                         ) {
-                            ToolArtBadge(toolId: "storybook", size: 32)
+                            MiniStorybookArtifact(month: baby, dark: dark)
                         }
                     }
                     .buttonStyle(.toy)
@@ -512,7 +658,7 @@ struct JourneyHubView: View {
                             detail: L10n.t("每一站留影", "Month keepsakes"),
                             tint: Crayon.caramel
                         ) {
-                            ToolArtBadge(toolId: "storybook", size: 32)
+                            MiniStorybookArtifact(month: baby, dark: dark)
                         }
                     }
                     .buttonStyle(.toy)
@@ -526,7 +672,7 @@ struct JourneyHubView: View {
                             : L10n.t("已留存 \(j.firsts.count) 个第一次", "\(j.firsts.count) captured"),
                         tint: Crayon.pink
                     ) {
-                        FirstCharmBadge(key: "smile", color: Crayon.pink, size: 32)
+                        MiniPolaroidArtifact(latestFirst: j.firsts.first, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
@@ -541,7 +687,7 @@ struct JourneyHubView: View {
                                 : L10n.t("火漆写给未来", "Wax-sealed letters")),
                         tint: Palette.bead
                     ) {
-                        WaxSealBadge(seal: .gold, size: 32)
+                        MiniCapsuleEnvelopeArtifact(seal: latestSeal, readyCount: capsuleReady, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
@@ -549,10 +695,10 @@ struct JourneyHubView: View {
                 NavigationLink(value: JournalRoute.growth) {
                     shelfTile(
                         title: L10n.t("生长曲线", "Growth Curves"),
-                        detail: L10n.t("WHO 百分位参考", "WHO standards"),
+                        detail: latestWeight ?? L10n.t("WHO 百分位参考", "WHO standards"),
                         tint: Crayon.leaf
                     ) {
-                        IconTile(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, size: 32)
+                        MiniGrowthCurveArtifact(weights: weights, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
@@ -566,28 +712,31 @@ struct JourneyHubView: View {
         tint: Color,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            HStack {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
                 icon()
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.right")
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
             }
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
                     .font(.caption)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
                     .minimumScaleFactor(0.8)
             }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: [tint.opacity(dark ? 0.14 : 0.11), tint.opacity(0.02)],
@@ -617,10 +766,27 @@ struct JourneyHubView: View {
     }
 
     private func landSection(land: Land, months: [Int]) -> some View {
-        return VStack(alignment: .leading, spacing: 10) {
+        let isExpanded = activeExpandedLands.contains(land)
+        let prog = JourneyKeepsakeMetrics.landProgress(land: land, babyMonth: baby, hasBirth: app.birth != nil)
+        let countLabel: String = app.birth != nil
+            ? L10n.t("\(prog.lived) / \(months.count) 站", "\(prog.lived) / \(months.count)")
+            : L10n.t("\(months.count) 站", "\(months.count) stations")
+        let headerLayout = type.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+
+        return CalmAccordion(isExpanded: isExpanded, spacing: 8) {
+            var next = activeExpandedLands
+            if next.contains(land) {
+                next.remove(land)
+            } else {
+                next.insert(land)
+            }
+            expandedLandsOverride = next
+        } header: { open in
             ZStack {
                 // Kid's book cut-paper rolling hills & stitched footpath backdrop
-                Canvas { ctx, size in
+                Canvas(rendersAsynchronously: false) { ctx, size in
                     let skyTop = dark ? Color(hex: 0x241F1A) : Color(hex: 0xFFFBF2)
                     let skyBot = dark ? land.ground.opacity(0.65) : land.ground.opacity(0.85)
                     ctx.fill(
@@ -676,73 +842,89 @@ struct JourneyHubView: View {
                 }
                 .allowsHitTesting(false)
 
-                HStack(alignment: .center, spacing: 12) {
+                headerLayout {
                     VStack(alignment: .leading, spacing: 5) {
                         HStack(spacing: 8) {
                             IconTile(symbol: land.symbol, color: land.crayon, size: 28, round: true)
                             Text(land.name)
                                 .font(.headline.weight(.bold))
                                 .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
 
-                        HStack(spacing: 6) {
+                        FlowRow(spacing: 6, lineSpacing: 4) {
                             Text(land.years)
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(Palette.secondaryText)
 
-                            Text(L10n.t("\(months.count) 站", "\(months.count) stations"))
+                            Text(countLabel)
                                 .font(.caption2.weight(.bold))
-                                .foregroundStyle(land.crayon.mix(with: .black, by: dark ? 0.0 : 0.28))
+                                .monospacedDigit()
+                                .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
                                 .padding(.horizontal, 8)
                                 .padding(.vertical, 3)
                                 .background(
-                                    Capsule().fill(dark ? Palette.lampCard.opacity(0.85) : Color.white.opacity(0.85))
+                                    Capsule().fill(dark ? Palette.lampCard.opacity(0.90) : Color.white.opacity(0.90))
                                 )
                         }
 
                         Text(landTagline(for: land))
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(2)
+                            .lineLimit(type.isAccessibilitySize ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Spacer(minLength: 4)
+                    if !type.isAccessibilitySize {
+                        Spacer(minLength: 4)
+                    }
 
-                    let bannerMonth = landCoverMonth(for: land)
-                    ZStack(alignment: .top) {
-                        LivingMonthCoverStage(
-                            month: bannerMonth,
-                            dark: dark,
-                            posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
-                            interactive: false,
-                            compact: true
-                        )
-                        .frame(width: 88, height: 66)
-                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
-                        .padding(4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
-                        .rotationEffect(.degrees(3))
-                        .accessibilityHidden(true)
+                    HStack(spacing: 10) {
+                        let bannerMonth = landCoverMonth(for: land)
+                        ZStack(alignment: .top) {
+                            LivingMonthCoverStage(
+                                month: bannerMonth,
+                                dark: dark,
+                                posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
+                                interactive: false,
+                                compact: true
+                            )
+                            .frame(width: 82, height: 62)
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .padding(4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 15, style: .continuous)
+                                    .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
+                            )
+                            .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
+                            .rotationEffect(.degrees(3))
+                            .accessibilityHidden(true)
 
-                        RoundedRectangle(cornerRadius: 2, style: .continuous)
-                            .fill(Color(hex: 0xEFE1B8).opacity(0.88))
-                            .frame(width: 24, height: 8)
-                            .offset(y: -4)
-                            .rotationEffect(.degrees(-2))
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
+                                .frame(width: 22, height: 7)
+                                .offset(y: -3.5)
+                                .rotationEffect(.degrees(-2))
+                        }
+
+                        Image(systemName: "chevron.down")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                            .frame(width: 28, height: 28)
+                            .background(
+                                Circle().fill(dark ? Palette.lampCard.opacity(0.88) : Color.white.opacity(0.88))
+                            )
+                            .rotationEffect(.degrees(open ? 180 : 0))
                     }
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
             }
-            .frame(minHeight: 112)
+            .frame(minHeight: 110)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -751,7 +933,7 @@ struct JourneyHubView: View {
                         style: StrokeStyle(lineWidth: 1.2, dash: [6, 4])
                     )
             )
-
+        } content: {
             VStack(spacing: 0) {
                 ForEach(Array(months.enumerated()), id: \.element) { idx, m in
                     let isLast = idx == months.count - 1
@@ -762,6 +944,7 @@ struct JourneyHubView: View {
             .padding(.vertical, 6)
             .printCard(radius: Radius.card)
         }
+        .id("land-\(land.rawValue)")
     }
 
     private func stationRow(month m: Int, land: Land, hasNext: Bool) -> some View {
@@ -773,41 +956,41 @@ struct JourneyHubView: View {
 
         return NavigationLink(value: Route.month(m)) {
             HStack(alignment: .center, spacing: 12) {
-                // Winding Montessori vertical bead column
-                ZStack {
-                    VStack(spacing: 0) {
-                        Rectangle()
-                            .fill(m == 0 ? .clear : (past || here ? land.crayon.opacity(0.45) : Palette.outline.opacity(0.28)))
-                            .frame(width: 2.5, height: 22)
-                        Rectangle()
-                            .fill(!hasNext ? .clear : (past ? land.crayon.opacity(0.45) : Palette.outline.opacity(0.28)))
-                            .frame(width: 2.5, height: 22)
-                    }
-                    stationBead(month: m, land: land, here: here, past: past)
-                        .offset(x: waveOffset)
-                }
-                .frame(width: 58, height: 64)
+                // Winding Montessori vertical bead slot
+                stationBead(month: m, land: land, here: here, past: past)
+                    .offset(x: waveOffset)
+                    .frame(width: 54)
+                    .frame(minHeight: 64)
 
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(m == 0 ? L10n.t("出生 · 第 0 站", "Birth · Start") : L10n.t("满 \(m) 个月", "Month \(m)"))
-                            .font(.subheadline.weight(here ? .bold : .semibold))
-                            .foregroundStyle(here || past ? .primary : Palette.secondaryText)
+                VStack(alignment: .leading, spacing: 3) {
+                    let titleLabel = Text(m == 0 ? L10n.t("出生 · 第 0 站", "Birth · Start") : L10n.t("满 \(m) 个月", "Month \(m)"))
+                        .font(.subheadline.weight(here ? .bold : .semibold))
+                        .foregroundStyle(here || past ? .primary : Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    let nowBadge = here ? Text(L10n.t("现在", "Now"))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Color(hex: 0x4A3300))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 2)
+                        .background(Capsule().fill(Palette.bead)) : nil
 
-                        if here {
-                            Text(L10n.t("现在", "Now"))
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(Color(hex: 0x4A3300))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 2)
-                                .background(Capsule().fill(Palette.bead))
+                    if type.isAccessibilitySize {
+                        FlowRow(spacing: 6, lineSpacing: 4) {
+                            titleLabel
+                            if let nowBadge { nowBadge }
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            titleLabel
+                            if let nowBadge { nowBadge }
                         }
                     }
 
                     Text(mo.title)
                         .font(.caption)
                         .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(2)
+                        .lineLimit(type.isAccessibilitySize ? nil : 2)
+                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
 
                     if let birth = app.birth {
@@ -815,16 +998,19 @@ struct JourneyHubView: View {
                         Text(L10n.t("\(d.mdOrYmd) · \(playsCount) 个活动", "\(d.mdOrYmd) · \(playsCount) plays"))
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryText.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
                     } else {
                         Text(L10n.t("\(playsCount) 个适合的活动", "\(playsCount) activities"))
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryText.opacity(0.85))
+                            .fixedSize(horizontal: false, vertical: true)
                     }
                 }
+                .padding(.vertical, 8)
 
                 Spacer(minLength: 4)
 
-                if here {
+                if here && !type.isAccessibilitySize {
                     Creature(kind: app.companion, mood: .open, look: CGPoint(x: -0.6, y: 0.1), alive: !reduce)
                         .frame(width: 36 * app.companion.scale, height: 36 * app.companion.scale)
                 }
@@ -834,6 +1020,18 @@ struct JourneyHubView: View {
                     .foregroundStyle(.tertiary)
             }
             .padding(.horizontal, 12)
+            .background(alignment: .leading) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(m == 0 ? .clear : (past || here ? land.crayon.opacity(0.45) : Palette.outline.opacity(0.28)))
+                        .frame(width: 2.5)
+                    Rectangle()
+                        .fill(!hasNext ? .clear : (past ? land.crayon.opacity(0.45) : Palette.outline.opacity(0.28)))
+                        .frame(width: 2.5)
+                }
+                .frame(width: 54)
+                .padding(.leading, 12)
+            }
             .background(here ? Palette.bead.opacity(dark ? 0.12 : 0.10) : .clear)
             .contentShape(Rectangle())
         }
@@ -846,6 +1044,7 @@ struct JourneyHubView: View {
     private func stationBead(month m: Int, land: Land, here: Bool, past: Bool) -> some View {
         let d: CGFloat = here ? 36 : 26
         let c = here ? Palette.bead : land.crayon
+        let futureNumeralInk: Color = dark ? Palette.lampInk.opacity(0.88) : Crayon.ink(c)
 
         return ZStack {
             if here {
@@ -855,11 +1054,11 @@ struct JourneyHubView: View {
             }
             if flat {
                 Circle()
-                    .fill(here || past ? c : Palette.background)
+                    .fill(here || past ? c : (dark ? Palette.lampCard : Palette.background))
                     .frame(width: d, height: d)
                 if !here && !past {
                     Circle()
-                        .strokeBorder(c.opacity(0.45), lineWidth: 1.5)
+                        .strokeBorder(c.opacity(dark ? 0.55 : 0.45), lineWidth: 1.5)
                         .frame(width: d, height: d)
                 }
             } else {
@@ -878,7 +1077,9 @@ struct JourneyHubView: View {
                     Circle()
                         .fill(
                             RadialGradient(
-                                colors: [.white.opacity(0.95), c.mix(with: .white, by: 0.75).opacity(0.85)],
+                                colors: dark
+                                    ? [Palette.lampCard.mix(with: .white, by: 0.08), Palette.lampCard]
+                                    : [.white.opacity(0.95), c.mix(with: .white, by: 0.75).opacity(0.85)],
                                 center: UnitPoint(x: 0.32, y: 0.28),
                                 startRadius: 0,
                                 endRadius: d * 0.72
@@ -886,7 +1087,7 @@ struct JourneyHubView: View {
                         )
                         .frame(width: d, height: d)
                     Circle()
-                        .strokeBorder(c.opacity(0.45), lineWidth: 1.3)
+                        .strokeBorder(c.opacity(dark ? 0.55 : 0.45), lineWidth: 1.3)
                         .frame(width: d, height: d)
                 }
             }
@@ -894,9 +1095,274 @@ struct JourneyHubView: View {
             if !quietBeads || here {
                 Text("\(m)")
                     .font(Typeface.numerals(here ? 14 : 11, relativeTo: .caption2, weight: .bold))
-                    .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? .white : c.mix(with: .black, by: 0.35))
+                    .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? .white : futureNumeralInk)
             }
         }
         .shadow(color: here ? Palette.amber.opacity(0.35) : .clear, radius: 5, y: 2)
+    }
+}
+
+// MARK: - Keepsake Cabinet Miniature Physical Artifacts (Zero TimelineView)
+
+/// Cloth-bound Storybook artifact with stitched spine, live cover plate, and golden Ex Libris ribbon.
+private struct MiniStorybookArtifact: View {
+    let month: Int
+    let dark: Bool
+
+    var body: some View {
+        let m = JourneyStripMetrics.clampedMonth(month)
+        ZStack(alignment: .leading) {
+            // Back page layer peeking slightly out
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(dark ? Color(hex: 0x263156) : Color(hex: 0xF5EBDC))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Crayon.caramel.opacity(0.35), lineWidth: 0.8)
+                )
+                .frame(width: 44, height: 34)
+                .offset(x: 4, y: 2)
+
+            ZStack(alignment: .leading) {
+                LivingMonthCoverStage(
+                    month: m,
+                    dark: dark,
+                    posterPhase: LivingMonthCoverCatalog.script(for: m).posterPhase,
+                    interactive: false,
+                    compact: true
+                )
+                .frame(width: 44, height: 34)
+                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+
+                // Cloth-bound caramel spine band
+                Rectangle()
+                    .fill(Crayon.caramel.mix(with: .black, by: dark ? 0.15 : 0.05))
+                    .frame(width: 6, height: 34)
+                    .clipShape(
+                        UnevenRoundedRectangle(
+                            topLeadingRadius: 6,
+                            bottomLeadingRadius: 6,
+                            bottomTrailingRadius: 0,
+                            topTrailingRadius: 0
+                        )
+                    )
+            }
+            .padding(2)
+            .background(
+                RoundedRectangle(cornerRadius: 7.5, style: .continuous)
+                    .fill(dark ? Palette.lampCard : .white)
+                    .shadow(color: .black.opacity(dark ? 0.28 : 0.12), radius: 2.5, y: 1.5)
+            )
+            .overlay(alignment: .topTrailing) {
+                // Ex Libris golden ribbon marker
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(Palette.bead)
+                    .frame(width: 5, height: 10)
+                    .offset(x: -5, y: -2)
+            }
+        }
+        .frame(width: 48, height: 38)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Fanned Polaroid stack topped with washi tape, displaying the latest First photo or bespoke charm badge.
+private struct MiniPolaroidArtifact: View {
+    let latestFirst: First?
+    let dark: Bool
+
+    var body: some View {
+        let photo = latestFirst.flatMap { FirstPhotoStore.load(for: $0.id) }
+        let paperBg = dark ? Color(hex: 0x242D4E) : Color(hex: 0xFFFDF8)
+        let borderCol = dark ? Color.white.opacity(0.14) : Palette.outline.opacity(0.22)
+
+        ZStack {
+            RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                .fill(paperBg)
+                .overlay(RoundedRectangle(cornerRadius: 4.5, style: .continuous).strokeBorder(borderCol, lineWidth: 0.7))
+                .frame(width: 30, height: 34)
+                .rotationEffect(.degrees(-8))
+                .offset(x: -6, y: 1)
+
+            VStack(spacing: 2) {
+                Group {
+                    if let photo {
+                        Image(uiImage: photo)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        ZStack {
+                            RoundedRectangle(cornerRadius: 3, style: .continuous)
+                                .fill(Crayon.pink.opacity(dark ? 0.24 : 0.16))
+                            FirstCharmBadge(key: latestFirst?.key ?? "smile", color: Crayon.pink, size: 19)
+                        }
+                    }
+                }
+                .frame(width: 24, height: 22)
+                .clipShape(RoundedRectangle(cornerRadius: 3, style: .continuous))
+
+                Capsule()
+                    .fill(Palette.secondaryText.opacity(0.24))
+                    .frame(width: 14, height: 2)
+            }
+            .padding(3)
+            .background(
+                RoundedRectangle(cornerRadius: 4.5, style: .continuous)
+                    .fill(paperBg)
+                    .overlay(RoundedRectangle(cornerRadius: 4.5, style: .continuous).strokeBorder(borderCol, lineWidth: 0.75))
+                    .shadow(color: .black.opacity(dark ? 0.28 : 0.12), radius: 2, y: 1)
+            )
+            .overlay(alignment: .top) {
+                RoundedRectangle(cornerRadius: 1, style: .continuous)
+                    .fill(Color(hex: 0xEFE1B8).opacity(0.90))
+                    .frame(width: 14, height: 4.5)
+                    .offset(y: -2)
+            }
+            .rotationEffect(.degrees(5))
+            .offset(x: 4, y: 0)
+        }
+        .frame(width: 48, height: 38)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Folded cotton-paper envelope with delicate V-flap geometry, matching wax seal, and amber ready dot.
+private struct MiniCapsuleEnvelopeArtifact: View {
+    let seal: CapsuleSeal
+    let readyCount: Int
+    let dark: Bool
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            ZStack {
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(dark ? Color(hex: 0x222B4C) : Color(hex: 0xFAF3E3))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .strokeBorder((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.30 : 0.34), lineWidth: 0.85)
+                    )
+
+                Canvas(rendersAsynchronously: false) { ctx, size in
+                    var flap = Path()
+                    flap.move(to: CGPoint(x: 3, y: 2))
+                    flap.addLine(to: CGPoint(x: size.width * 0.5, y: size.height * 0.54))
+                    flap.addLine(to: CGPoint(x: size.width - 3, y: 2))
+                    ctx.stroke(
+                        flap,
+                        with: .color((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.36 : 0.42)),
+                        style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
+                    )
+                }
+
+                WaxSealBadge(seal: seal, size: 22)
+                    .offset(y: 3)
+            }
+            .frame(width: 44, height: 34)
+            .shadow(color: .black.opacity(dark ? 0.24 : 0.08), radius: 2, y: 1)
+
+            if readyCount > 0 {
+                Circle()
+                    .fill(Palette.amber)
+                    .frame(width: 8.5, height: 8.5)
+                    .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
+                    .offset(x: 3, y: -3)
+            }
+        }
+        .frame(width: 48, height: 38)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Live WHO P15-P85 river & baby measurement weight sparkline (`Canvas`, zero TimelineView).
+private struct MiniGrowthCurveArtifact: View {
+    let weights: [Double]
+    let dark: Bool
+
+    var body: some View {
+        Canvas(rendersAsynchronously: false) { ctx, size in
+            let padX: CGFloat = 4
+            let padY: CGFloat = 4
+            let w = size.width - padX * 2
+            let h = size.height - padY * 2
+
+            // Soft sage WHO P15-P85 reference band
+            var band = Path()
+            band.move(to: CGPoint(x: padX, y: padY + h * 0.78))
+            band.addCurve(
+                to: CGPoint(x: padX + w, y: padY + h * 0.14),
+                control1: CGPoint(x: padX + w * 0.35, y: padY + h * 0.42),
+                control2: CGPoint(x: padX + w * 0.68, y: padY + h * 0.22)
+            )
+            band.addLine(to: CGPoint(x: padX + w, y: padY + h * 0.46))
+            band.addCurve(
+                to: CGPoint(x: padX, y: padY + h * 0.94),
+                control1: CGPoint(x: padX + w * 0.68, y: padY + h * 0.56),
+                control2: CGPoint(x: padX + w * 0.35, y: padY + h * 0.72)
+            )
+            band.closeSubpath()
+            ctx.fill(band, with: .color(Crayon.leaf.opacity(dark ? 0.24 : 0.20)))
+
+            // Dashed P50 median curve
+            var p50 = Path()
+            p50.move(to: CGPoint(x: padX, y: padY + h * 0.86))
+            p50.addCurve(
+                to: CGPoint(x: padX + w, y: padY + h * 0.30),
+                control1: CGPoint(x: padX + w * 0.35, y: padY + h * 0.57),
+                control2: CGPoint(x: padX + w * 0.68, y: padY + h * 0.39)
+            )
+            ctx.stroke(
+                p50,
+                with: .color(Crayon.leaf.opacity(dark ? 0.75 : 0.65)),
+                style: StrokeStyle(lineWidth: 1.1, lineCap: .round, dash: [2.5, 2.5])
+            )
+
+            // Actual baby weight sparkline & golden beads
+            if !weights.isEmpty {
+                let pts: [CGPoint] = weights.enumerated().map { idx, norm in
+                    let fx: CGFloat = weights.count == 1 ? 0.65 : CGFloat(idx) / CGFloat(weights.count - 1)
+                    let x = padX + w * (0.10 + fx * 0.82)
+                    let y = padY + h * (1.0 - CGFloat(norm))
+                    return CGPoint(x: x, y: y)
+                }
+
+                if pts.count >= 2 {
+                    var line = Path()
+                    line.move(to: pts[0])
+                    for pt in pts.dropFirst() {
+                        line.addLine(to: pt)
+                    }
+                    ctx.stroke(
+                        line,
+                        with: .color(Palette.bead),
+                        style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
+                    )
+                }
+
+                for (idx, pt) in pts.enumerated() {
+                    let isLatest = idx == pts.count - 1
+                    let r: CGFloat = isLatest ? 2.8 : 2.0
+                    ctx.fill(
+                        Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)),
+                        with: .color(isLatest ? Palette.amber : Palette.bead)
+                    )
+                    if isLatest {
+                        ctx.stroke(
+                            Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r, width: r * 2, height: r * 2)),
+                            with: .color(dark ? Palette.lampCard : .white),
+                            lineWidth: 0.9
+                        )
+                    }
+                }
+            }
+        }
+        .frame(width: 48, height: 36)
+        .background(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .fill(dark ? Color(hex: 0x1B263B) : Color(hex: 0xF4F8EF))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 7, style: .continuous)
+                .strokeBorder(Crayon.leaf.opacity(dark ? 0.34 : 0.28), lineWidth: 0.75)
+        )
+        .accessibilityHidden(true)
     }
 }

@@ -15,8 +15,9 @@ struct TimeCapsuleListView: View {
     @State private var composeSeedUnlock: CapsuleComposeSheet.UnlockChoice = .firstBirthday
     @State private var selectedCapsule: TimeCapsule? = nil
 
-    init(store: CapsuleStore = .shared) {
-        _store = State(initialValue: store)
+    @MainActor
+    init(store: CapsuleStore? = nil) {
+        _store = State(initialValue: store ?? .shared)
     }
 
     var body: some View {
