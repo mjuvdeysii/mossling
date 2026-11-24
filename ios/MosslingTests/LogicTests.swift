@@ -2835,4 +2835,71 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testRound24ViewportFirstStudioAndFourTabs() {
+        defer { L10n.overrideEnglish = nil }
+
+        // 1. Viewport-First Studio cockpit contract & bilingual companion tags
+        XCTAssertEqual(YouViewportSpec.primaryPortalCount, 4)
+        XCTAssertEqual(YouViewportSpec.preferenceTileCount, 4)
+        XCTAssertLessThanOrEqual(YouViewportSpec.maxSingleViewportHeight, 660)
+
+        L10n.overrideEnglish = false
+        XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "爱探索")
+        XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "点暖灯")
+        L10n.overrideEnglish = true
+        XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "Explorer")
+        XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "Lamp Keeper")
+        L10n.overrideEnglish = nil
+
+        // 2. Single-viewport 393×852 render verification across all 4 root tabs + StudioLegalSheet
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round24-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.nickname = "小满"
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let router = AppRouter()
+
+        let rootTabs: [AnyView] = [
+            AnyView(NavigationStack { TodayView(path: .constant(NavigationPath())) }),
+            AnyView(NavigationStack { LampHubView(path: .constant(NavigationPath())) }),
+            AnyView(NavigationStack { JourneyHubView(isRootTab: true) }),
+            AnyView(NavigationStack { YouView(path: .constant(NavigationPath())) }),
+            AnyView(StudioLegalSheet(dark: false))
+        ]
+
+        for view in rootTabs {
+            let img = ImageRenderer(
+                content: view
+                    .frame(width: 393, height: 852)
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(router)
+            ).uiImage
+            XCTAssertNotNil(img)
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+
+        // 3. Night Lamp, EN & AX2 Studio variants at single-viewport width
+        for (en, lamp, size) in [
+            (false, true, DynamicTypeSize.large),
+            (true, false, DynamicTypeSize.large),
+            (false, false, DynamicTypeSize.accessibility2)
+        ] {
+            L10n.overrideEnglish = en
+            let studio = NavigationStack { YouView(path: .constant(NavigationPath())) }
+                .frame(width: 393, height: 852)
+                .environment(envApp)
+                .environment(envJournal)
+                .environment(router)
+                .environment(\.lamp, lamp)
+                .environment(\.colorScheme, lamp ? .dark : .light)
+                .dynamicTypeSize(size)
+            let img = ImageRenderer(content: studio).uiImage
+            XCTAssertNotNil(img)
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+    }
 }

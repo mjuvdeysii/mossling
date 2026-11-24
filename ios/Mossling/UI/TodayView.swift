@@ -25,7 +25,7 @@ struct TodayView: View {
         let dark = lamp || scheme == .dark
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 if app.age == nil {
                     Button { if app.mayKeep() { askBirth = true } } label: { Label(L10n.t("填写出生日期，从宝宝这个月开始", "Add baby's birthday to begin"), systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
@@ -42,12 +42,15 @@ struct TodayView: View {
                 sensoryDiscoveryDock(dark: dark)
                 if baby >= 36 { StoryGoesOn(primary: app.companion) }
             }
+            .padding(.top, 4)
             .padding(.horizontal, 16)
-            .padding(.bottom, 32)
+            .padding(.bottom, 16)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
         .navigationTitle(app.nickname.isEmpty ? L10n.t("摸索", "Explore") : app.nickname)
+        .navigationBarTitleDisplayMode(.inline)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
@@ -63,42 +66,42 @@ struct TodayView: View {
     private func sensoryDiscoveryDock(dark: Bool) -> some View {
         let cols = type.isAccessibilitySize
             ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+            : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
         let foodsTasted = foods.tastedCount
         let toyTodayCount = ToyboxUsage.todayCount(on: app.today)
 
-        VStack(alignment: .leading, spacing: 8) {
-            SectionTitle(title: L10n.t("感官探索工坊", "Sensory Discovery"))
-
-            LazyVGrid(columns: cols, spacing: 10) {
-                NavigationLink(value: ExploreRoute.toybox(.xylophone)) {
-                    discoveryTile(
-                        color: Crayon.teal,
-                        title: L10n.t("感官玩具盒", "Sensory Toybox"),
-                        subtitle: toyTodayCount > 0
-                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
-                            : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
-                        dark: dark
-                    ) {
-                        MiniXylophoneArt(dark: dark)
-                    }
+        LazyVGrid(columns: cols, spacing: 8) {
+            NavigationLink(value: ExploreRoute.toybox(.xylophone)) {
+                discoveryTile(
+                    color: Crayon.teal,
+                    title: L10n.t("感官玩具盒", "Sensory Toybox"),
+                    subtitle: toyTodayCount > 0
+                        ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
+                        : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
+                    dark: dark
+                ) {
+                    MiniXylophoneArt(dark: dark)
+                        .scaleEffect(0.76)
+                        .frame(width: 40, height: 34)
                 }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: ExploreRoute.foodAtlas) {
-                    discoveryTile(
-                        color: Crayon.leaf,
-                        title: L10n.t("百味食盒", "First Foods"),
-                        subtitle: foodsTasted > 0
-                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
-                            : L10n.t("60 种辅食图鉴", "60 foods atlas"),
-                        dark: dark
-                    ) {
-                        MiniFoodsWreathCanvas(foods: foods, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
             }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: ExploreRoute.foodAtlas) {
+                discoveryTile(
+                    color: Crayon.leaf,
+                    title: L10n.t("百味食盒", "First Foods"),
+                    subtitle: foodsTasted > 0
+                        ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
+                        : L10n.t("60 种辅食图鉴", "60 foods atlas"),
+                    dark: dark
+                ) {
+                    MiniFoodsWreathCanvas(foods: foods, dark: dark)
+                        .scaleEffect(0.76)
+                        .frame(width: 38, height: 38)
+                }
+            }
+            .buttonStyle(.toy)
         }
     }
 
@@ -109,33 +112,35 @@ struct TodayView: View {
         dark: Bool,
         @ViewBuilder art: () -> Art
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                art()
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.tertiary)
-                    .padding(.top, 2)
-            }
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .center, spacing: 9) {
+            art()
+
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.subheadline.weight(.bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.85)
+                    .minimumScaleFactor(0.84)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .minimumScaleFactor(0.76)
+                    .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
             }
+
+            Spacer(minLength: 2)
+
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 56, alignment: .leading)
         .background(
             LinearGradient(
-                colors: [color.opacity(dark ? 0.14 : 0.13), color.opacity(dark ? 0.03 : 0.02)],
+                colors: [color.opacity(dark ? 0.14 : 0.12), color.opacity(dark ? 0.03 : 0.02)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -199,15 +204,15 @@ struct ExploreGreetingStrip: View {
         let mo = app.content.month(month)
 
         Button(action: openKeepsakes) {
-            HStack(alignment: .center, spacing: 12) {
+            HStack(alignment: .center, spacing: 10) {
                 MonthPostcardArt(
                     month: month,
                     festive: month == baby && app.age?.days == 0 && app.age != nil,
                     night: isNight,
-                    width: type.isAccessibilitySize ? 68 : 58
+                    width: type.isAccessibilitySize ? 58 : 46
                 )
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
                         Label(land.name, systemImage: land.symbol)
                             .font(.caption2.weight(.bold))
@@ -229,7 +234,7 @@ struct ExploreGreetingStrip: View {
                     }
 
                     Text(mo.title)
-                        .font(.footnote.weight(.medium))
+                        .font(.caption.weight(.medium))
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(type.isAccessibilitySize ? 3 : 1)
                         .fixedSize(horizontal: false, vertical: true)
@@ -248,8 +253,8 @@ struct ExploreGreetingStrip: View {
                 .padding(.vertical, 5)
                 .background(Capsule().fill(Palette.accent.opacity(dark ? 0.18 : 0.11)))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
             .background(
                 LinearGradient(
                     colors: [land.crayon.opacity(dark ? 0.12 : 0.09), .clear],
@@ -596,10 +601,10 @@ struct TodayPlayCard: View {
         let asleep = j.timers.contains { $0.type == LogType.sleep }
         if let p = today {
             TimelineView(.periodic(from: .now, by: 60)) { tl in
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .center, spacing: 8) {
-                        GoldBead(size: 10)
-                        Text(title(asleep: asleep, now: tl.date)).font(.title3.weight(.bold)).accessibilityAddTraits(.isHeader)
+                        GoldBead(size: 9)
+                        Text(title(asleep: asleep, now: tl.date)).font(.headline.weight(.bold)).accessibilityAddTraits(.isHeader)
                             .fixedSize(horizontal: false, vertical: true)
                         Spacer(minLength: 4)
                         if week.count > 1 {
@@ -607,11 +612,11 @@ struct TodayPlayCard: View {
                                 // the words stay small; the place to tap is a full 44 points (HIG: hit targets)
                                 Text(L10n.t("换一个", "Swap")).padding(.horizontal, 8).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle())
                             }
-                            .font(.subheadline.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
+                            .font(.caption.weight(.semibold)).padding(.vertical, -12).padding(.trailing, -8)
                             .accessibilityHint(L10n.t("在这周的几个活动里换一个", "Swap to another play this week"))
                         }
                     }
-                    .padding(.horizontal, 4).padding(.top, 6)
+                    .padding(.horizontal, 4).padding(.top, 2)
                     VStack(spacing: 0) {
                         lead(p)
                             .id(p.code)
@@ -620,21 +625,33 @@ struct TodayPlayCard: View {
                                 removal: .opacity.combined(with: .scale(scale: 0.985))
                             ))
                         if !rest.isEmpty {
-                            Divider().padding(.horizontal, 14)
+                            Divider().padding(.horizontal, 12)
                             HStack {
-                                Text(L10n.t("这周还有", "Also this week")).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
+                                Text(L10n.t("这周还有", "Also this week")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
                                 Spacer(minLength: 4)
                                 Button(action: arrange) { Text(L10n.t("调整", "Edit")).frame(minWidth: 44, minHeight: 44).contentShape(Rectangle()) }
-                                    .font(.footnote.weight(.semibold)).padding(.vertical, -12)
+                                    .font(.caption.weight(.semibold)).padding(.vertical, -14)
                                     .accessibilityHint(L10n.t("换这周的活动", "Adjust this week's plays"))
                             }
-                            .padding(.horizontal, 14).padding(.top, 10).padding(.bottom, 2)
-                            ForEach(rest) { other($0) }
+                            .padding(.horizontal, 12).padding(.top, 7).padding(.bottom, 4)
+
+                            if size.isAccessibilitySize {
+                                ForEach(rest) { other($0) }
+                            } else {
+                                LazyVGrid(
+                                    columns: [GridItem(.flexible(), spacing: 6), GridItem(.flexible(), spacing: 6)],
+                                    spacing: 6
+                                ) {
+                                    ForEach(rest) { compactOtherTile($0) }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.bottom, 6)
+                            }
                         } else {
-                            Button(action: arrange) { Text(L10n.t("调整这周的活动", "Adjust this week's plays")).font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 44) }
+                            Button(action: arrange) { Text(L10n.t("调整这周的活动", "Adjust this week's plays")).font(.caption.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 38) }
                         }
                     }
-                    .padding(.bottom, 4)
+                    .padding(.bottom, 2)
                     .background(alignment: .top) { if night { LampPool() } }
                     .printCard(radius: Radius.card)
                 }
@@ -664,12 +681,12 @@ struct TodayPlayCard: View {
         let last: String = lastPlayed(p)
         let label: String = L10n.t("今天一起玩", "Today's Play") + ", " + p.name + ", " + (p.domains.first ?? "") + ", " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps") + ", " + last
         return NavigationLink(value: route(p)) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
                 leadArt(p, big: big)
                 leadWords(p, last: last, times: times, big: big)
-                    .padding(.horizontal, 4)
+                    .padding(.horizontal, 2)
             }
-            .padding(12)
+            .padding(10)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
@@ -773,22 +790,60 @@ struct TodayPlayCard: View {
         let area: String = (p.domains.first ?? "") + " · " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps")
         return VStack(alignment: .leading, spacing: 3) {
             HStack(spacing: 5) {
-                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 16)
-                Text(area).font(.caption.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
-            }
-            Text(p.name).font(.headline).foregroundStyle(.primary)
-                .lineLimit(2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            if let step = p.steps.first {
-                Text(L10n.t("第 1 步 · ", "Step 1 · ") + step).font(.caption).foregroundStyle(Palette.secondaryText)
-                    .lineLimit(big ? 4 : 2).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
-            }
-            HStack(spacing: 6) {
-                Text(last).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 15)
+                Text(area).font(.caption2.weight(.semibold)).foregroundStyle(Palette.areaInk(key)).lineLimit(1)
+                Spacer(minLength: 4)
+                Text(last).font(.caption2.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1)
                 if times > 0 { BeadCount(times: times) }
             }
-            .padding(.top, 1)
+            Text(p.name).font(.headline).foregroundStyle(.primary)
+                .lineLimit(big ? 2 : 1).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            if let step = p.steps.first {
+                Text(L10n.t("第 1 步 · ", "Step 1 · ") + step).font(.caption).foregroundStyle(Palette.secondaryText)
+                    .lineLimit(big ? 4 : 1).multilineTextAlignment(.leading).fixedSize(horizontal: false, vertical: true)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func compactOtherTile(_ p: Play) -> some View {
+        let key = Palette.areaKey(of: p), times = app.thisWeek(p, j)
+        let dark = night || envLamp || scheme == .dark
+        return NavigationLink(value: route(p)) {
+            HStack(spacing: 7) {
+                ActivityPreviewThumb(play: p, color: Palette.area(key), flat: flat)
+                    .frame(width: 34, height: 26)
+                    .zoomSource(route(p))
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(p.name)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    if times > 0 {
+                        BeadCount(times: times)
+                    } else if let d = p.domains.first {
+                        Text(d)
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 6)
+            .frame(maxWidth: .infinity, minHeight: 42, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(Palette.area(key).opacity(dark ? 0.12 : 0.08))
+            )
+            .contentShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+        }
+        .buttonStyle(.toy)
+        .contextMenu { PlayActions(play: p, month: month) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(otherLabel(p, times))
     }
 
     /// One of the week's others: its tray, its name, its beads this week (nothing while there are none).

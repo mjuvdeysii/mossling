@@ -82,7 +82,7 @@ struct LampHubView: View {
         let entryCount = dayLogs.rows().count
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 ottoLampHeroCard(dark: dark)
 
                 if app.journal && !j.timers.isEmpty {
@@ -115,12 +115,14 @@ struct LampHubView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 6)
-            .padding(.bottom, 32)
+            .padding(.top, 4)
+            .padding(.bottom, 16)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
         .pageBackground(tone: night || dark ? Palette.amber : Crayon.caramel)
         .navigationTitle(L10n.t("台灯", "Lamp"))
+        .navigationBarTitleDisplayMode(.inline)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if app.journal {
@@ -196,44 +198,45 @@ struct LampHubView: View {
         let surfaceBottom = Color(hex: 0x0D1328)
         let playing = soundscape.isPlaying
 
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .center, spacing: 10) {
                 ottoLivingStage(brightness: brightness, playing: playing)
-                    .frame(width: 82, height: 82)
+                    .frame(width: 68, height: 68)
                     .contentShape(Circle())
                     .onTapGesture {
                         openBedsideLamp()
                     }
                     .accessibilityLabel(L10n.t("轻点打开 Otto 全屏床头夜灯", "Tap to open fullscreen Otto Bedside Lamp"))
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.t("Otto 的夜灯与助眠声景", "Otto's Bedside Lamp"))
-                        .font(.headline.weight(.bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(Palette.lampInk)
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(
                         midnight?.nightStatusLine
                             ?? soundscape.activeSummary
-                            ?? L10n.t("柔暖滤光 · 六组纯离线声景护耳播放", "Warm melatonin-friendly glow · 6 offline soundscapes")
+                            ?? L10n.t("柔暖滤光 · 六组纯离线声景", "Warm glow · 6 offline soundscapes")
                     )
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(Palette.lampInk.opacity(0.78))
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
 
-                    HStack(spacing: 8) {
+                    HStack(spacing: 7) {
                         Button {
                             openBedsideLamp()
                         } label: {
-                            HStack(spacing: 5) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "lamp.desk.fill")
-                                    .font(.caption.weight(.bold))
+                                    .font(.caption2.weight(.bold))
                                 Text(L10n.t("全屏夜灯", "Open Lamp"))
-                                    .font(.caption.weight(.bold))
+                                    .font(.caption2.weight(.bold))
                             }
                             .foregroundStyle(warmth.onPrimaryInk)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
                             .background(Capsule().fill(warmth.primaryGlow))
                         }
                         .buttonStyle(.toy)
@@ -243,26 +246,26 @@ struct LampHubView: View {
                                 TactileEngine.shared.beadClick()
                                 soundscape.stop()
                             } label: {
-                                Label(L10n.t("暂停声景", "Pause"), systemImage: "pause.fill")
-                                    .font(.caption.weight(.semibold))
+                                Label(L10n.t("暂停", "Pause"), systemImage: "pause.fill")
+                                    .font(.caption2.weight(.semibold))
                                     .foregroundStyle(Palette.lampInk)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 5)
                                     .background(Capsule().fill(Color.white.opacity(0.14)))
                             }
                             .buttonStyle(.plain)
                         }
                     }
-                    .padding(.top, 2)
+                    .padding(.top, 1)
                 }
                 Spacer(minLength: 0)
             }
 
             // Shared brightness & warmth tint controls synced directly with AppModel & BedsideLampView
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
                     Image(systemName: "sun.min.fill")
-                        .font(.caption.weight(.bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(warmth.primaryGlow)
                     Slider(
                         value: Binding(
@@ -274,28 +277,28 @@ struct LampHubView: View {
                     .tint(warmth.primaryGlow)
                     .accessibilityLabel(L10n.t("床头灯亮度", "Bedside lamp brightness"))
                     Text("\(Int(brightness * 100))%")
-                        .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
                         .foregroundStyle(Palette.lampInk.opacity(0.84))
-                        .frame(width: 38, alignment: .trailing)
+                        .frame(width: 34, alignment: .trailing)
                 }
 
-                FlowRow(spacing: 8, lineSpacing: 6) {
+                FlowRow(spacing: 6, lineSpacing: 5) {
                     ForEach(LampWarmth.allCases) { preset in
                         let on = warmth == preset
                         Button {
                             TactileEngine.shared.beadClick()
                             app.lampWarmthRaw = preset.rawValue
                         } label: {
-                            HStack(spacing: 5) {
+                            HStack(spacing: 4) {
                                 Circle()
                                     .fill(preset.primaryGlow)
-                                    .frame(width: 9, height: 9)
+                                    .frame(width: 8, height: 8)
                                 Text(preset.label)
                                     .font(.caption2.weight(on ? .bold : .semibold))
                             }
                             .foregroundStyle(on ? preset.onPrimaryInk : Palette.lampInk.opacity(0.85))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4)
                             .background(Capsule().fill(on ? preset.primaryGlow : Color.white.opacity(0.10)))
                         }
                         .buttonStyle(.plain)
@@ -307,48 +310,42 @@ struct LampHubView: View {
             Divider().overlay(Color.white.opacity(0.12))
 
             // Zero-horizontal-scroll 6 soundscape quick triggers
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.t("轻触声景伴随哄睡", "Bedside Soundscapes"))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Palette.lampInk.opacity(0.72))
-
-                FlowRow(spacing: 7, lineSpacing: 7) {
-                    ForEach(SoundscapeKind.allCases) { kind in
-                        let isPrimary = soundscape.active == kind
-                        let isSecondary = soundscape.secondary == kind
-                        let active = isPrimary || isSecondary
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            soundscape.toggle(kind)
-                        } label: {
-                            HStack(spacing: 5) {
-                                if active {
-                                    Circle()
-                                        .fill(kind.tint)
-                                        .frame(width: 5, height: 5)
-                                }
-                                Image(systemName: kind.symbol)
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(active ? kind.tint.mix(with: .white, by: 0.35) : Palette.lampInk.opacity(0.86))
-                                Text(kind.title)
-                                    .font(.caption.weight(active ? .bold : .medium))
-                                    .foregroundStyle(Palette.lampInk.opacity(active ? 1.0 : 0.88))
+            FlowRow(spacing: 6, lineSpacing: 5) {
+                ForEach(SoundscapeKind.allCases) { kind in
+                    let isPrimary = soundscape.active == kind
+                    let isSecondary = soundscape.secondary == kind
+                    let active = isPrimary || isSecondary
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        soundscape.toggle(kind)
+                    } label: {
+                        HStack(spacing: 4) {
+                            if active {
+                                Circle()
+                                    .fill(kind.tint)
+                                    .frame(width: 5, height: 5)
                             }
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(active ? kind.tint.opacity(0.28) : Color.white.opacity(0.10)))
-                            .overlay(
-                                Capsule()
-                                    .strokeBorder(active ? kind.tint.opacity(0.85) : Color.white.opacity(0.10), lineWidth: active ? 1.2 : 0.6)
-                            )
+                            Image(systemName: kind.symbol)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(active ? kind.tint.mix(with: .white, by: 0.35) : Palette.lampInk.opacity(0.86))
+                            Text(kind.title)
+                                .font(.caption2.weight(active ? .bold : .medium))
+                                .foregroundStyle(Palette.lampInk.opacity(active ? 1.0 : 0.88))
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(active ? .isSelected : [])
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(active ? kind.tint.opacity(0.28) : Color.white.opacity(0.10)))
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(active ? kind.tint.opacity(0.85) : Color.white.opacity(0.10), lineWidth: active ? 1.2 : 0.6)
+                        )
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(active ? .isSelected : [])
                 }
             }
         }
-        .padding(16)
+        .padding(11)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(LinearGradient(colors: [surfaceTop, surfaceBottom], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -397,18 +394,18 @@ struct LampHubView: View {
                         endRadius: glowRadius
                     )
                 )
-                .frame(width: 96, height: 96)
+                .frame(width: 74, height: 74)
 
             if playing {
                 Circle()
                     .strokeBorder(warmth.primaryGlow.opacity(0.32 * (1.0 - 0.45 * wave)), lineWidth: 1.1)
-                    .frame(width: 78, height: 78)
+                    .frame(width: 62, height: 62)
                     .scaleEffect(ringScale)
             }
 
             StoryTheaterActorView(
                 kind: .otto,
-                size: 72,
+                size: 56,
                 mood: playing ? .happy : .open,
                 look: CGPoint(x: 0.28, y: 0.08),
                 lid: 0.36,
@@ -442,10 +439,12 @@ struct LampHubView: View {
         let canStepForward = nextDay.epochDay <= app.today.epochDay
         let dayLabel = isToday ? L10n.t("今日", "Today") : (L10n.isEnglish ? "\(Day.enMonths[day.m - 1]) \(day.d)" : day.md)
 
-        return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 10) {
+        return VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .center, spacing: 9) {
                 MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFracs, dark: dark)
-                VStack(alignment: .leading, spacing: 2) {
+                    .scaleEffect(0.84)
+                    .frame(width: 40, height: 40)
+                VStack(alignment: .leading, spacing: 1) {
                     Text(isToday ? L10n.t("今日节律可视化", "Today's Rhythm") : L10n.t("\(dayLabel) · 节律可视化", "\(dayLabel) Rhythm"))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
@@ -455,9 +454,9 @@ struct LampHubView: View {
                             "Sleep \(durationValue(sleepSec)) · \(feedCount) feeds · \(diaperCount) diapers"
                         )
                     )
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(2)
+                    .lineLimit(type.isAccessibilitySize ? 3 : 1)
                 }
                 Spacer(minLength: 4)
 
@@ -517,7 +516,7 @@ struct LampHubView: View {
                 }
             }
         }
-        .padding(14)
+        .padding(11)
         .printCard(radius: Radius.card)
     }
 
@@ -557,9 +556,9 @@ struct LampHubView: View {
                 Spacer(minLength: 0)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: 34)
-        .padding(.horizontal, type.isAccessibilitySize ? 12 : 8)
-        .padding(.vertical, type.isAccessibilitySize ? 6 : 0)
+        .frame(maxWidth: .infinity, minHeight: 30)
+        .padding(.horizontal, type.isAccessibilitySize ? 10 : 6)
+        .padding(.vertical, type.isAccessibilitySize ? 5 : 0)
         .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(color.opacity(dark ? 0.16 : 0.11)))
     }
 
@@ -569,10 +568,10 @@ struct LampHubView: View {
         let primaryTypes = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
         let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) && $0 != LogType.growth }
 
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(isToday ? L10n.t("随手轻记", "Quiet Log") : L10n.t("补记 \(day.md)", "Log to \(day.md)"))
-                    .font(.caption.weight(.bold))
+                    .font(.caption2.weight(.bold))
                     .foregroundStyle(Palette.secondaryText)
                 Spacer()
                 Menu {
@@ -583,60 +582,61 @@ struct LampHubView: View {
                     }
                 } label: {
                     Label(L10n.t("更多照护", "More"), systemImage: "plus.circle")
-                        .font(.caption.weight(.semibold))
+                        .font(.caption2.weight(.semibold))
                         .foregroundStyle(Palette.accent)
                 }
             }
 
             let cols = type.isAccessibilitySize
                 ? [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
-                : Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
+                : Array(repeating: GridItem(.flexible(), spacing: 7), count: 4)
 
-            LazyVGrid(columns: cols, spacing: 8) {
+            LazyVGrid(columns: cols, spacing: 7) {
                 ForEach(primaryTypes, id: \.self) { t in
                     let col = LogType.color(t)
                     Button {
                         TactileEngine.shared.beadClick()
                         handleTap(t, day: day, isToday: isToday)
                     } label: {
-                        VStack(spacing: 4) {
-                            IconTile(symbol: LogType.symbol(t), color: col, size: 28, round: true)
+                        VStack(spacing: 3) {
+                            IconTile(symbol: LogType.symbol(t), color: col, size: 24, round: true)
                             Text(LogType.name(t))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 58)
+                        .frame(maxWidth: .infinity, minHeight: 46)
                         .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(col.opacity(dark ? 0.14 : 0.09)))
                     }
                     .buttonStyle(.toy)
                 }
             }
         }
-        .padding(14)
+        .padding(10)
         .printCard(radius: Radius.card)
     }
 
     private func todayLedgerDrawer(day: Day, dayLogs: [LogEntry], entryCount: Int, dark: Bool) -> some View {
         let isToday = day == app.today
         return VStack(spacing: 0) {
-            CalmAccordion(isExpanded: $ledgerExpanded, spacing: 10) { open in
-                HStack(spacing: 10) {
-                    IconTile(symbol: "list.bullet.clipboard.fill", color: Crayon.caramel, size: 28, round: true)
+            CalmAccordion(isExpanded: $ledgerExpanded, spacing: 8) { open in
+                HStack(spacing: 9) {
+                    IconTile(symbol: "list.bullet.clipboard.fill", color: Crayon.caramel, size: 26, round: true)
                     VStack(alignment: .leading, spacing: 1) {
                         Text(isToday ? L10n.t("今日明细手账", "Today's Entries") : L10n.t("\(day.md) 明细手账", "\(day.md) Entries"))
-                            .font(.subheadline.weight(.bold))
+                            .font(.caption.weight(.bold))
                             .foregroundStyle(.primary)
                         Text(entryCount == 0
-                             ? L10n.t("这一天尚无条目，轻点展开或补记", "No entries yet for this day")
-                             : L10n.t("共 \(entryCount) 条，平时折叠保持画面清爽", "\(entryCount) entries · collapsed for calm"))
-                            .font(.caption)
+                             ? L10n.t("尚无条目，轻点展开或补记", "No entries yet · tap to add")
+                             : L10n.t("共 \(entryCount) 条 · 轻点展开明细", "\(entryCount) entries · tap to expand"))
+                            .font(.caption2)
                             .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(type.isAccessibilitySize ? nil : 1)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.down")
-                        .font(.caption.weight(.bold))
+                        .font(.caption2.weight(.bold))
                         .foregroundStyle(.tertiary)
                         .rotationEffect(.degrees(open ? 180 : 0))
                 }
@@ -685,7 +685,7 @@ struct LampHubView: View {
                     }
                 }
             }
-            .padding(14)
+            .padding(10)
         }
         .printCard(radius: Radius.card)
     }
@@ -717,7 +717,7 @@ struct LampHubView: View {
             }
             .buttonStyle(.toy)
         }
-        .padding(14)
+        .padding(11)
         .printCard(radius: Radius.card)
     }
 

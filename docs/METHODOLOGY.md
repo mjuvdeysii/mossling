@@ -1,6 +1,6 @@
-# 摸索台灯（Moss & Otto）· 冲刺 Apple Design Awards 2027 开发与设计方法论 v3.1
+# 摸索台灯（Moss & Otto）· 冲刺 Apple Design Awards 2027 开发与设计方法论 v3.2
 
-> **文档定位**：本方法论在 Round 21（提交 `71679060`）基础上正式升级为 **v3.1 八大核心支柱与五大版螺旋自我推翻机制（Five-Edition Kill-Your-Darlings Cadence）**。明确界定：**完整的一轮全站大重构（如单源空间秩序 + 46/46 动画收官 + 夜灯与玩具盒器物跃迁，Rounds 22–26）仅构成「Edition I（第一大版）」**；其后必须通过强制归零重审门禁，以同等烈度再推翻重铸 **Edition II -> III -> IV -> V** 共五大版。全文严格遵守 **0 Emoji** 规范。
+> **文档定位**：本方法论在 Round 24 正式升级为 **v3.2（八大核心支柱 + 全局首屏主义零非必要下拉铁律 + 五大版螺旋自我推翻机制）**。明确界定：**完整的一轮全站大重构（Rounds 22–26）仅构成「Edition I（第一大版）」**；其后必须通过强制归零重审门禁，以同等烈度再推翻重铸 **Edition II -> III -> IV -> V** 共五大版。全文严格遵守 **0 Emoji** 规范。
 >
 > **配套专项技能**：[ios-spatial-ia-tactile-craft/SKILL.md](file:///Users/someone/.gemini/config/skills/ios-spatial-ia-tactile-craft/SKILL.md)。
 
@@ -24,10 +24,11 @@
    - **Tab 0 · 摸索（`Explore` / Moss 主角）**：晨光探索主轴，严格只留本周主打流动游玩、本周玩具架、感官玩具盒与百味食盒；坚决不出现跨界月卡、儿保待办、实时喂奶或夜灯。
    - **Tab 1 · 台灯（`Lamp` / Otto 主角）**：暖琥珀床头夜灯器物舞台 + 声景 + 24h 节律盘 + 只读日泳道 + 传灯交接与随手照护轻记（支持页内切日与补记，不再另 push 克隆了夜灯与生长曲线的分裂手账页）；照护记录关闭时台灯与声景依旧完整独立可用。
    - **Tab 2 · 留念（`Keepsakes` / Moss × Otto 成长轨）**：37 站可搓动串珠小路与月份详情 `MonthView` 的**唯一法定归属地**、统一成长绘本（废除无生日/有生日两套分裂绘本）、第一次相纸册、火漆时光胶囊、WHO 生长曲线与温和儿保卡。
-   - **Tab 3 · 工坊（`Studio` / 理念 · 伙伴 · 设定 · 透明循证）**：紧凑宝宝名片、Moss/Otto 切换、「摸索台灯的故事」三幕微剧院、四大克制支柱展牌、外观语言Preferences，以及单层平铺的循证/隐私/数据/条款/致谢/帮助分组（零嵌套 `AboutView`）。
-3. **搜索与跨 Tab 跳转守则 + HIG 底栏位置感**：
-   - 全局 `SearchView` 或 Deep Link 指向其他 Tab 资产时，**必须调用 `AppRouter` 切换 `selectedTab` 再推栈**，严禁把异域页面克隆压入当前 Tab 栈内。
+   - **Tab 3 · 工坊（`Studio` / 理念 · 伙伴 · 设定 · 透明循证）**：严格遵循 **单屏免下拉驾驶舱（Single-Viewport Cockpit，默认字号 `<= 655pt`）**——紧凑合体「宝宝与伙伴卡（内联「摸索台灯的故事」三幕微剧院金珠入口）」、紧凑外观与语言切换卡、2×2 触感偏好磁贴格、2×2「循证 / 备份 / 隐私 / 更新志」核心透明格，以及一行静态页脚 + 轻弹 `StudioLegalSheet`（收纳条款、免责、许可致谢、重播提示、反馈与可折叠设计工艺四柱；零嵌套 `AboutView`、零重复行、零页面堆砌）。
+3. **搜索与跨 Tab 跳转守则 + HIG 底栏位置感 + 全局严禁非必要下拉浏览**：
+   - 全局 `SearchView` 或 Deep Link 指向其他 Tab 资产时，**必须调用 `AppRouter` 切换 `selectedTab`** 再推栈，严禁把异域页面克隆压入当前 Tab 栈内。
    - 遵照 Apple HIG（`tab-bars.md`）：正常层级推进时**保持底部 Tab Bar 清晰可见**，绝不随意隐藏底栏造成迷路；仅在真正全屏焦点剧场与床头夜灯模态中隐去外部导航栏。
+   - **全局首屏主义（Viewport-First / 严禁非必要下拉浏览）**：所有四大主屏（`摸索 / 台灯 / 留念 / 工坊`）在默认字号与默认折叠态下**必须一屏完整呈现（`393 × 852pt` 内 `<= 655pt` 主体高度，零非必要纵滑）**；所有主屏及核心焦点页统一启用 `.scrollBounceBehavior(.basedOnSize)` 消除网页橡皮筋弹性误触，且「留念」三片土地章节默认保持折叠（仅点“回到现在”或点击土地条时原地展开）。纵向滚动仅保留给 AX1–AX5 无障碍大字、长文阅读器/索引及用户主动展开的明细抽屉。
 
 ---
 
@@ -82,7 +83,7 @@
    - `xcodegen generate`
    - `xcodebuild build -project Mossling.xcodeproj -scheme Mossling -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`
    - `xcodebuild build-for-testing -project Mossling.xcodeproj -scheme Mossling -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`
-   - 静态扫描红线：`ScrollView(.horizontal)` = `0`、`.glassEffect` = `1`、`DisclosureGroup` = `0`、0 Emoji、`app/src/main/assets/` diff = `0`、目标 Swift 编译零新增警告。
+   - 静态扫描红线：`ScrollView(.horizontal)` = `0`、`.glassEffect` = `1`、`DisclosureGroup` = `0`、0 Emoji、`app/src/main/assets/` diff = `0`、主屏/焦点页统一 `.scrollBounceBehavior(.basedOnSize)` 与 `852pt` 单屏验证截图、目标 Swift 编译零新增警告。
 2. **零第三方运行时 SDK & 禁止 OpenMotion MCP**：100% 原生 Swift / Metal / CoreHaptics / AVAudioEngine；严禁调用 OpenMotion MCP 工具。
 3. **大版（Edition）与战术轮次（Round）严格区分**：
    - 每一轮战术更新仍围绕「【一、修复 & 空间治理】+【二、创意炼金术物理跃迁】+【三、插画精修与全局交互打磨】」三板块闭环推进；

@@ -79,7 +79,7 @@ struct PlayView: View {
 
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: 11) {
                     PlayHeader(play: play, record: rec, cheer: cheer, onLog: { record() }, onMatMode: { openMatMode() })
                         .onScrollVisibilityChange(threshold: 0.2) { v in
                             withAnimation(.easeOut(duration: 0.2)) { scrolled = !v }
@@ -185,9 +185,10 @@ struct PlayView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 28)
+                .padding(.top, 6)
+                .padding(.bottom, 18)
             }
+            .scrollBounceBehavior(.basedOnSize)
         }
         .calmWhileScrolling()
         .pageBackground(tone: Palette.area(Palette.areaKey(of: play)))

@@ -11,13 +11,20 @@ enum YouStudioCopy {
     }
 }
 
+/// Pure, testable layout budget metadata for the single-viewport Studio cockpit (`YouView`).
+enum YouViewportSpec {
+    static let primaryPortalCount = 4
+    static let preferenceTileCount = 4
+    static let maxSingleViewportHeight: CGFloat = 655
+}
+
 /// Unified crisp circular vector icon badge across `YouView` (replaces mixed 3D/flat icon styles).
 private struct StudioBadge: View {
     let symbol: String
     let color: Color
     var active: Bool = true
     var dark: Bool = false
-    var size: CGFloat = 30
+    var size: CGFloat = 26
 
     var body: some View {
         ZStack {
@@ -36,15 +43,16 @@ private struct StudioBadge: View {
     }
 }
 
-/// Studio (`工坊`): Brand Philosophy & Three-Act Story, Four Craft Pillars, Family Profile,
-/// Appearance & Language, Preferences, and Transparent Editorial/Legal/Sources Hub.
+/// Single-Viewport Studio Cockpit (`工坊`): fits cleanly within one `393 × 852pt` screen at standard text size
+/// with `.scrollBounceBehavior(.basedOnSize)` (zero unnecessary vertical scroll) while keeping every preference,
+/// companion switch, Story theater doorway, transparency portal, and legal drawer 1 tap away.
 struct YouView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Binding var path: NavigationPath
     @State private var editing = false
-    @State private var message: String?
+    @State private var showingLegalSheet = false
 
     var body: some View {
         @Bindable var app = app
@@ -52,192 +60,159 @@ struct YouView: View {
         let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
-                FamilyCard { if app.mayKeep() { editing = true } }
-
-                StoryPhilosophyBanner(dark: dark, companion: app.companion)
-
-                CraftPillarsShowcaseCard(dark: dark)
+            VStack(alignment: .leading, spacing: 10) {
+                FamilyCard(dark: dark) {
+                    if app.mayKeep() { editing = true }
+                }
 
                 ThemeLanguageCard(dark: dark)
 
                 PreferenceStudioCard(app: app, face: face, dark: dark)
 
-                TransparencyEditorialDock(dark: dark)
+                StudioPortalGrid(dark: dark)
+
+                StudioColophonBar(dark: dark) {
+                    showingLegalSheet = true
+                }
             }
             .padding(.top, 4)
             .padding(.horizontal, 16)
-            .padding(.bottom, 32)
+            .padding(.bottom, 14)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("工坊", "Studio"))
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $editing) { ProfileSheet() }
-        .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button(L10n.t("好", "OK")) {} }
+        .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark) }
     }
 }
 
-/// Prominent philosophy showcase opening the three-act interactive micro-theater (`StoryView`) straight from Studio.
-private struct StoryPhilosophyBanner: View {
-    let dark: Bool
-    let companion: Kind
-
-    var body: some View {
-        NavigationLink(value: StudioRoute.story) {
-            HStack(spacing: 12) {
-                Duo(primary: companion, size: 52, mood: .open, poke: false, lit: dark)
-                    .frame(width: 60, height: 52)
-                    .accessibilityHidden(true)
-
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(L10n.t("点开三幕交互微剧院，拉灯绳、触木环、看懂设计初心", "Open the 3-act interactive story & design philosophy"))
-                        .font(.caption)
-                        .foregroundStyle(Palette.secondaryText)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.tertiary)
-            }
-            .padding(14)
-            .background(
-                LinearGradient(
-                    colors: [(dark ? Palette.amber : Palette.bead).opacity(dark ? 0.14 : 0.10), .clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .printCard(radius: Radius.card)
-        }
-        .buttonStyle(.toy)
-    }
-}
-
-/// Visual-first Family Studio header: portrait halo, baby age, concise land/day badges, and compact companion stage cards.
+/// Compact Baby + Companion header card integrating the 1-tap `StoryView` doorway without extra full-width banner bloat.
 private struct FamilyCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.lamp) private var night
+    let dark: Bool
     let edit: () -> Void
     @State private var giggles = 0
 
     var body: some View {
-        let dark = night || scheme == .dark
         let baby = app.babyMonth ?? 0
+        let land = Land.of(baby)
+        let ax = type.isAccessibilitySize
 
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(alignment: .center, spacing: 10) {
                 BabyPortrait(month: baby, sex: app.sex, giggle: giggles)
-                    .frame(width: type.isAccessibilitySize ? 78 : 88, height: type.isAccessibilitySize ? 78 : 88)
+                    .frame(width: ax ? 68 : 52, height: ax ? 68 : 52)
                     .contentShape(Circle())
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
 
-                VStack(alignment: .leading, spacing: 5) {
-                    HStack(alignment: .center, spacing: 6) {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname)
-                            .font(.title3.weight(.bold))
+                            .font(.headline.weight(.bold))
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-                        Spacer(minLength: 4)
-                        Button(action: edit) {
-                            Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(Palette.accentFill))
-                                .contentShape(Capsule().inset(by: -8))
+
+                        if let a = app.age {
+                            Text(L10n.ageText(a))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Palette.accent)
+                                .monospacedDigit()
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.78)
                         }
-                        .buttonStyle(.toy)
-                        .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
                     }
 
-                    if let a = app.age {
-                        HStack(alignment: .firstTextBaseline, spacing: 2) {
-                            Ticking(text: "\(a.months)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
-                            Text(L10n.t("个月", "m")).font(.subheadline.weight(.semibold)).fixedSize()
-                            if a.days > 0 {
-                                Ticking(text: "\(a.days)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).padding(.leading, 4)
-                                Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold)).fixedSize()
-                            }
-                        }
-                        .fixedSize()
-                        .foregroundStyle(Palette.accent)
-                        .accessibilityElement(children: .ignore)
-                        .accessibilityLabel(L10n.ageText(a))
-                        .accessibilityAddTraits(.isStaticText)
+                    if !ax {
+                        metaLine(baby: baby, land: land)
                     }
+                }
 
-                    if !type.isAccessibilitySize {
-                        conciseBadges(baby: baby, dark: dark)
+                Spacer(minLength: 4)
+
+                if !ax {
+                    HStack(spacing: 6) {
+                        storyPill
+                        editPill
                     }
                 }
             }
 
-            if type.isAccessibilitySize {
-                conciseBadges(baby: baby, dark: dark)
+            if ax {
+                metaLine(baby: baby, land: land)
+                FlowRow(spacing: 8, lineSpacing: 8) {
+                    storyPill
+                    editPill
+                }
             }
 
-            Divider().opacity(0.45)
+            Divider().opacity(0.42)
 
             CompanionPicker()
         }
-        .padding(14)
+        .padding(11)
         .printCard(radius: Radius.card)
     }
 
-    private func conciseBadges(baby: Int, dark: Bool) -> some View {
-        let land = Land.of(baby)
-        let stretch = L10n.stretchName(for: baby)
-        return FlowRow(spacing: 6, lineSpacing: 5) {
-            if let a = app.age {
-                badgePill(
-                    text: L10n.livedDays(a.lived),
-                    symbol: "sun.max.fill",
-                    color: Palette.bead,
-                    dark: dark
-                )
-                badgePill(
-                    text: "\(land.name) · \(stretch)",
-                    symbol: land.symbol,
-                    color: land.crayon,
-                    dark: dark
-                )
-                if app.sex == nil {
-                    Button(action: edit) {
-                        badgePill(text: L10n.t("+ 性别", "+ Sex"), symbol: "figure.child", color: Palette.accent, dark: dark)
-                    }
-                    .buttonStyle(.toy)
-                }
-            } else {
-                Button(action: edit) {
-                    badgePill(text: L10n.t("填写出生日期", "Add birthday"), symbol: "calendar.badge.plus", color: Palette.accent, dark: dark)
-                }
-                .buttonStyle(.toy)
+    @ViewBuilder
+    private func metaLine(baby: Int, land: Land) -> some View {
+        if let a = app.age {
+            HStack(spacing: 5) {
+                Image(systemName: land.symbol)
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                Text("\(land.name) · \(L10n.livedDays(a.lived))")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
             }
+        } else {
+            Button(action: edit) {
+                Label(L10n.t("填写出生日期", "Add birthday"), systemImage: "calendar.badge.plus")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.accent)
+            }
+            .buttonStyle(.plain)
         }
     }
 
-    private func badgePill(text: String, symbol: String, color: Color, dark: Bool) -> some View {
-        HStack(spacing: 4) {
-            Image(systemName: symbol)
-                .font(.system(size: 10, weight: .bold))
-                .accessibilityHidden(true)
-            Text(text)
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
+    private var storyPill: some View {
+        NavigationLink(value: StudioRoute.story) {
+            HStack(spacing: 4) {
+                GoldBead(size: 8)
+                Text(L10n.t("故事", "Story"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .frame(minHeight: 30)
+            .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.16)))
+            .overlay(Capsule().strokeBorder(Palette.bead.opacity(dark ? 0.42 : 0.32), lineWidth: 0.8))
         }
-        .foregroundStyle(dark ? color : Crayon.ink(color))
-        .padding(.horizontal, 8)
-        .padding(.vertical, 3)
-        .background(Capsule().fill(color.opacity(dark ? 0.20 : 0.14)))
+        .buttonStyle(.toy)
+        .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
+    }
+
+    private var editPill: some View {
+        Button(action: edit) {
+            Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .frame(minHeight: 30)
+                .background(Capsule().fill(Palette.accentFill))
+                .contentShape(Capsule().inset(by: -6))
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
     }
 }
 
@@ -267,7 +242,7 @@ private struct BabyPortrait: View {
     }
 }
 
-/// Side-by-side companion switcher with concise 2–4 word visual identity tags instead of prose walls.
+/// Side-by-side compact companion switcher keeping IP life & 1-tap toggle without vertical bloat.
 private struct CompanionPicker: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
@@ -279,6 +254,7 @@ private struct CompanionPicker: View {
 
     var body: some View {
         let dark = lamp || scheme == .dark
+        let ax = type.isAccessibilitySize
         layout {
             ForEach(Kind.allCases, id: \.self) { k in
                 let on = app.companion == k
@@ -288,38 +264,41 @@ private struct CompanionPicker: View {
                     HStack(alignment: .center, spacing: 6) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
                                  alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: (on ? 40 : 34) * k.scale, height: (on ? 40 : 34) * k.scale)
-                            .frame(width: 44, height: 42, alignment: .bottom)
-                            .background(alignment: .bottom) {
-                                if on {
-                                    Ellipse()
-                                        .fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 22))
-                                        .frame(width: 42, height: 9)
-                                        .offset(y: 3)
-                                }
-                            }
+                            .frame(width: (on ? 32 : 28) * k.scale, height: (on ? 32 : 28) * k.scale)
+                            .frame(width: 34, height: 34, alignment: .bottom)
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(k.rawValue)
-                                .font(.subheadline.weight(on ? .bold : .semibold))
-                                .foregroundStyle(on ? .primary : Palette.secondaryText)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                            Text(YouStudioCopy.companionBadge(k))
-                                .font(.caption2.weight(.semibold))
-                                .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.75)
+                        if ax {
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(k.rawValue)
+                                    .font(.subheadline.weight(on ? .bold : .semibold))
+                                    .foregroundStyle(on ? .primary : Palette.secondaryText)
+                                Text(YouStudioCopy.companionBadge(k))
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
+                            }
+                        } else {
+                            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                                Text(k.rawValue)
+                                    .font(.subheadline.weight(on ? .bold : .semibold))
+                                    .foregroundStyle(on ? .primary : Palette.secondaryText)
+                                    .lineLimit(1)
+                                Text(YouStudioCopy.companionBadge(k))
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.72)
+                            }
                         }
 
                         Spacer(minLength: 2)
 
                         Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                            .font(.subheadline.weight(.semibold))
+                            .font(.footnote.weight(.semibold))
                             .foregroundStyle(on ? Palette.accent : Palette.outline.opacity(0.35))
                     }
                     .padding(.horizontal, 8)
-                    .padding(.vertical, 8)
+                    .padding(.vertical, 6)
+                    .frame(minHeight: 40)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .fill(on ? Palette.accent.opacity(dark ? 0.20 : 0.10) : (dark ? Color.white.opacity(0.03) : Palette.fill.opacity(0.45)))
@@ -339,67 +318,77 @@ private struct CompanionPicker: View {
     }
 }
 
-/// Full-width living Appearance windows (`日光 / 夜灯 / 自动`) + unified compact Language pill selector.
+/// Compact unified Appearance (`日光 / 夜灯 / 自动`) & Language (`自动 / 中文 / EN`) pill selector.
 private struct ThemeLanguageCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     let dark: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 10) {
-                    StudioBadge(symbol: "paintpalette.fill", color: Crayon.lilac, active: true, dark: dark)
-                    Text(L10n.t("外观", "Theme"))
-                        .font(.subheadline.weight(.semibold))
-                    Spacer(minLength: 4)
-                    Text(app.theme.label)
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Capsule().fill(Palette.accent.opacity(dark ? 0.20 : 0.12)))
+        let ax = type.isAccessibilitySize
+        VStack(alignment: .leading, spacing: 8) {
+            if ax {
+                VStack(alignment: .leading, spacing: 6) {
+                    themeLabel
+                    themePills(ax: true)
                 }
-
+                Divider().opacity(0.42)
+                VStack(alignment: .leading, spacing: 6) {
+                    langLabel
+                    langPills(ax: true)
+                }
+            } else {
                 HStack(spacing: 8) {
-                    ForEach([ThemeMode.light, .dark, .system], id: \.self) { mode in
-                        Swatch(mode: mode, on: app.theme == mode) {
-                            withAnimation(.snappy) { app.theme = mode }
-                        }
-                    }
+                    themeLabel
+                    Spacer(minLength: 4)
+                    themePills(ax: false)
                 }
-            }
-
-            Divider().opacity(0.45)
-
-            Group {
-                if type.isAccessibilitySize {
-                    VStack(alignment: .leading, spacing: 8) {
-                        langLabel
-                        langPills
-                    }
-                } else {
-                    HStack(spacing: 10) {
-                        langLabel
-                        Spacer(minLength: 4)
-                        langPills
-                    }
+                Divider().opacity(0.42)
+                HStack(spacing: 8) {
+                    langLabel
+                    Spacer(minLength: 4)
+                    langPills(ax: false)
                 }
             }
         }
-        .padding(14)
+        .padding(.horizontal, 11)
+        .padding(.vertical, 9)
         .printCard(radius: Radius.card)
     }
 
+    private var themeLabel: some View {
+        HStack(spacing: 8) {
+            StudioBadge(symbol: "paintpalette.fill", color: Crayon.lilac, active: true, dark: dark)
+            Text(L10n.t("外观", "Theme"))
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private func themePills(ax: Bool) -> some View {
+        let pills = ForEach([ThemeMode.light, .dark, .system], id: \.self) { mode in
+            Swatch(mode: mode, on: app.theme == mode, dark: dark) {
+                TactileEngine.shared.beadClick()
+                withAnimation(.snappy) { app.theme = mode }
+            }
+        }
+        return Group {
+            if ax {
+                FlowRow(spacing: 6, lineSpacing: 6) { pills }
+            } else {
+                HStack(spacing: 5) { pills }
+            }
+        }
+    }
+
     private var langLabel: some View {
-        HStack(spacing: 10) {
+        HStack(spacing: 8) {
             StudioBadge(symbol: "globe", color: Crayon.sky, active: true, dark: dark)
             Text(L10n.t("语言", "Language"))
                 .font(.subheadline.weight(.semibold))
         }
     }
 
-    private var langPills: some View {
+    private func langPills(ax: Bool) -> some View {
         let pills = ForEach(AppLanguage.allCases, id: \.self) { lang in
             let on = app.language == lang
             Button {
@@ -409,107 +398,70 @@ private struct ThemeLanguageCard: View {
                     .font(.caption.weight(on ? .bold : .semibold))
                     .foregroundStyle(on ? .white : .primary)
                     .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                    .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.25), lineWidth: 0.8))
+                    .padding(.vertical, 5)
+                    .frame(minHeight: 30)
+                    .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.72))))
+                    .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
             }
             .buttonStyle(.toy)
             .accessibilityAddTraits(on ? .isSelected : [])
         }
 
         return Group {
-            if type.isAccessibilitySize {
+            if ax {
                 FlowRow(spacing: 6, lineSpacing: 6) { pills }
             } else {
-                HStack(spacing: 6) { pills }
+                HStack(spacing: 5) { pills }
             }
         }
         .sensoryFeedback(.selection, trigger: app.language)
     }
 }
 
-/// One appearance to choose, as a generous living window (`日光` / `夜灯` / `自动`) with non-overlapping AX2 checkmark.
+/// Compact tactile Theme pill with miniature living swatch dot (`日光` / `夜灯` / `自动`).
 private struct Swatch: View {
     let mode: ThemeMode
     let on: Bool
+    let dark: Bool
     let pick: () -> Void
-    @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
         Button(action: pick) {
-            Group {
-                if type.isAccessibilitySize {
-                    VStack(spacing: 5) {
-                        swatchWindow
-                        swatchLabel
-                    }
-                } else {
-                    ZStack(alignment: .bottom) {
-                        swatchWindow
-                        swatchLabel
-                            .padding(.bottom, 5)
-                    }
-                }
+            HStack(spacing: 4) {
+                Circle()
+                    .fill(swatchGradient)
+                    .overlay(Circle().strokeBorder(Color.white.opacity(0.45), lineWidth: 0.6))
+                    .frame(width: 11, height: 11)
+                Text(mode.label)
+                    .font(.caption.weight(on ? .bold : .semibold))
+                    .foregroundStyle(on ? .white : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
-            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 5)
+            .frame(minHeight: 30)
+            .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.72))))
+            .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
         }
         .buttonStyle(.toy)
         .accessibilityLabel(mode.label)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
 
-    private var swatchWindow: some View {
-        preview
-            .frame(height: 54)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                    .strokeBorder(on ? Palette.accent : Palette.outline.opacity(0.22), lineWidth: on ? 2.2 : 0.85)
-            )
-            .overlay(alignment: .topTrailing) {
-                if on {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(.white, Palette.accentFill)
-                        .padding(5)
-                }
-            }
-    }
-
-    private var swatchLabel: some View {
-        HStack(spacing: 3) {
-            Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
-                .font(.system(size: 8.5, weight: .bold))
-                .foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
-            Text(mode.label)
-                .font(.caption2.weight(on ? .bold : .semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.72)
-        }
-        .padding(.horizontal, 5)
-        .padding(.vertical, 2)
-        .background(Palette.card.opacity(0.94), in: Capsule())
-    }
-
-    @ViewBuilder private var preview: some View {
+    private var swatchGradient: LinearGradient {
         switch mode {
-        case .light: day
-        case .dark: night
-        case .system: HStack(spacing: 0) { day; night }
+        case .light:
+            LinearGradient(colors: [Color(hex: 0xFFF3D4), Crayon.sunflower], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .dark:
+            LinearGradient(colors: [Color(hex: 0x222B4F), Palette.amber], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .system:
+            LinearGradient(colors: [Color(hex: 0xFFF0C8), Color(hex: 0x222B4F)], startPoint: .leading, endPoint: .trailing)
         }
-    }
-
-    private var day: some View {
-        ZStack { Color(hex: 0xFBF7F0); DayAir(tone: Crayon.sunflower, scale: 0.45) }
-    }
-
-    private var night: some View {
-        ZStack { Palette.lampPage; LampGlow(scale: 0.16); Motes(scale: 0.45) }
     }
 }
 
-/// Compact grouped Preference Deck replacing the oversized 2×2 toggle grid: sleek 50pt rows with tactile switches.
+/// Compact 2×2 Control-Center Preference Tile Grid (halving vertical height vs. 4 full-width rows while keeping 1-tap toggles).
 private struct PreferenceStudioCard: View {
     @Bindable var app: AppModel
     let face: Bool
@@ -522,9 +474,15 @@ private struct PreferenceStudioCard: View {
         let soundStatus = app.tactileSounds ? L10n.t("已开启", "On") : L10n.t("静音", "Muted")
         let logStatus = app.journal ? L10n.t("已显示", "Shown") : L10n.t("已隐藏", "Hidden")
         let lockStatus = app.lock ? L10n.t("已锁定", "Locked") : L10n.t("未开启", "Off")
+        let ax = type.isAccessibilitySize
+        let cols = ax
+            ? [GridItem(.flexible())]
+            : (face
+                ? [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+                : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)])
 
-        VStack(spacing: 0) {
-            preferenceRow(
+        LazyVGrid(columns: cols, spacing: 8) {
+            preferenceTile(
                 title: L10n.t("夜间自动灯", "Auto Lamp"),
                 status: nightStatus,
                 symbol: "moon.stars.fill",
@@ -536,9 +494,7 @@ private struct PreferenceStudioCard: View {
                 withAnimation(.snappy) { app.nightLight.toggle() }
             }
 
-            Divider().padding(.leading, 54).opacity(0.45)
-
-            preferenceRow(
+            preferenceTile(
                 title: L10n.t("手感音效", "Tactile Audio"),
                 status: soundStatus,
                 symbol: "hand.tap.fill",
@@ -550,10 +506,8 @@ private struct PreferenceStudioCard: View {
                 if app.tactileSounds { TactileEngine.shared.beadClick() }
             }
 
-            Divider().padding(.leading, 54).opacity(0.45)
-
-            preferenceRow(
-                title: L10n.t("台灯下照护记录", "Care Log in Lamp"),
+            preferenceTile(
+                title: L10n.t("台灯下记录", "Care Log"),
                 status: logStatus,
                 symbol: "list.bullet.clipboard.fill",
                 color: Crayon.tangerine,
@@ -568,9 +522,7 @@ private struct PreferenceStudioCard: View {
             }
 
             if face {
-                Divider().padding(.leading, 54).opacity(0.45)
-
-                preferenceRow(
+                preferenceTile(
                     title: Biometry.name,
                     status: lockStatus,
                     symbol: Biometry.symbol,
@@ -583,10 +535,9 @@ private struct PreferenceStudioCard: View {
                 }
             }
         }
-        .printCard(radius: Radius.card)
     }
 
-    private func preferenceRow(
+    private func preferenceTile(
         title: String,
         status: String,
         symbol: String,
@@ -596,60 +547,160 @@ private struct PreferenceStudioCard: View {
         action: @escaping () -> Void
     ) -> some View {
         let active = isOn && !resting
-        let trackFill = active ? (dark ? color : Crayon.ink(color)) : Palette.outline.opacity(0.28)
         let ax = type.isAccessibilitySize
+        let ink = dark ? color : Crayon.ink(color)
 
         return Button(action: action) {
-            HStack(spacing: 12) {
-                StudioBadge(symbol: symbol, color: color, active: active, dark: dark, size: 30)
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(title)
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(resting ? Palette.secondaryText : .primary)
-                        .lineLimit(ax ? nil : 1)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Text(status)
-                        .font(.caption)
-                        .foregroundStyle(active ? (dark ? color : Crayon.ink(color)) : Palette.secondaryText)
-                        .monospacedDigit()
-                        .lineLimit(ax ? nil : 1)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 4)
-
-                // Tactile miniature pill switch
-                ZStack(alignment: isOn ? .trailing : .leading) {
-                    Capsule()
-                        .fill(trackFill)
-                        .frame(width: 36, height: 22)
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    StudioBadge(symbol: symbol, color: color, active: active, dark: dark, size: 24)
+                    Spacer(minLength: 2)
                     Circle()
-                        .fill(.white)
-                        .frame(width: 17, height: 17)
-                        .padding(.horizontal, 2.5)
-                        .shadow(color: .black.opacity(0.16), radius: 1, y: 0.5)
+                        .fill(active ? ink : Palette.outline.opacity(0.28))
+                        .frame(width: 7, height: 7)
                 }
-                .opacity(resting ? 0.50 : 1.0)
+
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(resting ? Palette.secondaryText : .primary)
+                    .lineLimit(ax ? nil : 1)
+                    .minimumScaleFactor(0.82)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(status)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(active ? ink : Palette.secondaryText)
+                    .monospacedDigit()
+                    .lineLimit(ax ? nil : 1)
+                    .minimumScaleFactor(0.78)
+                    .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 10)
-            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
-            .contentShape(Rectangle())
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, minHeight: ax ? 66 : 58, alignment: .topLeading)
+            .background(
+                LinearGradient(
+                    colors: [color.opacity(active ? (dark ? 0.16 : 0.11) : 0.02), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .printCard(radius: Radius.inner)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(active ? ink.opacity(dark ? 0.50 : 0.35) : .clear, lineWidth: 1.0)
+            )
+            .opacity(resting ? 0.60 : 1.0)
         }
         .buttonStyle(.toy)
         .disabled(resting)
         .accessibilityElement(children: .combine)
         .accessibilityAddTraits(active ? .isSelected : [])
+        .accessibilityValue(status)
     }
 }
 
-/// Flat Single-Layer Editorial, Evidence, Legal & Support Hub for Tab 3 (`工坊 / Studio`) —
-/// zero redundant `AboutView` sub-menu duplicating parent entries.
-private struct TransparencyEditorialDock: View {
+/// 2×2 Primary Transparency & Data Portal Grid keeping all key evidence, privacy, backup & release-notes 1 tap away.
+private struct StudioPortalGrid: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
+    let dark: Bool
+
+    var body: some View {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
+        let ax = type.isAccessibilitySize
+        let cols = ax
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
+
+        LazyVGrid(columns: cols, spacing: 8) {
+            NavigationLink(value: StudioRoute.sources) {
+                portalTile(
+                    title: L10n.t("循证来源", "Sources"),
+                    badge: "\(app.content.sources.count + 1)",
+                    symbol: "books.vertical.fill",
+                    color: Crayon.caramel,
+                    ax: ax
+                )
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: StudioRoute.data) {
+                portalTile(
+                    title: L10n.t("离线备份", "Local Data"),
+                    badge: L10n.t("纯本机", "Offline"),
+                    symbol: "externaldrive.fill",
+                    color: Crayon.teal,
+                    ax: ax
+                )
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: StudioRoute.doc("PRIVACY")) {
+                portalTile(
+                    title: L10n.t("隐私保护", "Privacy"),
+                    badge: L10n.t("零上传", "Zero Data"),
+                    symbol: "hand.raised.fill",
+                    color: Crayon.sky,
+                    ax: ax
+                )
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: StudioRoute.releaseNotes) {
+                portalTile(
+                    title: L10n.t("更新志", "What's New"),
+                    badge: "v\(v)",
+                    symbol: "sparkles.rectangle.stack.fill",
+                    color: Crayon.lilac,
+                    ax: ax
+                )
+            }
+            .buttonStyle(.toy)
+        }
+    }
+
+    private func portalTile(title: String, badge: String, symbol: String, color: Color, ax: Bool) -> some View {
+        let ink = dark ? color : Crayon.ink(color)
+        return HStack(spacing: 8) {
+            StudioBadge(symbol: symbol, color: color, active: true, dark: dark, size: 26)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(ax ? nil : 1)
+                    .minimumScaleFactor(0.82)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(badge)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(ink)
+                    .monospacedDigit()
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 2)
+            Image(systemName: "chevron.right")
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [color.opacity(dark ? 0.12 : 0.08), .clear],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .printCard(radius: Radius.inner)
+    }
+}
+
+/// Compact Colophon bar preserving the 3-tap Duo Easter egg, version string, ICP link, and 1-tap `Legal & More` sheet.
+private struct StudioColophonBar: View {
     @Environment(AppModel.self) private var app
     let dark: Bool
-    @State private var replay = false
+    let openLegal: () -> Void
     @State private var hops = 0
     @State private var lampLit = false
     @State private var openStory = false
@@ -658,143 +709,146 @@ private struct TransparencyEditorialDock: View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
 
-        VStack(alignment: .leading, spacing: 14) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.t("透明循证与离线数据", "Evidence & Local Data"))
-                    .font(.caption.weight(.bold))
+        HStack(alignment: .center, spacing: 10) {
+            Duo(primary: app.companion, size: 36, cheer: hops, lit: lampLit)
+                .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(L10n.t("\(L10n.appName) · v\(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
+                    .font(.caption2.weight(.semibold))
                     .foregroundStyle(Palette.secondaryText)
-                    .padding(.leading, 4)
-
-                VStack(spacing: 0) {
-                    NavigationLink(value: StudioRoute.sources) {
-                        DataRow(
-                            title: L10n.t("循证内容来源", "Evidence & Sources"),
-                            detail: L10n.t("WHO · AAP · CDC · 国家卫健委标准引文", "Structured public health & pediatric citations"),
-                            symbol: "books.vertical.fill",
-                            color: Crayon.caramel
-                        )
-                    }
-                    .buttonStyle(.toy)
-
-                    Divider().padding(.leading, 52).opacity(0.45)
-
-                    NavigationLink(value: StudioRoute.releaseNotes) {
-                        DataRow(
-                            title: L10n.t("版本更新志", "What's New"),
-                            detail: L10n.t("与当前版本 v\(v) 同步 · 产品更新说明", "Synced to v\(v) · parent-facing notes"),
-                            symbol: "sparkles.rectangle.stack.fill",
-                            color: Crayon.lilac
-                        )
-                    }
-                    .buttonStyle(.toy)
-
-                    Divider().padding(.leading, 52).opacity(0.45)
-
-                    NavigationLink(value: StudioRoute.doc("PRIVACY")) {
-                        DataRow(
-                            title: L10n.t("隐私政策与儿童保护", "Privacy & Children's Data"),
-                            detail: L10n.t("不收集数据 · 零网络访问 · 权限清单", "Zero tracking · offline storage · permissions"),
-                            symbol: "hand.raised.fill",
-                            color: Crayon.sky
-                        )
-                    }
-                    .buttonStyle(.toy)
-
-                    Divider().padding(.leading, 52).opacity(0.45)
-
-                    NavigationLink(value: StudioRoute.data) {
-                        DataRow(
-                            title: L10n.t("离线数据与备份", "Local Data & Backup"),
-                            detail: L10n.t("导出全量备份、健康摘要、清空或撤回同意", "Export backup, doctor summary, or erase all"),
-                            symbol: "externaldrive.fill",
-                            color: Crayon.teal
-                        )
-                    }
-                    .buttonStyle(.toy)
+                    .monospacedDigit()
+                if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
+                    Link(L10n.t("ICP备案：\(icp)", "ICP: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
+                        .font(.caption2.weight(.semibold))
                 }
-                .printCard(radius: Radius.card)
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(L10n.t("条款、致谢与帮助", "Terms, Licenses & Support"))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Palette.secondaryText)
-                    .padding(.leading, 4)
+            Spacer(minLength: 4)
 
-                VStack(spacing: 0) {
-                    NavigationLink(value: StudioRoute.doc("TERMS")) {
-                        DataRow(title: L10n.t("使用条款", "Terms of Use"), symbol: "doc.text.fill", color: Crayon.pebble)
-                    }
-                    .buttonStyle(.toy)
+            Button(action: {
+                TactileEngine.shared.beadClick()
+                openLegal()
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.caption2.weight(.bold))
+                    Text(L10n.t("条款与帮助", "Legal & Help"))
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 7)
+                .frame(minHeight: 34)
+                .background(Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.card))
+                .overlay(Capsule().strokeBorder(Palette.outline.opacity(0.24), lineWidth: 0.75))
+            }
+            .buttonStyle(.toy)
+        }
+        .padding(.horizontal, 4)
+        .padding(.top, 2)
+        .navigationDestination(isPresented: $openStory) { StoryView() }
+    }
+}
 
-                    Divider().padding(.leading, 52).opacity(0.45)
+/// Self-contained NavigationStack sheet housing legal docs, credits, tips replay, feedback & collapsible craft principles
+/// so the Studio root stays crisp inside a single viewport with zero duplicated links.
+struct StudioLegalSheet: View {
+    let dark: Bool
+    @Environment(\.dismiss) private var dismiss
+    @State private var replay = false
+    @State private var pillarsExpanded = false
 
-                    NavigationLink(value: StudioRoute.doc("DISCLAIMER")) {
-                        DataRow(title: L10n.t("免责声明", "Disclaimer"), symbol: "exclamationmark.shield.fill", color: Crayon.tangerine)
-                    }
-                    .buttonStyle(.toy)
-
-                    Divider().padding(.leading, 52).opacity(0.45)
-
-                    NavigationLink(value: StudioRoute.licenses) {
-                        DataRow(title: L10n.t("许可与致谢", "Licenses & Credits"), symbol: "checkmark.seal.fill", color: Crayon.aqua)
-                    }
-                    .buttonStyle(.toy)
-
-                    Divider().padding(.leading, 52).opacity(0.45)
-
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        Guide.replayNextLaunch()
-                        replay = true
-                    } label: {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
-                            Text(replay
-                                 ? L10n.t("下次打开时将重新显示提示", "Tips will appear on next launch")
-                                 : L10n.t("重新显示使用提示", "Replay Tips"))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(replay ? Palette.accent : .primary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 10)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.toy)
-                    .disabled(replay)
-
-                    if let url = Owner.contactURL {
-                        Divider().padding(.leading, 52).opacity(0.45)
-                        Link(destination: url) {
-                            DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
+    var body: some View {
+        NavigationStack {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    VStack(spacing: 0) {
+                        NavigationLink(value: StudioRoute.doc("TERMS")) {
+                            DataRow(title: L10n.t("使用条款", "Terms of Use"), symbol: "doc.text.fill", color: Crayon.pebble)
                         }
                         .buttonStyle(.toy)
-                    }
-                }
-                .printCard(radius: Radius.card)
-            }
 
-            // Quiet Colophon Footer preserving the 3-tap companion Easter egg without adding another sub-screen
-            HStack(alignment: .bottom, spacing: 12) {
-                Duo(primary: app.companion, size: 46, cheer: hops, lit: lampLit)
-                    .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(L10n.t("\(L10n.appName) · 版本 \(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
-                        .monospacedDigit()
-                    if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                        Link(L10n.t("ICP备案号：\(icp)", "ICP Filing: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
-                            .font(.caption2.weight(.semibold))
+                        Divider().padding(.leading, 52).opacity(0.45)
+
+                        NavigationLink(value: StudioRoute.doc("DISCLAIMER")) {
+                            DataRow(title: L10n.t("免责声明", "Disclaimer"), symbol: "exclamationmark.shield.fill", color: Crayon.tangerine)
+                        }
+                        .buttonStyle(.toy)
+
+                        Divider().padding(.leading, 52).opacity(0.45)
+
+                        NavigationLink(value: StudioRoute.licenses) {
+                            DataRow(title: L10n.t("许可与致谢", "Licenses & Credits"), symbol: "checkmark.seal.fill", color: Crayon.aqua)
+                        }
+                        .buttonStyle(.toy)
+
+                        Divider().padding(.leading, 52).opacity(0.45)
+
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            Guide.replayNextLaunch()
+                            replay = true
+                        } label: {
+                            HStack(spacing: 10) {
+                                IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
+                                Text(replay
+                                     ? L10n.t("下次打开时将重新显示提示", "Tips will appear on next launch")
+                                     : L10n.t("重新显示使用提示", "Replay Tips"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(replay ? Palette.accent : .primary)
+                                Spacer(minLength: 0)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.toy)
+                        .disabled(replay)
+
+                        if let url = Owner.contactURL {
+                            Divider().padding(.leading, 52).opacity(0.45)
+                            Link(destination: url) {
+                                DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
+                            }
+                            .buttonStyle(.toy)
+                        }
                     }
+                    .printCard(radius: Radius.card)
+
+                    CalmAccordion(isExpanded: $pillarsExpanded, spacing: 10) { open in
+                        HStack(spacing: 10) {
+                            IconTile(symbol: "sparkles", color: Palette.bead, size: 28, round: true)
+                            Text(L10n.t("设计工艺四柱", "Four Principles of Craft"))
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.primary)
+                            Spacer(minLength: 4)
+                            Image(systemName: "chevron.down")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                                .rotationEffect(.degrees(open ? 180 : 0))
+                        }
+                    } content: {
+                        CraftPillarsShowcaseCard(dark: dark)
+                    }
+                    .padding(12)
+                    .printCard(radius: Radius.card)
                 }
-                Spacer(minLength: 0)
+                .padding(16)
             }
-            .padding(.horizontal, 6)
-            .padding(.top, 2)
+            .scrollBounceBehavior(.basedOnSize)
+            .pageBackground(tone: Crayon.lilac)
+            .navigationTitle(L10n.t("条款、工艺与帮助", "Legal, Craft & Help"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.t("完成", "Done"), systemImage: "checkmark") { dismiss() }
+                }
+            }
+            .studioRoutes()
         }
-        .navigationDestination(isPresented: $openStory) { StoryView() }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -944,7 +998,7 @@ struct StoryView: View {
         let m = activeMonth
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 // Interactive Theater Stage wrapped in StyleDoor (10 taps -> 2D paper world; 3s finger loop -> 3D world)
                 // Act 1 mounts Otto's tactile Golden Bulb pull-cord cleanly at top-trailing outside StyleDoor's gesture zone.
                 ZStack(alignment: .topTrailing) {
@@ -958,7 +1012,7 @@ struct StoryView: View {
                             exploreTaps: exploreTaps,
                             leafBurstTrigger: leafBurstTrigger
                         )
-                        .frame(height: 232)
+                        .frame(height: 208)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                     }
 
@@ -979,7 +1033,7 @@ struct StoryView: View {
                 .printCard(radius: Radius.card)
 
                 // Chapter Bead Selector & Act-Coupled Prop Controls (placed cleanly outside StyleDoor to avoid gesture conflict)
-                VStack(alignment: .leading, spacing: 10) {
+                VStack(alignment: .leading, spacing: 8) {
                     actSelectorBar(dark: dark)
 
                     actPropControls(month: m, dark: dark)
@@ -989,12 +1043,12 @@ struct StoryView: View {
                         .foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(12)
+                .padding(10)
                 .printCard(radius: Radius.card)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
-                        .font(.title2.weight(.bold))
+                        .font(.title3.weight(.bold))
                         .fixedSize(horizontal: false, vertical: true)
                     Text(L10n.t("轻点卡片翻看名字背后的一句话。", "Tap either card below to flip its story."))
                         .font(.caption)
@@ -1004,11 +1058,11 @@ struct StoryView: View {
                 // Moss & Otto dual interactive TurnCards
                 Group {
                     if type.isAccessibilitySize {
-                        VStack(spacing: 10) {
+                        VStack(spacing: 8) {
                             companionCardSet
                         }
                     } else {
-                        HStack(alignment: .top, spacing: 10) {
+                        HStack(alignment: .top, spacing: 8) {
                             companionCardSet
                         }
                         .fixedSize(horizontal: false, vertical: true)
@@ -1022,8 +1076,9 @@ struct StoryView: View {
             }
             .padding(.top, 4)
             .padding(.horizontal, 16)
-            .padding(.bottom, 32)
+            .padding(.bottom, 20)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
         .navigationTitle(L10n.t("摸索台灯的故事", "Our Story")).navigationBarTitleDisplayMode(.inline)

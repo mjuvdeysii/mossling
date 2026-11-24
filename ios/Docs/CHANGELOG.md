@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 24（v2.0 正式发布候选 21 · Edition I Round 24 · 全局首屏主义与工坊单屏驾驶舱 `YouView` · 严禁非必要下拉浏览）**：
+  - **【工坊页 `YouView` 单屏驾驶舱重构】**：将工坊首页由原先 6 张纵排大卡与 9 行透明清单（约 `1,550pt`）彻底重铸为 **一屏直达的原生态 iOS 驾驶舱（`~536pt`，零非必要下拉）**：将宝宝信息与「摸索台灯的故事」三幕微剧院入口柔和合入顶卡，外观与语言合为双行紧凑胶囊卡，偏好开关升级为 **2×2 触感控制瓷砖**，「循证来源 / 离线备份 / 隐私保护 / 更新志」化为 **2×2 核心透明门户**，其余法律条款、免责、致谢、重播提示、反馈与可折叠设计工艺四柱收纳进自含 `NavigationStack` 的 `StudioLegalSheet`。
+  - **【全站四大主屏首屏纪律 + `.scrollBounceBehavior(.basedOnSize)`】**：统一在 **摸索（`TodayView`）**、**台灯（`LampHubView`）**、**留念（`JourneyHubView`）**、**工坊（`YouView`）** 与 **剧场（`StoryView` / `PlayView`）** 启用 `.inline` 精炼顶栏与 `.scrollBounceBehavior(.basedOnSize)`；优化本周其余活动为 2 列精巧网格并紧致感官双卡；紧致夜灯主卡与随手轻记；「留念」页面移除重复章节条并将三片土地串珠列表默认折叠收起（轻点土地条或“回到现在”才原地展开），全面消除非必要纵滑网页感，并新增 `testRound24ViewportFirstStudioAndFourTabs` 与 `852pt` 单屏检验截图 `test74Round24ViewportFirstFourTabs`。
+
 - **Batch 23（v2.0 正式发布候选 20 · Edition I Round 23 · 连续无级控帧活动绘本剧场 `PlayView` · Batch D 独立小动画 `A25–A32` [38 / 46]）**：
   - **【连续物理控帧绘本剧场 × 免连点交互重构 `PlayView`】**：为 `LivingBookStage` 与 `ActivityMotionStage` 新增支持零闪断同步定格的 `scrubPhase` 管线；全面升级 `PlayView` 与垫旁共玩 `MatSideCoPlayView`，以桦木凹槽连续木珠控帧轨 `StorybookSpineScrubber` 与纯数学模块 `PlayScrubMath` 取代纯离散点按进度条，指尖沿木轨连续滑动即可跨步骤并跨越每步 `0.48` 接触峰值触发细腻的核心触感反馈（`CoreHaptics`）；同时将强制多次连点的「下一步」按钮重铸为 **一键「连播全步 / 暂停连播」与随时一键「完成并盖印」**，并精简步骤大纲重复微缩舞台，显著降低滑屏冗余渲染开销。
   - **【Bespoke 独立活动动画 Batch D（`A25–A32` 共 8 部完全独立短片 · 累计 38 / 46）】**：严格恪守 `docs/IP.md`（Otto 永远无手、零腮红、零嘴点/气泡、`1:1` 地面坐标与真实物理接触阴影）手工创作 `A25`（落地木摇篮玩偶盖毯与喂食照护）、`A26`（圆凳暖光情绪灯与安全捏捏抱枕边界）、`A27`（双桦木分类盘形状与冷暖双重有意义归类）、`A28`（矮灶台煮汤与汤碗沿台面平滑送餐）、`A29`（三色稳固低矮踏步垫动态随行路线与护持光环）、`A30`（圆毯八分音符音乐盒与 `0.60` 突然木头人定格冻结）、`A31`（木挂杆三折叙事挂幅时间线索与儿童回应新芽）、`A32`（双人平行地垫与中景稳重引导的轮流木车回合），补全 `testRound23ContinuousPlayScrubberAndBatchDScenes` 与 `test73Round23PlayScrubberAndBatchDShowcases`。

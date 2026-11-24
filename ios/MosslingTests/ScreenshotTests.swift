@@ -2140,4 +2140,30 @@ final class ScreenshotTests: XCTestCase {
             }
         }
     }
+
+    /// Edition I · Round 24 — Global Viewport-First Four-Tab Cockpit (Exact 852pt Single-Viewport Checks + Studio Cockpit).
+    func test74Round24ViewportFirstFourTabs() {
+        defer {
+            L10n.overrideEnglish = nil
+        }
+        let m = model(); m.journal = true
+
+        // Single-viewport 852pt captures proving zero unnecessary vertical scroll at standard text size
+        shot("74_viewport_tab0_explore_zh", height: 852, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("74_viewport_tab1_lamp_zh", height: 852, tabs(m, LampHubView(path: .constant(NavigationPath()))))
+        shot("74_viewport_tab2_keepsakes_zh", height: 852, tabs(m, JourneyHubView(isRootTab: true)))
+        shot("74_viewport_tab3_studio_zh", height: 852, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("74_viewport_tab3_studio_lamp", height: 852, lamp: true,
+             tabs(m, YouView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("74_viewport_studio_legal_sheet_zh", height: 620,
+             StudioLegalSheet(dark: false).environment(m).environment(journal).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("74_viewport_tab3_studio_en", height: 852, tabs(mEn, YouView(path: .constant(NavigationPath()))))
+
+        L10n.overrideEnglish = nil
+        shot("74_viewport_tab3_studio_ax2", height: 1120,
+             tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+    }
 }

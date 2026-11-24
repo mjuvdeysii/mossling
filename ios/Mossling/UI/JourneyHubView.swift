@@ -267,6 +267,7 @@ struct MiniJourneyBeadStrip: View {
 /// across 草地 (0–1 yr), 森林小丘 (1–2 yrs), and 小河村庄 (2–3 yrs) — with zero horizontal scrolling.
 struct JourneyHubView: View {
     var isRootTab: Bool = false
+    var initialExpandedLands: Set<Land>? = nil
 
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router: AppRouter?
@@ -288,8 +289,8 @@ struct JourneyHubView: View {
         var id: String { rawValue }
         var title: String {
             switch self {
-            case .all: L10n.t("全部 37 站", "All 37 Stations")
-            case .lived: L10n.t("走过的路", "Lived So Far")
+            case .all: L10n.t("全部 37", "All 37")
+            case .lived: L10n.t("已走过", "Lived")
             }
         }
     }
@@ -298,7 +299,7 @@ struct JourneyHubView: View {
     private var dark: Bool { lamp || scheme == .dark }
     private var flat: Bool { ArtStyle.current == .flat }
     private var activeExpandedLands: Set<Land> {
-        expandedLandsOverride ?? [Land.of(baby)]
+        expandedLandsOverride ?? initialExpandedLands ?? []
     }
 
     private var visibleLands: [Land] {
@@ -332,8 +333,8 @@ struct JourneyHubView: View {
         let _ = photoVersion.tick
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 18) {
-                    currentStationHero(proxy: proxy)
+                VStack(alignment: .leading, spacing: 9) {
+                    currentStationHero()
 
                     keepsakeShelf
 
@@ -341,61 +342,29 @@ struct JourneyHubView: View {
                         DueCard(month: baby)
                     }
 
-                    // Filter & serene bead toggle bar (wrapping FlowRow, zero horizontal scrolling)
-                    VStack(alignment: .leading, spacing: 10) {
-                        SectionTitle(
-                            title: L10n.t("串珠小路", "Bead Journey"),
-                            detail: L10n.t("出生 – 36 个月 · 37 站", "Birth – 36 mo · 37 stations")
-                        )
-
-                        FlowRow(spacing: 8, lineSpacing: 8) {
-                            if app.birth != nil {
-                                ForEach(StationScope.allCases) { item in
-                                    let on = scope == item
-                                    Button {
-                                        TactileEngine.shared.beadClick()
-                                        withAnimation(reduce ? nil : .snappy) {
-                                            scope = item
-                                            if item == .lived {
-                                                expandedLandsOverride = Set(Land.allCases)
-                                            }
-                                        }
-                                    } label: {
-                                        Text(item.title)
-                                            .font(.footnote.weight(.bold))
-                                            .foregroundStyle(on ? .white : .primary)
-                                            .padding(.horizontal, 12)
-                                            .padding(.vertical, 7)
-                                            .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                                            .overlay(Capsule().strokeBorder(Palette.outline.opacity(on ? 0 : 0.3), lineWidth: 0.75))
-                                    }
-                                    .buttonStyle(.plain)
-                                    .accessibilityAddTraits(on ? .isSelected : [])
-                                }
+                    // Compact Bead Journey header bar + inline filters (zero horizontal scrolling)
+                    Group {
+                        if type.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 6) {
+                                Text(L10n.t("串珠小路 · 37 站", "Bead Journey · 37 Stations"))
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                FlowRow(spacing: 6, lineSpacing: 6) { beadFilterPills }
                             }
-
-                            Button {
-                                TactileEngine.shared.beadClick()
-                                withAnimation(reduce ? nil : .snappy) { quietBeads.toggle() }
-                            } label: {
-                                Label(
-                                    L10n.t("静谧珠链", "Quiet Beads"),
-                                    systemImage: quietBeads ? "circle.fill" : "circle.dotted"
-                                )
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(quietBeads ? Color(hex: 0x4A3300) : .primary)
-                                .padding(.horizontal, 12)
-                                .padding(.vertical, 7)
-                                .background(Capsule().fill(quietBeads ? Palette.bead : (dark ? Palette.lampCard : Palette.card)))
-                                .overlay(Capsule().strokeBorder(Palette.outline.opacity(quietBeads ? 0 : 0.3), lineWidth: 0.75))
+                        } else {
+                            HStack(spacing: 6) {
+                                Text(L10n.t("串珠小路 · 37 站", "Bead Journey · 37"))
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                Spacer(minLength: 4)
+                                beadFilterPills
                             }
-                            .buttonStyle(.plain)
-                            .accessibilityAddTraits(quietBeads ? .isSelected : [])
+                            .padding(.horizontal, 2)
                         }
                     }
 
-                    // Collapsible vertical winding Montessori bead chain grouped by the 3 Lands
-                    VStack(alignment: .leading, spacing: 16) {
+                    // Collapsible vertical winding Montessori bead chain grouped by the 3 Lands (all collapsed by default)
+                    VStack(alignment: .leading, spacing: 8) {
                         ForEach(visibleLands, id: \.rawValue) { land in
                             let list = months(in: land)
                             if !list.isEmpty {
@@ -409,13 +378,14 @@ struct JourneyHubView: View {
                     }
                 }
                 .padding(.horizontal, 16)
-                .padding(.top, 8)
-                .padding(.bottom, 40)
+                .padding(.top, 4)
+                .padding(.bottom, 16)
             }
+            .scrollBounceBehavior(.basedOnSize)
             .calmWhileScrolling()
             .pageBackground(tone: Land.of(baby).crayon)
             .navigationTitle(L10n.t("留念", "Keepsakes"))
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -440,9 +410,56 @@ struct JourneyHubView: View {
         }
     }
 
-    // MARK: - Section 1: Current Station Hero
+    @ViewBuilder
+    private var beadFilterPills: some View {
+        if app.birth != nil {
+            ForEach(StationScope.allCases) { item in
+                let on = scope == item
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) {
+                        scope = item
+                        if item == .lived {
+                            expandedLandsOverride = Set(Land.allCases)
+                        }
+                    }
+                } label: {
+                    Text(item.title)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(on ? .white : .primary)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                        .overlay(Capsule().strokeBorder(Palette.outline.opacity(on ? 0 : 0.28), lineWidth: 0.75))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
 
-    private func currentStationHero(proxy: ScrollViewProxy) -> some View {
+        Button {
+            TactileEngine.shared.beadClick()
+            withAnimation(reduce ? nil : .snappy) { quietBeads.toggle() }
+        } label: {
+            Label(
+                L10n.t("静谧", "Quiet"),
+                systemImage: quietBeads ? "circle.fill" : "circle.dotted"
+            )
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(quietBeads ? Color(hex: 0x4A3300) : .primary)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(quietBeads ? Palette.bead : (dark ? Palette.lampCard : Palette.card)))
+            .overlay(Capsule().strokeBorder(Palette.outline.opacity(quietBeads ? 0 : 0.28), lineWidth: 0.75))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.t("静谧珠链", "Quiet Beads"))
+        .accessibilityAddTraits(quietBeads ? .isSelected : [])
+    }
+
+    // MARK: - Section 1: Compact Current Station Hero
+
+    private func currentStationHero() -> some View {
         let mo = app.content.month(baby)
         let land = Land.of(baby)
         let monthFrac = app.age.map { JourneyStripMetrics.monthProgressFraction(days: $0.days, toNext: $0.toNext) } ?? 0
@@ -452,25 +469,25 @@ struct JourneyHubView: View {
                 : nil
         }
         let headerLayout = type.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 14))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 8) {
             headerLayout {
                 MonthPostcardArt(
                     month: baby,
                     festive: app.age?.days == 0 && app.age != nil,
                     night: lamp,
-                    width: type.isAccessibilitySize ? 92 : 104
+                    width: type.isAccessibilitySize ? 82 : 66
                 )
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 3) {
                     FlowRow(spacing: 6, lineSpacing: 4) {
                         Label(land.name, systemImage: land.symbol)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
                             .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
 
                         if let a = app.age {
@@ -482,25 +499,31 @@ struct JourneyHubView: View {
 
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(baby == 0 ? L10n.t("出生", "Birth") : "\(baby)")
-                            .font(Typeface.numerals(34, relativeTo: .largeTitle, weight: .bold))
+                            .font(Typeface.numerals(28, relativeTo: .title2, weight: .bold))
                         if baby > 0 {
-                            Text(L10n.t("个月", "mo")).font(.subheadline.weight(.semibold))
+                            Text(L10n.t("个月", "mo")).font(.caption.weight(.semibold))
                         }
                         if let d = app.age?.days, d > 0 {
-                            Text("\(d)").font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).padding(.leading, 3)
-                            Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold))
+                            Text("\(d)").font(Typeface.numerals(16, relativeTo: .subheadline, weight: .bold)).padding(.leading, 2)
+                            Text(L10n.t("天", "d")).font(.caption.weight(.semibold))
                         }
                     }
 
                     Text(mo.title)
-                        .font(.subheadline)
+                        .font(.caption)
                         .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(type.isAccessibilitySize ? nil : 2)
+                        .lineLimit(type.isAccessibilitySize ? nil : 1)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
                 if !type.isAccessibilitySize {
-                    Spacer(minLength: 0)
+                    Spacer(minLength: 4)
+                    monthGuidePill
                 }
+            }
+
+            if type.isAccessibilitySize {
+                monthGuidePill
             }
 
             MiniJourneyBeadStrip(
@@ -511,29 +534,8 @@ struct JourneyHubView: View {
                 dark: dark,
                 night: lamp
             )
-
-            landChapterJumpStrip(proxy: proxy)
-
-            NavigationLink(value: KeepsakesRoute.month(baby)) {
-                HStack(spacing: 8) {
-                    Image(systemName: "book.closed.fill")
-                        .font(.subheadline.weight(.bold))
-                    Text(L10n.t("本月发育要点与活动", "This Month's Guide"))
-                        .font(.subheadline.weight(.bold))
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.bold))
-                }
-                .foregroundStyle(.white)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 11)
-                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.accentFill))
-            }
-            .buttonStyle(.toy)
         }
-        .padding(14)
+        .padding(11)
         .background(
             LinearGradient(
                 colors: [land.crayon.opacity(dark ? 0.14 : 0.12), Palette.bead.opacity(dark ? 0.06 : 0.06)],
@@ -544,80 +546,23 @@ struct JourneyHubView: View {
         .printCard(radius: Radius.card)
     }
 
-    @ViewBuilder
-    private func landChapterJumpStrip(proxy: ScrollViewProxy) -> some View {
-        let hasBirth = app.birth != nil
-        let chips = ForEach(visibleLands, id: \.rawValue) { land in
-            let isHere = land == Land.of(baby)
-            let isExpanded = activeExpandedLands.contains(land)
-            let prog = JourneyKeepsakeMetrics.landProgress(land: land, babyMonth: baby, hasBirth: hasBirth)
-            let frac = prog.total > 0 ? CGFloat(prog.lived) / CGFloat(prog.total) : 0
-
-            Button {
-                TactileEngine.shared.beadClick()
-                var next = activeExpandedLands
-                next.insert(land)
-                withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
-                    expandedLandsOverride = next
-                }
-                withAnimation(reduce ? nil : .spring(response: 0.48, dampingFraction: 0.82)) {
-                    proxy.scrollTo("land-\(land.rawValue)", anchor: .top)
-                }
-            } label: {
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 4) {
-                        Circle()
-                            .fill(land.crayon)
-                            .frame(width: 6, height: 6)
-                        Text(land.name)
-                            .font(.caption2.weight(isHere ? .bold : .semibold))
-                            .foregroundStyle(isHere ? (dark ? land.crayon : Crayon.ink(land.crayon)) : .primary)
-                            .lineLimit(type.isAccessibilitySize ? nil : 1)
-                            .minimumScaleFactor(0.8)
-                        Spacer(minLength: 2)
-                        Text(hasBirth ? "\(prog.lived)/\(prog.total)" : "\(prog.total)")
-                            .font(Typeface.numerals(10, relativeTo: .caption2, weight: .bold))
-                            .foregroundStyle(Palette.secondaryText)
-                    }
-
-                    GeometryReader { g in
-                        ZStack(alignment: .leading) {
-                            Capsule()
-                                .fill(land.crayon.opacity(dark ? 0.22 : 0.16))
-                            if frac > 0 {
-                                Capsule()
-                                    .fill(land.crayon.opacity(dark ? 0.88 : 0.80))
-                                    .frame(width: max(4, g.size.width * frac))
-                            }
-                        }
-                    }
-                    .frame(height: 3.5)
-                }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 6)
-                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(isHere ? land.crayon.opacity(dark ? 0.18 : 0.11) : (dark ? Palette.lampCard.opacity(0.68) : Palette.card.opacity(0.78)))
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .strokeBorder(
-                            isHere ? land.crayon.opacity(dark ? 0.60 : 0.48) : (isExpanded ? land.crayon.opacity(0.28) : Palette.outline.opacity(0.18)),
-                            lineWidth: isHere ? 1.2 : 0.75
-                        )
-                )
+    private var monthGuidePill: some View {
+        NavigationLink(value: KeepsakesRoute.month(baby)) {
+            HStack(spacing: 4) {
+                Image(systemName: "book.closed.fill")
+                    .font(.caption2.weight(.bold))
+                Text(L10n.t("月龄指南", "Guide"))
+                    .font(.caption2.weight(.bold))
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .bold))
             }
-            .buttonStyle(.toy)
-            .accessibilityLabel(L10n.t("跳至\(land.name)章节，\(land.years)", "Jump to \(land.name), \(land.years)"))
-            .accessibilityAddTraits(isHere ? .isSelected : [])
+            .foregroundStyle(.white)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Palette.accentFill))
         }
-
-        if type.isAccessibilitySize {
-            FlowRow(spacing: 6, lineSpacing: 6) { chips }
-        } else {
-            HStack(spacing: 6) { chips }
-        }
+        .buttonStyle(.toy)
+        .accessibilityLabel(L10n.t("本月发育要点与活动", "This Month's Guide"))
     }
 
     // MARK: - Section 2: 2×2 Montessori Keepsake Cabinet (Zero Horizontal Scroll)
@@ -633,69 +578,69 @@ struct JourneyHubView: View {
         let weights = JourneyKeepsakeMetrics.normalizedWeights(from: j.measures)
         let latestWeight = JourneyKeepsakeMetrics.latestWeightText(from: j.measures)
 
-        return VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: L10n.t("纪念书架", "Keepsake Cabinet"))
-
-            LazyVGrid(columns: cols, spacing: 10) {
-                Button {
-                    TactileEngine.shared.pageTurn()
-                    if let router {
-                        router.openStorybook()
-                    } else {
-                        showingStorybook = true
-                    }
-                } label: {
-                    shelfTile(
-                        title: L10n.t("成长绘本", "Storybook"),
-                        detail: app.birth != nil
-                            ? L10n.t("已收录 \(bookMonths) 个月", "\(bookMonths) mo collected")
-                            : L10n.t("填生日开启绘本", "Add birthday to begin"),
-                        tint: Crayon.caramel
-                    ) {
-                        MiniStorybookArtifact(month: baby, dark: dark)
-                    }
+        return LazyVGrid(columns: cols, spacing: 8) {
+            Button {
+                TactileEngine.shared.pageTurn()
+                if let router {
+                    router.openStorybook()
+                } else {
+                    showingStorybook = true
                 }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: KeepsakesRoute.firsts) {
-                    shelfTile(
-                        title: L10n.t("第一次相纸", "Firsts"),
-                        detail: j.firsts.isEmpty
-                            ? L10n.t("记下珍贵瞬间", "Polaroid moments")
-                            : L10n.t("已留存 \(j.firsts.count) 个第一次", "\(j.firsts.count) captured"),
-                        tint: Crayon.pink
-                    ) {
-                        MiniPolaroidArtifact(latestFirst: j.firsts.first, dark: dark)
-                    }
+            } label: {
+                shelfTile(
+                    title: L10n.t("成长绘本", "Storybook"),
+                    detail: app.birth != nil
+                        ? L10n.t("已收录 \(bookMonths) 个月", "\(bookMonths) mo collected")
+                        : L10n.t("填生日开启", "Add birthday"),
+                    tint: Crayon.caramel
+                ) {
+                    MiniStorybookArtifact(month: baby, dark: dark)
+                        .scaleEffect(0.84)
                 }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: KeepsakesRoute.capsules) {
-                    shelfTile(
-                        title: L10n.t("时光胶囊", "Time Capsules"),
-                        detail: capsuleReady > 0
-                            ? L10n.t("\(capsuleReady) 封可拆封", "\(capsuleReady) ready now")
-                            : (capsuleTotal > 0
-                                ? L10n.t("已封存 \(capsuleTotal) 封信", "\(capsuleTotal) sealed")
-                                : L10n.t("火漆写给未来", "Wax-sealed letters")),
-                        tint: Palette.bead
-                    ) {
-                        MiniCapsuleEnvelopeArtifact(seal: latestSeal, readyCount: capsuleReady, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: KeepsakesRoute.growth) {
-                    shelfTile(
-                        title: L10n.t("生长曲线", "Growth Curves"),
-                        detail: latestWeight ?? L10n.t("WHO 百分位参考", "WHO standards"),
-                        tint: Crayon.leaf
-                    ) {
-                        MiniGrowthCurveArtifact(weights: weights, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
             }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: KeepsakesRoute.firsts) {
+                shelfTile(
+                    title: L10n.t("第一次相纸", "Firsts"),
+                    detail: j.firsts.isEmpty
+                        ? L10n.t("记下珍贵瞬间", "Polaroid moments")
+                        : L10n.t("已留存 \(j.firsts.count) 个", "\(j.firsts.count) captured"),
+                    tint: Crayon.pink
+                ) {
+                    MiniPolaroidArtifact(latestFirst: j.firsts.first, dark: dark)
+                        .scaleEffect(0.84)
+                }
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: KeepsakesRoute.capsules) {
+                shelfTile(
+                    title: L10n.t("时光胶囊", "Time Capsules"),
+                    detail: capsuleReady > 0
+                        ? L10n.t("\(capsuleReady) 封可拆封", "\(capsuleReady) ready now")
+                        : (capsuleTotal > 0
+                            ? L10n.t("已封存 \(capsuleTotal) 封", "\(capsuleTotal) sealed")
+                            : L10n.t("火漆写给未来", "Wax-sealed")),
+                    tint: Palette.bead
+                ) {
+                    MiniCapsuleEnvelopeArtifact(seal: latestSeal, readyCount: capsuleReady, dark: dark)
+                        .scaleEffect(0.84)
+                }
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: KeepsakesRoute.growth) {
+                shelfTile(
+                    title: L10n.t("生长曲线", "Growth Curves"),
+                    detail: latestWeight ?? L10n.t("WHO 百分位", "WHO curves"),
+                    tint: Crayon.leaf
+                ) {
+                    MiniGrowthCurveArtifact(weights: weights, dark: dark)
+                        .scaleEffect(0.84)
+                }
+            }
+            .buttonStyle(.toy)
         }
     }
 
@@ -705,7 +650,7 @@ struct JourneyHubView: View {
         tint: Color,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .top) {
                 icon()
                 Spacer(minLength: 4)
@@ -714,22 +659,22 @@ struct JourneyHubView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 1) {
                 Text(title)
-                    .font(.subheadline.weight(.bold))
+                    .font(.caption.weight(.bold))
                     .foregroundStyle(.primary)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.caption)
+                    .font(.caption2)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                     .minimumScaleFactor(0.8)
             }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
+        .padding(9)
+        .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: [tint.opacity(dark ? 0.14 : 0.11), tint.opacity(0.02)],
@@ -836,88 +781,68 @@ struct JourneyHubView: View {
                 .allowsHitTesting(false)
 
                 headerLayout {
-                    VStack(alignment: .leading, spacing: 5) {
-                        HStack(spacing: 8) {
-                            IconTile(symbol: land.symbol, color: land.crayon, size: 28, round: true)
-                            Text(land.name)
-                                .font(.headline.weight(.bold))
-                                .foregroundStyle(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        IconTile(symbol: land.symbol, color: land.crayon, size: 24, round: true)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            HStack(spacing: 6) {
+                                Text(land.name)
+                                    .font(.subheadline.weight(.bold))
+                                    .foregroundStyle(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+
+                                Text(land.years)
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
                         }
-
-                        FlowRow(spacing: 6, lineSpacing: 4) {
-                            Text(land.years)
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(Palette.secondaryText)
-
-                            Text(countLabel)
-                                .font(.caption2.weight(.bold))
-                                .monospacedDigit()
-                                .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 3)
-                                .background(
-                                    Capsule().fill(dark ? Palette.lampCard.opacity(0.90) : Color.white.opacity(0.90))
-                                )
-                        }
-
-                        Text(landTagline(for: land))
-                            .font(.caption2)
-                            .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(type.isAccessibilitySize ? nil : 2)
-                            .fixedSize(horizontal: false, vertical: true)
                     }
 
                     if !type.isAccessibilitySize {
                         Spacer(minLength: 4)
                     }
 
-                    HStack(spacing: 10) {
-                        let bannerMonth = landCoverMonth(for: land)
-                        ZStack(alignment: .top) {
-                            LivingMonthCoverStage(
-                                month: bannerMonth,
-                                dark: dark,
-                                posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
-                                interactive: false,
-                                compact: true
-                            )
-                            .frame(width: 82, height: 62)
-                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .padding(4)
+                    HStack(spacing: 8) {
+                        Text(countLabel)
+                            .font(.caption2.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3)
                             .background(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
+                                Capsule().fill(dark ? Palette.lampCard.opacity(0.90) : Color.white.opacity(0.90))
                             )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 15, style: .continuous)
-                                    .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
-                            )
-                            .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
-                            .rotationEffect(.degrees(3))
-                            .accessibilityHidden(true)
 
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
-                                .frame(width: 22, height: 7)
-                                .offset(y: -3.5)
-                                .rotationEffect(.degrees(-2))
-                        }
+                        let bannerMonth = landCoverMonth(for: land)
+                        LivingMonthCoverStage(
+                            month: bannerMonth,
+                            dark: dark,
+                            posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
+                            interactive: false,
+                            compact: true
+                        )
+                        .frame(width: 52, height: 39)
+                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                .strokeBorder(Palette.outline.opacity(0.24), lineWidth: 0.75)
+                        )
+                        .accessibilityHidden(true)
 
                         Image(systemName: "chevron.down")
-                            .font(.caption.weight(.bold))
+                            .font(.caption2.weight(.bold))
                             .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                            .frame(width: 28, height: 28)
+                            .frame(width: 24, height: 24)
                             .background(
                                 Circle().fill(dark ? Palette.lampCard.opacity(0.88) : Color.white.opacity(0.88))
                             )
                             .rotationEffect(.degrees(open ? 180 : 0))
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 12)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
             }
-            .frame(minHeight: 110)
+            .frame(minHeight: 54)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -928,6 +853,14 @@ struct JourneyHubView: View {
             )
         } content: {
             VStack(spacing: 0) {
+                Text(landTagline(for: land))
+                    .font(.caption2.weight(.medium))
+                    .foregroundStyle(Palette.secondaryText)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 14)
+                    .padding(.top, 8)
+                    .padding(.bottom, 4)
+
                 ForEach(Array(months.enumerated()), id: \.element) { idx, m in
                     let isLast = idx == months.count - 1
                     stationRow(month: m, land: land, hasNext: !isLast)
