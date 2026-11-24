@@ -1902,4 +1902,75 @@ final class LogicTests: XCTestCase {
         let staleRhythm = CareSessionRhythm.build(timer: staleSleep, logs: logs, day: Day(y: 2026, m: 10, d: 20), nowMs: t(20, 12, 30))
         XCTAssertNil(staleRhythm.awakeBeforeSleepSeconds)
     }
+
+    func testAtelierDockMetricsComputes24hArcsAndFeedPips() {
+        let day = Day(y: 2026, m: 10, d: 19)
+        let logs = [
+            // Overnight sleep 22:00 yesterday -> 06:30 today (should clip to 0.0 ... 6.5/24)
+            LogEntry(type: LogType.sleep, start: t(18, 22, 0), end: t(19, 6, 30)),
+            // Nap 12:00 -> 13:30 today (0.50 ... 13.5/24)
+            LogEntry(type: LogType.sleep, start: t(19, 12, 0), end: t(19, 13, 30)),
+            // Feeds at 08:00 and 18:00 today
+            LogEntry(type: LogType.nurse, start: t(19, 8, 0), end: t(19, 8, 15), side: "l"),
+            LogEntry(type: LogType.bottle, start: t(19, 18, 0), amount: 120),
+        ]
+
+        let slices = AtelierDockMetrics.sleepSlices(in: logs, on: day)
+        XCTAssertEqual(slices.count, 2)
+        XCTAssertEqual(slices[0].startFrac, 0.0, accuracy: 0.001)
+        XCTAssertEqual(slices[0].endFrac, 6.5 / 24.0, accuracy: 0.002)
+        XCTAssertEqual(slices[1].startFrac, 0.5, accuracy: 0.002)
+        XCTAssertEqual(slices[1].endFrac, 13.5 / 24.0, accuracy: 0.002)
+
+        let pips = AtelierDockMetrics.feedFractions(in: logs, on: day)
+        XCTAssertEqual(pips.count, 2)
+        XCTAssertEqual(pips[0], 8.0 / 24.0, accuracy: 0.002)
+        XCTAssertEqual(pips[1], 18.0 / 24.0, accuracy: 0.002)
+
+        XCTAssertTrue(AtelierDockMetrics.sleepSlices(in: [], on: day).isEmpty)
+        XCTAssertTrue(AtelierDockMetrics.feedFractions(in: [], on: day).isEmpty)
+    }
+
+    func testStoryTheaterActsAndMonthClamping() {
+        defer { L10n.overrideEnglish = nil }
+
+        XCTAssertEqual(StoryTheaterAct.allCases.count, 3)
+        XCTAssertEqual(StoryTheaterAct.clampedMonth(-4), 0)
+        XCTAssertEqual(StoryTheaterAct.clampedMonth(12), 12)
+        XCTAssertEqual(StoryTheaterAct.clampedMonth(50), 36)
+
+        XCTAssertEqual(StoryTheaterAct.land(for: 0), .meadow)
+        XCTAssertEqual(StoryTheaterAct.land(for: 6), .meadow)
+        XCTAssertEqual(StoryTheaterAct.land(for: 18), .forest)
+        XCTAssertEqual(StoryTheaterAct.land(for: 36), .river)
+
+        L10n.overrideEnglish = false
+        XCTAssertTrue(StoryTheaterAct.stageCaption(for: .grow, month: 6).contains("草地"))
+        XCTAssertFalse(StoryTheaterAct.lamp.title.isEmpty)
+
+        L10n.overrideEnglish = true
+        XCTAssertTrue(StoryTheaterAct.stageCaption(for: .grow, month: 18).contains("Forest Hills"))
+        XCTAssertEqual(StoryTheaterAct.explore.title, "Explore")
+    }
+
+    func testCareCompanionPoseCouplesTimerAndSoundscape() {
+        let leftPose = CareCompanionPose.resolve(type: LogType.nurse, side: "l", paused: false, soundscapePlaying: false, lamp: false)
+        XCTAssertLessThan(leftPose.look.x, 0)
+        XCTAssertLessThan(leftPose.haloBiasX, 0)
+        XCTAssertFalse(leftPose.acousticRings)
+
+        let rightPose = CareCompanionPose.resolve(type: LogType.nurse, side: "r", paused: false, soundscapePlaying: true, lamp: true)
+        XCTAssertGreaterThan(rightPose.look.x, 0)
+        XCTAssertGreaterThan(rightPose.haloBiasX, 0)
+        XCTAssertTrue(rightPose.acousticRings)
+        XCTAssertGreaterThan(rightPose.lampGlow, leftPose.lampGlow)
+
+        let pausedNurse = CareCompanionPose.resolve(type: LogType.nurse, side: "l", paused: true, soundscapePlaying: false, lamp: false)
+        XCTAssertEqual(pausedNurse.haloBiasX, 0)
+        XCTAssertNotNil(pausedNurse.lid)
+
+        let sleepPose = CareCompanionPose.resolve(type: LogType.sleep, side: nil, paused: false, soundscapePlaying: true, lamp: true)
+        XCTAssertEqual(sleepPose.mood, .sleep)
+        XCTAssertTrue(sleepPose.acousticRings)
+    }
 }

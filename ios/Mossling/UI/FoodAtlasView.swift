@@ -31,8 +31,8 @@ struct FoodAtlasView: View {
 
         var label: String {
             switch self {
-            case .all: L10n.t("全部状态", "All")
-            case .untasted: L10n.t("还未尝过", "To Try")
+            case .all: L10n.t("全部", "All")
+            case .untasted: L10n.t("未尝", "To Try")
             case .allergen: L10n.t("常见致敏", "Allergens")
             case .loved: L10n.t("很喜欢", "Loved")
             case .tryAgain: L10n.t("再试试", "Retry")
@@ -245,39 +245,53 @@ struct FoodAtlasView: View {
 
                 Text(
                     store.tastedCount == 0
-                        ? L10n.t("轻点食材原地盖章，或分门折叠挑选。", "Tap any food to quick-stamp below, or fold drawers.")
-                        : L10n.t("已尝过 \(store.tastedCount) 种味道 · \(store.lovedCount) 种很喜欢。", "\(store.tastedCount) explored · \(store.lovedCount) loved. One gentle bite at a time.")
+                        ? L10n.t("轻点任意食材原地盖章。", "Tap any food below to quick-stamp.")
+                        : L10n.t("已尝 \(store.tastedCount) 种 · \(store.lovedCount) 种很喜欢。", "\(store.tastedCount) explored · \(store.lovedCount) loved.")
                 )
                 .font(.caption)
                 .foregroundStyle(Palette.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-                // Interactive 6-category quick jump dots
-                HStack(spacing: 6) {
-                    ForEach(FoodCategory.allCases) { cat in
-                        let c = store.tastedCount(in: cat)
-                        let active = selectedCategory == cat
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) {
-                                selectedCategory = active ? nil : cat
-                            }
-                        } label: {
-                            HStack(spacing: 3) {
-                                Circle()
-                                    .fill(c > 0 ? cat.color : cat.color.opacity(0.32))
-                                    .frame(width: 7, height: 7)
-                                Text("\(c)")
-                                    .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                                    .foregroundStyle(active ? Palette.accent : (c > 0 ? .primary : Palette.secondaryText))
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(active ? cat.color.opacity(dark ? 0.24 : 0.16) : .clear))
-                            .overlay(Capsule().strokeBorder(active ? cat.color.opacity(0.55) : .clear, lineWidth: 1))
+                // Self-explanatory 6-category icon + count micro-pills
+                let catPills = ForEach(FoodCategory.allCases) { cat in
+                    let c = store.tastedCount(in: cat)
+                    let active = selectedCategory == cat
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) {
+                            selectedCategory = active ? nil : cat
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(L10n.t("筛选\(cat.title)", "Filter \(cat.title)"))
+                    } label: {
+                        HStack(spacing: 3) {
+                            Image(systemName: cat.symbol)
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundStyle(dark ? cat.color : Crayon.ink(cat.color))
+                            Text("\(c)")
+                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                .foregroundStyle(active ? Palette.accent : (c > 0 ? .primary : Palette.secondaryText))
+                        }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3.5)
+                        .background(
+                            Capsule().fill(
+                                active
+                                    ? cat.color.opacity(dark ? 0.28 : 0.20)
+                                    : cat.color.opacity(dark ? 0.12 : 0.10)
+                            )
+                        )
+                        .overlay(
+                            Capsule().strokeBorder(active ? cat.color.opacity(0.65) : .clear, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.t("\(cat.title)，已尝 \(c) / \(store.totalCount(in: cat))", "\(cat.title), \(c) of \(store.totalCount(in: cat)) tasted"))
+                }
+
+                Group {
+                    if type.isAccessibilitySize {
+                        FlowRow(spacing: 5, lineSpacing: 5) { catPills }
+                    } else {
+                        HStack(spacing: 4) { catPills }
                     }
                 }
                 .padding(.top, 1)
@@ -375,41 +389,39 @@ struct FoodAtlasView: View {
         .printCard(radius: Radius.card)
     }
 
-    // MARK: - Dual-Track Composable Filter Rails
+    // MARK: - Unified Single-Row Filter & Drawer Control Strip
 
     private func filterRails(dark: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
-                    drawerTabPill(
-                        title: L10n.t("全部分类 \(FoodItem.catalog.count)", "All \(FoodItem.catalog.count)"),
-                        color: Palette.accent,
-                        selected: selectedCategory == nil,
-                        showDot: false,
-                        dark: dark
-                    ) {
-                        selectedCategory = nil
-                    }
+        let isDrawerMode = selectedCategory == nil && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let allCollapsed = collapsedCategories.count == FoodCategory.allCases.count
 
-                    ForEach(FoodCategory.allCases) { cat in
-                        let done = store.tastedCount(in: cat)
-                        let total = store.totalCount(in: cat)
-                        drawerTabPill(
-                            title: "\(cat.title) \(done)/\(total)",
-                            color: cat.color,
-                            selected: selectedCategory == cat,
-                            showDot: true,
-                            dark: dark
-                        ) {
-                            selectedCategory = (selectedCategory == cat) ? nil : cat
+        return HStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 5) {
+                    if let activeCat = selectedCategory {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                selectedCategory = nil
+                            }
+                        } label: {
+                            HStack(spacing: 4) {
+                                Image(systemName: activeCat.symbol)
+                                    .font(.system(size: 10, weight: .bold))
+                                Text(activeCat.title)
+                                    .font(.caption.weight(.bold))
+                                Image(systemName: "xmark")
+                                    .font(.system(size: 9, weight: .bold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(Palette.accentFill))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("清除分类筛选 \(activeCat.title)", "Clear category filter \(activeCat.title)"))
                     }
-                }
-                .padding(.vertical, 1)
-            }
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 6) {
                     ForEach(StateFilter.allCases) { sf in
                         let on = stateFilter == sf
                         let label: String = switch sf {
@@ -427,7 +439,7 @@ struct FoodAtlasView: View {
                             Text(label)
                                 .font(.caption.weight(on ? .bold : .semibold))
                                 .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
-                                .padding(.horizontal, 10)
+                                .padding(.horizontal, 8.5)
                                 .padding(.vertical, 5)
                                 .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
                                 .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
@@ -438,33 +450,24 @@ struct FoodAtlasView: View {
                 }
                 .padding(.vertical, 1)
             }
-        }
-    }
 
-    private func drawerTabPill(title: String, color: Color, selected: Bool, showDot: Bool, dark: Bool, action: @escaping () -> Void) -> some View {
-        Button {
-            TactileEngine.shared.beadClick()
-            withAnimation(reduce ? nil : .snappy) {
-                action()
-            }
-        } label: {
-            HStack(spacing: 5) {
-                if showDot {
-                    Circle()
-                        .fill(selected ? .white : color)
-                        .frame(width: 7, height: 7)
+            if isDrawerMode {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) {
+                        collapsedCategories = allCollapsed ? [] : Set(FoodCategory.allCases)
+                    }
+                } label: {
+                    Image(systemName: allCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .frame(width: 28, height: 28)
+                        .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill.opacity(0.85)))
                 }
-                Text(title)
-                    .font(.footnote.weight(.bold))
-                    .foregroundStyle(selected ? .white : .primary)
+                .buttonStyle(.toy)
+                .accessibilityLabel(allCollapsed ? L10n.t("展开全部抽屉", "Expand all drawers") : L10n.t("收起全部抽屉", "Collapse all drawers"))
             }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-            .overlay(Capsule().strokeBorder(Palette.outline.opacity(selected ? 0 : 0.28), lineWidth: 0.75))
         }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     private func allergenCallout(dark: Bool) -> some View {
@@ -759,8 +762,8 @@ private struct FoodWreathCanvas: View {
     }
 }
 
-/// Botanical mint leaves fluttering upward when the user pokes Moss three times in the tasting box header.
-private struct MintLeafBurst: View {
+/// Botanical mint leaves fluttering upward when the user pokes Moss three times in the tasting box header or story theater.
+struct MintLeafBurst: View {
     let trigger: Int
     @Environment(\.accessibilityReduceMotion) private var reduce
 

@@ -79,6 +79,54 @@ struct CareSessionRhythm: Equatable, Sendable {
     }
 }
 
+/// Pure state-coupled presentation parameters for the active CareTimer companion stage.
+struct CareCompanionPose: Equatable, Sendable {
+    let look: CGPoint
+    let mood: Mood
+    let lid: Double?
+    let haloBiasX: CGFloat
+    let lampGlow: Double
+    let acousticRings: Bool
+
+    static func resolve(
+        type: String,
+        side: String?,
+        paused: Bool,
+        soundscapePlaying: Bool,
+        lamp: Bool
+    ) -> CareCompanionPose {
+        if type == LogType.sleep {
+            return CareCompanionPose(
+                look: CGPoint(x: 0, y: 0.45),
+                mood: paused ? .open : .sleep,
+                lid: paused ? 0.45 : nil,
+                haloBiasX: 0,
+                lampGlow: paused ? 0.25 : (lamp ? 0.65 : 0.32),
+                acousticRings: soundscapePlaying
+            )
+        }
+        if paused {
+            return CareCompanionPose(
+                look: CGPoint(x: 0, y: 0.45),
+                mood: .open,
+                lid: 0.35,
+                haloBiasX: 0,
+                lampGlow: 0.22,
+                acousticRings: soundscapePlaying
+            )
+        }
+        let isRight = side == "r"
+        return CareCompanionPose(
+            look: CGPoint(x: isRight ? 0.85 : -0.85, y: 0.55),
+            mood: .open,
+            lid: nil,
+            haloBiasX: isRight ? 0.55 : -0.55,
+            lampGlow: lamp ? 0.85 : 0.45,
+            acousticRings: soundscapePlaying
+        )
+    }
+}
+
 /// The page of a feed or a sleep — the one place a timer starts, runs and ends (build 169, after "点一下就开始了，点进去
 ///发现已经开始很久了"). Tapping 亲喂 or 睡觉 anywhere opens this page *not yet running*: the sides (or the moon) say
 /// 点按开始, and when it began can be set first (now, a few minutes ago, or a chosen time) — so nothing starts by
@@ -107,6 +155,7 @@ struct TimerScreen: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var pickingStart = false
     @State private var showingLamp = false
+    @State private var sideSwitchNotice = 0
     @State private var soundscape = SoundscapeEngine.shared
     @State private var volumeMonitor: EarSafeVolumeMonitor
 
@@ -260,17 +309,26 @@ struct TimerScreen: View {
         TimelineView(.periodic(from: .now, by: 1)) { tl in
             let now = tl.date.timeIntervalSince1970 * 1000
             let rhythm = CareSessionRhythm.build(timer: t, logs: j.logs, day: Day(tl.date), nowMs: now)
+            let pose = CareCompanionPose.resolve(
+                type: type,
+                side: side,
+                paused: paused,
+                soundscapePlaying: soundscape.isPlaying,
+                lamp: lamp
+            )
             ScrollView {
                 VStack(spacing: 10) {
                     if let q = question(t, now) {
                         Check(text: q.text, keep: q.keep, end: q.end, color: c,
                               onKeep: { acked.insert(q.key) }, onEnd: { ending = true })
                     }
-                    Duo(primary: app.companion, size: 46,
-                        mood: type == LogType.sleep && !paused ? .sleep : .open,
-                        look: type == LogType.nurse ? CGPoint(x: side == "l" ? -0.9 : 0.9, y: 0.6) : CGPoint(x: 0, y: 0.5),
-                        poke: true, night: lamp)
-                        .frame(maxWidth: .infinity)
+                    CareCompanionStage(
+                        companion: app.companion,
+                        pose: pose,
+                        accent: c,
+                        lamp: lamp,
+                        notice: sideSwitchNotice
+                    )
                     LastLine(type: type, until: t.start - t.carried - t.carriedPause, compact: true)
 
                     if type == LogType.nurse {
@@ -283,6 +341,7 @@ struct TimerScreen: View {
                                         TactileEngine.shared.dimmerTick()
                                     } else {
                                         TactileEngine.shared.beadClick()
+                                        sideSwitchNotice &+= 1
                                     }
                                     withAnimation(.snappy) { j.tapSide(type, k) }
                                 }
@@ -339,6 +398,7 @@ struct TimerScreen: View {
                 }
                 .padding(.horizontal, 20).padding(.bottom, 16)
             }
+            .calmWhileScrolling()
             .scrollBounceBehavior(.basedOnSize)
         }
         .toolbar {
@@ -411,61 +471,34 @@ struct TimerScreen: View {
             }
         }
 
-        HStack(spacing: 10) {
-            Button {
-                TactileEngine.shared.beadClick()
-                showingLamp = true
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: soundscape.isPlaying ? "waveform" : "lamp.desk.fill")
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(Palette.lampTint)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(soundscape.activeSummary ?? L10n.t("床头夜灯与舒缓声景", "Bedside Lamp & Sound"))
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .lineLimit(1)
-                        Text(
-                            soundscape.isPlaying
-                                ? L10n.t("轻点调节夜灯暖光与混音", "Tap to tune lamp glow & mix")
-                                : L10n.t("不刺眼夜灯 · 内置助眠声", "Low-glare lamp & soothing audio")
-                        )
-                        .font(.caption2)
-                        .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
+        let ax = dynamicTypeSize.isAccessibilitySize
+        Group {
+            if ax {
+                VStack(alignment: .leading, spacing: 10) {
+                    lampInfoButton(ax: true)
+                    soundToggleButton(color: c, ax: true)
                 }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            Button {
-                TactileEngine.shared.beadClick()
-                withAnimation(reduce ? nil : .snappy) {
-                    soundscape.toggleQuick()
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 10) {
+                    lampInfoButton(ax: false)
+                    soundToggleButton(color: c, ax: false)
                 }
-            } label: {
-                Label(
-                    soundscape.isPlaying ? L10n.t("停声", "Mute") : soundscape.lastUsedKind.title,
-                    systemImage: soundscape.isPlaying ? "pause.fill" : "play.fill"
-                )
-                .lineLimit(1)
             }
-            .buttonStyle(.vinyl(soundscape.isPlaying ? Palette.amber : c))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
         .printCard(radius: Radius.inner)
 
         let diaperRow = Group {
-            if dynamicTypeSize.isAccessibilitySize {
+            if ax {
                 VStack(alignment: .leading, spacing: 8) {
                     diaperHeader
                     FlowRow(spacing: 8, lineSpacing: 8) {
                         diaperButtons
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(spacing: 8) {
                     diaperHeader
@@ -487,9 +520,63 @@ struct TimerScreen: View {
                 Label(L10n.t("开始于 ", "Started ") + whenLabel(startedAt), systemImage: "clock")
                     .font(.subheadline)
                     .monospacedDigit()
+                    .lineLimit(ax ? 2 : 1)
+                    .minimumScaleFactor(0.85)
             }
             .buttonStyle(.vinyl(c))
         }
+    }
+
+    private func lampInfoButton(ax: Bool) -> some View {
+        Button {
+            TactileEngine.shared.beadClick()
+            showingLamp = true
+        } label: {
+            HStack(alignment: ax ? .top : .center, spacing: 8) {
+                Image(systemName: soundscape.isPlaying ? "waveform" : "lamp.desk.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Palette.lampTint)
+                    .padding(.top, ax ? 2 : 0)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(soundscape.activeSummary ?? L10n.t("床头夜灯与舒缓声景", "Bedside Lamp & Sound"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(ax ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(
+                        soundscape.isPlaying
+                            ? L10n.t("轻点调节夜灯暖光与混音", "Tap to tune lamp glow & mix")
+                            : L10n.t("不刺眼夜灯 · 内置助眠声", "Low-glare lamp & soothing audio")
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(ax ? nil : 1)
+                    .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func soundToggleButton(color c: Color, ax: Bool) -> some View {
+        Button {
+            TactileEngine.shared.beadClick()
+            withAnimation(reduce ? nil : .snappy) {
+                soundscape.toggleQuick()
+            }
+        } label: {
+            Label(
+                soundscape.isPlaying ? L10n.t("停声", "Mute") : soundscape.lastUsedKind.title,
+                systemImage: soundscape.isPlaying ? "pause.fill" : "play.fill"
+            )
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .frame(maxWidth: ax ? .infinity : nil)
+        }
+        .buttonStyle(.vinyl(soundscape.isPlaying ? Palette.lampTint : c))
+        .fixedSize(horizontal: !ax, vertical: false)
     }
 
     private var diaperHeader: some View {
@@ -500,6 +587,7 @@ struct TimerScreen: View {
             Text(L10n.t("顺手记尿布", "Diaper"))
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -513,6 +601,7 @@ struct TimerScreen: View {
             }
             .buttonStyle(.vinyl(LogType.color(LogType.diaper)))
             .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -955,6 +1044,79 @@ struct Dial: View {
     var body: some View {
         Canvas { ctx, size in paint(&ctx, size) }
         .accessibilityHidden(true)
+    }
+}
+
+/// Living companion cradle stage above active CareTimer: directional lamp halo follows the active side and soundscape ripples breathe quietly.
+private struct CareCompanionStage: View {
+    let companion: Kind
+    let pose: CareCompanionPose
+    let accent: Color
+    let lamp: Bool
+    let notice: Int
+
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.scrolling) private var scrolling
+
+    var body: some View {
+        let haloColor = pose.mood == .sleep ? Crayon.lilac : Palette.amber
+        ZStack {
+            Ellipse()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            haloColor.opacity(pose.lampGlow * (lamp ? 0.55 : 0.34)),
+                            accent.opacity(pose.lampGlow * 0.14),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 4,
+                        endRadius: 72
+                    )
+                )
+                .frame(width: 146, height: 54)
+                .offset(x: pose.haloBiasX * 32, y: 8)
+                .animation(reduce ? nil : .spring(response: 0.5, dampingFraction: 0.82), value: pose.haloBiasX)
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+
+            if pose.acousticRings {
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: reduce || Perf.still || scenePhase != .active || scrolling.moving)) { tl in
+                    Canvas { ctx, size in
+                        let t = (reduce || Perf.still) ? 0.35 : tl.date.timeIntervalSinceReferenceDate
+                        let center = CGPoint(x: size.width / 2 + pose.haloBiasX * 14, y: size.height * 0.56)
+                        for idx in 0..<3 {
+                            let phase = (t * 0.36 + Double(idx) / 3.0).truncatingRemainder(dividingBy: 1.0)
+                            let r = 24 + CGFloat(phase) * 44
+                            let alpha = (1.0 - phase) * (lamp ? 0.36 : 0.24)
+                            let rect = CGRect(x: center.x - r, y: center.y - r * 0.48, width: r * 2, height: r * 0.96)
+                            ctx.stroke(
+                                Path(ellipseIn: rect),
+                                with: .color(haloColor.opacity(alpha)),
+                                style: StrokeStyle(lineWidth: 1.4)
+                            )
+                        }
+                    }
+                }
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+            }
+
+            Duo(
+                primary: companion,
+                size: 52,
+                mood: pose.mood,
+                look: pose.look,
+                lid: pose.lid,
+                poke: true,
+                night: lamp,
+                notice: notice,
+                lit: lamp || pose.lampGlow > 0.4
+            )
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 70)
     }
 }
 

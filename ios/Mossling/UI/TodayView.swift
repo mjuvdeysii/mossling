@@ -45,12 +45,6 @@ struct TodayView: View {
                 // chosen anew for the child's month once the date is given)
                 TodayPlayCard(
                     month: baby,
-                    soundscapeActive: soundscape.isPlaying,
-                    openLamp: {
-                        TactileEngine.shared.beadClick()
-                        showingLamp = true
-                    },
-                    story: { path.append(Route.story) },
                     arrange: { arranging = true }
                 )
                 let todayLogs = j.logs(on: app.today)
@@ -59,7 +53,10 @@ struct TodayView: View {
                 let bookMonths = app.birth != nil ? max(1, min(app.age?.bookMonth ?? 0, 36) + 1) : 0
                 QuietInstrumentsDock(
                     soundscape: soundscape,
-                    foodsTasted: foods.tastedCount,
+                    foods: foods,
+                    todayLogs: todayLogs,
+                    today: app.today,
+                    currentMonth: min(baby, 36),
                     capsuleTotal: capsules.items.count,
                     capsuleReady: capsules.readyCount(on: app.today),
                     toyTodayCount: ToyboxUsage.todayCount(on: app.today),
@@ -98,6 +95,14 @@ struct TodayView: View {
                 } label: {
                     Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
                         .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
+                        .overlay(alignment: .topTrailing) {
+                            if soundscape.isPlaying {
+                                Circle()
+                                    .fill(Palette.amber)
+                                    .frame(width: 6, height: 6)
+                                    .offset(x: 2, y: -1)
+                            }
+                        }
                 }
                 .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
 
@@ -111,8 +116,48 @@ struct TodayView: View {
     }
 }
 
-/// 「陪伴小器具 / Quiet Instruments」 — Balanced 2×3 Montessori studio dock right on the Home screen so Otto's Bedside Lamp,
-/// Sensory Toybox, First Foods Tasting Box, 24h Rhythm Dial, Keepsake Storybook, and Time Capsule Letters are one tap away.
+/// Pure 24h circadian geometry helper for the Home Atelier Rhythm Dial preview.
+enum AtelierDockMetrics {
+    struct RhythmSlice: Equatable, Sendable {
+        let startFrac: Double
+        let endFrac: Double
+    }
+
+    static func sleepSlices(in logs: [LogEntry], on day: Day) -> [RhythmSlice] {
+        let dayStart = day.date.timeIntervalSince1970 * 1000
+        let dayEnd = day.plus(days: 1).date.timeIntervalSince1970 * 1000
+        let dayLen = max(1.0, dayEnd - dayStart)
+        return logs
+            .filter { $0.type == LogType.sleep && $0.end != nil }
+            .compactMap { entry -> RhythmSlice? in
+                let end = entry.end ?? entry.start
+                let clippedStart = max(dayStart, entry.start)
+                let clippedEnd = min(dayEnd, end)
+                guard clippedEnd > clippedStart else { return nil }
+                let s = min(1.0, max(0.0, (clippedStart - dayStart) / dayLen))
+                let e = min(1.0, max(0.0, (clippedEnd - dayStart) / dayLen))
+                guard e > s else { return nil }
+                return RhythmSlice(startFrac: s, endFrac: e)
+            }
+            .sorted { $0.startFrac < $1.startFrac }
+    }
+
+    static func feedFractions(in logs: [LogEntry], on day: Day) -> [Double] {
+        let dayStart = day.date.timeIntervalSince1970 * 1000
+        let dayEnd = day.plus(days: 1).date.timeIntervalSince1970 * 1000
+        let dayLen = max(1.0, dayEnd - dayStart)
+        return logs
+            .feeds()
+            .filter { $0.start >= dayStart && $0.start < dayEnd }
+            .map { min(1.0, max(0.0, ($0.start - dayStart) / dayLen)) }
+            .sorted()
+    }
+}
+
+/// 「陪伴小器具 / Quiet Instruments」 — Living Montessori Atelier Dock on Home:
+/// Row 1: Twilight Bedside Lamp with 1-tap Soundscape play/pause + Live 24h Circadian Rhythm Dial;
+/// Row 2: Live 6-Petal First Foods Wreath + Handcrafted 5-Bar Xylophone Toybox;
+/// Row 3: Fanned Polaroid Storybook Stack + Folded Wax-Seal Time Capsule Envelope.
 private struct QuietInstrumentsDock: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
@@ -120,7 +165,10 @@ private struct QuietInstrumentsDock: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     let soundscape: SoundscapeEngine
-    let foodsTasted: Int
+    let foods: FoodAtlasStore
+    let todayLogs: [LogEntry]
+    let today: Day
+    let currentMonth: Int
     let capsuleTotal: Int
     let capsuleReady: Int
     let toyTodayCount: Int
@@ -134,112 +182,86 @@ private struct QuietInstrumentsDock: View {
 
     var body: some View {
         let dark = lamp || scheme == .dark
+        let foodsTasted = foods.tastedCount
+        let sleepSlices = AtelierDockMetrics.sleepSlices(in: todayLogs, on: today)
+        let feedFractions = AtelierDockMetrics.feedFractions(in: todayLogs, on: today)
         let columns: [GridItem] = type.isAccessibilitySize
             ? [GridItem(.flexible())]
             : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
 
         VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(
-                title: L10n.t("陪伴小器具", "Quiet Instruments"),
-                detail: L10n.t("离线 · 随时点亮", "Offline · Ready")
-            )
-            .padding(.top, -14)
+            SectionTitle(title: L10n.t("陪伴小器具", "Quiet Instruments"))
+                .padding(.top, -10)
 
             LazyVGrid(columns: columns, spacing: 10) {
-                Button(action: openLamp) {
-                    instrumentTile(
-                        color: Palette.amber,
-                        title: L10n.t("床头夜灯", "Bedside Lamp"),
-                        subtitle: soundscape.activeSummary.map { L10n.t("正播 · \($0)", "On · \($0)") }
-                            ?? L10n.t("6 声景 · 调光", "6 sounds · Dim"),
-                        liveDot: soundscape.isPlaying,
-                        badge: nil,
-                        dark: dark
-                    ) {
-                        ToolArtBadge(toolId: "bedside_lamp", size: 36, active: soundscape.isPlaying)
-                    }
-                }
-                .buttonStyle(.toy)
+                bedsideLampConsoleCard(dark: dark)
 
-                NavigationLink(value: Route.toybox(.xylophone)) {
-                    instrumentTile(
-                        color: Crayon.teal,
-                        title: L10n.t("感官玩具盒", "Sensory Toybox"),
-                        subtitle: toyTodayCount > 0
-                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
-                            : L10n.t("4 工坊 · 6 童谣", "4 studios · 6 songs"),
-                        liveDot: false,
+                NavigationLink(value: JournalRoute.stats) {
+                    atelierTile(
+                        color: Crayon.lilac,
+                        title: L10n.t("昼夜节律盘", "Rhythm Dial"),
+                        subtitle: (todaySleepCount > 0 || todayFeedCount > 0)
+                            ? L10n.t("\(todaySleepCount) 觉 · \(todayFeedCount) 喂", "\(todaySleepCount) sleep · \(todayFeedCount) feeds")
+                            : L10n.t("24h 睡眠节律", "24h dial"),
                         badge: nil,
+                        minHeight: 124,
                         dark: dark
                     ) {
-                        ToolArtBadge(toolId: "sensory_toybox", size: 36)
+                        MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFractions, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
 
                 NavigationLink(value: Route.foodAtlas) {
-                    instrumentTile(
+                    atelierTile(
                         color: Crayon.leaf,
                         title: L10n.t("百味食盒", "First Foods"),
                         subtitle: foodsTasted > 0
                             ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
                             : L10n.t("60 种辅食图鉴", "60 foods atlas"),
-                        liveDot: false,
                         badge: nil,
+                        minHeight: 112,
                         dark: dark
                     ) {
-                        ToolArtBadge(toolId: "first_foods", size: 36)
+                        MiniFoodsWreathCanvas(foods: foods, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
 
-                NavigationLink(value: JournalRoute.stats) {
-                    instrumentTile(
-                        color: Crayon.lilac,
-                        title: L10n.t("昼夜节律盘", "Rhythm Dial"),
-                        subtitle: (todaySleepCount > 0 || todayFeedCount > 0)
-                            ? L10n.t("\(todaySleepCount) 觉 · \(todayFeedCount) 喂", "\(todaySleepCount) sleep · \(todayFeedCount) feeds")
-                            : L10n.t("24h 睡眠喂养", "24h dial"),
-                        liveDot: false,
+                NavigationLink(value: Route.toybox(.xylophone)) {
+                    atelierTile(
+                        color: Crayon.teal,
+                        title: L10n.t("感官玩具盒", "Sensory Toybox"),
+                        subtitle: toyTodayCount > 0
+                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
+                            : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
                         badge: nil,
+                        minHeight: 112,
                         dark: dark
                     ) {
-                        ToolArtBadge(toolId: "rhythm_dial", size: 36)
+                        MiniXylophoneArt(dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
 
                 Button(action: openStorybook) {
-                    instrumentTile(
+                    atelierTile(
                         color: Crayon.caramel,
                         title: L10n.t("成长绘本", "Storybook"),
                         subtitle: bookMonths > 0
                             ? L10n.t("\(bookMonths) 个月 · \(firstsCount) 第一次", "\(bookMonths) mo · \(firstsCount) firsts")
                             : L10n.t("翻页绘本 · 相纸", "Storybook"),
-                        liveDot: false,
                         badge: nil,
+                        minHeight: 102,
                         dark: dark
                     ) {
-                        ToolArtBadge(toolId: "storybook", size: 36)
+                        MiniStorybookStackArt(month: currentMonth, dark: dark)
                     }
                 }
                 .buttonStyle(.toy)
 
                 NavigationLink(value: Route.capsules) {
-                    instrumentTile(
-                        color: Palette.bead,
-                        title: L10n.t("时光胶囊", "Time Capsules"),
-                        subtitle: capsuleReady > 0
-                            ? L10n.t("可拆封阅读", "Ready to open")
-                            : (capsuleTotal > 0
-                                ? L10n.t("已封存 \(capsuleTotal) 封", "\(capsuleTotal) sealed")
-                                : L10n.t("火漆写给未来", "Wax letters")),
-                        liveDot: false,
-                        badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
-                        dark: dark
-                    ) {
-                        WaxSealBadge(seal: .gold, size: 36)
-                    }
+                    capsuleEnvelopeTile(dark: dark)
                 }
                 .buttonStyle(.toy)
             }
@@ -261,18 +283,139 @@ private struct QuietInstrumentsDock: View {
         }
     }
 
-    private func instrumentTile<Icon: View>(
+    private func bedsideLampConsoleCard(dark: Bool) -> some View {
+        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+        let cardFill = Color(hex: dark ? 0x19213F : 0x1D264A)
+        let playing = soundscape.isPlaying
+
+        return VStack(alignment: .leading, spacing: 8) {
+            Button(action: openLamp) {
+                VStack(alignment: .leading, spacing: 7) {
+                    HStack(alignment: .top) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [Palette.amber.opacity(playing ? 0.55 : 0.25), .clear],
+                                        center: .center,
+                                        startRadius: 2,
+                                        endRadius: 22
+                                    )
+                                )
+                                .frame(width: 40, height: 40)
+                            ToolArtBadge(toolId: "bedside_lamp", size: 34, active: playing)
+                        }
+                        Spacer(minLength: 4)
+                        HStack(spacing: 5) {
+                            if playing {
+                                ZStack {
+                                    if !reduce {
+                                        Circle()
+                                            .fill(Palette.amber.opacity(livePulse ? 0.38 : 0.14))
+                                            .frame(width: livePulse ? 14 : 10, height: livePulse ? 14 : 10)
+                                    }
+                                    Circle()
+                                        .fill(Palette.amber)
+                                        .frame(width: 7, height: 7)
+                                }
+                            }
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Palette.lampInk.opacity(0.55))
+                        }
+                        .padding(.top, 2)
+                    }
+
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.t("床头夜灯", "Bedside Lamp"))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.85)
+                        Text(soundscape.activeSummary ?? L10n.t("暖光 · 6 声景", "Warm light · 6 sounds"))
+                            .font(.caption2)
+                            .foregroundStyle(Palette.lampInk.opacity(0.76))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.78)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    soundscape.toggleQuick()
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: playing ? "pause.fill" : "play.fill")
+                        .font(.system(size: 9.5, weight: .bold))
+                    Text(playing ? L10n.t("停声", "Pause") : soundscape.lastUsedKind.title)
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+                    Spacer(minLength: 2)
+                    if playing {
+                        MiniAcousticBars(reduce: reduce)
+                    }
+                }
+                .foregroundStyle(playing ? Color(hex: 0x3A2400) : Palette.lampInk)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(
+                    Capsule().fill(
+                        playing ? Palette.amber : Color.white.opacity(0.13)
+                    )
+                )
+            }
+            .buttonStyle(.toy)
+            .accessibilityLabel(
+                playing
+                    ? L10n.t("暂停助眠声景", "Pause soundscape")
+                    : L10n.t("播放\(soundscape.lastUsedKind.title)", "Play \(soundscape.lastUsedKind.title)")
+            )
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
+        .background {
+            ZStack {
+                shape.fill(cardFill)
+                    .shadow(color: Color(hex: 0x0B1028).opacity(dark ? 0.34 : 0.20), radius: 8, y: 4)
+                RadialGradient(
+                    colors: [Palette.amber.opacity(playing ? 0.24 : 0.11), .clear],
+                    center: UnitPoint(x: 0.25, y: 0.12),
+                    startRadius: 2,
+                    endRadius: 120
+                )
+                .clipShape(shape)
+                shape.strokeBorder(
+                    LinearGradient(
+                        colors: [Palette.amber.opacity(playing ? 0.48 : 0.22), .white.opacity(0.06), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    ),
+                    lineWidth: 1.15
+                )
+            }
+        }
+    }
+
+    private func atelierTile<Art: View>(
         color: Color,
         title: String,
         subtitle: String,
-        liveDot: Bool,
         badge: String?,
+        minHeight: CGFloat,
         dark: Bool,
-        @ViewBuilder icon: () -> Icon
+        @ViewBuilder art: () -> Art
     ) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top) {
-                icon()
+                art()
                 Spacer(minLength: 4)
                 if let badge {
                     Text(badge)
@@ -281,18 +424,6 @@ private struct QuietInstrumentsDock: View {
                         .padding(.horizontal, 7)
                         .padding(.vertical, 2)
                         .background(Capsule().fill(Palette.bead))
-                } else if liveDot {
-                    ZStack {
-                        if !reduce {
-                            Circle()
-                                .fill(Palette.amber.opacity(livePulse ? 0.35 : 0.12))
-                                .frame(width: livePulse ? 16 : 11, height: livePulse ? 16 : 11)
-                        }
-                        Circle()
-                            .fill(Palette.amber)
-                            .frame(width: 8, height: 8)
-                            .shadow(color: Palette.amber.opacity(0.7), radius: 4)
-                    }
                 } else {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))
@@ -300,6 +431,7 @@ private struct QuietInstrumentsDock: View {
                         .padding(.top, 2)
                 }
             }
+            Spacer(minLength: 0)
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
                     .font(.subheadline.weight(.bold))
@@ -314,7 +446,7 @@ private struct QuietInstrumentsDock: View {
             }
         }
         .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: [color.opacity(dark ? 0.14 : 0.13), color.opacity(dark ? 0.03 : 0.02)],
@@ -323,6 +455,240 @@ private struct QuietInstrumentsDock: View {
             )
         )
         .printCard(radius: Radius.card)
+    }
+
+    private func capsuleEnvelopeTile(dark: Bool) -> some View {
+        atelierTile(
+            color: Palette.bead,
+            title: L10n.t("时光胶囊", "Time Capsules"),
+            subtitle: capsuleReady > 0
+                ? L10n.t("火漆待拆封", "Ready to unseal")
+                : (capsuleTotal > 0
+                    ? L10n.t("已封存 \(capsuleTotal) 封", "\(capsuleTotal) sealed")
+                    : L10n.t("火漆写给未来", "Wax letters")),
+            badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
+            minHeight: 102,
+            dark: dark
+        ) {
+            WaxSealBadge(seal: .gold, size: 38)
+        }
+        .overlay {
+            // Delicate envelope V-flap crease geometry echoing cotton-paper keepsake letters
+            Canvas { ctx, size in
+                var flap = Path()
+                flap.move(to: CGPoint(x: 8, y: 0))
+                flap.addLine(to: CGPoint(x: size.width * 0.5, y: size.height * 0.42))
+                flap.addLine(to: CGPoint(x: size.width - 8, y: 0))
+                ctx.stroke(
+                    flap,
+                    with: .color((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.20 : 0.24)),
+                    style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
+                )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+            .allowsHitTesting(false)
+            .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct MiniAcousticBars: View {
+    let reduce: Bool
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.scrolling) private var scrolling
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: reduce || Perf.still || scenePhase != .active || scrolling.moving)) { tl in
+            let t = (reduce || Perf.still) ? 0.5 : tl.date.timeIntervalSinceReferenceDate
+            HStack(alignment: .center, spacing: 2) {
+                ForEach(0..<3, id: \.self) { i in
+                    let h = 4 + 5 * (0.5 + 0.5 * sin(t * 4.2 + Double(i) * 1.4))
+                    Capsule()
+                        .fill(Color(hex: 0x3A2400))
+                        .frame(width: 2.2, height: h)
+                }
+            }
+            .frame(height: 10)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MiniRhythmDialCanvas: View {
+    let sleepSlices: [AtelierDockMetrics.RhythmSlice]
+    let feedFractions: [Double]
+    let dark: Bool
+
+    var body: some View {
+        ZStack {
+            Canvas { ctx, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                let r = min(size.width, size.height) / 2 - 4
+                let track = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
+                ctx.stroke(track, with: .color(Crayon.lilac.opacity(dark ? 0.24 : 0.20)), lineWidth: 5)
+
+                let arcs: [AtelierDockMetrics.RhythmSlice] = sleepSlices.isEmpty
+                    ? [
+                        .init(startFrac: 0.0, endFrac: 0.27),
+                        .init(startFrac: 0.54, endFrac: 0.61),
+                        .init(startFrac: 0.85, endFrac: 1.0)
+                    ]
+                    : sleepSlices
+                let arcOpacity: Double = sleepSlices.isEmpty ? 0.34 : 0.92
+                for s in arcs {
+                    var p = Path()
+                    p.addArc(
+                        center: center,
+                        radius: r,
+                        startAngle: .degrees(-90 + s.startFrac * 360),
+                        endAngle: .degrees(-90 + s.endFrac * 360),
+                        clockwise: false
+                    )
+                    ctx.stroke(p, with: .color(Crayon.lilac.opacity(arcOpacity)), style: StrokeStyle(lineWidth: 5, lineCap: .round))
+                }
+
+                // Cardinal hour ticks (00, 06, 12, 18)
+                for q in 0..<4 {
+                    let a = CGFloat(q) * .pi / 2 - .pi / 2
+                    let pt = CGPoint(x: center.x + cos(a) * (r - 6), y: center.y + sin(a) * (r - 6))
+                    ctx.fill(Path(ellipseIn: CGRect(x: pt.x - 1, y: pt.y - 1, width: 2, height: 2)), with: .color(Palette.secondaryText.opacity(0.45)))
+                }
+
+                // Feed event pips along inner track
+                for f in feedFractions {
+                    let a = CGFloat(f * 2 * .pi - .pi / 2)
+                    let pt = CGPoint(x: center.x + cos(a) * (r - 6.5), y: center.y + sin(a) * (r - 6.5))
+                    ctx.fill(Path(ellipseIn: CGRect(x: pt.x - 2.3, y: pt.y - 2.3, width: 4.6, height: 4.6)), with: .color(Crayon.pink))
+                }
+            }
+            Text("24h")
+                .font(Typeface.numerals(10, relativeTo: .caption2, weight: .bold))
+                .foregroundStyle(Palette.secondaryText)
+        }
+        .frame(width: 48, height: 48)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MiniFoodsWreathCanvas: View {
+    let foods: FoodAtlasStore
+    let dark: Bool
+
+    var body: some View {
+        let count = foods.tastedCount
+        ZStack {
+            Canvas { ctx, size in
+                let center = CGPoint(x: size.width / 2, y: size.height / 2)
+                let r = min(size.width, size.height) / 2 - 4
+                let cats = FoodCategory.allCases
+                let span = 360.0 / Double(cats.count)
+                let gap = 10.0
+                for (i, cat) in cats.enumerated() {
+                    let startDeg = -90.0 + Double(i) * span + gap / 2
+                    let fullEnd = -90.0 + Double(i + 1) * span - gap / 2
+                    var bg = Path()
+                    bg.addArc(center: center, radius: r, startAngle: .degrees(startDeg), endAngle: .degrees(fullEnd), clockwise: false)
+                    ctx.stroke(bg, with: .color(cat.color.opacity(dark ? 0.24 : 0.22)), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+
+                    let done = foods.tastedCount(in: cat)
+                    let total = max(1, foods.totalCount(in: cat))
+                    if done > 0 {
+                        let frac = min(1.0, Double(done) / Double(total))
+                        let activeEnd = startDeg + (fullEnd - startDeg) * frac
+                        var fg = Path()
+                        fg.addArc(center: center, radius: r, startAngle: .degrees(startDeg), endAngle: .degrees(activeEnd), clockwise: false)
+                        ctx.stroke(fg, with: .color(cat.color), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+                    }
+                }
+            }
+            Text("\(count)")
+                .font(Typeface.numerals(13, relativeTo: .caption, weight: .bold))
+                .foregroundStyle(.primary)
+        }
+        .frame(width: 48, height: 48)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MiniXylophoneArt: View {
+    let dark: Bool
+
+    var body: some View {
+        Canvas { ctx, size in
+            let w = size.width, h = size.height
+            // Birch side rails
+            let leftRail = Path(roundedRect: CGRect(x: 9, y: 4, width: 3.5, height: h - 8), cornerRadius: 1.5)
+            let rightRail = Path(roundedRect: CGRect(x: w - 12.5, y: 4, width: 3.5, height: h - 8), cornerRadius: 1.5)
+            let birch = Color(hex: dark ? 0xC69C6D : 0xD6AC7A)
+            ctx.fill(leftRail, with: .color(birch))
+            ctx.fill(rightRail, with: .color(birch))
+
+            let colors: [Color] = [Crayon.pink, Crayon.lilac, Crayon.sky, Crayon.teal, Crayon.sunflower]
+            let barH: CGFloat = 5.4
+            let spacing: CGFloat = 2.0
+            let totalH = CGFloat(colors.count) * barH + CGFloat(colors.count - 1) * spacing
+            let startY = (h - totalH) / 2
+            for (idx, c) in colors.enumerated() {
+                let inset = CGFloat(colors.count - 1 - idx) * 2.1
+                let rect = CGRect(x: 4 + inset, y: startY + CGFloat(idx) * (barH + spacing), width: w - 8 - inset * 2, height: barH)
+                ctx.fill(Path(roundedRect: rect, cornerRadius: barH / 2), with: .color(c))
+                // Tiny brass rivets
+                let rivetColor = Palette.beadLight
+                ctx.fill(Path(ellipseIn: CGRect(x: rect.minX + 4, y: rect.midY - 0.9, width: 1.8, height: 1.8)), with: .color(rivetColor))
+                ctx.fill(Path(ellipseIn: CGRect(x: rect.maxX - 5.8, y: rect.midY - 0.9, width: 1.8, height: 1.8)), with: .color(rivetColor))
+            }
+        }
+        .frame(width: 52, height: 42)
+        .accessibilityHidden(true)
+    }
+}
+
+private struct MiniStorybookStackArt: View {
+    let month: Int
+    let dark: Bool
+
+    var body: some View {
+        let cover = ArtIndex.shared.cover(min(max(month, 0), 36)).flatMap {
+            Perf.noArt ? nil : (ArtCache.shared.cached($0, maxPixel: 256) ?? ArtCache.shared.image($0, maxPixel: 256))
+        }
+        ZStack {
+            RoundedRectangle(cornerRadius: 6, style: .continuous)
+                .fill(dark ? Color(hex: 0x29335C) : Color(hex: 0xF5EBDC))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .strokeBorder(Crayon.caramel.opacity(0.35), lineWidth: 0.8)
+                )
+                .frame(width: 44, height: 34)
+                .rotationEffect(.degrees(5))
+                .offset(x: 4, y: 2)
+
+            ZStack {
+                if let cover {
+                    Image(uiImage: cover)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    Crayon.caramel.opacity(0.35)
+                }
+            }
+            .frame(width: 42, height: 32)
+            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
+            .padding(2.5)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(dark ? Color(hex: 0xECE5D8) : .white)
+                    .shadow(color: .black.opacity(0.14), radius: 2, y: 1)
+            )
+            .overlay(alignment: .topTrailing) {
+                RoundedRectangle(cornerRadius: 1)
+                    .fill(Palette.bead)
+                    .frame(width: 5, height: 9)
+                    .offset(x: -5, y: -2)
+            }
+            .rotationEffect(.degrees(-4))
+        }
+        .frame(width: 50, height: 38)
+        .accessibilityHidden(true)
     }
 }
 
@@ -386,6 +752,7 @@ private struct DueCard: View {
                                 .foregroundStyle(Palette.secondaryText)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                     Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                 }
                 .padding(12)
@@ -700,8 +1067,8 @@ private struct TopicItem: Identifiable { let i: Int; let t: Topic; var id: Strin
 /// last played — and under it the week's others (「这周还有」), each a tray and its gold beads for the times played
 /// this week (a count, never a score). The week turns by itself; 换一个 takes the next of the week for the rest of the
 /// day; 调整 changes the week. When the records say the baby is awake the header says so — 醒了 40 分钟 · 一起玩 — and
-/// while a sleep is being timed, 醒来后一起玩: facts from the records, no predictions. Moss and Otto sit on the card's
-/// top edge (not while the sleep card above already has them); at night Otto's lamp throws a warm pool over it.
+/// while a sleep is being timed, 醒来后一起玩: facts from the records, no predictions. At night Otto's lamp throws a
+/// warm pool over the card cleanly without cluttering the artwork.
 struct TodayPlayCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var night
@@ -713,13 +1080,8 @@ struct TodayPlayCard: View {
     let month: Int
     var soundscapeActive: Bool = false
     var openLamp: () -> Void = {}
-    /// Their story: nothing says there is more — tap the two on the card's edge and they hop; keep tapping and on the
-    /// third they take you into it.
-    let story: () -> Void
+    var story: () -> Void = {}
     let arrange: () -> Void
-    @State private var hops = 0
-    @State private var lamp = false
-    @State private var bulbPullProgress: CGFloat = 0
     private var flat: Bool { ArtStyle.current == .flat }
 
     var body: some View {
@@ -728,7 +1090,6 @@ struct TodayPlayCard: View {
         let rest = week.filter { $0.code != today?.code }
         let asleep = j.timers.contains { $0.type == LogType.sleep }
         if let p = today {
-            let noticed: Int = (week.firstIndex(of: p) ?? 0) + week.count * 10
             TimelineView(.periodic(from: .now, by: 60)) { tl in
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(alignment: .center, spacing: 8) {
@@ -745,8 +1106,7 @@ struct TodayPlayCard: View {
                             .accessibilityHint(L10n.t("在这周的几个活动里换一个", "Swap to another play this week"))
                         }
                     }
-                    .padding(.horizontal, 4).padding(.top, 20)
-                    if !asleep { slogan }
+                    .padding(.horizontal, 4).padding(.top, 6)
                     VStack(spacing: 0) {
                         lead(p)
                             .id(p.code)
@@ -772,32 +1132,10 @@ struct TodayPlayCard: View {
                     .padding(.bottom, 4)
                     .background(alignment: .top) { if night { LampPool() } }
                     .printCard(radius: Radius.card)
-                    .overlay(alignment: .topTrailing) {
-                        // the two of them on the card's top edge; when today's play changes (换一个, a new week)
-                        // Moss blinks twice and looks at it — the change said without a word. One pair to a screen:
-                        // while the sleep card above has them, they are not here.
-                        if !asleep {
-                            Duo(primary: app.companion, size: 44, look: CGPoint(x: -0.6, y: 0.6), cheer: hops, night: night,
-                                reacts: true, notice: noticed, lit: lamp)
-                                .storyKnock(hops: $hops, lamp: $lamp, open: story)
-                                .offset(x: -16, y: -40)
-                        }
-                    }
-                    // room above the card for the pair on its edge comes from the line beside them; while they are on the
-                    // sleep card, neither
                 }
                 .sensoryFeedback(.selection, trigger: p.code)
             }
         }
-    }
-
-    /// 孩子摸索，大人点灯, to the left of the two on the card's edge, resting on the card's top line.
-    /// A row of its own (it grows with the text size), as tall as the room the pair needs above the card.
-    private var slogan: some View {
-        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText)
-            .multilineTextAlignment(.trailing).fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, minHeight: 20, alignment: .bottomTrailing)
-            .padding(.trailing, 16 + 88)   // clear of the widest pair (Moss in front, about 87 pt)
     }
 
     /// 今天一起玩; 醒了 40 分钟 · 一起玩 while the records say the baby woke within six hours (by day, records on);
@@ -814,42 +1152,26 @@ struct TodayPlayCard: View {
 
     private func route(_ p: Play) -> Route { Route.play(p.code, month) }
 
-    /// Today's play — Halo 1 Lamp Desk Hero Stage: generous top artwork lit by Otto's interactive pull-cord bulb
-    /// (isolated above the NavigationLink for clean gesture separation), with bold title & Step 1 cue cleanly below.
+    /// Today's play — clean crisp 4:3 picture-book hero stage with bold title & Step 1 cue below (zero stray floating orbs).
     private func lead(_ p: Play) -> some View {
         let big = size.isAccessibilitySize
         let times: Int = app.thisWeek(p, j)
         let last: String = lastPlayed(p)
         let label: String = L10n.t("今天一起玩", "Today's Play") + ", " + p.name + ", " + (p.domains.first ?? "") + ", " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps") + ", " + last
-        return ZStack(alignment: .topLeading) {
-            NavigationLink(value: route(p)) {
-                VStack(alignment: .leading, spacing: 12) {
-                    leadArt(p, big: big)
-                        .overlay {
-                            LampConeOverlay(intensity: bulbPullProgress, night: night)
-                                .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-                        }
-                    leadWords(p, last: last, times: times, big: big)
-                        .padding(.horizontal, 4)
-                }
-                .padding(12)
-                .contentShape(Rectangle())
+        return NavigationLink(value: route(p)) {
+            VStack(alignment: .leading, spacing: 12) {
+                leadArt(p, big: big)
+                leadWords(p, last: last, times: times, big: big)
+                    .padding(.horizontal, 4)
             }
-            .buttonStyle(.toy)
-            .contextMenu { PlayActions(play: p, month: month) }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(label)
-            .accessibilityHint(L10n.t("打开，一步步跟着图玩", "Open step-by-step guide"))
-
-            // Interactive Otto Golden Bulb pull-cord anchored at top-leading of the hero frame, clear of Duo on the top-right
-            OttoBulbControl(
-                soundscapeActive: soundscapeActive,
-                pullProgress: $bulbPullProgress,
-                onOpenLamp: openLamp
-            )
-            .padding(.top, 12)
-            .padding(.leading, 16)
+            .padding(12)
+            .contentShape(Rectangle())
         }
+        .buttonStyle(.toy)
+        .contextMenu { PlayActions(play: p, month: month) }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(label)
+        .accessibilityHint(L10n.t("打开，一步步跟着图玩", "Open step-by-step guide"))
     }
 
     private func lastPlayed(_ p: Play) -> String {

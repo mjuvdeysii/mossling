@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 15（v2.0 正式发布候选 12 · 首页蒙氏工作台 · 三幕交互故事微剧院 · 活态计时伴护与 iOS 26 细节精修）**：
+  - **【修复 Fix】**：在全站 `CalmScroll` 统一启用 iOS 26 `.scrollEdgeEffectStyle(.soft, for: .all)`，消除导航栏与底栏下滚动卡片出现的硬切模糊线；修复 `TimerScreen` 在 AX2 超大字号下声景控制行（`"床头..."` / `"草坡..."`）与尿布按钮（`"都有"`）的省略截断；优化 `StorybookView` 成长绘本单页纵深留白与底部柔化边界，完整呈现页尾父母随笔不被翻页豆链遮挡。
+  - **【创意炼金术升级 Creative Alchemy Upgrade】**：彻底清理首页主卡多余的悬浮灯珠点与重复角标伙伴，将「**陪伴小器具**」重塑为三阶 **蒙氏生活工作台（Living Montessori Atelier Dock）**——首行直觉呈现带一键播/停助眠声景的深夜暖灯控制台与真实 24 小时睡眠/喂奶微型节律盘；中行换装实时六色花环食盒与五音条手工木琴；底行以折角纪念画册叠卡与信封折痕火漆囊收尾；同步将「**摸索台灯的故事 `StoryView`**」升级为「**点灯 -> 摸索 -> 0–36 个月长大**」三幕交互微剧院，支持轻拉灯绳开关暖光、轻碰木套环激发弹跳与撒叶、拖动金珠标尺实时看宝宝月龄成长。
+  - **【IP 交互动效与版面优化 Living IP Motion & Visual-First】**：为 `CareTimer` 计时页新增随左右亲喂方向平滑追光与声景呼吸涟漪共鸣的 `CareCompanionStage`；将「我的」页 4 枚巨型控制块收敛为精致分组开关卡片，让底栏上方拥有从容呼吸感；清理「百味食盒」未标注圆点与重复横条，改用自解释类目图标计数与单行精简筛选带。
 - **Batch 11（v2.0 正式发布候选 8 · 蒙氏交互木质尝味盒 · CareStage 粒子柔化与双语收口 · TabBar 沉浸与视口修复）**：
   - **【修复 Fix】**：修复 `CareStage` 奶瓶/尿布飘浮气泡在卡片底部被硬裁切的问题，为 `Drift` 粒子层加入垂直渐变遮罩后再裁切；修复英文版 `TodayView` 旅程卡副标题 `"37-Station Journey & Keeps..."` 省略号截断（`.minimumScaleFactor(0.84)`）；收紧 `SourcesView` `"0–3 yr activity, sleep & screen guide (2019)"` 以消除孤立换行 `"3 (2019)"`；为 `BirthSheet` 补充温柔的 `Duo` 双伴角色头图与 `Palette.bead` 宣纸底色；新增真实 `TabView + NavigationStack + ZoomDestination` 回归用例 `56_play_real_tabview_zh` 验证 `PlayView` 推入时底部 TabBar 已彻底隐藏，并统一 `FoodSpecimenChip` 四列等高与双行英文排布。
   - **【创意炼金术升级 Creative Alchemy Upgrade】**：彻底重构「**百味食盒 `FoodAtlasView`**」静态 60 格堆砌卡片，升级为「**蒙氏木质分格尝味标本盒（Montessori Wooden Tasting Cabinet）**」：花环顶卡轻盈化（82pt）并支持 6 色类目点按直达及 3 连击小薄荷撒叶特效；新增可 1 键洗牌/当场盖章的「**今日试味灵感 / 再试推荐台**」；新增拇指区浮停的「**快捷盖章坞 Quick-Stamp Dock**」，点选任意食材即可单手 1 键盖上「很喜欢 / 尝过啦 / 再试试 / +1 次数」并实时响应 `FoodAtlasStore.quickStamp` & `incrementTimes`。

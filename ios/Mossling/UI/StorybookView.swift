@@ -430,6 +430,7 @@ private struct StorybookCoverSpread: View {
                 .frame(minHeight: geo.size.height, alignment: .center)
             }
             .scrollBounceBehavior(.basedOnSize)
+            .scrollEdgeEffectStyle(.soft, for: .bottom)
         }
     }
 
@@ -466,7 +467,7 @@ private struct StorybookMonthSpread: View {
         }.first
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 10) {
                 // Editorial Chapter Heading
                 HStack(alignment: .firstTextBaseline) {
                     HStack(spacing: 6) {
@@ -499,7 +500,7 @@ private struct StorybookMonthSpread: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                         }
                     }
-                    .frame(maxHeight: 192)
+                    .frame(maxHeight: (!page.notes.isEmpty && !foods.isEmpty) ? 168 : 186)
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
                     .shadow(color: dark ? .black.opacity(0.32) : Color(hex: 0x6B4A2B).opacity(0.16), radius: 8, y: 4)
@@ -680,13 +681,17 @@ private struct StorybookMonthSpread: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            .padding(20)
+            .padding(.horizontal, 20)
+            .padding(.top, 18)
+            .padding(.bottom, 22)
             .frame(maxWidth: .infinity, alignment: .leading)
             .printCard(radius: Radius.stage)
             .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+            .padding(.top, 6)
+            .padding(.bottom, 28)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .scrollEdgeEffectStyle(.soft, for: .bottom)
     }
 
     private var dateRange: String {

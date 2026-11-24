@@ -7,7 +7,12 @@ import QuartzCore
 @MainActor
 final class ScreenshotTests: XCTestCase {
     /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
-    override func setUp() { super.setUp(); L10n.overrideEnglish = false }
+    override func tearDown() {
+        Self.sharedWindow?.rootViewController = nil
+        Self.sharedWindow?.isHidden = true
+        Self.sharedWindow = nil
+        super.tearDown()
+    }
     // the journal in these shots is in memory; nothing is written
     private func model(companion: Kind = .moss, birth: Day? = Day(y: 2026, m: 4, d: 2)) -> AppModel {
         let d = UserDefaults(suiteName: "shots-\(UUID().uuidString)")!
@@ -75,6 +80,7 @@ final class ScreenshotTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         window.rootViewController = nil
         window.isHidden = true
+        window.frame = CGRect(x: 0, y: 0, width: 32, height: 32)
         CATransaction.flush()
     }
 
@@ -124,7 +130,7 @@ final class ScreenshotTests: XCTestCase {
         shot("38_tabbar_dark", dark: true, height: 300, v.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
     }
     /// 摸索台灯的故事: the name told (docs/IP.md).
-    func test37Story() { let m = model(); shot("37_story", height: 1900, settle: 6, tabs(m, StoryView())) }
+    func test37Story() { let m = model(); shot("37_story", height: 920, settle: 3, tabs(m, StoryView())) }
     /// The way into the paper world, held still: the wash spreading from the story picture, then drying back.
     func test37Wash() {
         let m = model()
@@ -1671,5 +1677,89 @@ final class ScreenshotTests: XCTestCase {
         shot("61_search_compass_en", height: 1120, tabs(mEn, SearchView(path: .constant(NavigationPath()))))
         shot("61_areas_constellation_en", height: 1180, tabs(mEn, AreasView(month: 6, initialAreaKey: "D")))
         shot("61_topic_stage_pills_en", height: 960, tabs(mEn, TopicView(topic: mEn.content.topics[0])))
+    }
+
+    /// Round 15 Apple Design Award Craft & Real-Device Fixes (`v2.0 RC12 · Batch 15`) — Part A:
+    /// Living Montessori Atelier Home Dock & Living CareTimer Companion Stage + AX2 Zero-Truncation Fix.
+    func test62Round15AtelierAndTimer() {
+        let m = model(); m.journal = true
+
+        // 1. Living Montessori Atelier Home Dock (with active Bedside Lamp soundscape)
+        SoundscapeEngine.shared.start(.rain)
+        shot("62_today_atelier_zh", height: 1540, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("62_today_atelier_dark", dark: true, height: 1540, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("62_today_atelier_lamp", height: 1540, lamp: true,
+             tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("62_today_atelier_ax2", height: 1500,
+             tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        // 2. Living CareTimer Companion Stage & AX2 Zero-Truncation Fix
+        shot("62_timer_living_nurse_zh",
+             TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        var sleepBody = JournalFile.Body()
+        sleepBody.timers = [RunningTimer(type: LogType.sleep, start: ms(Date()) - 42 * 60_000)]
+        let sleepJournal = JournalStore(preview: sleepBody)
+        shot("62_timer_living_sleep_lamp_zh", lamp: true,
+             TimerScreen(type: LogType.sleep).lamp(true).environment(m).environment(sleepJournal).tint(Palette.accent).fontDesign(.rounded))
+
+        SoundscapeEngine.shared.stop()
+        shot("62_timer_ax2_fixed_zh", height: 1280,
+             TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        SoundscapeEngine.shared.start(.breeze)
+        defer { SoundscapeEngine.shared.stop() }
+        shot("62_today_atelier_en", height: 1540, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
+    }
+
+    /// Round 15 (`v2.0 RC12 · Batch 15`) — Part B: 3-Act Interactive Story Micro-Theater.
+    func test62Round15StoryTheater() {
+        let m = model(); m.journal = true
+        shot("62_story_theater_lamp_zh", height: 920, tabs(m, StoryView(initialAct: .lamp)))
+        shot("62_story_theater_explore_zh", height: 920, tabs(m, StoryView(initialAct: .explore)))
+        shot("62_story_theater_grow_zh", height: 980, tabs(m, StoryView(initialAct: .grow, initialMonth: 18)))
+        shot("62_story_theater_dark", dark: true, height: 920, tabs(m, StoryView(initialAct: .lamp)))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("62_story_theater_en", height: 920, tabs(mEn, StoryView(initialAct: .grow, initialMonth: 18)))
+    }
+
+    /// Round 15 (`v2.0 RC12 · Batch 15`) — Part C: Compact Me Studio, Streamlined FoodAtlas & Fixed Storybook Spread.
+    func test62Round15YouFoodsAndStorybook() {
+        let m = model(); m.journal = true
+        let sampleFoods = FoodAtlasStore(preview: [
+            FoodRecord(foodId: "pumpkin", firstTastedEpochDay: m.today.plus(days: -12).epochDay, reaction: .loved, note: "蒸泥", watchSkin: false, times: 4),
+            FoodRecord(foodId: "avocado", firstTastedEpochDay: m.today.plus(days: -9).epochDay, reaction: .loved, note: "", watchSkin: false, times: 3),
+            FoodRecord(foodId: "broccoli", firstTastedEpochDay: m.today.plus(days: -6).epochDay, reaction: .tryAgain, note: "下次压碎", watchSkin: false, times: 1),
+            FoodRecord(foodId: "eggyolk", firstTastedEpochDay: m.today.plus(days: -2).epochDay, reaction: .tasted, note: "1/4 个", watchSkin: true, times: 2),
+        ])
+
+        shot("62_you_compact_zh", height: 1020, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("62_you_compact_dark", dark: true, height: 1020, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("62_you_compact_ax2", height: 1460,
+             tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        shot("62_foods_clean_zh", height: 1060, tabs(m, FoodAtlasView(store: sampleFoods)))
+
+        var bookBody = JournalFile.Body()
+        bookBody.logs = journal.logs
+        bookBody.logs.append(LogEntry(type: LogType.play, start: ms(m.today.date.addingTimeInterval(16 * 3600)), detail: "A11 双手物品传递机会"))
+        bookBody.logs.append(LogEntry(type: LogType.note, start: ms(m.today.date.addingTimeInterval(17 * 3600)), detail: "今天自己抓着木摇铃左右倒手玩了好久，一直咯咯笑。"))
+        bookBody.measures = journal.measures
+        let sitAt = ms(m.today.plus(days: -6).date)
+        bookBody.firsts = [First(at: sitAt, key: "sit", title: "坐", note: "靠着软垫自己坐稳了十几秒")]
+        let bookJournal = JournalStore(preview: bookBody)
+        shot("62_storybook_spread_fixed_zh", height: 852,
+             StorybookView(initialPage: 7, foodStore: sampleFoods).environment(m).environment(bookJournal).tint(Palette.accent).fontDesign(.rounded))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("62_foods_clean_en", height: 1060, tabs(mEn, FoodAtlasView(store: sampleFoods)))
     }
 }

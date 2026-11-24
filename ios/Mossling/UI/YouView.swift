@@ -61,10 +61,11 @@ struct YouView: View {
 
                 ThemeLanguageCard(dark: dark)
 
-                ControlTileGrid(app: app, face: face, dark: dark)
+                PreferenceStudioCard(app: app, face: face, dark: dark)
 
                 FooterStudioDock(dark: dark)
             }
+            .padding(.top, 4)
             .padding(.horizontal, 16)
             .padding(.bottom, 32)
         }
@@ -445,8 +446,8 @@ private struct Swatch: View {
     }
 }
 
-/// 2×2 Tactile Control Tiles replacing the wordy settings list: visual pill toggle indicator + 1-word live status.
-private struct ControlTileGrid: View {
+/// Compact grouped Preference Deck replacing the oversized 2×2 toggle grid: sleek 50pt rows with tactile switches.
+private struct PreferenceStudioCard: View {
     @Bindable var app: AppModel
     let face: Bool
     let dark: Bool
@@ -459,95 +460,70 @@ private struct ControlTileGrid: View {
         let logStatus = app.journal ? L10n.t("已显示", "Shown") : L10n.t("已隐藏", "Hidden")
         let lockStatus = app.lock ? L10n.t("已锁定", "Locked") : L10n.t("未开启", "Off")
 
-        if type.isAccessibilitySize {
-            VStack(spacing: 10) {
-                nightTile(resting: nightResting, status: nightStatus)
-                soundTile(status: soundStatus)
-                journalTile(status: logStatus)
-                if face { biometryTile(status: lockStatus) }
-            }
-        } else if face {
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    nightTile(resting: nightResting, status: nightStatus)
-                    soundTile(status: soundStatus)
-                }
-                HStack(spacing: 10) {
-                    journalTile(status: logStatus)
-                    biometryTile(status: lockStatus)
-                }
-            }
-        } else {
-            VStack(spacing: 10) {
-                HStack(spacing: 10) {
-                    nightTile(resting: nightResting, status: nightStatus)
-                    soundTile(status: soundStatus)
-                }
-                journalTile(status: logStatus)
-            }
-        }
-    }
-
-    private func nightTile(resting: Bool, status: String) -> some View {
-        controlTile(
-            title: L10n.t("夜间自动灯", "Auto Lamp"),
-            status: status,
-            symbol: "moon.stars.fill",
-            color: Palette.lampTint,
-            isOn: app.nightLight,
-            resting: resting
-        ) {
-            TactileEngine.shared.beadClick()
-            withAnimation(.snappy) { app.nightLight.toggle() }
-        }
-    }
-
-    private func soundTile(status: String) -> some View {
-        controlTile(
-            title: L10n.t("手感音效", "Tactile Audio"),
-            status: status,
-            symbol: "hand.tap.fill",
-            color: Crayon.teal,
-            isOn: app.tactileSounds,
-            resting: false
-        ) {
-            withAnimation(.snappy) { app.tactileSounds.toggle() }
-            if app.tactileSounds { TactileEngine.shared.beadClick() }
-        }
-    }
-
-    private func journalTile(status: String) -> some View {
-        controlTile(
-            title: L10n.t("照护记录页", "Log Tab"),
-            status: status,
-            symbol: "list.bullet.clipboard.fill",
-            color: Crayon.tangerine,
-            isOn: app.journal,
-            resting: false
-        ) {
-            let next = !app.journal
-            if !next || app.mayKeep() {
+        VStack(spacing: 0) {
+            preferenceRow(
+                title: L10n.t("夜间自动灯", "Auto Lamp"),
+                status: nightStatus,
+                symbol: "moon.stars.fill",
+                color: Palette.lampTint,
+                isOn: app.nightLight,
+                resting: nightResting
+            ) {
                 TactileEngine.shared.beadClick()
-                withAnimation(.snappy) { app.journal = next }
+                withAnimation(.snappy) { app.nightLight.toggle() }
+            }
+
+            Divider().padding(.leading, 54).opacity(0.45)
+
+            preferenceRow(
+                title: L10n.t("手感音效", "Tactile Audio"),
+                status: soundStatus,
+                symbol: "hand.tap.fill",
+                color: Crayon.teal,
+                isOn: app.tactileSounds,
+                resting: false
+            ) {
+                withAnimation(.snappy) { app.tactileSounds.toggle() }
+                if app.tactileSounds { TactileEngine.shared.beadClick() }
+            }
+
+            Divider().padding(.leading, 54).opacity(0.45)
+
+            preferenceRow(
+                title: L10n.t("照护记录页", "Log Tab"),
+                status: logStatus,
+                symbol: "list.bullet.clipboard.fill",
+                color: Crayon.tangerine,
+                isOn: app.journal,
+                resting: false
+            ) {
+                let next = !app.journal
+                if !next || app.mayKeep() {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(.snappy) { app.journal = next }
+                }
+            }
+
+            if face {
+                Divider().padding(.leading, 54).opacity(0.45)
+
+                preferenceRow(
+                    title: Biometry.name,
+                    status: lockStatus,
+                    symbol: Biometry.symbol,
+                    color: Crayon.leaf,
+                    isOn: app.lock,
+                    resting: false
+                ) {
+                    TactileEngine.shared.beadClick()
+                    Biometry.turn(!app.lock) { app.lock = $0 }
+                }
             }
         }
+        .printCard(radius: Radius.card)
     }
 
-    private func biometryTile(status: String) -> some View {
-        controlTile(
-            title: Biometry.name,
-            status: status,
-            symbol: Biometry.symbol,
-            color: Crayon.leaf,
-            isOn: app.lock,
-            resting: false
-        ) {
-            TactileEngine.shared.beadClick()
-            Biometry.turn(!app.lock) { app.lock = $0 }
-        }
-    }
-
-    private func controlTile(
+    private func preferenceRow(
         title: String,
         status: String,
         symbol: String,
@@ -558,50 +534,45 @@ private struct ControlTileGrid: View {
     ) -> some View {
         let active = isOn && !resting
         let trackFill = active ? (dark ? color : Crayon.ink(color)) : Palette.outline.opacity(0.28)
+        let ax = type.isAccessibilitySize
 
         return Button(action: action) {
-            VStack(alignment: .leading, spacing: 10) {
-                HStack(alignment: .center) {
-                    StudioBadge(symbol: symbol, color: color, active: active, dark: dark)
-                    Spacer(minLength: 4)
-                    // Tactile miniature pill switch
-                    ZStack(alignment: isOn ? .trailing : .leading) {
-                        Capsule()
-                            .fill(trackFill)
-                            .frame(width: 30, height: 18)
-                        Circle()
-                            .fill(.white)
-                            .frame(width: 14, height: 14)
-                            .padding(.horizontal, 2)
-                            .shadow(color: .black.opacity(0.16), radius: 1, y: 0.5)
-                    }
-                    .opacity(resting ? 0.50 : 1.0)
-                }
+            HStack(spacing: 12) {
+                StudioBadge(symbol: symbol, color: color, active: active, dark: dark, size: 30)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 1) {
                     Text(title)
-                        .font(.subheadline.weight(.bold))
+                        .font(.subheadline.weight(.semibold))
                         .foregroundStyle(resting ? Palette.secondaryText : .primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                        .lineLimit(ax ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(status)
                         .font(.caption)
                         .foregroundStyle(active ? (dark ? color : Crayon.ink(color)) : Palette.secondaryText)
                         .monospacedDigit()
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.82)
+                        .lineLimit(ax ? nil : 1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
+
+                Spacer(minLength: 4)
+
+                // Tactile miniature pill switch
+                ZStack(alignment: isOn ? .trailing : .leading) {
+                    Capsule()
+                        .fill(trackFill)
+                        .frame(width: 36, height: 22)
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 17, height: 17)
+                        .padding(.horizontal, 2.5)
+                        .shadow(color: .black.opacity(0.16), radius: 1, y: 0.5)
+                }
+                .opacity(resting ? 0.50 : 1.0)
             }
-            .padding(12)
-            .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
-            .background(
-                LinearGradient(
-                    colors: [color.opacity(active ? (dark ? 0.16 : 0.12) : 0.03), .clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .printCard(radius: Radius.card)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity, minHeight: 50, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
         .disabled(resting)
@@ -752,6 +723,8 @@ struct AboutView: View {
                 .padding(.horizontal, 4).padding(.top, 2)
 
                 aboutGroup(L10n.t("内容与说明", "Content & Info")) {
+                    row(Route.story, L10n.t("摸索台灯的故事", "Our Story"), "lamp.desk.fill", Palette.bead)
+                    Divider().padding(.leading, 52).opacity(0.5)
                     row(Route.sources, L10n.t("内容来源", "Sources"), "books.vertical.fill", Crayon.caramel)
                     Divider().padding(.leading, 52).opacity(0.5)
                     row(Route.doc("CHANGELOG"), L10n.t("更新日志", "Release Notes"), "clock.arrow.circlepath", Crayon.lilac)
@@ -818,51 +791,382 @@ struct AboutView: View {
     }
 }
 
-/// The name, told: the opening scene still, then what 摸索 and 台灯 mean, what the app does and does not do, and that
-/// the story goes on past 36 months (docs/IP.md).
+/// Three interactive theatrical chapters in 「摸索台灯的故事」.
+enum StoryTheaterAct: Int, CaseIterable, Identifiable, Sendable {
+    case lamp = 0
+    case explore = 1
+    case grow = 2
+
+    var id: Int { rawValue }
+
+    var title: String {
+        switch self {
+        case .lamp: L10n.t("点灯", "Light")
+        case .explore: L10n.t("摸索", "Explore")
+        case .grow: L10n.t("长大", "Grow")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .lamp: "lamp.desk.fill"
+        case .explore: "hand.point.up.left.fill"
+        case .grow: "leaf.fill"
+        }
+    }
+
+    static func clampedMonth(_ month: Int) -> Int {
+        min(max(month, 0), 36)
+    }
+
+    static func land(for month: Int) -> Land {
+        Land.of(clampedMonth(month))
+    }
+
+    static func stageCaption(for act: StoryTheaterAct, month: Int) -> String {
+        let m = clampedMonth(month)
+        switch act {
+        case .lamp:
+            return L10n.t("一盏温柔台灯先亮起，把夜晚与桌面照亮。", "A warm bedside lamp glows first, softly lighting the room.")
+        case .explore:
+            return L10n.t("孩子按自己的好奇伸手触碰，大人的目光稳稳跟上。", "Moss reaches out at its own curiosity; Otto keeps quiet watch.")
+        case .grow:
+            let landName = land(for: m).name
+            let age = m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)")
+            return L10n.t("\(landName) · \(age) — 一月一站，按自己的节奏长大。", "\(landName) · \(age) — one gentle station at their own pace.")
+        }
+    }
+}
+
+/// Interactive 「摸索台灯的故事 / Our Story」 Micro-Theater:
+/// 3-act playable desk theater (Hold the Light -> Let Them Explore -> Grow at Their Pace across 0–36m),
+/// interactive TurnCards for Moss & Otto, and the three silent promises.
 struct StoryView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var envLamp
+    @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    @State private var act: StoryTheaterAct
+    @State private var customMonth: Int?
+    @State private var lampLit = true
+    @State private var ringWobble: Double = 0
+    @State private var exploreTaps = 0
+    @State private var leafBurstTrigger = 0
+    @Namespace private var actNS
+
+    init(initialAct: StoryTheaterAct = .lamp, initialMonth: Int? = nil) {
+        _act = State(initialValue: initialAct)
+        _customMonth = State(initialValue: initialMonth.map(StoryTheaterAct.clampedMonth))
+    }
+
+    private var activeMonth: Int {
+        StoryTheaterAct.clampedMonth(customMonth ?? app.babyMonth ?? 6)
+    }
+
     var body: some View {
+        let dark = envLamp || scheme == .dark
+        let m = activeMonth
+
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                // the hidden door between the two worlds: tap this picture ten times quickly and colour runs from it into the 2D
-                // world of build 196; in it, keep a finger moving on the picture for three seconds to come back
-                StyleDoor {
-                    LampScene(play: true)
-                        .frame(height: 180)
-                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                // Interactive Theater Stage wrapped in StyleDoor (10 taps -> 2D paper world; 3s finger loop -> 3D world)
+                StyleDoor(radius: Radius.card) {
+                    StoryMicroTheaterStage(
+                        act: act,
+                        month: m,
+                        lampLit: lampLit,
+                        ringWobble: ringWobble,
+                        exploreTaps: exploreTaps,
+                        leafBurstTrigger: leafBurstTrigger
+                    )
+                    .frame(height: 232)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
                 }
-                Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title2.weight(.bold))
-                // the two names as two cards to turn over: each face shows who it is and a line; turned, the whole of it
-                HStack(alignment: .top, spacing: 10) {
-                    pair(L10n.t("摸索", "Moss"), L10n.t("孩子", "the child"), L10n.t("用手、用嘴、用眼睛摸索世界", "Explores with hands, mouth, and eyes"), L10n.t("0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", "From 0 to 3, a child explores the world with hands, mouth, and eyes, discovering something new each month. Moss takes its name from exploring — its little sprout is always growing."), Palette.moss, .moss)
-                    pair(L10n.t("台灯", "Otto"), L10n.t("大人", "the grown-up"), L10n.t("不替人走路，只把桌面照亮", "Doesn't walk for them — just lights the table"), L10n.t("台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", "A desk lamp never walks for you; it simply lights the table and sits quietly beside you. The warm golden bead above Otto is that light."), Palette.rod, .otto)
+                .printCard(radius: Radius.card)
+
+                // Chapter Bead Selector & Act-Coupled Prop Controls (placed cleanly outside StyleDoor to avoid gesture conflict)
+                VStack(alignment: .leading, spacing: 10) {
+                    actSelectorBar(dark: dark)
+
+                    actPropControls(month: m, dark: dark)
+
+                    Text(StoryTheaterAct.stageCaption(for: act, month: m))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .fixedSize(horizontal: false, vertical: true)   // both cards as tall as the taller
-                // what is done here: three small cards, a line on the face, the whole of it on the back
-                HStack(alignment: .top, spacing: 8) {
-                    thing("square.grid.2x2.fill", Crayon.sunflower, L10n.t("一起玩", "Play"), L10n.t("一步步的图", "Step-by-step"), L10n.t("首页每天推荐一个这个月适合的活动，点开就是一步步的图。", "Each day highlights one activity right for this month, with simple illustrated steps."))
-                    thing("leaf.fill", Crayon.leaf, L10n.t("看\(app.ta)长大", "Grow"), L10n.t("一月一站", "37 stations"), L10n.t("0–36 个月，一个月一站，共 37 站；成长册留下每一站的样子。", "One station for every month from 0 to 36 — 37 in all, kept in the Growth Book."))
-                    thing("list.bullet.clipboard.fill", Crayon.tangerine, L10n.t("记下来", "Log"), L10n.t("可选 · 只存本机", "Optional · Local"), L10n.t("喂奶、睡眠、尿布一点即记（可选），只保存在这部手机里。", "Feeds, sleep, and diapers logged in a tap (optional), stored only on this iPhone."))
+                .padding(12)
+                .printCard(radius: Radius.card)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
+                        .font(.title2.weight(.bold))
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(L10n.t("轻点卡片翻看名字背后的一句话。", "Tap either card below to flip its story."))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
                 }
-                .fixedSize(horizontal: false, vertical: true)
-                Text(L10n.t("陪 0–3 岁的孩子一起玩，看\(app.ta == "孩子" ? "着" : app.ta)一个月一个月长大，把每一天记下来。这里不打分，不比较，也不催促；每个孩子都按自己的节奏，一个月长出一点新的样子。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes. No scores, no comparisons, no hurry — every child grows at their own pace."))
-                    .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+
+                // Moss & Otto dual interactive TurnCards
+                Group {
+                    if type.isAccessibilitySize {
+                        VStack(spacing: 10) {
+                            companionCardSet
+                        }
+                    } else {
+                        HStack(alignment: .top, spacing: 10) {
+                            companionCardSet
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+
+                // Three Silent Promises visual strip (replaces verbose prose + 3 stacked cards)
+                promisesStrip(dark: dark)
+
                 StoryGoesOn(primary: app.companion)
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.top, 4)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 32)
         }
-        .pageBackground()
+        .calmWhileScrolling()
+        .pageBackground(tone: Crayon.sunflower)
         .navigationTitle(L10n.t("摸索台灯的故事", "Our Story")).navigationBarTitleDisplayMode(.inline)
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    @ViewBuilder
+    private var companionCardSet: some View {
+        pair(
+            L10n.t("摸索", "Moss"),
+            L10n.t("孩子", "the child"),
+            L10n.t("用手、用嘴、用眼睛摸索世界", "Explores with hands, mouth, and eyes"),
+            L10n.t("0–3 岁的孩子用手、用嘴、用眼睛摸索世界，每个月都会摸到一点新的东西。Moss 的名字取自「摸索」，头上的新芽一直在长。", "From 0 to 3, a child explores the world with hands, mouth, and eyes, discovering something new each month. Moss takes its name from exploring — its little sprout is always growing."),
+            Palette.moss,
+            .moss
+        )
+        pair(
+            L10n.t("台灯", "Otto"),
+            L10n.t("大人", "the grown-up"),
+            L10n.t("不替人走路，只把桌面照亮", "Doesn't walk for them — just lights the table"),
+            L10n.t("台灯不替人走路，只把桌面照亮，安静地陪在旁边。Otto 头顶的金色灯珠就是这盏灯。", "A desk lamp never walks for you; it simply lights the table and sits quietly beside you. The warm golden bead above Otto is that light."),
+            Palette.rod,
+            .otto
+        )
+    }
+
+    private func actSelectorBar(dark: Bool) -> some View {
+        let pills = ForEach(StoryTheaterAct.allCases) { item in
+            let on = act == item
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.82)) {
+                    act = item
+                }
+            } label: {
+                HStack(spacing: 5) {
+                    Image(systemName: item.symbol)
+                        .font(.caption2.weight(.bold))
+                    Text(item.title)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .foregroundStyle(on ? .white : .primary)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 7)
+                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity)
+                .background {
+                    if on {
+                        Capsule()
+                            .fill(Palette.accentFill)
+                            .matchedGeometryEffect(id: "storyActPill", in: actNS)
+                    } else {
+                        Capsule()
+                            .fill(dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.7))
+                    }
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
+
+        return Group {
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 8, lineSpacing: 8) { pills }
+            } else {
+                HStack(spacing: 6) { pills }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func actPropControls(month: Int, dark: Bool) -> some View {
+        switch act {
+        case .lamp:
+            HStack(spacing: 10) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.78)) {
+                        lampLit.toggle()
+                    }
+                } label: {
+                    Label(
+                        lampLit ? L10n.t("轻拉灯绳 · 关灯", "Pull Cord · Dim") : L10n.t("轻拉灯绳 · 点亮", "Pull Cord · Light"),
+                        systemImage: lampLit ? "lightbulb.fill" : "lightbulb.slash"
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.82)
+                }
+                .buttonStyle(.vinyl(lampLit ? Palette.lampTint : Palette.rod))
+
+                Spacer(minLength: 4)
+
+                Text(lampLit ? L10n.t("暖光已点亮", "Warm lamp on") : L10n.t("轻歇息中", "Resting dim"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(lampLit ? (dark ? Palette.amber : Crayon.ink(Palette.amberDeep)) : Palette.secondaryText)
+            }
+
+        case .explore:
+            HStack(spacing: 10) {
+                Button {
+                    triggerStackerWobble()
+                } label: {
+                    Label(L10n.t("轻碰木套环", "Tap Ring Stacker"), systemImage: "hand.tap.fill")
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+                .buttonStyle(.vinyl(Crayon.teal, prominent: true))
+
+                Spacer(minLength: 4)
+
+                if exploreTaps > 0 {
+                    Text(L10n.t("摸索了 \(exploreTaps) 次", "Explored \(exploreTaps)×"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.accent)
+                        .monospacedDigit()
+                }
+            }
+
+        case .grow:
+            let land = StoryTheaterAct.land(for: month)
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(spacing: 8) {
+                    Label(land.name, systemImage: land.symbol)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.14)))
+                    Spacer()
+                    Text(month == 0 ? L10n.t("出生 · 第 1 站", "Birth · Station 1") : L10n.t("满 \(month) 个月 · 第 \(month + 1) / 37 站", "Month \(month) · Station \(month + 1)/37"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .monospacedDigit()
+                }
+
+                Slider(
+                    value: Binding(
+                        get: { Double(month) },
+                        set: { next in
+                            let val = StoryTheaterAct.clampedMonth(Int(next.rounded()))
+                            if val != customMonth {
+                                TactileEngine.shared.dimmerTick()
+                                customMonth = val
+                            }
+                        }
+                    ),
+                    in: 0...36,
+                    step: 1
+                )
+                .tint(Palette.bead)
+                .accessibilityLabel(L10n.t("拖动预览 0 至 36 个月成长舞台", "Scrub 0 to 36 months growth stage"))
+
+                HStack {
+                    Text(L10n.t("出生", "0m"))
+                    Spacer()
+                    Text(L10n.t("1 岁", "1y"))
+                    Spacer()
+                    Text(L10n.t("2 岁", "2y"))
+                    Spacer()
+                    Text(L10n.t("3 岁", "3y"))
+                }
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(Palette.secondaryText)
+            }
+        }
+    }
+
+    private func triggerStackerWobble() {
+        TactileEngine.shared.vinylPop()
+        exploreTaps += 1
+        leafBurstTrigger += 1
+        guard !reduce else { return }
+        Task { @MainActor in
+            for angle in [10.0, -7.0, 4.0, -2.0, 0.0] {
+                withAnimation(.spring(response: 0.14, dampingFraction: 0.55)) {
+                    ringWobble = angle
+                }
+                try? await Task.sleep(for: .milliseconds(75))
+            }
+        }
+    }
+
+    private func promisesStrip(dark: Bool) -> some View {
+        let items: [(symbol: String, color: Color, title: String, detail: String)] = [
+            ("heart.fill", Crayon.sunflower, L10n.t("不打分", "Zero Scores"), L10n.t("不比较不催促", "Pace to child")),
+            ("lock.shield.fill", Crayon.leaf, L10n.t("只存本机", "Offline"), L10n.t("无账号零上传", "Stays private")),
+            ("circle.grid.3x3.fill", Crayon.tangerine, L10n.t("一月一站", "37 Stations"), L10n.t("46 项分步共玩", "Step-by-step"))
+        ]
+
+        return Group {
+            if type.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 10) {
+                    ForEach(items, id: \.title) { it in
+                        promiseTile(it, dark: dark)
+                    }
+                }
+            } else {
+                HStack(spacing: 8) {
+                    ForEach(items, id: \.title) { it in
+                        promiseTile(it, dark: dark)
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .printCard(radius: Radius.card)
+    }
+
+    private func promiseTile(_ it: (symbol: String, color: Color, title: String, detail: String), dark: Bool) -> some View {
+        HStack(spacing: 7) {
+            StudioBadge(symbol: it.symbol, color: it.color, active: true, dark: dark, size: 28)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(it.title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(it.detail)
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func pair(_ word: String, _ who: String, _ line: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
         TurnCard(label: L10n.t("\(word)，属于\(who)。\(text)", "\(word), for \(who). \(text)")) {
             VStack(spacing: 6) {
                 Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true)
-                    .frame(width: 58 * k.scale, height: 58 * k.scale).frame(height: 64, alignment: .bottom)
-                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    .frame(width: 56 * k.scale, height: 56 * k.scale).frame(height: 60, alignment: .bottom)
+                HStack(alignment: .firstTextBaseline, spacing: 5) {
                     Text(word).font(.title3.weight(.bold)).foregroundStyle(c)
                     Text(L10n.t("属于" + who, "for " + who)).font(.caption).foregroundStyle(Palette.secondaryText)
                 }
@@ -874,19 +1178,248 @@ struct StoryView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+}
 
-    private func thing(_ sym: String, _ c: Color, _ t: String, _ line: String, _ d: String) -> some View {
-        TurnCard(label: "\(t)。\(d)", radius: 18, padding: 10) {
-            VStack(alignment: .leading, spacing: 6) {
-                IconTile(symbol: sym, color: c, size: 30)
-                Text(t).font(.subheadline.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
-                Text(line).font(.caption).foregroundStyle(Palette.secondaryText).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+/// Bespoke 3-act interactive desk theater canvas paired with live `Creature` & `GrowingChild` actors.
+private struct StoryMicroTheaterStage: View {
+    let act: StoryTheaterAct
+    let month: Int
+    let lampLit: Bool
+    let ringWobble: Double
+    let exploreTaps: Int
+    let leafBurstTrigger: Int
+
+    @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.scrolling) private var scrolling
+
+    var body: some View {
+        GeometryReader { g in
+            let w = g.size.width
+            let h = g.size.height
+            let deskY = h * 0.74
+            let ms = min(w * 0.29, h * 0.38)
+            let os = ms * Kind.otto.scale
+            let mossX = w * 0.29
+            let ottoX = w * 0.72
+            let toyX = w * 0.505
+            let mossTop = deskY - ms * Sprites.mossFeet / 100
+            let ottoTop = deskY - os * Sprites.ottoFeet / 100
+            let b0 = Sprites.bead["idle"] ?? CGPoint(x: 0.29, y: 0.34)
+            let bead = CGPoint(x: ottoX - os / 2 + os * b0.x, y: ottoTop + os * b0.y)
+            let land = StoryTheaterAct.land(for: month)
+            let isLit = act == .explore || lampLit
+
+            ZStack(alignment: .topLeading) {
+                if act == .grow {
+                    growBackdrop(w: w, h: h, deskY: deskY, land: land)
+
+                    GrowingChild(month: month, giggle: exploreTaps)
+                        .frame(width: ms * 1.18, height: ms * 1.18)
+                        .position(x: w * 0.34, y: deskY - ms * 0.45)
+
+                    Creature(
+                        kind: .otto,
+                        mood: .happy,
+                        look: CGPoint(x: -0.85, y: 0.25),
+                        lean: -4,
+                        alive: !reduce,
+                        poke: false,
+                        glow: month < 6
+                    )
+                    .frame(width: os, height: os)
+                    .position(x: ottoX, y: ottoTop + os / 2)
+                } else {
+                    eveningRoomBackdrop(w: w, h: h, deskY: deskY)
+
+                    if isLit {
+                        warmConeLayer(w: w, h: h, deskY: deskY, bead: bead, toyX: toyX)
+                    }
+
+                    if isLit && !reduce && !Perf.still {
+                        TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: scenePhase != .active || scrolling.moving)) { tl in
+                            Canvas { ctx, size in
+                                let t = tl.date.timeIntervalSinceReferenceDate
+                                for i in 0..<8 {
+                                    let seed = Double(i) * 1.37
+                                    let px = bead.x + CGFloat(sin(t * 0.5 + seed) * 34 - Double(i) * 8)
+                                    let py = bead.y + 12 + CGFloat((t * 14 + seed * 19).truncatingRemainder(dividingBy: max(30, Double(deskY - bead.y))))
+                                    let alpha = 0.25 + 0.35 * sin(t * 1.2 + seed)
+                                    ctx.fill(
+                                        Path(ellipseIn: CGRect(x: px, y: py, width: 2.8, height: 2.8)),
+                                        with: .color(Palette.beadLight.opacity(max(0.08, alpha)))
+                                    )
+                                }
+                            }
+                        }
+                        .allowsHitTesting(false)
+                    }
+
+                    ringStacker(at: CGPoint(x: toyX, y: deskY + 4), scale: ms / 140)
+
+                    Creature(
+                        kind: .moss,
+                        mood: act == .explore && exploreTaps > 0 ? .happy : (isLit ? .open : .sleep),
+                        look: act == .explore ? CGPoint(x: 0.9, y: 0.3) : CGPoint(x: 0.75, y: 0.1),
+                        lean: act == .explore ? (exploreTaps > 0 ? 5 : 2.5) : 0,
+                        alive: !reduce,
+                        poke: false,
+                        arms: act == .explore && exploreTaps > 0 ? .wave : .rest
+                    )
+                    .frame(width: ms, height: ms)
+                    .overlay { MintLeafBurst(trigger: leafBurstTrigger) }
+                    .environment(\.colorScheme, .dark)
+                    .position(x: mossX, y: mossTop + ms / 2)
+
+                    Creature(
+                        kind: .otto,
+                        mood: act == .explore && exploreTaps > 0 ? .happy : .open,
+                        look: CGPoint(x: -0.9, y: act == .explore ? 0.35 : 0.25),
+                        lid: (!isLit && act == .lamp) ? 0.72 : nil,
+                        lean: act == .explore ? -4 : 0,
+                        alive: !reduce,
+                        poke: false,
+                        glow: isLit
+                    )
+                    .frame(width: os, height: os)
+                    .environment(\.colorScheme, .dark)
+                    .position(x: ottoX, y: ottoTop + os / 2)
+                }
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-        } back: {
-            Text(d).font(.caption).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .clipped()
+    }
+
+    private func eveningRoomBackdrop(w: CGFloat, h: CGFloat, deskY: CGFloat) -> some View {
+        Canvas { ctx, size in
+            ctx.fill(
+                Path(CGRect(origin: .zero, size: size)),
+                with: .linearGradient(
+                    Gradient(colors: [Color(hex: 0x2A2742), Color(hex: 0x413652)]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: 0, y: deskY)
+                )
+            )
+            let win = CGRect(x: w * 0.07, y: h * 0.10, width: w * 0.19, height: h * 0.27)
+            ctx.fill(Path(roundedRect: win, cornerRadius: 6), with: .color(Color(hex: 0x1D2044)))
+            ctx.stroke(Path(roundedRect: win, cornerRadius: 6), with: .color(Color(hex: 0x6B5A70)), lineWidth: 2.5)
+            var cross = Path()
+            cross.move(to: CGPoint(x: win.midX, y: win.minY)); cross.addLine(to: CGPoint(x: win.midX, y: win.maxY))
+            cross.move(to: CGPoint(x: win.minX, y: win.midY)); cross.addLine(to: CGPoint(x: win.maxX, y: win.midY))
+            ctx.stroke(cross, with: .color(Color(hex: 0x6B5A70)), lineWidth: 1.8)
+            var moon = Path(ellipseIn: CGRect(x: win.minX + win.width * 0.56, y: win.minY + win.height * 0.12, width: 12, height: 12))
+            moon = moon.subtracting(Path(ellipseIn: CGRect(x: win.minX + win.width * 0.56 + 4, y: win.minY + win.height * 0.12 - 3, width: 12, height: 12)))
+            ctx.fill(moon, with: .color(Color(hex: 0xFFF1C4)))
+
+            let top = CGRect(x: -10, y: deskY, width: w + 20, height: 14)
+            ctx.fill(Path(top), with: .linearGradient(Gradient(colors: [Color(hex: 0xC99A62), Color(hex: 0xB78650)]), startPoint: CGPoint(x: 0, y: deskY), endPoint: CGPoint(x: 0, y: deskY + 14)))
+            let front = CGRect(x: -10, y: deskY + 14, width: w + 20, height: h - deskY - 14)
+            ctx.fill(Path(front), with: .linearGradient(Gradient(colors: [Color(hex: 0x9C6B3C), Color(hex: 0x7A522D)]), startPoint: CGPoint(x: 0, y: deskY + 14), endPoint: CGPoint(x: 0, y: h)))
+            ctx.fill(Path(CGRect(x: -10, y: deskY + 13, width: w + 20, height: 1.5)), with: .color(Color(hex: 0xE2BC86).opacity(0.7)))
+        }
+        .accessibilityHidden(true)
+    }
+
+    private func warmConeLayer(w: CGFloat, h: CGFloat, deskY: CGFloat, bead: CGPoint, toyX: CGFloat) -> some View {
+        Canvas { ctx, _ in
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: bead.x - w * 0.45, y: bead.y - w * 0.45, width: w * 0.9, height: w * 0.9)),
+                with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.32), Palette.amber.opacity(0)]), center: bead, startRadius: 0, endRadius: w * 0.45)
+            )
+            var cone = Path()
+            cone.move(to: CGPoint(x: bead.x - 5, y: bead.y))
+            cone.addLine(to: CGPoint(x: bead.x + 5, y: bead.y))
+            cone.addLine(to: CGPoint(x: toyX + w * 0.22, y: deskY + 6))
+            cone.addLine(to: CGPoint(x: toyX - w * 0.32, y: deskY + 6))
+            cone.closeSubpath()
+            ctx.fill(cone, with: .linearGradient(Gradient(colors: [Color(hex: 0xFFD98A).opacity(0.35), Color(hex: 0xFFD98A).opacity(0.04)]), startPoint: bead, endPoint: CGPoint(x: bead.x, y: deskY)))
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: toyX - w * 0.34, y: deskY - 2, width: w * 0.62, height: 20)),
+                with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE2A6).opacity(0.55), Color(hex: 0xFFE2A6).opacity(0)]), center: CGPoint(x: toyX - w * 0.03, y: deskY + 8), startRadius: 0, endRadius: w * 0.31)
+            )
+        }
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+
+    private func ringStacker(at p: CGPoint, scale k: CGFloat) -> some View {
+        Canvas { ctx, size in
+            let cx = size.width / 2, base = size.height - 4
+            ctx.fill(Path(ellipseIn: CGRect(x: cx - 30 * k, y: base - 3 * k, width: 60 * k, height: 8 * k)), with: .color(Color.black.opacity(0.22)))
+            ctx.fill(Path(roundedRect: CGRect(x: cx - 26 * k, y: base - 9 * k, width: 52 * k, height: 9 * k), cornerRadius: 3 * k), with: .color(Color(hex: 0xE8C48C)))
+            ctx.fill(Path(roundedRect: CGRect(x: cx - 2.5 * k, y: base - 58 * k, width: 5 * k, height: 50 * k), cornerRadius: 2.5 * k), with: .color(Color(hex: 0xE8C48C)))
+            let rings: [(CGFloat, Color)] = [(44, Color(hex: 0x4FA3A0)), (34, Color(hex: 0xF2C14E)), (24, Color(hex: 0xE0644B))]
+            var y = base - 9 * k
+            for (i, (rw, c)) in rings.enumerated() {
+                var r = ctx
+                let rh = 11 * k
+                if i == rings.count - 1 {
+                    r.translateBy(x: cx, y: y)
+                    r.rotate(by: .degrees(ringWobble))
+                    r.translateBy(x: -cx, y: -y)
+                }
+                let rect = CGRect(x: cx - rw * k / 2, y: y - rh, width: rw * k, height: rh)
+                r.fill(
+                    Path(roundedRect: rect, cornerRadius: rh / 2),
+                    with: .linearGradient(
+                        Gradient(colors: [c.mix(with: .white, by: 0.25), c, c.mix(with: .black, by: 0.18)]),
+                        startPoint: CGPoint(x: rect.minX, y: rect.minY),
+                        endPoint: CGPoint(x: rect.minX, y: rect.maxY)
+                    )
+                )
+                y -= rh - 1
+            }
+            ctx.fill(Path(ellipseIn: CGRect(x: cx - 3.5 * k, y: base - 62 * k, width: 7 * k, height: 7 * k)), with: .color(Color(hex: 0xE8C48C)))
+        }
+        .frame(width: 70 * k, height: 72 * k)
+        .position(x: p.x, y: p.y - 36 * k)
+        .accessibilityHidden(true)
+    }
+
+    private func growBackdrop(w: CGFloat, h: CGFloat, deskY: CGFloat, land: Land) -> some View {
+        let skyTop: Color = switch land {
+        case .meadow: Color(hex: 0xDCF0E2)
+        case .forest: Color(hex: 0xFBE9C8)
+        case .river: Color(hex: 0xD8ECFA)
+        }
+        let skyBot: Color = switch land {
+        case .meadow: Color(hex: 0xF4F7E6)
+        case .forest: Color(hex: 0xFDF5E4)
+        case .river: Color(hex: 0xEEF6FB)
+        }
+        let hillBack = land.crayon.opacity(0.32)
+        let hillFront = land.crayon.opacity(0.50)
+
+        return Canvas { ctx, size in
+            ctx.fill(Path(CGRect(origin: .zero, size: size)), with: .linearGradient(Gradient(colors: [skyTop, skyBot]), startPoint: .zero, endPoint: CGPoint(x: 0, y: deskY)))
+            // Warm sun
+            let sunPt = CGPoint(x: w * 0.82, y: h * 0.18)
+            ctx.fill(Path(ellipseIn: CGRect(x: sunPt.x - 24, y: sunPt.y - 24, width: 48, height: 48)), with: .radialGradient(Gradient(colors: [Color(hex: 0xFFE39A), Color(hex: 0xFFE39A).opacity(0)]), center: sunPt, startRadius: 4, endRadius: 24))
+
+            var back = Path()
+            back.move(to: CGPoint(x: 0, y: deskY - 22))
+            back.addQuadCurve(to: CGPoint(x: w, y: deskY - 12), control: CGPoint(x: w * 0.45, y: deskY - 56))
+            back.addLine(to: CGPoint(x: w, y: h)); back.addLine(to: CGPoint(x: 0, y: h)); back.closeSubpath()
+            ctx.fill(back, with: .color(hillBack))
+
+            var front = Path()
+            front.move(to: CGPoint(x: 0, y: deskY))
+            front.addQuadCurve(to: CGPoint(x: w, y: deskY + 4), control: CGPoint(x: w * 0.6, y: deskY - 18))
+            front.addLine(to: CGPoint(x: w, y: h)); front.addLine(to: CGPoint(x: 0, y: h)); front.closeSubpath()
+            ctx.fill(front, with: .color(hillFront))
+
+            // 37-station bead path across the meadow horizon with live month marker bead
+            var dotPath = Path()
+            dotPath.move(to: CGPoint(x: 20, y: deskY + 14))
+            dotPath.addLine(to: CGPoint(x: w - 20, y: deskY + 14))
+            ctx.stroke(dotPath, with: .color(Palette.bead.opacity(0.45)), style: StrokeStyle(lineWidth: 1.5, dash: [4, 5]))
+            let frac = CGFloat(StoryTheaterAct.clampedMonth(month)) / 36.0
+            let bx = 20 + (w - 40) * frac
+            let by = deskY + 14
+            ctx.fill(Path(ellipseIn: CGRect(x: bx - 5, y: by - 5, width: 10, height: 10)), with: .color(Palette.bead))
+            ctx.fill(Path(ellipseIn: CGRect(x: bx - 2.2, y: by - 2.5, width: 3.5, height: 3.5)), with: .color(Palette.beadLight))
+        }
+        .accessibilityHidden(true)
     }
 }
 

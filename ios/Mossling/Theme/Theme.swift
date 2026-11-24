@@ -184,6 +184,7 @@ struct CalmScroll: ViewModifier {
     @State private var motion = ScrollMotion()
     func body(content: Self.Content) -> some View {
         content
+            .scrollEdgeEffectStyle(.soft, for: .all)
             .onScrollPhaseChange { (_: ScrollPhase, phase: ScrollPhase) in
                 let m = phase.isScrolling
                 if m != motion.moving { motion.moving = m }
