@@ -145,6 +145,7 @@ struct ActivityMotionStage: View {
     var compact: Bool = false
     let dark: Bool
     var replayTrigger: Int = 0
+    var scrubPhase: Double? = nil
     var showOverlays: Bool = true
 
     @State private var pulseAt: Date = .distantPast
@@ -203,6 +204,7 @@ struct ActivityMotionStage: View {
                 dark: dark,
                 accent: stageColor,
                 posterPhase: nil,
+                scrubPhase: scrubPhase,
                 interactive: !compact,
                 compact: compact,
                 replayTrigger: replayTrigger

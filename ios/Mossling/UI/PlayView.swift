@@ -1,10 +1,43 @@
 import SwiftUI
 
-/// One play, presented around a tactile Montessori kinetic picture-book stage rather than a task checklist:
-/// - **Kinetic Step Diagram Stage** at the top: every step displays its own real die-cut/cut-paper illustration
-///   (`ArtIndex.steps`) layered with step-coupled Scandinavian crayon kinetic vectors & page-turn transitions.
+/// Pure timeline decomposition math bridging continuous storybook spine scrubbing to discrete steps and contact detents.
+enum PlayScrubMath {
+    static func decompose(timelinePosition: Double, stepCount: Int) -> (stepIndex: Int, localPhase: Double) {
+        let count = max(1, stepCount)
+        let clamped = min(Double(count), max(0.0, timelinePosition))
+        if clamped >= Double(count) {
+            return (count - 1, 1.0)
+        }
+        let stepIndex = min(count - 1, max(0, Int(floor(clamped))))
+        let localPhase = min(1.0, max(0.0, clamped - Double(stepIndex)))
+        return (stepIndex, localPhase)
+    }
+
+    static func normalizedProgress(stepIndex: Int, localPhase: Double, stepCount: Int) -> Double {
+        let count = max(1, stepCount)
+        let clampedStep = min(max(0, stepIndex), count - 1)
+        let clampedPhase = min(1.0, max(0.0, localPhase))
+        return min(1.0, max(0.0, (Double(clampedStep) + clampedPhase) / Double(count)))
+    }
+
+    static func crossedStepBoundary(from oldPos: Double, to newPos: Double, stepCount: Int) -> Int? {
+        let oldStep = decompose(timelinePosition: oldPos, stepCount: stepCount).stepIndex
+        let newStep = decompose(timelinePosition: newPos, stepCount: stepCount).stepIndex
+        return oldStep != newStep ? newStep : nil
+    }
+
+    static func crossedContactDetent(from oldPhase: Double, to newPhase: Double) -> Bool {
+        let contactPoint = 0.48
+        return (oldPhase < contactPoint && newPhase >= contactPoint)
+            || (oldPhase >= contactPoint && newPhase < contactPoint)
+    }
+}
+
+/// One play, presented around a continuous scrubbable Montessori picture-book theater rather than repeated button-mashing:
+/// - **Continuous Spine Scrubber**: Glide across every step notch with brass-detent CoreHaptics at step boundaries & `0.48` contact peaks,
+///   or tap `连播全步 / Play Story` for hands-free storytelling across steps, and tap `完成并盖印 / Done & Stamp` from any moment.
 /// - **Mat-Side Co-Play Focus Mode** (`MatSideCoPlayView`): 1-tap full-screen distraction-free card designed to rest
-///   beside the baby's play mat with swipe gestures, thumb-sized controls, screen-awake lock, and instant safety notes.
+///   beside the baby's play mat with continuous spine scrubbing, swipe gestures, thumb-sized controls, and screen-awake lock.
 /// - **Authoritative Prep & Safety Drawers**: `prepare`, `safety`, `observe`, and `pause` remain intact and clear.
 struct PlayView: View {
     @Environment(AppModel.self) private var app
@@ -21,6 +54,9 @@ struct PlayView: View {
     @State private var scrolled = false
     @State private var cheer = 0
     @State private var open: Int
+    @State private var scrubPhase: Double? = nil
+    @State private var isAutoPlaying = false
+    @State private var autoPlayTask: Task<Void, Never>? = nil
 
     init(play: Play, month: Int, initialMatMode: Bool = false, initialStep: Int = 0) {
         self.play = play
@@ -40,7 +76,6 @@ struct PlayView: View {
     var body: some View {
         let dark = lamp || scheme == .dark
         let rec = app.record(play, j)
-        let art = ArtIndex.shared.steps(play.code)
 
         ScrollViewReader { proxy in
             ScrollView {
@@ -50,7 +85,7 @@ struct PlayView: View {
                             withAnimation(.easeOut(duration: 0.2)) { scrolled = !v }
                         }
 
-                    // 1. Unified Kinetic Picture-Book Stage or Completion Celebration
+                    // 1. Unified Continuous Scrubbable Picture-Book Theater or Completion Keepsake
                     if open < play.steps.count {
                         PlayLivingHeroCard(
                             play: play,
@@ -58,9 +93,13 @@ struct PlayView: View {
                             stepText: play.steps[open],
                             companion: app.companion,
                             dark: dark,
-                            onPrev: open > 0 ? { go(open - 1, proxy) } : nil,
-                            onNext: { go(open + 1, proxy) },
-                            onJump: { go($0, proxy) }
+                            scrubPhase: $scrubPhase,
+                            isAutoPlaying: isAutoPlaying,
+                            onToggleAutoPlay: { toggleAutoPlay(proxy) },
+                            onComplete: { completeAndScroll(proxy) },
+                            onPrev: open > 0 ? { manualJump(open - 1, proxy) } : nil,
+                            onNext: { manualJump(open + 1, proxy) },
+                            onJump: { manualJump($0, proxy, scroll: false) }
                         )
                         .id("stage")
                     } else {
@@ -70,13 +109,18 @@ struct PlayView: View {
                             count: rec.count,
                             cheer: cheer,
                             dark: dark,
-                            onReplay: { go(0, proxy) }
+                            onReplay: { manualJump(0, proxy) }
                         )
                         .transition(reduce ? .opacity : .scale(scale: 0.94).combined(with: .opacity))
                         .id("finished")
 
                         if play.steps.count > 1 {
-                            StepBeadBar(total: play.steps.count, current: open) { go($0, proxy) }
+                            StorybookSpineScrubber(
+                                total: play.steps.count,
+                                current: open,
+                                scrubPhase: $scrubPhase,
+                                dark: dark
+                            ) { manualJump($0, proxy) }
                         }
                     }
 
@@ -98,7 +142,7 @@ struct PlayView: View {
                         }
                     }
 
-                    // 4. Clean Scannable Steps Index (1-tap jump to any step, zero redundant giant stacking boxes)
+                    // 4. Clean Scannable Steps Outline (1-tap jump, zero duplicate mini-stage overdraw)
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L10n.t("共玩步骤", "Play Rhythm"))
                             .font(.footnote.weight(.bold))
@@ -109,16 +153,12 @@ struct PlayView: View {
                             ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
                                 CompactStepOutlineRow(
                                     n: i + 1,
-                                    playCode: play.code,
-                                    stepIndex: i,
-                                    companion: app.companion,
                                     text: s,
-                                    art: i < art.count ? art[i] : nil,
                                     active: i == open,
                                     done: i < open,
                                     dark: dark
                                 ) {
-                                    go(i, proxy)
+                                    manualJump(i, proxy)
                                 }
                                 .id(i)
                             }
@@ -160,9 +200,18 @@ struct PlayView: View {
             if initialMatMode { matMode = true }
             keepAwake(open < play.steps.count || matMode)
         }
-        .onDisappear { keepAwake(false) }
+        .onDisappear {
+            stopAutoPlay()
+            keepAwake(false)
+        }
         .onChange(of: open) { _, o in keepAwake(o < play.steps.count || matMode) }
-        .onChange(of: matMode) { _, active in keepAwake(active || open < play.steps.count) }
+        .onChange(of: matMode) { _, active in
+            if active { stopAutoPlay() }
+            keepAwake(active || open < play.steps.count)
+        }
+        .onChange(of: scrubPhase) { _, phase in
+            if phase != nil { stopAutoPlay() }
+        }
         // A time taken back (撤销): the finished card goes and the last step opens again, to be finished anew
         .onChange(of: j.plays(play.code).count) { old, new in countChanged(old, new) }
         .navigationTitle(play.name)
@@ -238,6 +287,7 @@ struct PlayView: View {
     }
 
     private func completeSessionFromAnyMode() {
+        stopAutoPlay()
         if recordedHere {
             TactileEngine.shared.goldChime()
             cheer += 1
@@ -253,19 +303,83 @@ struct PlayView: View {
         }
     }
 
-    private func go(_ i: Int, _ proxy: ScrollViewProxy) {
-        if i >= play.steps.count {
-            completeSessionFromAnyMode()
-            withAnimation(.smooth.delay(0.15)) {
-                proxy.scrollTo("finished", anchor: .center)
+    private func completeAndScroll(_ proxy: ScrollViewProxy) {
+        scrubPhase = nil
+        completeSessionFromAnyMode()
+        withAnimation(.smooth.delay(0.15)) {
+            proxy.scrollTo("finished", anchor: .center)
+        }
+    }
+
+    private func stepDuration(at idx: Int) -> Double {
+        if let meta = BespokeActivitySceneRegistry.metadata(for: play.code), idx < meta.durations.count {
+            return meta.durations[idx]
+        }
+        if let script = LivingBookCatalog.script(for: play.code), idx < script.steps.count {
+            return script.steps[idx].duration
+        }
+        return 4.2
+    }
+
+    private func stopAutoPlay() {
+        autoPlayTask?.cancel()
+        autoPlayTask = nil
+        if isAutoPlaying { isAutoPlaying = false }
+    }
+
+    private func toggleAutoPlay(_ proxy: ScrollViewProxy) {
+        if isAutoPlaying {
+            TactileEngine.shared.beadClick()
+            stopAutoPlay()
+            return
+        }
+        guard !reduce else {
+            manualJump(min(play.steps.count - 1, open + 1), proxy)
+            return
+        }
+        TactileEngine.shared.beadClick()
+        scrubPhase = nil
+        if open >= play.steps.count {
+            open = 0
+            app.play(play, month: month, at: 0)
+        }
+        isAutoPlaying = true
+        autoPlayTask = Task { @MainActor in
+            while isAutoPlaying && !Task.isCancelled && open < play.steps.count - 1 {
+                let dur = stepDuration(at: open)
+                try? await Task.sleep(for: .milliseconds(Int(dur * 1000)))
+                guard isAutoPlaying && !Task.isCancelled && scrubPhase == nil else { break }
+                let next = min(play.steps.count - 1, open + 1)
+                TactileEngine.shared.pageTurn()
+                withAnimation(.snappy) { open = next }
+                app.play(play, month: month, at: next)
             }
+            if isAutoPlaying && !Task.isCancelled && open == play.steps.count - 1 {
+                let lastDur = stepDuration(at: open)
+                try? await Task.sleep(for: .milliseconds(Int(lastDur * 1000)))
+            }
+            isAutoPlaying = false
+            autoPlayTask = nil
+        }
+    }
+
+    private func manualJump(_ i: Int, _ proxy: ScrollViewProxy, scroll: Bool = true) {
+        stopAutoPlay()
+        go(i, proxy, scroll: scroll)
+    }
+
+    private func go(_ i: Int, _ proxy: ScrollViewProxy, scroll: Bool = true) {
+        if i >= play.steps.count {
+            completeAndScroll(proxy)
             return
         }
         TactileEngine.shared.beadClick()
         withAnimation(reduce ? nil : .snappy) { open = i }
         app.play(play, month: month, at: i)
-        withAnimation(.smooth.delay(0.12)) {
-            proxy.scrollTo("stage", anchor: .top)
+        if scroll {
+            withAnimation(.smooth.delay(0.12)) {
+                proxy.scrollTo("stage", anchor: .top)
+            }
         }
     }
 }
@@ -278,6 +392,10 @@ private struct PlayLivingHeroCard: View {
     let stepText: String
     let companion: Kind
     let dark: Bool
+    @Binding var scrubPhase: Double?
+    let isAutoPlaying: Bool
+    let onToggleAutoPlay: () -> Void
+    let onComplete: () -> Void
     let onPrev: (() -> Void)?
     let onNext: () -> Void
     let onJump: (Int) -> Void
@@ -286,8 +404,6 @@ private struct PlayLivingHeroCard: View {
     @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
-        let last = stepIndex == play.steps.count - 1
-
         VStack(alignment: .leading, spacing: 0) {
             ActivityMotionStage(
                 play: play,
@@ -298,6 +414,7 @@ private struct PlayLivingHeroCard: View {
                 compact: false,
                 dark: dark,
                 replayTrigger: replayTrigger,
+                scrubPhase: scrubPhase,
                 showOverlays: false
             )
             .padding(.horizontal, 12)
@@ -316,21 +433,20 @@ private struct PlayLivingHeroCard: View {
                     }
             )
 
-            if play.steps.count > 1 {
-                StepBeadBar(
-                    total: play.steps.count,
-                    current: stepIndex,
-                    inline: true,
-                    dark: dark,
-                    onReplay: onPrev == nil ? nil : {
-                        TactileEngine.shared.beadClick()
-                        replayTrigger += 1
-                    },
-                    pick: onJump
-                )
-                .padding(.horizontal, 12)
-                .padding(.top, 8)
-            }
+            StorybookSpineScrubber(
+                total: play.steps.count,
+                current: stepIndex,
+                scrubPhase: $scrubPhase,
+                inline: true,
+                dark: dark,
+                onReplay: {
+                    TactileEngine.shared.beadClick()
+                    replayTrigger += 1
+                },
+                pick: onJump
+            )
+            .padding(.horizontal, 12)
+            .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline, spacing: 11) {
@@ -344,14 +460,14 @@ private struct PlayLivingHeroCard: View {
                 Group {
                     if type.isAccessibilitySize {
                         VStack(spacing: 8) {
-                            nextButton(last: last, fullWidth: true)
-                            leadingActionButton(fullWidth: true)
+                            completeButton(fullWidth: true)
+                            autoPlayButton(fullWidth: true)
                         }
                     } else {
                         HStack(spacing: 8) {
-                            leadingActionButton(fullWidth: false)
+                            autoPlayButton(fullWidth: false)
                             Spacer(minLength: 4)
-                            nextButton(last: last, fullWidth: false)
+                            completeButton(fullWidth: false)
                         }
                     }
                 }
@@ -361,32 +477,22 @@ private struct PlayLivingHeroCard: View {
         .printCard(radius: Radius.card)
     }
 
-    @ViewBuilder
-    private func leadingActionButton(fullWidth: Bool) -> some View {
-        if let onPrev {
-            Button(action: onPrev) {
-                Label(L10n.t("上一步", "Back"), systemImage: "chevron.left")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: fullWidth ? .infinity : nil)
-            }
-            .buttonStyle(.vinyl(Crayon.caramel))
-        } else {
-            Button {
-                TactileEngine.shared.beadClick()
-                replayTrigger += 1
-            } label: {
-                Label(L10n.t("重播", "Replay"), systemImage: "arrow.counterclockwise")
-                    .font(.subheadline.weight(.semibold))
-                    .frame(maxWidth: fullWidth ? .infinity : nil)
-            }
-            .buttonStyle(.vinyl(Crayon.caramel))
-            .accessibilityLabel(L10n.t("重播这一步示范动画", "Replay this step animation"))
+    private func autoPlayButton(fullWidth: Bool) -> some View {
+        Button(action: onToggleAutoPlay) {
+            Label(
+                isAutoPlaying ? L10n.t("暂停连播", "Pause Story") : L10n.t("连播全步", "Play Story"),
+                systemImage: isAutoPlaying ? "pause.fill" : "play.fill"
+            )
+            .font(.subheadline.weight(.semibold))
+            .frame(maxWidth: fullWidth ? .infinity : nil)
         }
+        .buttonStyle(.vinyl(Crayon.caramel))
+        .accessibilityLabel(isAutoPlaying ? L10n.t("暂停连播全步动画", "Pause story playback") : L10n.t("连播全部步骤动画", "Play all steps continuously"))
     }
 
-    private func nextButton(last: Bool, fullWidth: Bool) -> some View {
-        Button(action: onNext) {
-            Label(last ? L10n.t("做完了", "All Done") : L10n.t("下一步", "Next Step"), systemImage: last ? "checkmark" : "arrow.forward")
+    private func completeButton(fullWidth: Bool) -> some View {
+        Button(action: onComplete) {
+            Label(L10n.t("完成并盖印", "Done & Stamp"), systemImage: "checkmark.seal.fill")
                 .font(.subheadline.weight(.semibold))
                 .padding(.horizontal, 4)
                 .frame(maxWidth: fullWidth ? .infinity : nil)
@@ -395,15 +501,11 @@ private struct PlayLivingHeroCard: View {
     }
 }
 
-// MARK: - Compact Scannable Step Outline Row
+// MARK: - Clean Scannable Step Outline Row
 
 private struct CompactStepOutlineRow: View {
     let n: Int
-    let playCode: String
-    let stepIndex: Int
-    let companion: Kind
     let text: String
-    let art: String?
     let active: Bool
     let done: Bool
     let dark: Bool
@@ -416,7 +518,7 @@ private struct CompactStepOutlineRow: View {
 
                 VStack(alignment: .leading, spacing: 2) {
                     if active {
-                        Text(L10n.t("正在做这一步", "Current Step"))
+                        Text(L10n.t("正在看这一步", "Current Step"))
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(Palette.accent)
                     }
@@ -429,28 +531,9 @@ private struct CompactStepOutlineRow: View {
 
                 Spacer(minLength: 4)
 
-                if let livingScript = LivingBookCatalog.script(for: playCode) {
-                    let clamped = min(max(0, stepIndex), max(0, livingScript.steps.count - 1))
-                    let phase = BespokeActivitySceneRegistry.metadata(for: playCode).flatMap {
-                        clamped < $0.posterPhases.count ? $0.posterPhases[clamped] : nil
-                    } ?? livingScript.steps[clamped].posterPhase
-                    LivingBookStage(
-                        script: livingScript,
-                        stepIndex: clamped,
-                        companion: companion,
-                        dark: dark,
-                        accent: Palette.accent,
-                        posterPhase: phase,
-                        interactive: false,
-                        compact: true
-                    )
-                    .frame(width: 56, height: 42)
-                    .opacity(done ? 0.58 : 1)
-                } else if let art {
-                    ArtView(name: art, radius: 9)
-                        .frame(width: 56, height: 42)
-                        .opacity(done ? 0.58 : 1)
-                }
+                Image(systemName: active ? "play.circle.fill" : "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(active ? Palette.accent : Palette.secondaryText.opacity(0.45))
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
@@ -513,6 +596,9 @@ struct MatSideCoPlayView: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     @State private var showSafetySheet = false
+    @State private var scrubPhase: Double? = nil
+    @State private var isAutoPlaying = false
+    @State private var autoPlayTask: Task<Void, Never>? = nil
 
     private var hasGuidance: Bool {
         !play.prepare.isEmpty || !play.safety.isEmpty || !play.observe.isEmpty || !play.pause.isEmpty
@@ -553,6 +639,21 @@ struct MatSideCoPlayView: View {
 
                 Spacer(minLength: 4)
 
+                if play.steps.count > 1 {
+                    Button {
+                        toggleMatAutoPlay()
+                    } label: {
+                        Image(systemName: isAutoPlaying ? "pause.fill" : "play.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
+                            .overlay(Circle().strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(isAutoPlaying ? L10n.t("暂停连播", "Pause story") : L10n.t("连播全步", "Play story"))
+                }
+
                 if hasGuidance {
                     Button {
                         TactileEngine.shared.beadClick()
@@ -571,10 +672,22 @@ struct MatSideCoPlayView: View {
             .padding(.horizontal, 16)
             .padding(.top, 8)
 
-            StepBeadBar(total: play.steps.count, current: currentStep) { idx in
+            StorybookSpineScrubber(
+                total: play.steps.count,
+                current: currentStep,
+                scrubPhase: $scrubPhase,
+                dark: dark
+            ) { idx in
+                stopMatAutoPlay()
                 onSelectStep(idx)
             }
             .padding(.horizontal, 16)
+            .onChange(of: scrubPhase) { _, p in
+                if p != nil { stopMatAutoPlay() }
+            }
+            .onDisappear {
+                stopMatAutoPlay()
+            }
 
             ScrollView {
                 VStack(spacing: 18) {
@@ -597,6 +710,7 @@ struct MatSideCoPlayView: View {
                             companion: companion,
                             compact: false,
                             dark: dark,
+                            scrubPhase: scrubPhase,
                             showOverlays: false
                         )
 
@@ -705,6 +819,54 @@ struct MatSideCoPlayView: View {
             .lampPresented(sheet: true)
         }
     }
+
+    private func matStepDuration(at idx: Int) -> Double {
+        if let meta = BespokeActivitySceneRegistry.metadata(for: play.code), idx < meta.durations.count {
+            return meta.durations[idx]
+        }
+        if let script = LivingBookCatalog.script(for: play.code), idx < script.steps.count {
+            return script.steps[idx].duration
+        }
+        return 4.2
+    }
+
+    private func stopMatAutoPlay() {
+        autoPlayTask?.cancel()
+        autoPlayTask = nil
+        if isAutoPlaying { isAutoPlaying = false }
+    }
+
+    private func toggleMatAutoPlay() {
+        if isAutoPlaying {
+            TactileEngine.shared.beadClick()
+            stopMatAutoPlay()
+            return
+        }
+        guard !reduce else {
+            onSelectStep(min(play.steps.count - 1, currentStep + 1))
+            return
+        }
+        TactileEngine.shared.beadClick()
+        scrubPhase = nil
+        if currentStep >= play.steps.count {
+            onSelectStep(0)
+        }
+        isAutoPlaying = true
+        autoPlayTask = Task { @MainActor in
+            while isAutoPlaying && !Task.isCancelled && currentStep < play.steps.count - 1 {
+                let dur = matStepDuration(at: currentStep)
+                try? await Task.sleep(for: .milliseconds(Int(dur * 1000)))
+                guard isAutoPlaying && !Task.isCancelled && scrubPhase == nil else { break }
+                onSelectStep(min(play.steps.count - 1, currentStep + 1))
+            }
+            if isAutoPlaying && !Task.isCancelled && currentStep == play.steps.count - 1 {
+                let lastDur = matStepDuration(at: currentStep)
+                try? await Task.sleep(for: .milliseconds(Int(lastDur * 1000)))
+            }
+            isAutoPlaying = false
+            autoPlayTask = nil
+        }
+    }
 }
 
 // MARK: - Shared Supporting Building Blocks (Kept Intact)
@@ -749,61 +911,154 @@ struct Fold<Content: View>: View {
     }
 }
 
-/// A quiet Montessori bead progress bar for a play's steps: gold beads for finished steps, an active pill for the step
-/// in hand, pale stone for the steps ahead. Tapping any bead opens that step.
-private struct StepBeadBar: View {
+/// Continuous Montessori wooden spine scrubber: glide freely across step notches and `0.48` contact detents with CoreHaptics.
+private struct StorybookSpineScrubber: View {
     let total: Int
     let current: Int
+    @Binding var scrubPhase: Double?
     var inline: Bool = false
     var dark: Bool = false
     var onReplay: (() -> Void)? = nil
     let pick: (Int) -> Void
+
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @Namespace private var beadNS
+    @State private var isScrubbing = false
+    @State private var lastTimelinePos: Double? = nil
 
     var body: some View {
-        let done = min(current, total)
-        let label = current >= total ? L10n.t("全部 \(total) 步已完成", "All \(total) steps done") : L10n.t("第 \(current + 1) 步，共 \(total) 步", "Step \(current + 1) of \(total)")
-        let row = HStack(spacing: 8) {
-            HStack(spacing: 4) {
-                ForEach(0..<total, id: \.self) { i in
-                    Button { pick(i) } label: {
-                        ZStack {
+        let count = max(1, total)
+        let isFinished = current >= count
+        let activeStep = min(max(0, current), count - 1)
+        let visualLocalPhase = isFinished ? 1.0 : (scrubPhase ?? 0.5)
+        let progress = isFinished ? 1.0 : PlayScrubMath.normalizedProgress(
+            stepIndex: activeStep,
+            localPhase: visualLocalPhase,
+            stepCount: count
+        )
+        let label = isFinished
+            ? L10n.t("全部 \(count) 步已完成", "All \(count) steps done")
+            : L10n.t("第 \(activeStep + 1) 步，共 \(count) 步", "Step \(activeStep + 1) of \(count)")
+
+        let container = VStack(spacing: 6) {
+            GeometryReader { geo in
+                let trackW = max(1, geo.size.width)
+                let thumbX = min(max(10, trackW * CGFloat(progress)), max(10, trackW - 10))
+
+                ZStack(alignment: .leading) {
+                    // Recessed beechwood groove
+                    Capsule()
+                        .fill(dark ? Color.white.opacity(0.10) : Crayon.caramel.opacity(0.18))
+                        .frame(height: 10)
+                        .overlay(
+                            Capsule()
+                                .strokeBorder(Palette.outline.opacity(dark ? 0.25 : 0.20), lineWidth: 0.75)
+                        )
+
+                    // Active fill progress
+                    Capsule()
+                        .fill(LinearGradient(colors: [Palette.bead, Palette.accentFill], startPoint: .leading, endPoint: .trailing))
+                        .frame(width: max(12, thumbX), height: 10)
+
+                    // Discrete step notch markers anchored at each step center
+                    ForEach(0..<count, id: \.self) { i in
+                        let notchPos = CGFloat((Double(i) + 0.5) / Double(count)) * trackW
+                        Group {
                             if i < current {
                                 GoldBead(size: 11)
-                                    .transition(.scale.combined(with: .opacity))
                             } else if i == current {
-                                Capsule()
-                                    .fill(Palette.accent)
-                                    .frame(width: 24, height: 11)
-                                    .matchedGeometryEffect(id: "activeBead", in: beadNS)
+                                Circle().fill(Color.white.opacity(0.85)).frame(width: 6, height: 6)
                             } else {
-                                Circle().fill(Palette.stone.opacity(0.75)).frame(width: 9, height: 9)
+                                Circle().fill(Palette.stone.opacity(dark ? 0.65 : 0.85)).frame(width: 7, height: 7)
                             }
                         }
-                        .frame(minWidth: 26, minHeight: 32)
-                        .contentShape(Rectangle())
+                        .position(x: notchPos, y: geo.size.height * 0.5)
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.t("第 \(i + 1) 步", "Step \(i + 1)"))
+
+                    // Continuous tactile brass/accent thumb bead
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [Palette.beadLight, isScrubbing ? Palette.bead : Palette.accentFill],
+                                center: UnitPoint(x: 0.34, y: 0.30),
+                                startRadius: 0,
+                                endRadius: 12
+                            )
+                        )
+                        .frame(width: 20, height: 20)
+                        .overlay(Circle().strokeBorder(.white.opacity(dark ? 0.45 : 0.82), lineWidth: 1.5))
+                        .shadow(color: Palette.accent.opacity(isScrubbing ? 0.36 : 0.20), radius: isScrubbing ? 6 : 3, y: 1.5)
+                        .scaleEffect(isScrubbing && !reduce ? 1.18 : 1.0)
+                        .position(x: thumbX, y: geo.size.height * 0.5)
                 }
+                .frame(height: 44)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { value in
+                            let u = min(0.9999, max(0.0, Double(value.location.x / trackW)))
+                            let newTimelinePos = u * Double(count)
+                            let decomp = PlayScrubMath.decompose(timelinePosition: newTimelinePos, stepCount: count)
+
+                            if !isScrubbing {
+                                isScrubbing = true
+                            }
+                            if let oldPos = lastTimelinePos {
+                                if let newStep = PlayScrubMath.crossedStepBoundary(from: oldPos, to: newTimelinePos, stepCount: count) {
+                                    TactileEngine.shared.beadClick()
+                                    pick(newStep)
+                                } else {
+                                    let oldLocal = PlayScrubMath.decompose(timelinePosition: oldPos, stepCount: count).localPhase
+                                    if PlayScrubMath.crossedContactDetent(from: oldLocal, to: decomp.localPhase) {
+                                        TactileEngine.shared.dimmerTick()
+                                    }
+                                }
+                            } else {
+                                if decomp.stepIndex != current {
+                                    TactileEngine.shared.beadClick()
+                                    pick(decomp.stepIndex)
+                                } else {
+                                    TactileEngine.shared.dimmerTick()
+                                }
+                            }
+                            lastTimelinePos = newTimelinePos
+                            scrubPhase = decomp.localPhase
+                        }
+                        .onEnded { _ in
+                            isScrubbing = false
+                            lastTimelinePos = nil
+                            scrubPhase = nil
+                        }
+                )
             }
-            Spacer(minLength: 4)
+            .frame(height: 44)
+
             HStack(spacing: 8) {
-                Text(current >= total ? L10n.t("全部完成", "All Done") : L10n.t("第 \(done + 1) / \(total) 步", "Step \(done + 1) / \(total)"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
+                Text(isFinished ? L10n.t("全部完成", "All Done") : L10n.t("第 \(activeStep + 1) / \(count) 步", "Step \(activeStep + 1) / \(count)"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.primary)
                     .monospacedDigit()
+                    .contentTransition(.numericText(value: Double(activeStep + 1)))
+
+                Text("·")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.secondaryText)
+
+                Text(isScrubbing
+                     ? L10n.t("正在细调动作定格", "Scrubbing moment")
+                     : L10n.t("轻滑木珠控帧", "Slide rail to scrub"))
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(isScrubbing ? Palette.accent : Palette.secondaryText)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                    .contentTransition(.numericText(value: Double(done + 1)))
+
+                Spacer(minLength: 4)
 
                 if let onReplay {
                     Button(action: onReplay) {
                         Image(systemName: "arrow.counterclockwise")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.caramel))
-                            .frame(width: 32, height: 32)
+                            .frame(width: 30, height: 30)
                             .background(Circle().fill(Crayon.caramel.opacity(dark ? 0.24 : 0.14)))
                             .overlay(Circle().strokeBorder(Crayon.caramel.opacity(dark ? 0.36 : 0.28), lineWidth: 0.75))
                             .contentShape(Circle().inset(by: -6))
@@ -818,14 +1073,27 @@ private struct StepBeadBar: View {
 
         Group {
             if inline {
-                row
+                container
             } else {
-                row.printCard(radius: Radius.inner)
+                container.printCard(radius: Radius.inner)
             }
         }
+        .animation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.80), value: isScrubbing)
         .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel(label)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.t("绘本步骤控制轨", "Storybook step scrubber"))
+        .accessibilityValue(label)
+        .accessibilityAdjustableAction { direction in
+            switch direction {
+            case .increment:
+                let next = min(count - 1, activeStep + 1)
+                if next != current { pick(next) }
+            case .decrement:
+                let prev = max(0, activeStep - 1)
+                if prev != current { pick(prev) }
+            @unknown default: break
+            }
+        }
     }
 }
 

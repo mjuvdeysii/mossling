@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 23（v2.0 正式发布候选 20 · Edition I Round 23 · 连续无级控帧活动绘本剧场 `PlayView` · Batch D 独立小动画 `A25–A32` [38 / 46]）**：
+  - **【连续物理控帧绘本剧场 × 免连点交互重构 `PlayView`】**：为 `LivingBookStage` 与 `ActivityMotionStage` 新增支持零闪断同步定格的 `scrubPhase` 管线；全面升级 `PlayView` 与垫旁共玩 `MatSideCoPlayView`，以桦木凹槽连续木珠控帧轨 `StorybookSpineScrubber` 与纯数学模块 `PlayScrubMath` 取代纯离散点按进度条，指尖沿木轨连续滑动即可跨步骤并跨越每步 `0.48` 接触峰值触发细腻的核心触感反馈（`CoreHaptics`）；同时将强制多次连点的「下一步」按钮重铸为 **一键「连播全步 / 暂停连播」与随时一键「完成并盖印」**，并精简步骤大纲重复微缩舞台，显著降低滑屏冗余渲染开销。
+  - **【Bespoke 独立活动动画 Batch D（`A25–A32` 共 8 部完全独立短片 · 累计 38 / 46）】**：严格恪守 `docs/IP.md`（Otto 永远无手、零腮红、零嘴点/气泡、`1:1` 地面坐标与真实物理接触阴影）手工创作 `A25`（落地木摇篮玩偶盖毯与喂食照护）、`A26`（圆凳暖光情绪灯与安全捏捏抱枕边界）、`A27`（双桦木分类盘形状与冷暖双重有意义归类）、`A28`（矮灶台煮汤与汤碗沿台面平滑送餐）、`A29`（三色稳固低矮踏步垫动态随行路线与护持光环）、`A30`（圆毯八分音符音乐盒与 `0.60` 突然木头人定格冻结）、`A31`（木挂杆三折叙事挂幅时间线索与儿童回应新芽）、`A32`（双人平行地垫与中景稳重引导的轮流木车回合），补全 `testRound23ContinuousPlayScrubberAndBatchDScenes` 与 `test73Round23PlayScrubberAndBatchDShowcases`。
+
 - **Batch 22（v2.0 正式发布候选 19 · Edition I Round 22 · 零迷宫单一真源信息架构 · Tab Bar 与入口统一 · 30 部活动全动态光锥与 8 部空间穿模物理重铸）**：
   - **【零迷宫单一真源架构手术 Single-Source-of-Truth IA】**：新建 `AppRouter.swift` 以 4 组互不重叠的独立路由枚举（`ExploreRoute`、`LampRoute`、`KeepsakesRoute`、`StudioRoute`）与 `CanonicalDestination` 彻底取代全局混用 `Route`/`JournalRoute` 迷宫；`AboutView`、`MonthCard`、`QuietInstrumentsDock`、`NowCard`、`JournalView` 与重复的 `GrowthBookView` 全量退役下线，并将过往多日回看/补记并入 **台灯（`LampHubView`）**，将空生日引导入口并入唯一 **成长绘本（`StorybookView`）**，将「工坊」透明循证收口为单层清单与 Duo 彩蛋；同步仅在沉浸互动页面（`ToyboxView`、`PlayView`）隐藏底部 Tab Bar，普通子页一律保留标签栏退路。
   - **【30 部活动短片全动态光锥 × 8 部空间物理精修】**：升级 `BespokeActivitySceneRegistry` 为全部 30 部短片（`N01–N06`、`A01–A24`）注入精准的 Otto 金珠与教具目标坐标及 `lightAnchors(for:step:stageSize:)`（淘汰硬编码占位光锥）；针对 `A24`、`A20`、`N06`、`A16`、`A11`、`A13`、`A14`、`A19` 逐一重铸三平面纵深、落地接触阴影、无浮空蜡笔/抹布/羽毛笔/鸟架物理牵引、严格对调可触达站位并与 `content.json` 步骤字字严丝合缝，新增 `testRound22SingleSourceOfTruthIAAndScenePhysics` 与 `test72Round22ZeroMazeIAAndScenePhysicsRepair`，并同步将 5 轮彻底推翻重构框架固化为 `docs/METHODOLOGY.md` v3.1。

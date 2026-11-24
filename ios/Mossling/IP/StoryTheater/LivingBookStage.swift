@@ -43,6 +43,7 @@ struct LivingBookStage: View {
     let dark: Bool
     var accent: Color = Palette.accent
     var posterPhase: Double? = nil
+    var scrubPhase: Double? = nil
     var interactive: Bool = true
     var compact: Bool = false
     var replayTrigger: Int = 0
@@ -82,6 +83,7 @@ struct LivingBookStage: View {
     }
 
     private var effectivePosterPhase: Double {
+        if let scrubPhase { return min(1.0, max(0.0, scrubPhase)) }
         if let posterPhase { return posterPhase }
         if let meta = bespokeMetadata, clampedStepIndex < meta.posterPhases.count {
             return meta.posterPhases[clampedStepIndex]
@@ -97,7 +99,7 @@ struct LivingBookStage: View {
     }
 
     private var isStatic: Bool {
-        posterPhase != nil || reduce || Perf.still || !onScreen || scrolling.moving || scenePhase != .active
+        scrubPhase != nil || posterPhase != nil || reduce || Perf.still || !onScreen || scrolling.moving || scenePhase != .active
     }
 
     var body: some View {

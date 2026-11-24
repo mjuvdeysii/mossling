@@ -2104,4 +2104,40 @@ final class ScreenshotTests: XCTestCase {
             }
         }
     }
+
+    /// Edition I · Round 23 — Continuous Scrubbable `PlayView` Theater & Bespoke Batch D (`A25–A32`, 38 / 46).
+    func test73Round23PlayScrubberAndBatchDShowcases() {
+        defer {
+            ArtStyle.current = .vinyl
+            L10n.overrideEnglish = nil
+        }
+        let m = model(); m.journal = true
+        let playA28 = m.content.play("A28")!
+
+        shot("73_play_scrubber_zh", height: 1080, tabs(m, PlayView(play: playA28, month: 26, initialStep: 1)))
+        shot("73_play_scrubber_ax2_zh", height: 1320,
+             tabs(m, PlayView(play: playA28, month: 26, initialStep: 1)).dynamicTypeSize(.accessibility2))
+        shot("73_mat_coplay_scrubber_zh", height: 852,
+             MatSideCoPlayView(play: playA28, month: 26, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        for (code, step, phase) in [
+            ("A25", 1, 0.58),
+            ("A27", 2, 0.62),
+            ("A28", 2, 0.60),
+            ("A29", 3, 0.62),
+            ("A31", 2, 0.62),
+            ("A32", 2, 0.62)
+        ] {
+            if let script = LivingBookCatalog.script(for: code) {
+                let plate = showcase2x2(
+                    tl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: false),
+                    tr: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: false),
+                    bl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: true),
+                    br: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: true)
+                )
+                shot("73_batchd_\(code.lowercased())_4modes", height: 520, plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+            }
+        }
+    }
 }

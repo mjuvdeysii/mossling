@@ -2482,11 +2482,11 @@ final class LogicTests: XCTestCase {
             "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13", "A14",
             "A15", "A16", "A17", "A18", "A19", "A20", "A21", "A22", "A23", "A24"
         ]
-        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedAll)
-        XCTAssertEqual(BespokeActivityID.allCases.count, 30)
+        XCTAssertTrue(BespokeActivitySceneRegistry.registeredCodes.isSuperset(of: expectedAll))
+        XCTAssertGreaterThanOrEqual(BespokeActivityID.allCases.count, 30)
 
         let allGrammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
-        XCTAssertEqual(allGrammars.count, 30, "Each of 30 bespoke scenes must own a unique cameraGrammar")
+        XCTAssertEqual(allGrammars.count, BespokeActivityID.allCases.count, "Each bespoke scene must own a unique cameraGrammar")
 
         let batchCCodes: [BespokeActivityID] = [.a15, .a16, .a17, .a18, .a19, .a20, .a21, .a22, .a23, .a24]
         let content = try Content.load()
@@ -2716,6 +2716,121 @@ final class LogicTests: XCTestCase {
                 .frame(width: 280, height: 210)
                 let img = ImageRenderer(content: stage).uiImage
                 XCTAssertNotNil(img, "Repaired scene \(id.code) flat=\(flat) returned nil image")
+                XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            }
+        }
+    }
+
+    @MainActor
+    func testRound23ContinuousPlayScrubberAndBatchDScenes() throws {
+        // 1. PlayScrubMath boundary & contact detent behavior
+        let d0 = PlayScrubMath.decompose(timelinePosition: 0.0, stepCount: 3)
+        XCTAssertEqual(d0.stepIndex, 0)
+        XCTAssertEqual(d0.localPhase, 0.0, accuracy: 0.001)
+
+        let dMid = PlayScrubMath.decompose(timelinePosition: 1.25, stepCount: 3)
+        XCTAssertEqual(dMid.stepIndex, 1)
+        XCTAssertEqual(dMid.localPhase, 0.25, accuracy: 0.001)
+
+        let dEnd = PlayScrubMath.decompose(timelinePosition: 3.5, stepCount: 3)
+        XCTAssertEqual(dEnd.stepIndex, 2)
+        XCTAssertEqual(dEnd.localPhase, 1.0, accuracy: 0.001)
+
+        XCTAssertEqual(PlayScrubMath.normalizedProgress(stepIndex: 1, localPhase: 0.5, stepCount: 3), 0.5, accuracy: 0.001)
+        XCTAssertEqual(PlayScrubMath.crossedStepBoundary(from: 0.9, to: 1.1, stepCount: 3), 1)
+        XCTAssertNil(PlayScrubMath.crossedStepBoundary(from: 0.2, to: 0.4, stepCount: 3))
+        XCTAssertTrue(PlayScrubMath.crossedContactDetent(from: 0.45, to: 0.51))
+        XCTAssertFalse(PlayScrubMath.crossedContactDetent(from: 0.10, to: 0.30))
+
+        // 2. Registry & Batch D (38 bespoke scenes)
+        let expectedBatchD: Set<String> = ["A25", "A26", "A27", "A28", "A29", "A30", "A31", "A32"]
+        XCTAssertTrue(BespokeActivitySceneRegistry.registeredCodes.isSuperset(of: expectedBatchD))
+        XCTAssertEqual(BespokeActivityID.allCases.count, 38)
+        let grammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
+        XCTAssertEqual(grammars.count, 38, "All 38 bespoke scenes must own unique cameraGrammar values")
+
+        let content = try Content.load()
+        let batchDIds: [BespokeActivityID] = [.a25, .a26, .a27, .a28, .a29, .a30, .a31, .a32]
+        for id in batchDIds {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let play = try XCTUnwrap(content.play(id.code))
+            XCTAssertEqual(meta.durations.count, play.steps.count, "Durations count mismatch for \(id.code)")
+            XCTAssertEqual(meta.posterPhases.count, play.steps.count, "PosterPhases count mismatch for \(id.code)")
+            XCTAssertEqual(meta.audioAnchors.count, play.steps.count, "AudioAnchors count mismatch for \(id.code)")
+        }
+
+        let sampleSize = CGSize(width: 280, height: 210)
+        for id in BespokeActivityID.allCases {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.x))
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.y))
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.x))
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.y))
+            let a = BespokeActivitySceneRegistry.lightAnchors(for: id, step: 0, stageSize: sampleSize)
+            XCTAssertTrue(a.bead.x.isFinite && a.bead.y.isFinite && a.target.x.isFinite && a.target.y.isFinite)
+        }
+        for rightID: BespokeActivityID in [.a25, .a27, .a28] {
+            XCTAssertGreaterThan(BespokeActivitySceneRegistry.metadata(for: rightID).ottoBeadNormalized.x, 0.60)
+        }
+        let a29Step0 = BespokeActivitySceneRegistry.lightAnchors(for: .a29, step: 0, stageSize: CGSize(width: 100, height: 100))
+        let a29Step3 = BespokeActivitySceneRegistry.lightAnchors(for: .a29, step: 3, stageSize: CGSize(width: 100, height: 100))
+        XCTAssertLessThan(a29Step0.bead.x, 30)
+        XCTAssertGreaterThan(a29Step3.bead.x, 50)
+
+        // 3. Lean ImageRenderer pass (~20 renders): PlayView Day + AX2, MatSideCoPlayView, scrubPhase stage, Batch D 3D & 2D
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round23-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2024, m: 7, d: 1)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let router = AppRouter()
+        let playA28 = try XCTUnwrap(content.play("A28"))
+
+        for sizing in [DynamicTypeSize.large, DynamicTypeSize.accessibility2] {
+            let pv = PlayView(play: playA28, month: 26, initialStep: 1)
+                .frame(width: 393, height: 852)
+                .environment(envApp)
+                .environment(envJournal)
+                .environment(router)
+                .dynamicTypeSize(sizing)
+            XCTAssertNotNil(ImageRenderer(content: pv).uiImage)
+        }
+
+        let matView = MatSideCoPlayView(play: playA28, month: 26, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
+            .frame(width: 393, height: 852)
+        XCTAssertNotNil(ImageRenderer(content: matView).uiImage)
+
+        let scriptA28 = try XCTUnwrap(LivingBookCatalog.script(for: "A28"))
+        let scrubStage = LivingBookStage(
+            script: scriptA28,
+            stepIndex: 1,
+            companion: .moss,
+            dark: false,
+            accent: Crayon.teal,
+            scrubPhase: 0.48,
+            interactive: false,
+            forceFlat: false
+        )
+        .frame(width: 280, height: 210)
+        XCTAssertNotNil(ImageRenderer(content: scrubStage).uiImage)
+
+        for id in batchDIds {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            for flat in [false, true] {
+                let stage = LivingBookStage(
+                    script: script,
+                    stepIndex: 0,
+                    companion: .moss,
+                    dark: false,
+                    accent: Crayon.teal,
+                    posterPhase: meta.posterPhases[0],
+                    interactive: false,
+                    forceFlat: flat
+                )
+                .frame(width: 280, height: 210)
+                let img = ImageRenderer(content: stage).uiImage
+                XCTAssertNotNil(img, "Batch D scene \(id.code) flat=\(flat) returned nil")
                 XCTAssertGreaterThan(img?.size.width ?? 0, 100)
             }
         }

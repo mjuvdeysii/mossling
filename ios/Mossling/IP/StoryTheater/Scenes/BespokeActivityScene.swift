@@ -7,6 +7,7 @@ enum BespokeActivityID: String, CaseIterable, Sendable {
     case a01, a02, a03, a04
     case a05, a06, a07, a08, a09, a10, a11, a12, a13, a14
     case a15, a16, a17, a18, a19, a20, a21, a22, a23, a24
+    case a25, a26, a27, a28, a29, a30, a31, a32
 
     var code: String {
         rawValue.uppercased()
@@ -64,14 +65,24 @@ enum BespokeActivitySceneRegistry {
         let w = stageSize.width
         let h = stageSize.height
         var targetNorm = meta.propTargetNormalized
+        var beadNorm = meta.ottoBeadNormalized
         if id == .a13 {
             targetNorm = CGPoint(x: step >= 2 ? 0.59 : 0.40, y: meta.propTargetNormalized.y)
         } else if id == .a14 {
             targetNorm = CGPoint(x: step == 0 ? 0.48 : 0.53, y: meta.propTargetNormalized.y)
+        } else if id == .a29 {
+            let bx: CGFloat = switch step {
+            case 0: 0.24
+            case 1: 0.30
+            case 2: 0.24
+            default: 0.56
+            }
+            beadNorm = CGPoint(x: bx, y: meta.ottoBeadNormalized.y)
+            targetNorm = CGPoint(x: step == 3 ? 0.74 : 0.56, y: meta.propTargetNormalized.y)
         }
         return (
             key: CGPoint(x: w * meta.lightKeyNormalized.x, y: h * meta.lightKeyNormalized.y),
-            bead: CGPoint(x: w * meta.ottoBeadNormalized.x, y: h * meta.ottoBeadNormalized.y),
+            bead: CGPoint(x: w * beadNorm.x, y: h * beadNorm.y),
             target: CGPoint(x: w * targetNorm.x, y: h * targetNorm.y)
         )
     }
@@ -438,6 +449,102 @@ enum BespokeActivitySceneRegistry {
                 propTargetNormalized: CGPoint(x: 0.48, y: 0.74),
                 komorebiStrength: 0.82
             )
+        case .a25:
+            return BespokeSceneMetadata(
+                id: .a25,
+                cameraGrammar: "cozy-doll-cradle-nursery",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.55, 0.58, 0.60],
+                audioAnchors: [.clothSwish, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.76, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.49, y: 0.76),
+                komorebiStrength: 0.76
+            )
+        case .a26:
+            return BespokeSceneMetadata(
+                id: .a26,
+                cameraGrammar: "hearth-lantern-emotion-sanctuary",
+                durations: [4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.56, 0.62],
+                audioAnchors: [.softChime, .none, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.28, y: 0.15),
+                ottoBeadNormalized: CGPoint(x: 0.30, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.58, y: 0.72),
+                komorebiStrength: 0.74
+            )
+        case .a27:
+            return BespokeSceneMetadata(
+                id: .a27,
+                cameraGrammar: "dual-sorting-mat-studio",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.56, 0.58, 0.62],
+                audioAnchors: [.woodTap, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.77, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
+                komorebiStrength: 0.80
+            )
+        case .a28:
+            return BespokeSceneMetadata(
+                id: .a28,
+                cameraGrammar: "wooden-play-kitchen-counter",
+                durations: [4.4, 4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.56, 0.60, 0.62],
+                audioAnchors: [.woodTap, .softChime, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.76, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.66),
+                komorebiStrength: 0.78
+            )
+        case .a29:
+            return BespokeSceneMetadata(
+                id: .a29,
+                cameraGrammar: "wide-playroom-stepping-path",
+                durations: [4.4, 4.6, 4.8, 4.6],
+                posterPhases: [0.54, 0.56, 0.60, 0.62],
+                audioAnchors: [.clothSwish, .woodTap, .vinylPop, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.26, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.28, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.54, y: 0.80),
+                komorebiStrength: 0.84
+            )
+        case .a30:
+            return BespokeSceneMetadata(
+                id: .a30,
+                cameraGrammar: "sunlit-dance-rug-rhythm-stage",
+                durations: [4.5, 4.6, 5.0],
+                posterPhases: [0.54, 0.56, 0.68],
+                audioAnchors: [.softChime, .woodTap, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.28, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.74),
+                komorebiStrength: 0.82
+            )
+        case .a31:
+            return BespokeSceneMetadata(
+                id: .a31,
+                cameraGrammar: "twilight-story-bench-triptych",
+                durations: [4.5, 4.8, 4.8],
+                posterPhases: [0.55, 0.58, 0.62],
+                audioAnchors: [.softChime, .clothSwish, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.26, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.27, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.40),
+                komorebiStrength: 0.74
+            )
+        case .a32:
+            return BespokeSceneMetadata(
+                id: .a32,
+                cameraGrammar: "shared-courtyard-dual-playmat",
+                durations: [4.5, 4.8, 4.8],
+                posterPhases: [0.54, 0.58, 0.62],
+                audioAnchors: [.none, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.50, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.50, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
+                komorebiStrength: 0.82
+            )
         }
     }
 
@@ -510,6 +617,14 @@ enum BespokeActivitySceneRegistry {
         case .a22: SceneA22_MatchingPicturesObjects(ctx: context)
         case .a23: SceneA23_TurningPagesPointing(ctx: context)
         case .a24: SceneA24_FreeScribblingCrayons(ctx: context)
+        case .a25: SceneA25_DollCarePlay(ctx: context)
+        case .a26: SceneA26_NamingFeelings(ctx: context)
+        case .a27: SceneA27_SortingLargeObjects(ctx: context)
+        case .a28: SceneA28_KitchenPretendPlay(ctx: context)
+        case .a29: SceneA29_SafeObstaclePath(ctx: context)
+        case .a30: SceneA30_ParentChildActionMusic(ctx: context)
+        case .a31: SceneA31_TellingDayStories(ctx: context)
+        case .a32: SceneA32_ParallelPlayTurnTaking(ctx: context)
         }
     }
 }
