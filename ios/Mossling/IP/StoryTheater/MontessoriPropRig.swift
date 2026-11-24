@@ -28,21 +28,73 @@ struct MontessoriPropRig: View {
             let unit = min(w, h)
 
             switch script.prop {
-            case .woodenRing, .rattle:
+            case .woodenRing:
                 if layer == .betweenActors {
                     drawWoodenRingScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
                 }
+            case .rattle:
+                if layer == .betweenActors {
+                    drawRattleScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
             case .peekCloth:
-                if layer == .inFrontOfActors {
+                if script.phrase == .peekReveal {
+                    if layer == .inFrontOfActors {
+                        drawPeekClothScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                    }
+                } else if layer == .betweenActors {
                     drawPeekClothScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
                 }
-            case .chunkyBlocks, .bridgeBlocks:
+            case .chunkyBlocks:
                 if layer == .betweenActors {
                     drawChunkyBlocksScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
                 }
-            default:
+            case .bridgeBlocks:
                 if layer == .betweenActors {
-                    drawFallbackProp(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                    drawBridgeBlocksScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .softBall:
+                if layer == .betweenActors {
+                    drawSoftBallScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .mirror:
+                if layer == .betweenActors {
+                    drawMirrorScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .woodCup:
+                if layer == .betweenActors {
+                    drawWoodCupScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .bell:
+                if layer == .betweenActors {
+                    drawBellScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .pictureBook:
+                if layer == .betweenActors {
+                    drawPictureBookScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .crayon:
+                if layer == .betweenActors {
+                    drawCrayonScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .doll:
+                if layer == .betweenActors {
+                    drawDollScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .leaf:
+                if layer == .betweenActors {
+                    drawLeafScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .lantern:
+                if layer == .betweenActors {
+                    drawLanternScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .mat:
+                if layer == .betweenActors {
+                    drawMatExploreScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
+                }
+            case .ringStacker:
+                if layer == .betweenActors {
+                    drawRingStackerScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
                 }
             }
 
@@ -58,11 +110,16 @@ struct MontessoriPropRig: View {
     // MARK: - A04 Wooden Ring & Secondary Rattle
 
     private func drawWoodenRingScene(in ctx: inout GraphicsContext, w: CGFloat, h: CGFloat, unit: CGFloat, floorY: CGFloat) {
-        // Optional wooden rattle resting peacefully on the quilted mat
+        // Optional secondary prop resting peacefully on the mat/desk (rattle for A04, softBall for A21 finite choice)
         if script.secondaryProp == .rattle {
             let rx = w * 0.59
             let ry = floorY - unit * 0.028
             drawMiniRattle(in: &ctx, at: CGPoint(x: rx, y: ry), unit: unit)
+        } else if script.secondaryProp == .softBall {
+            let ballR = unit * 0.072
+            let bx = w * 0.59
+            let by = floorY - ballR - CGFloat(script.lead == .child ? 0 : sin(phase.raw * .pi * 2.0) * 1.5)
+            drawStitchedBall(in: &ctx, center: CGPoint(x: bx, y: by), radius: ballR, angleDeg: 14, shadowFloorY: floorY)
         }
 
         let rOuter = unit * 0.10
@@ -169,7 +226,7 @@ struct MontessoriPropRig: View {
         }
     }
 
-    private func drawMiniRattle(in ctx: inout GraphicsContext, at pt: CGPoint, unit: CGFloat) {
+    func drawMiniRattle(in ctx: inout GraphicsContext, at pt: CGPoint, unit: CGFloat) {
         let len = unit * 0.14
         var c = ctx
         c.translateBy(x: pt.x, y: pt.y)
@@ -289,8 +346,51 @@ struct MontessoriPropRig: View {
                 )
             }
 
+        case .offerArc, .graspContact:
+            // Sensory brush / folded cloth care (A02, A08, A20, A35)
+            let p0 = CGPoint(x: w * 0.56, y: floorY - unit * 0.20)
+            let p1 = CGPoint(x: w * 0.43, y: floorY - unit * 0.14)
+            let t = CGFloat(phase.action)
+            clothW = unit * 0.22
+            clothH = unit * 0.11
+            centerX = p0.x + (p1.x - p0.x) * t
+            topY = p0.y + (p1.y - p0.y) * t - CGFloat(sin(Double(t) * .pi) * Double(unit) * 0.04)
+            tiltDeg = -10.0 * Double(1.0 - t) + sin(phase.raw * .pi * 2.0) * 4.0
+            foldScaleY = 1.0 - CGFloat(phase.contact * 0.06)
+
+            if script.secondaryProp == .woodenRing {
+                drawMiniWoodenRing(in: &ctx, center: CGPoint(x: w * 0.57, y: floorY - unit * 0.055), unit: unit)
+            } else if script.secondaryProp == .woodCup {
+                drawMiniWoodBasket(in: &ctx, center: CGPoint(x: w * 0.57, y: floorY - unit * 0.06), unit: unit)
+            }
+
+        case .liftStack:
+            // Folding / tucking cloth neatly toward basket (A35)
+            let fold = phase.action
+            clothW = unit * CGFloat(0.24 - 0.06 * fold)
+            clothH = unit * CGFloat(0.11 + 0.02 * fold)
+            centerX = w * 0.48 + CGFloat(0.06 * fold) * w
+            topY = floorY - clothH - CGFloat(sin(fold * .pi) * Double(unit) * 0.08)
+            tiltDeg = -8.0 * sin(fold * .pi)
+            foldScaleY = 1.0
+
+            if script.secondaryProp == .woodCup {
+                drawMiniWoodBasket(in: &ctx, center: CGPoint(x: w * 0.58, y: floorY - unit * 0.06), unit: unit)
+            }
+
         default:
-            return
+            // .pauseWatch / .soundRipple / .tumbleCheer: gentle folded muslin cloth beside Moss/Otto
+            let sway = sin(phase.raw * .pi * 2.0)
+            clothW = unit * 0.22
+            clothH = unit * 0.10
+            centerX = w * 0.49 + CGFloat(sway * Double(unit) * 0.01)
+            topY = floorY - clothH - 1
+            tiltDeg = sway * 3.0
+            foldScaleY = 1.0
+
+            if script.phrase == .soundRipple {
+                drawSoundArcs(in: &ctx, origin: CGPoint(x: w * 0.54, y: floorY - unit * 0.24), facingLeft: true, unit: unit, tint: dark ? Palette.amber : Crayon.pink)
+            }
         }
 
         drawMuslinCloth(
@@ -465,7 +565,7 @@ struct MontessoriPropRig: View {
         }
     }
 
-    private func drawBlock(
+    func drawBlock(
         in ctx: inout GraphicsContext,
         center: CGPoint,
         size s: CGFloat,
@@ -514,17 +614,32 @@ struct MontessoriPropRig: View {
         )
     }
 
-    // MARK: - Fallback Props & Tactile Feedback
+    // MARK: - Shared Montessori Material & Feedback Helpers
 
-    private func drawFallbackProp(in ctx: inout GraphicsContext, w: CGFloat, h: CGFloat, unit: CGFloat, floorY: CGFloat) {
-        let cx = w * 0.50
-        let r = unit * 0.08
-        let cy = floorY - r - CGFloat(phase.contact * Double(unit) * 0.03)
-        let rect = CGRect(x: cx - r, y: cy - r, width: r * 2, height: r * 2)
-        ctx.fill(Path(ellipseIn: rect), with: .color(accent))
+    func drawFloorShadow(in ctx: inout GraphicsContext, x: CGFloat, floorY: CGFloat, rx: CGFloat, ry: CGFloat, factor: CGFloat = 1.0) {
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: x - rx * factor, y: floorY - ry * 0.45 * factor, width: rx * 2 * factor, height: max(3.5, ry * 1.4 * factor))),
+            with: .color(Color.black.opacity((dark ? 0.34 : 0.15) * Double(factor)))
+        )
     }
 
-    private func drawWoodTapRing(in ctx: inout GraphicsContext, at pt: CGPoint, progress p: Double, unit: CGFloat) {
+    func drawSoundArcs(in ctx: inout GraphicsContext, origin: CGPoint, facingLeft: Bool, unit: CGFloat, tint: Color) {
+        let baseStart = facingLeft ? 142.0 : -38.0
+        let baseEnd = facingLeft ? 218.0 : 38.0
+        for i in 0..<2 {
+            let p = (phase.raw + Double(i) * 0.45).truncatingRemainder(dividingBy: 1.0)
+            let arcR = unit * CGFloat(0.075 + p * 0.145)
+            var arc = Path()
+            arc.addArc(center: origin, radius: arcR, startAngle: .degrees(baseStart), endAngle: .degrees(baseEnd), clockwise: false)
+            ctx.stroke(
+                arc,
+                with: .color(tint.opacity((1.0 - p) * 0.62)),
+                style: StrokeStyle(lineWidth: max(1.4, unit * 0.0085), lineCap: .round)
+            )
+        }
+    }
+
+    func drawWoodTapRing(in ctx: inout GraphicsContext, at pt: CGPoint, progress p: Double, unit: CGFloat) {
         let r = unit * CGFloat(0.06 + p * 0.10)
         ctx.stroke(
             Path(ellipseIn: CGRect(x: pt.x - r, y: pt.y - r * 0.45, width: r * 2, height: r * 0.9)),
@@ -533,7 +648,7 @@ struct MontessoriPropRig: View {
         )
     }
 
-    private func drawSparklePetals(in ctx: inout GraphicsContext, center: CGPoint, radius: CGFloat, alpha: Double, unit: CGFloat) {
+    func drawSparklePetals(in ctx: inout GraphicsContext, center: CGPoint, radius: CGFloat, alpha: Double, unit: CGFloat) {
         let colors = [Palette.bead, Crayon.mint, Crayon.sunflower, Crayon.sky, Crayon.pink]
         let r = max(1.6, unit * 0.015)
         for i in 0..<5 {

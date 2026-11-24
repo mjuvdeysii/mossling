@@ -1837,4 +1837,20 @@ final class ScreenshotTests: XCTestCase {
         shot("63_living_finished_a19_zh", height: 1020, tabs(m, PlayView(play: playA19, month: 14, initialStep: 3)))
         shot("63_fix_play_a11_clean_zh", height: 1160, tabs(m, PlayView(play: playA11, month: 6, initialStep: 0)))
     }
+
+    /// Round 17 — Full Living StoryTheater Phase 2 across Newborn (N01/N04) & Bespoke Montessori Props (Mirror/Ball/Crayon/Bridge/Lantern).
+    func test64Round17LivingBookAllPropsAndNewborn() {
+        let m = model(); m.journal = true
+        let playN01 = m.content.play("N01")!
+        let playA09 = m.content.play("A09")!
+        let playA18 = m.content.play("A18")!
+        let playA24 = m.content.play("A24")!
+        let playA33 = m.content.play("A33")!
+
+        shot("64_living_n01_newborn_zh", height: 960, tabs(m, PlayView(play: playN01, month: 0, initialStep: 0)))
+        shot("64_living_a09_mirror_zh", height: 960, tabs(m, PlayView(play: playA09, month: 7, initialStep: 0)))
+        shot("64_living_a18_ball_zh", height: 960, tabs(m, PlayView(play: playA18, month: 12, initialStep: 0)))
+        shot("64_living_a24_crayon_zh", height: 960, tabs(m, PlayView(play: playA24, month: 19, initialStep: 2)))
+        shot("64_living_a33_bridge_lamp_zh", height: 960, lamp: true, tabs(m, PlayView(play: playA33, month: 27, initialStep: 1).lamp(true)))
+    }
 }

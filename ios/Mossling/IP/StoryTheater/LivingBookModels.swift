@@ -324,10 +324,12 @@ struct LivingStepScript: Equatable, Sendable {
         case .gentleSway:
             let swayDeg = sin(s.raw * .pi * 2.0) * 3.5
             let slowBlink: Double? = (s.raw > 0.65 && s.raw < 0.76) ? 1.0 : restLid
+            let mossLeadBoost = lead == .child ? 0.08 * sin(s.raw * .pi * 2.0) : 0.0
+            let mossHop = max(0, sin(s.raw * .pi) * 0.18 + mossLeadBoost)
             return (
                 moss: LivingActorPose(
                     x: mossAnchorX,
-                    hopLift: CGFloat(max(0, sin(s.raw * .pi) * 0.18)),
+                    hopLift: CGFloat(mossHop),
                     lean: 2.5 + swayDeg * 0.7,
                     look: CGPoint(x: 0.90, y: -0.08),
                     mood: .happy,
@@ -346,26 +348,75 @@ struct LivingStepScript: Equatable, Sendable {
             )
 
         case .soundRipple:
-            return (
-                moss: LivingActorPose(
-                    x: mossAnchorX,
-                    hopLift: CGFloat(s.contact * 0.30),
-                    lean: 3.5,
-                    look: CGPoint(x: 0.88, y: -0.10),
-                    mood: s.raw >= 0.50 ? .happy : .wow,
-                    lid: restLid,
-                    hopping: false
-                ),
-                otto: LivingActorPose(
-                    x: ottoAnchorX,
-                    hopLift: 0,
-                    lean: -3.2,
-                    look: CGPoint(x: -0.90, y: 0.22),
-                    mood: .open,
-                    lid: restLid,
-                    hopping: false
+            switch lead {
+            case .child:
+                let chirpHop = s.raw < 0.65 ? sin(min(1.0, s.raw / 0.65) * .pi) * 0.58 : 0.0
+                return (
+                    moss: LivingActorPose(
+                        x: mossAnchorX + CGFloat(0.015 * s.action),
+                        hopLift: CGFloat(chirpHop),
+                        lean: 4.2,
+                        look: CGPoint(x: 0.90, y: -0.14),
+                        mood: s.raw >= 0.45 ? .happy : .wow,
+                        lid: restLid,
+                        hopping: chirpHop > 0.22
+                    ),
+                    otto: LivingActorPose(
+                        x: ottoAnchorX,
+                        hopLift: 0,
+                        lean: -3.6 * s.contactEnvelope - 1.8,
+                        look: CGPoint(x: -0.92, y: 0.24),
+                        mood: s.raw >= 0.50 ? .happy : .open,
+                        lid: restLid,
+                        hopping: false
+                    )
                 )
-            )
+            case .together:
+                let replyHop = s.contact * 0.48
+                let happyNow = s.raw >= 0.48
+                return (
+                    moss: LivingActorPose(
+                        x: mossAnchorX,
+                        hopLift: CGFloat(replyHop),
+                        lean: 3.8 + 1.4 * sin(s.raw * .pi * 2.0),
+                        look: CGPoint(x: 0.90, y: -0.12),
+                        mood: happyNow ? .happy : .wow,
+                        lid: restLid,
+                        hopping: replyHop > 0.20
+                    ),
+                    otto: LivingActorPose(
+                        x: ottoAnchorX,
+                        hopLift: 0,
+                        lean: -3.4 - 1.2 * sin(s.raw * .pi * 2.0),
+                        look: CGPoint(x: -0.92, y: 0.20),
+                        mood: happyNow ? .happy : .open,
+                        lid: restLid,
+                        hopping: false
+                    )
+                )
+            case .adult:
+                let blinkLid: Double? = (s.raw > 0.70 && s.raw < 0.78) ? 1.0 : restLid
+                return (
+                    moss: LivingActorPose(
+                        x: mossAnchorX,
+                        hopLift: CGFloat(s.contact * 0.32),
+                        lean: 3.2,
+                        look: CGPoint(x: 0.88, y: -0.10),
+                        mood: s.raw >= 0.52 ? .happy : .wow,
+                        lid: restLid,
+                        hopping: false
+                    ),
+                    otto: LivingActorPose(
+                        x: ottoAnchorX,
+                        hopLift: 0,
+                        lean: -3.8 - 1.5 * s.action,
+                        look: CGPoint(x: -0.90, y: 0.22),
+                        mood: s.raw >= 0.54 ? .happy : .open,
+                        lid: blinkLid,
+                        hopping: false
+                    )
+                )
+            }
 
         case .liftStack:
             if lead == .child {
@@ -440,183 +491,9 @@ struct LivingStepScript: Equatable, Sendable {
     }
 }
 
-/// Complete declarative living picture-book script for a single activity (`A04`, `A12`, `A19` in Phase 1).
+/// Complete declarative living picture-book script for a single activity (`N01–N06`, `A01–A40`).
 struct LivingActivityScript: Equatable, Sendable {
     let code: String
     let backdrop: LivingBackdropKind
     let steps: [LivingStepScript]
-}
-
-/// Phase 1 curated living picture-book catalog (`A04`, `A12`, `A19`).
-enum LivingBookCatalog {
-    static let scriptsByCode: [String: LivingActivityScript] = {
-        let items: [LivingActivityScript] = [
-            // A04: Watching Hands & Reaching (playMat + woodenRing + rattle)
-            LivingActivityScript(
-                code: "A04",
-                backdrop: .playMat,
-                steps: [
-                    LivingStepScript(
-                        stepIndex: 0,
-                        phrase: .offerArc,
-                        lead: .adult,
-                        prop: .woodenRing,
-                        secondaryProp: .rattle,
-                        posterPhase: 0.64,
-                        duration: 3.4,
-                        audioAnchor: .woodTap,
-                        mossAnchorX: 0.28,
-                        ottoAnchorX: 0.75,
-                        lampTargetX: 0.49,
-                        lampTargetY: 0.56
-                    ),
-                    LivingStepScript(
-                        stepIndex: 1,
-                        phrase: .pauseWatch,
-                        lead: .child,
-                        prop: .woodenRing,
-                        secondaryProp: .rattle,
-                        posterPhase: 0.56,
-                        duration: 3.4,
-                        audioAnchor: .vinylPop,
-                        mossAnchorX: 0.29,
-                        ottoAnchorX: 0.75,
-                        lampTargetX: 0.48,
-                        lampTargetY: 0.57
-                    ),
-                    LivingStepScript(
-                        stepIndex: 2,
-                        phrase: .graspContact,
-                        lead: .together,
-                        prop: .woodenRing,
-                        secondaryProp: .rattle,
-                        posterPhase: 0.58,
-                        duration: 3.4,
-                        audioAnchor: .woodTap,
-                        mossAnchorX: 0.30,
-                        ottoAnchorX: 0.74,
-                        lampTargetX: 0.40,
-                        lampTargetY: 0.62
-                    ),
-                ]
-            ),
-            // A12: Peekaboo Hands (cozyCorner + organic muslin peekCloth)
-            LivingActivityScript(
-                code: "A12",
-                backdrop: .cozyCorner,
-                steps: [
-                    LivingStepScript(
-                        stepIndex: 0,
-                        phrase: .peekReveal,
-                        lead: .adult,
-                        prop: .peekCloth,
-                        secondaryProp: nil,
-                        posterPhase: 0.45,
-                        duration: 3.5,
-                        audioAnchor: .clothSwish,
-                        mossAnchorX: 0.27,
-                        ottoAnchorX: 0.72,
-                        lampTargetX: 0.52,
-                        lampTargetY: 0.54
-                    ),
-                    LivingStepScript(
-                        stepIndex: 1,
-                        phrase: .gentleSway,
-                        lead: .adult,
-                        prop: .peekCloth,
-                        secondaryProp: nil,
-                        posterPhase: 0.52,
-                        duration: 3.4,
-                        audioAnchor: .softChime,
-                        mossAnchorX: 0.28,
-                        ottoAnchorX: 0.72,
-                        lampTargetX: 0.50,
-                        lampTargetY: 0.54
-                    ),
-                    LivingStepScript(
-                        stepIndex: 2,
-                        phrase: .peekReveal,
-                        lead: .child,
-                        prop: .peekCloth,
-                        secondaryProp: nil,
-                        posterPhase: 0.45,
-                        duration: 3.5,
-                        audioAnchor: .clothSwish,
-                        mossAnchorX: 0.30,
-                        ottoAnchorX: 0.74,
-                        lampTargetX: 0.38,
-                        lampTargetY: 0.58
-                    ),
-                ]
-            ),
-            // A19: Stacking Chunky Blocks (woodenDesk + 3-block tower + joyful tumble)
-            LivingActivityScript(
-                code: "A19",
-                backdrop: .woodenDesk,
-                steps: [
-                    LivingStepScript(
-                        stepIndex: 0,
-                        phrase: .liftStack,
-                        lead: .adult,
-                        prop: .chunkyBlocks,
-                        secondaryProp: nil,
-                        posterPhase: 0.56,
-                        duration: 3.4,
-                        audioAnchor: .woodTap,
-                        mossAnchorX: 0.25,
-                        ottoAnchorX: 0.76,
-                        lampTargetX: 0.50,
-                        lampTargetY: 0.60
-                    ),
-                    LivingStepScript(
-                        stepIndex: 1,
-                        phrase: .liftStack,
-                        lead: .child,
-                        prop: .chunkyBlocks,
-                        secondaryProp: nil,
-                        posterPhase: 0.56,
-                        duration: 3.5,
-                        audioAnchor: .woodTap,
-                        mossAnchorX: 0.26,
-                        ottoAnchorX: 0.77,
-                        lampTargetX: 0.50,
-                        lampTargetY: 0.54
-                    ),
-                    LivingStepScript(
-                        stepIndex: 2,
-                        phrase: .tumbleCheer,
-                        lead: .together,
-                        prop: .chunkyBlocks,
-                        secondaryProp: nil,
-                        posterPhase: 0.56,
-                        duration: 3.8,
-                        audioAnchor: .softChime,
-                        mossAnchorX: 0.25,
-                        ottoAnchorX: 0.76,
-                        lampTargetX: 0.50,
-                        lampTargetY: 0.66
-                    ),
-                ]
-            ),
-        ]
-        return Dictionary(uniqueKeysWithValues: items.map { ($0.code, $0) })
-    }()
-
-    static var supportedCodes: [String] {
-        scriptsByCode.keys.sorted()
-    }
-
-    static func hasScript(for code: String) -> Bool {
-        scriptsByCode[code] != nil
-    }
-
-    static func script(for code: String) -> LivingActivityScript? {
-        scriptsByCode[code]
-    }
-
-    static func stepScript(for code: String, stepIndex: Int) -> LivingStepScript? {
-        guard let script = scriptsByCode[code], !script.steps.isEmpty else { return nil }
-        let clamped = min(max(0, stepIndex), script.steps.count - 1)
-        return script.steps[clamped]
-    }
 }

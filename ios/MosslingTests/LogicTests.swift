@@ -2047,22 +2047,60 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(sEnd.raw, 1.0, accuracy: 0.001)
         XCTAssertEqual(sEnd.hold, 1.0, accuracy: 0.001)
 
-        // 2. Verify Phase 1 catalog covers A04, A12, A19 with exact authoritative step counts
+        // 2. Verify full catalog covers all 46 authoritative activities (N01–N06, A01–A40) with exact step counts
         let content = try Content.load()
-        XCTAssertEqual(LivingBookCatalog.supportedCodes, ["A04", "A12", "A19"])
-        for code in LivingBookCatalog.supportedCodes {
-            XCTAssertTrue(LivingBookCatalog.hasScript(for: code))
-            let play = try XCTUnwrap(content.play(code))
-            let script = try XCTUnwrap(LivingBookCatalog.script(for: code))
-            XCTAssertEqual(script.steps.count, play.steps.count, "Step count mismatch for \(code)")
+        let allAuthoritativeCodes = content.activities.map(\.code).sorted()
+        XCTAssertEqual(LivingBookCatalog.supportedCodes, allAuthoritativeCodes)
+        XCTAssertEqual(LivingBookCatalog.supportedCodes.count, 46)
+        for play in content.activities {
+            XCTAssertTrue(LivingBookCatalog.hasScript(for: play.code), "Missing LivingBook script for \(play.code)")
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: play.code))
+            XCTAssertEqual(script.steps.count, play.steps.count, "Step count mismatch for \(play.code)")
             for (idx, step) in script.steps.enumerated() {
                 XCTAssertEqual(step.stepIndex, idx)
                 XCTAssertGreaterThan(step.posterPhase, 0.0)
                 XCTAssertLessThan(step.posterPhase, 1.0)
                 XCTAssertGreaterThan(step.duration, 0.5)
             }
-            XCTAssertEqual(LivingBookCatalog.stepScript(for: code, stepIndex: -5)?.stepIndex, 0)
-            XCTAssertEqual(LivingBookCatalog.stepScript(for: code, stepIndex: 99)?.stepIndex, script.steps.count - 1)
+            XCTAssertEqual(LivingBookCatalog.stepScript(for: play.code, stepIndex: -5)?.stepIndex, 0)
+            XCTAssertEqual(LivingBookCatalog.stepScript(for: play.code, stepIndex: 99)?.stepIndex, script.steps.count - 1)
+        }
+
+        // 2b. Verify every LivingPropKind is covered by at least one activity and renders deterministically in 3D & 2D
+        let usedProps = Set(LivingBookCatalog.scriptsByCode.values.flatMap { $0.steps.map(\.prop) })
+        for kind in LivingPropKind.allCases {
+            XCTAssertTrue(usedProps.contains(kind), "Unused LivingPropKind: \(kind)")
+            let sampleStep = LivingStepScript(
+                stepIndex: 0,
+                phrase: kind == .peekCloth ? .peekReveal : (kind == .chunkyBlocks ? .tumbleCheer : .offerArc),
+                lead: .together,
+                prop: kind,
+                secondaryProp: nil,
+                posterPhase: 0.56,
+                duration: 3.4,
+                audioAnchor: .woodTap,
+                mossAnchorX: 0.27,
+                ottoAnchorX: 0.74,
+                lampTargetX: 0.50,
+                lampTargetY: 0.58
+            )
+            let propScript = LivingActivityScript(code: "PROP_\(kind.rawValue)", backdrop: .cozyCorner, steps: [sampleStep])
+            for (dark, flat) in [(false, false), (true, true)] {
+                let stage = LivingBookStage(
+                    script: propScript,
+                    stepIndex: 0,
+                    companion: .moss,
+                    dark: dark,
+                    accent: Crayon.teal,
+                    posterPhase: 0.56,
+                    interactive: false,
+                    forceFlat: flat
+                )
+                .frame(width: 240, height: 180)
+                let propRenderer = ImageRenderer(content: stage)
+                propRenderer.scale = 1.0
+                XCTAssertNotNil(propRenderer.uiImage, "Failed rendering prop \(kind) dark=\(dark) flat=\(flat)")
+            }
         }
 
         // 3. Verify LampLightRig bead coordinates stay finite and track Otto's lean in 3D & 2D
