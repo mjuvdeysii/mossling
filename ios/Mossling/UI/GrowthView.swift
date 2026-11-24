@@ -13,9 +13,28 @@ struct GrowthView: View {
     @State private var editing: Measure?
     @State private var scrubbingChart = false
 
-    private func value(_ m: Measure, _ i: Indicator) -> Double? {
-        switch i { case .weight: m.weightG.map { Double($0) / 1000 }; case .length: m.lengthMm.map { Double($0) / 10 }; case .head: m.headMm.map { Double($0) / 10 } }
+    static func measureValue(_ m: Measure, _ i: Indicator) -> Double? {
+        switch i {
+        case .weight: m.weightG.map { Double($0) / 1000 }
+        case .length: m.lengthMm.map { Double($0) / 10 }
+        case .head: m.headMm.map { Double($0) / 10 }
+        }
     }
+
+    static func delta(for measure: Measure, in all: [Measure], indicator: Indicator) -> Double? {
+        guard let cur = measureValue(measure, indicator) else { return nil }
+        let chronological = all
+            .filter { measureValue($0, indicator) != nil }
+            .sorted { $0.at < $1.at }
+        guard let idx = chronological.firstIndex(where: { $0.id == measure.id }),
+              idx > 0,
+              let prev = measureValue(chronological[idx - 1], indicator) else {
+            return nil
+        }
+        return cur - prev
+    }
+
+    private func value(_ m: Measure, _ i: Indicator) -> Double? { Self.measureValue(m, i) }
     private func months(_ m: Measure) -> Double? { app.birth.map { Double($0.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375 } }
     private func pct(_ m: Measure, _ i: Indicator) -> Double? {
         guard app.sex != nil, let mo = months(m), mo >= 0, mo <= 36, let v = value(m, i), v > 0 else { return nil }
@@ -38,12 +57,24 @@ struct GrowthView: View {
                     }
                 }
                 chartCard
-                Box(title: L10n.t("每一次测量", "All Measurements"), detail: j.measures.isEmpty ? nil : L10n.t("\(j.measures.count) 次", "\(j.measures.count)")) {
-                    let all = j.measures
-                    if all.isEmpty { Text(L10n.t("还没有测量记录", "No measurements yet")).font(.subheadline).foregroundStyle(Palette.secondaryText).padding(16) }
+                let all = j.measures
+                let activeID = (picked ?? all.filter { value($0, ind) != nil }.last)?.id
+                Box(
+                    title: L10n.t("成长刻度手账", "Growth Ledger"),
+                    detail: all.isEmpty ? nil : L10n.t("\(all.count) 次 · 点行定位曲线", "\(all.count) · Tap to inspect")
+                ) {
+                    if all.isEmpty {
+                        Text(L10n.t("还没有测量记录", "No measurements yet"))
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.secondaryText)
+                            .padding(16)
+                    }
                     ForEach(Array(all.reversed().enumerated()), id: \.element.id) { i, m in
-                        Button { editing = m } label: { row(m, last: i == all.count - 1) }.buttonStyle(.plain)
-                            .contextMenu { Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { j.deleteMeasure(m) } }
+                        row(m, all: all, active: m.id == activeID, last: i == all.count - 1)
+                            .contextMenu {
+                                Button(L10n.t("编辑", "Edit"), systemImage: "pencil") { editing = m }
+                                Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { j.deleteMeasure(m) }
+                            }
                     }
                 }
                 Text(L10n.t(
@@ -298,33 +329,131 @@ struct GrowthView: View {
 
     private func legend(_ v: AnyView, _ t: String) -> some View { HStack(spacing: 5) { v; Text(t).font(.caption2).foregroundStyle(Palette.secondaryText) } }
 
-    @ViewBuilder private func values(_ m: Measure) -> some View {
-        ForEach(Indicator.allCases) { x in
-            if let v = value(m, x) {
-                HStack(alignment: .firstTextBaseline, spacing: 2) { Text(x.short).font(.caption2).foregroundStyle(Palette.secondaryText).padding(.trailing, 1); Text(x.fmt(v)).font(Typeface.numerals(16, weight: x == ind ? .bold : .regular)); Text(x.unitShort).font(.caption).foregroundStyle(Palette.secondaryText) }
-                    .foregroundStyle(x == ind ? x.tint : .primary)
-                    .fixedSize()
-            }
-        }
-    }
-
-    private func row(_ m: Measure, last: Bool) -> some View {
+    private func row(_ m: Measure, all: [Measure], active: Bool, last: Bool) -> some View {
         let d = Day(Date(timeIntervalSince1970: m.at / 1000))
+        let others = Indicator.allCases.filter { $0 != ind && value(m, $0) != nil }
+        let tintInk = lamp ? ind.tint : Crayon.ink(ind.tint)
+
         return VStack(spacing: 0) {
-            // date and age on the first line, the three measures together on the second: a row reads at a glance
-            VStack(alignment: .leading, spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(verbatim: d.ymd).font(.subheadline.weight(.semibold))
-                    if let b = app.birth { Text(verbatim: Firsts.age(from: b, to: d)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
-                    Spacer(minLength: 0)
-                }
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 16) { values(m); Spacer(minLength: 0) }
-                    VStack(alignment: .leading, spacing: 2) { values(m) }
-                }
+            VStack(alignment: .leading, spacing: 7) {
+                    // Header: date + age capsule (taps select on chart) + trailing Edit button
+                    HStack(alignment: .center, spacing: 8) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(.snappy) { picked = m }
+                        } label: {
+                            HStack(alignment: .center, spacing: 8) {
+                                Text(verbatim: d.ymd)
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                if let b = app.birth {
+                                    Text(verbatim: Firsts.age(from: b, to: d))
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(Palette.secondaryText)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Palette.fill.opacity(0.8)))
+                                }
+                                Spacer(minLength: 0)
+                            }
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            editing = m
+                        } label: {
+                            Image(systemName: "pencil")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(Palette.accent)
+                                .frame(width: 30, height: 30)
+                                .background(Circle().fill(Palette.accent.opacity(lamp ? 0.18 : 0.10)))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityLabel(L10n.t("编辑这次测量", "Edit measurement"))
+                    }
+
+                    // Active metric hero value + delta badge + percentile (taps select on chart)
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { picked = m }
+                    } label: {
+                        HStack(alignment: .firstTextBaseline, spacing: 8) {
+                            if let v = value(m, ind) {
+                                Text(ind.fmt(v) + " " + ind.unitShort)
+                                    .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
+                                    .foregroundStyle(tintInk)
+                                if let dv = Self.delta(for: m, in: all, indicator: ind) {
+                                    Text((dv >= 0 ? "+" : "") + ind.fmt(dv))
+                                        .font(.caption.weight(.bold))
+                                        .monospacedDigit()
+                                        .foregroundStyle(tintInk)
+                                        .padding(.horizontal, 7)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(ind.tint.opacity(lamp ? 0.24 : 0.15)))
+                                }
+                                if let p = pct(m, ind) {
+                                    Text(pctText(p))
+                                        .font(.caption)
+                                        .foregroundStyle(Palette.secondaryText)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.8)
+                                }
+                            } else {
+                                Text(L10n.t("未记录\(ind.short)", "No \(ind.short.lowercased())"))
+                                    .font(.caption)
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+
+                    // Secondary metrics chips (tap to switch active curve AND focus this measurement)
+                    if !others.isEmpty {
+                        WrapLayout(spacing: 6) {
+                            ForEach(others) { other in
+                                if let ov = value(m, other) {
+                                    Button {
+                                        TactileEngine.shared.beadClick()
+                                        withAnimation(.snappy) {
+                                            ind = other
+                                            picked = m
+                                        }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Circle().fill(other.tint).frame(width: 6, height: 6)
+                                            Text(other.short).foregroundStyle(Palette.secondaryText)
+                                            Text(other.fmt(ov) + " " + other.unitShort)
+                                                .fontWeight(.semibold)
+                                                .monospacedDigit()
+                                                .foregroundStyle(.primary)
+                                        }
+                                        .font(.caption)
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 4)
+                                        .background(Capsule().fill(other.tint.opacity(lamp ? 0.14 : 0.09)))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                    }
             }
-            .padding(.horizontal, 16).padding(.vertical, 10)
-            .contentShape(Rectangle())
+            .padding(.leading, 18)
+            .padding(.trailing, 14)
+            .padding(.vertical, 10)
+            .overlay(alignment: .leading) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(active ? ind.tint : .clear)
+                    .frame(width: 3.5)
+                    .padding(.vertical, 8)
+                    .padding(.leading, 6)
+            }
+            .background(active ? ind.tint.opacity(lamp ? 0.14 : 0.08) : .clear)
+
             if !last { Divider().padding(.leading, 16) }
         }
     }

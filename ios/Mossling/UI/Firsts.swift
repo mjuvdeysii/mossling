@@ -438,8 +438,31 @@ struct FirstsView: View {
                     Text("\(j.firsts.count)").font(Typeface.numerals(34, relativeTo: .largeTitle, weight: .bold)).foregroundStyle(Palette.accent)
                     Text(L10n.t("个第一次", j.firsts.count == 1 ? "first" : "firsts")).font(.headline)
                 }
-                Text(j.firsts.first.map { L10n.t("最近：", "Latest: ") + Firsts.displayTitle($0) + " · " + whenLabelDay($0.date) } ?? L10n.t("从出生那天起的一条线", "One quiet thread from the day they arrived"))
-                    .font(.footnote).foregroundStyle(Palette.secondaryText).lineLimit(2)
+                if let latest = j.firsts.first {
+                    let prefix = L10n.t("最近：", "Latest: ")
+                    let title = Firsts.displayTitle(latest)
+                    let dayText = whenLabelDay(latest.date)
+                    ViewThatFits(in: .horizontal) {
+                        Text(prefix + title + " · " + dayText)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(prefix + title)
+                                .font(.footnote)
+                                .foregroundStyle(Palette.secondaryText)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                            Text(dayText)
+                                .font(.caption)
+                                .foregroundStyle(Palette.secondaryText.opacity(0.85))
+                                .monospacedDigit()
+                        }
+                    }
+                } else {
+                    Text(L10n.t("从出生那天起的一条线", "One quiet thread from the day they arrived"))
+                        .font(.footnote).foregroundStyle(Palette.secondaryText).lineLimit(2)
+                }
             }
             Spacer(minLength: 0)
             Button { draftNew = First(at: ms(Date()), title: "") } label: { Image(systemName: "plus").font(.headline).frame(width: 44, height: 40) }

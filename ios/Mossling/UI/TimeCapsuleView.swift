@@ -115,56 +115,151 @@ struct TimeCapsuleListView: View {
     }
 
     private func heroCard(dark: Bool, readyCount: Int) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Kid's Picture-Book layered cotton envelope vignette with die-cut Otto holding the evening light
+        let total = store.items.count
+        let nextLocked = store.items
+            .filter { $0.isLocked(on: app.today) }
+            .min { $0.daysUntilUnlock(on: app.today) < $1.daysUntilUnlock(on: app.today) }
+
+        return VStack(alignment: .leading, spacing: 12) {
+            // Kid's Picture-Book writing desk vignette: stacked wax-sealed envelopes, warm amber desk light, and Otto keeping watch
             ZStack {
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
                     .fill(dark ? Color(hex: 0x151D3B) : Color(hex: 0xFDF7EA))
+
+                // Soft amber lamp halo cast from Otto's desk bulb across the paper
+                RadialGradient(
+                    colors: [Palette.amber.opacity(dark ? 0.24 : 0.22), Palette.amber.opacity(0)],
+                    center: UnitPoint(x: 0.82, y: 0.36),
+                    startRadius: 4,
+                    endRadius: 150
+                )
+
+                // Warm wooden desk edge anchoring both the envelopes and Otto
+                VStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    Rectangle()
+                        .fill(dark ? Color(hex: 0x222D54) : Color(hex: 0xEFE1C7))
+                        .frame(height: 16)
+                        .overlay(alignment: .top) {
+                            Rectangle()
+                                .fill(Palette.bead.opacity(dark ? 0.28 : 0.35))
+                                .frame(height: 1)
+                        }
+                }
+
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
                     .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.28), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
 
-                HStack(spacing: 12) {
+                HStack(alignment: .center, spacing: 10) {
+                    // Left: stacked cotton envelopes with flap crease & wax stamp
                     ZStack {
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(dark ? Color(hex: 0x263159) : Color.white)
-                            .frame(width: 72, height: 52)
+                            .frame(width: 68, height: 48)
                             .rotationEffect(.degrees(-6))
                             .shadow(color: .black.opacity(0.10), radius: 3, y: 2)
                         RoundedRectangle(cornerRadius: 10, style: .continuous)
                             .fill(dark ? Color(hex: 0x1F294D) : Color(hex: 0xFAF1DF))
                             .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(Palette.bead.opacity(0.45), lineWidth: 1))
-                            .frame(width: 72, height: 52)
-                            .overlay { WaxSealBadge(seal: .gold, size: 22) }
+                            .frame(width: 68, height: 48)
+                            .overlay { WaxSealBadge(seal: .gold, size: 20) }
                             .rotationEffect(.degrees(3))
                     }
-                    .padding(.leading, 8)
+                    .padding(.leading, 12)
 
-                    Spacer(minLength: 4)
+                    // Center: live desk status plaque bridging envelopes and Otto
+                    VStack(spacing: 4) {
+                        if readyCount > 0 {
+                            Label(
+                                L10n.t("\(readyCount) 封可拆封", "\(readyCount) ready"),
+                                systemImage: "sparkles"
+                            )
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(Palette.bead.opacity(dark ? 0.24 : 0.20)))
+                            Text(L10n.t("共 \(total) 封时光信笺", "\(total) letters kept"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Palette.secondaryText)
+                        } else if total > 0 {
+                            Text(L10n.t("已封存 \(total) 封信", "\(total) sealed"))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.primary)
+                            if let nextLocked {
+                                let days = nextLocked.daysUntilUnlock(on: app.today)
+                                Text(L10n.t("最近一封还有 \(days) 天", "Next in \(days)d"))
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                                    .monospacedDigit()
+                            } else {
+                                Text(L10n.t("只保存在这部手机里", "Offline on this iPhone"))
+                                    .font(.caption2)
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                        } else {
+                            Text(L10n.t("一岁 · 三岁 · 任意一天", "Year 1 · Year 3 · Anytime"))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                            Text(L10n.t("离线火漆封存", "Sealed offline"))
+                                .font(.caption2)
+                                .foregroundStyle(Palette.secondaryText)
+                        }
 
-                    Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.2), alive: !reduce, glow: dark)
-                        .frame(width: 58, height: 58)
+                        // Golden thread connecting letter stack toward Otto's lamp
+                        HStack(spacing: 4) {
+                            Circle().fill(Palette.bead.opacity(0.65)).frame(width: 4, height: 4)
+                            Rectangle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [Palette.bead.opacity(0.35), Palette.amber.opacity(0.75)],
+                                        startPoint: .leading,
+                                        endPoint: .trailing
+                                    )
+                                )
+                                .frame(height: 1.2)
+                            Circle().fill(Palette.amber).frame(width: 5, height: 5)
+                        }
+                        .frame(maxWidth: 110)
+                        .padding(.top, 2)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .multilineTextAlignment(.center)
+
+                    // Right: Otto gently holding the desk light
+                    Creature(kind: .otto, mood: .open, look: CGPoint(x: -0.6, y: 0.2), alive: !reduce, glow: true)
+                        .frame(width: 66, height: 66)
                         .padding(.trailing, 8)
                 }
-                .padding(.vertical, 12)
+                .padding(.bottom, 6)
             }
-            .frame(height: 92)
+            .frame(height: 112)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
             .accessibilityHidden(true)
 
-            HStack(spacing: 14) {
-                WaxSealBadge(seal: .gold, size: 46)
-                VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(alignment: .center, spacing: 8) {
                     Text(L10n.t("写给未来的宝宝", "Letters for Future Days"))
                         .font(.headline)
                         .foregroundStyle(.primary)
-                    Text(
-                        readyCount > 0
-                            ? L10n.t("有 \(readyCount) 封信到了拆封的日子，轻点火漆读一读吧。", "\(readyCount) \(readyCount == 1 ? "letter is" : "letters are") ready to unseal today.")
-                            : L10n.t("盖上一枚火漆，把此刻只存在手机里，留到未来某天再拆开。", "Stamp a wax seal on tonight's thought. Stored only on this iPhone until the day you choose.")
-                    )
-                    .font(.caption)
-                    .foregroundStyle(Palette.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                    if readyCount > 0 {
+                        Text(L10n.t("火漆已就绪", "Ready to unseal"))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.16)))
+                    }
                 }
+                Text(
+                    readyCount > 0
+                        ? L10n.t("有 \(readyCount) 封信到了拆封的日子，轻点火漆读一读吧。", "\(readyCount) \(readyCount == 1 ? "letter is" : "letters are") ready to unseal today.")
+                        : L10n.t("盖上一枚火漆，把此刻只存在手机里，留到未来某天再拆开。", "Stamp a wax seal on tonight's thought. Stored only on this iPhone until the day you choose.")
+                )
+                .font(.caption)
+                .foregroundStyle(Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
             }
 
             Button {

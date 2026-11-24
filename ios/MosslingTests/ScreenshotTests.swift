@@ -1,5 +1,6 @@
 import XCTest
 import SwiftUI
+import QuartzCore
 @testable import Mossling
 
 /// Renders each screen in the simulator and writes a PNG to $SNAPSHOT_DIR (set by CI) for review.
@@ -21,12 +22,22 @@ final class ScreenshotTests: XCTestCase {
         return m
     }
 
+    private static var sharedWindow: UIWindow?
+
     private func shot<V: View>(_ name: String, dark: Bool = false, height: CGFloat = 852, width: CGFloat = 393, window whole: Bool = false, lamp: Bool = false, settle: Double = 1.2, _ view: V) {
         let dir = ProcessInfo.processInfo.environment["SNAPSHOT_DIR"] ?? NSTemporaryDirectory()
         // lamp: the phone in light mode with the lamp on — the app darkens its window then (RootView), so do the same
         let host = UIHostingController(rootView: view.environment(\.colorScheme, dark || lamp ? .dark : .light).preferredColorScheme(lamp ? .dark : nil))
         let size = CGSize(width: width, height: height)
-        let window = UIWindow(frame: CGRect(origin: .zero, size: size))
+        let window: UIWindow
+        if let existing = Self.sharedWindow {
+            existing.frame = CGRect(origin: .zero, size: size)
+            window = existing
+        } else {
+            let created = UIWindow(frame: CGRect(origin: .zero, size: size))
+            Self.sharedWindow = created
+            window = created
+        }
         window.overrideUserInterfaceStyle = dark || lamp ? .dark : .light   // the app darkens its window under the lamp
         window.rootViewController = host
         window.makeKeyAndVisible()
@@ -34,22 +45,29 @@ final class ScreenshotTests: XCTestCase {
         host.view.layoutIfNeeded()
         // let images decode and tasks settle
         RunLoop.main.run(until: Date().addingTimeInterval(settle))
-        let img = UIGraphicsImageRenderer(size: size, format: { let f = UIGraphicsImageRendererFormat(); f.scale = 3; return f }()).image { _ in
-            // the whole window includes a presented sheet, as on the phone
-            if whole, let sheet = host.presentedViewController?.view {
-                // the presented page, where it sits on the screen, over the page under it
-                host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)
-                sheet.drawHierarchy(in: sheet.convert(sheet.bounds, to: nil), afterScreenUpdates: true)
-            } else { host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
+        CATransaction.flush()
+        var drew = false
+        autoreleasepool {
+            let img = UIGraphicsImageRenderer(size: size, format: { let f = UIGraphicsImageRendererFormat(); f.scale = 3; return f }()).image { _ in
+                // the whole window includes a presented sheet, as on the phone
+                if whole, let sheet = host.presentedViewController?.view {
+                    // the presented page, where it sits on the screen, over the page under it
+                    host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)
+                    sheet.drawHierarchy(in: sheet.convert(sheet.bounds, to: nil), afterScreenUpdates: true)
+                } else { host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true) }
+            }
+            drew = Self.drewSomething(img)
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            try? img.pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios_\(name).png"))
         }
         // an empty picture is a failed shot, not a pass (a page taller than the renderer's 8192-pixel limit draws nothing)
-        XCTAssertTrue(Self.drewSomething(img), "ios_\(name) came out empty")
-        try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
-        try? img.pngData()?.write(to: URL(fileURLWithPath: dir).appendingPathComponent("ios_\(name).png"))
-        window.isHidden = true
+        XCTAssertTrue(drew, "ios_\(name) came out empty")
+        host.dismiss(animated: false)
         host.view.removeFromSuperview()
         window.rootViewController = nil
-        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        window.isHidden = true
+        CATransaction.flush()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
     }
 
     /// Whether any of a grid of sample points is not fully transparent.
@@ -1415,5 +1433,78 @@ final class ScreenshotTests: XCTestCase {
         }
         shot("56_play_real_tabview_zh", height: 852,
              RealPlayTabHost().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
+
+    /// Round 12 Three-Pillar Creative Alchemy (`v2.0 RC9 · Batch 12`):
+    /// Weekly Montessori Shelf Composer (`PlanView` + `ShelfEditor`), bidirectional Milestone Growth Ledger (`GrowthView`),
+    /// balanced Time Capsule desk vignette (`TimeCapsuleListView`), and fixed Firsts summary wrap (`FirstsView`).
+    func test57Round12AlchemyAndFixes() {
+        let m = model(); m.journal = true
+        let today = m.today
+        let birth = m.birth!
+
+        // 1. Weekly Montessori Shelf Composer (CN default, CN inline expanded drawer, Lamp, EN, and ShelfEditor sheet)
+        shot("57_plan_composer_zh", height: 1180, tabs(m, PlanView(path: .constant(NavigationPath()))))
+        let shelfCodes = Set(m.weekShelf(6).plays.map(\.code))
+        let expandCode = Shelf.candidates(m.content, 6).first { !shelfCodes.contains($0.code) }?.code ?? "A08"
+        shot("57_plan_composer_preview_zh", height: 1240,
+             tabs(m, PlanView(path: .constant(NavigationPath()), previewExpandedCode: expandCode)))
+        shot("57_plan_composer_lamp", height: 1180, lamp: true,
+             tabs(m, PlanView(path: .constant(NavigationPath())).lamp(true)))
+        shot("57_shelf_editor_sheet_zh", height: 852,
+             ShelfEditor().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        // 2. GrowthView Bidirectional Milestone Growth Ledger (CN Day & Dark)
+        shot("57_growth_ledger_zh", height: 1560, tabs(m, GrowthView()))
+        shot("57_growth_ledger_dark", dark: true, height: 1560, tabs(m, GrowthView()))
+
+        // 3. Rebalanced Time Capsule Desk Vignette (CN Day & Dark)
+        let readyCap = TimeCapsule(
+            title: "满半岁那天的灯下小记",
+            body: "小满，今天你第一次靠着软垫自己坐稳了十几秒，举着木摇铃笑出声来。",
+            writtenAt: ms(today.plus(days: -17).date),
+            writtenAgeLabel: "6 个月",
+            unlockEpochDay: today.epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        let sealedCap = TimeCapsule(
+            title: "写给一岁生日的小满",
+            body: "亲爱的小满，等你拆开这封信的时候，你已经走过一整年的四季啦。",
+            writtenAt: ms(today.plus(days: -2).date),
+            writtenAgeLabel: "6 个月 15 天",
+            unlockEpochDay: TimeCapsule.birthdayEpochDay(from: birth, years: 1),
+            openedAt: nil,
+            seal: .teal
+        )
+        let openedCap = TimeCapsule(
+            title: "你出生的第一百天",
+            body: "今天你第一次对着镜头咧嘴笑出了梨涡。",
+            writtenAt: ms(birth.plus(days: 100).date),
+            writtenAgeLabel: "3 个月 9 天",
+            unlockEpochDay: nil,
+            openedAt: ms(today.plus(days: -10).date),
+            seal: .pink
+        )
+        let capStore = CapsuleStore(preview: [readyCap, sealedCap, openedCap])
+        shot("57_capsules_hero_zh", height: 920, tabs(m, TimeCapsuleListView(store: capStore)))
+        shot("57_capsules_hero_dark", dark: true, height: 920, tabs(m, TimeCapsuleListView(store: capStore)))
+
+        // 4. FirstsView Fixed Summary Line (zero orphan leading dot)
+        var fb = JournalFile.Body()
+        fb.firsts = [
+            First(at: at(10, 0) - 60 * 86_400_000, title: "第一次吃手"),
+            First(at: at(10, 0) - 20 * 86_400_000, title: "第一次翻身"),
+        ]
+        let fj = JournalStore(preview: fb)
+        shot("57_firsts_fixed_zh", height: 1100,
+             NavigationStack { FirstsView() }.environment(m).environment(fj).tint(Palette.accent).fontDesign(.rounded))
+
+        // 5. English Parity (PlanView Composer & GrowthView Ledger)
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("57_plan_composer_en", height: 1180, tabs(mEn, PlanView(path: .constant(NavigationPath()))))
+        shot("57_growth_ledger_en", height: 1560, tabs(mEn, GrowthView()))
     }
 }

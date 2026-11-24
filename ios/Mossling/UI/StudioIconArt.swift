@@ -1,12 +1,45 @@
 import SwiftUI
+import UIKit
+
+/// Synchronous `@3x` raster cache for static `FoodGlyphView` and `ToolArtBadge` vector art so scrolling a 60-item grid
+/// or dock renders lightweight `UIImage` bitmaps instead of allocating 60+ simultaneous Metal `Canvas` backing layers.
+@MainActor
+final class StudioArtCache {
+    static let shared = StudioArtCache()
+
+    private let cache: NSCache<NSString, UIImage> = {
+        let c = NSCache<NSString, UIImage>()
+        c.countLimit = 256
+        c.totalCostLimit = 16 * 1024 * 1024
+        return c
+    }()
+
+    func image<V: View>(key: String, size: CGFloat, colorScheme: ColorScheme, @ViewBuilder content: () -> V) -> UIImage? {
+        let nsKey = key as NSString
+        if let hit = cache.object(forKey: nsKey) {
+            return hit
+        }
+        let renderer = ImageRenderer(
+            content: content()
+                .frame(width: size, height: size)
+                .environment(\.colorScheme, colorScheme)
+        )
+        renderer.scale = 3.0
+        guard let img = renderer.uiImage else { return nil }
+        let pxSide = max(1, Int((size * 3.0).rounded()))
+        cache.setObject(img, forKey: nsKey, cost: pxSide * pxSide * 4)
+        return img
+    }
+}
 
 /// Bespoke handcrafted Montessori botanical illustrations for all 60 whole foods (`FoodGlyphView`)
 /// and all studio instruments (`ToolArtBadge`). Checks `IconAssetResolver` for custom bundled raster slices first,
-/// then renders dual-style (3D matte-vinyl / 2D cut-paper) vector art with zero system Emoji.
+/// then renders dual-style (3D matte-vinyl / 2D cut-paper) vector art cached synchronously as `@3x` `UIImage`.
 struct FoodGlyphView: View {
     let food: FoodItem
     var size: CGFloat = 32
     var flat: Bool = (ArtStyle.current == .flat)
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let spec = IconAssetResolver.shared.foodSpec(for: food.id)
@@ -21,14 +54,37 @@ struct FoodGlyphView: View {
             let secondary = IconAssetResolver.color(hex: spec?.secondaryHex ?? "A9E0C0", fallback: food.category.color.opacity(0.6))
             let detail = IconAssetResolver.color(hex: spec?.detailHex ?? "3D5434", fallback: Palette.mossDeep)
             let kind = spec?.glyphKind ?? "seedDish"
-            Canvas { ctx, sz in
-                let s = min(sz.width, sz.height) / 100
-                ctx.translateBy(x: (sz.width - 100 * s) / 2, y: (sz.height - 100 * s) / 2)
-                ctx.scaleBy(x: s, y: s)
-                drawFood(&ctx, kind: kind, p: primary, s: secondary, d: detail)
+            let cacheKey = "food|\(food.id)|\(Int(size.rounded()))|\(flat ? 1 : 0)|\(scheme == .dark ? 1 : 0)"
+            if let rendered = StudioArtCache.shared.image(key: cacheKey, size: size, colorScheme: scheme, content: {
+                FoodVectorCanvas(kind: kind, primary: primary, secondary: secondary, detail: detail, flat: flat)
+            }) {
+                Image(uiImage: rendered)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+                    .accessibilityHidden(true)
+            } else {
+                FoodVectorCanvas(kind: kind, primary: primary, secondary: secondary, detail: detail, flat: flat)
+                    .frame(width: size, height: size)
+                    .accessibilityHidden(true)
             }
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct FoodVectorCanvas: View {
+    let kind: String
+    let primary: Color
+    let secondary: Color
+    let detail: Color
+    let flat: Bool
+
+    var body: some View {
+        Canvas(rendersAsynchronously: false) { ctx, sz in
+            let s = min(sz.width, sz.height) / 100
+            ctx.translateBy(x: (sz.width - 100 * s) / 2, y: (sz.height - 100 * s) / 2)
+            ctx.scaleBy(x: s, y: s)
+            drawFood(&ctx, kind: kind, p: primary, s: secondary, d: detail)
         }
     }
 
@@ -518,6 +574,7 @@ struct ToolArtBadge: View {
     var size: CGFloat = 36
     var active: Bool = false
     var flat: Bool = (ArtStyle.current == .flat)
+    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let spec = IconAssetResolver.shared.toolSpec(for: toolId)
@@ -528,14 +585,35 @@ struct ToolArtBadge: View {
                 .frame(width: size, height: size)
                 .accessibilityHidden(true)
         } else {
-            Canvas { ctx, sz in
-                let s = min(sz.width, sz.height) / 100
-                ctx.translateBy(x: (sz.width - 100 * s) / 2, y: (sz.height - 100 * s) / 2)
-                ctx.scaleBy(x: s, y: s)
-                drawTool(&ctx)
+            let cacheKey = "tool|\(toolId)|\(Int(size.rounded()))|\(active ? 1 : 0)|\(flat ? 1 : 0)|\(scheme == .dark ? 1 : 0)"
+            if let rendered = StudioArtCache.shared.image(key: cacheKey, size: size, colorScheme: scheme, content: {
+                ToolVectorCanvas(toolId: toolId, active: active, flat: flat)
+            }) {
+                Image(uiImage: rendered)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: size, height: size)
+                    .accessibilityHidden(true)
+            } else {
+                ToolVectorCanvas(toolId: toolId, active: active, flat: flat)
+                    .frame(width: size, height: size)
+                    .accessibilityHidden(true)
             }
-            .frame(width: size, height: size)
-            .accessibilityHidden(true)
+        }
+    }
+}
+
+private struct ToolVectorCanvas: View {
+    let toolId: String
+    let active: Bool
+    let flat: Bool
+
+    var body: some View {
+        Canvas(rendersAsynchronously: false) { ctx, sz in
+            let s = min(sz.width, sz.height) / 100
+            ctx.translateBy(x: (sz.width - 100 * s) / 2, y: (sz.height - 100 * s) / 2)
+            ctx.scaleBy(x: s, y: s)
+            drawTool(&ctx)
         }
     }
 

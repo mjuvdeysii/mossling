@@ -82,12 +82,12 @@ struct Creature: View {
 
     @ViewBuilder private var vinyl: some View {
         Group {
-            if still && !glow {
+            if still {
                 stillFigure
             } else {
                 // 24 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
                 TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: still || !onScreen || scrolling.moving)) { tl in
-                    Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+                    Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
                 }
             }
         }
@@ -131,19 +131,31 @@ struct Creature: View {
         GeometryReader { g in
             let side = min(g.size.width, g.size.height)
             let rx = (kind == .moss ? 30.0 : 22.0) * side / 100.0
+            let bPt = Self.bead[st] ?? Self.bead["idle"] ?? CGPoint(x: 0.29, y: 0.34)
+            let glowR = side * 0.16
             ZStack {
                 Ellipse()
                     .fill(RadialGradient(colors: [Palette.ink.opacity(scheme == .dark ? 0.45 : 0.2), Palette.ink.opacity(0)], center: .center, startRadius: 0, endRadius: rx * 1.1))
                     .frame(width: rx * 2.2, height: rx * 0.44)
                     .position(x: g.size.width / 2, y: (g.size.height - side) / 2 + side * (feet + 0.5) / 100)
-                if let img {
-                    Image(uiImage: img)
-                        .resizable()
-                        .scaledToFit()
-                        .frame(width: side, height: side)
-                        .rotationEffect(.degrees(lean), anchor: UnitPoint(x: 0.5, y: feet / 100))
-                        .position(x: g.size.width / 2, y: g.size.height / 2)
+                ZStack {
+                    if let img {
+                        Image(uiImage: img)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: side, height: side)
+                    }
+                    if kind == .otto && glow {
+                        Circle()
+                            .fill(RadialGradient(colors: [Palette.amber.opacity(0.68), Palette.amber.opacity(0)], center: .center, startRadius: 1, endRadius: glowR))
+                            .frame(width: glowR * 2, height: glowR * 2)
+                            .blendMode(.plusLighter)
+                            .position(x: side * bPt.x, y: side * bPt.y)
+                    }
                 }
+                .frame(width: side, height: side)
+                .rotationEffect(.degrees(lean), anchor: UnitPoint(x: 0.5, y: feet / 100))
+                .position(x: g.size.width / 2, y: g.size.height / 2)
             }
         }
     }

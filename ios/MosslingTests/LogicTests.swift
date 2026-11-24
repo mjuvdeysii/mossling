@@ -1574,4 +1574,90 @@ final class LogicTests: XCTestCase {
         XCTAssertGreaterThan(img?.size.width ?? 0, 300)
         XCTAssertGreaterThan(img?.size.height ?? 0, 300)
     }
+
+    func testGrowthLedgerDelta() {
+        let day = 86_400_000.0
+        let base = Day(y: 2026, m: 4, d: 2).date.timeIntervalSince1970 * 1000
+        let m1 = Measure(at: base, weightG: 3300, lengthMm: 500, headMm: 340)
+        let m2 = Measure(at: base + 60 * day, weightG: 5400, lengthMm: nil, headMm: 385)
+        let m3 = Measure(at: base + 120 * day, weightG: 6600, lengthMm: 625, headMm: 410)
+        let m4 = Measure(at: base + 190 * day, weightG: 7400, lengthMm: 655, headMm: 425)
+        // Pass unsorted to verify chronological delta ordering
+        let all = [m4, m2, m1, m3]
+
+        XCTAssertNil(GrowthView.delta(for: m1, in: all, indicator: .weight))
+        XCTAssertEqual(GrowthView.delta(for: m2, in: all, indicator: .weight) ?? 0, 2.10, accuracy: 0.001)
+        XCTAssertEqual(GrowthView.delta(for: m3, in: all, indicator: .weight) ?? 0, 1.20, accuracy: 0.001)
+        XCTAssertEqual(GrowthView.delta(for: m4, in: all, indicator: .weight) ?? 0, 0.80, accuracy: 0.001)
+
+        // Missing length on m2 skips cleanly back to m1 (50.0 cm -> 62.5 cm = +12.5 cm)
+        XCTAssertNil(GrowthView.delta(for: m2, in: all, indicator: .length))
+        XCTAssertEqual(GrowthView.delta(for: m3, in: all, indicator: .length) ?? 0, 12.5, accuracy: 0.001)
+        XCTAssertEqual(GrowthView.delta(for: m4, in: all, indicator: .length) ?? 0, 3.0, accuracy: 0.001)
+        XCTAssertEqual(GrowthView.delta(for: m4, in: all, indicator: .head) ?? 0, 1.5, accuracy: 0.001)
+    }
+
+    func testShelfComposerCoveredAreas() throws {
+        let c = try Content.load()
+        XCTAssertEqual(ShelfComposerMetrics.coveredAreaKeys(for: []), [])
+        XCTAssertEqual(ShelfComposerMetrics.areaCounts(for: []), [:])
+
+        let all = c.activities
+        // Pick distinct plays covering different areas
+        let lang = all.first { Palette.areaKey(of: $0) == "A" }!
+        let motor = all.first { Palette.areaKey(of: $0) == "B" }!
+        let fine = all.first { Palette.areaKey(of: $0) == "C" }!
+        let social = all.first { Palette.areaKey(of: $0) == "D" }!
+
+        XCTAssertEqual(ShelfComposerMetrics.coveredAreaKeys(for: [lang, lang]), ["A"])
+        XCTAssertEqual(ShelfComposerMetrics.areaCounts(for: [lang, lang]), ["A": 2])
+
+        let four = [social, lang, fine, motor]
+        XCTAssertEqual(ShelfComposerMetrics.coveredAreaKeys(for: four), ["A", "B", "C", "D"])
+        XCTAssertEqual(ShelfComposerMetrics.areaCounts(for: four), ["A": 1, "B": 1, "C": 1, "D": 1])
+    }
+
+    @MainActor
+    func testStudioArtCacheRendersSyncImages() {
+        let pumpkin = FoodItem.catalog.first { $0.id == "pumpkin" }!
+        let avocado = FoodItem.catalog.first { $0.id == "avocado" }!
+
+        for scheme in [ColorScheme.light, ColorScheme.dark] {
+            for flat in [false, true] {
+                let isDark = scheme == .dark ? 1 : 0
+                let isFlat = flat ? 1 : 0
+
+                for food in [pumpkin, avocado] {
+                    let r = ImageRenderer(
+                        content: FoodGlyphView(food: food, size: 42, flat: flat)
+                            .environment(\.colorScheme, scheme)
+                    )
+                    r.scale = 3.0
+                    let img = r.uiImage
+                    XCTAssertNotNil(img, "FoodGlyphView failed for \(food.id)")
+                    XCTAssertGreaterThan(img?.size.width ?? 0, 30)
+                    XCTAssertTrue(ScreenshotTests.drewSomething(img!), "FoodGlyphView drew blank for \(food.id)")
+
+                    // Verify StudioArtCache cached the vector raster under expected key when not bundled
+                    if IconAssetResolver.shared.bundledImage(asset3D: "", asset2D: "", maxPixel: 126) == nil {
+                        let key = "food|\(food.id)|42|\(isFlat)|\(isDark)"
+                        let cached = StudioArtCache.shared.image(key: key, size: 42, colorScheme: scheme) { Color.clear }
+                        XCTAssertNotNil(cached)
+                    }
+                }
+
+                for toolId in ["bedside_lamp", "sensory_toybox"] {
+                    let r = ImageRenderer(
+                        content: ToolArtBadge(toolId: toolId, size: 36, active: true, flat: flat)
+                            .environment(\.colorScheme, scheme)
+                    )
+                    r.scale = 3.0
+                    let img = r.uiImage
+                    XCTAssertNotNil(img, "ToolArtBadge failed for \(toolId)")
+                    XCTAssertGreaterThan(img?.size.width ?? 0, 30)
+                    XCTAssertTrue(ScreenshotTests.drewSomething(img!), "ToolArtBadge drew blank for \(toolId)")
+                }
+            }
+        }
+    }
 }

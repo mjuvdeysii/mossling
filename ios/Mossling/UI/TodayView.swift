@@ -926,10 +926,11 @@ private struct LampPool: View {
 /// Arranging the shelf, as a sheet.
 struct ShelfEditor: View {
     @Environment(\.dismiss) private var dismiss
+    @State private var sheetPath = NavigationPath()
     var body: some View {
-        NavigationStack {
-            PlanView(path: .constant(NavigationPath()))
-                .routes(path: .constant(NavigationPath()))
+        NavigationStack(path: $sheetPath) {
+            PlanView(path: $sheetPath)
+                .routes(path: $sheetPath)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { dismiss() } } }
                 .navigationBarTitleDisplayMode(.inline)
         }

@@ -52,7 +52,7 @@ struct FlatCreature: View {
     var body: some View {
         // paused while off screen (a page of them scrolling costs nothing) and drawn off the main thread
         TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: still || !onScreen || scrolling.moving)) { tl in
-            Canvas(rendersAsynchronously: true) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
+            Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
         }
         .aspectRatio(1, contentMode: .fit)
         .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
