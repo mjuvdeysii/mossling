@@ -1793,4 +1793,65 @@ final class LogicTests: XCTestCase {
             XCTAssertTrue(enContent.month(m).who.contains("WHO"), "Month \(m) EN WHO text missing WHO")
         }
     }
+
+    func testSearchEngineScopesAndQuickQueries() throws {
+        defer { L10n.overrideEnglish = nil }
+
+        L10n.overrideEnglish = false
+        let zhContent = try Content.load()
+        XCTAssertTrue(SearchEngine.results(query: "   ", in: zhContent).isEmpty)
+
+        let sleepZh = SearchEngine.results(query: "睡", in: zhContent)
+        XCTAssertFalse(sleepZh.isEmpty)
+        XCTAssertEqual(
+            sleepZh.totalCount,
+            sleepZh.count(for: .tools) + sleepZh.count(for: .foods) + sleepZh.count(for: .plays) + sleepZh.count(for: .months) + sleepZh.count(for: .topics)
+        )
+        XCTAssertFalse(sleepZh.topics.isEmpty)
+
+        for month in [0, 6, 12, 24] {
+            let qs = SearchEngine.quickQueries(for: month)
+            XCTAssertEqual(qs.count, 5)
+            for term in qs {
+                XCTAssertFalse(SearchEngine.results(query: term, in: zhContent).isEmpty, "ZH quickQuery \(term) returned empty")
+            }
+        }
+
+        L10n.overrideEnglish = true
+        let enContent = try Content.load()
+        XCTAssertFalse(SearchEngine.results(query: "pumpkin", in: enContent).foods.isEmpty)
+        for month in [0, 6, 12, 24] {
+            let qs = SearchEngine.quickQueries(for: month)
+            XCTAssertEqual(qs.count, 5)
+            for term in qs {
+                XCTAssertFalse(SearchEngine.results(query: term, in: enContent).isEmpty, "EN quickQuery \(term) returned empty")
+            }
+        }
+    }
+
+    func testAreasConstellationMetricsAndCareFilter() throws {
+        L10n.overrideEnglish = false
+        defer { L10n.overrideEnglish = nil }
+        let content = try Content.load()
+        let m6 = content.month(6)
+        let ordered = AreasConstellationMetrics.orderedDomains(m6.domains, focus: m6.focus)
+        XCTAssertEqual(ordered.count, 6)
+        if let f = m6.focus {
+            XCTAssertEqual(AreasConstellationMetrics.normalizedKey(ordered[0].key), AreasConstellationMetrics.normalizedKey(f))
+        }
+        XCTAssertEqual(Set(ordered.map { AreasConstellationMetrics.normalizedKey($0.key) }), Set(AreasConstellationMetrics.canonicalKeys))
+
+        let topVertex = AreasConstellationMetrics.vertex(index: 0, total: 6, radius: 40, center: CGPoint(x: 50, y: 50))
+        XCTAssertEqual(topVertex.x, 50, accuracy: 0.001)
+        XCTAssertEqual(topVertex.y, 10, accuracy: 0.001)
+        XCTAssertFalse(AreasConstellationMetrics.matchingPlays(for: "A", month: 6, in: content).isEmpty)
+        XCTAssertFalse(AreasConstellationMetrics.matchingPlays(for: "D", month: 6, in: content).isEmpty)
+
+        XCTAssertTrue(CareFilterMode.all.matches(ticked: true))
+        XCTAssertTrue(CareFilterMode.all.matches(ticked: false))
+        XCTAssertTrue(CareFilterMode.pending.matches(ticked: false))
+        XCTAssertFalse(CareFilterMode.pending.matches(ticked: true))
+        XCTAssertTrue(CareFilterMode.done.matches(ticked: true))
+        XCTAssertFalse(CareFilterMode.done.matches(ticked: false))
+    }
 }

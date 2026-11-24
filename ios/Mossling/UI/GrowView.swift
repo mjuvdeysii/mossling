@@ -229,7 +229,7 @@ struct MonthParts: View {
             out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: Route.care(m)))
         }
         out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: L10n.t("六个方面", "Six Areas"), note: L10n.t("这个月的样子", "This month's overview"), route: Route.areas(m)))
-        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", "\(mo.notes.count) notes"), route: Route.notes(m))) }
+        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", mo.notes.count == 1 ? "1 note" : "\(mo.notes.count) notes"), route: Route.notes(m))) }
         if !mo.who.isEmpty { out.append(Part(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: L10n.t("一天的节奏", "Daily Rhythm"), note: L10n.t("睡、玩、吃", "Sleep, play & feeds"), route: Route.rhythm(m))) }
         out.append(Part(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: L10n.t("生长曲线", "Growth Curves"), note: L10n.t("WHO 标准", "WHO Standards"), route: nil))
         return out
@@ -336,38 +336,352 @@ struct PlayActions: View {
     }
 }
 
-/// The six areas of the month.
+/// Pure layout & cross-linking helpers for the 6-Area Montessori Constellation Lens.
+enum AreasConstellationMetrics {
+    static let canonicalKeys = ["A", "B", "C", "D", "E", "F"]
+
+    static func normalizedKey(_ key: String) -> String {
+        let p = String(key.prefix(1)).uppercased()
+        return canonicalKeys.contains(p) ? p : "C"
+    }
+
+    static func orderedDomains(_ domains: [Area], focus: String?) -> [Area] {
+        let fKey = focus.map(normalizedKey)
+        let focusList = fKey.map { f in domains.filter { normalizedKey($0.key) == f } } ?? []
+        let rest = canonicalKeys.filter { $0 != fKey }.flatMap { k in
+            domains.filter { normalizedKey($0.key) == k }
+        }
+        return focusList + rest
+    }
+
+    static func matchingPlays(for domainKey: String, month: Int, in content: Content) -> [Play] {
+        let target = normalizedKey(domainKey)
+        var seen: Set<String> = []
+        let pool = (content.plays(of: month) + Shelf.candidates(content, month)).filter { p in
+            guard seen.insert(p.code).inserted else { return false }
+            return Palette.areaKey(of: p) == target
+        }
+        return pool
+    }
+
+    static func vertex(index: Int, total: Int, radius: CGFloat, center: CGPoint) -> CGPoint {
+        let count = max(1, total)
+        let angle = -Double.pi / 2 + Double(index) / Double(count) * 2 * .pi
+        return CGPoint(
+            x: center.x + Foundation.cos(angle) * radius,
+            y: center.y + Foundation.sin(angle) * radius
+        )
+    }
+}
+
+/// Filter modes for `CareView` checklist board.
+enum CareFilterMode: String, CaseIterable, Identifiable {
+    case all, pending, done
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: L10n.t("全部", "All")
+        case .pending: L10n.t("待完成", "To Do")
+        case .done: L10n.t("已记", "Done")
+        }
+    }
+
+    func matches(ticked: Bool) -> Bool {
+        switch self {
+        case .all: true
+        case .pending: !ticked
+        case .done: ticked
+        }
+    }
+}
+
+/// 6-Area Montessori Constellation Lens: interactive 6-petal selector, active domain spotlight
+/// with linked plays for the month, and compact quick-peek rows for the other five areas.
 struct AreasView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var typeSize
     let month: Int
+    var initialAreaKey: String? = nil
+    @State private var selectedKey: String?
+
+    init(month: Int, initialAreaKey: String? = nil) {
+        self.month = month
+        self.initialAreaKey = initialAreaKey
+        self._selectedKey = State(initialValue: initialAreaKey.map(AreasConstellationMetrics.normalizedKey))
+    }
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         let mo = app.content.month(month)
+        let ordered = AreasConstellationMetrics.orderedDomains(mo.domains, focus: mo.focus)
+        let focusKey = mo.focus.map(AreasConstellationMetrics.normalizedKey)
+        let activeKey = selectedKey ?? AreasConstellationMetrics.normalizedKey(ordered.first?.key ?? focusKey ?? "A")
+        let activeDomain = ordered.first { AreasConstellationMetrics.normalizedKey($0.key) == activeKey } ?? ordered.first
+        let others = ordered.filter { AreasConstellationMetrics.normalizedKey($0.key) != activeKey }
+
         ScrollView {
-            VStack(spacing: 12) {
-                // the month's focus first, then the rest in their usual order
-                let ordered = mo.domains.filter { $0.key == mo.focus } + mo.domains.filter { $0.key != mo.focus }
-                ForEach(Array(ordered.enumerated()), id: \.offset) { _, d in
-                    let isFocus = d.key == mo.focus
-                    let color = Palette.area(d.key)
-                    Card(title: d.name, symbol: Palette.areaSymbol(d.key), color: color, detail: isFocus ? L10n.t("本月重点", "Focus") : nil) {
-                        Text(rich(d.text)).font(.body).fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 16) {
+                if !ordered.isEmpty {
+                    constellationCard(ordered: ordered, activeKey: activeKey, focusKey: focusKey, dark: dark)
+                }
+
+                if let activeDomain {
+                    spotlightCard(activeDomain, focusKey: focusKey, dark: dark)
+                }
+
+                if !others.isEmpty {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SectionTitle(title: L10n.t("其余五个方面", "Other Five Areas"))
+                        VStack(spacing: 0) {
+                            ForEach(Array(others.enumerated()), id: \.offset) { idx, d in
+                                let key = AreasConstellationMetrics.normalizedKey(d.key)
+                                let col = Palette.area(d.key)
+                                Button {
+                                    withAnimation(.snappy) { selectedKey = key }
+                                } label: {
+                                    HStack(spacing: 12) {
+                                        IconTile(symbol: Palette.areaSymbol(d.key), color: col, size: 30)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            HStack(spacing: 6) {
+                                                Text(d.name)
+                                                    .font(.subheadline.weight(.semibold))
+                                                    .foregroundStyle(.primary)
+                                                if key == focusKey {
+                                                    Text(L10n.t("本月重点", "Focus"))
+                                                        .font(.caption2.weight(.bold))
+                                                        .foregroundStyle(Color(hex: 0x4A3300))
+                                                        .padding(.horizontal, 6).padding(.vertical, 1)
+                                                        .background(Capsule().fill(Palette.bead))
+                                                }
+                                            }
+                                            Text(d.text)
+                                                .font(.caption)
+                                                .foregroundStyle(Palette.secondaryText)
+                                                .lineLimit(1)
+                                        }
+                                        Spacer(minLength: 4)
+                                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                                            .font(.caption2.weight(.semibold))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding(.horizontal, 14)
+                                    .padding(.vertical, 10)
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
+                                if idx < others.count - 1 {
+                                    Divider().padding(.leading, 56)
+                                }
+                            }
+                        }
+                        .printCard(radius: Radius.card)
                     }
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                            .strokeBorder(isFocus ? color.opacity(0.45) : .clear, lineWidth: 1.5)
-                    )
-                    .background(
-                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                            .fill(isFocus ? color.opacity(0.06) : .clear)
-                    )
                 }
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 32)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("六个方面", "Six Areas"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    @ViewBuilder
+    private func constellationCard(ordered: [Area], activeKey: String, focusKey: String?, dark: Bool) -> some View {
+        let chipColumns = Array(repeating: GridItem(.flexible(), spacing: 7), count: typeSize.isAccessibilitySize ? 2 : 2)
+        let wheelSize: CGFloat = 118
+        let center = CGPoint(x: wheelSize / 2, y: wheelSize / 2)
+        let radius = wheelSize * 0.34
+        let wheel = ZStack {
+            Path { poly in
+                for idx in 0..<ordered.count {
+                    let pt = AreasConstellationMetrics.vertex(index: idx, total: ordered.count, radius: radius, center: center)
+                    if idx == 0 { poly.move(to: pt) } else { poly.addLine(to: pt) }
+                }
+                poly.closeSubpath()
+            }
+            .stroke(Palette.outline.opacity(dark ? 0.30 : 0.20), lineWidth: 1.2)
+
+            ForEach(Array(ordered.enumerated()), id: \.offset) { idx, d in
+                let key = AreasConstellationMetrics.normalizedKey(d.key)
+                let isSelected = (key == activeKey)
+                let isFocus = (key == focusKey)
+                let pt = AreasConstellationMetrics.vertex(index: idx, total: ordered.count, radius: radius, center: center)
+                let col = Palette.area(d.key)
+                let r: CGFloat = isSelected ? 12.5 : 8.5
+
+                Path { ray in
+                    ray.move(to: center)
+                    ray.addLine(to: pt)
+                }
+                .stroke(col.opacity(isSelected ? 0.65 : 0.25), lineWidth: isSelected ? 2.4 : 1.2)
+
+                if isSelected {
+                    Circle()
+                        .fill(col.opacity(dark ? 0.28 : 0.20))
+                        .frame(width: 36, height: 36)
+                        .position(pt)
+                }
+
+                Circle()
+                    .fill(col.opacity(isSelected ? 1.0 : 0.72))
+                    .frame(width: r * 2, height: r * 2)
+                    .overlay {
+                        if isFocus {
+                            Circle()
+                                .fill(Palette.bead)
+                                .frame(width: 8, height: 8)
+                        } else {
+                            Circle()
+                                .fill(.white.opacity(0.65))
+                                .frame(width: r * 0.45, height: r * 0.40)
+                                .offset(x: -r * 0.10, y: -r * 0.25)
+                        }
+                    }
+                    .position(pt)
+            }
+
+            let centerCol = Palette.area(activeKey)
+            Circle()
+                .fill(centerCol.opacity(0.22))
+                .frame(width: 26, height: 26)
+                .position(center)
+            Circle()
+                .fill(Palette.bead)
+                .frame(width: 14, height: 14)
+                .position(center)
+        }
+        .frame(width: wheelSize, height: wheelSize)
+        .animation(.snappy, value: activeKey)
+        .accessibilityHidden(true)
+
+        let chips = LazyVGrid(columns: chipColumns, spacing: 7) {
+            ForEach(Array(ordered.enumerated()), id: \.offset) { _, d in
+                let key = AreasConstellationMetrics.normalizedKey(d.key)
+                let col = Palette.area(d.key)
+                let isSelected = (key == activeKey)
+                Button {
+                    withAnimation(.snappy) { selectedKey = key }
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: Palette.areaSymbol(d.key))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(isSelected ? .white : (dark ? col : Crayon.ink(col)))
+                        Text(Palette.areaShortName(d.key))
+                            .font(.caption.weight(isSelected ? .bold : .semibold))
+                            .foregroundStyle(isSelected ? .white : .primary)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                        Spacer(minLength: 0)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .fill(isSelected ? col : (dark ? Color.white.opacity(0.06) : col.opacity(0.11)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .strokeBorder(isSelected ? Color.clear : col.opacity(dark ? 0.30 : 0.22), lineWidth: 0.75)
+                    )
+                }
+                .buttonStyle(.toy)
+                .accessibilityAddTraits(isSelected ? .isSelected : [])
+            }
+        }
+
+        Group {
+            if typeSize.isAccessibilitySize {
+                VStack(spacing: 12) { wheel; chips }
+            } else {
+                HStack(alignment: .center, spacing: 10) { wheel; chips }
+            }
+        }
+        .padding(12)
+        .printCard(radius: Radius.card)
+    }
+
+    @ViewBuilder
+    private func spotlightCard(_ d: Area, focusKey: String?, dark: Bool) -> some View {
+        let key = AreasConstellationMetrics.normalizedKey(d.key)
+        let col = Palette.area(d.key)
+        let isFocus = (key == focusKey)
+        let linkedPlays = AreasConstellationMetrics.matchingPlays(for: d.key, month: month, in: app.content)
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                IconTile(symbol: Palette.areaSymbol(d.key), color: col, size: 36)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(d.name)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    if isFocus {
+                        Text(L10n.t("本月重点领域", "Focus this month"))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Color(hex: 0x4A3300))
+                            .padding(.horizontal, 7).padding(.vertical, 2)
+                            .background(Capsule().fill(Palette.bead))
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+
+            Text(rich(d.text))
+                .font(.body)
+                .foregroundStyle(.primary)
+                .fixedSize(horizontal: false, vertical: true)
+
+            if !linkedPlays.isEmpty {
+                Divider().opacity(0.6)
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(L10n.t("关联本月活动", "Linked Plays This Month"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(dark ? col : Crayon.ink(col))
+
+                    ForEach(linkedPlays.prefix(2)) { p in
+                        NavigationLink(value: Route.play(p.code, month)) {
+                            HStack(spacing: 10) {
+                                TrayTile(code: p.code, color: col, flat: ArtStyle.current == .flat)
+                                    .frame(width: 44, height: 33)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(p.name)
+                                        .font(.subheadline.weight(.semibold))
+                                        .foregroundStyle(.primary)
+                                        .multilineTextAlignment(.leading)
+                                    Text(p.age)
+                                        .font(.caption)
+                                        .foregroundStyle(Palette.secondaryText)
+                                }
+                                Spacer(minLength: 4)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(.tertiary)
+                            }
+                            .padding(8)
+                            .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(col.opacity(dark ? 0.14 : 0.08)))
+                        }
+                        .buttonStyle(.toy)
+                    }
+                }
+            }
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(col.opacity(dark ? 0.10 : 0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(col.opacity(dark ? 0.36 : 0.28), lineWidth: 1.2)
+        )
+        .printCard(radius: Radius.card)
     }
 }
 
@@ -392,119 +706,96 @@ extension AppModel {
     }
 }
 
-private struct BeadJourneyRibbon: View {
-    let title: String
-    let subtitle: String
-    let beads: [(filled: Bool, color: Color)]
-    var pill: (text: String, color: Color)? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .center, spacing: 8) {
-                GoldBead(size: 10)
-                Text(title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
-                Spacer(minLength: 4)
-                if let pill {
-                    Text(pill.text)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Crayon.ink(pill.color))
-                        .lineLimit(1)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(Capsule().fill(pill.color.opacity(0.14)))
-                }
-            }
-
-            if !beads.isEmpty {
-                WrapLayout(spacing: 6) {
-                    ForEach(Array(beads.prefix(24).enumerated()), id: \.offset) { _, b in
-                        Circle()
-                            .fill(
-                                b.filled
-                                    ? AnyShapeStyle(RadialGradient(colors: [b.color.mix(with: .white, by: 0.35), b.color], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: 7))
-                                    : AnyShapeStyle(Palette.secondaryText.opacity(0.18))
-                            )
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(b.filled ? b.color.opacity(0.25) : b.color.opacity(0.35), lineWidth: 0.75)
-                            )
-                            .shadow(color: b.filled ? b.color.opacity(0.28) : .clear, radius: 2, y: 1)
-                            .frame(width: 10, height: 10)
-                    }
-                }
-                .accessibilityHidden(true)
-            }
-
-            Text(subtitle)
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(14)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: Radius.card)
-    }
-}
-
 struct CareView: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var typeSize
     let month: Int
+    @State private var filter: CareFilterMode = .all
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         let mo = app.content.month(month), m = month
         let earlier = app.duePending(before: m)
         let vDone = mo.vaccines.indices.filter { app.ticked(m, TickKind.vaccine, "\($0)") }.count
         let cDone = mo.checkups.indices.filter { app.ticked(m, TickKind.checkup, "\($0)") }.count
         let monthDone = vDone + cDone
         let monthTotal = mo.vaccines.count + mo.checkups.count
-        let careBeads: [(filled: Bool, color: Color)] =
-            mo.vaccines.indices.map { (app.ticked(m, TickKind.vaccine, "\($0)"), Crayon.cherry) }
-            + mo.checkups.indices.map { (app.ticked(m, TickKind.checkup, "\($0)"), Crayon.teal) }
+
+        let filteredVaccines = mo.vaccines.enumerated().filter { filter.matches(ticked: app.ticked(m, TickKind.vaccine, "\($0.offset)")) }
+        let filteredCheckups = mo.checkups.enumerated().filter { filter.matches(ticked: app.ticked(m, TickKind.checkup, "\($0.offset)")) }
+        let filteredEarlier = earlier.filter { filter.matches(ticked: app.ticked($0.month, $0.kind, $0.key)) }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 if monthTotal > 0 || !earlier.isEmpty {
-                    BeadJourneyRibbon(
-                        title: L10n.t("本月已记 \(monthDone) / \(monthTotal)", "\(monthDone) / \(monthTotal) logged this month"),
-                        subtitle: L10n.t("轻点记下已完成的接种与儿保，只为方便回看。", "Tap to keep a calm record of vaccines and well-child visits."),
-                        beads: careBeads,
-                        pill: earlier.isEmpty ? nil : (L10n.t("之前未勾 \(earlier.count) 项", "\(earlier.count) earlier"), Crayon.tangerine)
-                    )
+                    dualGaugeHeader(vDone: vDone, vTotal: mo.vaccines.count, cDone: cDone, cTotal: mo.checkups.count,
+                                    earlierCount: earlier.count, monthDone: monthDone, monthTotal: monthTotal, dark: dark)
                 }
-                // first: what the two months before left unticked (overdue is the most pressing); ticked here,
-                // it is kept under its own month
-                if !earlier.isEmpty {
-                    Box(title: L10n.t("之前没勾的", "Earlier unchecked"), detail: L10n.t("\(earlier.count) 项", "\(earlier.count)")) {
-                        ForEach(Array(earlier.enumerated()), id: \.offset) { i, d in
+
+                if !filteredEarlier.isEmpty {
+                    Box(title: L10n.t("之前没勾的", "Earlier unchecked"), detail: L10n.t("\(filteredEarlier.count) 项", "\(filteredEarlier.count)")) {
+                        ForEach(Array(filteredEarlier.enumerated()), id: \.offset) { i, d in
                             let moText = d.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(d.month) 个月", d.month == 1 ? "1 month" : "\(d.month) months")
-                            CheckRow(text: d.text + " · " + moText, on: app.ticked(d.month, d.kind, d.key), accent: Crayon.tangerine, last: i == earlier.count - 1) { app.toggle(d.month, d.kind, d.key, d.text) }
+                            CheckRow(text: d.text, on: app.ticked(d.month, d.kind, d.key), tag: moText, accent: Crayon.tangerine, last: i == filteredEarlier.count - 1) {
+                                app.toggle(d.month, d.kind, d.key, d.text)
+                            }
                         }
                     }
                 }
-                if !mo.vaccines.isEmpty {
+
+                if !filteredVaccines.isEmpty {
                     Box(title: L10n.t("接种", "Vaccines"), detail: "\(vDone) / \(mo.vaccines.count)") {
-                        ForEach(Array(mo.vaccines.enumerated()), id: \.offset) { i, t in
-                            CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), accent: Crayon.cherry, last: i == mo.vaccines.count - 1) { app.toggle(m, TickKind.vaccine, "\(i)", t) }
+                        ForEach(Array(filteredVaccines.enumerated()), id: \.element.offset) { pos, pair in
+                            let i = pair.offset; let t = pair.element
+                            CheckRow(text: t, on: app.ticked(m, TickKind.vaccine, "\(i)"), accent: Crayon.cherry, last: pos == filteredVaccines.count - 1) {
+                                app.toggle(m, TickKind.vaccine, "\(i)", t)
+                            }
                         }
                     }
                 }
-                if !mo.checkups.isEmpty {
+
+                if !filteredCheckups.isEmpty {
                     Box(title: L10n.t("儿童保健", "Well-Child Visits"), detail: "\(cDone) / \(mo.checkups.count)") {
-                        ForEach(Array(mo.checkups.enumerated()), id: \.offset) { i, t in
-                            CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), accent: Crayon.teal, last: i == mo.checkups.count - 1) { app.toggle(m, TickKind.checkup, "\(i)", t) }
+                        ForEach(Array(filteredCheckups.enumerated()), id: \.element.offset) { pos, pair in
+                            let i = pair.offset; let t = pair.element
+                            CheckRow(text: t, on: app.ticked(m, TickKind.checkup, "\(i)"), accent: Crayon.teal, last: pos == filteredCheckups.count - 1) {
+                                app.toggle(m, TickKind.checkup, "\(i)", t)
+                            }
                         }
                     }
                 }
+
+                if filteredEarlier.isEmpty && filteredVaccines.isEmpty && filteredCheckups.isEmpty {
+                    Text(filter == .done
+                         ? L10n.t("还没有勾完的项目，轻点下方状态切换到待完成查看。", "Nothing logged yet — switch filter to see items due.")
+                         : L10n.t("本月项目均已记下。", "All items for this month are checked off."))
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.secondaryText)
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .printCard(radius: Radius.card)
+                }
+
                 // whose schedule this is: China's; elsewhere, the local health authority's (1.4.1 — say where data applies)
-                Text(L10n.t(
-                    "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
-                    "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
-                ))
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(12)
+                DisclosureGroup {
+                    Text(L10n.t(
+                        "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
+                        "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                } label: {
+                    Label(L10n.t("数据依据与适用说明", "Schedule Reference & Scope"), systemImage: "doc.text")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                }
+                .tint(Palette.accent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
@@ -513,6 +804,7 @@ struct CareView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 48)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("接种与儿保", "Care & Checkups"))
         .navigationSubtitle(app.birth.map {
@@ -520,6 +812,88 @@ struct CareView: View {
             return moLabel + " · " + $0.plus(months: m).md
         } ?? (m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")))
         .toolbar(.hidden, for: .tabBar)
+    }
+
+    @ViewBuilder
+    private func dualGaugeHeader(vDone: Int, vTotal: Int, cDone: Int, cTotal: Int, earlierCount: Int, monthDone: Int, monthTotal: Int, dark: Bool) -> some View {
+        let gaugeRow: AnyLayout = typeSize.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 8) {
+                GoldBead(size: 10)
+                Text(L10n.t("本月 \(monthDone) / \(monthTotal)", "\(monthDone) / \(monthTotal) this month"))
+                    .font(.headline)
+                Spacer(minLength: 4)
+                if earlierCount > 0 {
+                    Text(L10n.t("待补 \(earlierCount)", "+\(earlierCount) due"))
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.tangerine))
+                        .padding(.horizontal, 8).padding(.vertical, 3)
+                        .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.22 : 0.16)))
+                }
+            }
+
+            gaugeRow {
+                if vTotal > 0 {
+                    gaugeDial(title: L10n.t("接种", "Vaccines"), done: vDone, total: vTotal, color: Crayon.cherry, dark: dark)
+                }
+                if cTotal > 0 {
+                    gaugeDial(title: L10n.t("儿保", "Check-ups"), done: cDone, total: cTotal, color: Crayon.teal, dark: dark)
+                }
+            }
+
+            let allTotal = monthTotal + earlierCount
+            let allDone = monthDone
+            let allPending = max(0, allTotal - allDone)
+
+            WrapLayout(spacing: 8) {
+                ForEach(CareFilterMode.allCases) { mode in
+                    let on = (filter == mode)
+                    let cnt = switch mode {
+                    case .all: allTotal
+                    case .pending: allPending
+                    case .done: allDone
+                    }
+                    Button {
+                        withAnimation(.snappy) { filter = mode }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Text(mode.label)
+                                .font(.caption.weight(on ? .bold : .semibold))
+                            Text("\(cnt)")
+                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                .opacity(on ? 0.92 : 0.72)
+                        }
+                        .foregroundStyle(on ? .white : .primary)
+                        .padding(.horizontal, 11).padding(.vertical, 6)
+                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.fill)))
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: Radius.card)
+    }
+
+    @ViewBuilder
+    private func gaugeDial(title: String, done: Int, total: Int, color: Color, dark: Bool) -> some View {
+        HStack(spacing: 10) {
+            Ring(done: done, total: total, color: color, size: 34)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                Text("\(done) / \(total)")
+                    .font(Typeface.numerals(16, relativeTo: .headline, weight: .bold))
+                    .foregroundStyle(.primary)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(color.opacity(dark ? 0.14 : 0.08)))
     }
 }
 
@@ -633,11 +1007,13 @@ struct PlayTile: View {
     }
 }
 
-/// What to look out for this month, by area: tick what has been seen.
+/// What to look out for this month, by area: visual 4-domain progress board & instant domain filter.
 struct ObserveView: View {
     @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     let month: Int
+    @State private var selectedGroupIndex: Int? = nil
 
     private func observeColor(for area: String) -> Color {
         let low = area.lowercased()
@@ -649,25 +1025,82 @@ struct ObserveView: View {
     }
 
     var body: some View {
+        let dark = lamp || scheme == .dark
         let mo = app.content.month(month)
-        let obsBeads: [(filled: Bool, color: Color)] = mo.observe.enumerated().flatMap { gi, g in
-            let col = observeColor(for: g.area)
-            return g.items.indices.map { ii in (app.ticked(month, TickKind.observed, "\(gi)-\(ii)"), col) }
+        let obsTotal = mo.observe.reduce(0) { $0 + $1.items.count }
+        let obsDone = mo.observe.enumerated().reduce(0) { acc, pair in
+            acc + pair.element.items.indices.filter { app.ticked(month, TickKind.observed, "\(pair.offset)-\($0)") }.count
         }
-        let obsTotal = obsBeads.count
-        let obsDone = obsBeads.filter(\.filled).count
+        let shownIndices: [Int] = if let s = selectedGroupIndex, mo.observe.indices.contains(s) {
+            [s]
+        } else {
+            Array(mo.observe.indices)
+        }
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 if obsTotal > 0 {
-                    BeadJourneyRibbon(
-                        title: L10n.t("已留意 \(obsDone) / \(obsTotal)", "\(obsDone) / \(obsTotal) noticed"),
-                        subtitle: L10n.t("记下已经看到的小瞬间，每个孩子都有自己的节奏。", "Mark moments you've spotted — every child moves at their own pace."),
-                        beads: obsBeads
-                    )
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(spacing: 12) {
+                            Ring(done: obsDone, total: obsTotal, color: Palette.accent, size: 36)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.t("本月可留意", "Things to Notice"))
+                                    .font(.headline)
+                                Text(L10n.t("已留意 \(obsDone) / \(obsTotal)", "\(obsDone) / \(obsTotal) noticed"))
+                                    .font(Typeface.numerals(13, relativeTo: .footnote, weight: .semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                            Spacer(minLength: 0)
+                        }
+
+                        WrapLayout(spacing: 7) {
+                            let allOn = (selectedGroupIndex == nil)
+                            Button {
+                                withAnimation(.snappy) { selectedGroupIndex = nil }
+                            } label: {
+                                Text(L10n.t("全部 \(obsDone)/\(obsTotal)", "All \(obsDone)/\(obsTotal)"))
+                                    .font(.caption.weight(allOn ? .bold : .semibold))
+                                    .foregroundStyle(allOn ? .white : .primary)
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(Capsule().fill(allOn ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.fill)))
+                            }
+                            .buttonStyle(.toy)
+                            .accessibilityAddTraits(allOn ? .isSelected : [])
+
+                            ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
+                                let col = observeColor(for: g.area)
+                                let gDone = g.items.indices.filter { app.ticked(month, TickKind.observed, "\(gi)-\($0)") }.count
+                                let on = (selectedGroupIndex == gi)
+                                Button {
+                                    withAnimation(.snappy) { selectedGroupIndex = (on ? nil : gi) }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Circle()
+                                            .fill(on ? Color.white : col)
+                                            .frame(width: 7, height: 7)
+                                        Text(g.area)
+                                            .font(.caption.weight(on ? .bold : .semibold))
+                                        Text("\(gDone)/\(g.items.count)")
+                                            .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                            .opacity(on ? 0.9 : 0.72)
+                                    }
+                                    .foregroundStyle(on ? .white : .primary)
+                                    .padding(.horizontal, 10).padding(.vertical, 6)
+                                    .background(Capsule().fill(on ? col : col.opacity(dark ? 0.16 : 0.12)))
+                                }
+                                .buttonStyle(.toy)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card)
                 }
+
                 // each area a list of ticks, as 接种与儿保: one line each, no tile stretched round a short line
-                ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
+                ForEach(shownIndices, id: \.self) { gi in
+                    let g = mo.observe[gi]
                     let color = observeColor(for: g.area)
                     let groupDone = g.items.indices.filter { app.ticked(month, TickKind.observed, "\(gi)-\($0)") }.count
                     Box(title: g.area, detail: "\(groupDone) / \(g.items.count)") {
@@ -678,14 +1111,24 @@ struct ObserveView: View {
                         }
                     }
                 }
-                Text(L10n.t(
-                    "这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。",
-                    "These are signs many children show around this age. If you haven't noticed one yet, mention it at your next well-child visit — every child moves at their own pace."
-                ))
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryText)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(12)
+
+                DisclosureGroup {
+                    Text(L10n.t(
+                        "这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。",
+                        "These are signs many children show around this age. If you haven't noticed one yet, mention it at your next well-child visit — every child moves at their own pace."
+                    ))
+                    .font(.footnote)
+                    .foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 8)
+                } label: {
+                    Label(L10n.t("关于发育节奏说明", "About developmental pace"), systemImage: "info.circle")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                }
+                .tint(Palette.accent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
@@ -694,6 +1137,7 @@ struct ObserveView: View {
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("可以留意", "What to Notice"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))

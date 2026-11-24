@@ -34,7 +34,13 @@ final class ScreenshotTests: XCTestCase {
             existing.frame = CGRect(origin: .zero, size: size)
             window = existing
         } else {
-            let created = UIWindow(frame: CGRect(origin: .zero, size: size))
+            let created: UIWindow
+            if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+                created = UIWindow(windowScene: scene)
+                created.frame = CGRect(origin: .zero, size: size)
+            } else {
+                created = UIWindow(frame: CGRect(origin: .zero, size: size))
+            }
             Self.sharedWindow = created
             window = created
         }
@@ -1628,5 +1634,42 @@ final class ScreenshotTests: XCTestCase {
         shot("60_daily_rhythm_newborn_en", height: 1460,
              NavigationStack { RhythmView(month: 0) }
                  .environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
+
+    /// Round 14 Visual Discovery Search Compass, 6-Area Montessori Constellation Lens,
+    /// Dual-Ring Care / 4-Domain Observe progress boards & Stage-Pill TopicView across Day/Dark/Lamp/EN/AX2.
+    func test61Round14VisualDiscoveryAndMonthStudios() {
+        let m = model(); m.journal = true
+
+        // 1. Visual Discovery Search Compass (Idle Day/Dark/AX2 + Active Scope Ribbon)
+        shot("61_search_compass_zh", height: 1120, tabs(m, SearchView(path: .constant(NavigationPath()))))
+        shot("61_search_compass_dark", dark: true, height: 1120, tabs(m, SearchView(path: .constant(NavigationPath()))))
+        shot("61_search_active_zh", height: 1120, tabs(m, SearchView(path: .constant(NavigationPath()), initialQuery: "睡")))
+        shot("61_search_compass_ax2", height: 1480,
+             tabs(m, SearchView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        // 2. 6-Area Montessori Constellation Lens (CN Day & Dark)
+        shot("61_areas_constellation_zh", height: 1180, tabs(m, AreasView(month: 6)))
+        shot("61_areas_constellation_dark", dark: true, height: 1180, tabs(m, AreasView(month: 6)))
+
+        // 3. Visual-First CareView (1 vaccine ticked + earlier overdue pill) & ObserveView
+        let mc = model()
+        if let firstVac = mc.content.month(6).vaccines.first {
+            mc.toggle(6, TickKind.vaccine, "0", firstVac)
+        }
+        shot("61_care_visual_zh", height: 1100, tabs(mc, CareView(month: 6)))
+        shot("61_care_visual_lamp", height: 1100, lamp: true, tabs(mc, CareView(month: 6).lamp(true)))
+        shot("61_observe_visual_zh", height: 1180, tabs(mc, ObserveView(month: 6)))
+
+        // 4. Stage-Pill TopicView (CN)
+        shot("61_topic_stage_pills_zh", height: 960, tabs(m, TopicView(topic: m.content.topics[0])))
+
+        // 5. English Parity
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("61_search_compass_en", height: 1120, tabs(mEn, SearchView(path: .constant(NavigationPath()))))
+        shot("61_areas_constellation_en", height: 1180, tabs(mEn, AreasView(month: 6, initialAreaKey: "D")))
+        shot("61_topic_stage_pills_en", height: 960, tabs(mEn, TopicView(topic: mEn.content.topics[0])))
     }
 }

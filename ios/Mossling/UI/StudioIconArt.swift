@@ -786,6 +786,24 @@ private struct ToolVectorCanvas: View {
                 ctx.fill(Path(ellipseIn: CGRect(x: bx + br * 0.25, y: by + br * 0.2, width: br * 0.3, height: br * 0.22)), with: .color(.white.opacity(0.7)))
             }
 
+        case "time_capsules":
+            drawCushion(&ctx, tint: Palette.bead)
+            let env = CGRect(x: 22, y: 31, width: 56, height: 39)
+            if !flat {
+                ctx.fill(Path(roundedRect: env.offsetBy(dx: 0, dy: 3), cornerRadius: 8), with: .color(.black.opacity(0.16)))
+            }
+            sculptShape(&ctx, Path(roundedRect: env, cornerRadius: 8), Color(hex: 0xF3E6CE), highlight: .white)
+            var flap = Path()
+            flap.move(to: CGPoint(x: env.minX + 3, y: env.minY + 3))
+            flap.addLine(to: CGPoint(x: env.midX, y: env.midY + 3))
+            flap.addLine(to: CGPoint(x: env.maxX - 3, y: env.minY + 3))
+            ctx.stroke(flap, with: .color(Color(hex: 0xB89B72).opacity(0.6)), style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
+            // Gold wax seal in the center
+            let seal = CGRect(x: env.midX - 9, y: env.midY - 3, width: 18, height: 18)
+            if !flat { ctx.fill(Path(ellipseIn: seal.offsetBy(dx: 0, dy: 2)), with: .color(.black.opacity(0.18))) }
+            sculptShape(&ctx, Path(ellipseIn: seal), Palette.bead, highlight: Palette.beadLight)
+            ctx.fill(Path(ellipseIn: CGRect(x: seal.midX - 3.5, y: seal.minY + 3.5, width: 5, height: 4)), with: .color(.white.opacity(0.65)))
+
         default:
             drawCushion(&ctx, tint: Palette.accent)
             let sym = IconAssetResolver.shared.toolSpec(for: toolId)?.fallbackSymbol ?? "sparkles"

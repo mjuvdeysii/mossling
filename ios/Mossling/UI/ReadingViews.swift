@@ -7,124 +7,536 @@ struct TopicView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 BlocksView(blocks: topic.blocks)
-                if !topic.sourceTitle.isEmpty {
-                    Label(topic.sourceTitle, systemImage: "books.vertical").font(.footnote).foregroundStyle(Palette.secondaryText).padding(.top, 8)
+
+                DisclosureGroup {
+                    VStack(alignment: .leading, spacing: 8) {
+                        if !topic.sourceTitle.isEmpty {
+                            Label(topic.sourceTitle, systemImage: "books.vertical")
+                                .font(.footnote.weight(.medium))
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Text(HealthNote.text)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.top, 8)
+                } label: {
+                    Label(L10n.t("参考来源与医疗说明", "Sources & Medical Note"), systemImage: "books.vertical")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
                 }
-                Text(HealthNote.text).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                .tint(Palette.accent)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.fill.opacity(0.65)))
             }
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 40)
         }
+        .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(topic.title).navigationBarTitleDisplayMode(.large)
         .toolbar(.hidden, for: .tabBar)
     }
 }
 
-/// Search across plays, months and topics.
-struct SearchView: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.openURL) private var openURL
-    @Binding var path: NavigationPath
-    @State private var q = ""
-    var body: some View {
-        let c = app.content
-        let t = q.trimmingCharacters(in: .whitespaces)
-        let plays = t.isEmpty ? [] : c.activities.filter { $0.name.localizedCaseInsensitiveContains(t) || $0.code.localizedCaseInsensitiveContains(t) || $0.steps.contains { $0.localizedCaseInsensitiveContains(t) } || $0.domains.contains { $0.localizedCaseInsensitiveContains(t) } }
-        let months = t.isEmpty ? [] : c.months.filter { m in m.title.localizedCaseInsensitiveContains(t) || m.domains.contains { $0.text.localizedCaseInsensitiveContains(t) } || m.observe.contains { $0.items.contains { $0.localizedCaseInsensitiveContains(t) } } || m.notes.contains { $0.text.localizedCaseInsensitiveContains(t) } }
-        let topics = t.isEmpty ? [] : c.topics.filter { $0.title.localizedCaseInsensitiveContains(t) || $0.blocks.contains { ($0.text ?? "").localizedCaseInsensitiveContains(t) || ($0.items ?? []).contains { $0.localizedCaseInsensitiveContains(t) } } }
-        let tools = t.isEmpty ? [] : QuietToolResult.all.filter { $0.matches(t) }
-        let foods = t.isEmpty ? [] : FoodItem.catalog.filter { $0.zh.localizedCaseInsensitiveContains(t) || $0.en.localizedCaseInsensitiveContains(t) || $0.category.title.localizedCaseInsensitiveContains(t) }
-        List {
-            if !tools.isEmpty {
-                Section(L10n.t("陪伴小器具", "Quiet Instruments")) {
-                    ForEach(tools) { tool in
-                        if let route = tool.route {
-                            NavigationLink(value: route) {
-                                Label { Text(tool.title) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
-                            }
-                        } else if let jRoute = tool.journalRoute {
-                            NavigationLink(value: jRoute) {
-                                Label { Text(tool.title) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
-                            }
-                        } else if let url = tool.url {
-                            Button { openURL(url) } label: {
-                                Label { Text(tool.title).foregroundStyle(.primary) } icon: { IconTile(symbol: tool.symbol, color: tool.color) }
-                            }
-                        }
-                    }
-                }
-            }
-            if !foods.isEmpty {
-                Section(L10n.t("百味食盒", "First Foods")) {
-                    ForEach(foods.prefix(6)) { food in
-                        NavigationLink(value: Route.foodAtlas) {
-                            Label {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(food.name)
-                                    Text(food.category.title + (food.isCommonAllergen ? L10n.t(" · 常见致敏", " · Common allergen") : ""))
-                                        .font(.caption).foregroundStyle(Palette.secondaryText)
-                                }
-                            } icon: {
-                                FoodGlyphView(food: food, size: 28)
-                            }
-                        }
-                    }
-                    if foods.count > 6 {
-                        NavigationLink(value: Route.foodAtlas) {
-                            Text(L10n.t("查看全部 \(foods.count) 项匹配食材…", "See all \(foods.count) matching foods…"))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Palette.accent)
-                        }
-                    }
-                }
-            }
-            if !plays.isEmpty {
-                Section(L10n.t("活动", "Activities")) { ForEach(plays) { p in NavigationLink(value: Route.play(p.code, app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from)) {
-                    PlayRowLabel(play: p) } } }
-            }
-            if !months.isEmpty {
-                Section(L10n.t("月份", "Months")) { ForEach(months, id: \.month) { m in NavigationLink(value: Route.month(m.month)) {
-                    Label { VStack(alignment: .leading, spacing: 2) { Text(m.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m.month) 个月", m.month == 1 ? "1 month" : "\(m.month) months")); Text(m.title).font(.subheadline).foregroundStyle(Palette.secondaryText) } } icon: { Bead(month: m.month, here: false, past: true).scaleEffect(0.9) } } } }
-            }
-            if !topics.isEmpty {
-                Section(L10n.t("专题", "Topics")) { ForEach(topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
-            }
-            // before typing: what is on the shelf this week and the topics, so the page opens on something to read
-            if t.isEmpty {
-                let m = app.babyMonth ?? 0
-                Section(L10n.t("这周一起玩", "This Week's Plays")) { ForEach(app.weekShelf(m).plays) { p in NavigationLink(value: Route.play(p.code, m)) { PlayRowLabel(play: p) } } }
-                Section(L10n.t("专题", "Topics")) { ForEach(c.topics) { tp in NavigationLink(value: Route.topic(tp.id)) { topicLabel(tp) } } }
-            }
-            if !t.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty && tools.isEmpty && foods.isEmpty {
-                // nothing found: the companion looks this way and that for it
-                VStack(spacing: 8) {
-                    TimelineView(.periodic(from: .now, by: 1.3)) { tl in
-                        let side: Double = Int(tl.date.timeIntervalSinceReferenceDate / 1.3) % 2 == 0 ? -0.9 : 0.9
-                        Creature(kind: app.companion, look: CGPoint(x: side, y: 0.1), alive: true, lookSeconds: 0.5)
-                            .frame(width: 64 * app.companion.scale, height: 64 * app.companion.scale)
-                    }
-                    .frame(height: 72).accessibilityHidden(true)
-                    Text(L10n.t("没有找到「\(t)」", "No results for \"\(t)\"")).font(.headline)
-                    Text(L10n.t("试试活动、月份、辅食或小器具", "Try an activity, month, food, or tool")).font(.subheadline).foregroundStyle(Palette.secondaryText)
-                }
-                .frame(maxWidth: .infinity).padding(.vertical, 24)
-                .listRowBackground(Color.clear)
-            }
+/// Search scope filter pills for `SearchView` results.
+enum SearchScope: String, CaseIterable, Identifiable {
+    case all, tools, foods, plays, months, topics
+    var id: String { rawValue }
+
+    var label: String {
+        switch self {
+        case .all: L10n.t("全部", "All")
+        case .tools: L10n.t("小器具", "Tools")
+        case .foods: L10n.t("辅食", "Foods")
+        case .plays: L10n.t("活动", "Plays")
+        case .months: L10n.t("月份", "Months")
+        case .topics: L10n.t("专题", "Topics")
         }
-        .scrollContentBackground(.hidden).pageBackground()
-        .searchable(text: $q, placement: .navigationBarDrawer(displayMode: .always), prompt: L10n.t("活动、月份、专题、辅食或小器具", "Activities, months, foods, or tools"))
-        .navigationTitle(L10n.t("搜索", "Search"))
-        .toolbar(.hidden, for: .tabBar)
-    }
-    /// A topic with its own mark, as on the month's page.
-    private func topicLabel(_ tp: Topic) -> some View {
-        let i = app.content.topics.firstIndex { $0.id == tp.id } ?? 0
-        return Label { Text(tp.title) } icon: { IconTile(symbol: topicMarks[i % topicMarks.count].0, color: topicMarks[i % topicMarks.count].1) }
     }
 }
 
-private struct QuietToolResult: Identifiable {
+struct SearchResults {
+    let tools: [QuietToolResult]
+    let foods: [FoodItem]
+    let plays: [Play]
+    let months: [Month]
+    let topics: [Topic]
+
+    var isEmpty: Bool {
+        tools.isEmpty && foods.isEmpty && plays.isEmpty && months.isEmpty && topics.isEmpty
+    }
+
+    var totalCount: Int {
+        tools.count + foods.count + plays.count + months.count + topics.count
+    }
+
+    func count(for scope: SearchScope) -> Int {
+        switch scope {
+        case .all: totalCount
+        case .tools: tools.count
+        case .foods: foods.count
+        case .plays: plays.count
+        case .months: months.count
+        case .topics: topics.count
+        }
+    }
+}
+
+/// Pure testable search engine backing `SearchView` across tools, foods, plays, months, and topics.
+enum SearchEngine {
+    static func results(query raw: String, in content: Content) -> SearchResults {
+        let t = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !t.isEmpty else {
+            return SearchResults(tools: [], foods: [], plays: [], months: [], topics: [])
+        }
+        let tools = QuietToolResult.all.filter { $0.matches(t) }
+        let foods = FoodItem.catalog.filter {
+            $0.zh.localizedCaseInsensitiveContains(t)
+                || $0.en.localizedCaseInsensitiveContains(t)
+                || $0.category.title.localizedCaseInsensitiveContains(t)
+        }
+        let plays = content.activities.filter {
+            $0.name.localizedCaseInsensitiveContains(t)
+                || $0.code.localizedCaseInsensitiveContains(t)
+                || $0.steps.contains { $0.localizedCaseInsensitiveContains(t) }
+                || $0.domains.contains { $0.localizedCaseInsensitiveContains(t) }
+        }
+        let months = content.months.filter { m in
+            m.title.localizedCaseInsensitiveContains(t)
+                || m.domains.contains { $0.text.localizedCaseInsensitiveContains(t) }
+                || m.observe.contains { $0.items.contains { $0.localizedCaseInsensitiveContains(t) } }
+                || m.notes.contains { $0.text.localizedCaseInsensitiveContains(t) }
+        }
+        let topics = content.topics.filter { tp in
+            tp.title.localizedCaseInsensitiveContains(t)
+                || tp.blocks.contains { ($0.text ?? "").localizedCaseInsensitiveContains(t) || ($0.items ?? []).contains { $0.localizedCaseInsensitiveContains(t) } }
+        }
+        return SearchResults(tools: tools, foods: foods, plays: plays, months: months, topics: topics)
+    }
+
+    static func quickQueries(for month: Int) -> [String] {
+        switch month {
+        case ...3:
+            return L10n.isEnglish ? ["Sleep", "Tummy", "Lamp", "Feed", "Roll"] : ["睡眠", "俯卧", "夜灯", "喂养", "翻身"]
+        case 4...8:
+            return L10n.isEnglish ? ["Solids", "Sit", "Sleep", "Lamp", "Sound"] : ["辅食", "坐稳", "睡眠", "夜灯", "发声"]
+        case 9...18:
+            return L10n.isEnglish ? ["Stand", "Grasp", "Solids", "Sleep", "Lamp"] : ["站立", "抓握", "辅食", "睡眠", "夜灯"]
+        default:
+            return L10n.isEnglish ? ["Language", "Book", "Sleep", "Doctor", "Lamp"] : ["语言", "绘本", "睡眠", "医生", "夜灯"]
+        }
+    }
+}
+
+/// Visual Discovery Search Compass across Quiet Instruments, First Foods, plays, months, and care topics.
+struct SearchView: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var typeSize
+    @Binding var path: NavigationPath
+    var initialQuery: String = ""
+    @State private var q: String
+    @State private var scope: SearchScope = .all
+
+    init(path: Binding<NavigationPath>, initialQuery: String = "") {
+        self._path = path
+        self.initialQuery = initialQuery
+        self._q = State(initialValue: initialQuery)
+    }
+
+    var body: some View {
+        let dark = lamp || scheme == .dark
+        let m = app.babyMonth ?? 0
+        let t = q.trimmingCharacters(in: .whitespacesAndNewlines)
+        let res = SearchEngine.results(query: t, in: app.content)
+        let quick = SearchEngine.quickQueries(for: m)
+        let activeScope: SearchScope = (scope == .all || res.count(for: scope) > 0) ? scope : .all
+        let toolCols = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: typeSize.isAccessibilitySize ? 2 : 3)
+        let topicCols = Array(repeating: GridItem(.flexible(), spacing: 10, alignment: .top), count: typeSize.isAccessibilitySize ? 1 : 2)
+
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
+                searchField(dark: dark)
+
+                if t.isEmpty {
+                    // 1. Visual Quiet Instruments Portal Matrix (2×3)
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionTitle(title: L10n.t("陪伴小器具", "Quiet Instruments"))
+                        LazyVGrid(columns: toolCols, spacing: 10) {
+                            ForEach(QuietToolResult.all) { tool in
+                                toolPortalTile(tool, dark: dark)
+                            }
+                        }
+                    }
+
+                    // 2. Age-Aware 1-Tap Quick Queries
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionTitle(title: L10n.t("一键探索", "Quick Explore"))
+                        WrapLayout(spacing: 8) {
+                            ForEach(quick, id: \.self) { term in
+                                Button {
+                                    withAnimation(.snappy) { q = term; scope = .all }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.caption2.weight(.bold))
+                                            .foregroundStyle(Palette.accent)
+                                        Text(term)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                    }
+                                    .padding(.horizontal, 12)
+                                    .padding(.vertical, 7)
+                                    .background(
+                                        Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.card)
+                                    )
+                                    .overlay(
+                                        Capsule().strokeBorder(Palette.outline.opacity(dark ? 0.25 : 0.16), lineWidth: 0.85)
+                                    )
+                                }
+                                .buttonStyle(.toy)
+                            }
+                        }
+                    }
+
+                    // 3. This Week's Plays
+                    let weekPlays = app.weekShelf(m).plays
+                    if !weekPlays.isEmpty {
+                        VStack(alignment: .leading, spacing: 10) {
+                            SectionTitle(title: L10n.t("这周一起玩", "This Week's Plays"))
+                            VStack(spacing: 0) {
+                                ForEach(Array(weekPlays.enumerated()), id: \.element.code) { idx, p in
+                                    NavigationLink(value: Route.play(p.code, m)) {
+                                        searchRow(last: idx == weekPlays.count - 1) {
+                                            PlayRowLabel(play: p)
+                                        }
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                            .printCard(radius: Radius.card)
+                        }
+                    }
+
+                    // 4. Care Topics Grid
+                    VStack(alignment: .leading, spacing: 10) {
+                        SectionTitle(title: L10n.t("专题", "Topics"))
+                        LazyVGrid(columns: topicCols, spacing: 10) {
+                            ForEach(app.content.topics) { tp in
+                                let mark = topicMark(for: tp)
+                                NavigationLink(value: Route.topic(tp.id)) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        HStack {
+                                            IconTile(symbol: mark.0, color: mark.1, size: 30)
+                                            Spacer(minLength: 4)
+                                            Image(systemName: "chevron.right")
+                                                .font(.caption2.weight(.bold))
+                                                .foregroundStyle(.tertiary)
+                                        }
+                                        Text(tp.title)
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(.primary)
+                                            .multilineTextAlignment(.leading)
+                                            .fixedSize(horizontal: false, vertical: true)
+                                    }
+                                    .padding(11)
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                                    .printCard(radius: Radius.tile)
+                                }
+                                .buttonStyle(.toy)
+                            }
+                        }
+                    }
+                } else if res.isEmpty {
+                    emptyView(query: t, quick: quick, dark: dark)
+                } else {
+                    // Live Scope Filter Ribbon
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(SearchScope.allCases) { s in
+                                let cnt = res.count(for: s)
+                                if s == .all || cnt > 0 {
+                                    let on = activeScope == s
+                                    Button {
+                                        withAnimation(.snappy) { scope = s }
+                                    } label: {
+                                        HStack(spacing: 5) {
+                                            Text(s.label)
+                                                .font(.caption.weight(on ? .bold : .semibold))
+                                            Text("\(cnt)")
+                                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                                .foregroundStyle(on ? .white.opacity(0.92) : Palette.secondaryText)
+                                        }
+                                        .foregroundStyle(on ? .white : .primary)
+                                        .padding(.horizontal, 11)
+                                        .padding(.vertical, 6)
+                                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.card)))
+                                        .overlay(Capsule().strokeBorder(on ? Color.clear : Palette.outline.opacity(0.18), lineWidth: 0.75))
+                                    }
+                                    .buttonStyle(.toy)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 1)
+                    }
+
+                    if (activeScope == .all || activeScope == .tools), !res.tools.isEmpty {
+                        resultSection(L10n.t("陪伴小器具", "Quiet Instruments")) {
+                            ForEach(Array(res.tools.enumerated()), id: \.element.id) { idx, tool in
+                                toolResultRow(tool, last: idx == res.tools.count - 1)
+                            }
+                        }
+                    }
+
+                    if (activeScope == .all || activeScope == .foods), !res.foods.isEmpty {
+                        let slice = Array(res.foods.prefix(8))
+                        resultSection(L10n.t("百味食盒", "First Foods")) {
+                            ForEach(Array(slice.enumerated()), id: \.element.id) { idx, food in
+                                NavigationLink(value: Route.foodAtlas) {
+                                    searchRow(last: idx == slice.count - 1 && res.foods.count <= 8) {
+                                        HStack(spacing: 12) {
+                                            FoodGlyphView(food: food, size: 32)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(food.name).font(.body.weight(.medium)).foregroundStyle(.primary)
+                                                HStack(spacing: 6) {
+                                                    Text(food.category.title)
+                                                        .font(.caption).foregroundStyle(Palette.secondaryText)
+                                                    if food.isCommonAllergen {
+                                                        Text(L10n.t("常见致敏", "Allergen"))
+                                                            .font(.caption2.weight(.bold))
+                                                            .foregroundStyle(Crayon.ink(Crayon.tangerine))
+                                                            .padding(.horizontal, 6).padding(.vertical, 1)
+                                                            .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.22 : 0.14)))
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                            if res.foods.count > 8 {
+                                NavigationLink(value: Route.foodAtlas) {
+                                    searchRow(last: true) {
+                                        Text(L10n.t("查看全部 \(res.foods.count) 项匹配食材", "See all \(res.foods.count) matching foods"))
+                                            .font(.subheadline.weight(.semibold))
+                                            .foregroundStyle(Palette.accent)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if (activeScope == .all || activeScope == .plays), !res.plays.isEmpty {
+                        resultSection(L10n.t("活动", "Activities")) {
+                            ForEach(Array(res.plays.enumerated()), id: \.element.code) { idx, p in
+                                let targetMonth = app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from
+                                NavigationLink(value: Route.play(p.code, targetMonth)) {
+                                    searchRow(last: idx == res.plays.count - 1) {
+                                        PlayRowLabel(play: p)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if (activeScope == .all || activeScope == .months), !res.months.isEmpty {
+                        resultSection(L10n.t("月份", "Months")) {
+                            ForEach(Array(res.months.enumerated()), id: \.element.month) { idx, mo in
+                                NavigationLink(value: Route.month(mo.month)) {
+                                    searchRow(last: idx == res.months.count - 1) {
+                                        HStack(spacing: 12) {
+                                            Bead(month: mo.month, here: mo.month == m, past: mo.month <= m)
+                                                .scaleEffect(0.88)
+                                            VStack(alignment: .leading, spacing: 2) {
+                                                Text(mo.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(mo.month) 个月", mo.month == 1 ? "1 month" : "\(mo.month) months"))
+                                                    .font(.body.weight(.semibold)).foregroundStyle(.primary)
+                                                Text(mo.title)
+                                                    .font(.subheadline).foregroundStyle(Palette.secondaryText)
+                                                    .multilineTextAlignment(.leading)
+                                            }
+                                        }
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+
+                    if (activeScope == .all || activeScope == .topics), !res.topics.isEmpty {
+                        resultSection(L10n.t("专题", "Topics")) {
+                            ForEach(Array(res.topics.enumerated()), id: \.element.id) { idx, tp in
+                                NavigationLink(value: Route.topic(tp.id)) {
+                                    searchRow(last: idx == res.topics.count - 1) {
+                                        topicLabel(tp)
+                                    }
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 40)
+        }
+        .calmWhileScrolling()
+        .pageBackground()
+        .navigationTitle(L10n.t("搜索", "Search"))
+        .toolbar(.hidden, for: .tabBar)
+    }
+
+    @ViewBuilder
+    private func searchField(dark: Bool) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(Palette.accent)
+            TextField(L10n.t("活动、月份、辅食或小器具", "Activities, months, foods, or tools"), text: $q)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.search)
+            if !q.isEmpty {
+                Button {
+                    withAnimation(.snappy) { q = ""; scope = .all }
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.subheadline)
+                        .foregroundStyle(Palette.secondaryText)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("清空搜索", "Clear search"))
+            }
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 11)
+        .printCard(radius: Radius.card)
+    }
+
+    @ViewBuilder
+    private func toolPortalTile(_ tool: QuietToolResult, dark: Bool) -> some View {
+        let label = VStack(spacing: 7) {
+            ToolArtBadge(toolId: tool.artId, size: 36, flat: ArtStyle.current == .flat)
+            Text(tool.title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
+                .multilineTextAlignment(.center)
+                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.vertical, 12)
+        .padding(.horizontal, 6)
+        .frame(maxWidth: .infinity)
+        .printCard(radius: Radius.tile)
+
+        if let route = tool.route {
+            NavigationLink(value: route) { label }.buttonStyle(.toy)
+        } else if let jRoute = tool.journalRoute {
+            NavigationLink(value: jRoute) { label }.buttonStyle(.toy)
+        } else if let url = tool.url {
+            Button { openURL(url) } label: { label }.buttonStyle(.toy)
+        }
+    }
+
+    @ViewBuilder
+    private func toolResultRow(_ tool: QuietToolResult, last: Bool) -> some View {
+        let row = searchRow(last: last) {
+            HStack(spacing: 12) {
+                ToolArtBadge(toolId: tool.artId, size: 34, flat: ArtStyle.current == .flat)
+                Text(tool.title).font(.body.weight(.medium)).foregroundStyle(.primary)
+            }
+        }
+        if let route = tool.route {
+            NavigationLink(value: route) { row }.buttonStyle(.plain)
+        } else if let jRoute = tool.journalRoute {
+            NavigationLink(value: jRoute) { row }.buttonStyle(.plain)
+        } else if let url = tool.url {
+            Button { openURL(url) } label: { row }.buttonStyle(.plain)
+        }
+    }
+
+    @ViewBuilder
+    private func resultSection<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionTitle(title: title)
+            VStack(spacing: 0) { content() }
+                .printCard(radius: Radius.card)
+        }
+    }
+
+    @ViewBuilder
+    private func searchRow<Content: View>(last: Bool, @ViewBuilder content: () -> Content) -> some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                content()
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .contentShape(Rectangle())
+            if !last { Divider().padding(.leading, 14) }
+        }
+    }
+
+    @ViewBuilder
+    private func emptyView(query: String, quick: [String], dark: Bool) -> some View {
+        VStack(spacing: 10) {
+            TimelineView(.periodic(from: .now, by: 1.3)) { tl in
+                let side: Double = Int(tl.date.timeIntervalSinceReferenceDate / 1.3) % 2 == 0 ? -0.9 : 0.9
+                Creature(kind: app.companion, look: CGPoint(x: side, y: 0.1), alive: true, lookSeconds: 0.5)
+                    .frame(width: 64 * app.companion.scale, height: 64 * app.companion.scale)
+            }
+            .frame(height: 72).accessibilityHidden(true)
+            Text(L10n.t("没有找到「\(query)」", "No results for \"\(query)\"")).font(.headline)
+            Text(L10n.t("试试下方常用关键词", "Try a quick keyword below")).font(.subheadline).foregroundStyle(Palette.secondaryText)
+            WrapLayout(spacing: 8) {
+                ForEach(quick, id: \.self) { term in
+                    Button {
+                        withAnimation(.snappy) { q = term; scope = .all }
+                    } label: {
+                        Text(term)
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.card))
+                    }
+                    .buttonStyle(.toy)
+                }
+            }
+            .padding(.top, 4)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(24)
+        .printCard(radius: Radius.card)
+    }
+
+    private func topicMark(for tp: Topic) -> (String, Color) {
+        let i = app.content.topics.firstIndex { $0.id == tp.id } ?? 0
+        return topicMarks[i % topicMarks.count]
+    }
+
+    /// A topic with its own mark, as on the month's page.
+    private func topicLabel(_ tp: Topic) -> some View {
+        let mark = topicMark(for: tp)
+        return Label { Text(tp.title).foregroundStyle(.primary) } icon: { IconTile(symbol: mark.0, color: mark.1) }
+    }
+}
+
+struct QuietToolResult: Identifiable {
     let id: String
+    let artId: String
     let zh: String
     let en: String
     let keywords: [String]
@@ -143,12 +555,12 @@ private struct QuietToolResult: Identifiable {
     }
 
     static let all: [QuietToolResult] = [
-        QuietToolResult(id: "lamp", zh: "床头夜灯", en: "Bedside Lamp", keywords: ["夜灯", "声景", "呼吸", "白噪音", "白噪声", "助眠", "sound", "sleep", "breath", "lamp"], symbol: "lamp.desk.fill", color: Palette.amber, url: URL(string: "mossling://lamp")),
-        QuietToolResult(id: "toybox", zh: "感官玩具盒", en: "Sensory Toybox", keywords: ["木琴", "金珠", "雨棒", "萤火", "视卡", "黑白", "xylophone", "rainstick", "fireflies", "contrast"], symbol: "music.note", color: Crayon.teal, route: .toybox(.xylophone)),
-        QuietToolResult(id: "foods", zh: "百味食盒", en: "First Foods", keywords: ["辅食", "食材", "致敏", "食盒", "味觉", "food", "allergen", "solids"], symbol: "carrot.fill", color: Crayon.leaf, route: .foodAtlas),
-        QuietToolResult(id: "rhythm", zh: "昼夜节律盘", en: "Rhythm Dial", keywords: ["节律", "昼夜", "统计", "作息", "rhythm", "dial", "circadian"], symbol: "sun.and.horizon.fill", color: Crayon.lilac, journalRoute: .stats),
-        QuietToolResult(id: "book", zh: "成长绘本", en: "Storybook", keywords: ["绘本", "成长册", "相纸", "book", "storybook"], symbol: "book.pages.fill", color: Crayon.caramel, route: .book),
-        QuietToolResult(id: "capsules", zh: "时光胶囊信笺", en: "Time Capsules", keywords: ["胶囊", "信", "火漆", "capsule", "letter", "wax"], symbol: "envelope.badge.fill", color: Palette.bead, route: .capsules),
+        QuietToolResult(id: "lamp", artId: "bedside_lamp", zh: "床头夜灯", en: "Bedside Lamp", keywords: ["夜灯", "声景", "呼吸", "白噪音", "白噪声", "助眠", "sound", "sleep", "breath", "lamp"], symbol: "lamp.desk.fill", color: Palette.amber, url: URL(string: "mossling://lamp")),
+        QuietToolResult(id: "toybox", artId: "sensory_toybox", zh: "感官玩具盒", en: "Sensory Toybox", keywords: ["木琴", "金珠", "雨棒", "萤火", "视卡", "黑白", "xylophone", "rainstick", "fireflies", "contrast"], symbol: "music.note", color: Crayon.teal, route: .toybox(.xylophone)),
+        QuietToolResult(id: "foods", artId: "first_foods", zh: "百味食盒", en: "First Foods", keywords: ["辅食", "食材", "致敏", "食盒", "味觉", "food", "allergen", "solids"], symbol: "carrot.fill", color: Crayon.leaf, route: .foodAtlas),
+        QuietToolResult(id: "rhythm", artId: "rhythm_dial", zh: "昼夜节律盘", en: "Rhythm Dial", keywords: ["节律", "昼夜", "统计", "作息", "rhythm", "dial", "circadian"], symbol: "sun.and.horizon.fill", color: Crayon.lilac, journalRoute: .stats),
+        QuietToolResult(id: "book", artId: "storybook", zh: "成长绘本", en: "Storybook", keywords: ["绘本", "成长册", "相纸", "book", "storybook"], symbol: "book.pages.fill", color: Crayon.caramel, route: .book),
+        QuietToolResult(id: "capsules", artId: "time_capsules", zh: "时光胶囊信笺", en: "Time Capsules", keywords: ["胶囊", "信", "火漆", "capsule", "letter", "wax"], symbol: "envelope.badge.fill", color: Palette.bead, route: .capsules),
     ]
 }
 

@@ -174,21 +174,41 @@ struct BoxRow<Trailing: View>: View {
     var last = false
     var opens = false
     @ViewBuilder var trailing: Trailing
+    @Environment(\.dynamicTypeSize) private var type
+
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(alignment: .center, spacing: 14) {
-                if let symbol { IconTile(symbol: symbol, color: color) }
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(title).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                    if let text, !text.isEmpty { Text(rich(text)).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading) }
+        VStack(alignment: .leading, spacing: 0) {
+            if type.isAccessibilitySize, let text, !text.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(alignment: .center, spacing: 12) {
+                        if let symbol { IconTile(symbol: symbol, color: color) }
+                        Text(title).font(.body.weight(.semibold)).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer(minLength: 4)
+                        trailing
+                        if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
+                    }
+                    Text(rich(text)).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                trailing
-                if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                .contentShape(Rectangle())
+                if !last { Divider().padding(.leading, 16) }
+            } else {
+                HStack(alignment: .center, spacing: 14) {
+                    if let symbol { IconTile(symbol: symbol, color: color) }
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
+                        if let text, !text.isEmpty { Text(rich(text)).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading) }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    trailing
+                    if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
+                }
+                .padding(.horizontal, 16).padding(.vertical, 12)
+                .contentShape(Rectangle())
+                if !last { Divider().padding(.leading, symbol == nil ? 16 : 60) }
             }
-            .padding(.horizontal, 16).padding(.vertical, 12)
-            .contentShape(Rectangle())
-            if !last { Divider().padding(.leading, symbol == nil ? 16 : 60) }
         }
     }
 }
@@ -206,21 +226,34 @@ struct CheckRow: View {
     var accent: Color = Palette.accent
     var last = false
     let toggle: () -> Void
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         Button(action: toggle) {
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 14) {
                     Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title2)
-                        .foregroundStyle(on ? Crayon.ink(accent) : accent.opacity(0.45))
+                        .foregroundStyle(on ? (dark ? accent : Crayon.ink(accent)) : accent.opacity(0.45))
                         .contentTransition(.symbolEffect(.replace))
-                    VStack(alignment: .leading, spacing: 2) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(text).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)
-                        if let tag { Text(tag).font(.footnote).foregroundStyle(Palette.secondaryText) }
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let tag, !tag.isEmpty {
+                            Text(tag)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(dark ? accent : Crayon.ink(accent))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(accent.opacity(dark ? 0.22 : 0.14)))
+                                .fixedSize()
+                        }
                     }
                     Spacer(minLength: 0)
                 }
                 .padding(.horizontal, 16).padding(.vertical, 11)
-                .background(on ? accent.opacity(0.06) : .clear)
+                .background(on ? accent.opacity(dark ? 0.12 : 0.06) : .clear)
                 if !last { Divider().padding(.leading, 56) }
             }
             .contentShape(Rectangle())
@@ -263,10 +296,11 @@ struct BlocksView: View {
 /// short value share one line.
 struct TableBlock: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     let head: [String]
     let rows: [[String]]
-    @State private var open: Set<Int> = []
-    @State private var seeded = false
+    @State private var selectedStage: Int? = nil
 
     /// The months an age-group heading covers, or nil when the heading is not an age group.
     static func months(_ t: String) -> ClosedRange<Int>? {
@@ -280,39 +314,127 @@ struct TableBlock: View {
         return (a * k)...((ns.count > 1 ? ns[1] : a) * k)
     }
 
+    private func metricStyle(for label: String) -> (symbol: String, color: Color)? {
+        let low = label.lowercased()
+        if label.contains("活动") || low.contains("activity") || low.contains("movement") || low.contains("play") {
+            return ("figure.play", Crayon.teal)
+        }
+        if label.contains("睡") || low.contains("sleep") {
+            return ("moon.zzz.fill", Crayon.lilac)
+        }
+        if label.contains("屏") || low.contains("screen") {
+            return ("tv.slash", Crayon.cherry)
+        }
+        if label.contains("受限") || low.contains("restrain") || low.contains("sedentary") {
+            return ("chair.lounge.fill", Crayon.tangerine)
+        }
+        if label.contains("辅食") || label.contains("餐") || low.contains("feed") || low.contains("meal") || low.contains("milk") {
+            return ("fork.knife", Crayon.leaf)
+        }
+        return nil
+    }
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         let ranges = rows.map { Self.months($0.first ?? "") }
         let grouped = rows.count >= 3 && ranges.allSatisfy { $0 != nil }
         let m = app.babyMonth ?? 0
         let mine: Int? = grouped ? (ranges.firstIndex { $0!.contains(m) } ?? 0) : nil
-        VStack(spacing: 10) {
-            ForEach(Array(rows.enumerated()), id: \.offset) { i, row in
-                let shown = !grouped || open.contains(i)
+
+        if grouped, !rows.isEmpty {
+            let active = min(max(0, selectedStage ?? mine ?? 0), rows.count - 1)
+            let row = rows[active]
+            VStack(alignment: .leading, spacing: 12) {
+                // Stage Pill Selector (wrapped cleanly with zero right-edge clipping)
+                WrapLayout(spacing: 7) {
+                    ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+                        let label = r.first ?? ""
+                        let isOn = (i == active)
+                        let isNow = (i == mine)
+                        Button {
+                            withAnimation(.snappy) { selectedStage = i }
+                        } label: {
+                            HStack(spacing: 5) {
+                                if isNow {
+                                    Circle()
+                                        .fill(isOn ? Palette.beadLight : Palette.bead)
+                                        .frame(width: 6.5, height: 6.5)
+                                }
+                                Text(label)
+                                    .font(.caption.weight(isOn ? .bold : .semibold))
+                                    .lineLimit(1)
+                            }
+                            .foregroundStyle(isOn ? .white : .primary)
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill(isOn ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.card)))
+                            .overlay(Capsule().strokeBorder(isOn ? Color.clear : Palette.outline.opacity(dark ? 0.25 : 0.16), lineWidth: 0.75))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityAddTraits(isOn ? .isSelected : [])
+                    }
+                }
+
+                // Single Focused Visual Stage Card
                 VStack(alignment: .leading, spacing: 0) {
                     if let first = row.first {
-                        Button {
-                            guard grouped else { return }
-                            withAnimation(.snappy) { if open.contains(i) { open.remove(i) } else { open.insert(i) } }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(first).font(.headline).foregroundStyle(.primary)
-                                if i == mine {
-                                    Text(L10n.t("宝宝现在", "Now")).font(.caption2.weight(.bold)).foregroundStyle(Color(hex: 0x4A3300))
-                                        .padding(.horizontal, 7).padding(.vertical, 2).background(Capsule().fill(Palette.bead))
-                                }
-                                Spacer(minLength: 0)
-                                if grouped {
-                                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
-                                        .rotationEffect(.degrees(shown ? 180 : 0))
-                                }
+                        HStack(spacing: 8) {
+                            Text(first).font(.headline).foregroundStyle(.primary)
+                            if active == mine {
+                                Text(L10n.t("宝宝现在", "Now"))
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(Color(hex: 0x4A3300))
+                                    .padding(.horizontal, 7).padding(.vertical, 2)
+                                    .background(Capsule().fill(Palette.bead))
                             }
-                            .padding(.horizontal, 16).padding(.vertical, 12).contentShape(Rectangle())
+                            Spacer(minLength: 0)
+                            Text("\(active + 1) / \(rows.count)")
+                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
+                                .foregroundStyle(Palette.secondaryText)
                         }
-                        .buttonStyle(.plain)
-                        .disabled(!grouped)
-                        .accessibilityAddTraits(grouped ? .isButton : [])
+                        .padding(.horizontal, 16).padding(.vertical, 12)
                     }
-                    if shown {
+
+                    ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { j, cell in
+                        Divider().padding(.leading, 16)
+                        let label = j + 1 < head.count ? head[j + 1] : ""
+                        let icon = metricStyle(for: label)
+                        HStack(alignment: .top, spacing: 11) {
+                            if let icon {
+                                Image(systemName: icon.symbol)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(dark ? icon.color : Crayon.ink(icon.color))
+                                    .frame(width: 26, height: 26)
+                                    .background(RoundedRectangle(cornerRadius: 7, style: .continuous).fill(icon.color.opacity(dark ? 0.20 : 0.14)))
+                                    .padding(.top, 1)
+                            }
+                            ViewThatFits(in: .horizontal) {
+                                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                                    if !label.isEmpty { Text(label).font(.footnote.weight(.medium)).foregroundStyle(Palette.secondaryText).fixedSize() }
+                                    Spacer(minLength: 8)
+                                    Text(rich(cell)).font(.body).multilineTextAlignment(.trailing).fixedSize()
+                                }
+                                VStack(alignment: .leading, spacing: 3) {
+                                    if !label.isEmpty { Text(label).font(.footnote.weight(.medium)).foregroundStyle(Palette.secondaryText) }
+                                    Text(rich(cell)).font(.body).fixedSize(horizontal: false, vertical: true)
+                                }
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            }
+                        }
+                        .padding(.horizontal, 16).padding(.vertical, 11)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .printCard(radius: Radius.card)
+            }
+        } else {
+            VStack(spacing: 10) {
+                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                    VStack(alignment: .leading, spacing: 0) {
+                        if let first = row.first {
+                            Text(first).font(.headline).foregroundStyle(.primary)
+                                .padding(.horizontal, 16).padding(.vertical, 12)
+                        }
                         ForEach(Array(row.dropFirst().enumerated()), id: \.offset) { j, cell in
                             Divider().padding(.leading, 16)
                             let label = j + 1 < head.count ? head[j + 1] : ""
@@ -331,12 +453,11 @@ struct TableBlock: View {
                             .padding(.horizontal, 16).padding(.vertical, 9)
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .printCard(radius: Radius.card)
             }
         }
-        .onAppear { if !seeded, let mine { open = [mine]; seeded = true } }
     }
 }
 
