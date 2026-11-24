@@ -130,7 +130,6 @@ struct StorybookView: View {
                         firstLines: firstLines,
                         playNames: playNames,
                         foodNames: foodNames,
-                        coverImage: ArtIndex.shared.cover(min(pageMonth, 36)).flatMap { ArtCache.shared.image($0, maxPixel: 1024) },
                         firstPhoto: firstIDs.compactMap { FirstPhotoStore.load(for: $0) }.first
                     )
                 )
@@ -154,7 +153,7 @@ struct StorybookView: View {
                         monthCount: monthCount,
                         playCount: playCount,
                         firstCount: firstCount,
-                        coverImage: ArtIndex.shared.cover(babyMonth).flatMap { ArtCache.shared.image($0, maxPixel: 1024) }
+                        month: babyMonth
                     )
                 )
             }
@@ -324,17 +323,18 @@ private struct StorybookCoverSpread: View {
                         }
                         .padding(.top, 6)
 
-                        // Taped heirloom cover frame with authentic Kid's Book cover illustration
+                        // Taped heirloom cover frame with living chapter portrait
                         ZStack(alignment: .bottomTrailing) {
-                            Group {
-                                if let f = ArtIndex.shared.cover(mo) {
-                                    ArtView(name: f, label: L10n.t("封面插画", "Cover illustration"), radius: 12)
-                                } else {
-                                    ZStack { StagePlate(); GrowingChild(month: mo).padding(16) }
-                                        .aspectRatio(4 / 3, contentMode: .fit)
-                                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                                }
-                            }
+                            LivingMonthCoverStage(
+                                month: mo,
+                                dark: dark,
+                                festive: mo == 12 || mo == 24 || mo == 36,
+                                interactive: true,
+                                compact: false
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(L10n.t("封面插画", "Cover illustration"))
                             .padding(8)
                             .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
                             .shadow(color: dark ? .black.opacity(0.34) : Color(hex: 0x6B4A2B).opacity(0.18), radius: 10, y: 5)
@@ -489,17 +489,19 @@ private struct StorybookMonthSpread: View {
                     .foregroundStyle(.primary)
                     .fixedSize(horizontal: false, vertical: true)
 
-                // Framed Polaroid Cover (and optional pinned parent First photo tucked beside it!)
+                // Framed Living Chapter Polaroid (and optional pinned parent First photo tucked beside it!)
                 ZStack(alignment: .bottomTrailing) {
-                    Group {
-                        if let f = ArtIndex.shared.cover(min(m, 36)) {
-                            ArtView(name: f, label: mo.title, radius: 10)
-                        } else {
-                            ZStack { StagePlate(); GrowingChild(month: m).padding(14) }
-                                .aspectRatio(4 / 3, contentMode: .fit)
-                                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
-                        }
-                    }
+                    let clampedM = min(max(m, 0), 36)
+                    LivingMonthCoverStage(
+                        month: clampedM,
+                        dark: dark,
+                        festive: clampedM == 12 || clampedM == 24 || clampedM == 36,
+                        interactive: true,
+                        compact: false
+                    )
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .accessibilityElement(children: .ignore)
+                    .accessibilityLabel(mo.title)
                     .frame(maxHeight: (!page.notes.isEmpty && !foods.isEmpty) ? 168 : 186)
                     .padding(6)
                     .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
@@ -761,9 +763,10 @@ private struct StorybookCoverPrintCard: View {
     let monthCount: Int
     let playCount: Int
     let firstCount: Int
-    let coverImage: UIImage?
+    let month: Int
 
     var body: some View {
+        let clampedMonth = min(max(month, 0), 36)
         let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
         let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
         let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
@@ -778,16 +781,19 @@ private struct StorybookCoverPrintCard: View {
                 Circle().fill(bead).frame(width: 7, height: 7)
             }
 
-            if let coverImage {
-                Image(uiImage: coverImage)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 312, height: 224)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
-                    .padding(6)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-                    .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
-            }
+            LivingMonthCoverStage(
+                month: clampedMonth,
+                dark: false,
+                festive: clampedMonth == 12 || clampedMonth == 24 || clampedMonth == 36,
+                posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
+                interactive: false,
+                compact: false
+            )
+            .frame(width: 312, height: 224)
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(6)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
 
             VStack(spacing: 4) {
                 Text(L10n.t("\(babyName)的成长绘本", "\(babyName)'s Storybook"))
@@ -834,10 +840,10 @@ private struct StorybookMonthPrintCard: View {
     let firstLines: [String]
     let playNames: [String]
     let foodNames: [String]
-    let coverImage: UIImage?
     let firstPhoto: UIImage?
 
     var body: some View {
+        let clampedMonth = min(max(month, 0), 36)
         let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
         let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
         let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
@@ -862,15 +868,18 @@ private struct StorybookMonthPrintCard: View {
                 .foregroundStyle(ink)
 
             ZStack(alignment: .bottomTrailing) {
-                if let coverImage {
-                    Image(uiImage: coverImage)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: 312, height: 210)
-                        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        .padding(5)
-                        .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-                }
+                LivingMonthCoverStage(
+                    month: clampedMonth,
+                    dark: false,
+                    festive: clampedMonth == 12 || clampedMonth == 24 || clampedMonth == 36,
+                    posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
+                    interactive: false,
+                    compact: false
+                )
+                .frame(width: 312, height: 210)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(5)
+                .background(Color.white, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
                 if let firstPhoto {
                     Image(uiImage: firstPhoto)
                         .resizable()

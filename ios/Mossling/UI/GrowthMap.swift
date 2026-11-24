@@ -332,7 +332,7 @@ struct MapLand: View, Equatable {
 struct MapHome: View {
     let flat: Bool
     var body: some View {
-        Canvas { ctx, size in
+        Canvas(rendersAsynchronously: false) { ctx, size in
             let w = size.width, h = size.height
             let wall = CGRect(x: w * 0.2, y: h * 0.42, width: w * 0.6, height: h * 0.5)
             ctx.fill(Path(roundedRect: wall, cornerRadius: 3), with: flat ? .color(Color(hex: 0x3A4670)) : .linearGradient(Gradient(colors: [Color(hex: 0x4A5A8C), Color(hex: 0x2E3A64)]), startPoint: CGPoint(x: 0, y: wall.minY), endPoint: CGPoint(x: 0, y: wall.maxY)))
@@ -377,6 +377,7 @@ struct GrowthMap: View {
     @Environment(AppModel.self) private var app
     @Environment(\.night) private var nightTab
     @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduce
     private var night: Bool { nightTab || lamp }
     @Binding var month: Int
@@ -540,14 +541,23 @@ struct GrowthMap: View {
                 }
             }
             .animation(.snappy, value: m)
-            // the month's own picture beside what it is about: the month at a glance, without opening it
+            // the month's own living chapter picture beside what it is about: the month at a glance, without opening it
             HStack(alignment: .top, spacing: 12) {
-                if let f = ArtIndex.shared.cover(m) {
-                    ArtView(name: f, label: m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)"), radius: 10)
-                        .frame(width: 92)
-                        .id(f)
-                        .transition(.opacity)
-                }
+                let mClamped = min(max(m, 0), 36)
+                LivingMonthCoverStage(
+                    month: mClamped,
+                    dark: night || scheme == .dark,
+                    festive: mClamped == 12 || mClamped == 24 || mClamped == 36,
+                    posterPhase: LivingMonthCoverCatalog.script(for: mClamped).posterPhase,
+                    interactive: false,
+                    compact: true
+                )
+                .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)"))
+                .frame(width: 92)
+                .id("livingCover-\(m)")
+                .transition(.opacity)
                 Text(mo.title).font(.headline).lineLimit(4).fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }

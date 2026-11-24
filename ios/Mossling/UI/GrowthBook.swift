@@ -56,8 +56,7 @@ struct GrowthBookView: View {
                     let ageStr = L10n.ageText(a)
                     let livedStr = L10n.livedDays(a.lived)
                     let posterItem = RenderedPoster {
-                        let cover = ArtIndex.shared.cover(mo).flatMap { ArtImageCache.load($0) }
-                        let card = KeepsakePosterCard(name: who, ageText: ageStr, livedText: livedStr, month: mo, chapter: chap, cover: cover)
+                        let card = KeepsakePosterCard(name: who, ageText: ageStr, livedText: livedStr, month: mo, chapter: chap)
                         let renderer = ImageRenderer(content: card)
                         renderer.scale = 3.0
                         return renderer.uiImage
@@ -171,9 +170,9 @@ private struct KeepsakePosterCard: View {
     let livedText: String
     let month: Int
     let chapter: String
-    let cover: UIImage?
 
     var body: some View {
+        let clampedMonth = min(max(month, 0), 36)
         let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
         let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
         let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
@@ -193,16 +192,19 @@ private struct KeepsakePosterCard: View {
                     .foregroundStyle(ink.opacity(0.55))
             }
 
-            if let cover {
-                Image(uiImage: cover)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 312, height: 224)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .padding(6)
-                    .background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
-                    .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
-            }
+            LivingMonthCoverStage(
+                month: clampedMonth,
+                dark: false,
+                festive: clampedMonth == 12 || clampedMonth == 24 || clampedMonth == 36,
+                posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
+                interactive: false,
+                compact: false
+            )
+            .frame(width: 312, height: 224)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .padding(6)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+            .shadow(color: Color.black.opacity(0.08), radius: 10, y: 4)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(name)
@@ -259,10 +261,17 @@ private struct QuietMonths: View {
                 ForEach(pages, id: \.month) { p in
                     NavigationLink(value: Route.month(min(p.month, 36))) {
                         VStack(spacing: 3) {
-                            Group {
-                                if let f = ArtIndex.shared.cover(min(p.month, 36)) { ArtView(name: f, label: p.month == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(p.month) 个月", "Month \(p.month)"), radius: 4) }
-                                else { Color.clear.aspectRatio(4 / 3, contentMode: .fit) }
-                            }
+                            let mClamped = min(max(p.month, 0), 36)
+                            LivingMonthCoverStage(
+                                month: mClamped,
+                                dark: dark,
+                                posterPhase: LivingMonthCoverCatalog.script(for: mClamped).posterPhase,
+                                interactive: false,
+                                compact: true
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(p.month == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(p.month) 个月", "Month \(p.month)"))
                             .padding(3)
                             .background(RoundedRectangle(cornerRadius: 6, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
                             .shadow(color: dark ? Color.black.opacity(0.28) : Color(hex: 0x6B4A2B).opacity(0.14), radius: 3, y: 2)
@@ -464,10 +473,18 @@ private struct BookPageView: View {
     /// The month's picture pinned like a photograph: a paper border, a slight tilt, a strip of masking tape.
     private func photo(_ m: Int) -> some View {
         let dark = lamp || scheme == .dark
-        return Group {
-            if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, label: m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "\(m) \(m == 1 ? "month" : "months")"), radius: 6) }
-            else { ZStack { StagePlate(); GrowingChild(month: m).padding(10) }.aspectRatio(4 / 3, contentMode: .fit).clipShape(RoundedRectangle(cornerRadius: 6)) }
-        }
+        let mClamped = min(max(m, 0), 36)
+        return LivingMonthCoverStage(
+            month: mClamped,
+            dark: dark,
+            festive: mClamped == 12 || mClamped == 24 || mClamped == 36,
+            posterPhase: LivingMonthCoverCatalog.script(for: mClamped).posterPhase,
+            interactive: false,
+            compact: false
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "\(m) \(m == 1 ? "month" : "months")"))
         .frame(width: type.isAccessibilitySize ? 96 : 112)
         .padding(5)
         .background(RoundedRectangle(cornerRadius: 9, style: .continuous).fill(dark ? Color(hex: 0xECE5D8) : Color.white))
@@ -609,9 +626,15 @@ struct GrowthBookCard: View {
             HStack(spacing: 14) {
                 ZStack {
                     ForEach(Array(shown.enumerated().reversed()), id: \.element) { i, m in
-                        Group {
-                            if let f = ArtIndex.shared.cover(min(m, 36)) { ArtView(name: f, radius: 4) } else { Palette.fill }
-                        }
+                        let mClamped = min(max(m, 0), 36)
+                        LivingMonthCoverStage(
+                            month: mClamped,
+                            dark: dark,
+                            posterPhase: LivingMonthCoverCatalog.script(for: mClamped).posterPhase,
+                            interactive: false,
+                            compact: true
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
                         .frame(width: 46).padding(2.5)
                         .background(RoundedRectangle(cornerRadius: 6).fill(Color.white))
                         .shadow(color: Color(hex: 0x6B4A2B).opacity(0.18), radius: 3, y: 2)

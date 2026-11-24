@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 17（v2.0 正式发布候选 14 · 37 月龄活态成长绘本封面 Phase 3 · 16 教具质感精修与同步 Canvas 渲染）**：
+  - **【活态绘本重绘 Phase 3 · 37 个月成长章节封面 `LivingMonthCoverStage`】**：新建 `LivingMonthCoverCatalog.swift` 与 `LivingMonthCoverStage.swift`，全面恪守 `docs/IP.md` 角色正典（3D 严格复用 `ip_moss_*`/`ip_otto_*` 与 2D 无缝切至 `FlatCreature`，绝不使用腮红/嘴点旧立绘），以草地（0–11 月）、树林（12–23 月）、溪边（24–36 月）三境剪纸景深、渐进成长比例、`LampLightRig` 实时光锥及 18 种成长象征教具，全面替换 `JourneyHubView`、`GrowView`、`TodayView`、`StorybookView`、`GrowthBook` 与 `GrowthMap` 全 6 处静态封面入口（旧 `cover_*.webp` 安全保留至 Phase 4 清理），新增 `testLivingMonthCoverCatalogAll37MonthsAndRender` 覆盖校验全部 37 个月。
+  - **【StoryTheater Phase 2 教具精修与前景声波】**：在 `MontessoriPropRig` / `MontessoriPropRig+Props` 中将 `.soundRipple` 与 `.peekCloth` 柔和摇曳声波改绘至角色前景层（`.inFrontOfActors`）避免遮挡；升级镜面反射（内置 Moss 与 Otto 正典剪影）、透视桌面蜡笔画纸、3D 倒角积木过桥与接地灯笼木碟，补强圆杯、积木叠环、娃娃、铃铛、绘本与探索垫的哑光立体质感。
+  - **【交互修复与同步 Canvas 渲染门禁 Fix & Craft】**：修复 `PlayView` 中 `DoneCount` 未玩过珠孔在浅/深色下对比过弱的问题，并在第 2 步起保留持续可见的圆形重播按钮；将 StoryTheater、首页迷你仪表、`Gauges` 与 `GrowthMap` 切换为 `Canvas(rendersAsynchronously: false)`，并优化 `ScreenshotTests.sharedWindow` 复用（全量 `MosslingTests` 211 项及定向 `test64/65/66` 均 0 失败通过）。
+
 - **Batch 16（v2.0 正式发布候选 13 · 活态绘本微剧场引擎 Phase 1 · 深色宣纸夜境修复与活动页减负）**：
   - **全维度视觉与状态修复**：修复深色模式下 `PageBackground` 未跟随 `colorScheme == .dark` 仍渲染日间天光草地的问题；修复 `YouView` 外观色板 `Swatch` 在 AX2 大字下勾选标与标签重叠；将 `SearchEngine.quickQueries`（`ReadingViews.swift`）优化为分龄 4 枚均衡胶囊（`...3`、`4...8`、`9...18`、`default`）消除 4+1 孤儿换行；为 `Creature` / `FlatCreature` 的 `patted` 状态补齐 `!still` 守卫修复 2D 静态定格闭眼问题；修复 `Fold` 在 AX2 下「准备 · ...」标题截断并补充 `ArtView` 缩略图（`px <= 512`）同步解码回退消除 `MonthView` 深色冷启动空白。
   - **活态绘本微剧场 StoryTheater（Phase 1）**：新建 `ios/Mossling/IP/StoryTheater/`（`LivingBookModels.swift`、`PictureBookBackdrop.swift`、`LampLightRig.swift`、`MontessoriPropRig.swift`、`LivingBookStage.swift`），落地 5 相位 OpenMotion 动作时钟（蓄势 -> 主体表演 -> 接触反馈 -> 次级跟随 -> 稳定落点）、恪守 `docs/IP.md` 角色正典（零腮红/零嘴点/零台词气泡，严格沿用 `Sprites.mossFeet`/`ottoFeet`/`bead` 比例）、Otto 金珠实时光学追踪光锥、5 套北欧剪纸布景，并率先完成 `A04`（递木环摇铃）、`A12`（躲猫猫真实掀布）与 `A19`（叠积木搭建与倒塌欢呼）全模态动态脚本（Daylight 3D / Dark & Lamp 3D / 2D Flat / ZH-EN / AX2 / `Reduce Motion` `posterPhase` 确定性定格 / `ImageRenderer`），接入 `ActivityMotionStage`、`PlayView` 与 `TodayView`。

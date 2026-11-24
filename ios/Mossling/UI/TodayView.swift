@@ -521,7 +521,7 @@ private struct MiniRhythmDialCanvas: View {
 
     var body: some View {
         ZStack {
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: false) { ctx, size in
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let r = min(size.width, size.height) / 2 - 4
                 let track = Path(ellipseIn: CGRect(x: center.x - r, y: center.y - r, width: r * 2, height: r * 2))
@@ -577,7 +577,7 @@ private struct MiniFoodsWreathCanvas: View {
     var body: some View {
         let count = foods.tastedCount
         ZStack {
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: false) { ctx, size in
                 let center = CGPoint(x: size.width / 2, y: size.height / 2)
                 let r = min(size.width, size.height) / 2 - 4
                 let cats = FoodCategory.allCases
@@ -614,7 +614,7 @@ private struct MiniXylophoneArt: View {
     let dark: Bool
 
     var body: some View {
-        Canvas { ctx, size in
+        Canvas(rendersAsynchronously: false) { ctx, size in
             let w = size.width, h = size.height
             // Birch side rails
             let leftRail = Path(roundedRect: CGRect(x: 9, y: 4, width: 3.5, height: h - 8), cornerRadius: 1.5)
@@ -648,9 +648,7 @@ private struct MiniStorybookStackArt: View {
     let dark: Bool
 
     var body: some View {
-        let cover = ArtIndex.shared.cover(min(max(month, 0), 36)).flatMap {
-            Perf.noArt ? nil : (ArtCache.shared.cached($0, maxPixel: 256) ?? ArtCache.shared.image($0, maxPixel: 256))
-        }
+        let clampedMonth = min(max(month, 0), 36)
         ZStack {
             RoundedRectangle(cornerRadius: 6, style: .continuous)
                 .fill(dark ? Color(hex: 0x29335C) : Color(hex: 0xF5EBDC))
@@ -662,15 +660,13 @@ private struct MiniStorybookStackArt: View {
                 .rotationEffect(.degrees(5))
                 .offset(x: 4, y: 2)
 
-            ZStack {
-                if let cover {
-                    Image(uiImage: cover)
-                        .resizable()
-                        .scaledToFill()
-                } else {
-                    Crayon.caramel.opacity(0.35)
-                }
-            }
+            LivingMonthCoverStage(
+                month: clampedMonth,
+                dark: dark,
+                posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
+                interactive: false,
+                compact: true
+            )
             .frame(width: 42, height: 32)
             .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
             .padding(2.5)

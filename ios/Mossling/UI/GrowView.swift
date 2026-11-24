@@ -39,20 +39,37 @@ struct Bead: View {
 struct MonthView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     @State private var month: Int
     init(month: Int) { _month = State(initialValue: month) }
 
     var body: some View {
         let mo = app.content.month(month), m = month
+        let dark = lamp || scheme == .dark
+        let chapterLabel = m == 0 ? L10n.t("出生：\(mo.title)", "Birth: \(mo.title)") : L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)")
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
-                // the month's picture beside its title (stacks cleanly on Accessibility text sizes)
+                // the month's living chapter stage beside its title (stacks cleanly on Accessibility text sizes)
                 Group {
                     if type.isAccessibilitySize {
                         VStack(alignment: .leading, spacing: 10) {
-                            if let f = ArtIndex.shared.cover(m) {
-                                ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: 148)
-                            }
+                            LivingMonthCoverStage(
+                                month: m,
+                                dark: dark,
+                                festive: m == 12 || m == 24 || m == 36,
+                                interactive: true,
+                                compact: false
+                            )
+                            .frame(maxWidth: .infinity)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .strokeBorder(Land.of(m).crayon.opacity(dark ? 0.36 : 0.24), lineWidth: 1)
+                            )
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(chapterLabel)
+
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
                                 if let b = app.birth {
@@ -65,9 +82,22 @@ struct MonthView: View {
                         }
                     } else {
                         HStack(alignment: .center, spacing: 14) {
-                            if let f = ArtIndex.shared.cover(m) {
-                                ArtView(name: f, label: L10n.t("满 \(m) 个月：\(mo.title)", "Month \(m): \(mo.title)"), radius: 18).frame(width: 148)
-                            }
+                            LivingMonthCoverStage(
+                                month: m,
+                                dark: dark,
+                                festive: m == 12 || m == 24 || m == 36,
+                                interactive: true,
+                                compact: false
+                            )
+                            .frame(width: 156)
+                            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .strokeBorder(Land.of(m).crayon.opacity(dark ? 0.36 : 0.24), lineWidth: 1)
+                            )
+                            .accessibilityElement(children: .ignore)
+                            .accessibilityLabel(chapterLabel)
+
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(mo.title).font(.headline).fixedSize(horizontal: false, vertical: true)
                                 if let b = app.birth {

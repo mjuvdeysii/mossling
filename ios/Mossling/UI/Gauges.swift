@@ -96,7 +96,7 @@ private struct FluidGaugeCanvas: View, Animatable {
     }
 
     var body: some View {
-        Canvas { ctx, size in
+        Canvas(rendersAsynchronously: false) { ctx, size in
             draw(&ctx, size)
         }
     }

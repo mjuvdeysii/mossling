@@ -31,45 +31,21 @@ struct MonthPostcardArt: View {
     var width: CGFloat = 104
     var radius: CGFloat = 12
 
-    @Environment(\.girlArt) private var girl
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
         let m = JourneyStripMetrics.clampedMonth(month)
         let dark = night || scheme == .dark
         let height = width * 0.75
-        let coverName = ArtIndex.shared.cover(m).map { ArtIndex.variant($0, girl: girl) }
-        let coverImage = coverName.flatMap { name in
-            Perf.noArt ? nil : (ArtCache.shared.cached(name, maxPixel: Int(width * 3)) ?? ArtCache.shared.image(name, maxPixel: Int(width * 3)))
-        }
 
-        ZStack {
-            if let coverImage {
-                Image(uiImage: coverImage)
-                    .resizable()
-                    .scaledToFill()
-            } else {
-                LinearGradient(
-                    colors: [Land.of(m).crayon.opacity(0.35), Palette.bead.opacity(0.2)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            }
-
-            if night {
-                Color(hex: 0x0E1430).opacity(0.34)
-                RadialGradient(
-                    colors: [Palette.amber.opacity(0.24), .clear],
-                    center: UnitPoint(x: 0.78, y: 0.25),
-                    startRadius: 2,
-                    endRadius: width * 0.55
-                )
-            }
-
-            if festive {
-                buntingOverlay
-            }
-        }
+        LivingMonthCoverStage(
+            month: m,
+            dark: dark,
+            festive: festive,
+            posterPhase: LivingMonthCoverCatalog.script(for: m).posterPhase,
+            interactive: false,
+            compact: true
+        )
         .frame(width: width, height: height)
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .padding(3)
@@ -97,30 +73,6 @@ struct MonthPostcardArt: View {
         .shadow(color: dark ? .black.opacity(0.28) : Color(hex: 0x7A5230).opacity(0.14), radius: 5, y: 2.5)
         .rotationEffect(.degrees(-1.2))
         .accessibilityHidden(true)
-    }
-
-    private var buntingOverlay: some View {
-        Canvas(rendersAsynchronously: false) { ctx, size in
-            let y0 = size.height * 0.08
-            let sag = size.height * 0.14
-            var line = Path()
-            line.move(to: CGPoint(x: -2, y: y0))
-            line.addQuadCurve(to: CGPoint(x: size.width + 2, y: y0), control: CGPoint(x: size.width / 2, y: y0 + sag * 2))
-            ctx.stroke(line, with: .color(Color(hex: 0x7A5C3D).opacity(0.65)), lineWidth: 1)
-            let tones: [Color] = [Crayon.pink, Palette.bead, Crayon.teal, Crayon.sky]
-            let count = 6
-            for i in 0..<count {
-                let t = (Double(i) + 0.5) / Double(count)
-                let x = size.width * t
-                let y = y0 + sag * 4 * t * (1 - t)
-                var flag = Path()
-                flag.move(to: CGPoint(x: x - 4, y: y))
-                flag.addLine(to: CGPoint(x: x + 4, y: y))
-                flag.addLine(to: CGPoint(x: x, y: y + 7.5))
-                flag.closeSubpath()
-                ctx.fill(flag, with: .color(tones[i % tones.count]))
-            }
-        }
     }
 }
 
@@ -750,28 +702,35 @@ struct JourneyHubView: View {
 
                     Spacer(minLength: 4)
 
-                    if let coverName = ArtIndex.shared.cover(landCoverMonth(for: land)) {
-                        ZStack(alignment: .top) {
-                            ArtView(name: coverName, label: land.name, radius: 13)
-                                .frame(width: 88, height: 66)
-                                .padding(4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                        .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
-                                )
-                                .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
-                                .rotationEffect(.degrees(3))
+                    let bannerMonth = landCoverMonth(for: land)
+                    ZStack(alignment: .top) {
+                        LivingMonthCoverStage(
+                            month: bannerMonth,
+                            dark: dark,
+                            posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
+                            interactive: false,
+                            compact: true
+                        )
+                        .frame(width: 88, height: 66)
+                        .clipShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
+                        .padding(4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(dark ? Palette.lampCard : Color(hex: 0xFFFDF8))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(dark ? 0.22 : 0.09), radius: 5, y: 3)
+                        .rotationEffect(.degrees(3))
+                        .accessibilityHidden(true)
 
-                            RoundedRectangle(cornerRadius: 2, style: .continuous)
-                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
-                                .frame(width: 24, height: 8)
-                                .offset(y: -4)
-                                .rotationEffect(.degrees(-2))
-                        }
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
+                            .fill(Color(hex: 0xEFE1B8).opacity(0.88))
+                            .frame(width: 24, height: 8)
+                            .offset(y: -4)
+                            .rotationEffect(.degrees(-2))
                     }
                 }
                 .padding(.horizontal, 14)

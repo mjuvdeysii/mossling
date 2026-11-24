@@ -21,7 +21,7 @@ struct MontessoriPropRig: View {
     let tapBurstStrength: Double
 
     var body: some View {
-        Canvas { ctx, size in
+        Canvas(rendersAsynchronously: false) { ctx, size in
             let w = size.width
             let h = size.height
             let floorY = PictureBookBackdrop.floorLineY(for: backdrop, in: h)
@@ -96,6 +96,11 @@ struct MontessoriPropRig: View {
                 if layer == .betweenActors {
                     drawRingStackerScene(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
                 }
+            }
+
+            // Foreground sound ripples in clear air between Moss and Otto (never occluded behind Moss)
+            if layer == .inFrontOfActors {
+                drawForegroundSoundArcsIfNeeded(in: &ctx, w: w, h: h, unit: unit, floorY: floorY)
             }
 
             // Interactive tap-to-replay starburst ripple (drawn in foreground layer only)
@@ -323,7 +328,7 @@ struct MontessoriPropRig: View {
             }
 
         case .gentleSway:
-            // Step 1: Cloth floats softly beside Otto while warm vocal sound arcs ripple gently toward Moss
+            // Step 1: Cloth floats softly beside Otto while warm vocal sound arcs ripple gently in foreground layer
             let sway = sin(phase.raw * .pi * 2.0)
             clothW = os * 0.48
             clothH = os * 0.16
@@ -331,20 +336,6 @@ struct MontessoriPropRig: View {
             topY = floorY - clothH - CGFloat(max(0, sway) * Double(unit) * 0.018) + 2
             tiltDeg = sway * 5.0
             foldScaleY = 1.0
-
-            // Delicate gentle vocal arcs between Otto and Moss
-            let arcCenter = CGPoint(x: w * 0.51, y: floorY - os * 0.32)
-            for i in 0..<2 {
-                let p = (phase.raw + Double(i) * 0.45).truncatingRemainder(dividingBy: 1.0)
-                let arcR = unit * CGFloat(0.08 + p * 0.14)
-                var arc = Path()
-                arc.addArc(center: arcCenter, radius: arcR, startAngle: .degrees(145), endAngle: .degrees(215), clockwise: false)
-                ctx.stroke(
-                    arc,
-                    with: .color((dark ? Palette.amber : Crayon.pink).opacity((1.0 - p) * 0.55)),
-                    style: StrokeStyle(lineWidth: max(1.4, unit * 0.008), lineCap: .round)
-                )
-            }
 
         case .offerArc, .graspContact:
             // Sensory brush / folded cloth care (A02, A08, A20, A35)
@@ -387,10 +378,6 @@ struct MontessoriPropRig: View {
             topY = floorY - clothH - 1
             tiltDeg = sway * 3.0
             foldScaleY = 1.0
-
-            if script.phrase == .soundRipple {
-                drawSoundArcs(in: &ctx, origin: CGPoint(x: w * 0.54, y: floorY - unit * 0.24), facingLeft: true, unit: unit, tint: dark ? Palette.amber : Crayon.pink)
-            }
         }
 
         drawMuslinCloth(
@@ -623,18 +610,33 @@ struct MontessoriPropRig: View {
         )
     }
 
+    func drawForegroundSoundArcsIfNeeded(in ctx: inout GraphicsContext, w: CGFloat, h: CGFloat, unit: CGFloat, floorY: CGFloat) {
+        let shouldDraw = script.phrase == .soundRipple
+            || (script.prop == .peekCloth && script.phrase == .gentleSway)
+            || (script.prop == .bell && phase.isContactWindow)
+        guard shouldDraw else { return }
+
+        let facingLeft = script.lead != .child
+        let originX = facingLeft ? w * 0.55 : w * 0.44
+        let originY = floorY - unit * 0.34
+        let tint: Color = dark
+            ? Palette.amber
+            : accent.mix(with: Palette.amber, by: 0.22)
+        drawSoundArcs(in: &ctx, origin: CGPoint(x: originX, y: originY), facingLeft: facingLeft, unit: unit, tint: tint)
+    }
+
     func drawSoundArcs(in ctx: inout GraphicsContext, origin: CGPoint, facingLeft: Bool, unit: CGFloat, tint: Color) {
-        let baseStart = facingLeft ? 142.0 : -38.0
-        let baseEnd = facingLeft ? 218.0 : 38.0
-        for i in 0..<2 {
-            let p = (phase.raw + Double(i) * 0.45).truncatingRemainder(dividingBy: 1.0)
-            let arcR = unit * CGFloat(0.075 + p * 0.145)
+        let baseStart = facingLeft ? 138.0 : -42.0
+        let baseEnd = facingLeft ? 222.0 : 42.0
+        for i in 0..<3 {
+            let p = (phase.raw + Double(i) * 0.33).truncatingRemainder(dividingBy: 1.0)
+            let arcR = unit * CGFloat(0.06 + p * 0.14)
             var arc = Path()
             arc.addArc(center: origin, radius: arcR, startAngle: .degrees(baseStart), endAngle: .degrees(baseEnd), clockwise: false)
             ctx.stroke(
                 arc,
-                with: .color(tint.opacity((1.0 - p) * 0.62)),
-                style: StrokeStyle(lineWidth: max(1.4, unit * 0.0085), lineCap: .round)
+                with: .color(tint.opacity((1.0 - p) * 0.72)),
+                style: StrokeStyle(lineWidth: max(1.6, unit * 0.009), lineCap: .round)
             )
         }
     }

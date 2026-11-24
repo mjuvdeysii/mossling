@@ -43,7 +43,7 @@ struct LampLightRig: View {
     }
 
     var body: some View {
-        Canvas { ctx, size in
+        Canvas(rendersAsynchronously: false) { ctx, size in
             let w = size.width
             let poolRx = w * 0.25
             let poolRy: CGFloat = max(10, size.height * 0.055)

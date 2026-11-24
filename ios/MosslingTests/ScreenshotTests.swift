@@ -10,7 +10,6 @@ final class ScreenshotTests: XCTestCase {
     override func tearDown() {
         Self.sharedWindow?.rootViewController = nil
         Self.sharedWindow?.isHidden = true
-        Self.sharedWindow = nil
         super.tearDown()
     }
     // the journal in these shots is in memory; nothing is written
@@ -36,6 +35,7 @@ final class ScreenshotTests: XCTestCase {
         let size = CGSize(width: width, height: height)
         let window: UIWindow
         if let existing = Self.sharedWindow {
+            existing.isHidden = false
             existing.frame = CGRect(origin: .zero, size: size)
             window = existing
         } else {
@@ -80,7 +80,6 @@ final class ScreenshotTests: XCTestCase {
         RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         window.rootViewController = nil
         window.isHidden = true
-        window.frame = CGRect(x: 0, y: 0, width: 32, height: 32)
         CATransaction.flush()
     }
 
@@ -1838,7 +1837,7 @@ final class ScreenshotTests: XCTestCase {
         shot("63_fix_play_a11_clean_zh", height: 1160, tabs(m, PlayView(play: playA11, month: 6, initialStep: 0)))
     }
 
-    /// Round 17 — Full Living StoryTheater Phase 2 across Newborn (N01/N04) & Bespoke Montessori Props (Mirror/Ball/Crayon/Bridge/Lantern).
+    /// Round 17 — Full Living StoryTheater Phase 2 across Newborn (N01) & Bespoke Montessori Props (Mirror/Ball/Crayon/Bridge/Stacker/Doll/Cup).
     func test64Round17LivingBookAllPropsAndNewborn() {
         let m = model(); m.journal = true
         let playN01 = m.content.play("N01")!
@@ -1846,11 +1845,54 @@ final class ScreenshotTests: XCTestCase {
         let playA18 = m.content.play("A18")!
         let playA24 = m.content.play("A24")!
         let playA33 = m.content.play("A33")!
+        let playA27 = m.content.play("A27")!
+        let playA25 = m.content.play("A25")!
+        let playA14 = m.content.play("A14")!
 
         shot("64_living_n01_newborn_zh", height: 960, tabs(m, PlayView(play: playN01, month: 0, initialStep: 0)))
         shot("64_living_a09_mirror_zh", height: 960, tabs(m, PlayView(play: playA09, month: 7, initialStep: 0)))
         shot("64_living_a18_ball_zh", height: 960, tabs(m, PlayView(play: playA18, month: 12, initialStep: 0)))
         shot("64_living_a24_crayon_zh", height: 960, tabs(m, PlayView(play: playA24, month: 19, initialStep: 2)))
         shot("64_living_a33_bridge_lamp_zh", height: 960, lamp: true, tabs(m, PlayView(play: playA33, month: 27, initialStep: 1).lamp(true)))
+        shot("64_living_a27_stacker_zh", height: 960, tabs(m, PlayView(play: playA27, month: 22, initialStep: 0)))
+        shot("64_living_a25_doll_zh", height: 960, tabs(m, PlayView(play: playA25, month: 20, initialStep: 0)))
+        shot("64_living_a14_woodcup_zh", height: 960, tabs(m, PlayView(play: playA14, month: 10, initialStep: 0)))
+    }
+
+    /// Round 17 — Living Growth Chapter Covers Phase 3 across Meadow (0m/6m), Woodland (18m), Stream (24m/30m), 2D Flat, Storybook & JourneyHub.
+    func test65Round17LivingMonthCoversAndParity() {
+        defer { ArtStyle.current = .vinyl }
+        let m = model(); m.journal = true
+        let m18 = model(birth: Day(y: 2025, m: 4, d: 19)); m18.journal = true
+
+        shot("65_today_living_cover_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("65_month_00_meadow_zh", height: 1040, tabs(m, MonthView(month: 0)))
+        shot("65_month_06_dark_zh", dark: true, height: 1040, tabs(m, MonthView(month: 6)))
+        shot("65_month_18_woodland_zh", height: 1040, tabs(m18, MonthView(month: 18)))
+        shot("65_month_30_stream_lamp_zh", height: 1040, lamp: true, tabs(m18, MonthView(month: 30).lamp(true)))
+
+        ArtStyle.current = .flat
+        shot("65_month_24_2d_zh", height: 1040, tabs(m18, MonthView(month: 24)))
+        ArtStyle.current = .vinyl
+
+        shot("65_storybook_cover_living_zh", height: 852,
+             StorybookView(initialPage: 0).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        shot("65_journey_hub_living_zh", height: 1120, tabs(m, JourneyHubView()))
+    }
+
+    /// Round 17 — Storybook Spread, PlayView Step 2 Replay + Unplayed Bead Fix, MonthView AX2 EN & YouView GrowthBook Card Fan.
+    func test66Round17FixesAndStorybookSpread() {
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.journal = true
+        let playA19 = m.content.play("A19")!
+
+        shot("66_storybook_spread_living_zh", height: 852,
+             StorybookView(initialPage: 7).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        shot("66_play_a19_step2_replay_zh", height: 960, tabs(m, PlayView(play: playA19, month: 14, initialStep: 1)))
+        shot("66_you_living_growthbook_zh", height: 1080, tabs(m, YouView(path: .constant(NavigationPath()))))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("66_month_12_ax2_en", height: 1320, tabs(mEn, MonthView(month: 12)).dynamicTypeSize(.accessibility2))
     }
 }

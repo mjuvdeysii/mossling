@@ -317,9 +317,19 @@ private struct PlayLivingHeroCard: View {
             )
 
             if play.steps.count > 1 {
-                StepBeadBar(total: play.steps.count, current: stepIndex, inline: true, pick: onJump)
-                    .padding(.horizontal, 12)
-                    .padding(.top, 8)
+                StepBeadBar(
+                    total: play.steps.count,
+                    current: stepIndex,
+                    inline: true,
+                    dark: dark,
+                    onReplay: onPrev == nil ? nil : {
+                        TactileEngine.shared.beadClick()
+                        replayTrigger += 1
+                    },
+                    pick: onJump
+                )
+                .padding(.horizontal, 12)
+                .padding(.top, 8)
             }
 
             VStack(alignment: .leading, spacing: 14) {
@@ -749,6 +759,8 @@ private struct StepBeadBar: View {
     let total: Int
     let current: Int
     var inline: Bool = false
+    var dark: Bool = false
+    var onReplay: (() -> Void)? = nil
     let pick: (Int) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Namespace private var beadNS
@@ -756,8 +768,8 @@ private struct StepBeadBar: View {
     var body: some View {
         let done = min(current, total)
         let label = current >= total ? L10n.t("全部 \(total) 步已完成", "All \(total) steps done") : L10n.t("第 \(current + 1) 步，共 \(total) 步", "Step \(current + 1) of \(total)")
-        let row = HStack(spacing: 10) {
-            HStack(spacing: 6) {
+        let row = HStack(spacing: 8) {
+            HStack(spacing: 4) {
                 ForEach(0..<total, id: \.self) { i in
                     Button { pick(i) } label: {
                         ZStack {
@@ -773,7 +785,7 @@ private struct StepBeadBar: View {
                                 Circle().fill(Palette.stone.opacity(0.75)).frame(width: 9, height: 9)
                             }
                         }
-                        .frame(minWidth: 28, minHeight: 32)
+                        .frame(minWidth: 26, minHeight: 32)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -781,9 +793,29 @@ private struct StepBeadBar: View {
                 }
             }
             Spacer(minLength: 4)
-            Text(current >= total ? L10n.t("全部完成", "All Done") : L10n.t("第 \(done + 1) / \(total) 步", "Step \(done + 1) / \(total)"))
-                .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                .contentTransition(.numericText(value: Double(done + 1)))
+            HStack(spacing: 8) {
+                Text(current >= total ? L10n.t("全部完成", "All Done") : L10n.t("第 \(done + 1) / \(total) 步", "Step \(done + 1) / \(total)"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                    .contentTransition(.numericText(value: Double(done + 1)))
+
+                if let onReplay {
+                    Button(action: onReplay) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.caramel))
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Crayon.caramel.opacity(dark ? 0.24 : 0.14)))
+                            .overlay(Circle().strokeBorder(Crayon.caramel.opacity(dark ? 0.36 : 0.28), lineWidth: 0.75))
+                            .contentShape(Circle().inset(by: -6))
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("重播这一步示范动画", "Replay this step animation"))
+                }
+            }
         }
         .padding(.horizontal, inline ? 4 : 14)
         .padding(.vertical, inline ? 2 : 6)
@@ -805,14 +837,28 @@ private struct StepBeadBar: View {
 struct DoneCount: View {
     let record: PlayRecord
     var cheer = 0
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         HStack(spacing: 10) {
             HStack(spacing: -3) {
                 ForEach(0..<max(1, min(record.count, 5)), id: \.self) { _ in
-                    Circle()
-                        .fill(record.count == 0 ? AnyShapeStyle(Palette.fill) : AnyShapeStyle(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11)))
-                        .frame(width: 16, height: 16)
-                        .shadow(color: .black.opacity(record.count == 0 ? 0 : 0.18), radius: 1, y: 1)
+                    if record.count == 0 {
+                        Circle()
+                            .fill(dark ? Color.white.opacity(0.08) : Color(hex: 0xEDE4D3))
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(dark ? Color.white.opacity(0.32) : Crayon.caramel.opacity(0.55), lineWidth: 1.4)
+                            )
+                            .frame(width: 16, height: 16)
+                    } else {
+                        Circle()
+                            .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead, Color(hex: 0x9C6F08)], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 11))
+                            .frame(width: 16, height: 16)
+                            .shadow(color: .black.opacity(0.18), radius: 1, y: 1)
+                    }
                 }
             }
             .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }

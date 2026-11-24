@@ -2192,4 +2192,57 @@ final class LogicTests: XCTestCase {
         XCTAssertNotNil(img)
         XCTAssertGreaterThan(img?.size.width ?? 0, 200)
     }
+
+    @MainActor
+    func testLivingMonthCoverCatalogAll37MonthsAndRender() {
+        let scripts = LivingMonthCoverCatalog.allScripts
+        XCTAssertEqual(scripts.count, 37)
+        XCTAssertEqual(scripts.map(\.month), Array(0...36))
+
+        var usedProps: Set<MonthMilestoneProp> = []
+        for idx in scripts.indices {
+            let s = scripts[idx]
+            if s.month < 12 {
+                XCTAssertEqual(s.land, .meadow)
+            } else if s.month < 24 {
+                XCTAssertEqual(s.land, .woodland)
+            } else {
+                XCTAssertEqual(s.land, .stream)
+            }
+            XCTAssertEqual(s.growthStage, GrowingChild.stage(s.month))
+            if idx > 0 {
+                let prev = scripts[idx - 1]
+                XCTAssertGreaterThanOrEqual(s.growthStage, prev.growthStage)
+                XCTAssertGreaterThan(s.mossScale, prev.mossScale)
+                XCTAssertFalse(s.prop == prev.prop && s.secondaryProp == prev.secondaryProp, "Adjacent cover prop pair repeated at month \(s.month)")
+            }
+            usedProps.insert(s.prop)
+        }
+        for prop in MonthMilestoneProp.allCases {
+            XCTAssertTrue(usedProps.contains(prop), "Unused MonthMilestoneProp: \(prop)")
+        }
+
+        // Clamping safety
+        XCTAssertEqual(LivingMonthCoverCatalog.script(for: -4).month, 0)
+        XCTAssertEqual(LivingMonthCoverCatalog.script(for: 99).month, 36)
+
+        // Deterministic ImageRenderer verification across all 3 lands, 3D/2D, and light/dark modes
+        for m in [0, 6, 12, 18, 24, 36] {
+            for (dark, flat) in [(false, false), (true, true)] {
+                let stage = LivingMonthCoverStage(
+                    month: m,
+                    dark: dark,
+                    festive: m == 12 || m == 24 || m == 36,
+                    posterPhase: LivingMonthCoverCatalog.script(for: m).posterPhase,
+                    interactive: false,
+                    compact: false,
+                    forceFlat: flat
+                )
+                .frame(width: 240, height: 180)
+                let renderer = ImageRenderer(content: stage)
+                renderer.scale = 1.0
+                XCTAssertNotNil(renderer.uiImage, "Failed rendering living cover month=\(m) dark=\(dark) flat=\(flat)")
+            }
+        }
+    }
 }

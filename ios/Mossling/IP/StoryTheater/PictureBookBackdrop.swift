@@ -16,7 +16,7 @@ struct PictureBookBackdrop: View {
 
     var body: some View {
         ZStack {
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: false) { ctx, size in
                 let w = size.width
                 let h = size.height
                 let floorY = Self.floorLineY(for: kind, in: h)
