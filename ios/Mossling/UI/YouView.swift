@@ -1,60 +1,72 @@
 import SwiftUI
 import LocalAuthentication
 
-/// Me: the family first (Moss the child and Otto the grown-up, and the child's details, edited in a sheet), the growth
-/// book, then how the app looks, its features and the data. Nothing here repeats the home or the records.
+/// Concise visual-first tags for companions on `YouView`.
+enum YouStudioCopy {
+    static func companionBadge(_ kind: Kind) -> String {
+        switch kind {
+        case .moss: L10n.t("爱探索", "Explorer")
+        case .otto: L10n.t("点暖灯", "Lamp Keeper")
+        }
+    }
+}
+
+/// Unified crisp circular vector icon badge across `YouView` (replaces mixed 3D/flat icon styles).
+private struct StudioBadge: View {
+    let symbol: String
+    let color: Color
+    var active: Bool = true
+    var dark: Bool = false
+    var size: CGFloat = 30
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(color.opacity(active ? (dark ? 0.28 : 0.16) : (dark ? 0.12 : 0.09)))
+                .overlay(
+                    Circle()
+                        .strokeBorder(color.opacity(active ? 0.42 : 0.20), lineWidth: 0.85)
+                )
+            Image(systemName: symbol)
+                .font(.system(size: size * 0.44, weight: .bold))
+                .foregroundStyle(active ? (dark ? color : Crayon.ink(color)) : Palette.secondaryText)
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+    }
+}
+
+/// Me: Family Studio card, visual Growth Book keepsake vault, full-width living Appearance & Language deck,
+/// tactile 2×2 visual control tiles, and compact Local Data / About dock.
 struct YouView: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var type
     @Binding var path: NavigationPath
     @State private var editing = false
-    @Environment(JournalStore.self) private var j
     @State private var message: String?
 
     var body: some View {
         @Bindable var app = app
+        let dark = lamp || scheme == .dark
+        let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
+
         ScrollView {
-            // the whole page in one screen, filling it down to the tab bar without crowding: the family, the book, then
-            // one card of settings and one of data
             VStack(alignment: .leading, spacing: 14) {
-                // the family: the child's own portrait and who the child is, then the companion (Moss or Otto) to choose
                 FamilyCard { if app.mayKeep() { editing = true } }
 
-                // the growth book: a page for every month lived, from what is already recorded
                 if app.birth != nil { GrowthBookCard() }
 
-                // settings, as rows of one card: unified 28pt icons, 14pt padding, 52pt hairline dividers
-                let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
-                VStack(alignment: .leading, spacing: 0) {
-                    AppearanceRow()
-                        .padding(.horizontal, 14).padding(.vertical, 10)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    LanguageRow()
-                        .padding(.horizontal, 14).padding(.vertical, 10)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    // it belongs to 自动: under 日光 or 夜灯 the choice is already made, so the switch rests and says so
-                    SwitchRow(title: L10n.t("晚上自动开夜灯", "Auto Night Lamp"), detail: app.theme == .system ? "19:00–06:00" : L10n.t("外观选「自动」时生效", "Active when Appearance is Auto"), symbol: "moon.stars.fill", color: Palette.lampTint, on: $app.nightLight, resting: app.theme != .system)
-                        .disabled(app.theme != .system)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    SwitchRow(title: L10n.t("轻柔手感音效", "Tactile Sounds"), detail: L10n.t("木珠轻敲与翻页声；夜灯与睡眠时自动静音", "Soft wood & paper cues; muted at night"), symbol: "hand.tap.fill", color: Crayon.teal, on: $app.tactileSounds)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    SwitchRow(title: L10n.t("记录", "Care Journal"), detail: L10n.t("显示记录标签页", "Show the Log tab"), symbol: "list.bullet.clipboard.fill", color: Crayon.tangerine, on: Binding(get: { app.journal }, set: { on in if !on || app.mayKeep() { app.journal = on } }))
-                    if face {
-                        Divider().padding(.leading, 52).opacity(0.5)
-                        SwitchRow(title: Biometry.name, detail: L10n.t("打开时解锁", "Unlock on launch"), symbol: Biometry.symbol, color: Crayon.leaf, on: Binding(get: { app.lock }, set: { on in Biometry.turn(on) { app.lock = $0 } }))
-                    }
-                }
-                .printCard(radius: Radius.card)
+                ThemeLanguageCard(dark: dark)
 
-                // data and about, aligned to the exact same 28pt icon & 52pt hairline rhythm
-                VStack(spacing: 0) {
-                    NavigationLink(value: Route.data) { DataRow(title: L10n.t("数据", "Data & Privacy"), detail: L10n.t("导出 · 导入 · 清除；记录只存在这台手机上", "Export · Import · Clear; stored only on this iPhone"), symbol: "square.and.arrow.up.on.square", color: Crayon.sky) }
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    NavigationLink(value: Route.about) { DataRow(title: L10n.t("关于摸索台灯", "About Moss & Otto"), detail: L10n.t("内容来源 · 条款与隐私 · 反馈", "Sources · Privacy & Terms · Feedback"), symbol: "info", color: Crayon.pebble) }
-                }
-                .buttonStyle(.toy)
-                .printCard(radius: Radius.card)
+                ControlTileGrid(app: app, face: face, dark: dark)
+
+                FooterStudioDock(dark: dark)
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 32)
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
@@ -62,45 +74,49 @@ struct YouView: View {
         .sheet(isPresented: $editing) { ProfileSheet() }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button(L10n.t("好", "OK")) {} }
     }
-
 }
 
-/// The family, at the top of 我的: who the app is for and who it is from. The child is Moss — at the child's own stage
-/// (asleep in a leaf nest, sitting up, stepping along…), on the stone of the child's own month, on the hill of the
-/// child's own year, as on the growth map — and the grown-up beside him is Otto with his lamp: 孩子摸索，大人点灯. By
-/// night the child is home asleep and Otto's lamp comes on for a moment. Under the scene, the child: name, age, the day
-/// count, the sex (for the WHO curves) and what this stretch of growing is about; then the two, each with their way of
-/// being. Tap Moss and he giggles; 编辑 opens the child's details.
+/// Visual-first Family Studio header: portrait halo, baby age, concise land/day badges, and compact companion stage cards.
 private struct FamilyCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var night
     let edit: () -> Void
     @State private var giggles = 0
 
     var body: some View {
+        let dark = night || scheme == .dark
         let baby = app.babyMonth ?? 0
-        VStack(alignment: .leading, spacing: 10) {
-            // the scene beside who the child is, not over it (the growth map is the big picture of the hill)
-            HStack(alignment: .top, spacing: 12) {
+
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .center, spacing: 12) {
                 BabyPortrait(month: baby, sex: app.sex, giggle: giggles)
-                    .frame(width: type.isAccessibilitySize ? 84 : 96, height: type.isAccessibilitySize ? 84 : 96)
+                    .frame(width: type.isAccessibilitySize ? 78 : 88, height: type.isAccessibilitySize ? 78 : 88)
                     .contentShape(Circle())
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname).font(.title3.weight(.bold)).lineLimit(1).minimumScaleFactor(0.8)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    HStack(alignment: .center, spacing: 6) {
+                        Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname)
+                            .font(.title3.weight(.bold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
                         Spacer(minLength: 4)
                         Button(action: edit) {
-                            Label(L10n.t("编辑", "Edit"), systemImage: "pencil").font(.caption.weight(.semibold)).foregroundStyle(.white)
-                                .padding(.horizontal, 10).padding(.vertical, 5)
+                            Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 5)
                                 .background(Capsule().fill(Palette.accentFill))
                                 .contentShape(Capsule().inset(by: -8))
                         }
                         .buttonStyle(.toy)
                         .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
                     }
+
                     if let a = app.age {
                         HStack(alignment: .firstTextBaseline, spacing: 2) {
                             Ticking(text: "\(a.months)").font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
@@ -112,56 +128,78 @@ private struct FamilyCard: View {
                         }
                         .fixedSize()
                         .foregroundStyle(Palette.accent)
-                        // one element for VoiceOver and the audit: "7 个月 12 天", not four separate pieces
                         .accessibilityElement(children: .ignore)
                         .accessibilityLabel(L10n.ageText(a))
                         .accessibilityAddTraits(.isStaticText)
                     }
-                    if !type.isAccessibilitySize { facts }
+
+                    if !type.isAccessibilitySize {
+                        conciseBadges(baby: baby, dark: dark)
+                    }
                 }
             }
-            if type.isAccessibilitySize { facts }
-            Divider()
-            // who keeps the child company in the app: Moss or Otto, chosen here (tap the chosen one and it answers)
+
+            if type.isAccessibilitySize {
+                conciseBadges(baby: baby, dark: dark)
+            }
+
+            Divider().opacity(0.45)
+
             CompanionPicker()
         }
         .padding(14)
         .printCard(radius: Radius.card)
     }
 
-    /// The child's facts as small chips that wrap (never a line that scrolls sideways).
-    private var facts: some View {
-        let birth = app.birth.map { b in L10n.isEnglish ? "Born \(b.y)-\(String(format: "%02d", b.m))-\(String(format: "%02d", b.d))" : String(b.y) + "年" + b.md + "出生" }
-        let lived = app.age.map { L10n.livedDays($0.lived) }
-        let sex = app.sex == "boy" ? L10n.t("男孩", "Boy") : app.sex == "girl" ? L10n.t("女孩", "Girl") : nil
-        let stage = app.age.map { _ in L10n.t("这一段：", "Stage: ") + L10n.stretchName(for: app.babyMonth ?? 0) }
-        return FlowRow(spacing: 10, lineSpacing: 3) {
-            if let birth { chip(birth, "calendar") } else {
-                Button(action: edit) { chip(L10n.t("填写出生日期", "Add birthday"), "calendar.badge.plus", strong: true) }.buttonStyle(.toy)
+    private func conciseBadges(baby: Int, dark: Bool) -> some View {
+        let land = Land.of(baby)
+        let stretch = L10n.stretchName(for: baby)
+        return FlowRow(spacing: 6, lineSpacing: 5) {
+            if let a = app.age {
+                badgePill(
+                    text: L10n.livedDays(a.lived),
+                    symbol: "sun.max.fill",
+                    color: Palette.bead,
+                    dark: dark
+                )
+                badgePill(
+                    text: "\(land.name) · \(stretch)",
+                    symbol: land.symbol,
+                    color: land.crayon,
+                    dark: dark
+                )
+                if app.sex == nil {
+                    Button(action: edit) {
+                        badgePill(text: L10n.t("+ 性别", "+ Sex"), symbol: "figure.child", color: Palette.accent, dark: dark)
+                    }
+                    .buttonStyle(.toy)
+                }
+            } else {
+                Button(action: edit) {
+                    badgePill(text: L10n.t("填写出生日期", "Add birthday"), symbol: "calendar.badge.plus", color: Palette.accent, dark: dark)
+                }
+                .buttonStyle(.toy)
             }
-            if let lived { chip(lived, "sun.max") }
-            if let sex { chip(sex, "figure.child") } else {
-                Button(action: edit) { chip(L10n.t("填写性别", "Add sex"), "plus", strong: true) }.buttonStyle(.toy)
-            }
-            if let stage { chip(stage, "leaf") }
         }
     }
 
-    private func chip(_ t: String, _ symbol: String, strong: Bool = false) -> some View {
+    private func badgePill(text: String, symbol: String, color: Color, dark: Bool) -> some View {
         HStack(spacing: 4) {
-            Image(systemName: symbol).font(.caption2.weight(.bold)).accessibilityHidden(true)
-            Text(t).font(.caption2.weight(.semibold)).fixedSize()
+            Image(systemName: symbol)
+                .font(.system(size: 10, weight: .bold))
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
         }
-        .foregroundStyle(strong ? Palette.accent : Palette.secondaryText)
-        .padding(.horizontal, strong ? 7 : 0).padding(.vertical, strong ? 3 : 1)
-        .background(Capsule().fill(strong ? Palette.accent.opacity(0.12) : .clear))
+        .foregroundStyle(dark ? color : Crayon.ink(color))
+        .padding(.horizontal, 8)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(color.opacity(dark ? 0.20 : 0.14)))
     }
-
 }
 
-/// The child's own portrait: the child at this stage of growing, framed in a round of the child's colour — a rosy pink
-/// with a small flower for a girl, a sky blue with a little boat for a boy, a warm gold when not said. (The growth map
-/// is the landscape; this is the face.) Tapped, the child giggles.
+/// Clean circular baby stage portrait with luminous girl/boy/gold framing (no overlapping corner sticker).
 private struct BabyPortrait: View {
     let month: Int, sex: String?, giggle: Int
     @Environment(\.lamp) private var lamp
@@ -171,45 +209,34 @@ private struct BabyPortrait: View {
         GeometryReader { g in
             let s = min(g.size.width, g.size.height)
             ZStack {
-                Circle().fill(RadialGradient(colors: [tone.opacity(lamp ? 0.5 : 0.32), tone.opacity(lamp ? 0.22 : 0.14)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 0, endRadius: s * 0.6))
-                // the figures carry a margin: the child is drawn larger so it fills the round, sitting on its lower edge
+                Circle().fill(RadialGradient(colors: [tone.opacity(lamp ? 0.50 : 0.34), tone.opacity(lamp ? 0.20 : 0.12)], center: UnitPoint(x: 0.5, y: 0.35), startRadius: 0, endRadius: s * 0.6))
                 GrowingChild(month: month, giggle: giggle)
                     .frame(width: s * 1.15, height: s * 1.15)
                     .offset(y: s * 0.12)
                     .frame(width: s, height: s)
                     .clipShape(Circle())
-                Circle().strokeBorder(Color.white.opacity(lamp ? 0.25 : 0.9), lineWidth: 2.5)
+                Circle().strokeBorder(tone.opacity(lamp ? 0.55 : 0.45), lineWidth: 2.2)
+                Circle().strokeBorder(Color.white.opacity(lamp ? 0.22 : 0.85), lineWidth: 1.5).padding(2)
             }
             .frame(width: s, height: s)
-            .overlay(alignment: .topTrailing) {
-                if girl || boy {
-                    Image(systemName: girl ? "camera.macro" : "sailboat.fill")
-                        .font(.system(size: s * 0.14, weight: .bold))
-                        .foregroundStyle(.white)
-                        .frame(width: s * 0.3, height: s * 0.3)
-                        .background(Circle().fill(tone))
-                        .overlay(Circle().strokeBorder(Color.white, lineWidth: 2))
-                        .offset(x: 2, y: -2)
-                        .accessibilityHidden(true)
-                }
-            }
         }
         .accessibilityElement().accessibilityAddTraits(.isImage)
         .accessibilityLabel(sex == "girl" ? L10n.t("女宝宝", "Baby girl") : sex == "boy" ? L10n.t("男宝宝", "Baby boy") : L10n.t("宝宝", "Baby"))
     }
 }
 
-/// The companion for the app — the one at the child's side on the pages, in the records and on the widgets: Moss or
-/// Otto, side by side in one row, each with a word on their way of being. The chosen one stands on a spot of light;
-/// tapping the other brings it forward, tapping the chosen one makes it answer.
+/// Side-by-side companion switcher with concise 2–4 word visual identity tags instead of prose walls.
 private struct CompanionPicker: View {
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     @State private var cheer = 0
     @Environment(\.dynamicTypeSize) private var type
-    /// Side by side at the standard sizes; one above the other at the accessibility sizes, so a name is never broken.
+
     private var layout: AnyLayout { type.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8)) }
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         layout {
             ForEach(Kind.allCases, id: \.self) { k in
                 let on = app.companion == k
@@ -219,72 +246,180 @@ private struct CompanionPicker: View {
                     HStack(alignment: .center, spacing: 6) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
                                  alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: (on ? 40 : 32) * k.scale, height: (on ? 40 : 32) * k.scale)
-                            .frame(width: 44, height: 44, alignment: .bottom)
+                            .frame(width: (on ? 40 : 34) * k.scale, height: (on ? 40 : 34) * k.scale)
+                            .frame(width: 44, height: 42, alignment: .bottom)
                             .background(alignment: .bottom) {
-                                if on { Ellipse().fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 24)).frame(width: 46, height: 10).offset(y: 3) }
+                                if on {
+                                    Ellipse()
+                                        .fill(RadialGradient(colors: [(lamp ? Palette.amber : Palette.bead).opacity(0.45), .clear], center: .center, startRadius: 0, endRadius: 22))
+                                        .frame(width: 42, height: 9)
+                                        .offset(y: 3)
+                                }
                             }
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(k.rawValue).font(.subheadline.weight(on ? .bold : .semibold)).foregroundStyle(on ? Color.primary : Palette.secondaryText)
-                            Text(k.trait).font(.caption2).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(k.rawValue)
+                                .font(.subheadline.weight(on ? .bold : .semibold))
+                                .foregroundStyle(on ? .primary : Palette.secondaryText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                            Text(YouStudioCopy.companionBadge(k))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.75)
                         }
-                        Spacer(minLength: 0)
+
+                        Spacer(minLength: 2)
+
+                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(on ? Palette.accent : Palette.outline.opacity(0.35))
                     }
-                    .padding(6)
-                    .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(on ? Palette.accent.opacity(lamp ? 0.18 : 0.08) : .clear))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).strokeBorder(on ? Palette.accent.opacity(lamp ? 0.42 : 0.25) : .clear, lineWidth: 1))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .fill(on ? Palette.accent.opacity(dark ? 0.20 : 0.10) : (dark ? Color.white.opacity(0.03) : Palette.fill.opacity(0.45)))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .strokeBorder(on ? Palette.accent.opacity(dark ? 0.50 : 0.30) : Palette.outline.opacity(0.14), lineWidth: on ? 1.2 : 0.75)
+                    )
                     .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 }
                 .buttonStyle(.toy)
-                .accessibilityLabel(L10n.t("陪伴伙伴 \(k.rawValue)，\(k.trait)", "Companion \(k.rawValue), \(k.trait)")).accessibilityAddTraits(on ? .isSelected : [])
+                .accessibilityLabel(L10n.t("陪伴伙伴 \(k.rawValue)，\(YouStudioCopy.companionBadge(k))", "Companion \(k.rawValue), \(YouStudioCopy.companionBadge(k))"))
+                .accessibilityAddTraits(on ? .isSelected : [])
             }
         }
         .sensoryFeedback(.impact(weight: .light), trigger: cheer)
     }
 }
 
-/// A titled group on the 我的 page: a small heading over its content.
-private struct Section2<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: Content
+/// Full-width living Appearance windows (`日光 / 夜灯 / 自动`) + unified compact Language pill selector.
+private struct ThemeLanguageCard: View {
+    @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
+    let dark: Bool
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 6) {
-                GoldBead(size: 7)
-                Text(title).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+        VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 10) {
+                    StudioBadge(symbol: "paintpalette.fill", color: Crayon.lilac, active: true, dark: dark)
+                    Text(L10n.t("外观", "Theme"))
+                        .font(.subheadline.weight(.semibold))
+                    Spacer(minLength: 4)
+                    Text(app.theme.label)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Palette.accent.opacity(dark ? 0.20 : 0.12)))
+                }
+
+                HStack(spacing: 8) {
+                    ForEach([ThemeMode.light, .dark, .system], id: \.self) { mode in
+                        Swatch(mode: mode, on: app.theme == mode) {
+                            withAnimation(.snappy) { app.theme = mode }
+                        }
+                    }
+                }
             }
-            .padding(.leading, 4).accessibilityAddTraits(.isHeader)
-            content
+
+            Divider().opacity(0.45)
+
+            Group {
+                if type.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 8) {
+                        langLabel
+                        langPills
+                    }
+                } else {
+                    HStack(spacing: 10) {
+                        langLabel
+                        Spacer(minLength: 4)
+                        langPills
+                    }
+                }
+            }
         }
+        .padding(14)
+        .printCard(radius: Radius.card)
+    }
+
+    private var langLabel: some View {
+        HStack(spacing: 10) {
+            StudioBadge(symbol: "globe", color: Crayon.sky, active: true, dark: dark)
+            Text(L10n.t("语言", "Language"))
+                .font(.subheadline.weight(.semibold))
+        }
+    }
+
+    private var langPills: some View {
+        HStack(spacing: 6) {
+            ForEach(AppLanguage.allCases, id: \.self) { lang in
+                let on = app.language == lang
+                Button {
+                    withAnimation(.snappy) { app.language = lang }
+                } label: {
+                    Text(lang.label)
+                        .font(.caption.weight(on ? .bold : .semibold))
+                        .foregroundStyle(on ? .white : .primary)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                        .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.25), lineWidth: 0.8))
+                }
+                .buttonStyle(.toy)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .sensoryFeedback(.selection, trigger: app.language)
     }
 }
 
-/// One appearance to choose, as a small living window of it: 日光 with its sunlight, seeds and grassy hill moving,
-/// 夜灯 with the lamp's glow breathing and motes rising, 自动 half of each. The chosen one is ringed and ticked.
+/// One appearance to choose, as a generous living window (`日光` / `夜灯` / `自动`) with non-overlapping AX2 checkmark.
 private struct Swatch: View {
     let mode: ThemeMode
     let on: Bool
     let pick: () -> Void
     @Environment(\.dynamicTypeSize) private var type
+
     var body: some View {
         Button(action: pick) {
             ZStack(alignment: .bottom) {
                 preview
-                    .frame(height: type.isAccessibilitySize ? 54 : 38)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: Radius.chip, style: .continuous).strokeBorder(on ? Palette.accent : Color.secondary.opacity(0.2), lineWidth: on ? 2.5 : 1))
+                    .frame(height: type.isAccessibilitySize ? 70 : 54)
+                    .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                            .strokeBorder(on ? Palette.accent : Palette.outline.opacity(0.22), lineWidth: on ? 2.2 : 0.85)
+                    )
                     .overlay(alignment: .topTrailing) {
-                        if on { Image(systemName: "checkmark.circle.fill").font(.caption2).foregroundStyle(.white, Palette.accentFill).padding(3) }
+                        if on {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.white, Palette.accentFill)
+                                .padding(5)
+                        }
                     }
-                // the name on the window itself, on a small plate that reads on day and night alike
-                HStack(spacing: 2) {
+
+                HStack(spacing: 3) {
                     Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
-                        .font(.system(size: 8, weight: .bold)).foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
-                    Text(mode.label).font(.caption2.weight(on ? .bold : .semibold)).foregroundStyle(.primary)
+                        .font(.system(size: 8.5, weight: .bold))
+                        .foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
+                    Text(mode.label)
+                        .font(.caption2.weight(on ? .bold : .semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
                 }
-                .padding(.horizontal, 5).padding(.vertical, 1)
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
                 .background(Palette.card.opacity(0.94), in: Capsule())
-                .padding(.bottom, 3)
+                .padding(.bottom, 5)
             }
             .frame(maxWidth: .infinity)
         }
@@ -292,6 +427,7 @@ private struct Swatch: View {
         .accessibilityLabel(mode.label)
         .accessibilityAddTraits(on ? .isSelected : [])
     }
+
     @ViewBuilder private var preview: some View {
         switch mode {
         case .light: day
@@ -299,36 +435,238 @@ private struct Swatch: View {
         case .system: HStack(spacing: 0) { day; night }
         }
     }
+
     private var day: some View {
         ZStack { Color(hex: 0xFBF7F0); DayAir(tone: Crayon.sunflower, scale: 0.45) }
     }
+
     private var night: some View {
         ZStack { Palette.lampPage; LampGlow(scale: 0.16); Motes(scale: 0.45) }
     }
 }
 
-/// One settings row with a switch: its sticker, what it is, a word on it, the switch.
-private struct SwitchRow: View {
-    let title: String, detail: String, symbol: String, color: Color
-    @Binding var on: Bool
-    /// Resting (the choice is made elsewhere): the icon and the switch fade, the words stay readable — the detail says why.
-    var resting = false
+/// 2×2 Tactile Control Tiles replacing the wordy settings list: visual pill toggle indicator + 1-word live status.
+private struct ControlTileGrid: View {
+    @Bindable var app: AppModel
+    let face: Bool
+    let dark: Bool
+    @Environment(\.dynamicTypeSize) private var type
+
     var body: some View {
-        Toggle(isOn: $on) {
-            HStack(spacing: 10) {
-                IconTile(symbol: symbol, color: color, size: 28, round: true).opacity(resting ? 0.45 : 1)
-                VStack(alignment: .leading, spacing: 0) {
-                    Text(title).font(.subheadline.weight(.semibold))
-                    Text(detail).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        let nightResting = app.theme != .system
+        let nightStatus = nightResting ? L10n.t("需选自动", "Auto only") : "19:00–06:00"
+        let soundStatus = app.tactileSounds ? L10n.t("已开启", "On") : L10n.t("静音", "Muted")
+        let logStatus = app.journal ? L10n.t("已显示", "Shown") : L10n.t("已隐藏", "Hidden")
+        let lockStatus = app.lock ? L10n.t("已锁定", "Locked") : L10n.t("未开启", "Off")
+
+        if type.isAccessibilitySize {
+            VStack(spacing: 10) {
+                nightTile(resting: nightResting, status: nightStatus)
+                soundTile(status: soundStatus)
+                journalTile(status: logStatus)
+                if face { biometryTile(status: lockStatus) }
+            }
+        } else if face {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    nightTile(resting: nightResting, status: nightStatus)
+                    soundTile(status: soundStatus)
+                }
+                HStack(spacing: 10) {
+                    journalTile(status: logStatus)
+                    biometryTile(status: lockStatus)
                 }
             }
+        } else {
+            VStack(spacing: 10) {
+                HStack(spacing: 10) {
+                    nightTile(resting: nightResting, status: nightStatus)
+                    soundTile(status: soundStatus)
+                }
+                journalTile(status: logStatus)
+            }
         }
-        .tint(Palette.accent)
-        .padding(.horizontal, 14).padding(.vertical, 9)
+    }
+
+    private func nightTile(resting: Bool, status: String) -> some View {
+        controlTile(
+            title: L10n.t("夜间自动灯", "Auto Lamp"),
+            status: status,
+            symbol: "moon.stars.fill",
+            color: Palette.lampTint,
+            isOn: app.nightLight,
+            resting: resting
+        ) {
+            TactileEngine.shared.beadClick()
+            withAnimation(.snappy) { app.nightLight.toggle() }
+        }
+    }
+
+    private func soundTile(status: String) -> some View {
+        controlTile(
+            title: L10n.t("手感音效", "Tactile Audio"),
+            status: status,
+            symbol: "hand.tap.fill",
+            color: Crayon.teal,
+            isOn: app.tactileSounds,
+            resting: false
+        ) {
+            withAnimation(.snappy) { app.tactileSounds.toggle() }
+            if app.tactileSounds { TactileEngine.shared.beadClick() }
+        }
+    }
+
+    private func journalTile(status: String) -> some View {
+        controlTile(
+            title: L10n.t("照护记录页", "Log Tab"),
+            status: status,
+            symbol: "list.bullet.clipboard.fill",
+            color: Crayon.tangerine,
+            isOn: app.journal,
+            resting: false
+        ) {
+            let next = !app.journal
+            if !next || app.mayKeep() {
+                TactileEngine.shared.beadClick()
+                withAnimation(.snappy) { app.journal = next }
+            }
+        }
+    }
+
+    private func biometryTile(status: String) -> some View {
+        controlTile(
+            title: Biometry.name,
+            status: status,
+            symbol: Biometry.symbol,
+            color: Crayon.leaf,
+            isOn: app.lock,
+            resting: false
+        ) {
+            TactileEngine.shared.beadClick()
+            Biometry.turn(!app.lock) { app.lock = $0 }
+        }
+    }
+
+    private func controlTile(
+        title: String,
+        status: String,
+        symbol: String,
+        color: Color,
+        isOn: Bool,
+        resting: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        let active = isOn && !resting
+        let trackFill = active ? (dark ? color : Crayon.ink(color)) : Palette.outline.opacity(0.28)
+
+        return Button(action: action) {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .center) {
+                    StudioBadge(symbol: symbol, color: color, active: active, dark: dark)
+                    Spacer(minLength: 4)
+                    // Tactile miniature pill switch
+                    ZStack(alignment: isOn ? .trailing : .leading) {
+                        Capsule()
+                            .fill(trackFill)
+                            .frame(width: 30, height: 18)
+                        Circle()
+                            .fill(.white)
+                            .frame(width: 14, height: 14)
+                            .padding(.horizontal, 2)
+                            .shadow(color: .black.opacity(0.16), radius: 1, y: 0.5)
+                    }
+                    .opacity(resting ? 0.50 : 1.0)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(resting ? Palette.secondaryText : .primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(active ? (dark ? color : Crayon.ink(color)) : Palette.secondaryText)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                }
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+            .background(
+                LinearGradient(
+                    colors: [color.opacity(active ? (dark ? 0.16 : 0.12) : 0.03), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .printCard(radius: Radius.card)
+        }
+        .buttonStyle(.toy)
+        .disabled(resting)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(active ? .isSelected : [])
     }
 }
 
-/// One row of the data/about cards: unified 28pt icon tile, title, optional detail, chevron.
+/// Side-by-side Local Data & About footer dock aligned to the unified `StudioBadge` icon grammar.
+private struct FooterStudioDock: View {
+    let dark: Bool
+    @Environment(\.dynamicTypeSize) private var type
+
+    var body: some View {
+        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
+        let layout = type.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
+
+        layout {
+            NavigationLink(value: Route.data) {
+                footerTile(
+                    symbol: "externaldrive.fill",
+                    color: Crayon.sky,
+                    title: L10n.t("离线数据", "Local Data"),
+                    detail: L10n.t("仅存本机", "On-device")
+                )
+            }
+            .buttonStyle(.toy)
+
+            NavigationLink(value: Route.about) {
+                footerTile(
+                    symbol: "info.circle.fill",
+                    color: Crayon.pebble,
+                    title: L10n.t("关于摸索台灯", "About"),
+                    detail: "v\(v)"
+                )
+            }
+            .buttonStyle(.toy)
+        }
+    }
+
+    private func footerTile(symbol: String, color: Color, title: String, detail: String) -> some View {
+        HStack(spacing: 10) {
+            StudioBadge(symbol: symbol, color: color, active: true, dark: dark)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text(detail)
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 2)
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: Radius.card)
+    }
+}
+
 private struct DataRow: View {
     let title: String
     var detail: String? = nil
@@ -793,79 +1131,5 @@ enum Owner {
     /// A document with the developer and the contact put in.
     static func fill(_ text: String) -> String {
         text.replacingOccurrences(of: "{{DEVELOPER}}", with: developerName).replacingOccurrences(of: "{{CONTACT}}", with: contact)
-    }
-}
-
-/// 外观: three small living windows (日光 / 夜灯 / 自动). At the standard sizes they sit beside the word; at the
-/// accessibility sizes they move to their own line and grow with the text, so nothing is shrunk or cut off.
-private struct AppearanceRow: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
-    private var swatches: some View {
-        HStack(spacing: 6) {
-            ForEach([ThemeMode.light, .dark, .system], id: \.self) { t in
-                Swatch(mode: t, on: app.theme == t) { withAnimation(.snappy) { app.theme = t } }
-                    .frame(width: type.isAccessibilitySize ? nil : 58)
-                    .frame(maxWidth: type.isAccessibilitySize ? .infinity : nil)
-            }
-        }
-    }
-    private var label: some View {
-        HStack(spacing: 10) {
-            IconTile(symbol: "paintpalette.fill", color: Crayon.lilac, size: 28, round: true)
-            Text(L10n.t("外观", "Theme")).font(.subheadline.weight(.semibold)).lineLimit(1)
-        }
-    }
-    var body: some View {
-        Group {
-            if type.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 8) { label; swatches }
-            } else {
-                HStack(spacing: 10) { label; Spacer(minLength: 4); swatches }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-/// Language switcher (语言 / Language): Auto / 中文 / English, synced to widgets & controls via App Group.
-private struct LanguageRow: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.dynamicTypeSize) private var type
-    private var label: some View {
-        HStack(spacing: 10) {
-            IconTile(symbol: "globe", color: Crayon.sky, size: 28, round: true)
-            Text(L10n.t("语言", "Language")).font(.subheadline.weight(.semibold))
-        }
-    }
-    private var pills: some View {
-        HStack(spacing: 6) {
-            ForEach(AppLanguage.allCases, id: \.self) { lang in
-                let on = app.language == lang
-                Button {
-                    withAnimation(.snappy) { app.language = lang }
-                } label: {
-                    Text(lang.label)
-                        .font(.caption.weight(on ? .bold : .semibold))
-                        .foregroundStyle(on ? .white : .primary)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .background(Capsule().fill(on ? Palette.accentFill : Palette.card))
-                        .overlay(Capsule().strokeBorder(on ? .clear : Color.secondary.opacity(0.22), lineWidth: 1))
-                }
-                .buttonStyle(.toy)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
-        .sensoryFeedback(.selection, trigger: app.language)
-    }
-    var body: some View {
-        Group {
-            if type.isAccessibilitySize {
-                VStack(alignment: .leading, spacing: 8) { label; pills }
-            } else {
-                HStack(spacing: 10) { label; Spacer(minLength: 4); pills }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

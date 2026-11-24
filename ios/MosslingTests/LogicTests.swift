@@ -1692,4 +1692,35 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(enSummary.facts[0].agoText, "2h ago")
         XCTAssertEqual(enSummary.facts[2].agoText, "45m ago")
     }
+
+    func testJourneyStripMetrics() {
+        XCTAssertEqual(JourneyStripMetrics.totalStations, 37)
+        XCTAssertEqual(JourneyStripMetrics.clampedMonth(-2), 0)
+        XCTAssertEqual(JourneyStripMetrics.clampedMonth(6), 6)
+        XCTAssertEqual(JourneyStripMetrics.clampedMonth(42), 36)
+
+        XCTAssertEqual(JourneyStripMetrics.stationOrdinal(month: -1), 1)
+        XCTAssertEqual(JourneyStripMetrics.stationOrdinal(month: 0), 1)
+        XCTAssertEqual(JourneyStripMetrics.stationOrdinal(month: 6), 7)
+        XCTAssertEqual(JourneyStripMetrics.stationOrdinal(month: 36), 37)
+
+        XCTAssertEqual(JourneyStripMetrics.normalizedPosition(month: 0), 0.0, accuracy: 0.0001)
+        XCTAssertEqual(JourneyStripMetrics.normalizedPosition(month: 18), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(JourneyStripMetrics.normalizedPosition(month: 36), 1.0, accuracy: 0.0001)
+
+        XCTAssertEqual(JourneyStripMetrics.monthProgressFraction(days: 0, toNext: 0), 0.0, accuracy: 0.0001)
+        XCTAssertEqual(JourneyStripMetrics.monthProgressFraction(days: 15, toNext: 15), 0.5, accuracy: 0.0001)
+        XCTAssertEqual(JourneyStripMetrics.monthProgressFraction(days: 35, toNext: 0), 1.0, accuracy: 0.0001)
+    }
+
+    func testYouStudioCompanionTags() {
+        L10n.overrideEnglish = false
+        XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "爱探索")
+        XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "点暖灯")
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "Explorer")
+        XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "Lamp Keeper")
+    }
 }

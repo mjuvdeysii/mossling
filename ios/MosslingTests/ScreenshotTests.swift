@@ -63,11 +63,13 @@ final class ScreenshotTests: XCTestCase {
         // an empty picture is a failed shot, not a pass (a page taller than the renderer's 8192-pixel limit draws nothing)
         XCTAssertTrue(drew, "ios_\(name) came out empty")
         host.dismiss(animated: false)
-        host.view.removeFromSuperview()
+        window.rootViewController = UIViewController()
+        window.layoutIfNeeded()
+        CATransaction.flush()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
         window.rootViewController = nil
         window.isHidden = true
         CATransaction.flush()
-        RunLoop.main.run(until: Date().addingTimeInterval(0.03))
     }
 
     /// Whether any of a grid of sample points is not fully transparent.
@@ -1559,5 +1561,38 @@ final class ScreenshotTests: XCTestCase {
                  initialQuickCare: .bottle,
                  previewClock: nightClock
              ).environment(mEn).environment(enJournal).fontDesign(.rounded))
+    }
+
+    /// Round 13 Three-Pillar Creative Alchemy (`v2.0 RC10 · Batch 13`):
+    /// Visual-first Home Screen Journey Passport (`MonthCard` + 37-station `MiniJourneyBeadStrip`), visual `DueCard`,
+    /// unified `JourneyHubView` hero, and visual-first Family Studio `YouView` + `GrowthBookCard` across Day/Dark/Lamp/EN/AX2.
+    func test59Round13HomeJourneyAndYouStudio() {
+        let m = model(); m.journal = true
+
+        // 1. Home Journey Passport & Visual DueCard / Dock (CN Day, Dark, Lamp, AX2)
+        shot("59_today_journey_passport_zh", height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("59_today_journey_passport_dark", dark: true, height: 1260, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("59_today_journey_passport_lamp", height: 1260, lamp: true,
+             tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("59_today_journey_passport_ax2", height: 1680,
+             tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        // 2. Unified JourneyHubView Hero
+        shot("59_journey_hub_unified_zh", height: 1120, tabs(m, JourneyHubView()))
+
+        // 3. Visual-First Family Studio YouView & GrowthBookCard (CN Day, Dark, Lamp, AX2)
+        shot("59_you_studio_zh", height: 1080, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("59_you_studio_dark", dark: true, height: 1080, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("59_you_studio_lamp", height: 1080, lamp: true,
+             tabs(m, YouView(path: .constant(NavigationPath())).lamp(true)))
+        shot("59_you_studio_ax2", height: 1520,
+             tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+
+        // 4. English Parity
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("59_today_journey_passport_en", height: 1260, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
+        shot("59_you_studio_en", height: 1080, tabs(mEn, YouView(path: .constant(NavigationPath()))))
     }
 }

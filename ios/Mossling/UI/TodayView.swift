@@ -151,7 +151,7 @@ private struct QuietInstrumentsDock: View {
                         color: Palette.amber,
                         title: L10n.t("床头夜灯", "Bedside Lamp"),
                         subtitle: soundscape.activeSummary.map { L10n.t("正播 · \($0)", "On · \($0)") }
-                            ?? L10n.t("6 种声景 · 调光 · 呼吸", "6 sounds · Dimmer · Breath"),
+                            ?? L10n.t("6 声景 · 调光", "6 sounds · Dim"),
                         liveDot: soundscape.isPlaying,
                         badge: nil,
                         dark: dark
@@ -166,8 +166,8 @@ private struct QuietInstrumentsDock: View {
                         color: Crayon.teal,
                         title: L10n.t("感官玩具盒", "Sensory Toybox"),
                         subtitle: toyTodayCount > 0
-                            ? L10n.t("今日共玩 \(toyTodayCount) 次 · 6 首童谣", "\(toyTodayCount) today · 6 melodies")
-                            : L10n.t("6 首童谣 · 3 种音色 · 4 工坊", "6 melodies · 3 timbres · 4 studios"),
+                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
+                            : L10n.t("4 工坊 · 6 童谣", "4 studios · 6 songs"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -182,8 +182,8 @@ private struct QuietInstrumentsDock: View {
                         color: Crayon.leaf,
                         title: L10n.t("百味食盒", "First Foods"),
                         subtitle: foodsTasted > 0
-                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count) 种味道", "\(foodsTasted) / \(FoodItem.catalog.count) foods tasted")
-                            : L10n.t("60 种辅食味觉图鉴", "60 whole foods atlas"),
+                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
+                            : L10n.t("60 种辅食图鉴", "60 foods atlas"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -198,8 +198,8 @@ private struct QuietInstrumentsDock: View {
                         color: Crayon.lilac,
                         title: L10n.t("昼夜节律盘", "Rhythm Dial"),
                         subtitle: (todaySleepCount > 0 || todayFeedCount > 0)
-                            ? L10n.t("今日 \(todaySleepCount) 觉 · \(todayFeedCount) 喂", "Today: \(todaySleepCount) sleep · \(todayFeedCount) feeds")
-                            : L10n.t("24 小时睡眠喂养", "24h sleep & feeds"),
+                            ? L10n.t("\(todaySleepCount) 觉 · \(todayFeedCount) 喂", "\(todaySleepCount) sleep · \(todayFeedCount) feeds")
+                            : L10n.t("24h 睡眠喂养", "24h dial"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -214,8 +214,8 @@ private struct QuietInstrumentsDock: View {
                         color: Crayon.caramel,
                         title: L10n.t("成长绘本", "Storybook"),
                         subtitle: bookMonths > 0
-                            ? L10n.t("已收录 \(bookMonths) 个月 · \(firstsCount) 个第一次", "\(bookMonths) mo · \(firstsCount) firsts")
-                            : L10n.t("翻页绘本 · 相纸", "Page-turn keepsake"),
+                            ? L10n.t("\(bookMonths) 个月 · \(firstsCount) 第一次", "\(bookMonths) mo · \(firstsCount) firsts")
+                            : L10n.t("翻页绘本 · 相纸", "Storybook"),
                         liveDot: false,
                         badge: nil,
                         dark: dark
@@ -230,10 +230,10 @@ private struct QuietInstrumentsDock: View {
                         color: Palette.bead,
                         title: L10n.t("时光胶囊", "Time Capsules"),
                         subtitle: capsuleReady > 0
-                            ? L10n.t("到了拆封的日子", "Ready to unseal today")
+                            ? L10n.t("可拆封阅读", "Ready to open")
                             : (capsuleTotal > 0
-                                ? L10n.t("已封存 \(capsuleTotal) 封信笺", "\(capsuleTotal) sealed letters")
-                                : L10n.t("火漆写给未来的宝宝", "Wax-sealed letters")),
+                                ? L10n.t("已封存 \(capsuleTotal) 封", "\(capsuleTotal) sealed")
+                                : L10n.t("火漆写给未来", "Wax letters")),
                         liveDot: false,
                         badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
                         dark: dark
@@ -330,31 +330,79 @@ private struct QuietInstrumentsDock: View {
 /// something is left, so the home is quiet when nothing is.
 private struct DueCard: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var type
     let month: Int
     var body: some View {
+        let dark = lamp || scheme == .dark
         let mo = app.content.month(month)
         let total = mo.vaccines.count + mo.checkups.count
         let done = app.count(month, TickKind.vaccine) + app.count(month, TickKind.checkup)
         let earlier = app.duePending(before: month).count
+        let dotsCount = max(1, min(total, 8))
         if total > done || earlier > 0 {
             NavigationLink(value: Route.care(month)) {
                 HStack(spacing: 12) {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(L10n.t("这个月的接种与儿保", "Vaccines & Check-ups")).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                        Text(L10n.t("中国大陆程序", "Standard schedule")).font(.caption2).foregroundStyle(Palette.secondaryText)
-                        Text(L10n.t(
-                            "本月 \(done) / \(total)" + (earlier > 0 ? " · 另有 \(earlier) 项之前没勾" : ""),
-                            "\(done) / \(total) this month" + (earlier > 0 ? " · \(earlier) earlier" : "")
-                        )).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
+                    VStack(alignment: .leading, spacing: 5) {
+                        if type.isAccessibilitySize {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L10n.t("本月接种与儿保", "Vaccines & Check-ups"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                if earlier > 0 {
+                                    dueBadge(earlier, dark: dark)
+                                }
+                            }
+                        } else {
+                            HStack(spacing: 6) {
+                                Text(L10n.t("本月接种与儿保", "Vaccines & Check-ups"))
+                                    .font(.subheadline.weight(.semibold))
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                Spacer(minLength: 4)
+                                if earlier > 0 {
+                                    dueBadge(earlier, dark: dark)
+                                }
+                            }
+                        }
+
+                        HStack(spacing: 6) {
+                            HStack(spacing: 4) {
+                                ForEach(0..<dotsCount, id: \.self) { idx in
+                                    Circle()
+                                        .fill(idx < done ? Crayon.pink : Color.clear)
+                                        .overlay(
+                                            Circle().strokeBorder(Crayon.pink.opacity(idx < done ? 0 : 0.45), lineWidth: 1.2)
+                                        )
+                                        .frame(width: 7, height: 7)
+                                }
+                            }
+                            Text("\(done) / \(total)")
+                                .font(.caption2.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(Palette.secondaryText)
+                        }
                     }
-                    Spacer(minLength: 0)
                     Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
                 }
-                .padding(12).printCard(radius: Radius.card)
+                .padding(12)
+                .printCard(radius: Radius.card)
             }
             .buttonStyle(.toy)
         }
+    }
+
+    @ViewBuilder
+    private func dueBadge(_ earlier: Int, dark: Bool) -> some View {
+        Text(L10n.t("待补 \(earlier)", "+\(earlier) due"))
+            .font(.caption2.weight(.bold))
+            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.tangerine))
+            .padding(.horizontal, 7)
+            .padding(.vertical, 2)
+            .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.22 : 0.16)))
     }
 }
 
@@ -444,51 +492,108 @@ private struct NowCard: View {
     }
 }
 
-/// The month: the child at this age on a small patch of sky, the month and its title, the way to the next. Tapping it
-/// opens the month's own page.
+/// 「蒙氏成长航线明信片 / Journey Passport Card」 — Picture-book 4:3 month postcard paired with the live 37-station bead chain.
 private struct MonthCard: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.colorScheme) private var scheme
     @Environment(\.night) private var night
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
     let month: Int, baby: Int
     let open: () -> Void
+
     var body: some View {
+        let dark = lamp || scheme == .dark
+        let isNight = night || lamp
+        let land = Land.of(month)
+        let monthFrac = (month == baby) ? (app.age.map { JourneyStripMetrics.monthProgressFraction(days: $0.days, toNext: $0.toNext) } ?? 0) : 0
+        let countdown: String? = (month == baby) ? app.age.flatMap { a in
+            a.toNext > 0 && month < 36 ? L10n.t("\(a.toNext) 天后满 \(month + 1) 个月", "\(a.toNext)d to mo \(month + 1)") : nil
+        } : nil
+        let layout = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
+
         Button(action: open) {
-            HStack(spacing: 14) {
-                // the map in small: the child's hill and path, Moss on his stone (by night, home asleep)
-                MapVignette(month: month, baby: baby, festive: month == baby && app.age?.days == 0 && app.age != nil)
-                .frame(width: 104, height: 112)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(LinearGradient(colors: [night || lamp ? Palette.amber.opacity(0.28) : .white.opacity(0.8), .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1))
-                VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 3) {
-                        Text(month == 0 ? L10n.t("出生", "Birth") : "\(month)").font(Typeface.numerals(38, relativeTo: .largeTitle, weight: .bold))
-                        if month > 0 { Text(L10n.t("个月", "mo")).font(.subheadline.weight(.semibold)) }
-                        if month == baby, let d = app.age?.days, d > 0 { Text("\(d)").font(Typeface.numerals(19, relativeTo: .headline, weight: .bold)).padding(.leading, 2); Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold)) }
-                        if month != baby { Text(month < baby ? L10n.t("· 走过的一站", "· Past") : L10n.t("· 以后的一站", "· Ahead")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText) }
+            VStack(alignment: .leading, spacing: 11) {
+                layout {
+                    MonthPostcardArt(
+                        month: month,
+                        festive: month == baby && app.age?.days == 0 && app.age != nil,
+                        night: isNight,
+                        width: type.isAccessibilitySize ? 96 : 104
+                    )
+
+                    HStack(alignment: .center, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack(spacing: 6) {
+                                Label(land.name, systemImage: land.symbol)
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 2)
+                                    .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
+
+                                if month != baby {
+                                    Text(month < baby ? L10n.t("走过的一站", "Past") : L10n.t("以后的一站", "Ahead"))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Palette.secondaryText)
+                                } else if let a = app.age {
+                                    Text(L10n.livedDays(a.lived))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Palette.secondaryText)
+                                        .monospacedDigit()
+                                } else {
+                                    Text(L10n.t("0–3 岁地图", "0–3y Map"))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Palette.secondaryText)
+                                }
+                            }
+
+                            HStack(alignment: .firstTextBaseline, spacing: 3) {
+                                Text(month == 0 ? L10n.t("出生", "Birth") : "\(month)")
+                                    .font(Typeface.numerals(34, relativeTo: .largeTitle, weight: .bold))
+                                if month > 0 {
+                                    Text(L10n.t("个月", "mo")).font(.subheadline.weight(.semibold))
+                                }
+                                if month == baby, let d = app.age?.days, d > 0 {
+                                    Text("\(d)")
+                                        .font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
+                                        .padding(.leading, 2)
+                                    Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold))
+                                }
+                            }
+
+                            Text(app.content.month(month).title)
+                                .font(.subheadline)
+                                .foregroundStyle(Palette.secondaryText)
+                                .lineLimit(type.isAccessibilitySize ? nil : 2)
+                                .truncationMode(.tail)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "chevron.right")
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(.tertiary)
                     }
-                    Text(app.content.month(month).title).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(type.isAccessibilitySize ? nil : 2).multilineTextAlignment(.leading)
-                    // the way through this month to the next, and how many days are left
-                    if month == baby, let a = app.age, a.days + a.toNext > 0 {
-                        MonthProgress(days: a.days, toNext: a.toNext, next: month + 1).padding(.top, 2)
-                    }
-                    HStack(spacing: 5) {
-                        GoldBead(size: 7)
-                        Text(L10n.t("串珠旅程 · 37 站与纪念书架", "37-Station Journey & Keepsakes"))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Palette.accent)
-                            .lineLimit(type.isAccessibilitySize ? nil : 1)
-                            .minimumScaleFactor(0.84)
-                    }
-                    .padding(.top, 2)
                 }
                 .foregroundStyle(.primary)
-                Spacer(minLength: 0)
-                Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
+
+                MiniJourneyBeadStrip(
+                    month: month,
+                    monthFraction: monthFrac,
+                    hasBirth: app.age != nil,
+                    countdownText: countdown,
+                    dark: dark,
+                    night: isNight
+                )
             }
-            .padding(10).padding(.trailing, 6)
-            .background(LinearGradient(colors: [Crayon.sunflower.opacity(night ? 0.06 : 0.12), Crayon.sky.opacity(0.05)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .padding(12)
+            .background(
+                LinearGradient(
+                    colors: [land.crayon.opacity(dark ? 0.14 : 0.12), Crayon.sunflower.opacity(dark ? 0.03 : 0.05)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)

@@ -589,15 +589,22 @@ private struct PlayStamp: View {
     }
 }
 
-/// The book's door in 我的: the last three months' pictures fanned like photos, and what the book holds.
+/// The book's door in 我的: the last three months' pictures fanned like photos, and compact keepsake data badges.
 struct GrowthBookCard: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+
     var body: some View {
+        let dark = lamp || scheme == .dark
         let baby = app.babyMonth ?? 0
         let shown = Array((max(0, baby - 2)...baby).reversed())
         let pages = BookPage.all(app, j)
         let plays = pages.reduce(0) { $0 + $1.plays.reduce(0) { $0 + $1.times } }
+        let firstsCount = j.firsts.count
+        let foodsTasted = FoodAtlasStore.shared.tastedCount
+
         NavigationLink(value: Route.book) {
             HStack(spacing: 14) {
                 ZStack {
@@ -613,22 +620,52 @@ struct GrowthBookCard: View {
                     }
                 }
                 .frame(width: 70, height: 50)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(L10n.t("成长册", "Growth Book")).font(.headline).foregroundStyle(.primary)
-                    Text(pages.isEmpty
-                        ? L10n.t("每个月一页，从出生开始", "One page for every month since birth")
-                        : L10n.t("\(pages.count) 页 · 玩过 \(plays) 次", "\(pages.count) \(pages.count == 1 ? "page" : "pages") · \(plays) \(plays == 1 ? "play" : "plays")")
-                    ).font(.subheadline).foregroundStyle(Palette.secondaryText)
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Text(L10n.t("成长册", "Growth Book"))
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+
+                    if pages.isEmpty {
+                        Text(L10n.t("从出生开始", "Since birth"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Palette.secondaryText)
+                    } else {
+                        WrapLayout(spacing: 6) {
+                            metricChip("\(pages.count)", L10n.t("页", "pg"), color: Crayon.caramel, dark: dark)
+                            metricChip("\(plays)", L10n.t("次玩", plays == 1 ? "play" : "plays"), color: Crayon.teal, dark: dark)
+                            metricChip("\(firstsCount)", L10n.t("第一次", firstsCount == 1 ? "first" : "firsts"), color: Palette.bead, dark: dark)
+                            if foodsTasted > 0 {
+                                metricChip("\(foodsTasted)", L10n.t("味", foodsTasted == 1 ? "food" : "foods"), color: Crayon.leaf, dark: dark)
+                            }
+                        }
+                    }
                 }
                 Spacer(minLength: 0)
                 Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 14).padding(.vertical, 9)
-            .background(LinearGradient(colors: [Crayon.caramel.opacity(0.14), Crayon.sunflower.opacity(0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
+            .padding(.horizontal, 14).padding(.vertical, 10)
+            .background(LinearGradient(colors: [Crayon.caramel.opacity(dark ? 0.16 : 0.14), Crayon.sunflower.opacity(dark ? 0.04 : 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing))
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
         .zoomSource(Route.book)
         .accessibilityLabel(L10n.t("成长册", "Growth Book"))
+    }
+
+    private func metricChip(_ number: String, _ unit: String, color: Color, dark: Bool) -> some View {
+        HStack(spacing: 3) {
+            Circle().fill(color).frame(width: 5.5, height: 5.5)
+            Text(number)
+                .fontWeight(.bold)
+                .monospacedDigit()
+                .foregroundStyle(.primary)
+            Text(unit)
+                .foregroundStyle(Palette.secondaryText)
+        }
+        .font(.caption2)
+        .padding(.horizontal, 7)
+        .padding(.vertical, 3)
+        .background(Capsule().fill(color.opacity(dark ? 0.18 : 0.12)))
     }
 }
