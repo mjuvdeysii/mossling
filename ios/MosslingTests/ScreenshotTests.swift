@@ -2014,4 +2014,25 @@ final class ScreenshotTests: XCTestCase {
         shot("69_tab2_lamp_en", height: 1080, tabs(mEn, LampHubView(path: .constant(NavigationPath()))))
         shot("69_tab4_studio_en", height: 1200, tabs(mEn, YouView(path: .constant(NavigationPath()))))
     }
+
+    /// Round 20 — Batch B Bespoke Activity Showcases (A06, A09, A12, A14) & LampHubView AX2 Layout.
+    func test70Round20BespokeBatchBShowcases() {
+        defer { ArtStyle.current = .vinyl }
+        let m = model(); m.journal = true
+
+        for (code, step, phase) in [("A06", 1, 0.54), ("A09", 1, 0.58), ("A12", 0, 0.58), ("A14", 0, 0.56)] {
+            if let script = LivingBookCatalog.script(for: code) {
+                let plate = showcase2x2(
+                    tl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: false),
+                    tr: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: false),
+                    bl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: true),
+                    br: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: true)
+                )
+                shot("70_showcase_\(code.lowercased())_4modes", height: 520, plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+            }
+        }
+
+        shot("70_tab2_lamp_ax2_zh", height: 1240,
+             tabs(m, LampHubView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+    }
 }

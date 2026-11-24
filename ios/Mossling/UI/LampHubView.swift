@@ -11,12 +11,15 @@ struct LampHubView: View {
     @Environment(\.night) private var night
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.scrolling) private var scrolling
+    @Environment(\.scenePhase) private var scenePhase
 
     @Binding var path: NavigationPath
 
     @State private var soundscape = SoundscapeEngine.shared
     @State private var showingBedsideLamp = false
     @State private var showingHandover = false
+    @State private var heroOnScreen = true
     @State private var ledgerExpanded = false
     @State private var expandedPeriods: Set<DayPeriod> = []
     @State private var touchedPeriods = false
@@ -122,36 +125,7 @@ struct LampHubView: View {
 
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            RadialGradient(
-                                colors: [
-                                    warmth.primaryGlow.opacity(0.28 + brightness * 0.42),
-                                    warmth.secondaryTint.opacity(0.14),
-                                    .clear
-                                ],
-                                center: .center,
-                                startRadius: 4,
-                                endRadius: 50
-                            )
-                        )
-                        .frame(width: 96, height: 96)
-
-                    StoryTheaterActorView(
-                        kind: .otto,
-                        size: 72,
-                        mood: playing ? .happy : .open,
-                        look: CGPoint(x: 0.28, y: 0.08),
-                        lid: 0.36,
-                        lean: playing ? 2.5 : 0,
-                        breathTime: 0,
-                        isStatic: true,
-                        dark: true,
-                        flat: ArtStyle.current == .flat,
-                        compact: false
-                    )
-                }
+                ottoLivingStage(brightness: brightness, playing: playing)
                 .frame(width: 82, height: 82)
                 .contentShape(Circle())
                 .onTapGesture {
@@ -277,15 +251,25 @@ struct LampHubView: View {
                             soundscape.toggle(kind)
                         } label: {
                             HStack(spacing: 5) {
+                                if active {
+                                    Circle()
+                                        .fill(kind.tint)
+                                        .frame(width: 5, height: 5)
+                                }
                                 Image(systemName: kind.symbol)
                                     .font(.caption2.weight(.bold))
+                                    .foregroundStyle(active ? kind.tint.mix(with: .white, by: 0.35) : Palette.lampInk.opacity(0.86))
                                 Text(kind.title)
                                     .font(.caption.weight(active ? .bold : .medium))
+                                    .foregroundStyle(Palette.lampInk.opacity(active ? 1.0 : 0.88))
                             }
-                            .foregroundStyle(active ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.90))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(Capsule().fill(active ? kind.tint : Color.white.opacity(0.10)))
+                            .background(Capsule().fill(active ? kind.tint.opacity(0.28) : Color.white.opacity(0.10)))
+                            .overlay(
+                                Capsule()
+                                    .strokeBorder(active ? kind.tint.opacity(0.85) : Color.white.opacity(0.10), lineWidth: active ? 1.2 : 0.6)
+                            )
                         }
                         .buttonStyle(.plain)
                         .accessibilityAddTraits(active ? .isSelected : [])
@@ -303,6 +287,68 @@ struct LampHubView: View {
                 .strokeBorder(warmth.primaryGlow.opacity(0.28), lineWidth: 1.0)
         )
         .shadow(color: Color.black.opacity(dark ? 0.34 : 0.16), radius: 12, y: 5)
+        .onScrollVisibilityChange(threshold: 0.05) { heroOnScreen = $0 }
+    }
+
+    @ViewBuilder
+    private func ottoLivingStage(brightness: Double, playing: Bool) -> some View {
+        let freezeMotion = reduce || Perf.still || scrolling.moving || !heroOnScreen || scenePhase != .active
+        if freezeMotion {
+            ottoLivingStageFrame(brightness: brightness, playing: playing, breathTime: 0, isStatic: true)
+        } else {
+            TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { tl in
+                ottoLivingStageFrame(
+                    brightness: brightness,
+                    playing: playing,
+                    breathTime: tl.date.timeIntervalSinceReferenceDate,
+                    isStatic: false
+                )
+            }
+        }
+    }
+
+    private func ottoLivingStageFrame(brightness: Double, playing: Bool, breathTime: Double, isStatic: Bool) -> some View {
+        let wave = isStatic ? 0.35 : (0.5 - 0.5 * cos(breathTime / 3.8 * 2.0 * .pi))
+        let ringScale = 0.88 + 0.16 * wave
+        let glowRadius: CGFloat = 46 + CGFloat(wave * (playing ? 10 : 5))
+
+        return ZStack {
+            Circle()
+                .fill(
+                    RadialGradient(
+                        colors: [
+                            warmth.primaryGlow.opacity(0.26 + brightness * 0.42 + (playing ? 0.06 * wave : 0)),
+                            warmth.secondaryTint.opacity(0.14),
+                            .clear
+                        ],
+                        center: .center,
+                        startRadius: 4,
+                        endRadius: glowRadius
+                    )
+                )
+                .frame(width: 96, height: 96)
+
+            if playing {
+                Circle()
+                    .strokeBorder(warmth.primaryGlow.opacity(0.32 * (1.0 - 0.45 * wave)), lineWidth: 1.1)
+                    .frame(width: 78, height: 78)
+                    .scaleEffect(ringScale)
+            }
+
+            StoryTheaterActorView(
+                kind: .otto,
+                size: 72,
+                mood: playing ? .happy : .open,
+                look: CGPoint(x: 0.28, y: 0.08),
+                lid: 0.36,
+                lean: playing ? (2.5 + (isStatic ? 0 : (wave - 0.5) * 2.2)) : 0,
+                breathTime: breathTime,
+                isStatic: isStatic,
+                dark: true,
+                flat: ArtStyle.current == .flat,
+                compact: false
+            )
+        }
     }
 
     // MARK: - Section 2: Visual Rhythm Collection
@@ -351,43 +397,59 @@ struct LampHubView: View {
             DaySwimlaneCanvas(day: today, logs: dayLogs, timers: j.timers, dark: dark)
                 .allowsHitTesting(false)
 
-            HStack(spacing: 8) {
-                NavigationLink(value: Route.rhythm(baby)) {
-                    compactNavPill(symbol: "clock.arrow.circlepath", text: L10n.t("24h 节律盘", "Rhythm Dial"), color: Crayon.lilac, dark: dark)
+            if type.isAccessibilitySize {
+                VStack(spacing: 8) {
+                    rhythmNavControls(baby: baby, dark: dark)
                 }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: JournalRoute.stats) {
-                    compactNavPill(symbol: "chart.bar.fill", text: L10n.t("七日对比", "7-Day Stats"), color: Crayon.sky, dark: dark)
+            } else {
+                HStack(spacing: 8) {
+                    rhythmNavControls(baby: baby, dark: dark)
                 }
-                .buttonStyle(.toy)
-
-                Button {
-                    TactileEngine.shared.beadClick()
-                    showingHandover = true
-                } label: {
-                    compactNavPill(symbol: "person.2.wave.2.fill", text: L10n.t("传灯交接", "Handover"), color: Palette.amber, dark: dark)
-                }
-                .buttonStyle(.toy)
             }
         }
         .padding(14)
         .printCard(radius: Radius.card)
     }
 
+    @ViewBuilder
+    private func rhythmNavControls(baby: Int, dark: Bool) -> some View {
+        NavigationLink(value: Route.rhythm(baby)) {
+            compactNavPill(symbol: "clock.arrow.circlepath", text: L10n.t("24h 节律盘", "Rhythm Dial"), color: Crayon.lilac, dark: dark)
+        }
+        .buttonStyle(.toy)
+
+        NavigationLink(value: JournalRoute.stats) {
+            compactNavPill(symbol: "chart.bar.fill", text: L10n.t("七日对比", "7-Day Stats"), color: Crayon.sky, dark: dark)
+        }
+        .buttonStyle(.toy)
+
+        Button {
+            TactileEngine.shared.beadClick()
+            showingHandover = true
+        } label: {
+            compactNavPill(symbol: "person.2.wave.2.fill", text: L10n.t("传灯交接", "Handover"), color: Palette.amber, dark: dark)
+        }
+        .buttonStyle(.toy)
+    }
+
     private func compactNavPill(symbol: String, text: String, color: Color, dark: Bool) -> some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: symbol)
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(dark ? color : Crayon.ink(color))
             Text(text)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.primary)
-                .lineLimit(1)
+                .lineLimit(type.isAccessibilitySize ? 2 : 1)
                 .minimumScaleFactor(0.78)
+                .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
+            if type.isAccessibilitySize {
+                Spacer(minLength: 0)
+            }
         }
         .frame(maxWidth: .infinity, minHeight: 34)
-        .padding(.horizontal, 8)
+        .padding(.horizontal, type.isAccessibilitySize ? 12 : 8)
+        .padding(.vertical, type.isAccessibilitySize ? 6 : 0)
         .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(color.opacity(dark ? 0.16 : 0.11)))
     }
 

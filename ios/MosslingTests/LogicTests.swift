@@ -2302,8 +2302,8 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testRound18BespokeBatchAScenesAndDualRenderers() throws {
-        let expectedCodes: Set<String> = ["N01", "N02", "N03", "N04", "N05", "N06", "A01", "A02", "A03", "A04"]
-        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedCodes)
+        let expectedBatchACodes: Set<String> = ["N01", "N02", "N03", "N04", "N05", "N06", "A01", "A02", "A03", "A04"]
+        XCTAssertTrue(BespokeActivitySceneRegistry.registeredCodes.isSuperset(of: expectedBatchACodes))
 
         let content = try Content.load()
         var cameraGrammars: Set<String> = []
@@ -2317,28 +2317,30 @@ final class LogicTests: XCTestCase {
             XCTAssertEqual(meta.posterPhases.count, expectedSteps, "PosterPhases count mismatch for \(id.code)")
             XCTAssertEqual(meta.audioAnchors.count, expectedSteps, "AudioAnchors count mismatch for \(id.code)")
 
-            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
-            for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
-                let stage = LivingBookStage(
-                    script: script,
-                    stepIndex: 0,
-                    companion: .moss,
-                    dark: dark,
-                    accent: Crayon.teal,
-                    posterPhase: meta.posterPhases.first ?? 0.56,
-                    interactive: false,
-                    forceFlat: flat
-                )
-                .frame(width: 280, height: 210)
-                let renderer = ImageRenderer(content: stage)
-                renderer.scale = 1.0
-                let img = renderer.uiImage
-                XCTAssertNotNil(img, "ImageRenderer returned nil for \(id.code) dark=\(dark) flat=\(flat)")
-                XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            if expectedBatchACodes.contains(id.code) {
+                let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+                for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
+                    let stage = LivingBookStage(
+                        script: script,
+                        stepIndex: 0,
+                        companion: .moss,
+                        dark: dark,
+                        accent: Crayon.teal,
+                        posterPhase: meta.posterPhases.first ?? 0.56,
+                        interactive: false,
+                        forceFlat: flat
+                    )
+                    .frame(width: 280, height: 210)
+                    let renderer = ImageRenderer(content: stage)
+                    renderer.scale = 1.0
+                    let img = renderer.uiImage
+                    XCTAssertNotNil(img, "ImageRenderer returned nil for \(id.code) dark=\(dark) flat=\(flat)")
+                    XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+                }
             }
         }
 
-        XCTAssertEqual(cameraGrammars.count, 10, "Each Batch A bespoke scene must own a unique cameraGrammar")
+        XCTAssertEqual(cameraGrammars.count, BespokeActivityID.allCases.count, "Each bespoke scene must own a unique cameraGrammar")
         XCTAssertFalse(Firsts.customIconLabel("star.fill").isEmpty)
 
         // Month 6 flagship showcase cover renders cleanly in all 4 modalities (3D Day, 3D Lamp, 2D Day, 2D Lamp)
@@ -2412,5 +2414,62 @@ final class LogicTests: XCTestCase {
 
         let docImg = ImageRenderer(content: DocView(name: "PRIVACY").frame(width: 393, height: 820)).uiImage
         XCTAssertNotNil(docImg)
+    }
+
+    @MainActor
+    func testRound20BespokeBatchBScenesAndLampHub() throws {
+        let expectedAll: Set<String> = [
+            "N01", "N02", "N03", "N04", "N05", "N06",
+            "A01", "A02", "A03", "A04",
+            "A05", "A06", "A07", "A08", "A09", "A10", "A11", "A12", "A13", "A14"
+        ]
+        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedAll)
+
+        let batchBCodes: [BespokeActivityID] = [.a05, .a06, .a07, .a08, .a09, .a10, .a11, .a12, .a13, .a14]
+        let allGrammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
+        XCTAssertEqual(allGrammars.count, 20)
+
+        let content = try Content.load()
+        for id in batchBCodes {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let play = try XCTUnwrap(content.play(id.code), "Missing play for \(id.code)")
+            let steps = play.steps.count
+            XCTAssertEqual(meta.durations.count, steps, "Durations count mismatch for \(id.code)")
+            XCTAssertEqual(meta.posterPhases.count, steps, "PosterPhases count mismatch for \(id.code)")
+            XCTAssertEqual(meta.audioAnchors.count, steps, "AudioAnchors count mismatch for \(id.code)")
+
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            for step in [0, max(0, steps - 1)] {
+                for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
+                    let stage = LivingBookStage(
+                        script: script,
+                        stepIndex: step,
+                        companion: .moss,
+                        dark: dark,
+                        accent: Crayon.teal,
+                        posterPhase: meta.posterPhases[step],
+                        interactive: false,
+                        forceFlat: flat
+                    )
+                    .frame(width: 280, height: 210)
+                    let img = ImageRenderer(content: stage).uiImage
+                    XCTAssertNotNil(img, "ImageRenderer returned nil for \(id.code) step=\(step) dark=\(dark) flat=\(flat)")
+                    XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+                }
+            }
+        }
+
+        // AX2 accessibility sizing pass on Tab 2 LampHubView
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round20-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let lampAx2 = LampHubView(path: .constant(NavigationPath()))
+            .frame(width: 393, height: 960)
+            .environment(envApp)
+            .environment(envJournal)
+            .dynamicTypeSize(.accessibility2)
+        XCTAssertNotNil(ImageRenderer(content: lampAx2).uiImage)
     }
 }

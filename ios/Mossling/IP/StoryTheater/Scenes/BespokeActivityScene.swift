@@ -5,6 +5,7 @@ import SwiftUI
 enum BespokeActivityID: String, CaseIterable, Sendable {
     case n01, n02, n03, n04, n05, n06
     case a01, a02, a03, a04
+    case a05, a06, a07, a08, a09, a10, a11, a12, a13, a14
 
     var code: String {
         rawValue.uppercased()
@@ -157,6 +158,106 @@ enum BespokeActivitySceneRegistry {
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.14),
                 komorebiStrength: 0.84
             )
+        case .a05:
+            return BespokeSceneMetadata(
+                id: .a05,
+                cameraGrammar: "acoustic-bay-window-arc",
+                durations: [4.6, 4.8],
+                posterPhases: [0.52, 0.58],
+                audioAnchors: [.softChime, .none],
+                lightKeyNormalized: CGPoint(x: 0.24, y: 0.14),
+                komorebiStrength: 0.80
+            )
+        case .a06:
+            return BespokeSceneMetadata(
+                id: .a06,
+                cameraGrammar: "oversized-boardbook-lap-spread",
+                durations: [4.6, 4.4, 4.6, 4.8, 4.5],
+                posterPhases: [0.56, 0.54, 0.54, 0.58, 0.55],
+                audioAnchors: [.clothSwish, .none, .softChime, .none, .clothSwish],
+                lightKeyNormalized: CGPoint(x: 0.52, y: 0.16),
+                komorebiStrength: 0.72
+            )
+        case .a07:
+            return BespokeSceneMetadata(
+                id: .a07,
+                cameraGrammar: "bamboo-veranda-rhythm-sway",
+                durations: [4.5, 4.8, 4.8, 5.0],
+                posterPhases: [0.54, 0.52, 0.58, 0.60],
+                audioAnchors: [.softChime, .woodTap, .none, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.80, y: 0.14),
+                komorebiStrength: 0.82
+            )
+        case .a08:
+            return BespokeSceneMetadata(
+                id: .a08,
+                cameraGrammar: "montessori-tactile-trays-closeup",
+                durations: [4.5, 4.6, 4.5, 4.8],
+                posterPhases: [0.54, 0.55, 0.54, 0.60],
+                audioAnchors: [.clothSwish, .clothSwish, .none, .none],
+                lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
+                komorebiStrength: 0.74
+            )
+        case .a09:
+            return BespokeSceneMetadata(
+                id: .a09,
+                cameraGrammar: "beech-wall-mirror-diptych",
+                durations: [4.4, 4.6, 4.5, 4.8],
+                posterPhases: [0.52, 0.58, 0.54, 0.60],
+                audioAnchors: [.none, .vinylPop, .softChime, .none],
+                lightKeyNormalized: CGPoint(x: 0.50, y: 0.12),
+                komorebiStrength: 0.76
+            )
+        case .a10:
+            return BespokeSceneMetadata(
+                id: .a10,
+                cameraGrammar: "breezy-park-canopy-stroll",
+                durations: [4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.58, 0.62],
+                audioAnchors: [.none, .softChime, .none],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.12),
+                komorebiStrength: 0.92
+            )
+        case .a11:
+            return BespokeSceneMetadata(
+                id: .a11,
+                cameraGrammar: "midline-transfer-tabletop-macro",
+                durations: [4.4, 4.8, 4.6],
+                posterPhases: [0.54, 0.55, 0.60],
+                audioAnchors: [.woodTap, .softChime, .none],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.15),
+                komorebiStrength: 0.78
+            )
+        case .a12:
+            return BespokeSceneMetadata(
+                id: .a12,
+                cameraGrammar: "playful-peekaboo-curtain-closeup",
+                durations: [4.8, 4.6, 4.8],
+                posterPhases: [0.58, 0.56, 0.60],
+                audioAnchors: [.clothSwish, .vinylPop, .none],
+                lightKeyNormalized: CGPoint(x: 0.72, y: 0.16),
+                komorebiStrength: 0.76
+            )
+        case .a13:
+            return BespokeSceneMetadata(
+                id: .a13,
+                cameraGrammar: "resonant-beech-sound-stage",
+                durations: [4.5, 4.6, 4.6, 4.8],
+                posterPhases: [0.54, 0.52, 0.58, 0.60],
+                audioAnchors: [.woodTap, .none, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.15),
+                komorebiStrength: 0.80
+            )
+        case .a14:
+            return BespokeSceneMetadata(
+                id: .a14,
+                cameraGrammar: "woven-treasure-basket-floor",
+                durations: [4.5, 4.6, 4.8],
+                posterPhases: [0.56, 0.56, 0.60],
+                audioAnchors: [.woodTap, .vinylPop, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
+                komorebiStrength: 0.78
+            )
         }
     }
 
@@ -213,6 +314,16 @@ enum BespokeActivitySceneRegistry {
         case .a02: SceneA02_NarratingCare(ctx: context)
         case .a03: SceneA03_AwakeTummyPlay(ctx: context)
         case .a04: SceneA04_WatchHandsReach(ctx: context)
+        case .a05: SceneA05_SoundDirection(ctx: context)
+        case .a06: SceneA06_OnePageReading(ctx: context)
+        case .a07: SceneA07_RhymesFingerplay(ctx: context)
+        case .a08: SceneA08_TextureDiscovery(ctx: context)
+        case .a09: SceneA09_MirrorFaces(ctx: context)
+        case .a10: SceneA10_OutdoorListening(ctx: context)
+        case .a11: SceneA11_HandToHandTransfer(ctx: context)
+        case .a12: SceneA12_PeekabooHands(ctx: context)
+        case .a13: SceneA13_TappingSounds(ctx: context)
+        case .a14: SceneA14_BasketInOut(ctx: context)
         }
     }
 }
