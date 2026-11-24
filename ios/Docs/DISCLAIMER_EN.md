@@ -4,7 +4,7 @@ Applies to the iOS app Moss & Otto
 
 Developer: {{DEVELOPER}}
 
-Effective date: October 31, 2026
+Effective date: November 24, 2026 (v2.0 alignment)
 
 ## 1. Not for Medical Use
 

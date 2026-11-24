@@ -396,61 +396,60 @@ struct FoodAtlasView: View {
         let isDrawerMode = selectedCategory == nil && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let allCollapsed = collapsedCategories.count == FoodCategory.allCases.count
 
-        return HStack(spacing: 6) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 5) {
-                    if let activeCat = selectedCategory {
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) {
-                                selectedCategory = nil
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: activeCat.symbol)
-                                    .font(.system(size: 10, weight: .bold))
-                                Text(activeCat.title)
-                                    .font(.caption.weight(.bold))
-                                Image(systemName: "xmark")
-                                    .font(.system(size: 9, weight: .bold))
-                            }
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
-                            .background(Capsule().fill(Palette.accentFill))
+        return HStack(alignment: .top, spacing: 6) {
+            FlowRow(spacing: 5, lineSpacing: 5) {
+                if let activeCat = selectedCategory {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) {
+                            selectedCategory = nil
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(L10n.t("清除分类筛选 \(activeCat.title)", "Clear category filter \(activeCat.title)"))
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: activeCat.symbol)
+                                .font(.system(size: 10, weight: .bold))
+                            Text(activeCat.title)
+                                .font(.caption.weight(.bold))
+                            Image(systemName: "xmark")
+                                .font(.system(size: 9, weight: .bold))
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(Palette.accentFill))
                     }
-
-                    ForEach(StateFilter.allCases) { sf in
-                        let on = stateFilter == sf
-                        let label: String = switch sf {
-                        case .allergen: L10n.t("致敏 \(store.allergenIntroducedCount)/\(store.allergenTotalCount)", "Allergens \(store.allergenIntroducedCount)/\(store.allergenTotalCount)")
-                        case .loved where store.lovedCount > 0: "\(sf.label) \(store.lovedCount)"
-                        case .tryAgain where store.tryAgainCount > 0: "\(sf.label) \(store.tryAgainCount)"
-                        default: sf.label
-                        }
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) {
-                                stateFilter = sf
-                            }
-                        } label: {
-                            Text(label)
-                                .font(.caption.weight(on ? .bold : .semibold))
-                                .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
-                                .padding(.horizontal, 8.5)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
-                                .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(on ? .isSelected : [])
-                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.t("清除分类筛选 \(activeCat.title)", "Clear category filter \(activeCat.title)"))
                 }
-                .padding(.vertical, 1)
+
+                ForEach(StateFilter.allCases) { sf in
+                    let on = stateFilter == sf
+                    let label: String = switch sf {
+                    case .allergen: L10n.t("致敏 \(store.allergenIntroducedCount)/\(store.allergenTotalCount)", "Allergens \(store.allergenIntroducedCount)/\(store.allergenTotalCount)")
+                    case .loved where store.lovedCount > 0: "\(sf.label) \(store.lovedCount)"
+                    case .tryAgain where store.tryAgainCount > 0: "\(sf.label) \(store.tryAgainCount)"
+                    default: sf.label
+                    }
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) {
+                            stateFilter = sf
+                        }
+                    } label: {
+                        Text(label)
+                            .font(.caption.weight(on ? .bold : .semibold))
+                            .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
+                            .padding(.horizontal, 8.5)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
+                            .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.vertical, 1)
 
             if isDrawerMode {
                 Button {

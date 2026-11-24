@@ -1002,7 +1002,7 @@ private struct FocusLine: View {
 }
 
 /// A feed or sleep still running, at the top of today's line: its start, how long so far; a tap opens its timer.
-private struct RunningRow: View {
+struct RunningRow: View {
     @Environment(JournalStore.self) private var j
     let timer: RunningTimer
     var body: some View {
@@ -1291,7 +1291,7 @@ extension LogEntry {
 
 /// Four-Chapter Collapsible Day Ledger (`夜晚 / 下午 / 上午 / 深夜`) with smart default expansion so high-frequency
 /// newborn days (35+ entries) scan effortlessly on one screen while preserving every entry and full metadata.
-private struct DayChapterLedger: View {
+struct DayChapterLedger: View {
     let day: Day, today: Day
     let logs: [LogEntry]
     let only: String?

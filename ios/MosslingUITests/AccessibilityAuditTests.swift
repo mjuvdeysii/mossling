@@ -105,7 +105,7 @@ final class AccessibilityAuditTests: XCTestCase {
         sizeTag = (size == nil ? "default" : "xxxl") + (theme == "dark" ? "_dark" : "")
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
-        for tab in ["本月", "记录", "我的"] {
+        for tab in ["摸索", "台灯", "留念", "工坊"] {
             let b = bar.buttons[tab]
             guard b.exists else { lines.append("[\(tab)] tab missing"); continue }
             b.tap(); sleep(2)

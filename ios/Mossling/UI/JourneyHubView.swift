@@ -224,6 +224,8 @@ struct MiniJourneyBeadStrip: View {
 /// (Storybook, Polaroid Firsts, Wax-Sealed Capsules, WHO Growth Curves), and the 37-station vertical winding bead chain
 /// across 草地 (0–1 yr), 森林小丘 (1–2 yrs), and 小河村庄 (2–3 yrs) — with zero horizontal scrolling.
 struct JourneyHubView: View {
+    var isRootTab: Bool = false
+
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
@@ -285,6 +287,10 @@ struct JourneyHubView: View {
                     currentStationHero
 
                     keepsakeShelf
+
+                    if app.age != nil {
+                        DueCard(month: baby)
+                    }
 
                     // Filter & serene bead toggle bar (wrapping FlowRow, zero horizontal scrolling)
                     VStack(alignment: .leading, spacing: 10) {
@@ -354,9 +360,9 @@ struct JourneyHubView: View {
             }
             .calmWhileScrolling()
             .pageBackground(tone: Land.of(baby).crayon)
-            .navigationTitle(L10n.t("串珠旅程", "Journey"))
+            .navigationTitle(isRootTab ? L10n.t("留念", "Keepsakes") : L10n.t("串珠旅程", "Journey"))
             .navigationBarTitleDisplayMode(.large)
-            .toolbar(.hidden, for: .tabBar)
+            .toolbar(isRootTab ? .visible : .hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

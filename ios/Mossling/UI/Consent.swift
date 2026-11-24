@@ -47,11 +47,11 @@ struct ConsentSheet: View {
                         Divider().padding(.leading, 52).opacity(0.5)
                         point(L10n.t("你填写的孩子信息，包括出生日期、小名、性别、生长测量，以及喂养、睡眠、尿布、体温、用药等照护记录，属于不满十四周岁儿童的个人信息，其中包含健康信息。这些信息只保存在这台设备上，开发者无法获取。", "Everything you enter about your child — birthday, nickname, sex, growth measurements, and care logs — is sensitive child health data. It stays only on this iPhone; the developer never sees or receives it."), symbol: "iphone.gen3", color: Crayon.lilac)
                         Divider().padding(.leading, 52).opacity(0.5)
-                        point(L10n.t("你可以随时在「我的 › 数据」中导出、清除全部数据，或撤回同意。", "You can export or erase all data, or withdraw consent, anytime in Me › Data."), symbol: "arrow.uturn.backward.circle.fill", color: Crayon.leaf)
+                        point(L10n.t("你可以随时在「工坊 › 离线数据」中导出、清除全部数据，或撤回同意。", "You can export or erase all data, or withdraw consent, anytime in Studio › Local Data."), symbol: "arrow.uturn.backward.circle.fill", color: Crayon.leaf)
                     }
                     .printCard(radius: Radius.card)
 
-                    Text(L10n.t("点「同意」，表示你是孩子的父母或其他监护人，同意本应用按上述文件在本机保存和使用这些信息。点「不同意」，仍可浏览全部玩法和月龄内容，但不能填写孩子资料和记录；此前已经保存的信息仍只在这台手机上，可在「我的 › 数据」导出或清除。以后需要时，可以再次选择同意。", "By tapping Agree, you confirm you are the child's parent or legal guardian and consent to storing and using this information locally on this device. If you tap Not Now, you can still browse all activities and monthly guides without saving child profile or care logs; any data already saved stays on this device and can be exported or erased in Me › Data. You can agree later at any time."))
+                    Text(L10n.t("点「同意」，表示你是孩子的父母或其他监护人，同意本应用按上述文件在本机保存和使用这些信息。点「不同意」，仍可浏览全部玩法和月龄内容，但不能填写孩子资料和记录；此前已经保存的信息仍只在这台手机上，可在「工坊 › 离线数据」导出或清除。以后需要时，可以再次选择同意。", "By tapping Agree, you confirm you are the child's parent or legal guardian and consent to storing and using this information locally on this device. If you tap Not Now, you can still browse all activities and monthly guides without saving child profile or care logs; any data already saved stays on this device and can be exported or erased in Studio › Local Data. You can agree later at any time."))
                         .font(.footnote).foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                         .padding(.horizontal, 4)

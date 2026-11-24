@@ -297,40 +297,38 @@ struct RhythmView: View {
             }
             .padding(.horizontal, 2)
 
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(DailyRhythmStage.allCases) { st in
-                        let on = st == selectedStage
-                        let isBabyNow = st == babyStage
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.84)) {
-                                selectedStage = st
-                                inspectedHour = nil
-                            }
-                        } label: {
-                            HStack(spacing: 5) {
-                                if isBabyNow {
-                                    Circle()
-                                        .fill(on ? Color.white : Palette.bead)
-                                        .frame(width: 6, height: 6)
-                                }
-                                Text(st.shortLabel)
-                                    .font(.caption.weight(on ? .bold : .semibold))
-                                    .lineLimit(1)
-                            }
-                            .foregroundStyle(on ? .white : .primary)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .vinylSurface(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card), radius: Radius.chip, strong: on)
+            FlowRow(spacing: 8, lineSpacing: 8) {
+                ForEach(DailyRhythmStage.allCases) { st in
+                    let on = st == selectedStage
+                    let isBabyNow = st == babyStage
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.84)) {
+                            selectedStage = st
+                            inspectedHour = nil
                         }
-                        .buttonStyle(.toy)
-                        .accessibilityLabel(st.stageTitle + (isBabyNow ? L10n.t("，宝宝当前阶段", ", baby's current stage") : ""))
-                        .accessibilityAddTraits(on ? .isSelected : [])
+                    } label: {
+                        HStack(spacing: 5) {
+                            if isBabyNow {
+                                Circle()
+                                    .fill(on ? Color.white : Palette.bead)
+                                    .frame(width: 6, height: 6)
+                            }
+                            Text(st.shortLabel)
+                                .font(.caption.weight(on ? .bold : .semibold))
+                                .lineLimit(1)
+                        }
+                        .foregroundStyle(on ? .white : .primary)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .vinylSurface(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card), radius: Radius.chip, strong: on)
                     }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(st.stageTitle + (isBabyNow ? L10n.t("，宝宝当前阶段", ", baby's current stage") : ""))
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
-                .padding(.vertical, 2)
             }
+            .padding(.vertical, 2)
         }
     }
 

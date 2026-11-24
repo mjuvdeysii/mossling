@@ -1,82 +1,41 @@
 import SwiftUI
 import TipKit
 
-/// The home holds only what is needed every day, in that order: who the child is now (the month card — tapping it
-/// opens the month's own page, where everything read once lives: its points, its parts, all its plays, the topics,
-/// and the way to other months); what is due this month, only while something is; what is happening now, from the
-/// records; and 今天一起玩, the everyday reason to open the app. It reads in about one screen.
+/// Pure Moss Exploration Home (`摸索 / Explore`):
+/// Holds strictly what helps parent and child explore together right now:
+/// 1) Current Month exploration stage (`MonthCard` -> `.month(baby)`),
+/// 2) `TodayPlayCard` (Play together today with live Pixar 3D × Ghibli 2D living stage + 4 weekly plays),
+/// 3) Two-card `SensoryDiscoveryDock` (Sensory Toybox + First Foods Atlas).
+/// Sleep/feeds/lamp/rhythm live on `台灯 (Lamp)`, keepsakes/growth/due checkups live on `留念 (Keepsakes)`.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
-    @Environment(\.night) private var night
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var type
     @Binding var path: NavigationPath
     @State private var askBirth = false
     @State private var arranging = false
-    @State private var showingLamp = false
-    @State private var showingStorybook = false
-    @State private var soundscape = SoundscapeEngine.shared
-    @State private var capsules = CapsuleStore.shared
     @State private var foods = FoodAtlasStore.shared
     private let shelfTip = ShelfTip()
-    private let recordsTip = RecordsTip()
 
     var body: some View {
         let baby = app.babyMonth ?? 0
+        let dark = lamp || scheme == .dark
+
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if app.age == nil {
                     Button { if app.mayKeep() { askBirth = true } } label: { Label(L10n.t("填写出生日期，从宝宝这个月开始", "Add baby's birthday to begin"), systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
-                // a feed or a sleep being timed is what matters most while it runs: it leads the page
-                let running = !j.timers.isEmpty || night
-                if running && app.journal && app.age != nil { NowCard(month: baby) }
-                MonthCard(month: baby, baby: baby) { path.append(Route.journey) }
-                    .zoomSource(Route.journey)
-                if app.age != nil { DueCard(month: baby) }
-                if !running && app.journal && app.age != nil { NowCard(month: baby) }
-                if app.age != nil {
-                    TipView(recordsTip) { action in
-                        if action.id == "on" && app.mayKeep() { withAnimation(.snappy) { app.journal = true }; recordsTip.invalidate(reason: .actionPerformed) }
-                    }
-                }
+                MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
+                    .zoomSource(Route.month(baby))
                 if app.age != nil { TipView(shelfTip) }
-                // before the birth date is known too: the same 今天一起玩, from the first month's plays (the week is
-                // chosen anew for the child's month once the date is given)
                 TodayPlayCard(
                     month: baby,
                     arrange: { arranging = true }
                 )
-                let todayLogs = j.logs(on: app.today)
-                let todaySleepCount = todayLogs.filter { $0.type == LogType.sleep && $0.end != nil }.count
-                let todayFeedCount = todayLogs.feeds().count
-                let bookMonths = app.birth != nil ? max(1, min(app.age?.bookMonth ?? 0, 36) + 1) : 0
-                QuietInstrumentsDock(
-                    soundscape: soundscape,
-                    foods: foods,
-                    todayLogs: todayLogs,
-                    today: app.today,
-                    currentMonth: min(baby, 36),
-                    capsuleTotal: capsules.items.count,
-                    capsuleReady: capsules.readyCount(on: app.today),
-                    toyTodayCount: ToyboxUsage.todayCount(on: app.today),
-                    todaySleepCount: app.journal ? todaySleepCount : 0,
-                    todayFeedCount: app.journal ? todayFeedCount : 0,
-                    bookMonths: bookMonths,
-                    firstsCount: j.firsts.count,
-                    openLamp: {
-                        TactileEngine.shared.beadClick()
-                        showingLamp = true
-                    },
-                    openStorybook: {
-                        TactileEngine.shared.pageTurn()
-                        if app.birth != nil {
-                            showingStorybook = true
-                        } else {
-                            path.append(Route.book)
-                        }
-                    }
-                )
+                sensoryDiscoveryDock(dark: dark)
                 if baby >= 36 { StoryGoesOn(primary: app.companion) }
             }
             .padding(.horizontal, 16)
@@ -84,35 +43,100 @@ struct TodayView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
-        .onChange(of: app.journal, initial: true) { _, on in RecordsTip.recordsOff = !on }
-        .navigationTitle(app.nickname.isEmpty ? L10n.appName : app.nickname)
+        .navigationTitle(app.nickname.isEmpty ? L10n.t("摸索", "Explore") : app.nickname)
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
-            ToolbarItemGroup(placement: .topBarTrailing) {
-                Button {
-                    TactileEngine.shared.beadClick()
-                    showingLamp = true
-                } label: {
-                    Image(systemName: soundscape.isPlaying ? "lamp.desk.fill" : "lamp.desk")
-                        .foregroundStyle(soundscape.isPlaying ? Palette.amber : Palette.lampTint)
-                        .overlay(alignment: .topTrailing) {
-                            if soundscape.isPlaying {
-                                Circle()
-                                    .fill(Palette.amber)
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: 2, y: -1)
-                            }
-                        }
-                }
-                .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
-
-                NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }.accessibilityLabel(L10n.t("搜索", "Search"))
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }
+                    .accessibilityLabel(L10n.t("搜索", "Search"))
             }
         }
-        .fullScreenCover(isPresented: $showingLamp) { BedsideLampView() }
-        .fullScreenCover(isPresented: $showingStorybook) { StorybookView().lampPresented(sheet: false) }
         .sheet(isPresented: $askBirth) { BirthSheet() }
         .sheet(isPresented: $arranging) { ShelfEditor() }
+    }
+
+    @ViewBuilder
+    private func sensoryDiscoveryDock(dark: Bool) -> some View {
+        let cols = type.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        let foodsTasted = foods.tastedCount
+        let toyTodayCount = ToyboxUsage.todayCount(on: app.today)
+
+        VStack(alignment: .leading, spacing: 8) {
+            SectionTitle(title: L10n.t("感官探索工坊", "Sensory Discovery"))
+
+            LazyVGrid(columns: cols, spacing: 10) {
+                NavigationLink(value: Route.toybox(.xylophone)) {
+                    discoveryTile(
+                        color: Crayon.teal,
+                        title: L10n.t("感官玩具盒", "Sensory Toybox"),
+                        subtitle: toyTodayCount > 0
+                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
+                            : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
+                        dark: dark
+                    ) {
+                        MiniXylophoneArt(dark: dark)
+                    }
+                }
+                .buttonStyle(.toy)
+
+                NavigationLink(value: Route.foodAtlas) {
+                    discoveryTile(
+                        color: Crayon.leaf,
+                        title: L10n.t("百味食盒", "First Foods"),
+                        subtitle: foodsTasted > 0
+                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
+                            : L10n.t("60 种辅食图鉴", "60 foods atlas"),
+                        dark: dark
+                    ) {
+                        MiniFoodsWreathCanvas(foods: foods, dark: dark)
+                    }
+                }
+                .buttonStyle(.toy)
+            }
+        }
+    }
+
+    private func discoveryTile<Art: View>(
+        color: Color,
+        title: String,
+        subtitle: String,
+        dark: Bool,
+        @ViewBuilder art: () -> Art
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top) {
+                art()
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .padding(.top, 2)
+            }
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+                Text(subtitle)
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.78)
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
+        .background(
+            LinearGradient(
+                colors: [color.opacity(dark ? 0.14 : 0.13), color.opacity(dark ? 0.03 : 0.02)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
+        .printCard(radius: Radius.card)
     }
 }
 
@@ -514,7 +538,7 @@ private struct MiniAcousticBars: View {
     }
 }
 
-private struct MiniRhythmDialCanvas: View {
+struct MiniRhythmDialCanvas: View {
     let sleepSlices: [AtelierDockMetrics.RhythmSlice]
     let feedFractions: [Double]
     let dark: Bool
@@ -690,7 +714,7 @@ private struct MiniStorybookStackArt: View {
 
 /// What is due this month and not yet done — vaccines and check-ups — as one line that opens them; shown only while
 /// something is left, so the home is quiet when nothing is.
-private struct DueCard: View {
+struct DueCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp

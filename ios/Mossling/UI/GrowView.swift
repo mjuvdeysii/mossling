@@ -758,6 +758,7 @@ struct CareView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let month: Int
     @State private var filter: CareFilterMode = .all
+    @State private var region: HealthRegion = HealthRegion.defaultRegion()
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -771,15 +772,65 @@ struct CareView: View {
         let filteredVaccines = mo.vaccines.enumerated().filter { filter.matches(ticked: app.ticked(m, TickKind.vaccine, "\($0.offset)")) }
         let filteredCheckups = mo.checkups.enumerated().filter { filter.matches(ticked: app.ticked(m, TickKind.checkup, "\($0.offset)")) }
         let filteredEarlier = earlier.filter { filter.matches(ticked: app.ticked($0.month, $0.kind, $0.key)) }
+        let regionalEntries = HealthRegion.schedule(for: region, month: m)
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                if monthTotal > 0 || !earlier.isEmpty {
+                FlowRow(spacing: 8, lineSpacing: 8) {
+                    ForEach(HealthRegion.allCases) { r in
+                        let on = region == r
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(.snappy) { region = r }
+                        } label: {
+                            Text(r.shortLabel)
+                                .font(.caption.weight(on ? .bold : .semibold))
+                                .foregroundStyle(on ? .white : .primary)
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 6)
+                                .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
+                                .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityAddTraits(on ? .isSelected : [])
+                    }
+                }
+
+                if region != .cn {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 8) {
+                            IconTile(symbol: "globe.americas.fill", color: Crayon.sky, size: 28, round: true)
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(region.authorityHeadline)
+                                    .font(.subheadline.weight(.bold))
+                                Text(L10n.t("国际地区参考（具体安排以当地诊所为准）", "Regional Reference — confirm clinic dates locally"))
+                                    .font(.caption)
+                                    .foregroundStyle(Palette.secondaryText)
+                            }
+                        }
+                        ForEach(regionalEntries) { item in
+                            HStack(alignment: .top, spacing: 8) {
+                                Circle()
+                                    .fill(item.kind == "vaccine" ? Crayon.cherry : Crayon.teal)
+                                    .frame(width: 7, height: 7)
+                                    .padding(.top, 5)
+                                Text(item.title)
+                                    .font(.subheadline)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card)
+                }
+
+                if region == .cn && (monthTotal > 0 || !earlier.isEmpty) {
                     dualGaugeHeader(vDone: vDone, vTotal: mo.vaccines.count, cDone: cDone, cTotal: mo.checkups.count,
                                     earlierCount: earlier.count, monthDone: monthDone, monthTotal: monthTotal, dark: dark)
                 }
 
-                if !filteredEarlier.isEmpty {
+                if region == .cn && !filteredEarlier.isEmpty {
                     Box(title: L10n.t("之前没勾的", "Earlier unchecked"), detail: L10n.t("\(filteredEarlier.count) 项", "\(filteredEarlier.count)")) {
                         ForEach(Array(filteredEarlier.enumerated()), id: \.offset) { i, d in
                             let moText = d.month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(d.month) 个月", d.month == 1 ? "1 month" : "\(d.month) months")
@@ -790,7 +841,7 @@ struct CareView: View {
                     }
                 }
 
-                if !filteredVaccines.isEmpty {
+                if region == .cn && !filteredVaccines.isEmpty {
                     Box(title: L10n.t("接种", "Vaccines"), detail: "\(vDone) / \(mo.vaccines.count)") {
                         ForEach(Array(filteredVaccines.enumerated()), id: \.element.offset) { pos, pair in
                             let i = pair.offset; let t = pair.element
@@ -801,7 +852,7 @@ struct CareView: View {
                     }
                 }
 
-                if !filteredCheckups.isEmpty {
+                if region == .cn && !filteredCheckups.isEmpty {
                     Box(title: L10n.t("儿童保健", "Well-Child Visits"), detail: "\(cDone) / \(mo.checkups.count)") {
                         ForEach(Array(filteredCheckups.enumerated()), id: \.element.offset) { pos, pair in
                             let i = pair.offset; let t = pair.element
@@ -812,7 +863,7 @@ struct CareView: View {
                     }
                 }
 
-                if filteredEarlier.isEmpty && filteredVaccines.isEmpty && filteredCheckups.isEmpty {
+                if region == .cn && filteredEarlier.isEmpty && filteredVaccines.isEmpty && filteredCheckups.isEmpty {
                     Text(filter == .done
                          ? L10n.t("还没有勾完的项目，轻点下方状态切换到待完成查看。", "Nothing logged yet — switch filter to see items due.")
                          : L10n.t("本月项目均已记下。", "All items for this month are checked off."))
@@ -823,18 +874,14 @@ struct CareView: View {
                         .printCard(radius: Radius.card)
                 }
 
-                // whose schedule this is: China's; elsewhere, the local health authority's (1.4.1 — say where data applies)
                 CalmDisclosureNote(
                     title: L10n.t("数据依据与适用说明", "Schedule Reference & Scope"),
                     symbol: "doc.text"
                 ) {
-                    Text(L10n.t(
-                        "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
-                        "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
-                    ))
-                    .font(.footnote)
-                    .foregroundStyle(Palette.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(region.scopeNote)
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(.horizontal, 16).padding(.bottom, 48)

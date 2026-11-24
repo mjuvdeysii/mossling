@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 19（v2.0 正式发布候选 16 · 四屏纯血叙事重构 `摸索 / 台灯 / 留念 / 工坊` · 行业规范级来源/隐私/版本说明与 0 横滑清零）**：
+  - **【四屏纯血信息架构落地】**：重构 `MosslingApp` 与四大主屏边界——第一屏 **摸索（Explore）** 专属于 Moss 探索（当月发展头卡 + 今日一起玩 + 感官玩具盒/百味食盒双卡），彻底清除混杂的喂奶/夜灯/节律/儿保噪音；第二屏 **台灯（Lamp，新建 `LampHubView`）** 以 Otto 可交互床头暖灯、三色光晕与 6 组声景为主舞台，并将 24 小时昼夜节律环/只读泳道/交接卡作为低噪可视化归集、日常随手记与明细折叠收纳，即使关闭记录仍保留完整床头灯；第三屏 **留念（Keepsakes）** 由 `JourneyHubView(isRootTab: true)` 统一承载 37 站串珠旅程、绘本、拍立得相纸、时光胶囊、WHO 生长曲线与当月儿保提示；第四屏 **工坊（Studio）** 将「摸索台灯的故事」三幕微剧院、`CraftPillarsShowcaseCard` 理念展块、外观偏好与透明循证文档中心前置呈现。
+  - **【行业规范级来源/隐私/更新日志与版本同步】**：新建 `EditorialViews.swift`，将 `SourcesView` 升级为四大类别零横滑过滤 + 标准学术引文卡（短域名外链与一键复制引文，彻底告别文下裸贴长网址）；将 `DocView` 升级为带 Apple「隐私一图读懂」摘要徽章与儿童保护柔和底纹的规范阅读器；新建面向父母的 `ReleaseNotesView` 同步包版本号呈现产品更新；全面同步 `PRIVACY*.md`、`TERMS*.md`、`DISCLAIMER*.md` 至 `2026-11-24` v2.0 口径（完整如实载明相册仅本地单张选图、动作传感器零留存、后台离线音频、StandBy/控制中心与 4-Tab 路径）。
+  - **【全站 0 横滑清零与多地区儿保分流】**：清理 `ReadingViews`、`FoodAtlasView`、`DailyRhythmStudio` 与 `StorybookView` 最后 5 处 `ScrollView(.horizontal)`；新增 `LocalizedHealthSchedule.swift` 在 `CareView` 提供中国 (NHC 2026)、美国 (AAP/CDC)、英国 (NHS)、澳大利亚 (NIP) 分地区参比，并补全 `testRound19FourTabArchitectureSourcesAndHealthRegions` 与 `test69Round19FourTabIAAndEditorialSystem`（更新 `AccessibilityAuditTests` 与 `ScreenshotTests` 4-Tab 基线）。
+
 - **Batch 18（v2.0 正式发布候选 15 · Pixar 3D × Ghibli 2D 零依赖 Metal 渲染管线 · Batch A 独立活动小动画 `N01–N06 / A01–A04` · P0 全站折叠流畅度重构与只读总览条）**：
   - **【零依赖 Metal 渲染与双风格引擎 StoryTheaterShaders + Pixar × Ghibli】**：新增 `StoryTheaterShaders.metal`（含暖键光包裹、方向轮廓光、Otto 灯珠体积光锥、水彩湿边/棉纸肌理/木漏日光斑与手绘抖动 6 个原生 `[[stitchable]]` 着色器）、`PixarLightingRig.swift` 与 `GhibliWatercolorKit.swift`；以 `StoryTheaterActorView` 统一 `LivingBookStage`、`LivingMonthCoverStage` 与所有独立场景在 3D 哑光软胶 / 2D 吉卜力水彩及日光 / 夜灯下的同构坐标与物理跟随，并重点打磨 `N01`、`A04` 与 **第 6 月成长封面 `Month06ShowcaseCover`** 旗舰样板。
   - **【Bespoke 独立活动动画架构 & Batch A（10 部独立短片）】**：新建 `BespokeActivityScene.swift` 注册表与 **Batch A（`N01–N06`、`A01–A04`）** 共 10 部完全独立的分幕动画（各自拥有专属镜头语法、布景家具、教具物理轨迹与逐步骤动作编排，严禁套用共享模板）；列表缩略图通过 `ActivityPreviewThumb`（零 `TimelineView` + `compact: true` 定格）实现 120Hz 顺滑滚动，并同步清理 `DayLedger` 拖拽修改入口，保留纯只读泳道浏览与 4 时段快捷跳转。

@@ -36,14 +36,12 @@ private struct StudioBadge: View {
     }
 }
 
-/// Me: Family Studio card, visual Growth Book keepsake vault, full-width living Appearance & Language deck,
-/// tactile 2×2 visual control tiles, and compact Local Data / About dock.
+/// Studio (`工坊`): Brand Philosophy & Three-Act Story, Four Craft Pillars, Family Profile,
+/// Appearance & Language, Preferences, and Transparent Editorial/Legal/Sources Hub.
 struct YouView: View {
     @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
-    @Environment(\.dynamicTypeSize) private var type
     @Binding var path: NavigationPath
     @State private var editing = false
     @State private var message: String?
@@ -57,13 +55,15 @@ struct YouView: View {
             VStack(alignment: .leading, spacing: 14) {
                 FamilyCard { if app.mayKeep() { editing = true } }
 
-                if app.birth != nil { GrowthBookCard() }
+                StoryPhilosophyBanner(dark: dark, companion: app.companion)
+
+                CraftPillarsShowcaseCard(dark: dark)
 
                 ThemeLanguageCard(dark: dark)
 
                 PreferenceStudioCard(app: app, face: face, dark: dark)
 
-                FooterStudioDock(dark: dark)
+                TransparencyEditorialDock(dark: dark)
             }
             .padding(.top, 4)
             .padding(.horizontal, 16)
@@ -71,9 +71,50 @@ struct YouView: View {
         }
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.lilac)
-        .navigationTitle(L10n.t("我的", "Me"))
+        .navigationTitle(L10n.t("工坊", "Studio"))
         .sheet(isPresented: $editing) { ProfileSheet() }
         .alert(message ?? "", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) { Button(L10n.t("好", "OK")) {} }
+    }
+}
+
+/// Prominent philosophy showcase opening the three-act interactive micro-theater (`StoryView`) straight from Studio.
+private struct StoryPhilosophyBanner: View {
+    let dark: Bool
+    let companion: Kind
+
+    var body: some View {
+        NavigationLink(value: Route.story) {
+            HStack(spacing: 12) {
+                Duo(primary: companion, size: 52, mood: .open, poke: false, lit: dark)
+                    .frame(width: 60, height: 52)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Text(L10n.t("点开三幕交互微剧院，拉灯绳、触木环、看懂设计初心", "Open the 3-act interactive story & design philosophy"))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(14)
+            .background(
+                LinearGradient(
+                    colors: [(dark ? Palette.amber : Palette.bead).opacity(dark ? 0.14 : 0.10), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .printCard(radius: Radius.card)
+        }
+        .buttonStyle(.toy)
     }
 }
 
@@ -506,7 +547,7 @@ private struct PreferenceStudioCard: View {
             Divider().padding(.leading, 54).opacity(0.45)
 
             preferenceRow(
-                title: L10n.t("照护记录页", "Log Tab"),
+                title: L10n.t("台灯下照护记录", "Care Log in Lamp"),
                 status: logStatus,
                 symbol: "list.bullet.clipboard.fill",
                 color: Crayon.tangerine,
@@ -597,60 +638,80 @@ private struct PreferenceStudioCard: View {
     }
 }
 
-/// Side-by-side Local Data & About footer dock aligned to the unified `StudioBadge` icon grammar.
-private struct FooterStudioDock: View {
+/// Transparent Editorial & Evidence Hub + Local Data Vault for Tab 4 (`工坊 / Studio`).
+private struct TransparencyEditorialDock: View {
     let dark: Bool
-    @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
-        let layout = type.isAccessibilitySize ? AnyLayout(VStackLayout(spacing: 10)) : AnyLayout(HStackLayout(spacing: 10))
 
-        layout {
-            NavigationLink(value: Route.data) {
-                footerTile(
-                    symbol: "externaldrive.fill",
-                    color: Crayon.sky,
-                    title: L10n.t("离线数据", "Local Data"),
-                    detail: L10n.t("仅存本机", "On-device")
-                )
-            }
-            .buttonStyle(.toy)
-
-            NavigationLink(value: Route.about) {
-                footerTile(
-                    symbol: "info.circle.fill",
-                    color: Crayon.pebble,
-                    title: L10n.t("关于摸索台灯", "About"),
-                    detail: "v\(v)"
-                )
-            }
-            .buttonStyle(.toy)
-        }
-    }
-
-    private func footerTile(symbol: String, color: Color, title: String, detail: String) -> some View {
-        HStack(spacing: 10) {
-            StudioBadge(symbol: symbol, color: color, active: true, dark: dark)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text(detail)
-                    .font(.caption)
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 2)
-            Image(systemName: "chevron.right")
+        VStack(alignment: .leading, spacing: 8) {
+            Text(L10n.t("透明循证 · 数据与版本", "Evidence, Privacy & Releases"))
                 .font(.caption.weight(.bold))
-                .foregroundStyle(.tertiary)
+                .foregroundStyle(Palette.secondaryText)
+                .padding(.leading, 4)
+
+            VStack(spacing: 0) {
+                NavigationLink(value: Route.sources) {
+                    DataRow(
+                        title: L10n.t("循证内容来源", "Evidence & Sources"),
+                        detail: L10n.t("WHO · AAP · CDC · 国家卫健委标准引文", "Structured public health & pediatric citations"),
+                        symbol: "books.vertical.fill",
+                        color: Crayon.caramel
+                    )
+                }
+                .buttonStyle(.toy)
+
+                Divider().padding(.leading, 52).opacity(0.45)
+
+                NavigationLink(value: Route.releaseNotes) {
+                    DataRow(
+                        title: L10n.t("版本更新志", "What's New"),
+                        detail: L10n.t("与当前版本 v\(v) 同步 · 产品更新说明", "Synced to v\(v) · parent-facing notes"),
+                        symbol: "sparkles.rectangle.stack.fill",
+                        color: Crayon.lilac
+                    )
+                }
+                .buttonStyle(.toy)
+
+                Divider().padding(.leading, 52).opacity(0.45)
+
+                NavigationLink(value: Route.doc("PRIVACY")) {
+                    DataRow(
+                        title: L10n.t("隐私政策与儿童保护", "Privacy & Children's Data"),
+                        detail: L10n.t("不收集数据 · 零网络访问 · 权限清单", "Zero tracking · offline storage · permissions"),
+                        symbol: "hand.raised.fill",
+                        color: Crayon.sky
+                    )
+                }
+                .buttonStyle(.toy)
+
+                Divider().padding(.leading, 52).opacity(0.45)
+
+                NavigationLink(value: Route.data) {
+                    DataRow(
+                        title: L10n.t("离线数据与备份", "Local Data & Backup"),
+                        detail: L10n.t("导出全量备份、健康摘要、清空或撤回同意", "Export backup, doctor summary, or erase all"),
+                        symbol: "externaldrive.fill",
+                        color: Crayon.teal
+                    )
+                }
+                .buttonStyle(.toy)
+
+                Divider().padding(.leading, 52).opacity(0.45)
+
+                NavigationLink(value: Route.about) {
+                    DataRow(
+                        title: L10n.t("关于、条款与免责", "About, Terms & Disclaimer"),
+                        detail: "v\(v)",
+                        symbol: "info.circle.fill",
+                        color: Crayon.pebble
+                    )
+                }
+                .buttonStyle(.toy)
+            }
+            .printCard(radius: Radius.card)
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .printCard(radius: Radius.card)
     }
 }
 
@@ -743,7 +804,7 @@ struct AboutView: View {
                     Divider().padding(.leading, 52).opacity(0.5)
                     row(Route.sources, L10n.t("内容来源", "Sources"), "books.vertical.fill", Crayon.caramel)
                     Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("CHANGELOG"), L10n.t("更新日志", "Release Notes"), "clock.arrow.circlepath", Crayon.lilac)
+                    row(Route.releaseNotes, L10n.t("版本更新志", "What's New"), "clock.arrow.circlepath", Crayon.lilac)
                     Divider().padding(.leading, 52).opacity(0.5)
                     row(Route.licenses, L10n.t("许可与致谢", "Licenses"), "checkmark.seal.fill", Crayon.aqua)
                 }
@@ -1495,145 +1556,7 @@ struct TurnCard<Front: View, Back: View>: View {
     }
 }
 
-/// A Markdown document from the repository (terms, privacy, disclaimer, changelog), set as a document.
-struct DocView: View {
-    let name: String
-    var body: some View {
-        let resURL = (L10n.isEnglish ? Bundle.main.url(forResource: name + "_EN", withExtension: "md") : nil)
-            ?? Bundle.main.url(forResource: name, withExtension: "md")
-        let raw = (resURL.flatMap { try? String(contentsOf: $0, encoding: .utf8) } ?? L10n.t("读取不到这份文件。", "This document could not be loaded."))
-            .replacingOccurrences(of: "安卓应用", with: "应用")
-        let lines = Owner.fill(raw).components(separatedBy: "\n")
-        // a table's first row (the one followed by |---|) names the columns; it is not an entry
-        let heads = Set(lines.indices.filter { i in i + 1 < lines.count && lines[i].hasPrefix("|") && lines[i + 1].replacingOccurrences(of: " ", with: "").hasPrefix("|---") })
-        ScrollView {
-            VStack(alignment: .leading, spacing: 6) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { i, l in if !heads.contains(i) { docLine(l) } }
-            }
-            .padding(.horizontal, 20).padding(.bottom, 40)
-        }
-        .pageBackground()
-        .navigationBarTitleDisplayMode(.inline)
-    }
-
-    @ViewBuilder private func docLine(_ l: String) -> some View {
-        if l.hasPrefix("# ") { Text(l.dropFirst(2)).font(.largeTitle.weight(.bold)).padding(.bottom, 8) }
-        else if l.hasPrefix("## ") { Text(l.dropFirst(3)).font(.title3.weight(.bold)).padding(.top, 18) }
-        else if l.hasPrefix("- ") { HStack(alignment: .firstTextBaseline, spacing: 8) { Text("•").foregroundStyle(Palette.secondaryText); Text(rich(String(l.dropFirst(2)))).font(.body) } }
-        else if let r = l.range(of: #"^\d+\. "#, options: .regularExpression) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) { Text(l[r].trimmingCharacters(in: .whitespaces)).font(.body.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(width: 24, alignment: .leading); Text(rich(String(l[r.upperBound...]))).font(.body) }
-        }
-        else if l.hasPrefix("|") {
-            let cells = l.trimmingCharacters(in: CharacterSet(charactersIn: "|")).components(separatedBy: "|").map { $0.trimmingCharacters(in: .whitespaces) }
-            if !cells.allSatisfy({ $0.hasPrefix("---") }) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(rich(cells.first ?? "")).font(.headline)
-                    ForEach(Array(cells.dropFirst().enumerated()), id: \.offset) { _, c in Text(rich(c)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
-                }
-                .card(Palette.card, radius: 18, padding: 14)
-            }
-        }
-        else if l.hasPrefix("适用于") || l.hasPrefix("生效日期") || l.hasPrefix("Applies to") || l.hasPrefix("Effective") { Text(l).font(.footnote).foregroundStyle(Palette.secondaryText) }
-        else if l.isEmpty { Color.clear.frame(height: 2) }
-        else { Text(rich(l)).font(.body) }
-    }
-}
-
-/// Every source the content draws on, numbered, plus a collapsible WHO 0–36m daily rhythm reference.
-struct SourcesView: View {
-    @Environment(AppModel.self) private var app
-    @State private var showWHO = false
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                if !app.content.who.isEmpty {
-                    VStack(alignment: .leading, spacing: 0) {
-                        Button { withAnimation(.snappy) { showWHO.toggle() } } label: {
-                            HStack(spacing: 10) {
-                                IconTile(symbol: "clock.badge.checkmark.fill", color: Crayon.aqua, size: 28, round: true)
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text(L10n.t("WHO 每天的节奏参考", "WHO Daily Rhythm Reference")).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                                    Text(L10n.t("0–3 岁活动、睡眠与屏幕建议（2019）", "0–3 yr activity, sleep & screen guide (2019)")).font(.caption).foregroundStyle(Palette.secondaryText)
-                                }
-                                Spacer(minLength: 0)
-                                Image(systemName: "chevron.down")
-                                    .font(.caption.weight(.semibold)).foregroundStyle(.tertiary)
-                                    .rotationEffect(.degrees(showWHO ? 180 : 0))
-                            }
-                            .padding(14).contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        if showWHO {
-                            Divider().padding(.horizontal, 14).opacity(0.5)
-                            VStack(alignment: .leading, spacing: 12) {
-                                ForEach(Array(app.content.who.enumerated()), id: \.offset) { idx, row in
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(row.age).font(.subheadline.weight(.bold)).foregroundStyle(Palette.accent)
-                                        whoLine(L10n.t("活动", "Activity"), row.act)
-                                        whoLine(L10n.t("睡眠", "Sleep"), row.sleep)
-                                        whoLine(L10n.t("屏幕", "Screens"), row.screen)
-                                        whoLine(L10n.t("久坐", "Restraint"), row.restrain)
-                                    }
-                                    if idx < app.content.who.count - 1 { Divider().opacity(0.4) }
-                                }
-                            }
-                            .padding(14)
-                        }
-                    }
-                    .printCard(radius: Radius.card)
-                }
-
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L10n.t("参考文献 · \(app.content.sources.count + 1) 项", "References · \(app.content.sources.count + 1)"))
-                        .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 6)
-                        .accessibilityAddTraits(.isHeader)
-                    VStack(spacing: 0) {
-                        ForEach(Array(app.content.sources.enumerated()), id: \.offset) { i, s in
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                    Text("\(i + 1)").font(.footnote.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(minWidth: 20, alignment: .leading)
-                                    Text(s.org).font(.subheadline.weight(.semibold))
-                                }
-                                Text(s.title).font(.footnote).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-                                let meta = [s.date, s.checked].compactMap { $0 }.filter { !$0.isEmpty }.joined(separator: "；")
-                                if !meta.isEmpty { Text(meta).font(.caption).foregroundStyle(Palette.secondaryText) }
-                                if let u = s.url, let url = URL(string: u), !u.isEmpty { Link(u, destination: url).font(.caption).lineLimit(1) }
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(14)
-                            Divider().padding(.leading, 14).opacity(0.45)
-                        }
-                        VStack(alignment: .leading, spacing: 3) {
-                            HStack(alignment: .firstTextBaseline, spacing: 6) {
-                                Text("\(app.content.sources.count + 1)").font(.footnote.monospacedDigit()).foregroundStyle(Palette.secondaryText).frame(minWidth: 20, alignment: .leading)
-                                Text("World Health Organization").font(.subheadline.weight(.semibold))
-                            }
-                            Text(L10n.t("WHO Child Growth Standards：体重、身长 / 身高、头围的年龄别标准", "WHO Child Growth Standards: weight, length/height, and head circumference for age")).font(.footnote)
-                            Text("2006").font(.caption).foregroundStyle(Palette.secondaryText)
-                        }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(14)
-                    }
-                    .printCard(radius: Radius.card)
-                    Text(L10n.t("育儿内容整理自公开发布的机构资料，每一条都注明来源。", "Guidance is summarized from published public health and pediatric references, each cited above."))
-                        .font(.caption).foregroundStyle(Palette.secondaryText).padding(.horizontal, 6).padding(.top, 2)
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 10).padding(.bottom, 28)
-        }
-        .calmWhileScrolling()
-        .pageBackground(tone: Crayon.lilac)
-        .navigationTitle(L10n.t("内容来源", "Sources")).navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
-    }
-
-    private func whoLine(_ label: String, _ text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).frame(width: L10n.isEnglish ? 64 : 28, alignment: .leading)
-            Text(text).font(.caption).foregroundStyle(.primary).fixedSize(horizontal: false, vertical: true)
-        }
-    }
-}
+// `DocView` and `SourcesView` moved to `EditorialViews.swift` with structured privacy & citation cards.
 
 struct LicensesView: View {
     var body: some View {

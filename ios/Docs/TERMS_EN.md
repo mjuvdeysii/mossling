@@ -5,7 +5,7 @@ Applies to the iOS app Moss & Otto
 Developer: {{DEVELOPER}}
 Contact: {{CONTACT}}
 
-Effective date: November 1, 2026
+Effective date: November 24, 2026 (v2.0 alignment)
 
 ## 1. Scope and Acceptance
 
@@ -45,7 +45,7 @@ Information you enter is processed solely on your device. The developer does not
 ## 7. Limitation of Liability
 
 1. The App is provided "as is." While the developer makes reasonable efforts to keep the content accurate and the App working reliably, the developer does not warrant that the content is error-free, continuously updated, or suitable for every child.
-2. The developer is not liable for loss of local records caused by device failure, system limitations, clearing data, or uninstalling the App. You can export a "Full Backup" anytime in "Me › Data & Privacy" to keep your own copy.
+2. The developer is not liable for loss of local records caused by device failure, system limitations, clearing data, or uninstalling the App. You can export a "Full Backup" anytime in "Studio › Local Data & Backup" to keep your own copy.
 3. To the maximum extent permitted by law, the developer is not liable for any indirect, incidental, or consequential damages arising from your use of, or inability to use, the App.
 
 ## 8. Changes to These Terms

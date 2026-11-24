@@ -2359,4 +2359,58 @@ final class LogicTests: XCTestCase {
             XCTAssertGreaterThan(img?.size.width ?? 0, 100)
         }
     }
+
+    @MainActor
+    func testRound19FourTabArchitectureSourcesAndHealthRegions() throws {
+        let content = try Content.load()
+
+        // 1. SourceCitationClassifier extracts clean hostnames (no scheme) & org badges across all sources
+        XCTAssertGreaterThanOrEqual(content.sources.count, 35)
+        var categoriesSeen: Set<SourceCategory> = []
+        for (idx, src) in content.sources.enumerated() {
+            let cat = SourceCitationClassifier.category(for: src.org)
+            categoriesSeen.insert(cat)
+            XCTAssertFalse(SourceCitationClassifier.orgBadge(for: src.org).isEmpty)
+            if let host = SourceCitationClassifier.displayHost(from: src.url) {
+                XCTAssertFalse(host.contains("http://"))
+                XCTAssertFalse(host.contains("https://"))
+                XCTAssertFalse(host.hasPrefix("www."))
+            }
+            let formatted = SourceCitationClassifier.formattedCitation(index: idx + 1, source: src)
+            XCTAssertTrue(formatted.hasPrefix("[\(idx + 1)]"))
+        }
+        XCTAssertGreaterThanOrEqual(categoriesSeen.count, 3)
+
+        // 2. Regional health schedule rules cover US / UK / AU while preserving CN authoritative baseline
+        for region in [HealthRegion.us, .uk, .au] {
+            let m6 = HealthRegion.schedule(for: region, month: 6)
+            XCTAssertFalse(m6.isEmpty, "Missing 6-month schedule for \(region.rawValue)")
+            XCTAssertFalse(region.authorityHeadline.isEmpty)
+            XCTAssertFalse(region.scopeNote.isEmpty)
+        }
+        XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: false, locale: Locale(identifier: "zh_CN")), .cn)
+        XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: true, locale: Locale(identifier: "en_GB")), .uk)
+        XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: true, locale: Locale(identifier: "en_AU")), .au)
+        XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: true, locale: Locale(identifier: "en_US")), .us)
+
+        // 3. Deterministic ImageRenderer pass on Tab 2 (LampHubView) & Editorial Docs
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round19-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+
+        let lampView = LampHubView(path: .constant(NavigationPath()))
+            .frame(width: 393, height: 820)
+            .environment(envApp)
+            .environment(envJournal)
+        let lampImg = ImageRenderer(content: lampView).uiImage
+        XCTAssertNotNil(lampImg)
+
+        let relImg = ImageRenderer(content: ReleaseNotesView().frame(width: 393, height: 820)).uiImage
+        XCTAssertNotNil(relImg)
+
+        let docImg = ImageRenderer(content: DocView(name: "PRIVACY").frame(width: 393, height: 820)).uiImage
+        XCTAssertNotNil(docImg)
+    }
 }

@@ -5,8 +5,8 @@ Applies to the iOS app Moss & Otto
 Developer: {{DEVELOPER}}
 Contact: {{CONTACT}} (also the contact for the person responsible for children's personal information protection)
 
-Effective date: October 31, 2026
-Last updated: October 31, 2026
+Effective date: November 24, 2026
+Last updated: November 24, 2026 (v2.0 alignment)
 
 ## 1. Overview
 
@@ -23,11 +23,12 @@ Last updated: October 31, 2026
 | Monthly checklists | Observed milestones, vaccinations, and well-child visits | Track monthly progress |
 | This week's play | Weekly recommended activities and the activity chosen for today | Display "Today's Play" on the Home screen |
 | Play history | Activities completed and timestamps | Play counts, Growth Book, and exports |
-| Firsts (optional) | Your child's firsts, including title, date, and notes | "Firsts" page and Growth Book |
-| Care journal (optional) | Feeds, sleep, diapers, solids, baths, temperature, medication, notes, and active timers | Care logs, summaries, and Home Screen widgets |
-| Growth measurements (optional) | Weight, length / height, and head circumference | Growth curves |
-| App settings | Theme, illustration style, chosen companion (Moss or Otto), child portrait style, Auto Night Lamp, Care Journal and App Lock switches, activity in progress, and whether tips have been viewed | Display and app features |
-| Widget copy | Date of birth, nickname, chosen companion, today's activity, and whether Care Journal is enabled | Show age and today's activity on Home Screen and Lock Screen widgets |
+| Firsts (optional) | Milestone title, date, notes, and any photo you choose from Photos | Kept strictly on-device for Keepsakes › Firsts & Storybook |
+| First Foods & Capsules (optional) | Solid-food tasting entries and offline Time Capsule letters | Explore › First Foods and Keepsakes › Time Capsules |
+| Care logs (optional) | Feeds, sleep, diapers, solids, baths, temperature, medication, notes, and active timers | Shown under Lamp › Rhythm & Entries and widgets |
+| Growth measurements (optional) | Weight, length / height, and head circumference | WHO growth curves |
+| App settings | Appearance, 3D/2D style, chosen companion (Moss or Otto), lamp brightness/warmth preset, App Lock, and tips state | Display and tactile features |
+| Widget & StandBy copy | Date of birth, nickname, companion, today's activity, and Care Log status | Home Screen, Lock Screen, StandBy Beacon & Control Center widgets |
 
 The information above is stored in this app's private storage (care logs, growth measurements, "Firsts," and the widget copy are stored in a shared container accessible only to this app and its widgets). Other apps cannot read it, and it is encrypted by iOS Data Protection so it cannot be read before the first unlock after your device restarts. Only files you explicitly export are placed in this app's visible folder in the Files app ("On My iPhone › Moss & Otto › Exports"). All stored information remains on your device until you delete it in the app, clear all data, withdraw consent, or uninstall the app.
 
@@ -35,11 +36,13 @@ The information above is stored in this app's private storage (care logs, growth
 
 | Permission | Purpose |
 | --- | --- |
-| Face ID / Touch ID | Verified once when you turn on "App Lock," and each time you open the app afterward. Authentication is handled by iOS; the app never receives any biometric data |
-| Live Activities | Shown on the Lock Screen and Dynamic Island only while a timer is running, displaying the timer type, duration, time since the last feed or sleep, and pause, switch-side, and finish controls. Your child's nickname, temperature, and medication are never shown. The app sends no notifications or alerts |
-| Lock Screen widgets (added by you) | Display your child's age, today's activity, active timers, and time since the last feed on the Lock Screen. Nickname, temperature, and medication are never shown. You can remove widgets anytime when editing your Lock Screen |
+| Face ID / Touch ID | Verified when enabling App Lock and on app launch afterward; authentication is handled by iOS with zero biometric access by the app |
+| Photo Library | Accessed solely when you manually pick a keepsake photo inside Firsts; copied into local app storage only and never uploaded |
+| Motion & Fitness | Used purely in memory during Bedside Lamp and Rainstick toybox sessions for subtle tilt lighting and bead physics; never logged or stored |
+| Background Audio | Used only to softly sustain synthesized offline nursery soundscapes under the Bedside Lamp; zero network streaming or microphone recording |
+| Live Activities & Widgets | Displays active timers, age station, and today's play on Lock Screen, Dynamic Island, StandBy, and Control Center without exposing temperature or medication |
 
-This app does not request permission for Location, Contacts, Photos, Camera, Microphone, Health, or Push Notifications.
+This app does not request Location, Contacts, Camera, Microphone, Apple Health, or Push Notification permissions.
 
 ## 4. Children's Personal Information Protection Rules
 
@@ -49,7 +52,7 @@ This app does not request permission for Location, Contacts, Photos, Camera, Mic
 4. Storage location and retention period: stored solely on your device (see Section 2 for locations; files you export are stored in this app's folder in the Files app; if iCloud Backup is enabled, app data is included in your device backup as described in Section 6) until the guardian deletes it, clears all data, withdraws consent, or uninstalls the app. The developer operates no servers, does not obtain this information, and does not transfer it to any third party or outside your jurisdiction.
 5. Security measures: data is isolated in the system app sandbox and encrypted with iOS Data Protection; Lock Screen Live Activities never display a child's nickname, temperature, or medication; you can enable "App Lock" protected by Face ID, Touch ID, or your device passcode. Exported files remain protected by iOS Data Protection while on your device, but the files themselves are not separately encrypted and are no longer protected by this app once sent or copied off your device—please keep them safe. To protect against device loss, we recommend keeping a Lock Screen passcode enabled.
 6. Consequences of refusal: if you do not agree to these rules, you can still browse all activities and monthly guides, but you cannot enter a child's profile or care logs. You may choose to consent at any later time.
-7. Access, copy, correction, deletion, and withdrawal of consent: tap "Edit" in "Me" to view or update your child's profile; in "Log," tap an entry to edit it or press and hold to delete it; in "Me › Data & Privacy," you can export a full backup (to view, copy, or transfer your data), tap "Clear All Data" to delete all information, or tap "Withdraw Consent" to withdraw consent and delete all information at the same time. All of these actions happen immediately on your device without needing to contact the developer.
+7. Access, copy, correction, deletion, and withdrawal of consent: tap "Edit" in "Studio" to view or update your child's profile; under "Lamp," tap an entry to edit or delete it; in "Studio › Local Data & Backup," you can export a full backup (to view, copy, or transfer your data), tap "Clear All Data" to delete all information, or tap "Withdraw Consent" to withdraw consent and delete all information at the same time. All of these actions happen immediately on your device without needing to contact the developer.
 8. Responsible person and complaints: the developer ({{DEVELOPER}}) is responsible for children's personal information protection and can be reached at {{CONTACT}}. See Section 10 for complaint channels.
 9. If there are material changes to these rules, we will notify you prominently in the app and request guardian consent again.
 10. This app processes the information above in accordance with the Personal Information Protection Law of the People's Republic of China and the Provisions on the Cyber Protection of Children's Personal Information.
@@ -68,15 +71,15 @@ If iCloud Backup is turned on for your device, iOS automatically encrypts and ba
 - **Importing a backup file**: the app reads only the single backup file you select in the system file picker (previously exported by this app), writes it locally, and keeps no extra copy of the file.
 - **Sharing an activity**: only when you tap "Share" is the text of that activity passed to the app you select.
 - **Home Screen widgets & Live Activities**: display your child's age, active timers, and recent logs using data stored locally on your device, without passing through any server.
-- **Clearing all data**: in "Me › Data & Privacy," tapping "Clear All Data" and confirming deletes your child's profile, all care logs, settings, the widget copy, and files inside the app's export folder on this device, and immediately ends any active timer on the Lock Screen. Files already sent elsewhere are not affected.
+- **Clearing all data**: in "Studio › Local Data & Backup," tapping "Clear All Data" and confirming deletes your child's profile, all care logs, settings, the widget copy, and files inside the app's export folder on this device, and immediately ends any active timer on the Lock Screen. Files already sent elsewhere are not affected.
 
 ## 8. Deleting Your Data
 
-You can tap "Clear All Data" or "Withdraw Consent" in "Me › Data & Privacy," or delete the app from your device. Deleted data cannot be recovered.
+You can tap "Clear All Data" or "Withdraw Consent" in "Studio › Local Data & Backup," or delete the app from your device. Deleted data cannot be recovered.
 
 ## 9. Changes to This Policy
 
-If this policy is updated, the new version will be released with an app update, made available in "About Moss & Otto," and given an updated effective date. If a change involves collecting or transmitting personal information, or makes material changes to this policy or the children's personal information protection rules, we will notify you prominently with a confirmation card on first launch of the new version and request your consent again.
+If this policy is updated, the new version will be released with an app update, made available in "Studio › Privacy & Children's Data," and given an updated effective date. If a change involves collecting or transmitting personal information, or makes material changes to this policy or the children's personal information protection rules, we will notify you prominently with a confirmation card on first launch of the new version and request your consent again.
 
 ## 10. Contact and Complaints
 

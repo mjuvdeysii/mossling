@@ -3,7 +3,7 @@ import LocalAuthentication
 import TipKit
 
 enum Route: Hashable {
-    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, doc(String), book, toybox(ToyboxMode), capsules, foodAtlas, journey
+    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, releaseNotes, fullJournal, doc(String), book, toybox(ToyboxMode), capsules, foodAtlas, journey
 }
 
 @main
@@ -31,11 +31,12 @@ struct RootView: View {
     @Environment(\.scenePhase) private var phase
     /// Whether it is night now (7 pm – 6 am), checked every minute while the app is open.
     @State private var night = Daylight.isNight()
-    /// The tab open last time: the app comes back where the parent left it (a night of feeds opens on 记录)
+    /// The tab open last time: the app comes back where the parent left it (a night of feeds opens on 台灯)
     @SceneStorage("tab") private var tab = 0
     @State private var todayPath = NavigationPath()
-    @State private var youPath = NavigationPath()
     @State private var journalPath = NavigationPath()
+    @State private var keepsakesPath = NavigationPath()
+    @State private var youPath = NavigationPath()
     @Environment(JournalStore.self) private var journal
     @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
@@ -84,8 +85,6 @@ struct RootView: View {
 
     private var observedContent: some View {
         rootContent
-            // a tab that is no longer there (记录 turned off) falls back to 本月
-            .onChange(of: app.journal, initial: true) { _, on in if !on && tab == 2 { tab = 0 } }
             // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
             .onChange(of: app.lock) { _, on in if on { locked = false } }
             .onChange(of: locked) { _, stillLocked in
@@ -172,27 +171,33 @@ struct RootView: View {
         }
     }
 
-    /// The tab's mark: the vinyl icon — in full colour when chosen, quietened otherwise, so the chosen tab leads —
-    /// or in the hidden 2D world (build 196) the system symbol it had then.
-    private func tabLabel(_ t: String, _ image: String, _ symbol: String, _ value: Int) -> Label<Text, Image> {
-        let name = ArtStyle.current == .flat ? image + "2D" : image
-        return Label(t, image: tab == value ? name + "On" : name)
+    /// Crisp unified SF Symbol mark for the 4-Screen Pure-Blood Narrative Tab Bar: 摸索 · 台灯 · 留念 · 工坊.
+    private func tabLabel(_ title: String, symbol: String, selectedSymbol: String, value: Int) -> Label<Text, Image> {
+        Label(title, systemImage: tab == value ? selectedSymbol : symbol)
     }
 
     private var tabView: some View {
         TabView(selection: $tab) {
             Tab(value: 0) {
-                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }.environment(\.zoomNS, zoomToday)
+                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
+                    .environment(\.zoomNS, zoomToday)
                     .environment(\.night, night || scheme == .dark)
-            } label: { tabLabel(L10n.t("本月", "Today"), "TabMonth", "leaf.fill", 0) }
-            if app.journal {
-                Tab(value: 2) {
-                    NavigationStack(path: $journalPath) { JournalView(path: $journalPath).routes(path: $journalPath) }.environment(\.zoomNS, zoomJournal)
-                } label: { tabLabel(L10n.t("记录", "Log"), "TabJournal", "list.bullet.clipboard.fill", 2) }
-            }
+            } label: { tabLabel(L10n.t("摸索", "Explore"), symbol: "leaf", selectedSymbol: "leaf.fill", value: 0) }
+
+            Tab(value: 1) {
+                NavigationStack(path: $journalPath) { LampHubView(path: $journalPath).routes(path: $journalPath) }
+                    .environment(\.zoomNS, zoomJournal)
+            } label: { tabLabel(L10n.t("台灯", "Lamp"), symbol: "lamp.desk", selectedSymbol: "lamp.desk.fill", value: 1) }
+
+            Tab(value: 2) {
+                NavigationStack(path: $keepsakesPath) { JourneyHubView(isRootTab: true).routes(path: $keepsakesPath) }
+                    .environment(\.zoomNS, zoomJourney)
+            } label: { tabLabel(L10n.t("留念", "Keepsakes"), symbol: "book.pages", selectedSymbol: "book.pages.fill", value: 2) }
+
             Tab(value: 3) {
-                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }.environment(\.zoomNS, zoomYou)
-            } label: { tabLabel(L10n.t("我的", "Me"), "TabMe", "person.crop.circle.fill", 3) }
+                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
+                    .environment(\.zoomNS, zoomYou)
+            } label: { tabLabel(L10n.t("工坊", "Studio"), symbol: "square.grid.2x2", selectedSymbol: "square.grid.2x2.fill", value: 3) }
         }
         // a light tick as the chosen tab changes, like turning to a tabbed page
         .sensoryFeedback(.selection, trigger: tab)
@@ -228,8 +233,20 @@ struct RootView: View {
                 todayPath = NavigationPath([route])
             }
         }
+        let pushKeepsake: (Route) -> Void = { route in
+            let needsSwitch = tab != 2
+            tab = 2
+            keepsakesPath = NavigationPath()
+            Task { @MainActor in
+                if needsSwitch { try? await Task.sleep(for: .milliseconds(120)) }
+                else { await Task.yield() }
+                keepsakesPath = NavigationPath([route])
+            }
+        }
         switch url.host() {
         case "lamp":
+            tab = 1
+            journalPath = NavigationPath()
             journal.focus = nil
             journal.ask = nil
             showingBedsideLamp = true
@@ -251,28 +268,29 @@ struct RootView: View {
             let mo = arg.flatMap(Int.init) ?? (app.babyMonth ?? 0)
             pushToday(.month(max(0, min(mo, 36))))
         case "book":
-            pushToday(.book)
+            pushKeepsake(.book)
         case "toybox":
             let mode = arg.flatMap(ToyboxMode.init(rawValue:)) ?? .xylophone
             pushToday(.toybox(mode))
         case "capsules":
-            pushToday(.capsules)
+            pushKeepsake(.capsules)
         case "foods":
             pushToday(.foodAtlas)
         case "journey":
-            pushToday(.journey)
+            tab = 2
+            keepsakesPath = NavigationPath()
         case "journal":
             guard app.mayKeep() else { return }
             journal.focus = nil
             journal.ask = nil
             journal.jumpToToday &+= 1
-            tab = app.journal ? 2 : 3
-            if app.journal { journalPath = NavigationPath() }
+            tab = 1
+            if app.journal { journalPath = NavigationPath([Route.fullJournal]) }
         case "care":
             guard let type = arg, LogType.timed.contains(type), app.mayKeep() else { return }
-            guard app.journal else { tab = 3; return }
-            let needsSwitch = tab != 2
-            tab = 2
+            guard app.journal else { tab = 1; return }
+            let needsSwitch = tab != 1
+            tab = 1
             journal.ask = nil
             journal.focus = nil
             Task { @MainActor in
@@ -282,13 +300,12 @@ struct RootView: View {
             }
         case "log":
             guard let type = arg, LogType.buttons.contains(type), type != LogType.growth, app.mayKeep() else { return }
-            guard app.journal else { tab = 3; return }
-            let needsSwitch = tab != 2
-            tab = 2
+            guard app.journal else { tab = 1; return }
+            let needsSwitch = tab != 1
+            tab = 1
             journal.focus = nil
             journal.ask = nil
             journal.jumpToToday &+= 1
-            // Defer assignment until JournalView has mounted so .sheet(item:) always observes nil → non-nil
             Task { @MainActor in
                 if needsSwitch { try? await Task.sleep(for: .milliseconds(140)) }
                 else { await Task.yield() }
@@ -356,6 +373,8 @@ private struct RouteView: View {
         case .data: DataView()
         case .sources: SourcesView()
         case .licenses: LicensesView()
+        case .releaseNotes: ReleaseNotesView()
+        case .fullJournal: JournalView(path: $path)
         case let .doc(n): DocView(name: n)
         case .book: GrowthBookView().zoomDestination(route)
         case let .toybox(mode): ToyboxView(initialMode: mode)
@@ -397,7 +416,7 @@ struct OnboardingView: View {
                     Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
                         .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                     // who the two are, in one line (their parts as child and grown-up are for the pictures only)
-                    Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「我的」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Me."))
+                    Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「工坊」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Studio."))
                         .font(.footnote).foregroundStyle(Palette.secondaryText)
                         .padding(.top, 4)
                 }

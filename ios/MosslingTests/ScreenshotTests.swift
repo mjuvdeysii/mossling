@@ -117,13 +117,14 @@ final class ScreenshotTests: XCTestCase {
         let m = model(companion: .otto, birth: nil); m.onboarded = false
         shot("01_onboarding_shot_c", settle: 6.5, OnboardingView().environment(m).tint(Palette.accent).fontDesign(.rounded))
     }
-    /// The tab bar with the app's own icons: a mint sprig with a bud, Otto's lamp with its halo, Moss.
+    /// The 4-Screen Pure-Blood Narrative Tab Bar: 摸索 · 台灯 · 留念 · 工坊.
     func test38TabBar() {
         let m = model(); m.journal = true
         let v = TabView(selection: .constant(0)) {
-            Tab("本月", image: "TabMonth", value: 0) { Palette.background }
-            Tab("记录", image: "TabJournal", value: 2) { Palette.background }
-            Tab("我的", image: "TabMe", value: 3) { Palette.background }
+            Tab("摸索", systemImage: "leaf.fill", value: 0) { Palette.background }
+            Tab("台灯", systemImage: "lamp.desk", value: 1) { Palette.background }
+            Tab("留念", systemImage: "book.pages", value: 2) { Palette.background }
+            Tab("工坊", systemImage: "square.grid.2x2", value: 3) { Palette.background }
         }
         shot("38_tabbar", height: 300, v.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
         shot("38_tabbar_dark", dark: true, height: 300, v.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
@@ -1992,5 +1993,25 @@ final class ScreenshotTests: XCTestCase {
         }
         .padding(14)
         .background(Palette.background)
+    }
+
+    /// Round 19 — 4-Screen Pure-Blood IA (Explore / Lamp / Keepsakes / Studio) & Structured Editorial System.
+    func test69Round19FourTabIAAndEditorialSystem() {
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.journal = true
+
+        shot("69_tab1_explore_zh", height: 1120, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("69_tab2_lamp_day_zh", height: 1120, tabs(m, LampHubView(path: .constant(NavigationPath()))))
+        shot("69_tab2_lamp_night_zh", height: 1120, lamp: true, tabs(m, LampHubView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
+        shot("69_tab3_keepsakes_zh", height: 1180, tabs(m, JourneyHubView(isRootTab: true)))
+        shot("69_tab4_studio_zh", height: 1280, tabs(m, YouView(path: .constant(NavigationPath()))))
+        shot("69_sources_editorial_zh", height: 1200, tabs(m, SourcesView()))
+        shot("69_privacy_editorial_zh", height: 1200, tabs(m, DocView(name: "PRIVACY")))
+        shot("69_release_notes_zh", height: 1080, tabs(m, ReleaseNotesView()))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("69_tab2_lamp_en", height: 1080, tabs(mEn, LampHubView(path: .constant(NavigationPath()))))
+        shot("69_tab4_studio_en", height: 1200, tabs(mEn, YouView(path: .constant(NavigationPath()))))
     }
 }

@@ -225,53 +225,50 @@ struct StorybookView: View {
             .disabled(current == 0)
             .accessibilityLabel(L10n.t("上一页", "Previous page"))
 
-            ScrollViewReader { proxy in
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 7) {
-                        ForEach(0..<total, id: \.self) { idx in
-                            let isCurrent = idx == current
-                            let isPast = idx < current
-                            Button {
-                                withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.82)) {
-                                    pageIndex = idx
-                                }
-                            } label: {
-                                ZStack {
-                                    if isCurrent {
-                                        Capsule()
-                                            .fill(dark ? Palette.amber : Palette.accent)
-                                            .frame(width: 24, height: 10)
-                                            .matchedGeometryEffect(id: "storyBead", in: trailNS)
-                                    } else if isPast {
-                                        Circle()
-                                            .fill(Palette.bead)
-                                            .frame(width: 8, height: 8)
-                                    } else {
-                                        Circle()
-                                            .fill(Palette.stone.opacity(dark ? 0.45 : 0.7))
-                                            .frame(width: 7, height: 7)
-                                    }
-                                }
-                                .frame(minWidth: 16, minHeight: 28)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .id(idx)
-                            .accessibilityLabel(
-                                idx == 0 ? L10n.t("封面", "Cover")
-                                : idx == total - 1 ? L10n.t("尾声", "Epilogue")
-                                : L10n.t("第 \(pages[idx - 1].month) 个月", "Month \(pages[idx - 1].month)")
-                            )
+            let maxDots = min(9, total)
+            let startIdx = total <= maxDots ? 0 : max(0, min(current - maxDots / 2, total - maxDots))
+            let endIdx = min(total, startIdx + maxDots)
+
+            Spacer(minLength: 4)
+
+            HStack(spacing: 6) {
+                ForEach(startIdx..<endIdx, id: \.self) { idx in
+                    let isCurrent = idx == current
+                    let isPast = idx < current
+                    Button {
+                        withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.82)) {
+                            pageIndex = idx
                         }
+                    } label: {
+                        ZStack {
+                            if isCurrent {
+                                Capsule()
+                                    .fill(dark ? Palette.amber : Palette.accent)
+                                    .frame(width: 22, height: 10)
+                                    .matchedGeometryEffect(id: "storyBead", in: trailNS)
+                            } else if isPast {
+                                Circle()
+                                    .fill(Palette.bead)
+                                    .frame(width: 7, height: 7)
+                            } else {
+                                Circle()
+                                    .fill(Palette.stone.opacity(dark ? 0.45 : 0.7))
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
+                        .frame(minWidth: 14, minHeight: 28)
+                        .contentShape(Rectangle())
                     }
-                    .padding(.horizontal, 6)
-                }
-                .onChange(of: current) { _, target in
-                    withAnimation(reduce ? nil : .easeInOut(duration: 0.25)) {
-                        proxy.scrollTo(target, anchor: .center)
-                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        idx == 0 ? L10n.t("封面", "Cover")
+                        : idx == total - 1 ? L10n.t("尾声", "Epilogue")
+                        : L10n.t("第 \(pages[idx - 1].month) 个月", "Month \(pages[idx - 1].month)")
+                    )
                 }
             }
+
+            Spacer(minLength: 4)
 
             Button {
                 guard current < total - 1 else { return }

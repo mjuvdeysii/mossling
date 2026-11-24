@@ -24,12 +24,12 @@ struct ShelfTip: Tip {
     var image: Image? { Image(systemName: "hand.tap") }
 }
 
-/// 本月 · the records, which are off until turned on.
+/// 摸索 · the care log under Otto's lamp, which is off until turned on.
 struct RecordsTip: Tip {
     var title: Text { Text(L10n.t("需要记录喂奶和睡眠？", "Want to track feeds & sleep?")) }
-    var message: Text? { Text(L10n.t("打开「记录」后，亲喂、瓶喂、睡眠、尿布都能一点即记，锁屏上也能看到计时。之后可在「我的」里关闭。", "Turn on Log to record nursing, bottles, sleep, and diapers in a tap, with live timers on your Lock Screen. You can turn it off anytime in Me.")) }
-    var image: Image? { Image(systemName: "list.bullet.clipboard") }
-    var actions: [Action] { [Action(id: "on") { Text(L10n.t("打开记录", "Turn on Log")) }] }
+    var message: Text? { Text(L10n.t("打开「台灯」下的照护记录后，亲喂、瓶喂、睡眠、尿布都能一点即记，锁屏上也能看到计时。之后可在「工坊」里关闭。", "Turn on Care Log under Lamp to record nursing, bottles, sleep, and diapers in a tap, with live timers on your Lock Screen. You can turn it off anytime in Studio.")) }
+    var image: Image? { Image(systemName: "lamp.desk") }
+    var actions: [Action] { [Action(id: "on") { Text(L10n.t("打开照护记录", "Turn on Care Log")) }] }
     /// Only while the records are off.
     @Parameter static var recordsOff: Bool = true
     var rules: [Rule] { [#Rule(Self.$recordsOff) { $0 == true }] }

@@ -249,34 +249,31 @@ struct SearchView: View {
                 } else if res.isEmpty {
                     emptyView(query: t, quick: quick, dark: dark)
                 } else {
-                    // Live Scope Filter Ribbon
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 8) {
-                            ForEach(SearchScope.allCases) { s in
-                                let cnt = res.count(for: s)
-                                if s == .all || cnt > 0 {
-                                    let on = activeScope == s
-                                    Button {
-                                        withAnimation(.snappy) { scope = s }
-                                    } label: {
-                                        HStack(spacing: 5) {
-                                            Text(s.label)
-                                                .font(.caption.weight(on ? .bold : .semibold))
-                                            Text("\(cnt)")
-                                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                                                .foregroundStyle(on ? .white.opacity(0.92) : Palette.secondaryText)
-                                        }
-                                        .foregroundStyle(on ? .white : .primary)
-                                        .padding(.horizontal, 11)
-                                        .padding(.vertical, 6)
-                                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.card)))
-                                        .overlay(Capsule().strokeBorder(on ? Color.clear : Palette.outline.opacity(0.18), lineWidth: 0.75))
+                    // Live Scope Filter Ribbon (FlowRow, zero horizontal scroll)
+                    FlowRow(spacing: 8, lineSpacing: 8) {
+                        ForEach(SearchScope.allCases) { s in
+                            let cnt = res.count(for: s)
+                            if s == .all || cnt > 0 {
+                                let on = activeScope == s
+                                Button {
+                                    withAnimation(.snappy) { scope = s }
+                                } label: {
+                                    HStack(spacing: 5) {
+                                        Text(s.label)
+                                            .font(.caption.weight(on ? .bold : .semibold))
+                                        Text("\(cnt)")
+                                            .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                            .foregroundStyle(on ? .white.opacity(0.92) : Palette.secondaryText)
                                     }
-                                    .buttonStyle(.toy)
+                                    .foregroundStyle(on ? .white : .primary)
+                                    .padding(.horizontal, 11)
+                                    .padding(.vertical, 6)
+                                    .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.card)))
+                                    .overlay(Capsule().strokeBorder(on ? Color.clear : Palette.outline.opacity(0.18), lineWidth: 0.75))
                                 }
+                                .buttonStyle(.toy)
                             }
                         }
-                        .padding(.horizontal, 1)
                     }
 
                     if (activeScope == .all || activeScope == .tools), !res.tools.isEmpty {
@@ -973,43 +970,41 @@ struct PlanView: View {
     // MARK: - Filter Bar & Expandable Candidates
 
     private func quickFilterBar(dark: Bool) -> some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                let allSelected = areaFilter == nil && !unplayedOnly
-                shelfChip(L10n.t("全部", "All"), selected: allSelected, color: nil, dark: dark) {
+        let allSelected = areaFilter == nil && !unplayedOnly
+        return FlowRow(spacing: 8, lineSpacing: 8) {
+            shelfChip(L10n.t("全部", "All"), selected: allSelected, color: nil, dark: dark) {
+                TactileEngine.shared.beadClick()
+                withAnimation(.snappy) {
+                    areaFilter = nil
+                    unplayedOnly = false
+                }
+            }
+            shelfChip(L10n.t("还没玩过", "Unplayed"), selected: unplayedOnly, color: Palette.bead, dark: dark) {
+                TactileEngine.shared.beadClick()
+                withAnimation(.snappy) {
+                    unplayedOnly.toggle()
+                }
+            }
+            if let af = areaFilter {
+                let col = Palette.area(af)
+                Button {
                     TactileEngine.shared.beadClick()
-                    withAnimation(.snappy) {
-                        areaFilter = nil
-                        unplayedOnly = false
+                    withAnimation(.snappy) { areaFilter = nil }
+                } label: {
+                    HStack(spacing: 5) {
+                        Circle().fill(col).frame(width: 7, height: 7)
+                        Text(Palette.areaShortName(af))
+                        Image(systemName: "xmark")
+                            .font(.caption2.weight(.bold))
                     }
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(dark ? .white : Crayon.ink(col))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(col.opacity(dark ? 0.28 : 0.16)))
+                    .overlay(Capsule().strokeBorder(Crayon.ink(col), lineWidth: 1.1))
                 }
-                shelfChip(L10n.t("还没玩过", "Unplayed"), selected: unplayedOnly, color: Palette.bead, dark: dark) {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(.snappy) {
-                        unplayedOnly.toggle()
-                    }
-                }
-                if let af = areaFilter {
-                    let col = Palette.area(af)
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(.snappy) { areaFilter = nil }
-                    } label: {
-                        HStack(spacing: 5) {
-                            Circle().fill(col).frame(width: 7, height: 7)
-                            Text(Palette.areaShortName(af))
-                            Image(systemName: "xmark")
-                                .font(.caption2.weight(.bold))
-                        }
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(dark ? .white : Crayon.ink(col))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(col.opacity(dark ? 0.28 : 0.16)))
-                        .overlay(Capsule().strokeBorder(Crayon.ink(col), lineWidth: 1.1))
-                    }
-                    .buttonStyle(.plain)
-                }
+                .buttonStyle(.plain)
             }
         }
     }
