@@ -2,9 +2,6 @@ name: Emulator
 # Runs the native app on an Android emulator: the critical-path UI test, then cold-start timing of the release
 # build after its baseline profile is applied. Results are reported as annotations on the run.
 on:
-  workflow_run:
-    workflows: ["Build"]
-    types: [completed]
   workflow_dispatch:
 permissions:
   contents: read
