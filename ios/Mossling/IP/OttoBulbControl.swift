@@ -223,20 +223,22 @@ struct OttoBulbControl: View {
     }
 }
 
-/// Soft warm conical amber wash cast diagonally down-right from Otto's Golden Bulb onto the Lamp Desk play hero.
+/// Soft warm conical amber wash cast from Otto's Golden Bulb onto the story desk stage.
 struct LampConeOverlay: View {
     let intensity: CGFloat
     let night: Bool
+    var apexXFraction: CGFloat? = nil
 
     var body: some View {
         let strength = night ? (0.14 + 0.16 * intensity) : (0.04 + 0.14 * intensity)
         GeometryReader { geo in
-            let apex = CGPoint(x: 43, y: 0)
+            let apexX = apexXFraction.map { geo.size.width * $0 } ?? 43
+            let centerUnitX = geo.size.width > 0 ? min(0.95, max(0.05, apexX / geo.size.width)) : 0.12
             Path { p in
-                p.move(to: CGPoint(x: max(0, apex.x - 20), y: 0))
-                p.addLine(to: CGPoint(x: apex.x + 22, y: 0))
+                p.move(to: CGPoint(x: max(0, apexX - 20), y: 0))
+                p.addLine(to: CGPoint(x: min(geo.size.width, apexX + 22), y: 0))
                 p.addLine(to: CGPoint(x: geo.size.width * 0.92, y: geo.size.height))
-                p.addLine(to: CGPoint(x: 0, y: geo.size.height))
+                p.addLine(to: CGPoint(x: geo.size.width * 0.08, y: geo.size.height))
                 p.closeSubpath()
             }
             .fill(
@@ -246,7 +248,7 @@ struct LampConeOverlay: View {
                         Palette.amber.opacity(strength * 0.32),
                         Palette.amber.opacity(0),
                     ],
-                    center: UnitPoint(x: 0.12, y: 0.04),
+                    center: UnitPoint(x: centerUnitX, y: 0.04),
                     startRadius: 8,
                     endRadius: max(geo.size.width, geo.size.height) * 0.92
                 )

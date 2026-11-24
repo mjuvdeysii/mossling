@@ -71,6 +71,23 @@ enum Firsts {
         ("leaf.fill", Crayon.leaf), ("drop.fill", Crayon.sky), ("music.note", Crayon.lilac), ("airplane", Crayon.aqua), ("gift.fill", Crayon.tangerine),
         ("camera.fill", Crayon.caramel), ("pawprint.fill", Crayon.peach), ("water.waves", Crayon.sky), ("birthday.cake.fill", Crayon.pink)]
     static func customIcon(_ key: String?) -> String? { key.flatMap { $0.hasPrefix("icon:") ? String($0.dropFirst(5)) : nil } }
+    static func customIconLabel(_ symbol: String) -> String {
+        switch symbol {
+        case "star.fill": return L10n.t("星星", "Star")
+        case "heart.fill": return L10n.t("爱心", "Heart")
+        case "sun.max.fill": return L10n.t("暖阳", "Sun")
+        case "leaf.fill": return L10n.t("嫩叶", "Leaf")
+        case "drop.fill": return L10n.t("水滴", "Drop")
+        case "music.note": return L10n.t("音符", "Music")
+        case "airplane": return L10n.t("纸飞机", "Paper plane")
+        case "gift.fill": return L10n.t("礼盒", "Gift")
+        case "camera.fill": return L10n.t("相机", "Camera")
+        case "pawprint.fill": return L10n.t("小脚印", "Paw print")
+        case "water.waves": return L10n.t("浪花", "Waves")
+        case "birthday.cake.fill": return L10n.t("生日蛋糕", "Birthday cake")
+        default: return L10n.t("纪念印章", "Keepsake charm")
+        }
+    }
     static func symbol(_ f: First) -> String { kind(f.key)?.symbol ?? customIcon(f.key) ?? "star.fill" }
     static func color(_ f: First) -> Color {
         if let k = kind(f.key) { return k.color }
@@ -299,9 +316,11 @@ struct FirstSheet: View {
                         } label: {
                             FirstCharmBadge(key: "icon:" + sym, color: c, size: 40, active: on)
                                 .overlay(Circle().strokeBorder(on ? (dark ? Palette.amber : Crayon.ink(c)) : .clear, lineWidth: 2))
+                                .frame(minWidth: 44, minHeight: 44)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.toy)
-                        .accessibilityLabel(L10n.t("纪念印章", "Keepsake charm")).accessibilityAddTraits(on ? .isSelected : [])
+                        .accessibilityLabel(Firsts.customIconLabel(sym)).accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
                 .transition(.opacity)
@@ -523,7 +542,7 @@ struct FirstsView: View {
         } label: {
             Image(systemName: "plus")
                 .font(.headline)
-                .frame(width: 44, height: 40)
+                .frame(minWidth: 44, minHeight: 44)
         }
         .buttonStyle(.vinyl(Palette.bead, prominent: true))
         .accessibilityLabel(L10n.t("记一个第一次", "Log a first"))
@@ -662,7 +681,7 @@ struct FirstsView: View {
                                     .foregroundStyle(Color(hex: 0x241F1B))
                                     .lineLimit(1)
                                 Text(ageTag)
-                                    .font(.system(size: 10, weight: .semibold, design: .rounded))
+                                    .font(.caption2.weight(.semibold))
                                     .foregroundStyle(Color(hex: 0x6B5A45))
                                     .lineLimit(1)
                             }
@@ -776,6 +795,7 @@ private struct FirstRow: View {
 
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var photoVersion = FirstPhotoVersion.shared
 
     var body: some View {
@@ -842,7 +862,7 @@ private struct FirstRow: View {
                             .padding(3.5)
                             .background(RoundedRectangle(cornerRadius: 9.5, style: .continuous).fill(dark ? Color(hex: 0xF5EFE4) : .white))
                             .shadow(color: Color(hex: 0x6B4A2B).opacity(dark ? 0.34 : 0.18), radius: 3, y: 2)
-                            .rotationEffect(.degrees(2.5))
+                            .rotationEffect(.degrees(reduce ? 0 : 2.5))
                     }
                     .buttonStyle(.toy)
                     .accessibilityLabel(L10n.t("查看拍立得照片", "View Polaroid photo"))
@@ -891,7 +911,7 @@ private struct FirstPhotoLightbox: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .bold))
                             .foregroundStyle(.primary)
-                            .frame(width: 38, height: 38)
+                            .frame(minWidth: 44, minHeight: 44)
                             .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
                     }
                     .buttonStyle(.toy)

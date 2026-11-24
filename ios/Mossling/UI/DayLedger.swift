@@ -161,14 +161,13 @@ enum SmartBottleVolumes {
     }
 }
 
-/// Three-track 24h circadian swimlane canvas (Sleep / Feeds / Care) rendered read-only in Canvas
-/// for both interactive Journal scrubbing and 3× cotton-paper `DaySheetPoster` exports.
+/// Three-track 24h circadian swimlane canvas (Sleep / Feeds / Care) rendered purely read-only in Canvas
+/// for both Journal timeline overview and 3× cotton-paper `DaySheetPoster` exports.
 struct DaySwimlaneCanvas: View {
     let day: Day
     let logs: [LogEntry]
     let timers: [RunningTimer]
     var only: String? = nil
-    var scrubFraction: CGFloat? = nil
     var dark: Bool = false
     var nowDate: Date = Date()
 
@@ -186,7 +185,7 @@ struct DaySwimlaneCanvas: View {
             }
             .frame(width: 18, height: 66)
 
-            Canvas { ctx, size in
+            Canvas(rendersAsynchronously: false) { ctx, size in
                 let w = size.width
                 let h = size.height
                 let laneH = h / 3
@@ -282,16 +281,6 @@ struct DaySwimlaneCanvas: View {
                     ctx.stroke(needle, with: .color(Palette.bead.opacity(0.85)), lineWidth: 1.5)
                     ctx.fill(Path(ellipseIn: CGRect(x: nx - 3, y: h - 5, width: 6, height: 6)), with: .color(Palette.bead))
                 }
-
-                // Interactive scrubber needle
-                if let sf = scrubFraction {
-                    let sx = max(2, min(w - 2, sf * w))
-                    var scrub = Path()
-                    scrub.move(to: CGPoint(x: sx, y: 0))
-                    scrub.addLine(to: CGPoint(x: sx, y: h))
-                    ctx.stroke(scrub, with: .color(Palette.accent), lineWidth: 2)
-                    ctx.fill(Path(ellipseIn: CGRect(x: sx - 4, y: -1, width: 8, height: 8)), with: .color(Palette.accent))
-                }
             }
             .frame(height: 66)
             .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
@@ -308,150 +297,37 @@ struct DaySwimlaneCanvas: View {
     }
 }
 
-/// Interactive 3-Track Swimlane Card with Touch Scrubber & 4-Phase Jump Axis.
+/// Pure read-only 3-Track 24h Overview Swimlane with 4-Phase chapter jump buttons below.
+/// Zero drag gestures and zero inline edit popups so vertical scrolling stays 100% responsive and accidental edits never happen.
 struct DaySwimlaneChart: View {
     let day: Day
     let logs: [LogEntry]
     let timers: [RunningTimer]
     @Binding var only: String?
-    @Binding var isScrubbing: Bool
     let onSelectPeriod: (DayPeriod) -> Void
-    let onEditEntry: (LogEntry) -> Void
-
-    init(
-        day: Day,
-        logs: [LogEntry],
-        timers: [RunningTimer],
-        only: Binding<String?>,
-        isScrubbing: Binding<Bool> = .constant(false),
-        onSelectPeriod: @escaping (DayPeriod) -> Void,
-        onEditEntry: @escaping (LogEntry) -> Void
-    ) {
-        self.day = day
-        self.logs = logs
-        self.timers = timers
-        self._only = only
-        self._isScrubbing = isScrubbing
-        self.onSelectPeriod = onSelectPeriod
-        self.onEditEntry = onEditEntry
-    }
 
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
-    @State private var scrubFraction: CGFloat? = nil
-    @State private var inspectedEntry: LogEntry? = nil
-    @State private var lastSnappedId: UUID? = nil
 
     var body: some View {
         let dark = lamp || scheme == .dark
         let periodsChrono: [DayPeriod] = [.overnight, .morning, .afternoon, .evening]
 
         VStack(alignment: .leading, spacing: 6) {
-            if let entry = inspectedEntry {
-                HStack(spacing: 8) {
-                    IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 18, round: true)
-                    Text(hm(entry.startDate) + (entry.endDate.map { "–" + hm($0) } ?? "") + " · " + LogType.name(entry.type))
-                        .font(.caption.weight(.bold))
-                        .lineLimit(1)
-                    let val = entry.value(on: day)
-                    if !val.isEmpty {
-                        Text(val)
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Palette.accent)
-                            .lineLimit(1)
-                    }
-                    Spacer(minLength: 4)
-                    Button(L10n.t("修改", "Edit")) {
-                        let target = entry
-                        inspectedEntry = nil
-                        scrubFraction = nil
-                        onEditEntry(target)
-                    }
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(Capsule().fill(Palette.accentFill))
-                    .buttonStyle(.plain)
-
-                    Button {
-                        inspectedEntry = nil
-                        scrubFraction = nil
-                    } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.t("关闭预览", "Close preview"))
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
-                .background(RoundedRectangle(cornerRadius: 10, style: .continuous).fill(dark ? Palette.lampCard : Palette.fill))
-                .transition(.opacity)
-            }
-
             TimelineView(.periodic(from: .now, by: 60)) { tl in
-                GeometryReader { geo in
-                    DaySwimlaneCanvas(
-                        day: day,
-                        logs: logs,
-                        timers: timers,
-                        only: only,
-                        scrubFraction: scrubFraction,
-                        dark: dark,
-                        nowDate: tl.date
-                    )
-                    .contentShape(Rectangle())
-                    .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { val in
-                                if !isScrubbing { isScrubbing = true }
-                                // Exclude 24pt leading icon rail when computing time fraction
-                                let plotWidth = max(1, geo.size.width - 24)
-                                let raw = (val.location.x - 24) / plotWidth
-                                let f = max(0, min(1, raw))
-                                scrubFraction = f
-                                let hit = Self.nearestEntry(atFraction: f, day: day, logs: logs, only: only)
-                                inspectedEntry = hit
-                                if let hit, hit.id != lastSnappedId {
-                                    lastSnappedId = hit.id
-                                    TactileEngine.shared.dimmerTick()
-                                }
-                            }
-                            .onEnded { _ in
-                                isScrubbing = false
-                                lastSnappedId = nil
-                                if inspectedEntry == nil {
-                                    scrubFraction = nil
-                                }
-                            }
-                    )
-                }
+                DaySwimlaneCanvas(
+                    day: day,
+                    logs: logs,
+                    timers: timers,
+                    only: only,
+                    dark: dark,
+                    nowDate: tl.date
+                )
                 .frame(height: 66)
+                .allowsHitTesting(false)
                 .accessibilityElement(children: .ignore)
                 .accessibilityLabel(L10n.t("24 小时睡眠、喂奶与照护时间轨", "24-hour Sleep, Feeds & Care tracks"))
                 .accessibilityValue(swimlaneAccessibilityValue)
-                .accessibilityAdjustableAction { dir in
-                    let chrono = chronologicalDayLogs
-                    guard !chrono.isEmpty else { return }
-                    let currentIdx = inspectedEntry.flatMap { cur in chrono.firstIndex { $0.id == cur.id } }
-                    let nextIdx: Int
-                    switch dir {
-                    case .increment:
-                        nextIdx = currentIdx.map { min(chrono.count - 1, $0 + 1) } ?? 0
-                    case .decrement:
-                        nextIdx = currentIdx.map { max(0, $0 - 1) } ?? (chrono.count - 1)
-                    default:
-                        return
-                    }
-                    let target = chrono[nextIdx]
-                    inspectedEntry = target
-                    let d0 = day.date.timeIntervalSince1970 * 1000
-                    let f = max(0, min(1, (target.start - d0) / 86_400_000.0))
-                    scrubFraction = f
-                    TactileEngine.shared.dimmerTick()
-                }
             }
 
             // Interactive 4-phase time axis buttons (jumps cleanly to that chapter below)
@@ -468,7 +344,8 @@ struct DaySwimlaneChart: View {
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
-                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .frame(maxWidth: .infinity, minHeight: 36, alignment: .leading)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityHint(L10n.t("展开\(period.title)记录", "Jump to \(period.title) chapter"))
@@ -489,10 +366,6 @@ struct DaySwimlaneChart: View {
     }
 
     private var swimlaneAccessibilityValue: String {
-        if let e = inspectedEntry {
-            let val = e.value(on: day)
-            return hm(e.startDate) + " " + LogType.name(e.type) + (val.isEmpty ? "" : " " + val)
-        }
         let chrono = chronologicalDayLogs
         guard !chrono.isEmpty else {
             return L10n.t("今天暂无记录", "No entries recorded for this day")
@@ -510,34 +383,8 @@ struct DaySwimlaneChart: View {
         if diapers > 0 {
             parts.append(L10n.t("尿布 \(diapers) 次", "\(diapers) diapers"))
         }
-        let prefix = parts.isEmpty ? L10n.t("共 \(chrono.count) 条", "\(chrono.count) entries") : parts.joined(separator: L10n.isEnglish ? ", " : "、")
-        return prefix + L10n.t("，上下滑动逐条聆听", ". Swipe up or down to step through entries.")
-    }
-
-    static func nearestEntry(atFraction f: CGFloat, day: Day, logs: [LogEntry], only: String?) -> LogEntry? {
-        let d0 = day.date.timeIntervalSince1970 * 1000
-        let span = 86_400_000.0
-        let targetMs = d0 + Double(max(0, min(1, f))) * span
-        let toleranceMs = 38.0 * 60.0 * 1000.0
-
-        let eligible = logs.filter { e in
-            let matchesFilter = only.map { JournalKinds.matches(e.type, $0) } ?? true
-            guard matchesFilter else { return false }
-            let eEnd = e.end ?? e.start
-            return eEnd >= d0 && e.start <= d0 + span
-        }
-
-        return eligible.min { a, b in
-            distanceMs(from: a, to: targetMs, d0: d0, span: span) < distanceMs(from: b, to: targetMs, d0: d0, span: span)
-        }.flatMap { best in
-            distanceMs(from: best, to: targetMs, d0: d0, span: span) <= toleranceMs ? best : nil
-        }
-    }
-
-    private static func distanceMs(from entry: LogEntry, to t: Double, d0: Double, span: Double) -> Double {
-        let a = max(d0, min(d0 + span, entry.start))
-        let b = max(d0, min(d0 + span, entry.end ?? entry.start))
-        if t >= a && t <= b { return 0 }
-        return min(abs(t - a), abs(t - b))
+        return parts.isEmpty
+            ? L10n.t("共 \(chrono.count) 条", "\(chrono.count) entries")
+            : parts.joined(separator: L10n.isEnglish ? ", " : "、")
     }
 }

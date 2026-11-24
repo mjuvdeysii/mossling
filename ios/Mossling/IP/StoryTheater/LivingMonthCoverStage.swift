@@ -51,127 +51,163 @@ struct LivingMonthCoverStage: View {
         .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
     }
 
+    @ViewBuilder
     private func stageCanvas(script s: LivingMonthCoverScript, now: Date, u: Double, isFlat: Bool) -> some View {
         let phase = LivingMotionClock.sample(u: u)
         let tapAge = tapAt == .distantPast ? 9.9 : max(0, now.timeIntervalSince(tapAt))
+        let tapBurst: Double = (!isStatic && interactive && tapAge < 0.7) ? (1.0 - tapAge / 0.7) : 0
         let tapJump: CGFloat = (!isStatic && interactive && tapAge < 0.65)
             ? CGFloat(sin(tapAge / 0.65 * .pi)) * 0.95
             : 0
         let sway = isStatic ? 0 : sin(u * .pi * 2.0) * 1.8
+        let breathTime = isStatic ? 0 : now.timeIntervalSinceReferenceDate
 
-        return GeometryReader { g in
-            let w = g.size.width
-            let h = g.size.height
-            let floorY = h * 0.77
-
-            let baseMs = min(w * 0.245, h * 0.355)
-            let ms = baseMs * s.mossScale
-            let os = baseMs * Kind.otto.scale
-
-            let mossFeetFrac: CGFloat = isFlat ? 0.88 : (Sprites.mossFeet / 100.0)
-            let ottoFeetFrac: CGFloat = isFlat ? 0.88 : (Sprites.ottoFeet / 100.0)
-
-            let mossCenter = CGPoint(
-                x: w * s.mossX,
-                y: floorY - ms * mossFeetFrac + ms * 0.5 - tapJump * ms * 0.08
-            )
-            let ottoCenter = CGPoint(
-                x: w * s.ottoX,
-                y: floorY - os * ottoFeetFrac + os * 0.5
-            )
-
-            let mossMoodNow: Mood = tapJump > 0.15 ? .happy : s.mossMood
-            let ottoLean = -2.8 - sway * 0.35
-            let ottoLid: Double = dark ? 0.45 : 0
-            let ottoState = Creature.state(.otto, face: .happy, look: CGPoint(x: -0.9, y: 0.25), lid: ottoLid, hopping: false, yawning: false)
-            let beadWorld = LampLightRig.beadWorldPosition(
-                ottoCenter: ottoCenter,
-                ottoSize: os,
-                ottoState: ottoState,
-                leanDegrees: ottoLean,
-                flat: isFlat
-            )
-            let targetWorld = CGPoint(x: w * 0.46, y: floorY + 2)
-
-            ZStack {
-                MonthCoverBackdropCanvas(
-                    script: s,
-                    phase: phase,
+        Group {
+            if s.month == 6 {
+                Month06ShowcaseCover(
                     dark: dark,
                     flat: isFlat,
+                    phase: phase,
+                    breathTime: breathTime,
+                    isStatic: isStatic,
                     compact: compact,
-                    festive: festive || s.isBirthday
+                    giggles: giggles,
+                    tapBurst: tapBurst
                 )
+            } else {
+                GeometryReader { g in
+                    let w = g.size.width
+                    let h = g.size.height
+                    let floorY = h * 0.77
 
-                LampLightRig(
-                    beadPos: beadWorld,
-                    targetPoint: targetWorld,
-                    phase: phase,
-                    dark: dark,
-                    flat: isFlat,
-                    layer: .floorPool
-                )
+                    let baseMs = min(w * 0.245, h * 0.355)
+                    let ms = baseMs * s.mossScale
+                    let os = baseMs * Kind.otto.scale
 
-                MonthMilestonePropCanvas(
-                    script: s,
-                    phase: phase,
-                    dark: dark,
-                    flat: isFlat,
-                    compact: compact,
-                    tapBurstStrength: (!isStatic && tapAge < 0.7) ? (1.0 - tapAge / 0.7) : 0
-                )
+                    let mossFeetFrac: CGFloat = isFlat ? 0.88 : (Sprites.mossFeet / 100.0)
+                    let ottoFeetFrac: CGFloat = isFlat ? 0.88 : (Sprites.ottoFeet / 100.0)
 
-                companionFigure(
-                    kind: .otto,
-                    mood: .happy,
-                    look: CGPoint(x: -0.90, y: 0.25),
-                    lid: dark ? 0.45 : nil,
-                    lean: ottoLean,
-                    hopping: false,
-                    size: os,
-                    now: now,
-                    isFlat: isFlat
-                )
-                .position(ottoCenter)
+                    let mossCenter = CGPoint(
+                        x: w * s.mossX,
+                        y: floorY - ms * mossFeetFrac + ms * 0.5 - tapJump * ms * 0.08
+                    )
+                    let ottoCenter = CGPoint(
+                        x: w * s.ottoX,
+                        y: floorY - os * ottoFeetFrac + os * 0.5
+                    )
 
-                companionFigure(
-                    kind: .moss,
-                    mood: mossMoodNow,
-                    look: CGPoint(x: 0.85, y: -0.05),
-                    lid: tapJump > 0.1 ? nil : s.mossLid,
-                    lean: 2.0 + sway * 0.45,
-                    hopping: tapJump > 0.35,
-                    size: ms,
-                    now: now,
-                    isFlat: isFlat
-                )
-                .position(mossCenter)
+                    let mossMoodNow: Mood = tapJump > 0.15 ? .happy : s.mossMood
+                    let ottoLean = -2.8 - sway * 0.35
+                    let ottoLid: Double = dark ? 0.45 : 0
+                    let ottoState = Creature.state(.otto, face: .happy, look: CGPoint(x: -0.9, y: 0.25), lid: ottoLid, hopping: false, yawning: false)
+                    let beadWorld = LampLightRig.beadWorldPosition(
+                        ottoCenter: ottoCenter,
+                        ottoSize: os,
+                        ottoState: ottoState,
+                        leanDegrees: ottoLean,
+                        flat: isFlat
+                    )
+                    let targetWorld = CGPoint(x: w * 0.46, y: floorY + 2)
+                    let shaderOn = !compact && w >= 80 && h >= 60
 
-                LampLightRig(
-                    beadPos: beadWorld,
-                    targetPoint: targetWorld,
-                    phase: phase,
-                    dark: dark,
-                    flat: isFlat,
-                    layer: .airCone
-                )
-                .blendMode(dark ? .plusLighter : .normal)
+                    ZStack {
+                        MonthCoverBackdropCanvas(
+                            script: s,
+                            phase: phase,
+                            dark: dark,
+                            flat: isFlat,
+                            compact: compact,
+                            festive: festive || s.isBirthday
+                        )
 
-                if !isFlat && !compact {
-                    Grain(dark: dark, strength: dark ? 0.36 : 0.30)
-                        .allowsHitTesting(false)
+                        LampLightRig(
+                            beadPos: beadWorld,
+                            targetPoint: targetWorld,
+                            phase: phase,
+                            dark: dark,
+                            flat: isFlat,
+                            layer: .floorPool
+                        )
+
+                        MonthMilestonePropCanvas(
+                            script: s,
+                            phase: phase,
+                            dark: dark,
+                            flat: isFlat,
+                            compact: compact,
+                            tapBurstStrength: tapBurst
+                        )
+
+                        companionFigure(
+                            kind: .otto,
+                            mood: .happy,
+                            look: CGPoint(x: -0.90, y: 0.25),
+                            lid: dark ? 0.45 : nil,
+                            lean: ottoLean,
+                            hopping: false,
+                            size: os,
+                            now: now,
+                            isFlat: isFlat
+                        )
+                        .position(ottoCenter)
+
+                        companionFigure(
+                            kind: .moss,
+                            mood: mossMoodNow,
+                            look: CGPoint(x: 0.85, y: -0.05),
+                            lid: tapJump > 0.1 ? nil : s.mossLid,
+                            lean: 2.0 + sway * 0.45,
+                            hopping: tapJump > 0.35,
+                            size: ms,
+                            now: now,
+                            isFlat: isFlat
+                        )
+                        .position(mossCenter)
+
+                        LampLightRig(
+                            beadPos: beadWorld,
+                            targetPoint: targetWorld,
+                            phase: phase,
+                            dark: dark,
+                            flat: isFlat,
+                            layer: .airCone
+                        )
+                        .blendMode(dark ? .plusLighter : .normal)
+                    }
+                    .modifier(
+                        GhibliStageGrade(
+                            stageSize: g.size,
+                            time: breathTime,
+                            dark: dark,
+                            komorebiStrength: 0.72,
+                            enabled: isFlat && shaderOn
+                        )
+                    )
+                    .modifier(
+                        PixarStageGrade(
+                            stageSize: g.size,
+                            keyPos: CGPoint(x: w * 0.80, y: h * 0.14),
+                            beadPos: beadWorld,
+                            targetPos: targetWorld,
+                            time: breathTime,
+                            dark: dark,
+                            keyIntensity: dark ? 0.90 : 0.96,
+                            volumetricIntensity: dark ? 1.02 : 0.56,
+                            enabled: !isFlat && shaderOn
+                        )
+                    )
                 }
             }
-            .contentShape(Rectangle())
-            .onTapGesture {
-                guard interactive, !isStatic else { return }
-                tapAt = Date()
-                giggles += 1
-                TactileEngine.shared.vinylPop()
-            }
-            .allowsHitTesting(interactive)
-            .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: giggles)
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            guard interactive, !isStatic else { return }
+            tapAt = Date()
+            giggles += 1
+            TactileEngine.shared.vinylPop()
+        }
+        .allowsHitTesting(interactive)
+        .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: giggles)
     }
 
     @ViewBuilder
@@ -186,78 +222,22 @@ struct LivingMonthCoverStage: View {
         now: Date,
         isFlat: Bool
     ) -> some View {
-        let t = isStatic ? 0 : now.timeIntervalSinceReferenceDate
-        let period = kind == .moss ? 2.6 : 3.8
-        let breath = isStatic ? 0 : (1 - cos(t / period * 2 * .pi)) / 2
-        let amp = kind == .moss ? 0.015 : 0.010
-        let sx = 1.0 - breath * amp * 0.5
-        let sy = 1.0 + breath * amp
-        let feetFrac: CGFloat = isFlat ? 0.88 : ((kind == .moss ? Sprites.mossFeet : Sprites.ottoFeet) / 100.0)
-
-        if isFlat {
-            FlatCreature(
-                kind: kind,
-                mood: mood,
-                look: look,
-                lid: lid,
-                lean: 0,
-                alive: false,
-                poke: false,
-                arms: .rest,
-                glow: kind == .otto && dark
-            )
-            .frame(width: size, height: size)
-            .environment(\.colorScheme, dark ? .dark : .light)
-            .scaleEffect(x: sx, y: sy, anchor: UnitPoint(x: 0.5, y: feetFrac))
-            .rotationEffect(.degrees(lean), anchor: UnitPoint(x: 0.5, y: feetFrac))
-        } else {
-            let st = Creature.state(kind, face: mood, look: look, lid: lid ?? 0, hopping: hopping, yawning: false)
-            let img = StoryTheaterSpritePool.image(kind: kind, state: st)
-            let rx = (kind == .moss ? 0.30 : 0.22) * size
-            let bPt = Sprites.bead[st] ?? Sprites.bead["idle"] ?? CGPoint(x: 0.247, y: 0.4317)
-            let glowR = size * (dark ? 0.16 : 0.09)
-
-            ZStack {
-                Ellipse()
-                    .fill(
-                        RadialGradient(
-                            colors: [Palette.ink.opacity(dark ? 0.42 : 0.18), Palette.ink.opacity(0)],
-                            center: .center,
-                            startRadius: 0,
-                            endRadius: rx * 1.1
-                        )
-                    )
-                    .frame(width: rx * 2.2, height: rx * 0.40)
-                    .position(x: size * 0.5, y: size * feetFrac + 1)
-
-                ZStack {
-                    if let img {
-                        Image(uiImage: img)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: size, height: size)
-                    }
-                    if kind == .otto {
-                        Circle()
-                            .fill(
-                                RadialGradient(
-                                    colors: [Palette.amber.opacity(dark ? 0.72 : 0.22), Palette.amber.opacity(0)],
-                                    center: .center,
-                                    startRadius: 1,
-                                    endRadius: glowR
-                                )
-                            )
-                            .frame(width: glowR * 2, height: glowR * 2)
-                            .blendMode(.plusLighter)
-                            .position(x: size * bPt.x, y: size * bPt.y)
-                    }
-                }
-                .frame(width: size, height: size)
-                .scaleEffect(x: sx, y: sy, anchor: UnitPoint(x: 0.5, y: feetFrac))
-                .rotationEffect(.degrees(lean), anchor: UnitPoint(x: 0.5, y: feetFrac))
-            }
-            .frame(width: size, height: size)
-        }
+        StoryTheaterActorView(
+            kind: kind,
+            size: size,
+            mood: mood,
+            look: look,
+            lid: lid,
+            lean: lean,
+            hopping: hopping,
+            breathTime: isStatic ? 0 : now.timeIntervalSinceReferenceDate,
+            isStatic: isStatic,
+            dark: dark,
+            flat: isFlat,
+            compact: compact,
+            lightDirection: CGPoint(x: 0.78, y: -0.62),
+            secondaryLagDegrees: -lean * 0.35
+        )
     }
 }
 

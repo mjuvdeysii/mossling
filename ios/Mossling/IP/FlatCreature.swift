@@ -244,18 +244,7 @@ struct FlatCreature: View {
     }
     /// Moss and Otto have no arms: a wave or a cheer is the hop and the face alone (the cast as themselves).
     private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
-        return
-        func arm(_ from: CGPoint, _ deg: Double, _ L: CGFloat = 13) {
-            let r = CGFloat(deg * .pi / 180)
-            var p = Path(); p.move(to: from); p.addLine(to: CGPoint(x: from.x + CGFloat(Foundation.sin(Double(r))) * L, y: from.y - CGFloat(Foundation.cos(Double(r))) * L))
-            ctx.stroke(p, with: .color(c), style: StrokeStyle(lineWidth: 7, lineCap: .round))
-        }
-        switch pose {
-        case .rest: break
-        case .wave: arm(right, 30 + wave)
-        case .cheer: arm(left, -38 - wave * 0.4); arm(right, 38 + wave * 0.4)
-        case .hug: arm(left, -112 + wave * 0.12, 24)
-        }
+        // Intentionally empty per docs/IP.md: canonical Moss and Otto never render detached arms.
     }
 
     private func drawMoss(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, sway: Double) {

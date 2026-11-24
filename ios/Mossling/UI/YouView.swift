@@ -867,6 +867,7 @@ struct StoryView: View {
     @State private var act: StoryTheaterAct
     @State private var customMonth: Int?
     @State private var lampLit = true
+    @State private var bulbPullProgress: CGFloat = 0
     @State private var ringWobble: Double = 0
     @State private var exploreTaps = 0
     @State private var leafBurstTrigger = 0
@@ -888,17 +889,35 @@ struct StoryView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 // Interactive Theater Stage wrapped in StyleDoor (10 taps -> 2D paper world; 3s finger loop -> 3D world)
-                StyleDoor(radius: Radius.card) {
-                    StoryMicroTheaterStage(
-                        act: act,
-                        month: m,
-                        lampLit: lampLit,
-                        ringWobble: ringWobble,
-                        exploreTaps: exploreTaps,
-                        leafBurstTrigger: leafBurstTrigger
-                    )
-                    .frame(height: 232)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                // Act 1 mounts Otto's tactile Golden Bulb pull-cord cleanly at top-trailing outside StyleDoor's gesture zone.
+                ZStack(alignment: .topTrailing) {
+                    StyleDoor(radius: Radius.card) {
+                        StoryMicroTheaterStage(
+                            act: act,
+                            month: m,
+                            lampLit: lampLit,
+                            bulbPullProgress: bulbPullProgress,
+                            ringWobble: ringWobble,
+                            exploreTaps: exploreTaps,
+                            leafBurstTrigger: leafBurstTrigger
+                        )
+                        .frame(height: 232)
+                        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                    }
+
+                    if act == .lamp {
+                        OttoBulbControl(
+                            soundscapeActive: lampLit,
+                            pullProgress: $bulbPullProgress
+                        ) {
+                            withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                                lampLit.toggle()
+                            }
+                        }
+                        .padding(.top, 2)
+                        .padding(.trailing, 16)
+                        .transition(.opacity)
+                    }
                 }
                 .printCard(radius: Radius.card)
 
@@ -1201,6 +1220,7 @@ private struct StoryMicroTheaterStage: View {
     let act: StoryTheaterAct
     let month: Int
     let lampLit: Bool
+    var bulbPullProgress: CGFloat = 0
     let ringWobble: Double
     let exploreTaps: Int
     let leafBurstTrigger: Int
@@ -1250,6 +1270,14 @@ private struct StoryMicroTheaterStage: View {
 
                     if isLit {
                         warmConeLayer(w: w, h: h, deskY: deskY, bead: bead, toyX: toyX)
+                    }
+
+                    if act == .lamp && (lampLit || bulbPullProgress > 0.02) {
+                        LampConeOverlay(
+                            intensity: max(lampLit ? 0.38 : 0, bulbPullProgress),
+                            night: true,
+                            apexXFraction: 0.875
+                        )
                     }
 
                     if isLit && !reduce && !Perf.still {

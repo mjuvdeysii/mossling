@@ -1287,7 +1287,7 @@ struct TodayPlayCard: View {
         let key = Palette.areaKey(of: p), times = app.thisWeek(p, j)
         return NavigationLink(value: route(p)) {
             HStack(spacing: 12) {
-                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+                ActivityPreviewThumb(play: p, color: Palette.area(key), flat: flat)
                     .frame(width: 44, height: 33)
                     .zoomSource(route(p))
                 Text(p.name).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)

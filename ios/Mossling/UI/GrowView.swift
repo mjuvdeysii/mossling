@@ -143,6 +143,7 @@ struct MonthView: View {
 /// two lines and the card opens in place to the whole of them; a point that only names a play is left to the plays.
 struct MonthPoints: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.accessibilityReduceMotion) private var reduce
     let month: Int
     var folded = true
     @State private var open = false
@@ -155,12 +156,26 @@ struct MonthPoints: View {
                 ForEach(Array(points.enumerated()), id: \.offset) { i, h in
                     let k = h.kind.lowercased()
                     let (sym, col): (String, Color) = (h.kind.contains("留意") || k.contains("keep in mind") || k.contains("watch") || k.contains("safety")) ? ("exclamationmark.triangle.fill", Crayon.tangerine) : (h.kind.contains("先做") || k.contains("try first") || k.contains("first") || k.contains("care")) ? ("checklist", Crayon.sky) : ("eye.fill", Palette.accent)
-                    BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1)
+                    BoxRow(symbol: sym, color: col, title: h.kind, text: shut ? String(h.text.prefix(34)) + (h.text.count > 34 ? "…" : "") : h.text, last: i == points.count - 1) {
+                        if folded && i == 0 {
+                            Image(systemName: "chevron.down")
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.tertiary)
+                                .rotationEffect(.degrees(open ? 180 : 0))
+                        }
+                    }
                 }
             }
+            .clipped()
+            .animation(reduce ? nil : CalmMotion.accordionSpring, value: open)
+
             if folded {
-                Button { withAnimation(.snappy) { open.toggle() } } label: { box }
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : CalmMotion.accordionSpring) { open.toggle() }
+                } label: { box }
                     .buttonStyle(.plain)
+                    .accessibilityValue(open ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
                     .accessibilityHint(open ? L10n.t("收起", "Collapse") : L10n.t("展开全文", "Expand"))
             } else {
                 box
@@ -174,7 +189,7 @@ private struct MonthBody: View {
     @Environment(JournalStore.self) private var j
     let month: Int
     var body: some View {
-        let c = app.content, mo = c.month(month), m = month
+        let c = app.content, m = month
         VStack(alignment: .leading, spacing: 18) {
             MonthPoints(month: m, folded: false)
 
@@ -677,7 +692,7 @@ struct AreasView: View {
                     ForEach(linkedPlays.prefix(2)) { p in
                         NavigationLink(value: Route.play(p.code, month)) {
                             HStack(spacing: 10) {
-                                TrayTile(code: p.code, color: col, flat: ArtStyle.current == .flat)
+                                ActivityPreviewThumb(play: p, color: col, flat: ArtStyle.current == .flat)
                                     .frame(width: 44, height: 33)
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(p.name)
@@ -809,7 +824,10 @@ struct CareView: View {
                 }
 
                 // whose schedule this is: China's; elsewhere, the local health authority's (1.4.1 — say where data applies)
-                DisclosureGroup {
+                CalmDisclosureNote(
+                    title: L10n.t("数据依据与适用说明", "Schedule Reference & Scope"),
+                    symbol: "doc.text"
+                ) {
                     Text(L10n.t(
                         "按《国家免疫规划疫苗儿童免疫程序及说明（2026年版）》（国疾控卫免发〔2026〕16号）与国家基本公共卫生服务规范整理。其他国家和地区以当地卫生部门的程序为准；具体时间以当地接种门诊与儿童保健机构的安排为准。",
                         "Based on China's National Immunization Program (2026) and public child-health guidelines. Outside mainland China, follow your local health authority and pediatrician's schedule."
@@ -817,20 +835,7 @@ struct CareView: View {
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 8)
-                } label: {
-                    Label(L10n.t("数据依据与适用说明", "Schedule Reference & Scope"), systemImage: "doc.text")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
                 }
-                .tint(Palette.accent)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .fill(Palette.fill.opacity(0.65))
-                )
             }
             .padding(.horizontal, 16).padding(.bottom, 48)
         }
@@ -971,7 +976,14 @@ struct PlayTile: View {
                 // in a few lines of the page, not a screen of pictures)
                 HStack(alignment: .top, spacing: 8) {
                     ZStack(alignment: .topTrailing) {
-                        if let pic { ArtFill(name: pic).aspectRatio(1, contentMode: .fill) } else { Palette.fill }
+                        if BespokeActivitySceneRegistry.hasBespokeScene(for: play.code) {
+                            ActivityPreviewThumb(play: play, color: Palette.area(key), flat: ArtStyle.current == .flat)
+                                .aspectRatio(4 / 3, contentMode: .fill)
+                        } else if let pic {
+                            ArtFill(name: pic).aspectRatio(1, contentMode: .fill)
+                        } else {
+                            Palette.fill
+                        }
                     }
                     .frame(width: 58, height: 58)
                     .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
@@ -993,7 +1005,12 @@ struct PlayTile: View {
             case .row:
                 // compact: the tray of materials at the left, the words at the right
                 HStack(spacing: 12) {
-                    Figure(name: "tray_\(play.code.lowercased()).webp").frame(width: 92, height: 69)
+                    if BespokeActivitySceneRegistry.hasBespokeScene(for: play.code) {
+                        ActivityPreviewThumb(play: play, color: Palette.area(key), flat: ArtStyle.current == .flat)
+                            .frame(width: 92, height: 69)
+                    } else {
+                        Figure(name: "tray_\(play.code.lowercased()).webp").frame(width: 92, height: 69)
+                    }
                     words(key, title: .subheadline)
                     Spacer(minLength: 0)
                     badge
@@ -1142,7 +1159,10 @@ struct ObserveView: View {
                     }
                 }
 
-                DisclosureGroup {
+                CalmDisclosureNote(
+                    title: L10n.t("关于发育节奏说明", "About developmental pace"),
+                    symbol: "info.circle"
+                ) {
                     Text(L10n.t(
                         "这些是多数孩子在这个月前后会出现的表现。还没看到的，下次儿保时可以和医生聊一聊；每个孩子有自己的节奏。",
                         "These are signs many children show around this age. If you haven't noticed one yet, mention it at your next well-child visit — every child moves at their own pace."
@@ -1150,20 +1170,7 @@ struct ObserveView: View {
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 8)
-                } label: {
-                    Label(L10n.t("关于发育节奏说明", "About developmental pace"), systemImage: "info.circle")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
                 }
-                .tint(Palette.accent)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .fill(Palette.fill.opacity(0.65))
-                )
             }
             .padding(.horizontal, 16).padding(.bottom, 40)
         }

@@ -431,13 +431,16 @@ private struct CompactStepOutlineRow: View {
 
                 if let livingScript = LivingBookCatalog.script(for: playCode) {
                     let clamped = min(max(0, stepIndex), max(0, livingScript.steps.count - 1))
+                    let phase = BespokeActivitySceneRegistry.metadata(for: playCode).flatMap {
+                        clamped < $0.posterPhases.count ? $0.posterPhases[clamped] : nil
+                    } ?? livingScript.steps[clamped].posterPhase
                     LivingBookStage(
                         script: livingScript,
                         stepIndex: clamped,
                         companion: companion,
                         dark: dark,
                         accent: Palette.accent,
-                        posterPhase: livingScript.steps[clamped].posterPhase,
+                        posterPhase: phase,
                         interactive: false,
                         compact: true
                     )
@@ -706,7 +709,7 @@ struct MatSideCoPlayView: View {
 
 // MARK: - Shared Supporting Building Blocks (Kept Intact)
 
-/// A folded section: one line (sticker, title, what is inside) that opens in place.
+/// A folded section: one line (sticker, title, what is inside) that opens smoothly in place.
 struct Fold<Content: View>: View {
     let title: String
     let summary: String
@@ -715,38 +718,31 @@ struct Fold<Content: View>: View {
     @Binding var open: Bool
     @ViewBuilder let content: Content
     @Environment(\.dynamicTypeSize) private var type
+
     var body: some View {
-        VStack(spacing: 0) {
-            Button { withAnimation(.snappy) { open.toggle() } } label: {
-                HStack(spacing: 12) {
-                    IconTile(symbol: symbol, color: color, size: 30)
-                    if type.isAccessibilitySize {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(title).font(.headline).foregroundStyle(.primary)
-                                .fixedSize(horizontal: false, vertical: true)
-                            if !summary.isEmpty {
-                                Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    } else {
+        CalmAccordion(isExpanded: $open, spacing: 0, showDivider: true, dividerHorizontalPadding: 16) { isOpen in
+            HStack(spacing: 12) {
+                IconTile(symbol: symbol, color: color, size: 30)
+                if type.isAccessibilitySize {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(title).font(.headline).foregroundStyle(.primary)
-                        Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(1)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if !summary.isEmpty {
+                            Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
-                        .rotationEffect(.degrees(open ? 180 : 0))
+                } else {
+                    Text(title).font(.headline).foregroundStyle(.primary)
+                    Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(1)
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
-                .contentShape(Rectangle())
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
+                    .rotationEffect(.degrees(isOpen ? 180 : 0))
             }
-            .buttonStyle(.toy)
-            .accessibilityValue(open ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
-            if open {
-                Divider().padding(.horizontal, 16)
-                VStack(spacing: 0) { content }
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+            .padding(.horizontal, 16).padding(.vertical, 12)
+        } content: {
+            VStack(spacing: 0) { content }
         }
         .printCard(radius: Radius.card)
         .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))

@@ -712,3 +712,154 @@ struct FlowRow: Layout {
         }
     }
 }
+
+/// Shared interruptible spring & disclosure primitives keeping fold/expand fluid, clipped, and zero-cost when collapsed.
+enum CalmMotion {
+    static let accordionSpring = Animation.spring(response: 0.34, dampingFraction: 0.88)
+}
+
+struct CalmAccordion<Header: View, Content: View>: View {
+    let isExpanded: Bool
+    var spacing: CGFloat = 0
+    var showDivider: Bool = false
+    var dividerHorizontalPadding: CGFloat = 16
+    let onToggle: () -> Void
+    @ViewBuilder let header: (Bool) -> Header
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
+    init(
+        isExpanded: Bool,
+        spacing: CGFloat = 0,
+        showDivider: Bool = false,
+        dividerHorizontalPadding: CGFloat = 16,
+        onToggle: @escaping () -> Void,
+        @ViewBuilder header: @escaping (Bool) -> Header,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.isExpanded = isExpanded
+        self.spacing = spacing
+        self.showDivider = showDivider
+        self.dividerHorizontalPadding = dividerHorizontalPadding
+        self.onToggle = onToggle
+        self.header = header
+        self.content = content
+    }
+
+    init(
+        isExpanded: Binding<Bool>,
+        spacing: CGFloat = 0,
+        showDivider: Bool = false,
+        dividerHorizontalPadding: CGFloat = 16,
+        @ViewBuilder header: @escaping (Bool) -> Header,
+        @ViewBuilder content: @escaping () -> Content
+    ) {
+        self.init(
+            isExpanded: isExpanded.wrappedValue,
+            spacing: spacing,
+            showDivider: showDivider,
+            dividerHorizontalPadding: dividerHorizontalPadding,
+            onToggle: { isExpanded.wrappedValue.toggle() },
+            header: header,
+            content: content
+        )
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: spacing) {
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                    onToggle()
+                }
+            } label: {
+                header(isExpanded)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityValue(isExpanded ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
+
+            if isExpanded {
+                VStack(alignment: .leading, spacing: spacing) {
+                    if showDivider {
+                        Divider().padding(.horizontal, dividerHorizontalPadding)
+                    }
+                    content()
+                }
+                .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .clipped()
+        .animation(reduce ? nil : CalmMotion.accordionSpring, value: isExpanded)
+    }
+}
+
+struct CalmDisclosureNote<Content: View>: View {
+    let title: String
+    let symbol: String
+    @ViewBuilder let content: () -> Content
+    @State private var expanded = false
+
+    var body: some View {
+        CalmAccordion(isExpanded: $expanded, spacing: 6) { open in
+            HStack(spacing: 8) {
+                Label(title, systemImage: symbol)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                Spacer(minLength: 4)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.accent)
+                    .rotationEffect(.degrees(open ? 180 : 0))
+            }
+            .frame(minHeight: 36)
+        } content: {
+            content()
+                .padding(.top, 2)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                .fill(Palette.fill.opacity(0.65))
+        )
+        .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+    }
+}
+
+/// Deterministic zero-TimelineView thumbnail for scrolling lists: renders bespoke StoryTheater scenes at their
+/// authored poster frame (with Metal shaders bypassed when `compact: true`) and falls back to `TrayTile`.
+struct ActivityPreviewThumb: View {
+    let play: Play
+    let color: Color
+    let flat: Bool
+    var companion: Kind = .moss
+    var cornerRadius: CGFloat = Radius.tile
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        if BespokeActivitySceneRegistry.hasBespokeScene(for: play.code),
+           let script = LivingBookCatalog.script(for: play.code),
+           let step0 = script.steps.first {
+            let phase = BespokeActivitySceneRegistry.metadata(for: play.code)?.posterPhases.first ?? step0.posterPhase
+            LivingBookStage(
+                script: script,
+                stepIndex: 0,
+                companion: companion,
+                dark: scheme == .dark,
+                accent: color,
+                posterPhase: phase,
+                interactive: false,
+                compact: true,
+                forceFlat: flat
+            )
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+            .accessibilityHidden(true)
+        } else {
+            TrayTile(code: play.code, color: color, flat: flat)
+        }
+    }
+}

@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 18（v2.0 正式发布候选 15 · Pixar 3D × Ghibli 2D 零依赖 Metal 渲染管线 · Batch A 独立活动小动画 `N01–N06 / A01–A04` · P0 全站折叠流畅度重构与只读总览条）**：
+  - **【零依赖 Metal 渲染与双风格引擎 StoryTheaterShaders + Pixar × Ghibli】**：新增 `StoryTheaterShaders.metal`（含暖键光包裹、方向轮廓光、Otto 灯珠体积光锥、水彩湿边/棉纸肌理/木漏日光斑与手绘抖动 6 个原生 `[[stitchable]]` 着色器）、`PixarLightingRig.swift` 与 `GhibliWatercolorKit.swift`；以 `StoryTheaterActorView` 统一 `LivingBookStage`、`LivingMonthCoverStage` 与所有独立场景在 3D 哑光软胶 / 2D 吉卜力水彩及日光 / 夜灯下的同构坐标与物理跟随，并重点打磨 `N01`、`A04` 与 **第 6 月成长封面 `Month06ShowcaseCover`** 旗舰样板。
+  - **【Bespoke 独立活动动画架构 & Batch A（10 部独立短片）】**：新建 `BespokeActivityScene.swift` 注册表与 **Batch A（`N01–N06`、`A01–A04`）** 共 10 部完全独立的分幕动画（各自拥有专属镜头语法、布景家具、教具物理轨迹与逐步骤动作编排，严禁套用共享模板）；列表缩略图通过 `ActivityPreviewThumb`（零 `TimelineView` + `compact: true` 定格）实现 120Hz 顺滑滚动，并同步清理 `DayLedger` 拖拽修改入口，保留纯只读泳道浏览与 4 时段快捷跳转。
+  - **【P0 全站折叠统一 & 第一声灯绳回归与 502100ed 审查打磨】**：统一全站 `CalmMotion.accordionSpring`、`CalmAccordion` 与 `CalmDisclosureNote` 裁切防穿模展开收起（覆盖 `PlayView`、`GrowView`、`ReadingViews`、`FoodAtlasView`、`JournalView`）；在 `StoryView` 第一幕洁净恢复 `OttoBulbControl` 与 `LampConeOverlay` 拉绳互动；为自定义徽章补齐 `Firsts.customIconLabel` 无障碍朗读并提升 44pt 触控热区、修齐 Polaroid 与 Swift 6 编译警告，并在 CI 流水线补齐按需 `MetalToolchain` 检校与 `testRound18BespokeBatchAScenesAndDualRenderers` / `test68Round18PixarGhibliShowcaseAndP0`。
+
 - **Batch 17（v2.0 正式发布候选 14 · 37 月龄活态成长绘本封面 Phase 3 · 16 教具质感精修与同步 Canvas 渲染）**：
   - **【活态绘本重绘 Phase 3 · 37 个月成长章节封面 `LivingMonthCoverStage`】**：新建 `LivingMonthCoverCatalog.swift` 与 `LivingMonthCoverStage.swift`，全面恪守 `docs/IP.md` 角色正典（3D 严格复用 `ip_moss_*`/`ip_otto_*` 与 2D 无缝切至 `FlatCreature`，绝不使用腮红/嘴点旧立绘），以草地（0–11 月）、树林（12–23 月）、溪边（24–36 月）三境剪纸景深、渐进成长比例、`LampLightRig` 实时光锥及 18 种成长象征教具，全面替换 `JourneyHubView`、`GrowView`、`TodayView`、`StorybookView`、`GrowthBook` 与 `GrowthMap` 全 6 处静态封面入口（旧 `cover_*.webp` 安全保留至 Phase 4 清理），新增 `testLivingMonthCoverCatalogAll37MonthsAndRender` 覆盖校验全部 37 个月。
   - **【StoryTheater Phase 2 教具精修与前景声波】**：在 `MontessoriPropRig` / `MontessoriPropRig+Props` 中将 `.soundRipple` 与 `.peekCloth` 柔和摇曳声波改绘至角色前景层（`.inFrontOfActors`）避免遮挡；升级镜面反射（内置 Moss 与 Otto 正典剪影）、透视桌面蜡笔画纸、3D 倒角积木过桥与接地灯笼木碟，补强圆杯、积木叠环、娃娃、铃铛、绘本与探索垫的哑光立体质感。

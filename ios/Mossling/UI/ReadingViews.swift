@@ -8,7 +8,10 @@ struct TopicView: View {
             VStack(alignment: .leading, spacing: 16) {
                 BlocksView(blocks: topic.blocks)
 
-                DisclosureGroup {
+                CalmDisclosureNote(
+                    title: L10n.t("参考来源与医疗说明", "Sources & Medical Note"),
+                    symbol: "books.vertical"
+                ) {
                     VStack(alignment: .leading, spacing: 8) {
                         if !topic.sourceTitle.isEmpty {
                             Label(topic.sourceTitle, systemImage: "books.vertical")
@@ -21,17 +24,7 @@ struct TopicView: View {
                             .foregroundStyle(Palette.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
-                    .padding(.top, 8)
-                } label: {
-                    Label(L10n.t("参考来源与医疗说明", "Sources & Medical Note"), systemImage: "books.vertical")
-                        .font(.footnote.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
                 }
-                .tint(Palette.accent)
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.fill.opacity(0.65)))
             }
             .padding(.horizontal, 20).padding(.top, 4).padding(.bottom, 40)
         }
@@ -591,6 +584,7 @@ struct PlanView: View {
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var typeSize
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @Binding var path: NavigationPath
     var previewExpandedCode: String? = nil
     @State private var areaFilter: String? = nil
@@ -884,7 +878,7 @@ struct PlanView: View {
 
             VStack(alignment: .leading, spacing: 6) {
                 HStack(alignment: .top, spacing: 4) {
-                    TrayTile(code: play.code, color: col, flat: ArtStyle.current == .flat)
+                    ActivityPreviewThumb(play: play, color: col, flat: ArtStyle.current == .flat)
                         .frame(width: 48, height: 36)
                     Spacer(minLength: 2)
                     Button {
@@ -1034,12 +1028,12 @@ struct PlanView: View {
             HStack(spacing: 12) {
                 Button {
                     TactileEngine.shared.beadClick()
-                    withAnimation(.snappy) {
+                    withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                         expandedCode = isExpanded ? nil : p.code
                     }
                 } label: {
                     HStack(spacing: 12) {
-                        TrayTile(code: p.code, color: col, flat: ArtStyle.current == .flat)
+                        ActivityPreviewThumb(play: p, color: col, flat: ArtStyle.current == .flat)
                             .frame(width: 56, height: 42)
                         VStack(alignment: .leading, spacing: 3) {
                             Text(p.name)
@@ -1067,13 +1061,15 @@ struct PlanView: View {
                             .minimumScaleFactor(0.85)
                         }
                         Spacer(minLength: 4)
-                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        Image(systemName: "chevron.down")
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(.tertiary)
+                            .rotationEffect(.degrees(isExpanded ? 180 : 0))
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityValue(isExpanded ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
 
                 if full {
                     Text(L10n.t("已满", "Full"))
@@ -1086,7 +1082,7 @@ struct PlanView: View {
                 } else {
                     Button {
                         TactileEngine.shared.beadClick()
-                        withAnimation(.snappy) {
+                        withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                             app.setShelf(codes + [p.code])
                         }
                     } label: {
@@ -1103,10 +1099,14 @@ struct PlanView: View {
 
             if isExpanded {
                 inlinePreviewDrawer(for: p, month: month, dark: dark)
+                    .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
             }
         }
         .padding(12)
+        .clipped()
         .printCard(radius: Radius.card)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+        .animation(reduce ? nil : CalmMotion.accordionSpring, value: isExpanded)
     }
 
     private func inlinePreviewDrawer(for p: Play, month: Int, dark: Bool) -> some View {
@@ -1201,7 +1201,7 @@ struct PlayRowLabel: View {
     @ScaledMetric(relativeTo: .body) private var w: CGFloat = 60
     var body: some View {
         HStack(spacing: 12) {
-            TrayTile(code: play.code, color: Palette.area(Palette.areaKey(of: play)), flat: ArtStyle.current == .flat)
+            ActivityPreviewThumb(play: play, color: Palette.area(Palette.areaKey(of: play)), flat: ArtStyle.current == .flat)
                 .frame(width: min(w, 84), height: min(w, 84) * 0.75)
             VStack(alignment: .leading, spacing: 2) {
                 Text(play.name)

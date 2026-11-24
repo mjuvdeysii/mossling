@@ -36,6 +36,7 @@ jobs:
           X=$(ls -d /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null | sort -V | tail -1); sudo xcode-select -s "$X"; xcodebuild -version
           SDK=$(xcodebuild -showsdks | grep -oE 'iphoneos[0-9.]+' | sort -V | tail -1 || true)
           echo "::notice title=Xcode::$(xcodebuild -version | tr '\n' ' ') (${SDK:-unknown})"
+          xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q "Status: installed" || xcodebuild -downloadComponent MetalToolchain
           brew install xcodegen >/dev/null
       - name: Generate project
         working-directory: ios
@@ -163,6 +164,7 @@ jobs:
         run: |
           set -o pipefail
           X=$(ls -d /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null | sort -V | tail -1); sudo xcode-select -s "$X"
+          xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q "Status: installed" || xcodebuild -downloadComponent MetalToolchain
           # The app group (shared journal for the widget) is used only once it is set up on the developer account:
           # repository variable APP_GROUP=1. Until then the app and widget are signed without it.
           if [ "${{ vars.APP_GROUP }}" != "1" ]; then

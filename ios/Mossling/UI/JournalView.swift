@@ -28,7 +28,6 @@ struct JournalView: View {
     @State private var expandedPeriods: Set<DayPeriod> = []
     @State private var touchedPeriods = false
     @State private var expandAllChapters = false
-    @State private var scrubbingSwimlane = false
     @Environment(\.dynamicTypeSize) private var size
 
     init(path: Binding<NavigationPath>, only: String? = nil, initialDay: Day? = nil, initialQuickTray: String? = nil) {
@@ -52,7 +51,6 @@ struct JournalView: View {
             expandedPeriods = []
             touchedPeriods = false
             expandAllChapters = false
-            scrubbingSwimlane = false
         }
     }
 
@@ -112,12 +110,11 @@ struct JournalView: View {
                             expandedPeriods: $expandedPeriods,
                             touchedPeriods: $touchedPeriods,
                             expandAllChapters: $expandAllChapters,
-                            scrubbingSwimlane: $scrubbingSwimlane,
                             edit: { editing = $0 },
                             delete: { j.delete($0) },
                             pick: { pickingDay = true },
                             jumpToPeriod: { period in
-                                withAnimation(reduce ? nil : .snappy) {
+                                withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                                     touchedPeriods = true
                                     expandedPeriods.insert(period)
                                 }
@@ -133,7 +130,6 @@ struct JournalView: View {
                         ))
                     }
                     .simultaneousGesture(DragGesture(minimumDistance: 30).onEnded { v in
-                        guard !scrubbingSwimlane else { return }
                         let dx = v.translation.width, dy = v.translation.height
                         guard abs(dx) > 70, abs(dx) > abs(dy) * 2 else { return }
                         let next = day.plus(days: dx < 0 ? 1 : -1)
@@ -435,7 +431,7 @@ private struct QuickLogDock: View {
                             ) {
                                 if t == LogType.diaper || t == LogType.bottle {
                                     TactileEngine.shared.beadClick()
-                                    withAnimation(reduce ? nil : .spring(response: 0.32, dampingFraction: 0.82)) {
+                                    withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                                         activeQuickTray = (activeQuickTray == t) ? nil : t
                                     }
                                 } else {
@@ -460,14 +456,14 @@ private struct QuickLogDock: View {
                             row(2) {
                                 ForEach(rarely, id: \.self) { t in
                                     SmallSticker(type: t) {
-                                        withAnimation(reduce ? nil : .snappy) { showSecondary = false }
+                                        withAnimation(reduce ? nil : CalmMotion.accordionSpring) { showSecondary = false }
                                         tap(t)
                                     }
                                 }
                             }
                             Button {
                                 TactileEngine.shared.beadClick()
-                                withAnimation(reduce ? nil : .snappy) { showSecondary = false }
+                                withAnimation(reduce ? nil : CalmMotion.accordionSpring) { showSecondary = false }
                             } label: {
                                 Label(L10n.t("收起更多贴纸", "Collapse More"), systemImage: "chevron.up")
                                     .font(.caption2.weight(.semibold))
@@ -476,10 +472,11 @@ private struct QuickLogDock: View {
                             }
                             .buttonStyle(.plain)
                         }
+                        .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     } else {
                         Button {
                             TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) { showSecondary = true }
+                            withAnimation(reduce ? nil : CalmMotion.accordionSpring) { showSecondary = true }
                         } label: {
                             HStack(spacing: 6) {
                                 Text(L10n.t("更多记录：", "More:"))
@@ -503,7 +500,11 @@ private struct QuickLogDock: View {
                     }
                 }
                 .padding(.top, 12).padding(.bottom, 10).padding(.horizontal, 8)
+                .clipped()
                 .printCard(radius: Radius.card)
+                .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
+                .animation(reduce ? nil : CalmMotion.accordionSpring, value: activeQuickTray)
+                .animation(reduce ? nil : CalmMotion.accordionSpring, value: showSecondary)
             }
         }
     }
@@ -733,7 +734,6 @@ private struct DayPage: View {
     @Binding var expandedPeriods: Set<DayPeriod>
     @Binding var touchedPeriods: Bool
     @Binding var expandAllChapters: Bool
-    @Binding var scrubbingSwimlane: Bool
     let edit: (LogEntry) -> Void
     let delete: (LogEntry) -> Void
     var pick: () -> Void = {}
@@ -797,9 +797,7 @@ private struct DayPage: View {
                 logs: logs,
                 timers: timers,
                 only: $only,
-                isScrubbing: $scrubbingSwimlane,
-                onSelectPeriod: jumpToPeriod,
-                onEditEntry: edit
+                onSelectPeriod: jumpToPeriod
             )
             if logs.isEmpty && (day != today || timers.isEmpty) {
                 // an empty day: the two dozing beside one line, not a stage of its own
@@ -1331,7 +1329,7 @@ private struct DayChapterLedger: View {
                         Spacer(minLength: 4)
                         Button {
                             TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) {
+                            withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                                 expandAll.toggle()
                                 if expandAll {
                                     touchedPeriods = true
@@ -1360,7 +1358,7 @@ private struct DayChapterLedger: View {
                         if chapters.count > 1 {
                             Button {
                                 TactileEngine.shared.beadClick()
-                                withAnimation(reduce ? nil : .snappy) {
+                                withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                                     if !touchedPeriods {
                                         touchedPeriods = true
                                         if let first = chapters.first {
@@ -1416,6 +1414,7 @@ private struct DayChapterLedger: View {
                                 .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
+                            .accessibilityValue(expanded ? L10n.t("已展开", "Expanded") : L10n.t("已折叠", "Collapsed"))
                             .id("chapter-\(chapter.period.rawValue)")
                         }
 
@@ -1473,8 +1472,11 @@ private struct DayChapterLedger: View {
                                 }
                             }
                             .padding(.top, 2)
+                            .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
                         }
                     }
+                    .clipped()
+                    .animation(reduce ? nil : CalmMotion.accordionSpring, value: expanded)
                 }
             }
         }

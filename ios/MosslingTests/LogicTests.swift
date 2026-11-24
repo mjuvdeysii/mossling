@@ -2299,4 +2299,64 @@ final class LogicTests: XCTestCase {
         XCTAssertNotNil(rendered)
         XCTAssertEqual(rendered?.size.width ?? 0, 360, accuracy: 2)
     }
+
+    @MainActor
+    func testRound18BespokeBatchAScenesAndDualRenderers() throws {
+        let expectedCodes: Set<String> = ["N01", "N02", "N03", "N04", "N05", "N06", "A01", "A02", "A03", "A04"]
+        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes, expectedCodes)
+
+        let content = try Content.load()
+        var cameraGrammars: Set<String> = []
+
+        for id in BespokeActivityID.allCases {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            cameraGrammars.insert(meta.cameraGrammar)
+            let play = try XCTUnwrap(content.play(id.code), "Missing play for \(id.code)")
+            let expectedSteps = play.steps.count
+            XCTAssertEqual(meta.durations.count, expectedSteps, "Durations count mismatch for \(id.code)")
+            XCTAssertEqual(meta.posterPhases.count, expectedSteps, "PosterPhases count mismatch for \(id.code)")
+            XCTAssertEqual(meta.audioAnchors.count, expectedSteps, "AudioAnchors count mismatch for \(id.code)")
+
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
+                let stage = LivingBookStage(
+                    script: script,
+                    stepIndex: 0,
+                    companion: .moss,
+                    dark: dark,
+                    accent: Crayon.teal,
+                    posterPhase: meta.posterPhases.first ?? 0.56,
+                    interactive: false,
+                    forceFlat: flat
+                )
+                .frame(width: 280, height: 210)
+                let renderer = ImageRenderer(content: stage)
+                renderer.scale = 1.0
+                let img = renderer.uiImage
+                XCTAssertNotNil(img, "ImageRenderer returned nil for \(id.code) dark=\(dark) flat=\(flat)")
+                XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            }
+        }
+
+        XCTAssertEqual(cameraGrammars.count, 10, "Each Batch A bespoke scene must own a unique cameraGrammar")
+        XCTAssertFalse(Firsts.customIconLabel("star.fill").isEmpty)
+
+        // Month 6 flagship showcase cover renders cleanly in all 4 modalities (3D Day, 3D Lamp, 2D Day, 2D Lamp)
+        for (dark, flat) in [(false, false), (true, false), (false, true), (true, true)] {
+            let cover = LivingMonthCoverStage(
+                month: 6,
+                dark: dark,
+                posterPhase: 0.56,
+                interactive: false,
+                compact: false,
+                forceFlat: flat
+            )
+            .frame(width: 320, height: 240)
+            let renderer = ImageRenderer(content: cover)
+            renderer.scale = 1.0
+            let img = renderer.uiImage
+            XCTAssertNotNil(img, "Month 6 showcase cover failed dark=\(dark) flat=\(flat)")
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+    }
 }

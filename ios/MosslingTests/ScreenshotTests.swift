@@ -1942,4 +1942,55 @@ final class ScreenshotTests: XCTestCase {
         shot("67_firsts_gallery_en", height: 1320,
              NavigationStack { FirstsView() }.environment(mEn).environment(fj).tint(Palette.accent).fontDesign(.rounded))
     }
+
+    /// Round 18 — Pixar 3D x Ghibli 2D Flagship Showcases (N01, A04, Month 6), Read-Only DayLedger, & Restored Act 1 Lamp.
+    func test68Round18PixarGhibliShowcaseAndP0() {
+        defer { ArtStyle.current = .vinyl }
+        let m = model(); m.journal = true
+
+        if let n01 = LivingBookCatalog.script(for: "N01") {
+            let n01Plate = showcase2x2(
+                tl: LivingBookStage(script: n01, stepIndex: 0, companion: .moss, dark: false, posterPhase: 0.56, interactive: false, forceFlat: false),
+                tr: LivingBookStage(script: n01, stepIndex: 2, companion: .moss, dark: true, posterPhase: 0.62, interactive: false, forceFlat: false),
+                bl: LivingBookStage(script: n01, stepIndex: 0, companion: .moss, dark: false, posterPhase: 0.56, interactive: false, forceFlat: true),
+                br: LivingBookStage(script: n01, stepIndex: 2, companion: .moss, dark: true, posterPhase: 0.62, interactive: false, forceFlat: true)
+            )
+            shot("68_showcase_n01_4modes", height: 520, n01Plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+        }
+
+        if let a04 = LivingBookCatalog.script(for: "A04") {
+            let a04Plate = showcase2x2(
+                tl: LivingBookStage(script: a04, stepIndex: 0, companion: .moss, dark: false, posterPhase: 0.54, interactive: false, forceFlat: false),
+                tr: LivingBookStage(script: a04, stepIndex: 2, companion: .moss, dark: true, posterPhase: 0.60, interactive: false, forceFlat: false),
+                bl: LivingBookStage(script: a04, stepIndex: 0, companion: .moss, dark: false, posterPhase: 0.54, interactive: false, forceFlat: true),
+                br: LivingBookStage(script: a04, stepIndex: 2, companion: .moss, dark: true, posterPhase: 0.60, interactive: false, forceFlat: true)
+            )
+            shot("68_showcase_a04_4modes", height: 520, a04Plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+        }
+
+        let m06Plate = showcase2x2(
+            tl: LivingMonthCoverStage(month: 6, dark: false, posterPhase: 0.56, interactive: false, forceFlat: false),
+            tr: LivingMonthCoverStage(month: 6, dark: true, posterPhase: 0.56, interactive: false, forceFlat: false),
+            bl: LivingMonthCoverStage(month: 6, dark: false, posterPhase: 0.56, interactive: false, forceFlat: true),
+            br: LivingMonthCoverStage(month: 6, dark: true, posterPhase: 0.56, interactive: false, forceFlat: true)
+        )
+        shot("68_showcase_m06_4modes", height: 520, m06Plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+
+        if let playN01 = m.content.play("N01") {
+            shot("68_play_n01_bespoke_zh", height: 1120, tabs(m, PlayView(play: playN01, month: 0)))
+        }
+        shot("68_journal_readonly_swimlane_zh", height: 1200, tabs(m, JournalView(path: .constant(NavigationPath()))))
+        shot("68_story_act1_lamp_zh", height: 920, settle: 2.0, tabs(m, StoryView()))
+    }
+
+    private func showcase2x2<TL: View, TR: View, BL: View, BR: View>(
+        tl: TL, tr: TR, bl: BL, br: BR
+    ) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 10) { tl; tr }
+            HStack(spacing: 10) { bl; br }
+        }
+        .padding(14)
+        .background(Palette.background)
+    }
 }

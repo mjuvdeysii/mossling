@@ -50,8 +50,9 @@ struct FoodAtlasView: View {
         }
     }
 
-    init(store: FoodAtlasStore = .shared, previewSelectedFoodId: String? = nil) {
-        _store = State(initialValue: store)
+    @MainActor
+    init(store: FoodAtlasStore? = nil, previewSelectedFoodId: String? = nil) {
+        _store = State(initialValue: store ?? .shared)
         _selectedFoodId = State(initialValue: previewSelectedFoodId)
     }
 
@@ -454,7 +455,7 @@ struct FoodAtlasView: View {
             if isDrawerMode {
                 Button {
                     TactileEngine.shared.beadClick()
-                    withAnimation(reduce ? nil : .snappy) {
+                    withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                         collapsedCategories = allCollapsed ? [] : Set(FoodCategory.allCases)
                     }
                 } label: {
@@ -493,59 +494,55 @@ struct FoodAtlasView: View {
     // MARK: - Collapsible Botanical Bento Drawers & Specimen Grid
 
     private func botanicalDrawer(category: FoodCategory, items: [FoodItem], columns: [GridItem], dark: Bool) -> some View {
-        let collapsed = collapsedCategories.contains(category)
+        let expanded = !collapsedCategories.contains(category)
         let done = store.tastedCount(in: category)
         let total = max(1, store.totalCount(in: category))
         let frac = min(1.0, Double(done) / Double(total))
 
-        return VStack(alignment: .leading, spacing: 10) {
-            Button {
-                TactileEngine.shared.beadClick()
-                withAnimation(reduce ? nil : .snappy) {
-                    if collapsed {
-                        collapsedCategories.remove(category)
-                    } else {
-                        collapsedCategories.insert(category)
-                    }
+        return CalmAccordion(
+            isExpanded: expanded,
+            spacing: 10,
+            onToggle: {
+                if expanded {
+                    collapsedCategories.insert(category)
+                } else {
+                    collapsedCategories.remove(category)
                 }
-            } label: {
-                HStack(spacing: 8) {
-                    IconTile(symbol: category.symbol, color: category.color, size: 24, round: true)
-                    Text(category.title)
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                    Spacer(minLength: 4)
-                    ZStack(alignment: .leading) {
-                        Capsule()
-                            .fill(category.color.opacity(dark ? 0.20 : 0.16))
-                            .frame(width: 44, height: 5)
-                        Capsule()
-                            .fill(category.color)
-                            .frame(width: max(done > 0 ? 5 : 0, 44 * frac), height: 5)
-                    }
-                    Text("\(done)/\(total)")
-                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                        .foregroundStyle(Palette.secondaryText)
-                    Image(systemName: "chevron.down")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                        .rotationEffect(.degrees(collapsed ? -90 : 0))
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityHint(collapsed ? L10n.t("展开这一层", "Expand drawer") : L10n.t("收起这一层", "Collapse drawer"))
-
-            if !collapsed {
-                LazyVGrid(columns: columns, spacing: 8) {
-                    ForEach(items) { item in
-                        specimenCell(item: item, dark: dark)
-                    }
+        ) { isOpen in
+            HStack(spacing: 8) {
+                IconTile(symbol: category.symbol, color: category.color, size: 24, round: true)
+                Text(category.title)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 4)
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(category.color.opacity(dark ? 0.20 : 0.16))
+                        .frame(width: 44, height: 5)
+                    Capsule()
+                        .fill(category.color)
+                        .frame(width: max(done > 0 ? 5 : 0, 44 * frac), height: 5)
+                }
+                Text("\(done)/\(total)")
+                    .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                    .foregroundStyle(Palette.secondaryText)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.tertiary)
+                    .rotationEffect(.degrees(isOpen ? 0 : -90))
+            }
+            .frame(minHeight: 36)
+        } content: {
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(items) { item in
+                    specimenCell(item: item, dark: dark)
                 }
             }
         }
         .padding(12)
         .printCard(radius: Radius.card)
+        .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
     }
 
     private func specimenCell(item: FoodItem, dark: Bool) -> some View {
