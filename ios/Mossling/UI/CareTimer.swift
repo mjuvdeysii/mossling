@@ -1,6 +1,84 @@
 import SwiftUI
 import TipKit
 
+/// Pure factual rhythm snapshot for an active CareTimer session (zero predictions or scoring).
+struct CareSessionRhythm: Equatable, Sendable {
+    let leftSeconds: Double
+    let rightSeconds: Double
+    let todayFeedIndex: Int
+    let previousFeedSeconds: Double?
+    let todaySleepSeconds: Double
+    let awakeBeforeSleepSeconds: Double?
+
+    var totalNurseSeconds: Double { leftSeconds + rightSeconds }
+
+    /// Fraction of the current nursing feed spent on the left side (`0.5` when no elapsed time yet).
+    var leftFraction: Double {
+        let total = totalNurseSeconds
+        guard total > 0 else { return 0.5 }
+        return min(1, max(0, leftSeconds / total))
+    }
+
+    static func build(timer: RunningTimer, logs: [LogEntry], day: Day, nowMs: Double) -> CareSessionRhythm {
+        let dayStartMs = day.date.timeIntervalSince1970 * 1000
+        if timer.type == LogType.nurse {
+            let side = timer.side ?? "l"
+            let done = logs.feedSides(before: timer.start)
+            let active = max(0, timer.elapsed(nowMs))
+            let left = (done["l"] ?? 0) + (side == "l" ? active : 0)
+            let right = (done["r"] ?? 0) + (side == "r" ? active : 0)
+
+            let completedFeeds = logs.feeds()
+            let priorFeeds = completedFeeds.filter { feed in
+                let isPartOfCurrent = !feed.isBottle
+                    && feed.start < timer.start
+                    && (feed.end.map { abs($0 - timer.start) <= Feed.join } ?? false)
+                return !isPartOfCurrent && feed.start < timer.start
+            }
+            let priorTodayFeeds = priorFeeds.filter { $0.start >= dayStartMs }.count
+            let previousNurse = priorFeeds.last { !$0.isBottle && $0.activeSeconds >= 30 }
+
+            return CareSessionRhythm(
+                leftSeconds: left,
+                rightSeconds: right,
+                todayFeedIndex: max(1, priorTodayFeeds + 1),
+                previousFeedSeconds: previousNurse?.activeSeconds,
+                todaySleepSeconds: 0,
+                awakeBeforeSleepSeconds: nil
+            )
+        } else {
+            let completedSleepOnDay = logs
+                .filter { $0.type == LogType.sleep && $0.end != nil }
+                .reduce(0.0) { $0 + $1.seconds(on: day) }
+            let endMs = max(timer.start, timer.pausedAt ?? nowMs)
+            let currentAsEntry = LogEntry(
+                type: LogType.sleep,
+                start: timer.start,
+                end: endMs,
+                detail: timer.pausedTotal > 0 ? "paused:\(Int(timer.pausedTotal))" : nil
+            )
+            let activeToday = currentAsEntry.seconds(on: day)
+            let lastCompletedSleepEnd = logs
+                .filter { $0.type == LogType.sleep && $0.end != nil }
+                .compactMap(\.end)
+                .filter { $0 <= timer.start }
+                .max()
+            let awakeSec: Double? = lastCompletedSleepEnd.flatMap { endAt in
+                let diff = (timer.start - endAt) / 1000
+                return (diff >= 60 && diff < 16 * 3600) ? diff : nil
+            }
+            return CareSessionRhythm(
+                leftSeconds: 0,
+                rightSeconds: 0,
+                todayFeedIndex: 0,
+                previousFeedSeconds: nil,
+                todaySleepSeconds: completedSleepOnDay + activeToday,
+                awakeBeforeSleepSeconds: awakeSec
+            )
+        }
+    }
+}
+
 /// The page of a feed or a sleep — the one place a timer starts, runs and ends (build 169, after "点一下就开始了，点进去
 ///发现已经开始很久了"). Tapping 亲喂 or 睡觉 anywhere opens this page *not yet running*: the sides (or the moon) say
 /// 点按开始, and when it began can be set first (now, a few minutes ago, or a chosen time) — so nothing starts by
@@ -15,6 +93,8 @@ struct TimerScreen: View {
     @Environment(JournalStore.self) private var j
     @Environment(AppModel.self) private var app
     @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @Environment(\.dismiss) private var dismiss
     let type: String
     @State private var picking = false
@@ -110,11 +190,17 @@ struct TimerScreen: View {
                         // the same choices as every record's time: 现在, 5, 10, 15, 30 minutes, an hour
                         ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                             let on = startAt == nil && startAgo == m
-                            Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) { withAnimation(.snappy) { startAt = nil; startAgo = m } }
+                            Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) {
+                                TactileEngine.shared.dimmerTick()
+                                withAnimation(.snappy) { startAt = nil; startAgo = m }
+                            }
                                 .buttonStyle(.vinyl(on ? c : Crayon.pebble))
                                 .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                         }
-                        Button(startAt.map { whenLabel($0) } ?? L10n.t("其他时间…", "Other…")) { pickingStart = true }
+                        Button(startAt.map { whenLabel($0) } ?? L10n.t("其他时间…", "Other…")) {
+                            TactileEngine.shared.beadClick()
+                            pickingStart = true
+                        }
                             .buttonStyle(.vinyl(startAt != nil ? c : Crayon.pebble))
                             .fontWeight(startAt != nil ? .semibold : .regular)
                     }
@@ -160,6 +246,7 @@ struct TimerScreen: View {
     }
 
     private func begin(side: String?) {
+        TactileEngine.shared.beadClick()
         withAnimation(.snappy) { j.start(type, side: side, at: min(chosenStart, Date())) }
         startAgo = 0; startAt = nil
     }
@@ -167,17 +254,19 @@ struct TimerScreen: View {
     // MARK: running
 
     @ViewBuilder private func running(_ t: RunningTimer, _ c: Color) -> some View {
+        let dark = lamp || scheme == .dark
         let paused = t.pausedAt != nil
         let side = t.side ?? "l"
         TimelineView(.periodic(from: .now, by: 1)) { tl in
             let now = tl.date.timeIntervalSince1970 * 1000
+            let rhythm = CareSessionRhythm.build(timer: t, logs: j.logs, day: Day(tl.date), nowMs: now)
             ScrollView {
-                VStack(spacing: 12) {
+                VStack(spacing: 10) {
                     if let q = question(t, now) {
                         Check(text: q.text, keep: q.keep, end: q.end, color: c,
                               onKeep: { acked.insert(q.key) }, onEnd: { ending = true })
                     }
-                    Duo(primary: app.companion, size: 50,
+                    Duo(primary: app.companion, size: 46,
                         mood: type == LogType.sleep && !paused ? .sleep : .open,
                         look: type == LogType.nurse ? CGPoint(x: side == "l" ? -0.9 : 0.9, y: 0.6) : CGPoint(x: 0, y: 0.5),
                         poke: true, night: lamp)
@@ -187,33 +276,60 @@ struct TimerScreen: View {
                     if type == LogType.nurse {
                         HStack(spacing: 12) {
                             ForEach(["l", "r"], id: \.self) { k in
-                                let done = j.logs.feedSides(before: t.start)[k] ?? 0
-                                SidePad(side: k, seconds: done + (k == side ? t.elapsed(now) : 0),
+                                let sec = k == "l" ? rhythm.leftSeconds : rhythm.rightSeconds
+                                SidePad(side: k, seconds: sec,
                                         state: k != side ? .other : paused ? .paused : .running, color: c) {
+                                    if k == side {
+                                        TactileEngine.shared.dimmerTick()
+                                    } else {
+                                        TactileEngine.shared.beadClick()
+                                    }
                                     withAnimation(.snappy) { j.tapSide(type, k) }
                                 }
                             }
                         }
                     } else {
                         SleepPad(seconds: t.total(now), paused: paused, color: c) {
+                            TactileEngine.shared.dimmerTick()
                             withAnimation(.snappy) { j.togglePause(type) }
                         }
                     }
 
-                    HStack(spacing: 0) {
-                        // a sleep shows its length once, in the moon; here, when it began instead
-                        if type == LogType.sleep {
-                            Button { picking = true } label: {
-                                Stat(title: L10n.t("睡着于", "Asleep since"), value: whenLabel(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
+                    VStack(spacing: 0) {
+                        let statLayout = dynamicTypeSize.isAccessibilitySize
+                            ? AnyLayout(VStackLayout(spacing: 8))
+                            : AnyLayout(HStackLayout(spacing: 0))
+                        statLayout {
+                            // a sleep shows its length once, in the moon; here, when it began instead
+                            if type == LogType.sleep {
+                                Button { picking = true } label: {
+                                    Stat(title: L10n.t("睡着于", "Asleep since"), value: whenLabel(Date(timeIntervalSince1970: t.start / 1000)), strong: true)
+                                }
+                                .buttonStyle(.toy).accessibilityHint(L10n.t("改开始时间", "Change start time"))
+                            } else {
+                                Stat(title: L10n.t("合计", "Total"), value: span(t.total(now)), strong: true, tint: Crayon.ink(c))
                             }
-                            .buttonStyle(.toy).accessibilityHint(L10n.t("改开始时间", "Change start time"))
-                        } else {
-                            Stat(title: L10n.t("合计", "Total"), value: span(t.total(now)), strong: true, tint: Crayon.ink(c))
+                            if !dynamicTypeSize.isAccessibilitySize {
+                                Divider().frame(height: 30)
+                            } else {
+                                Divider().padding(.horizontal, 16)
+                            }
+                            Stat(title: L10n.t("暂停", "Paused"), value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                         }
-                        Divider().frame(height: 34)
-                        Stat(title: L10n.t("暂停", "Paused"), value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
+                        .padding(.vertical, 9)
+
+                        Divider().padding(.horizontal, 14).opacity(0.6)
+
+                        if type == LogType.nurse {
+                            NursingBalanceRibbon(rhythm: rhythm, activeSide: side, color: c, dark: dark)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        } else {
+                            SleepRhythmRibbon(rhythm: rhythm, color: c, dark: dark)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                        }
                     }
-                    .padding(.vertical, 12)
                     .printCard(radius: Radius.card)
 
                     cockpitControls(
@@ -221,7 +337,7 @@ struct TimerScreen: View {
                         color: c
                     )
                 }
-                .padding(.horizontal, 20).padding(.bottom, 24)
+                .padding(.horizontal, 20).padding(.bottom, 16)
             }
             .scrollBounceBehavior(.basedOnSize)
         }
@@ -239,8 +355,14 @@ struct TimerScreen: View {
 
                 Menu {
                     Button(L10n.t("已经结束了，选结束时间", "Already finished — pick end time"), systemImage: "clock.badge.checkmark") { ending = true }
-                    Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300)) }
-                    Button(L10n.t("提前 15 分钟开始", "Start 15 min earlier"), systemImage: "gobackward.15") { j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900)) }
+                    Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") {
+                        TactileEngine.shared.dimmerTick()
+                        j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300))
+                    }
+                    Button(L10n.t("提前 15 分钟开始", "Start 15 min earlier"), systemImage: "gobackward.15") {
+                        TactileEngine.shared.dimmerTick()
+                        j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900))
+                    }
                     Divider()
                     Button(L10n.t("不记这一次", "Discard timer"), systemImage: "xmark", role: .destructive) { j.discard(type) }
                 } label: { Image(systemName: "ellipsis") }.accessibilityLabel(L10n.t("更多", "More"))
@@ -248,7 +370,11 @@ struct TimerScreen: View {
         }
         // ending, alone: a full-width button in its own band, nothing beside it to hit by mistake
         .safeAreaBar(edge: .bottom) {
-            Button { j.stop(type); dismiss() } label: {
+            Button {
+                TactileEngine.shared.goldChime()
+                j.stop(type)
+                dismiss()
+            } label: {
                 Label(type == LogType.sleep ? L10n.t("醒了，记下", "Awake — Save") : L10n.t("喂完了，记下", "Done — Save"), systemImage: "checkmark")
                     .font(.headline).frame(maxWidth: .infinity)
             }
@@ -258,13 +384,20 @@ struct TimerScreen: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: paused)
         .sensoryFeedback(.selection, trigger: side)
         .sheet(isPresented: $picking) {
-            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: t.start / 1000)) { j.shift(type, to: $0) }.lampPresented()
+            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: t.start / 1000)) {
+                TactileEngine.shared.dimmerTick()
+                j.shift(type, to: $0)
+            }.lampPresented()
         }
         .sheet(isPresented: $ending) {
             // the real end: not before it began, not later than now (or than the pause, if paused)
             TimeSheet(title: type == LogType.sleep ? L10n.t("什么时候醒的", "When did they wake?") : L10n.t("什么时候喂完的", "When did the feed end?"),
                       initial: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date(),
-                      notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in j.stop(type, at: d); dismiss() }
+                      notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in
+                TactileEngine.shared.goldChime()
+                j.stop(type, at: d)
+                dismiss()
+            }
                 .lampPresented()
         }
     }
@@ -325,37 +458,61 @@ struct TimerScreen: View {
         .padding(.vertical, 10)
         .printCard(radius: Radius.inner)
 
-        HStack(spacing: 8) {
-            HStack(spacing: 5) {
-                Image(systemName: LogType.symbol(LogType.diaper))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(Crayon.ink(LogType.color(LogType.diaper)))
-                Text(L10n.t("顺手记尿布", "Diaper"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-            }
-            Spacer(minLength: 4)
-            ForEach(["wet", "dirty", "both"], id: \.self) { kind in
-                let label = kind == "wet" ? L10n.t("湿", "Wet") : kind == "dirty" ? L10n.t("便", "Dirty") : L10n.t("都有", "Both")
-                Button(label) {
-                    TactileEngine.shared.beadClick()
-                    _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
+        let diaperRow = Group {
+            if dynamicTypeSize.isAccessibilitySize {
+                VStack(alignment: .leading, spacing: 8) {
+                    diaperHeader
+                    FlowRow(spacing: 8, lineSpacing: 8) {
+                        diaperButtons
+                    }
                 }
-                .buttonStyle(.vinyl(LogType.color(LogType.diaper)))
-                .lineLimit(1)
+            } else {
+                HStack(spacing: 8) {
+                    diaperHeader
+                    Spacer(minLength: 4)
+                    diaperButtons
+                }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .printCard(radius: Radius.inner)
+        diaperRow
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .printCard(radius: Radius.inner)
 
         if type != LogType.sleep {
-            Button { picking = true } label: {
+            Button {
+                TactileEngine.shared.beadClick()
+                picking = true
+            } label: {
                 Label(L10n.t("开始于 ", "Started ") + whenLabel(startedAt), systemImage: "clock")
                     .font(.subheadline)
                     .monospacedDigit()
             }
             .buttonStyle(.vinyl(c))
+        }
+    }
+
+    private var diaperHeader: some View {
+        HStack(spacing: 5) {
+            Image(systemName: LogType.symbol(LogType.diaper))
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(Crayon.ink(LogType.color(LogType.diaper)))
+            Text(L10n.t("顺手记尿布", "Diaper"))
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryText)
+        }
+    }
+
+    @ViewBuilder
+    private var diaperButtons: some View {
+        ForEach(["wet", "dirty", "both"], id: \.self) { kind in
+            let label = kind == "wet" ? L10n.t("湿", "Wet") : kind == "dirty" ? L10n.t("便", "Dirty") : L10n.t("都有", "Both")
+            Button(label) {
+                TactileEngine.shared.beadClick()
+                _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
+            }
+            .buttonStyle(.vinyl(LogType.color(LogType.diaper)))
+            .lineLimit(1)
         }
     }
 
@@ -512,8 +669,14 @@ private struct SidePad: View {
 
     @ViewBuilder private var badge: some View {
         if state == .ready(suggested: true) {
-            Text(L10n.t("建议", "Suggested")).font(.caption2.weight(.bold)).padding(.horizontal, 7).padding(.vertical, 3)
-                .background(Capsule().fill(.white.opacity(0.92))).foregroundStyle(Crayon.buttonFill(color)).padding(10)
+            Text(L10n.t("建议", "Suggested"))
+                .font(.caption2.weight(.bold))
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(lamp ? Palette.lampCard.opacity(0.92) : .white.opacity(0.92)))
+                .overlay(Capsule().strokeBorder(lamp ? Palette.amber.opacity(0.42) : .clear, lineWidth: 0.75))
+                .foregroundStyle(lamp ? Palette.amber : Crayon.buttonFill(color))
+                .padding(10)
         }
     }
 
@@ -611,6 +774,131 @@ private struct SleepPad: View {
     }
 }
 
+/// Tactile Montessori L/R nursing balance bead ribbon + factual daily feed cadence.
+private struct NursingBalanceRibbon: View {
+    let rhythm: CareSessionRhythm
+    let activeSide: String
+    let color: Color
+    let dark: Bool
+
+    private var rightTint: Color {
+        dark ? Palette.amber : Crayon.tangerine
+    }
+
+    var body: some View {
+        let frac = CGFloat(rhythm.leftFraction)
+        let leftText = rhythm.leftSeconds >= 1 ? clock(rhythm.leftSeconds) : "00:00"
+        let rightText = rhythm.rightSeconds >= 1 ? clock(rhythm.rightSeconds) : "00:00"
+
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(color)
+                        .frame(width: 7, height: 7)
+                    Text(L10n.t("左 ", "L ") + leftText)
+                        .font(Typeface.numerals(12, relativeTo: .caption, weight: activeSide == "l" ? .bold : .semibold))
+                        .foregroundStyle(activeSide == "l" ? .primary : Palette.secondaryText)
+                }
+                Spacer(minLength: 4)
+                HStack(spacing: 4) {
+                    Text(L10n.t("右 ", "R ") + rightText)
+                        .font(Typeface.numerals(12, relativeTo: .caption, weight: activeSide == "r" ? .bold : .semibold))
+                        .foregroundStyle(activeSide == "r" ? .primary : Palette.secondaryText)
+                    Circle()
+                        .fill(rightTint)
+                        .frame(width: 7, height: 7)
+                }
+            }
+
+            GeometryReader { geo in
+                let w = max(24, geo.size.width)
+                let beadX = max(5, min(w - 5, w * frac))
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(rightTint.opacity(dark ? 0.34 : 0.28))
+                        .frame(height: 6)
+
+                    Capsule()
+                        .fill(color.opacity(dark ? 0.85 : 0.88))
+                        .frame(width: max(6, beadX), height: 6)
+
+                    Circle()
+                        .fill(RadialGradient(
+                            colors: [Palette.beadLight, Palette.bead],
+                            center: UnitPoint(x: 0.35, y: 0.3),
+                            startRadius: 0,
+                            endRadius: 6
+                        ))
+                        .frame(width: 11, height: 11)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.5)
+                        )
+                        .offset(x: beadX - 5.5)
+                }
+                .frame(height: 12)
+            }
+            .frame(height: 12)
+
+            HStack(spacing: 6) {
+                GoldBead(size: 7)
+                Text(summaryLine)
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .monospacedDigit()
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(L10n.t(
+            "本顿左右平衡，左侧 \(minutesOf(rhythm.leftSeconds))，右侧 \(minutesOf(rhythm.rightSeconds))，\(summaryLine)",
+            "Feed balance, Left \(minutesOf(rhythm.leftSeconds)), Right \(minutesOf(rhythm.rightSeconds)), \(summaryLine)"
+        ))
+    }
+
+    private var summaryLine: String {
+        let base = L10n.t("今天第 \(rhythm.todayFeedIndex) 次喂奶", "Feed #\(rhythm.todayFeedIndex) today")
+        if let prev = rhythm.previousFeedSeconds {
+            return base + L10n.t(" · 上一次 \(durationValue(prev))", " · Prev \(durationValue(prev))")
+        }
+        return base
+    }
+}
+
+/// Factual daily sleep rhythm ribbon shown quietly beneath the active Sleep moon stats.
+private struct SleepRhythmRibbon: View {
+    let rhythm: CareSessionRhythm
+    let color: Color
+    let dark: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "moon.stars.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(dark ? Palette.amber : Crayon.ink(color))
+                .accessibilityHidden(true)
+            Text(summaryLine)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.secondaryText)
+                .monospacedDigit()
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    private var summaryLine: String {
+        let formatted = rhythm.todaySleepSeconds >= 60 ? durationValue(rhythm.todaySleepSeconds) : span(rhythm.todaySleepSeconds)
+        let total = L10n.t("今日累计 \(formatted)", "Today total \(formatted)")
+        if let awake = rhythm.awakeBeforeSleepSeconds {
+            return total + L10n.t(" · 睡前清醒 \(durationValue(awake))", " · Awake \(durationValue(awake)) before")
+        }
+        return total
+    }
+}
+
 private struct Stat: View {
     let title: String
     let value: String
@@ -642,21 +930,22 @@ struct Dial: View {
         let inHour: Int = minutes % 60, hours: Int = minutes / 60
         let k: CGFloat = min(1, r / 140)   // beads scale with the ring
         let lit = Gradient(colors: [color.mix(with: .white, by: 0.45), color])
+        let gold = Gradient(colors: [Palette.beadLight, Palette.bead])
         for i in 0..<60 {
             let a: CGFloat = CGFloat(i) / 60 * 2 * .pi - .pi / 2
             let px: CGFloat = c.x + cos(a) * r, py: CGFloat = c.y + sin(a) * r
+            let isQuarter = i > 0 && i % 15 == 0
             let d: CGFloat = ((i % 5 == 0 ? 11 : 8) + (i <= inHour && seconds > 0 ? 3 : 0)) * k
             let rect = CGRect(x: px - d / 2, y: py - d / 2, width: d, height: d)
             if i <= inHour && seconds > 0 {
                 let hi = CGPoint(x: rect.minX + d * 0.35, y: rect.minY + d * 0.3)
-                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(lit, center: hi, startRadius: 0, endRadius: d))
+                ctx.fill(Path(ellipseIn: rect), with: .radialGradient(isQuarter ? gold : lit, center: hi, startRadius: 0, endRadius: d))
                 if i == inHour { ctx.stroke(Path(ellipseIn: rect.insetBy(dx: -3 * k, dy: -3 * k)), with: .color(color.opacity(0.45)), lineWidth: 2) }
             } else {
-                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1.5 * k, dy: 1.5 * k)), with: .color(color.opacity(0.16)))
+                ctx.fill(Path(ellipseIn: rect.insetBy(dx: 1.5 * k, dy: 1.5 * k)), with: .color(color.opacity(isQuarter ? 0.28 : 0.16)))
             }
         }
         let shown: Int = min(hours, 6)
-        let gold = Gradient(colors: [Palette.beadLight, Palette.bead])
         for h in 0..<shown {
             let x: CGFloat = c.x - CGFloat(shown - 1) * 9 * k + CGFloat(h) * 18 * k
             let rect = CGRect(x: x - 7 * k, y: c.y - r * 0.72 - 7 * k, width: 14 * k, height: 14 * k)

@@ -1854,4 +1854,52 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(CareFilterMode.done.matches(ticked: true))
         XCTAssertFalse(CareFilterMode.done.matches(ticked: false))
     }
+
+    func testCareSessionRhythmComputesBalanceAndSleepContext() {
+        let day = Day(y: 2026, m: 10, d: 19)
+        let morningNurseStart = t(19, 7, 0)
+        let morningNurseEnd = t(19, 7, 16)
+        let firstSideStart = t(19, 10, 0)
+        let switchedAt = t(19, 10, 12)
+        let nowMs = t(19, 10, 18)
+
+        let logs = [
+            // Earlier completed feed today (16 min)
+            LogEntry(type: LogType.nurse, start: morningNurseStart, end: morningNurseEnd, side: "l"),
+            // Bottle feed earlier today
+            LogEntry(type: LogType.bottle, start: t(19, 8, 30), amount: 110),
+            // Left side (12 min) of current ongoing feed
+            LogEntry(type: LogType.nurse, start: firstSideStart, end: switchedAt, side: "l"),
+            // Overnight sleep 22:00 yesterday -> 06:30 today (6.5h today)
+            LogEntry(type: LogType.sleep, start: t(18, 22, 0), end: t(19, 6, 30)),
+        ]
+
+        // Active nursing timer on right side for 6 min (total 18m: 12m L, 6m R -> 2/3 L)
+        let nurseTimer = RunningTimer(type: LogType.nurse, start: switchedAt, side: "r", carried: 12 * 60_000)
+        let nurseRhythm = CareSessionRhythm.build(timer: nurseTimer, logs: logs, day: day, nowMs: nowMs)
+        XCTAssertEqual(nurseRhythm.leftSeconds, 12 * 60, accuracy: 0.5)
+        XCTAssertEqual(nurseRhythm.rightSeconds, 6 * 60, accuracy: 0.5)
+        XCTAssertEqual(nurseRhythm.leftFraction, 12.0 / 18.0, accuracy: 0.001)
+        XCTAssertEqual(nurseRhythm.todayFeedIndex, 3) // morning nurse + bottle + current ongoing nurse
+        XCTAssertEqual(nurseRhythm.previousFeedSeconds ?? 0, 16 * 60, accuracy: 0.5)
+
+        // Zero-duration nursing timer should stay centered at 0.5
+        let zeroNurse = RunningTimer(type: LogType.nurse, start: nowMs, side: "l")
+        let zeroRhythm = CareSessionRhythm.build(timer: zeroNurse, logs: [], day: day, nowMs: nowMs)
+        XCTAssertEqual(zeroRhythm.leftFraction, 0.5, accuracy: 0.001)
+        XCTAssertEqual(zeroRhythm.todayFeedIndex, 1)
+        XCTAssertNil(zeroRhythm.previousFeedSeconds)
+
+        // Active sleep timer started at 08:30 (2h awake after 06:30), currently 09:30 with 5m paused
+        let sleepTimer = RunningTimer(type: LogType.sleep, start: t(19, 8, 30), pausedTotal: 5 * 60_000)
+        let sleepRhythm = CareSessionRhythm.build(timer: sleepTimer, logs: logs, day: day, nowMs: t(19, 9, 30))
+        // 6.5h (overnight portion today) + 55m (current active nap) = 7h 25m
+        XCTAssertEqual(sleepRhythm.todaySleepSeconds, 6.5 * 3600 + 55 * 60, accuracy: 1.0)
+        XCTAssertEqual(sleepRhythm.awakeBeforeSleepSeconds ?? 0, 2 * 3600, accuracy: 1.0)
+
+        // Stale prior sleep > 16h earlier should not report awake-before gap
+        let staleSleep = RunningTimer(type: LogType.sleep, start: t(20, 12, 0))
+        let staleRhythm = CareSessionRhythm.build(timer: staleSleep, logs: logs, day: Day(y: 2026, m: 10, d: 20), nowMs: t(20, 12, 30))
+        XCTAssertNil(staleRhythm.awakeBeforeSleepSeconds)
+    }
 }

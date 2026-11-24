@@ -1588,19 +1588,44 @@ private struct CompactEntryRow: View {
 /// the timer screen, in its own band, never a few points from pause (a mis-tap would end a feed).
 struct TimerAccessory: View {
     @Environment(JournalStore.self) private var j
+    @Environment(\.accessibilityReduceMotion) private var reduce
     let timer: RunningTimer
     /// A second clock running at once (a feed during a nap): its mark and time beside the first, one tap to open it.
     var also: RunningTimer? = nil
+    @State private var pulse = false
+
     var body: some View {
         let c = LogType.color(timer.type)
+        let isPaused = timer.pausedAt != nil
         HStack(spacing: 12) {
-            Button { j.focus = timer.type } label: {
-                HStack(spacing: 12) {
+            Button {
+                TactileEngine.shared.beadClick()
+                j.focus = timer.type
+            } label: {
+                HStack(spacing: 10) {
                     IconTile(symbol: LogType.symbol(timer.type), color: c, size: 30, round: true)
-                    VStack(alignment: .leading, spacing: 0) {
-                        Text(LogType.name(timer.type) + (timer.side == "l" ? L10n.t(" · 左侧", " · Left") : timer.side == "r" ? L10n.t(" · 右侧", " · Right") : "")).font(.footnote.weight(.semibold))
+                    VStack(alignment: .leading, spacing: 1) {
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(isPaused ? Color.clear : c)
+                                .overlay(Circle().strokeBorder(c, lineWidth: isPaused ? 1.5 : 0))
+                                .frame(width: 6.5, height: 6.5)
+                                .scaleEffect(!isPaused && pulse && !reduce && !Perf.still ? 1.28 : 1.0)
+                            Text(LogType.name(timer.type) + (timer.side == "l" ? L10n.t(" · 左侧", " · Left") : timer.side == "r" ? L10n.t(" · 右侧", " · Right") : ""))
+                                .font(.footnote.weight(.semibold))
+                        }
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
-                            Ticking(text: span(timer.total(tl.date.timeIntervalSince1970 * 1000)), tint: Crayon.ink(c)).font(Typeface.numerals(13, relativeTo: .footnote)).foregroundStyle(Palette.secondaryText)
+                            let elapsed = span(timer.total(tl.date.timeIntervalSince1970 * 1000))
+                            HStack(spacing: 4) {
+                                Ticking(text: elapsed, tint: Crayon.ink(c))
+                                    .font(Typeface.numerals(13, relativeTo: .footnote))
+                                    .foregroundStyle(Palette.secondaryText)
+                                if isPaused {
+                                    Text(L10n.t("· 已暂停", "· Paused"))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Crayon.ink(c))
+                                }
+                            }
                         }
                     }
                     Spacer(minLength: 0)
@@ -1610,7 +1635,10 @@ struct TimerAccessory: View {
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t("打开\(LogType.name(timer.type))计时", "Open \(LogType.name(timer.type)) timer"))
             if let o = also {
-                Button { j.focus = o.type } label: {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    j.focus = o.type
+                } label: {
                     HStack(spacing: 6) {
                         IconTile(symbol: LogType.symbol(o.type), color: LogType.color(o.type), size: 24, round: true)
                         TimelineView(.periodic(from: .now, by: 1)) { tl in
@@ -1621,12 +1649,34 @@ struct TimerAccessory: View {
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("打开\(LogType.name(o.type))计时", "Open \(LogType.name(o.type)) timer"))
             }
-            Button { j.togglePause(timer.type) } label: { Image(systemName: timer.pausedAt == nil ? "pause.fill" : "play.fill") }
-                .accessibilityLabel(timer.pausedAt == nil ? L10n.t("暂停", "Pause") : L10n.t("继续", "Resume"))
+            Button {
+                TactileEngine.shared.dimmerTick()
+                j.togglePause(timer.type)
+            } label: {
+                Image(systemName: isPaused ? "play.fill" : "pause.fill")
+                    .frame(minWidth: 32, minHeight: 32)
+                    .contentShape(Circle())
+            }
+            .accessibilityLabel(isPaused ? L10n.t("继续", "Resume") : L10n.t("暂停", "Pause"))
         }
         .font(.body)
         .padding(.horizontal, 14)
         .tint(.primary)
+        .onAppear {
+            guard !isPaused, !reduce, !Perf.still else { return }
+            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
+        .onChange(of: isPaused) { _, paused in
+            if !paused && !reduce && !Perf.still {
+                withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
+                    pulse = true
+                }
+            } else {
+                pulse = false
+            }
+        }
     }
 }
 
