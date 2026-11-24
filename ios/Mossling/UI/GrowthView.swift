@@ -11,6 +11,7 @@ struct GrowthView: View {
     @State private var fullSpan = false
     @State private var picked: Measure?
     @State private var editing: Measure?
+    @State private var scrubbingChart = false
 
     private func value(_ m: Measure, _ i: Indicator) -> Double? {
         switch i { case .weight: m.weightG.map { Double($0) / 1000 }; case .length: m.lengthMm.map { Double($0) / 10 }; case .head: m.headMm.map { Double($0) / 10 } }
@@ -65,7 +66,40 @@ struct GrowthView: View {
         .navigationTitle(L10n.t("生长曲线", "Growth Curve"))
         .toolbar(.hidden, for: .tabBar)
         .toolbar {
-            ToolbarItem(placement: .topBarTrailing) { Button(L10n.t("记一次测量", "Log measurement"), systemImage: "plus") { editing = Measure(at: ms(Date())) } }
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                if !j.measures.isEmpty {
+                    let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+                    let ageStr = app.age.map { L10n.ageText($0) } ?? ""
+                    let currentInd = ind
+                    let pts: [(Measure, Double, Double)] = j.measures.compactMap { m in months(m).flatMap { mo in value(m, currentInd).map { (m, mo, $0) } } }
+                    let nowMo = app.age.map { Double($0.months) + Double($0.days) / 30.4375 }
+                    let autoSpan = min(36.0, max(6.0, max(nowMo ?? 0, pts.map(\.1).max() ?? 0) + 3))
+                    let span = fullSpan ? 36.0 : autoSpan
+                    let posterItem = RenderedPoster {
+                        let poster = GrowthPrintPoster(
+                            babyName: who,
+                            ageText: ageStr,
+                            sex: app.sex,
+                            indicator: currentInd,
+                            spanMonths: span,
+                            measures: j.measures,
+                            birth: app.birth,
+                            growth: app.growth
+                        )
+                        let renderer = ImageRenderer(content: poster)
+                        renderer.scale = 3.0
+                        return renderer.uiImage
+                    }
+                    ShareLink(
+                        item: posterItem,
+                        preview: SharePreview(L10n.t("\(who) · 生长曲线印画", "\(who) · Growth Curve Print"))
+                    ) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .accessibilityLabel(L10n.t("分享生长曲线纪念印画", "Share growth curve print"))
+                }
+                Button(L10n.t("记一次测量", "Log measurement"), systemImage: "plus") { editing = Measure(at: ms(Date())) }
+            }
         }
         .sheet(item: $editing) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
         .sensoryFeedback(.selection, trigger: picked?.id)
@@ -159,6 +193,9 @@ struct GrowthView: View {
                     .foregroundStyle(ind.tint).symbolSize(activeID == p.0.id ? 120 : 56)
             }
             if let id = activeID, let p = pts.first(where: { $0.0.id == id }) {
+                RuleMark(x: .value(L10n.t("选中", "Selected"), p.1))
+                    .foregroundStyle(ind.tint.opacity(0.45))
+                    .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [2, 3]))
                 PointMark(x: .value(L10n.t("月龄", "Age"), p.1), y: .value(L10n.t("值", "Value"), p.2))
                     .foregroundStyle(.white).symbolSize(26)
             }
@@ -171,16 +208,42 @@ struct GrowthView: View {
         .chartYAxis { AxisMarks(position: .leading) }
         .chartOverlay { proxy in
             GeometryReader { geo in
-                Rectangle().fill(.clear).contentShape(Rectangle()).onTapGesture { loc in
-                    guard let plot = proxy.plotFrame else { return }
-                    let x = loc.x - geo[plot].origin.x
-                    if let mo: Double = proxy.value(atX: x) { picked = pts.min(by: { abs($0.1 - mo) < abs($1.1 - mo) })?.0 }
-                }
+                Rectangle().fill(.clear).contentShape(Rectangle())
+                    .gesture(
+                        SpatialTapGesture()
+                            .onEnded { tap in
+                                selectNearestPoint(atX: tap.location.x, proxy: proxy, geo: geo, pts: pts)
+                            }
+                    )
+                    .simultaneousGesture(
+                        DragGesture(minimumDistance: 10)
+                            .onChanged { g in
+                                if !scrubbingChart {
+                                    guard abs(g.translation.width) >= abs(g.translation.height) * 0.9 else { return }
+                                    scrubbingChart = true
+                                }
+                                selectNearestPoint(atX: g.location.x, proxy: proxy, geo: geo, pts: pts)
+                            }
+                            .onEnded { _ in
+                                scrubbingChart = false
+                            }
+                    )
             }
         }
         .frame(height: 260)
         .padding(.top, 14)
         .accessibilityLabel(L10n.t("\(ind.label)曲线，\(pts.count) 个测量点", "\(ind.label) curve, \(pts.count) measurements"))
+    }
+
+    private func selectNearestPoint(atX locationX: CGFloat, proxy: ChartProxy, geo: GeometryProxy, pts: [(Measure, Double, Double)]) {
+        guard !pts.isEmpty, let plot = proxy.plotFrame else { return }
+        let x = locationX - geo[plot].origin.x
+        if let mo: Double = proxy.value(atX: x),
+           let nearest = pts.min(by: { abs($0.1 - mo) < abs($1.1 - mo) })?.0,
+           picked?.id != nearest.id {
+            picked = nearest
+            TactileEngine.shared.beadClick()
+        }
     }
 
     private func pickedBar(pts: [(Measure, Double, Double)], index: Int) -> some View {
@@ -388,5 +451,190 @@ private struct StatHead: View {
                     .font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
             }
         }
+    }
+}
+
+/// High-resolution offline 3× cotton-paper Growth Trajectory Keepsake Print rendered via ImageRenderer.
+struct GrowthPrintPoster: View {
+    let babyName: String
+    let ageText: String
+    let sex: String?
+    let indicator: Indicator
+    let spanMonths: Double
+    let measures: [Measure]
+    let birth: Day?
+    let growth: Growth
+
+    private func value(_ m: Measure, _ i: Indicator) -> Double? {
+        MeasureParser.value(in: m, for: i)
+    }
+
+    private func latest(_ i: Indicator) -> (Measure, Double)? {
+        for m in measures.reversed() {
+            if let v = value(m, i) { return (m, v) }
+        }
+        return nil
+    }
+
+    var body: some View {
+        let paper = Color(red: 0xFB / 255, green: 0xF7 / 255, blue: 0xF0 / 255)
+        let ink = Color(red: 0x24 / 255, green: 0x1F / 255, blue: 0x1B / 255)
+        let teal = Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
+        let girl = sex == "girl"
+        let sexLabel = sex == nil ? "" : (girl ? L10n.t(" · 女孩", " · Girl") : L10n.t(" · 男孩", " · Boy"))
+
+        let pts: [(Double, Double)] = measures.compactMap { m in
+            guard let birth, let v = value(m, indicator) else { return nil }
+            let mo = Double(birth.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375
+            guard mo >= 0, mo <= spanMonths else { return nil }
+            return (mo, v)
+        }
+
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(babyName + (ageText.isEmpty ? "" : " · " + ageText) + sexLabel)
+                        .font(.system(size: 12.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(ink.opacity(0.62))
+                    Text(indicator.label + L10n.t("生长曲线", " Growth Curve"))
+                        .font(.system(size: 21, weight: .bold, design: .rounded))
+                        .foregroundStyle(teal)
+                }
+                Spacer()
+                Text(Day.today.md)
+                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.5))
+            }
+
+            // Latest 3-metric strip
+            HStack(spacing: 8) {
+                ForEach(Indicator.allCases) { i in
+                    let latestVal = latest(i)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(i.short)
+                            .font(.system(size: 10.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(ink.opacity(0.55))
+                        if let (_, v) = latestVal {
+                            Text("\(i.fmt(v)) \(i.unitShort)")
+                                .font(.system(size: 14.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(i == indicator ? teal : ink)
+                                .monospacedDigit()
+                        } else {
+                            Text("—")
+                                .font(.system(size: 14.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(ink.opacity(0.35))
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(10)
+                    .background(Color.white, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(i == indicator ? teal.opacity(0.35) : ink.opacity(0.06), lineWidth: 1))
+                }
+            }
+
+            // Crisp vector WHO percentile bands + child trajectory
+            Canvas { ctx, size in
+                let padL: CGFloat = 32, padR: CGFloat = 10, padT: CGFloat = 10, padB: CGFloat = 22
+                let w = max(1, size.width - padL - padR)
+                let h = max(1, size.height - padT - padB)
+
+                let steps = 48
+                let xs = (0...steps).map { Double($0) / Double(steps) * spanMonths }
+                let p3 = xs.map { growth.at(indicator, girl: girl, months: $0, percentile: 3) }
+                let p15 = xs.map { growth.at(indicator, girl: girl, months: $0, percentile: 15) }
+                let p50 = xs.map { growth.at(indicator, girl: girl, months: $0, percentile: 50) }
+                let p85 = xs.map { growth.at(indicator, girl: girl, months: $0, percentile: 85) }
+                let p97 = xs.map { growth.at(indicator, girl: girl, months: $0, percentile: 97) }
+
+                let allY = p3 + p97 + pts.map(\.1)
+                let lo = (allY.min() ?? 0)
+                let hi = (allY.max() ?? 1)
+                let yPad = max(0.2, (hi - lo) * 0.06)
+                let yMin = lo - yPad
+                let yMax = hi + yPad
+
+                func pt(_ mo: Double, _ val: Double) -> CGPoint {
+                    let x = padL + CGFloat(mo / max(1, spanMonths)) * w
+                    let y = padT + h - CGFloat((val - yMin) / max(0.001, yMax - yMin)) * h
+                    return CGPoint(x: x, y: y)
+                }
+
+                func bandPath(_ low: [Double], _ high: [Double]) -> Path {
+                    var p = Path()
+                    for (i, m) in xs.enumerated() {
+                        let c = pt(m, high[i])
+                        if i == 0 { p.move(to: c) } else { p.addLine(to: c) }
+                    }
+                    for (i, m) in xs.enumerated().reversed() {
+                        p.addLine(to: pt(m, low[i]))
+                    }
+                    p.closeSubpath()
+                    return p
+                }
+
+                // Gridlines
+                let tickMo = spanMonths <= 12 ? 2.0 : 6.0
+                var m = 0.0
+                while m <= spanMonths + 1e-6 {
+                    let x = pt(m, yMin).x
+                    var gp = Path()
+                    gp.move(to: CGPoint(x: x, y: padT))
+                    gp.addLine(to: CGPoint(x: x, y: padT + h))
+                    ctx.stroke(gp, with: .color(ink.opacity(0.07)), lineWidth: 0.75)
+                    let label = ctx.resolve(Text(L10n.t("\(Int(m))m", "\(Int(m))m")).font(.system(size: 9, weight: .semibold, design: .rounded)).foregroundStyle(ink.opacity(0.5)))
+                    ctx.draw(label, at: CGPoint(x: x, y: padT + h + 11), anchor: .center)
+                    m += tickMo
+                }
+
+                ctx.fill(bandPath(p3, p97), with: .color(indicator.tint.opacity(0.12)))
+                ctx.fill(bandPath(p15, p85), with: .color(indicator.tint.opacity(0.18)))
+
+                var med = Path()
+                for (i, mo) in xs.enumerated() {
+                    let c = pt(mo, p50[i])
+                    if i == 0 { med.move(to: c) } else { med.addLine(to: c) }
+                }
+                ctx.stroke(med, with: .color(ink.opacity(0.45)), style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
+
+                if !pts.isEmpty {
+                    var traj = Path()
+                    for (i, item) in pts.enumerated() {
+                        let c = pt(item.0, item.1)
+                        if i == 0 { traj.move(to: c) } else { traj.addLine(to: c) }
+                    }
+                    ctx.stroke(traj, with: .color(indicator.tint), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    for item in pts {
+                        let c = pt(item.0, item.1)
+                        let r = CGRect(x: c.x - 4, y: c.y - 4, width: 8, height: 8)
+                        ctx.fill(Path(ellipseIn: r), with: .color(indicator.tint))
+                        ctx.stroke(Path(ellipseIn: r), with: .color(.white), lineWidth: 1.4)
+                    }
+                }
+
+                let loLbl = ctx.resolve(Text(indicator.fmt(lo)).font(.system(size: 9, weight: .semibold, design: .rounded)).foregroundStyle(ink.opacity(0.5)))
+                let hiLbl = ctx.resolve(Text(indicator.fmt(hi)).font(.system(size: 9, weight: .semibold, design: .rounded)).foregroundStyle(ink.opacity(0.5)))
+                ctx.draw(loLbl, at: CGPoint(x: padL - 4, y: padT + h), anchor: .trailing)
+                ctx.draw(hiLbl, at: CGPoint(x: padL - 4, y: padT + 4), anchor: .trailing)
+            }
+            .frame(width: 312, height: 196)
+            .padding(8)
+            .background(Color.white, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+
+            Text(L10n.t("参考标准：WHO（2006）第 3–97 / 15–85 百分位与中位数 · 仅作参考，不作评分", "Reference: WHO (2006) 3rd–97th & 15th–85th %ile bands and median · Never a score"))
+                .font(.system(size: 10, weight: .medium, design: .rounded))
+                .foregroundStyle(ink.opacity(0.56))
+
+            Divider().opacity(0.3)
+
+            HStack {
+                Text(L10n.t("摸索台灯 · 孩子摸索，大人点灯", "Moss & Otto · They explore. You hold the light."))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(ink.opacity(0.55))
+                Spacer()
+            }
+        }
+        .padding(24)
+        .frame(width: 360)
+        .background(paper)
     }
 }

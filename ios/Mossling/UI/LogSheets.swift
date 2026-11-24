@@ -361,10 +361,117 @@ struct EntrySheet: View {
     }
 }
 
-/// Weight, length and head circumference on one day.
+/// Pure parsing, gram-to-kg conversion, previous-delta formatting, and WHO reference range helpers for `MeasureSheet`.
+enum MeasureParser {
+    struct WeightParse: Equatable {
+        let grams: Int?
+        let convertedFromGrams: Bool
+        let invalid: Bool
+    }
+
+    struct MetricParse: Equatable {
+        let mm: Int?
+        let invalid: Bool
+    }
+
+    private static func normalizedDouble(_ raw: String) -> Double? {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: ",", with: ".")
+            .replacingOccurrences(of: "，", with: ".")
+        guard !trimmed.isEmpty else { return nil }
+        return Double(trimmed)
+    }
+
+    static func parseWeightGrams(_ raw: String) -> WeightParse {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return WeightParse(grams: nil, convertedFromGrams: false, invalid: false) }
+        guard let v = normalizedDouble(trimmed), v.isFinite else {
+            return WeightParse(grams: nil, convertedFromGrams: false, invalid: true)
+        }
+        let converted = v > 300
+        let kg = converted ? v / 1000.0 : v
+        guard (1.0...30.0).contains(kg) else {
+            return WeightParse(grams: nil, convertedFromGrams: false, invalid: true)
+        }
+        return WeightParse(grams: Int((kg * 1000.0).rounded()), convertedFromGrams: converted, invalid: false)
+    }
+
+    static func parseLengthMm(_ raw: String) -> MetricParse {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return MetricParse(mm: nil, invalid: false) }
+        guard let v = normalizedDouble(trimmed), v.isFinite, (35.0...120.0).contains(v) else {
+            return MetricParse(mm: nil, invalid: true)
+        }
+        return MetricParse(mm: Int((v * 10.0).rounded()), invalid: false)
+    }
+
+    static func parseHeadMm(_ raw: String) -> MetricParse {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return MetricParse(mm: nil, invalid: false) }
+        guard let v = normalizedDouble(trimmed), v.isFinite, (25.0...60.0).contains(v) else {
+            return MetricParse(mm: nil, invalid: true)
+        }
+        return MetricParse(mm: Int((v * 10.0).rounded()), invalid: false)
+    }
+
+    static func value(in m: Measure, for indicator: Indicator) -> Double? {
+        switch indicator {
+        case .weight: return m.weightG.map { Double($0) / 1000.0 }
+        case .length: return m.lengthMm.map { Double($0) / 10.0 }
+        case .head: return m.headMm.map { Double($0) / 10.0 }
+        }
+    }
+
+    static func previousValue(for indicator: Indicator, excluding id: UUID, before timestampMs: Double, in measures: [Measure]) -> Double? {
+        measures
+            .filter { $0.id != id && $0.at < timestampMs }
+            .sorted { $0.at < $1.at }
+            .compactMap { value(in: $0, for: indicator) }
+            .last
+    }
+
+    static func deltaLabel(current: Double, previous: Double?, indicator: Indicator) -> String? {
+        guard let previous else { return nil }
+        let diff = current - previous
+        let sign = diff >= 0 ? "+" : "-"
+        let mag = abs(diff)
+        let formatted = indicator.fmt(mag)
+        let unit = indicator == .weight ? "kg" : "cm"
+        return L10n.t("较上次 \(sign)\(formatted) \(unit)", "\(sign)\(formatted) \(unit) vs last")
+    }
+
+    static func ageMonths(on date: Date, birth: Day?) -> Double? {
+        guard let birth else { return nil }
+        let months = Double(birth.days(to: Day(date))) / 30.4375
+        return (0.0...36.0).contains(months) ? months : nil
+    }
+
+    static func typicalRange(for indicator: Indicator, date: Date, birth: Day?, sex: String?, growth: Growth) -> ClosedRange<Double>? {
+        guard let sex, let months = ageMonths(on: date, birth: birth) else { return nil }
+        let girl = sex == "girl"
+        let lo = growth.at(indicator, girl: girl, months: months, percentile: 15)
+        let hi = growth.at(indicator, girl: girl, months: months, percentile: 85)
+        guard lo.isFinite, hi.isFinite, lo < hi else { return nil }
+        return lo...hi
+    }
+
+    static func percentileLabel(for indicator: Indicator, value: Double, date: Date, birth: Day?, sex: String?, growth: Growth) -> String? {
+        guard let sex, let months = ageMonths(on: date, birth: birth), value > 0 else { return nil }
+        let p = growth.percentile(indicator, girl: sex == "girl", months: months, value: value)
+        guard p.isFinite else { return nil }
+        return pctText(p)
+    }
+}
+
+/// Weight, length and head circumference on one day, framed as a tactile Montessori Measuring Tray.
 struct MeasureSheet: View {
+    @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduce
+
     let measure: Measure
     let isNew: Bool
     @State private var day = Date()
@@ -372,46 +479,147 @@ struct MeasureSheet: View {
     @State private var l = ""
     @State private var h = ""
     @State private var failed = false
+    @FocusState private var focused: Indicator?
+
+    private var dayNoonMs: Double {
+        ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)
+    }
 
     var body: some View {
-        // a weight typed in grams (7850) is read as grams and said so; anything else out of range is said under its field
-        let wv = Double(w).map { $0 > 300 ? $0 / 1000 : $0 }
-        let wg = wv.flatMap { (1...30).contains($0) ? Int(($0 * 1000).rounded()) : nil }
-        let lm = Double(l).flatMap { (35...120).contains($0) ? Int(($0 * 10).rounded()) : nil }
-        let hm = Double(h).flatMap { (25...60).contains($0) ? Int(($0 * 10).rounded()) : nil }
+        let dark = lamp || scheme == .dark
+        let weightParsed = MeasureParser.parseWeightGrams(w)
+        let lengthParsed = MeasureParser.parseLengthMm(l)
+        let headParsed = MeasureParser.parseHeadMm(h)
+        let wg = weightParsed.grams
+        let lm = lengthParsed.mm
+        let hm = headParsed.mm
+        let canSave = wg != nil || lm != nil || hm != nil
+
         NavigationStack {
-            Form {
-                if failed { Section { SaveFailed() } }
-                DatePicker(L10n.t("日期", "Date"), selection: $day, in: ...Date(), displayedComponents: .date)
-                Section { field(L10n.t("体重", "Weight"), L10n.t("千克", "kg"), $w, "scalemass.fill", Indicator.weight) } footer: {
-                    note(w, ok: wg != nil,
-                         base: L10n.t("精确到 0.01 千克，如 7.85", "To 0.01 kg, e.g. 7.85"),
-                         bad: L10n.t("体重请在 1–30 千克之间", "Weight must be between 1 and 30 kg"),
-                         extra: (Double(w) ?? 0) > 300 && wg != nil ? L10n.t("已按克换算为 ", "Converted from grams: ") + String(format: "%.2f", Double(wg!) / 1000) + L10n.t(" 千克", " kg") : nil)
-                }
-                Section { field(L10n.t("身长 / 身高", "Length / Height"), L10n.t("厘米", "cm"), $l, "ruler.fill", Indicator.length) } footer: {
-                    note(l, ok: lm != nil,
-                         base: L10n.t("精确到 0.1 厘米；2 岁前躺着量身长", "To 0.1 cm; measure lying down under age 2"),
-                         bad: L10n.t("身长请在 35–120 厘米之间", "Length must be between 35 and 120 cm"))
-                }
-                Section { field(L10n.t("头围", "Head"), L10n.t("厘米", "cm"), $h, "circle.dashed", Indicator.head) } footer: {
-                    note(h, ok: hm != nil,
-                         base: L10n.t("精确到 0.1 厘米，经眉上缘与后脑最突出处", "To 0.1 cm, above eyebrows around widest back of head"),
-                         bad: L10n.t("头围请在 25–60 厘米之间", "Head circumference must be between 25 and 60 cm"))
-                }
-                if !isNew { Section { Button(L10n.t("删除这次测量", "Delete measurement"), role: .destructive) { j.deleteMeasure(measure); dismiss() } } }
-            }
-            .scrollContentBackground(.hidden)
-            .pageBackground(tone: Crayon.tangerine)
-            .navigationTitle(isNew ? L10n.t("记一次测量", "Log Measurement") : L10n.t("这次测量", "Measurement")).navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.t("完成", "Done"), systemImage: "checkmark") {
-                        var m = measure; m.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day); m.weightG = wg; m.lengthMm = lm; m.headMm = hm
-                        if j.saveMeasure(m) { dismiss() } else { failed = true }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if failed { SaveFailed() }
+
+                    dateTray(dark: dark)
+
+                    MeasureScaleCard(
+                        indicator: .weight,
+                        text: $w,
+                        parsedValue: wg.map { Double($0) / 1000.0 },
+                        range: 1.0...30.0,
+                        nudgeStep: 0.05,
+                        rulerStep: 0.05,
+                        majorTick: 5.0,
+                        minorTick: 1.0,
+                        noteText: weightParsed.invalid
+                            ? L10n.t("体重请在 1–30 千克之间", "Weight must be between 1 and 30 kg")
+                            : (weightParsed.convertedFromGrams && wg != nil
+                                ? L10n.t("已按克换算为 ", "Converted from grams: ") + String(format: "%.2f", Double(wg!) / 1000.0) + L10n.t(" 千克", " kg")
+                                : L10n.t("拖动标尺粗调，或点数字精确输入（如 7.85）", "Drag the wooden ruler or tap numerals for exact input (e.g. 7.85)")),
+                        isError: weightParsed.invalid,
+                        previousValue: MeasureParser.previousValue(for: .weight, excluding: measure.id, before: dayNoonMs, in: j.measures),
+                        typicalRange: MeasureParser.typicalRange(for: .weight, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
+                        percentileText: wg.flatMap { MeasureParser.percentileLabel(for: .weight, value: Double($0) / 1000.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        dark: dark,
+                        focused: $focused
+                    )
+
+                    MeasureScaleCard(
+                        indicator: .length,
+                        text: $l,
+                        parsedValue: lm.map { Double($0) / 10.0 },
+                        range: 35.0...120.0,
+                        nudgeStep: 0.1,
+                        rulerStep: 0.5,
+                        majorTick: 10.0,
+                        minorTick: 2.0,
+                        noteText: lengthParsed.invalid
+                            ? L10n.t("身长请在 35–120 厘米之间", "Length must be between 35 and 120 cm")
+                            : L10n.t("精确到 0.1 厘米；2 岁前躺着量身长", "To 0.1 cm; measure lying down under age 2"),
+                        isError: lengthParsed.invalid,
+                        previousValue: MeasureParser.previousValue(for: .length, excluding: measure.id, before: dayNoonMs, in: j.measures),
+                        typicalRange: MeasureParser.typicalRange(for: .length, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
+                        percentileText: lm.flatMap { MeasureParser.percentileLabel(for: .length, value: Double($0) / 10.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        dark: dark,
+                        focused: $focused
+                    )
+
+                    MeasureScaleCard(
+                        indicator: .head,
+                        text: $h,
+                        parsedValue: hm.map { Double($0) / 10.0 },
+                        range: 25.0...60.0,
+                        nudgeStep: 0.1,
+                        rulerStep: 0.2,
+                        majorTick: 5.0,
+                        minorTick: 1.0,
+                        noteText: headParsed.invalid
+                            ? L10n.t("头围请在 25–60 厘米之间", "Head circumference must be between 25 and 60 cm")
+                            : L10n.t("经眉上缘与后脑最突出处绕量", "Above eyebrows around the widest back of head"),
+                        isError: headParsed.invalid,
+                        previousValue: MeasureParser.previousValue(for: .head, excluding: measure.id, before: dayNoonMs, in: j.measures),
+                        typicalRange: MeasureParser.typicalRange(for: .head, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
+                        percentileText: hm.flatMap { MeasureParser.percentileLabel(for: .head, value: Double($0) / 10.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        dark: dark,
+                        focused: $focused
+                    )
+
+                    if !isNew {
+                        Button(role: .destructive) {
+                            j.deleteMeasure(measure)
+                            dismiss()
+                        } label: {
+                            Label(L10n.t("删除这次测量", "Delete measurement"), systemImage: "trash")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.danger)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                        .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
                     }
-                    .disabled(wg == nil && lm == nil && hm == nil)
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
+                .padding(.bottom, 24)
+            }
+            .scrollDismissesKeyboard(.interactively)
+            .pageBackground(tone: Crayon.tangerine)
+            .navigationTitle(isNew ? L10n.t("记一次测量", "Log Measurement") : L10n.t("这次测量", "Measurement"))
+            .navigationBarTitleDisplayMode(.inline)
+            .safeAreaBar(edge: .bottom) {
+                Button {
+                    focused = nil
+                    var m = measure
+                    m.at = dayNoonMs
+                    m.weightG = wg
+                    m.lengthMm = lm
+                    m.headMm = hm
+                    if j.saveMeasure(m) {
+                        TactileEngine.shared.beadClick()
+                        dismiss()
+                    } else {
+                        failed = true
+                    }
+                } label: {
+                    Label(isNew ? L10n.t("记下这次测量", "Save Measurement") : L10n.t("保存修改", "Save Changes"), systemImage: "checkmark")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.vinyl(Crayon.fill(Crayon.tangerine, lamp), prominent: true, large: true))
+                .disabled(!canSave)
+                .padding(.horizontal, 20)
+                .padding(.top, 8)
+                .padding(.bottom, 6)
+            }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() }
+                }
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button(L10n.t("完成", "Done")) { focused = nil }
+                        .fontWeight(.semibold)
                 }
             }
         }
@@ -423,19 +631,339 @@ struct MeasureSheet: View {
         }
     }
 
-    /// Under a field: how to measure; when what is typed cannot be kept, why, in the warning colour.
-    @ViewBuilder private func note(_ v: String, ok: Bool, base: String, bad: String, extra: String? = nil) -> some View {
-        if !v.trimmingCharacters(in: .whitespaces).isEmpty && !ok { Text(bad).foregroundStyle(Palette.danger) }
-        else if let extra { Text(extra) }
-        else { Text(base) }
+    private func dateTray(dark: Bool) -> some View {
+        let measuredDay = Day(day)
+        let ageLabel = app.birth.map { Firsts.age(from: $0, to: measuredDay) }
+        return HStack(spacing: 12) {
+            IconTile(symbol: "calendar", color: Crayon.tangerine, size: 34, round: true)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.t("测量日期", "Measurement Date"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.primary)
+                if let ageLabel {
+                    Text(ageLabel)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Crayon.ink(Crayon.tangerine))
+                }
+            }
+            Spacer(minLength: 8)
+            DatePicker(L10n.t("日期", "Date"), selection: $day, in: ...Date(), displayedComponents: .date)
+                .labelsHidden()
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
     }
-    private func field(_ t: String, _ unit: String, _ v: Binding<String>, _ s: String, _ i: Indicator) -> some View {
-        HStack {
-            IconTile(symbol: s, color: i.tint, size: 32, round: true)
-            Text(t)
-            TextField("—", text: v).keyboardType(.decimalPad).multilineTextAlignment(.trailing).monospacedDigit()
-                .font(Typeface.numerals(22, relativeTo: .title3, weight: .bold))
-            Text(unit).foregroundStyle(Palette.secondaryText)
+}
+
+/// Tactile Montessori wooden-ruler card for one growth metric (direct keyboard entry + fine +/- nudge + scrubbable ruler).
+private struct MeasureScaleCard: View {
+    let indicator: Indicator
+    @Binding var text: String
+    let parsedValue: Double?
+    let range: ClosedRange<Double>
+    let nudgeStep: Double
+    let rulerStep: Double
+    let majorTick: Double
+    let minorTick: Double
+    let noteText: String
+    let isError: Bool
+    let previousValue: Double?
+    let typicalRange: ClosedRange<Double>?
+    let percentileText: String?
+    let dark: Bool
+    var focused: FocusState<Indicator?>.Binding
+
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    private var defaultSeedValue: Double {
+        if let previousValue, range.contains(previousValue) { return previousValue }
+        if let typicalRange {
+            let mid = (typicalRange.lowerBound + typicalRange.upperBound) / 2.0
+            return min(range.upperBound, max(range.lowerBound, mid))
+        }
+        return (range.lowerBound + range.upperBound) / 2.0
+    }
+
+    private func writeValue(_ val: Double) {
+        let clamped = min(range.upperBound, max(range.lowerBound, val))
+        text = indicator.fmt(clamped)
+    }
+
+    private func nudge(_ delta: Double) {
+        let base = parsedValue ?? defaultSeedValue
+        let next = min(range.upperBound, max(range.lowerBound, ((base + delta) / nudgeStep).rounded() * nudgeStep))
+        writeValue(next)
+        TactileEngine.shared.beadClick()
+    }
+
+    var body: some View {
+        let tint = indicator.tint
+        let deltaStr = parsedValue.flatMap { MeasureParser.deltaLabel(current: $0, previous: previousValue, indicator: indicator) }
+
+        VStack(alignment: .leading, spacing: 10) {
+            // Header + Live Delta & Percentile Badges
+            HStack(alignment: .center, spacing: 10) {
+                IconTile(symbol: indicator.symbol, color: tint, size: 32, round: true)
+                Text(indicator.label)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 4)
+                if !text.isEmpty {
+                    Button {
+                        text = ""
+                        TactileEngine.shared.beadClick()
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.secondaryText.opacity(0.65))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.t("清空\(indicator.short)", "Clear \(indicator.short)"))
+                }
+            }
+
+            // Direct Numeral Input + Nudge Controls
+            HStack(alignment: .center, spacing: 10) {
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    TextField("—", text: $text)
+                        .keyboardType(.decimalPad)
+                        .focused(focused, equals: indicator)
+                        .font(Typeface.numerals(30, relativeTo: .title, weight: .bold))
+                        .foregroundStyle(isError ? Palette.danger : (parsedValue != nil ? (dark ? Palette.lampInk : Crayon.ink(tint)) : Palette.secondaryText))
+                        .multilineTextAlignment(.leading)
+                        .frame(minWidth: 74, maxWidth: 112)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                                .fill(tint.opacity(dark ? 0.14 : 0.08))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                                .strokeBorder(focused.wrappedValue == indicator ? tint : tint.opacity(0.24), lineWidth: focused.wrappedValue == indicator ? 1.5 : 1)
+                        )
+                    Text(indicator.unit)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize()
+                }
+
+                Spacer(minLength: 4)
+
+                HStack(spacing: 8) {
+                    nudgeButton("minus", -nudgeStep)
+                        .accessibilityLabel(L10n.t("减少\(indicator.short)", "Decrease \(indicator.short)"))
+                    nudgeButton("plus", nudgeStep)
+                        .accessibilityLabel(L10n.t("增加\(indicator.short)", "Increase \(indicator.short)"))
+                }
+            }
+
+            // Live State Badges (Previous Delta & WHO Percentile)
+            if deltaStr != nil || percentileText != nil {
+                FlowRow(spacing: 6, lineSpacing: 6) {
+                    if let deltaStr {
+                        pillBadge(deltaStr, color: tint)
+                    }
+                    if let percentileText {
+                        pillBadge(percentileText, color: Crayon.teal)
+                    }
+                }
+            }
+
+            // Interactive Montessori Wooden Ruler Scrubber
+            WoodenRulerScrubber(
+                value: Binding(
+                    get: { parsedValue },
+                    set: { next in
+                        if let next { writeValue(next) }
+                    }
+                ),
+                defaultValue: defaultSeedValue,
+                range: range,
+                step: rulerStep,
+                majorTick: majorTick,
+                minorTick: minorTick,
+                tint: tint,
+                previousValue: previousValue,
+                typicalRange: typicalRange,
+                dark: dark
+            )
+            .frame(height: 44)
+            .accessibilityLabel(indicator.label)
+            .accessibilityValue(parsedValue.map { "\(indicator.fmt($0)) \(indicator.unit)" } ?? L10n.t("未填写", "Not set"))
+            .accessibilityAdjustableAction { dir in
+                switch dir {
+                case .increment: nudge(nudgeStep)
+                case .decrement: nudge(-nudgeStep)
+                @unknown default: break
+                }
+            }
+
+            // Helper / Validation Note
+            Text(noteText)
+                .font(.caption)
+                .foregroundStyle(isError ? Palette.danger : Palette.secondaryText)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(14)
+        .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+    }
+
+    private func nudgeButton(_ symbol: String, _ delta: Double) -> some View {
+        let cur = parsedValue ?? defaultSeedValue
+        let disabled = delta < 0 ? cur <= range.lowerBound : cur >= range.upperBound
+        return Button {
+            focused.wrappedValue = nil
+            nudge(delta)
+        } label: {
+            Image(systemName: symbol)
+                .font(.subheadline.weight(.bold))
+                .frame(width: 40, height: 36)
+        }
+        .buttonStyle(.vinyl(indicator.tint))
+        .buttonRepeatBehavior(.enabled)
+        .disabled(disabled)
+    }
+
+    private func pillBadge(_ label: String, color: Color) -> some View {
+        HStack(spacing: 5) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text(label)
+                .font(.caption2.weight(.semibold))
+                .foregroundStyle(dark ? Palette.lampInk : Crayon.ink(color))
+                .monospacedDigit()
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(Capsule().fill(color.opacity(dark ? 0.22 : 0.12)))
+    }
+}
+
+/// Scrubbable birch-and-paper ruler track with optional WHO 15–85th reference band and previous measurement marker.
+private struct WoodenRulerScrubber: View {
+    @Binding var value: Double?
+    let defaultValue: Double
+    let range: ClosedRange<Double>
+    let step: Double
+    let majorTick: Double
+    let minorTick: Double
+    let tint: Color
+    let previousValue: Double?
+    let typicalRange: ClosedRange<Double>?
+    let dark: Bool
+
+    @State private var draggingHorizontal = false
+
+    private func x(for val: Double, width: CGFloat) -> CGFloat {
+        let pad: CGFloat = 10
+        let span = max(1, width - pad * 2)
+        let frac = CGFloat((val - range.lowerBound) / (range.upperBound - range.lowerBound))
+        return pad + min(1, max(0, frac)) * span
+    }
+
+    private func value(at px: CGFloat, width: CGFloat) -> Double {
+        let pad: CGFloat = 10
+        let span = max(1, width - pad * 2)
+        let frac = Double(min(1, max(0, (px - pad) / span)))
+        let raw = range.lowerBound + frac * (range.upperBound - range.lowerBound)
+        let snapped = (raw / step).rounded() * step
+        return min(range.upperBound, max(range.lowerBound, snapped))
+    }
+
+    var body: some View {
+        GeometryReader { geo in
+            let size = geo.size
+            Canvas { ctx, s in
+                let trackRect = CGRect(x: 0, y: 6, width: s.width, height: s.height - 12)
+                let wood = dark ? Color(hex: 0x262C4A) : Color(hex: 0xF3EADB)
+                let border = dark ? Color.white.opacity(0.12) : Color(hex: 0xDFD2BC)
+                ctx.fill(Path(roundedRect: trackRect, cornerRadius: 10, style: .continuous), with: .color(wood))
+                ctx.stroke(Path(roundedRect: trackRect, cornerRadius: 10, style: .continuous), with: .color(border), lineWidth: 1)
+
+                // WHO 15th–85th percentile soft reference band for child's age/sex
+                if let typicalRange {
+                    let x0 = x(for: max(range.lowerBound, typicalRange.lowerBound), width: s.width)
+                    let x1 = x(for: min(range.upperBound, typicalRange.upperBound), width: s.width)
+                    if x1 > x0 {
+                        let bandRect = CGRect(x: x0, y: trackRect.minY + 3, width: x1 - x0, height: trackRect.height - 6)
+                        ctx.fill(Path(roundedRect: bandRect, cornerRadius: 6), with: .color(tint.opacity(dark ? 0.24 : 0.16)))
+                    }
+                }
+
+                // Graduated ruler ticks
+                let tickColor = (dark ? Palette.lampInk : Color(hex: 0x6B5A48)).opacity(0.45)
+                var tickVal = (range.lowerBound / minorTick).rounded(.up) * minorTick
+                while tickVal <= range.upperBound + 1e-6 {
+                    let tx = x(for: tickVal, width: s.width)
+                    let isMajor = abs((tickVal / majorTick).rounded() * majorTick - tickVal) < 1e-4
+                    let h: CGFloat = isMajor ? 12 : 6
+                    var p = Path()
+                    p.move(to: CGPoint(x: tx, y: trackRect.maxY - h))
+                    p.addLine(to: CGPoint(x: tx, y: trackRect.maxY))
+                    ctx.stroke(p, with: .color(tickColor.opacity(isMajor ? 0.8 : 0.45)), lineWidth: isMajor ? 1.3 : 0.9)
+                    tickVal += minorTick
+                }
+
+                // Ghost marker for previous measurement
+                if let previousValue, range.contains(previousValue) {
+                    let px = x(for: previousValue, width: s.width)
+                    var gp = Path()
+                    gp.move(to: CGPoint(x: px, y: trackRect.minY + 4))
+                    gp.addLine(to: CGPoint(x: px, y: trackRect.maxY - 4))
+                    ctx.stroke(gp, with: .color(tint.opacity(0.55)), style: StrokeStyle(lineWidth: 1.5, dash: [2.5, 2.5]))
+                }
+
+                // Active sliding cursor bead
+                let active = value ?? defaultValue
+                let cx = x(for: min(range.upperBound, max(range.lowerBound, active)), width: s.width)
+                let hasValue = value != nil
+                var needle = Path()
+                needle.move(to: CGPoint(x: cx, y: trackRect.minY + 1))
+                needle.addLine(to: CGPoint(x: cx, y: trackRect.maxY - 1))
+                ctx.stroke(needle, with: .color(hasValue ? tint : tint.opacity(0.45)), lineWidth: 2.2)
+
+                let beadSize: CGFloat = hasValue ? 15 : 11
+                let beadRect = CGRect(x: cx - beadSize / 2, y: s.height / 2 - beadSize / 2, width: beadSize, height: beadSize)
+                ctx.fill(
+                    Path(ellipseIn: beadRect),
+                    with: .radialGradient(
+                        Gradient(colors: [hasValue ? tint.mix(with: .white, by: 0.35) : Palette.stone, hasValue ? tint : Palette.stone.opacity(0.8)]),
+                        center: CGPoint(x: beadRect.minX + beadSize * 0.35, y: beadRect.minY + beadSize * 0.3),
+                        startRadius: 0,
+                        endRadius: beadSize
+                    )
+                )
+                ctx.stroke(Path(ellipseIn: beadRect), with: .color(.white.opacity(0.9)), lineWidth: 1.5)
+            }
+            .contentShape(Rectangle())
+            .gesture(
+                SpatialTapGesture()
+                    .onEnded { tap in
+                        let next = value(at: tap.location.x, width: size.width)
+                        if value != next {
+                            value = next
+                            TactileEngine.shared.beadClick()
+                        }
+                    }
+            )
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 8)
+                    .onChanged { g in
+                        if !draggingHorizontal {
+                            guard abs(g.translation.width) >= abs(g.translation.height) * 0.85 else { return }
+                            draggingHorizontal = true
+                        }
+                        let next = value(at: g.location.x, width: size.width)
+                        if value != next {
+                            value = next
+                            TactileEngine.shared.beadClick()
+                        }
+                    }
+                    .onEnded { _ in
+                        draggingHorizontal = false
+                    }
+            )
         }
     }
 }

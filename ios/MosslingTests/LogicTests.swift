@@ -1524,4 +1524,54 @@ final class LogicTests: XCTestCase {
         let incremented = store.incrementTimes(foodId: "pumpkin")
         XCTAssertEqual(incremented?.times, 2)
     }
+
+    @MainActor
+    func testMeasureParserAndGrowthPrintPoster() throws {
+        // Weight in kg, gram auto-conversion, locale comma decimal, and strict bounds
+        XCTAssertEqual(MeasureParser.parseWeightGrams("7.85"), .init(grams: 7850, convertedFromGrams: false, invalid: false))
+        XCTAssertEqual(MeasureParser.parseWeightGrams("7,85"), .init(grams: 7850, convertedFromGrams: false, invalid: false))
+        XCTAssertEqual(MeasureParser.parseWeightGrams("7850"), .init(grams: 7850, convertedFromGrams: true, invalid: false))
+        XCTAssertEqual(MeasureParser.parseWeightGrams("0.5"), .init(grams: nil, convertedFromGrams: false, invalid: true))
+        XCTAssertEqual(MeasureParser.parseWeightGrams(" "), .init(grams: nil, convertedFromGrams: false, invalid: false))
+
+        // Length & head circumference bounds
+        XCTAssertEqual(MeasureParser.parseLengthMm("68.4"), .init(mm: 684, invalid: false))
+        XCTAssertEqual(MeasureParser.parseLengthMm("20"), .init(mm: nil, invalid: true))
+        XCTAssertEqual(MeasureParser.parseHeadMm("43.5"), .init(mm: 435, invalid: false))
+        XCTAssertEqual(MeasureParser.parseHeadMm("75"), .init(mm: nil, invalid: true))
+
+        // Previous value, delta formatting, and WHO typical range & percentile
+        let birth = Day(y: 2026, m: 4, d: 1)
+        let m1 = Measure(at: Day(y: 2026, m: 7, d: 1).date.timeIntervalSince1970 * 1000, weightG: 6200, lengthMm: 615, headMm: 405)
+        let m2 = Measure(at: Day(y: 2026, m: 10, d: 1).date.timeIntervalSince1970 * 1000, weightG: 7550, lengthMm: 672, headMm: 432)
+        let prev = MeasureParser.previousValue(for: .weight, excluding: m2.id, before: m2.at, in: [m1, m2])
+        XCTAssertEqual(prev ?? 0, 6.20, accuracy: 0.001)
+        XCTAssertEqual(MeasureParser.deltaLabel(current: 7.55, previous: prev, indicator: .weight), "较上次 +1.35 kg")
+
+        let g = try Growth.load()
+        let oct1 = Day(y: 2026, m: 10, d: 1).date
+        let band = MeasureParser.typicalRange(for: .weight, date: oct1, birth: birth, sex: "girl", growth: g)
+        XCTAssertNotNil(band)
+        XCTAssertLessThan(band!.lowerBound, band!.upperBound)
+        let pct = MeasureParser.percentileLabel(for: .weight, value: 7.55, date: oct1, birth: birth, sex: "girl", growth: g)
+        XCTAssertNotNil(pct)
+
+        // 3x offline cotton-paper GrowthPrintPoster renders cleanly
+        let poster = GrowthPrintPoster(
+            babyName: "小苔",
+            ageText: "6 个月",
+            sex: "girl",
+            indicator: .weight,
+            spanMonths: 12,
+            measures: [m1, m2],
+            birth: birth,
+            growth: g
+        )
+        let renderer = ImageRenderer(content: poster)
+        renderer.scale = 3.0
+        let img = renderer.uiImage
+        XCTAssertNotNil(img)
+        XCTAssertGreaterThan(img?.size.width ?? 0, 300)
+        XCTAssertGreaterThan(img?.size.height ?? 0, 300)
+    }
 }
