@@ -1507,4 +1507,57 @@ final class ScreenshotTests: XCTestCase {
         shot("57_plan_composer_en", height: 1180, tabs(mEn, PlanView(path: .constant(NavigationPath()))))
         shot("57_growth_ledger_en", height: 1560, tabs(mEn, GrowthView()))
     }
+
+    /// Bedside Lamp Midnight Sanctuary Console: 2 a.m. factual whisper strip, inline bottle/diaper quick trays,
+    /// and zero-glare lamp-matched Undo toast banner (CN + EN).
+    func test58BedsideLampMidnightSanctuaryConsole() {
+        let m = model(); m.journal = true
+        let today = m.today
+        let nightClock = Day.cal.date(bySettingHour: 2, minute: 35, second: 0, of: today.date)!
+        let nightMs = nightClock.timeIntervalSince1970 * 1000
+
+        var b = JournalFile.Body()
+        b.logs = [
+            LogEntry(type: LogType.bottle, start: nightMs - 155 * 60_000, amount: 150, detail: "breastmilk"),
+            LogEntry(type: LogType.sleep, start: nightMs - 240 * 60_000, end: nightMs - 75 * 60_000),
+            LogEntry(type: LogType.diaper, start: nightMs - 50 * 60_000, detail: "wet"),
+        ]
+        let idleJournal = JournalStore(preview: b)
+
+        SoundscapeEngine.shared.start(.rain)
+        defer { SoundscapeEngine.shared.stop() }
+
+        shot("58_lamp_midnight_bottle_zh", dark: true, height: 852,
+             BedsideLampView(
+                 initialBrightness: 0.78,
+                 initialWarmth: .amber,
+                 initialQuickCare: .bottle,
+                 previewClock: nightClock
+             ).environment(m).environment(idleJournal).fontDesign(.rounded))
+
+        var activeBody = b
+        activeBody.timers = [RunningTimer(type: LogType.nurse, start: nightMs - 11 * 60_000, side: "l")]
+        let activeJournal = JournalStore(preview: activeBody)
+        activeJournal.toast = Toast(type: LogType.diaper, text: "已记下 尿布 · 湿 · 02:35", restore: b)
+        shot("58_lamp_midnight_toast_diaper_zh", dark: true, height: 852,
+             BedsideLampView(
+                 initialBrightness: 0.72,
+                 initialWarmth: .candle,
+                 initialQuickCare: .diaper,
+                 previewClock: nightClock
+             ).environment(m).environment(activeJournal).fontDesign(.rounded))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        let enJournal = JournalStore(preview: b)
+        enJournal.toast = Toast(type: LogType.bottle, text: "Logged Bottle · 150 ml · 02:35", restore: b)
+        shot("58_lamp_midnight_bottle_en", dark: true, height: 852,
+             BedsideLampView(
+                 initialBrightness: 0.78,
+                 initialWarmth: .peach,
+                 initialQuickCare: .bottle,
+                 previewClock: nightClock
+             ).environment(mEn).environment(enJournal).fontDesign(.rounded))
+    }
 }

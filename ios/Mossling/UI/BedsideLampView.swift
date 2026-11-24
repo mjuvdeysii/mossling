@@ -79,6 +79,65 @@ enum LampWarmth: String, CaseIterable, Identifiable {
     }
 }
 
+/// Compact nocturnal care quick-entry mode inside Otto's Bedside Lamp.
+enum MidnightQuickCareMode: String, Equatable {
+    case diaper
+    case bottle
+}
+
+/// One factual 2 a.m. status chip ("Feed 2h ago", "Wake 1h ago", "Diaper 3h ago") shown softly inside the Bedside Lamp.
+struct MidnightFactItem: Equatable, Identifiable {
+    let id: String
+    let symbol: String
+    let label: String
+    let agoText: String
+}
+
+/// Pure, testable midnight care snapshot reusing `LastFact` and `SmartBottleVolumes` with zero predictions.
+struct MidnightCareSummary: Equatable {
+    let facts: [MidnightFactItem]
+    let bottleSuggestions: [Int]
+    let defaultMilkKind: String
+
+    static func build(logs: [LogEntry], now: Date) -> MidnightCareSummary {
+        var items: [MidnightFactItem] = []
+        if let feed = LastFact.of(LogType.nurse, in: logs) {
+            items.append(MidnightFactItem(
+                id: "feed",
+                symbol: LogType.symbol(LogType.nurse),
+                label: L10n.t("喂奶", "Feed"),
+                agoText: L10n.agoText(feed.at, now: now)
+            ))
+        }
+        if let sleep = LastFact.of(LogType.sleep, in: logs) {
+            items.append(MidnightFactItem(
+                id: "wake",
+                symbol: LogType.symbol(LogType.sleep),
+                label: L10n.t("醒来", "Wake"),
+                agoText: L10n.agoText(sleep.at, now: now)
+            ))
+        }
+        if let diaper = LastFact.of(LogType.diaper, in: logs) {
+            items.append(MidnightFactItem(
+                id: "diaper",
+                symbol: LogType.symbol(LogType.diaper),
+                label: L10n.t("尿布", "Diaper"),
+                agoText: L10n.agoText(diaper.at, now: now)
+            ))
+        }
+
+        let lastBottle = logs
+            .filter { $0.type == LogType.bottle }
+            .max { $0.start < $1.start }
+        let milkKind = lastBottle.flatMap { ["breastmilk", "formula"].contains($0.detail ?? "") ? $0.detail : nil } ?? "formula"
+        return MidnightCareSummary(
+            facts: items,
+            bottleSuggestions: SmartBottleVolumes.suggestions(lastMl: lastBottle?.amount),
+            defaultMilkKind: milkKind
+        )
+    }
+}
+
 /// Otto's Living Bedside Lamp (床头夜灯): a full-screen zero-glare midnight sanctuary for 3 a.m. feeds and settling.
 /// Features a vertical thumb-slide warm dimmer & double-tap quick-dim, 3 warmth color presets, gyroscope pendulum glow,
 /// six zero-asset real-time soothing soundscapes with dual-layer mixing & auto-fade, and midnight care controls.
@@ -103,6 +162,8 @@ struct BedsideLampView: View {
     @State private var countedPresentation = false
     @State private var savedScreenBrightness: CGFloat? = nil
     @State private var emberResting = false
+    @State private var quickCareMode: MidnightQuickCareMode?
+    @State private var bottleMilkKind: String = "formula"
     private let previewClock: Date?
     private let persistsToAppModel: Bool
 
@@ -110,6 +171,7 @@ struct BedsideLampView: View {
         initialBrightness: Double? = nil,
         initialBreathingGuide: Bool? = nil,
         initialWarmth: LampWarmth? = nil,
+        initialQuickCare: MidnightQuickCareMode? = nil,
         previewClock: Date? = nil,
         previewVolume: Float? = nil
     ) {
@@ -117,9 +179,10 @@ struct BedsideLampView: View {
         _brightness = State(initialValue: clamped)
         _breathingGuide = State(initialValue: initialBreathingGuide ?? false)
         _warmth = State(initialValue: initialWarmth ?? .amber)
+        _quickCareMode = State(initialValue: initialQuickCare)
         _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
         self.previewClock = previewClock
-        self.persistsToAppModel = initialBrightness == nil && initialBreathingGuide == nil && initialWarmth == nil && previewClock == nil
+        self.persistsToAppModel = initialBrightness == nil && initialBreathingGuide == nil && initialWarmth == nil && initialQuickCare == nil && previewClock == nil
     }
 
     /// Computes live lamp brightness coupled with any finite soundscape auto-fade envelope and post-fade ember rest.
@@ -218,12 +281,23 @@ struct BedsideLampView: View {
                 .padding(.horizontal, 18)
                 .padding(.bottom, 12)
             }
+            .overlay(alignment: .top) {
+                if let toast = j.toast {
+                    lampToastBanner(toast)
+                        .padding(.top, 58)
+                        .padding(.horizontal, 18)
+                        .transition(reduce ? .opacity : .move(edge: .top).combined(with: .opacity))
+                        .id(toast.id)
+                }
+            }
+            .animation(reduce ? nil : .snappy, value: j.toast?.id)
         }
         .lamp(true)
         .preferredColorScheme(.dark)
         .statusBarHidden(false)
         .gesture(dimmerGesture)
         .onAppear {
+            bottleMilkKind = MidnightCareSummary.build(logs: j.logs, now: previewClock ?? Date()).defaultMilkKind
             if !countedPresentation {
                 countedPresentation = true
                 app.bedsideLampPresentedCount += 1
@@ -571,7 +645,8 @@ struct BedsideLampView: View {
                 .frame(width: 136, height: 136)
                 .opacity(0.55 + 0.45 * b)
             }
-            .frame(height: 186)
+            .frame(minHeight: 142, idealHeight: 176, maxHeight: 186)
+            .layoutPriority(-1)
 
             HStack(spacing: 8) {
                 if emberResting {
@@ -935,93 +1010,220 @@ struct BedsideLampView: View {
         )
     }
 
-    // MARK: - Zero-Glare Bottom Care Dock
+    // MARK: - Zero-Glare Lamp Toast & Bottom Care Dock
+
+    private func lampToastBanner(_ toast: Toast) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: toast.failed ? "exclamationmark.triangle.fill" : LogType.symbol(toast.type))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(toast.failed ? Crayon.tangerine : warmth.onPrimaryInk)
+                .frame(width: 26, height: 26)
+                .background(
+                    Circle().fill(toast.failed ? Crayon.tangerine.opacity(0.22) : warmth.primaryGlow)
+                )
+
+            Text(toast.text)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(Palette.lampInk)
+                .lineLimit(2)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 4)
+
+            if toast.restore != nil {
+                Button(L10n.t("撤销", "Undo")) {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(reduce ? nil : .snappy) {
+                        j.undo(toast)
+                    }
+                }
+                .font(.caption.weight(.bold))
+                .foregroundStyle(warmth.onPrimaryInk)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(warmth.primaryGlow))
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.leading, 10)
+        .padding(.trailing, 12)
+        .padding(.vertical, 8)
+        .background(
+            Capsule()
+                .fill(Color(hex: 0x151D3B).opacity(0.94))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder((toast.failed ? Crayon.tangerine : warmth.primaryGlow).opacity(0.42), lineWidth: 1)
+        )
+        .shadow(color: .black.opacity(0.35), radius: 10, y: 4)
+        .onTapGesture {
+            withAnimation(reduce ? nil : .snappy) { j.toast = nil }
+        }
+        .task(id: toast.id) {
+            UIAccessibility.post(notification: .announcement, argument: toast.text)
+            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 2.5 : 5))
+            if j.toast?.id == toast.id {
+                withAnimation(reduce ? nil : .snappy) { j.toast = nil }
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
 
     @ViewBuilder
     private var careDock: some View {
-        if let t = activeTimer {
-            TimelineView(.periodic(from: .now, by: 1)) { tl in
-                let now = tl.date.timeIntervalSince1970 * 1000
-                let paused = t.pausedAt != nil
-                VStack(spacing: 8) {
-                    HStack(spacing: 12) {
-                        Image(systemName: LogType.symbol(t.type))
-                            .font(.system(size: 18, weight: .bold))
-                            .foregroundStyle(warmth.primaryGlow)
-                            .frame(width: 38, height: 38)
-                            .background(Circle().fill(warmth.primaryGlow.opacity(0.16)))
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
+            let summary = MidnightCareSummary.build(logs: j.logs, now: previewClock ?? tl.date)
+            VStack(spacing: 8) {
+                if !summary.facts.isEmpty {
+                    midnightFactsStrip(summary.facts)
+                }
 
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.timerStatus(t.type, side: t.side, paused: paused))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(Palette.lampInk)
-                            Text(clock(t.total(now)))
-                                .font(Typeface.numerals(22, relativeTo: .title2, weight: .bold))
-                                .foregroundStyle(warmth.primaryGlow)
-                        }
-                        Spacer(minLength: 4)
+                if let t = activeTimer {
+                    activeTimerCard(t, now: (previewClock ?? tl.date).timeIntervalSince1970 * 1000)
+                } else {
+                    idleCarePanel(summary: summary)
+                }
+            }
+        }
+    }
 
-                        if t.type == LogType.nurse {
-                            Button {
-                                TactileEngine.shared.beadClick()
-                                rekindleFromEmber()
-                                withAnimation(.snappy) { j.switchSide(t.type) }
-                            } label: {
-                                Label(t.side == "l" ? L10n.t("换右", "Right") : L10n.t("换左", "Left"), systemImage: "arrow.left.arrow.right")
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Palette.lampInk)
-                                    .padding(.horizontal, 12)
-                                    .frame(minHeight: 38)
-                                    .background(Capsule().fill(Color(hex: 0x222D54)))
-                            }
-                            .buttonStyle(.toy)
-                        }
+    private func midnightFactsStrip(_ facts: [MidnightFactItem]) -> some View {
+        HStack(spacing: 10) {
+            ForEach(facts) { item in
+                HStack(spacing: 4) {
+                    Image(systemName: item.symbol)
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(warmth.primaryGlow.opacity(0.88))
+                    Text("\(item.label) \(item.agoText)")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Palette.lampInk.opacity(0.76))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+                .frame(maxWidth: .infinity)
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            Capsule()
+                .fill(Color(hex: 0x121933).opacity(0.72))
+        )
+        .overlay(
+            Capsule()
+                .strokeBorder(warmth.primaryGlow.opacity(0.14), lineWidth: 1)
+        )
+        .accessibilityElement(children: .combine)
+    }
 
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            rekindleFromEmber()
-                            withAnimation(.snappy) { j.togglePause(t.type) }
-                        } label: {
-                            Image(systemName: paused ? "play.fill" : "pause.fill")
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(Palette.lampInk)
-                                .frame(width: 40, height: 38)
-                                .background(Capsule().fill(Color(hex: 0x222D54)))
-                        }
-                        .buttonStyle(.toy)
-                        .accessibilityLabel(paused ? L10n.t("继续计时", "Resume timer") : L10n.t("暂停计时", "Pause timer"))
+    private func activeTimerCard(_ t: RunningTimer, now: Double) -> some View {
+        let paused = t.pausedAt != nil
+        return VStack(spacing: 8) {
+            HStack(spacing: 10) {
+                Image(systemName: LogType.symbol(t.type))
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundStyle(warmth.primaryGlow)
+                    .frame(width: 36, height: 36)
+                    .background(Circle().fill(warmth.primaryGlow.opacity(0.16)))
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.timerStatus(t.type, side: t.side, paused: paused))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(Palette.lampInk)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text(clock(t.total(now)))
+                        .font(Typeface.numerals(22, relativeTo: .title2, weight: .bold))
+                        .foregroundStyle(warmth.primaryGlow)
+                }
+                Spacer(minLength: 4)
+
+                Button {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(reduce ? nil : .snappy) {
+                        quickCareMode = quickCareMode == .diaper ? nil : .diaper
                     }
+                } label: {
+                    Image(systemName: LogType.symbol(LogType.diaper))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(quickCareMode == .diaper ? warmth.onPrimaryInk : warmth.primaryGlow)
+                        .frame(width: 36, height: 36)
+                        .background(Circle().fill(quickCareMode == .diaper ? warmth.primaryGlow : Color(hex: 0x222D54)))
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel(L10n.t("顺手记尿布", "Quick log diaper"))
 
+                if t.type == LogType.nurse {
                     Button {
-                        TactileEngine.shared.goldChime()
+                        TactileEngine.shared.beadClick()
                         rekindleFromEmber()
-                        withAnimation(.snappy) { j.stop(t.type) }
+                        withAnimation(.snappy) { j.switchSide(t.type) }
                     } label: {
-                        Label(
-                            t.type == LogType.sleep ? L10n.t("醒了，记下这次睡眠", "Awake — Save Sleep") : L10n.t("喂完了，记下这次亲喂", "Done — Save Feed"),
-                            systemImage: "checkmark"
-                        )
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(warmth.actionInk)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(
-                            Capsule().fill(warmth.actionFill.opacity(0.90))
-                        )
+                        Label(t.side == "l" ? L10n.t("换右", "Right") : L10n.t("换左", "Left"), systemImage: "arrow.left.arrow.right")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                            .padding(.horizontal, 10)
+                            .frame(minHeight: 36)
+                            .background(Capsule().fill(Color(hex: 0x222D54)))
                     }
                     .buttonStyle(.toy)
                 }
-                .padding(11)
-                .background(
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .fill(Color(hex: 0x151D3B).opacity(0.84))
+
+                Button {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(.snappy) { j.togglePause(t.type) }
+                } label: {
+                    Image(systemName: paused ? "play.fill" : "pause.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Palette.lampInk)
+                        .frame(width: 38, height: 36)
+                        .background(Capsule().fill(Color(hex: 0x222D54)))
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel(paused ? L10n.t("继续计时", "Resume timer") : L10n.t("暂停计时", "Pause timer"))
+            }
+
+            if quickCareMode == .diaper {
+                diaperQuickTray
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            }
+
+            Button {
+                TactileEngine.shared.goldChime()
+                rekindleFromEmber()
+                withAnimation(.snappy) { j.stop(t.type) }
+            } label: {
+                Label(
+                    t.type == LogType.sleep ? L10n.t("醒了，记下这次睡眠", "Awake — Save Sleep") : L10n.t("喂完了，记下这次亲喂", "Done — Save Feed"),
+                    systemImage: "checkmark"
                 )
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                        .strokeBorder(warmth.primaryGlow.opacity(0.24), lineWidth: 1)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(warmth.actionInk)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule().fill(warmth.actionFill.opacity(0.90))
                 )
             }
-        } else {
+            .buttonStyle(.toy)
+        }
+        .padding(11)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(Color(hex: 0x151D3B).opacity(0.84))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(warmth.primaryGlow.opacity(0.24), lineWidth: 1)
+        )
+    }
+
+    private func idleCarePanel(summary: MidnightCareSummary) -> some View {
+        VStack(spacing: 8) {
             HStack(spacing: 10) {
                 bedsideAction(
                     title: L10n.t("开始睡觉", "Start Sleep"),
@@ -1031,7 +1233,10 @@ struct BedsideLampView: View {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     rekindleFromEmber()
-                    withAnimation(.snappy) { j.start(LogType.sleep, openFocus: false) }
+                    withAnimation(.snappy) {
+                        quickCareMode = nil
+                        j.start(LogType.sleep, openFocus: false)
+                    }
                 }
 
                 bedsideAction(
@@ -1042,7 +1247,185 @@ struct BedsideLampView: View {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     rekindleFromEmber()
-                    withAnimation(.snappy) { j.start(LogType.nurse, side: suggestedSide, openFocus: false) }
+                    withAnimation(.snappy) {
+                        quickCareMode = nil
+                        j.start(LogType.nurse, side: suggestedSide, openFocus: false)
+                    }
+                }
+            }
+
+            if quickCareMode == .diaper {
+                diaperQuickTray
+                    .padding(9)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .fill(Color(hex: 0x151D3B).opacity(0.84))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(warmth.primaryGlow.opacity(0.22), lineWidth: 1)
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottom)))
+            } else if quickCareMode == .bottle {
+                bottleQuickTray(suggestions: summary.bottleSuggestions)
+                    .padding(9)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .fill(Color(hex: 0x151D3B).opacity(0.84))
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                            .strokeBorder(warmth.primaryGlow.opacity(0.22), lineWidth: 1)
+                    )
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .bottom)))
+            } else {
+                HStack(spacing: 8) {
+                    quickCarePill(
+                        title: L10n.t("记尿布", "Log Diaper"),
+                        symbol: LogType.symbol(LogType.diaper)
+                    ) {
+                        guard app.mayKeep() else { return }
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                        withAnimation(reduce ? nil : .snappy) { quickCareMode = .diaper }
+                    }
+
+                    quickCarePill(
+                        title: L10n.t("记瓶喂", "Log Bottle"),
+                        symbol: LogType.symbol(LogType.bottle)
+                    ) {
+                        guard app.mayKeep() else { return }
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                        bottleMilkKind = summary.defaultMilkKind
+                        withAnimation(reduce ? nil : .snappy) { quickCareMode = .bottle }
+                    }
+                }
+            }
+        }
+    }
+
+    private func quickCarePill(title: String, symbol: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                Image(systemName: symbol)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(warmth.primaryGlow)
+                Text(title)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.lampInk.opacity(0.90))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 8)
+            .background(
+                Capsule().fill(Color(hex: 0x151D3B).opacity(0.76))
+            )
+            .overlay(
+                Capsule().strokeBorder(warmth.primaryGlow.opacity(0.20), lineWidth: 1)
+            )
+        }
+        .buttonStyle(.toy)
+    }
+
+    private var diaperQuickTray: some View {
+        HStack(spacing: 7) {
+            Image(systemName: LogType.symbol(LogType.diaper))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(warmth.primaryGlow)
+
+            ForEach([("wet", L10n.t("湿", "Wet")), ("dirty", L10n.t("便", "Dirty")), ("both", L10n.t("都有", "Both"))], id: \.0) { kind, label in
+                Button {
+                    guard app.mayKeep() else { return }
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    let entry = LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind)
+                    if j.record(entry) {
+                        withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
+                    }
+                } label: {
+                    Text(label)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(warmth.onPrimaryInk)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 7)
+                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.92)))
+                }
+                .buttonStyle(.toy)
+            }
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.lampInk.opacity(0.75))
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color(hex: 0x222D54)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t("收起尿布选项", "Close diaper options"))
+        }
+    }
+
+    private func bottleQuickTray(suggestions: [Int]) -> some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 6) {
+                ForEach([("formula", L10n.t("配方奶", "Formula")), ("breastmilk", L10n.t("母乳", "Breast milk"))], id: \.0) { code, title in
+                    let on = bottleMilkKind == code
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        bottleMilkKind = code
+                    } label: {
+                        Text(title)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(on ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.78))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 5)
+                            .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x222D54)))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Spacer(minLength: 4)
+
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Palette.lampInk.opacity(0.75))
+                        .frame(width: 26, height: 26)
+                        .background(Circle().fill(Color(hex: 0x222D54)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.t("收起瓶喂选项", "Close bottle options"))
+            }
+
+            HStack(spacing: 6) {
+                ForEach(suggestions, id: \.self) { ml in
+                    Button {
+                        guard app.mayKeep() else { return }
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                        let entry = LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: bottleMilkKind)
+                        if j.record(entry) {
+                            withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
+                        }
+                    } label: {
+                        Text(L10n.volume(ml: ml))
+                            .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
+                            .foregroundStyle(warmth.onPrimaryInk)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.72)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(warmth.primaryGlow.opacity(0.92)))
+                    }
+                    .buttonStyle(.toy)
                 }
             }
         }

@@ -1660,4 +1660,36 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    func testMidnightCareSummaryBuildsFactsAndBottleDefaults() {
+        let now = Day.cal.date(bySettingHour: 2, minute: 30, second: 0, of: Day(y: 2026, m: 10, d: 20).date)!
+        let nowMs = now.timeIntervalSince1970 * 1000
+
+        // Empty logs produce zero facts and fallback bottle suggestions
+        let empty = MidnightCareSummary.build(logs: [], now: now)
+        XCTAssertTrue(empty.facts.isEmpty)
+        XCTAssertEqual(empty.bottleSuggestions, SmartBottleVolumes.suggestions(lastMl: nil))
+        XCTAssertEqual(empty.defaultMilkKind, "formula")
+
+        // Unsorted logs: newest bottle dictates volume suggestions & milk kind; feed/wake/diaper populate in order
+        let logs = [
+            LogEntry(type: LogType.bottle, start: nowMs - 5 * 3_600_000, amount: 90, detail: "formula"),
+            LogEntry(type: LogType.sleep, start: nowMs - 6 * 3_600_000, end: nowMs - 90 * 60_000),
+            LogEntry(type: LogType.diaper, start: nowMs - 45 * 60_000, detail: "wet"),
+            LogEntry(type: LogType.bottle, start: nowMs - 2 * 3_600_000, amount: 150, detail: "breastmilk"),
+        ]
+        let summary = MidnightCareSummary.build(logs: logs, now: now)
+        XCTAssertEqual(summary.facts.map(\.id), ["feed", "wake", "diaper"])
+        XCTAssertEqual(summary.defaultMilkKind, "breastmilk")
+        XCTAssertEqual(summary.bottleSuggestions, SmartBottleVolumes.suggestions(lastMl: 150))
+        XCTAssertTrue(summary.facts[0].agoText.contains("2"))
+        XCTAssertTrue(summary.facts[2].agoText.contains("45"))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = false }
+        let enSummary = MidnightCareSummary.build(logs: logs, now: now)
+        XCTAssertEqual(enSummary.facts.map(\.label), ["Feed", "Wake", "Diaper"])
+        XCTAssertEqual(enSummary.facts[0].agoText, "2h ago")
+        XCTAssertEqual(enSummary.facts[2].agoText, "45m ago")
+    }
 }
