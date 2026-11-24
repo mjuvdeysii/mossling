@@ -2584,4 +2584,140 @@ final class LogicTests: XCTestCase {
             .dynamicTypeSize(.accessibility2)
         XCTAssertNotNil(ImageRenderer(content: docAx2).uiImage)
     }
+
+    @MainActor
+    func testRound22SingleSourceOfTruthIAAndScenePhysics() async throws {
+        // 1. Strict 4-tab disjoint feature ownership (0 retired keys, 0 cross-tab duplicates)
+        XCTAssertEqual(CanonicalDestination.ownedFeatureKeysByTab.count, 4)
+        let retiredKeys: Set<String> = ["about", "growthBook", "journalSplit", "fullJournal"]
+        var unionKeys = Set<String>()
+        for tab in AppTab.allCases {
+            let owned = CanonicalDestination.ownedFeatureKeysByTab[tab] ?? []
+            XCTAssertFalse(owned.isEmpty, "Tab \(tab) must own canonical features")
+            XCTAssertTrue(owned.isDisjoint(with: retiredKeys), "Tab \(tab) must not contain retired keys")
+            XCTAssertTrue(unionKeys.isDisjoint(with: owned), "Duplicate feature ownership detected on \(tab)")
+            unionKeys.formUnion(owned)
+        }
+        XCTAssertEqual(CanonicalDestination.owner(of: .bedsideLamp), .lamp)
+        XCTAssertEqual(CanonicalDestination.owner(of: .storybook), .keepsakes)
+        XCTAssertEqual(CanonicalDestination.owner(of: .toybox(.xylophone)), .explore)
+        XCTAssertEqual(CanonicalDestination.owner(of: .stats), .lamp)
+        XCTAssertEqual(CanonicalDestination.owner(of: .capsules), .keepsakes)
+        XCTAssertEqual(CanonicalDestination.owner(of: .story), .studio)
+
+        // 2. AppRouter Single-Source-of-Truth destination transitions
+        let router = AppRouter()
+        router.open(.toybox(.xylophone))
+        XCTAssertEqual(router.selectedTab, AppTab.explore.rawValue)
+        XCTAssertFalse(router.explorePath.isEmpty)
+
+        router.open(.bedsideLamp)
+        XCTAssertEqual(router.selectedTab, AppTab.lamp.rawValue)
+        XCTAssertTrue(router.showingBedsideLamp)
+        router.showingBedsideLamp = false
+
+        router.open(.stats)
+        XCTAssertEqual(router.selectedTab, AppTab.lamp.rawValue)
+        XCTAssertFalse(router.lampPath.isEmpty)
+
+        router.open(.storybook)
+        XCTAssertEqual(router.selectedTab, AppTab.keepsakes.rawValue)
+        XCTAssertTrue(router.showingStorybook)
+        router.showingStorybook = false
+
+        router.open(.capsules)
+        XCTAssertEqual(router.selectedTab, AppTab.keepsakes.rawValue)
+        XCTAssertFalse(router.keepsakesPath.isEmpty)
+
+        router.open(.story)
+        XCTAssertEqual(router.selectedTab, AppTab.studio.rawValue)
+        try? await Task.sleep(for: .milliseconds(250))
+        XCTAssertFalse(router.studioPath.isEmpty)
+
+        let beforeToken = router.expandLampLedgerToken
+        router.open(.lampLedger)
+        XCTAssertEqual(router.selectedTab, AppTab.lamp.rawValue)
+        XCTAssertEqual(router.expandLampLedgerToken, beforeToken + 1)
+
+        // 3. All 30 bespoke scenes have valid dynamic Otto bead & prop target normalized anchors
+        let rightSideOttoScenes: Set<BespokeActivityID> = [.n04, .a04, .a11, .a19, .a24]
+        let sampleSize = CGSize(width: 280, height: 210)
+        for id in BespokeActivityID.allCases {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.x), "\(id.code) bead x out of range")
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.y), "\(id.code) bead y out of range")
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.x), "\(id.code) target x out of range")
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.y), "\(id.code) target y out of range")
+            if rightSideOttoScenes.contains(id) {
+                XCTAssertGreaterThan(meta.ottoBeadNormalized.x, 0.60, "\(id.code) Otto placed on right must emit bead lighting from right")
+            }
+            let anchors = BespokeActivitySceneRegistry.lightAnchors(for: id, step: 0, stageSize: sampleSize)
+            XCTAssertTrue(anchors.bead.x.isFinite && anchors.bead.y.isFinite)
+            XCTAssertTrue(anchors.target.x.isFinite && anchors.target.y.isFinite)
+            XCTAssertGreaterThanOrEqual(anchors.target.x, 0)
+            XCTAssertLessThanOrEqual(anchors.target.x, sampleSize.width)
+        }
+
+        // 4. Render refactored IA destinations + unified StorybookView (with/without birth)
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round22-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+
+        for view in [
+            AnyView(TodayView(path: .constant(NavigationPath()))),
+            AnyView(LampHubView(path: .constant(NavigationPath()))),
+            AnyView(JourneyHubView(isRootTab: true)),
+            AnyView(YouView(path: .constant(NavigationPath()))),
+            AnyView(StorybookView())
+        ] {
+            let img = ImageRenderer(
+                content: view
+                    .frame(width: 393, height: 852)
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(router)
+            ).uiImage
+            XCTAssertNotNil(img)
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+
+        let noBirthApp = AppModel(defaults: UserDefaults(suiteName: "round22-nb-\(UUID().uuidString)")!)
+        noBirthApp.birth = nil
+        noBirthApp.onboarded = true
+        let noBirthBook = ImageRenderer(
+            content: StorybookView()
+                .frame(width: 393, height: 852)
+                .environment(noBirthApp)
+                .environment(envJournal)
+                .environment(router)
+        ).uiImage
+        XCTAssertNotNil(noBirthBook)
+        XCTAssertGreaterThan(noBirthBook?.size.width ?? 0, 100)
+
+        // 5. Render all 8 physically re-architected scenes in both 3D & 2D
+        let content = try Content.load()
+        for id: BespokeActivityID in [.n06, .a11, .a13, .a14, .a16, .a19, .a20, .a24] {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            XCTAssertNotNil(content.play(id.code))
+            for flat in [false, true] {
+                let stage = LivingBookStage(
+                    script: script,
+                    stepIndex: 0,
+                    companion: .moss,
+                    dark: false,
+                    accent: Crayon.teal,
+                    posterPhase: meta.posterPhases[0],
+                    interactive: false,
+                    forceFlat: flat
+                )
+                .frame(width: 280, height: 210)
+                let img = ImageRenderer(content: stage).uiImage
+                XCTAssertNotNil(img, "Repaired scene \(id.code) flat=\(flat) returned nil image")
+                XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            }
+        }
+    }
 }

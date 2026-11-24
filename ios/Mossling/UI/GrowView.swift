@@ -120,7 +120,6 @@ struct MonthView: View {
         .pageBackground()
         .navigationTitle(m == 0 ? L10n.t("出生", "Birth") : L10n.t("满 \(m) 个月", "Month \(m)"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button(L10n.t("上个月", "Previous"), systemImage: "chevron.left") { withAnimation(.snappy) { month -= 1 } }.disabled(m <= 0)
@@ -213,9 +212,9 @@ private struct MonthBody: View {
     }
 }
 
-/// The parts of a month, in two tiers (ios/DESIGN.md §3 · 版面): what is ticked off over the month — what to watch
-/// for, vaccines and check-ups — as two large tiles with their progress; what is read when needed — the six areas,
-/// notes, the day's rhythm, growth — as a compact row.
+/// The parts of a month belonging strictly to Tab 2 (`留念 / Keepsakes`):
+/// `可以留意` and `接种与儿保` as two trackable cards; `六个方面` and `还要知道` as compact reading tiles.
+/// (`一天的节奏` lives on Tab 1 `台灯`, and `生长曲线` sits directly at the top of `留念`.)
 struct MonthParts: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
@@ -234,11 +233,7 @@ struct MonthParts: View {
                 LazyVGrid(columns: columns, spacing: 10) {
                     ForEach(Array(trackable.enumerated()), id: \.offset) { _, p in
                         let card = BigPart(symbol: p.symbol, color: p.color, title: p.title, done: p.done, total: p.total)
-                        if let r = p.route {
-                            NavigationLink(value: r) { card }.buttonStyle(.toy)
-                        } else {
-                            NavigationLink(value: JournalRoute.growth) { card }.buttonStyle(.toy)
-                        }
+                        NavigationLink(value: p.route) { card }.buttonStyle(.toy)
                     }
                 }
             }
@@ -251,32 +246,26 @@ struct MonthParts: View {
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.tertiary)
                         }
-                        if let r = p.route {
-                            NavigationLink(value: r) { card }.buttonStyle(.toy)
-                        } else {
-                            NavigationLink(value: JournalRoute.growth) { card }.buttonStyle(.toy)
-                        }
+                        NavigationLink(value: p.route) { card }.buttonStyle(.toy)
                     }
                 }
             }
         }
     }
-    /// A part of the month; `route` nil means the growth chart (a journal route).
-    private struct Part { let symbol: String; let color: Color; let title: String; let note: String; var done = 0; var total = 0; let route: Route? }
+    /// A keepsake-domain part of the month.
+    private struct Part { let symbol: String; let color: Color; let title: String; let note: String; var done = 0; var total = 0; let route: KeepsakesRoute }
     private func parts(_ mo: Month, _ m: Int) -> [Part] {
         var out: [Part] = []
         if !mo.observe.isEmpty {
             let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
-            out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("可以留意", "Things to Notice"), note: "\(done) / \(total)", done: done, total: total, route: Route.observe(m)))
+            out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("可以留意", "Things to Notice"), note: "\(done) / \(total)", done: done, total: total, route: .observe(m)))
         }
         if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
             let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: Route.care(m)))
+            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: .care(m)))
         }
-        out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: L10n.t("六个方面", "Six Areas"), note: L10n.t("这个月的样子", "This month's overview"), route: Route.areas(m)))
-        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", mo.notes.count == 1 ? "1 note" : "\(mo.notes.count) notes"), route: Route.notes(m))) }
-        if !mo.who.isEmpty { out.append(Part(symbol: "sun.and.horizon.fill", color: Crayon.tangerine, title: L10n.t("一天的节奏", "Daily Rhythm"), note: L10n.t("睡、玩、吃", "Sleep, play & feeds"), route: Route.rhythm(m))) }
-        out.append(Part(symbol: "chart.line.uptrend.xyaxis", color: Crayon.leaf, title: L10n.t("生长曲线", "Growth Curves"), note: L10n.t("WHO 标准", "WHO Standards"), route: nil))
+        out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: L10n.t("六个方面", "Six Areas"), note: L10n.t("这个月的样子", "This month's overview"), route: .areas(m)))
+        if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", mo.notes.count == 1 ? "1 note" : "\(mo.notes.count) notes"), route: .notes(m))) }
         return out
     }
 }
@@ -338,21 +327,25 @@ struct MonthTile<Accessory: View>: View {
     }
 }
 
-/// A play tile that opens its page with a zoom, and offers the common actions on a long press.
+/// A play tile that switches cleanly to its canonical Explore home (`Tab 0`) with context.
 struct PlayTileLink: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(JournalStore.self) private var j
     @Environment(\.aloneInRow) private var alone
     let play: Play, month: Int
     var form: PlayTile.Form = .cell
     var body: some View {
-        let route = Route.play(play.code, month)
         // alone across a row: the wide form (picture beside the words), not a tile pulled out of shape
         let f: PlayTile.Form = alone && (form == .cell || form == .mini) ? .row : form
-        NavigationLink(value: route) { PlayTile(play: play, times: app.record(play, j).count, form: f) }
-            .buttonStyle(.toy)
-            .zoomSource(route)
-            .contextMenu { PlayActions(play: play, month: month) }
+        Button {
+            TactileEngine.shared.beadClick()
+            router?.openExplore(.play(play.code, month))
+        } label: {
+            PlayTile(play: play, times: app.record(play, j).count, form: f)
+        }
+        .buttonStyle(.toy)
+        .contextMenu { PlayActions(play: play, month: month) }
     }
 }
 
@@ -445,6 +438,7 @@ enum CareFilterMode: String, CaseIterable, Identifiable {
 /// with linked plays for the month, and compact quick-peek rows for the other five areas.
 struct AreasView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var typeSize
@@ -533,7 +527,6 @@ struct AreasView: View {
         .pageBackground()
         .navigationTitle(L10n.t("六个方面", "Six Areas"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
-        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -690,7 +683,10 @@ struct AreasView: View {
                         .foregroundStyle(dark ? col : Crayon.ink(col))
 
                     ForEach(linkedPlays.prefix(2)) { p in
-                        NavigationLink(value: Route.play(p.code, month)) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            router?.openExplore(.play(p.code, month))
+                        } label: {
                             HStack(spacing: 10) {
                                 ActivityPreviewThumb(play: p, color: col, flat: ArtStyle.current == .flat)
                                     .frame(width: 44, height: 33)
@@ -893,7 +889,6 @@ struct CareView: View {
             let moLabel = m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")
             return moLabel + " · " + $0.plus(months: m).md
         } ?? (m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")))
-        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -1001,7 +996,6 @@ struct NotesView: View {
         .pageBackground()
         .navigationTitle(L10n.t("还要知道", "Good to Know"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
-        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -1225,6 +1219,5 @@ struct ObserveView: View {
         .pageBackground()
         .navigationTitle(L10n.t("可以留意", "What to Notice"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
-        .toolbar(.hidden, for: .tabBar)
     }
 }

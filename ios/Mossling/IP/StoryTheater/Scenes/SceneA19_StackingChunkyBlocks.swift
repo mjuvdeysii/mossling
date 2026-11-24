@@ -1,11 +1,10 @@
 import SwiftUI
 
 /// A19 (Stacking Chunky Blocks · 3 Steps):
-/// Upgrades A19 to a bespoke sculpted beech-block studio table with chamfered hardwood blocks (sage base,
-/// honey-beech middle, coral-terracotta top):
-/// Step 0: Otto models calmly lowering the honey block onto the sage base ->
-/// Step 1: Moss stacks the coral top block cleanly with joyful celebratory hop ->
-/// Step 2: Top blocks sway and playfully tumble onto the felt mat as Otto sends warm encouragement.
+/// Swapped left/right orientation: Moss on LEFT (`0.24..0.28`), Otto illuminating from RIGHT (`0.76`):
+/// Step 0: Adult models stacking honey middle block from right edge over a natural short arc onto grounded sage base ->
+/// Step 1: Moss stacks coral top block from left side onto the tower with a joyful hop ->
+/// Step 2: Top blocks sway and tumble under real quadratic gravity (`t*t`) onto felt mat as Otto encourages.
 struct SceneA19_StackingChunkyBlocks: View {
     let ctx: BespokeSceneContext
 
@@ -24,18 +23,18 @@ struct SceneA19_StackingChunkyBlocks: View {
             let os = ms * Kind.otto.scale
             let groundY = h * 0.86
 
-            let ottoX = w * 0.23
-            let mossX = w * 0.77
-            let towerX = w * 0.50
+            let mossX = w * (step == 1 ? 0.28 : 0.24)
+            let ottoX = w * 0.76
+            let towerX = w * 0.49
 
             let mossHopLift: CGFloat = ((step == 1 || step == 2) && p.raw >= 0.46)
                 ? CGFloat(max(0.0, sin((p.raw - 0.46) / 0.34 * .pi))) * ms * 0.11
                 : 0
-            let ottoLean: Double = step == 0 ? 8.5 * p.action : (step == 2 ? 5.0 : 3.0)
-            let mossLean: Double = step == 1 ? -9.5 * p.action : (step == 2 ? -6.5 * p.contactEnvelope : -3.0)
+            let mossLean: Double = step == 1 ? 10.5 * p.action : (step == 2 ? 6.0 * p.contactEnvelope : 3.5)
+            let ottoLean: Double = step == 0 ? -8.5 * p.action : (step == 2 ? -5.0 : -3.0)
 
-            let ottoLook = CGPoint(x: 0.80, y: 0.12)
-            let mossLook = CGPoint(x: -0.82, y: step == 2 ? 0.22 : 0.05)
+            let mossLook = CGPoint(x: 0.82, y: step == 2 ? 0.22 : 0.06)
+            let ottoLook = CGPoint(x: -0.80, y: 0.14)
 
             let ottoMood: Mood = (step == 2 && p.raw >= 0.46) || (step == 1 && p.raw >= 0.50) ? .happy : .open
             let mossMood: Mood = {
@@ -46,13 +45,13 @@ struct SceneA19_StackingChunkyBlocks: View {
                 }
             }()
 
-            let ottoCenter = CGPoint(
-                x: ottoX,
-                y: BespokeStageHelpers.actorCenterY(kind: .otto, size: os, groundY: groundY, flat: flat)
-            )
             let mossCenter = CGPoint(
                 x: mossX,
                 y: BespokeStageHelpers.actorCenterY(kind: .moss, size: ms, groundY: groundY, flat: flat, lift: mossHopLift)
+            )
+            let ottoCenter = CGPoint(
+                x: ottoX,
+                y: BespokeStageHelpers.actorCenterY(kind: .otto, size: os, groundY: groundY, flat: flat)
             )
 
             let ottoState = Creature.state(.otto, face: ottoMood, look: ottoLook, lid: dark ? 0.36 : 0.22, hopping: false, yawning: false)
@@ -73,8 +72,8 @@ struct SceneA19_StackingChunkyBlocks: View {
                         h: size.height,
                         groundY: groundY,
                         towerX: towerX,
-                        ottoVoice: CGPoint(x: ottoCenter.x + os * 0.18, y: ottoCenter.y - os * 0.06),
-                        mossEar: CGPoint(x: mossCenter.x - ms * 0.18, y: mossCenter.y - ms * 0.06),
+                        ottoVoice: CGPoint(x: ottoCenter.x - os * 0.18, y: ottoCenter.y - os * 0.06),
+                        mossEar: CGPoint(x: mossCenter.x + ms * 0.18, y: mossCenter.y - ms * 0.06),
                         step: step,
                         p: p,
                         flat: flat,
@@ -92,23 +91,6 @@ struct SceneA19_StackingChunkyBlocks: View {
                 )
 
                 StoryTheaterActorView(
-                    kind: .otto,
-                    size: os,
-                    mood: ottoMood,
-                    look: ottoLook,
-                    lid: dark ? 0.36 : 0.22,
-                    lean: ottoLean,
-                    breathTime: ctx.breathTime,
-                    isStatic: ctx.isStatic,
-                    dark: dark,
-                    flat: flat,
-                    compact: ctx.compact,
-                    lightDirection: CGPoint(x: 0.78, y: -0.62),
-                    secondaryLagDegrees: -ottoLean * 0.30
-                )
-                .position(ottoCenter)
-
-                StoryTheaterActorView(
                     kind: .moss,
                     size: ms,
                     mood: mossMood,
@@ -122,10 +104,27 @@ struct SceneA19_StackingChunkyBlocks: View {
                     dark: dark,
                     flat: flat,
                     compact: ctx.compact,
-                    lightDirection: CGPoint(x: 0.78, y: -0.62),
+                    lightDirection: CGPoint(x: -0.78, y: -0.62),
                     secondaryLagDegrees: -mossLean * 0.42
                 )
                 .position(mossCenter)
+
+                StoryTheaterActorView(
+                    kind: .otto,
+                    size: os,
+                    mood: ottoMood,
+                    look: ottoLook,
+                    lid: dark ? 0.36 : 0.22,
+                    lean: ottoLean,
+                    breathTime: ctx.breathTime,
+                    isStatic: ctx.isStatic,
+                    dark: dark,
+                    flat: flat,
+                    compact: ctx.compact,
+                    lightDirection: CGPoint(x: -0.78, y: -0.62),
+                    secondaryLagDegrees: -ottoLean * 0.30
+                )
+                .position(ottoCenter)
 
                 LampLightRig(
                     beadPos: beadWorld,
@@ -175,8 +174,8 @@ struct SceneA19_StackingChunkyBlocks: View {
             )
         )
 
-        // Felt activity mat centered between Otto and Moss
-        let feltRect = CGRect(x: towerX - s * 0.16, y: groundY - 4, width: s * 0.32, height: 10)
+        // Centered felt activity mat
+        let feltRect = CGRect(x: towerX - s * 0.17, y: groundY - 4, width: s * 0.34, height: 10)
         let feltPath = Path(roundedRect: feltRect, cornerRadius: 5)
         if flat {
             GhibliDrawHelpers.fillWatercolor(
@@ -198,7 +197,7 @@ struct SceneA19_StackingChunkyBlocks: View {
         let y1 = y0 - blkSize + 1
         let y2 = y1 - blkSize + 1
 
-        // Base block 1 (Sage)
+        // Grounded sage base block
         if !flat {
             PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: towerX, y: groundY + 1.5), rx: blkSize * 0.58, ry: 4.0, dark: dark)
         }
@@ -206,47 +205,54 @@ struct SceneA19_StackingChunkyBlocks: View {
 
         switch step {
         case 0:
-            // Honey middle block lowers smoothly onto sage base
-            let lift = CGFloat(1.0 - p.action) * s * 0.18
-            drawBlock(in: &ctx, center: CGPoint(x: towerX, y: y1 - lift), size: blkSize, color: Palette.bead, angleDeg: (1.0 - p.action) * -6.0, flat: flat, dark: dark)
-            // Spare coral block waiting gently beside base
+            // Honey middle block moves from right edge of felt mat onto base over natural low lift (no ceiling drop)
+            let arcT = CGFloat(p.action)
+            let start = CGPoint(x: towerX + blkSize * 1.25, y: y0)
+            let end = CGPoint(x: towerX, y: y1)
+            let hx = start.x + (end.x - start.x) * arcT
+            let hy = start.y + (end.y - start.y) * arcT - CGFloat(sin(Double(arcT) * .pi)) * s * 0.075
+            drawBlock(in: &ctx, center: CGPoint(x: hx, y: hy), size: blkSize, color: Palette.bead, angleDeg: (1.0 - Double(arcT)) * 6.0, flat: flat, dark: dark)
+
+            // Spare coral block waiting grounded on Moss's left side of mat
+            let spareX = towerX - blkSize * 1.32
             if !flat {
-                PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: towerX + blkSize * 1.35, y: groundY + 1.5), rx: blkSize * 0.50, ry: 3.5, dark: dark)
+                PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: spareX, y: groundY + 1.5), rx: blkSize * 0.50, ry: 3.5, dark: dark)
             }
-            drawBlock(in: &ctx, center: CGPoint(x: towerX + blkSize * 1.35, y: y0), size: blkSize * 0.94, color: Crayon.tangerine, angleDeg: 0, flat: flat, dark: dark)
+            drawBlock(in: &ctx, center: CGPoint(x: spareX, y: y0), size: blkSize * 0.94, color: Crayon.tangerine, angleDeg: 0, flat: flat, dark: dark)
             BespokeStageHelpers.drawContactSparkles(in: &ctx, center: CGPoint(x: towerX, y: y1), pulse: p.contact, radius: s * 0.09, color: Palette.amber)
 
         case 1:
-            // Honey middle already settled; Coral top block rises from right & lands cleanly
+            // Honey middle settled; Coral block lifts cleanly from Moss's left side onto top y2
             drawBlock(in: &ctx, center: CGPoint(x: towerX, y: y1), size: blkSize, color: Palette.bead, angleDeg: 0, flat: flat, dark: dark)
             let arcT = CGFloat(p.action)
-            let start = CGPoint(x: towerX + blkSize * 1.35, y: y0)
+            let start = CGPoint(x: towerX - blkSize * 1.32, y: y0)
             let end = CGPoint(x: towerX, y: y2)
             let cx = start.x + (end.x - start.x) * arcT
-            let cy = start.y + (end.y - start.y) * arcT - CGFloat(sin(Double(arcT) * .pi)) * s * 0.14
+            let cy = start.y + (end.y - start.y) * arcT - CGFloat(sin(Double(arcT) * .pi)) * s * 0.085
             let wobble = p.raw >= 0.46 ? sin((p.raw - 0.46) * 20.0) * 5.0 * (1.0 - p.followThrough) : 0
             drawBlock(in: &ctx, center: CGPoint(x: cx, y: cy), size: blkSize * 0.94, color: Crayon.tangerine, angleDeg: wobble, flat: flat, dark: dark)
             BespokeStageHelpers.drawContactSparkles(in: &ctx, center: end, pulse: p.contact, radius: s * 0.10, color: Palette.amber)
 
         default:
-            // Step 2: Top two blocks sway playfully, then tumble onto the mat with warm voice invitation
-            let tumble = p.action
+            // True gravity tumble (drop = t*t) onto felt mat with contact AO + warm Otto encouragement ribbon
+            let t = p.action
+            let drop = CGFloat(t * t)
             let sway = p.raw < 0.20 ? sin(p.raw * 35.0) * 6.0 : 0.0
             let b1Center = CGPoint(
-                x: towerX - CGFloat(tumble) * blkSize * 1.25,
-                y: y1 + CGFloat(tumble) * (y0 - y1)
+                x: towerX - CGFloat(t) * blkSize * 1.25,
+                y: y1 + drop * (y0 - y1)
             )
             let b2Center = CGPoint(
-                x: towerX + CGFloat(tumble) * blkSize * 1.30,
-                y: y2 + CGFloat(tumble) * (y0 - y2)
+                x: towerX + CGFloat(t) * blkSize * 1.30,
+                y: y2 + drop * (y0 - y2)
             )
-            if !flat && tumble > 0.35 {
-                let aoAlpha = Double((tumble - 0.35) / 0.65)
+            if !flat && t > 0.35 {
+                let aoAlpha = Double((t - 0.35) / 0.65)
                 PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: b1Center.x, y: groundY + 1.5), rx: blkSize * 0.52, ry: 3.5, dark: dark, opacity: aoAlpha)
                 PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: b2Center.x, y: groundY + 1.5), rx: blkSize * 0.48, ry: 3.5, dark: dark, opacity: aoAlpha)
             }
-            drawBlock(in: &ctx, center: b1Center, size: blkSize, color: Palette.bead, angleDeg: sway - tumble * 76.0, flat: flat, dark: dark)
-            drawBlock(in: &ctx, center: b2Center, size: blkSize * 0.94, color: Crayon.tangerine, angleDeg: sway + tumble * 108.0, flat: flat, dark: dark)
+            drawBlock(in: &ctx, center: b1Center, size: blkSize, color: Palette.bead, angleDeg: sway - t * 78.0, flat: flat, dark: dark)
+            drawBlock(in: &ctx, center: b2Center, size: blkSize * 0.94, color: Crayon.tangerine, angleDeg: sway + t * 104.0, flat: flat, dark: dark)
 
             BespokeStageHelpers.drawContactSparkles(in: &ctx, center: CGPoint(x: towerX, y: y1), pulse: p.contact, radius: s * 0.11, color: Palette.amber)
             BespokeStageHelpers.drawSilkVoiceRibbon(
@@ -306,7 +312,6 @@ struct SceneA19_StackingChunkyBlocks: View {
                 lineWidth: 1.1
             )
         }
-        // Subtle chamfered inner bevel square
         let inner = rect.insetBy(dx: size * 0.18, dy: size * 0.18)
         bCtx.stroke(Path(roundedRect: inner, cornerRadius: size * 0.08), with: .color(Color.white.opacity(dark ? 0.18 : 0.32)), lineWidth: 0.9)
     }

@@ -179,7 +179,6 @@ struct SourcesView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("循证内容来源", "Evidence & Sources"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
     }
 
     private func editorialHeader(dark: Bool) -> some View {
@@ -770,7 +769,6 @@ struct ReleaseNotesView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("版本更新志", "What's New"))
         .navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
     }
 
     private func historyRow(_ ver: String, _ text: String) -> some View {

@@ -3,14 +3,16 @@ import TipKit
 
 /// Pure Moss Exploration Home (`摸索 / Explore`):
 /// Holds strictly what helps parent and child explore together right now:
-/// 1) Current Month exploration stage (`MonthCard` -> `.month(baby)`),
+/// 1) Serene compact `ExploreGreetingStrip` (with cross-tab switch to `留念` Journey when desired),
 /// 2) `TodayPlayCard` (Play together today with live Pixar 3D × Ghibli 2D living stage + 4 weekly plays),
 /// 3) Two-card `SensoryDiscoveryDock` (Sensory Toybox + First Foods Atlas).
-/// Sleep/feeds/lamp/rhythm live on `台灯 (Lamp)`, keepsakes/growth/due checkups live on `留念 (Keepsakes)`.
+/// Sleep/feeds/lamp/rhythm live on `台灯 (Lamp)`, keepsakes/month guide/growth/due checkups live on `留念 (Keepsakes)`.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.night) private var night
     @Environment(\.dynamicTypeSize) private var type
     @Binding var path: NavigationPath
     @State private var askBirth = false
@@ -28,8 +30,10 @@ struct TodayView: View {
                     Button { if app.mayKeep() { askBirth = true } } label: { Label(L10n.t("填写出生日期，从宝宝这个月开始", "Add baby's birthday to begin"), systemImage: "calendar.badge.plus").frame(maxWidth: .infinity) }
                         .buttonStyle(.vinyl(Palette.accentFill, prominent: true, large: true))
                 }
-                MonthCard(month: baby, baby: baby) { path.append(Route.month(baby)) }
-                    .zoomSource(Route.month(baby))
+                ExploreGreetingStrip(month: baby, baby: baby, isNight: night || lamp) {
+                    TactileEngine.shared.beadClick()
+                    router?.openKeepsakes(.month(baby))
+                }
                 if app.age != nil { TipView(shelfTip) }
                 TodayPlayCard(
                     month: baby,
@@ -47,7 +51,7 @@ struct TodayView: View {
         .navigationSubtitle(app.age == nil ? "\(app.today.md) \(app.today.weekday)" : "")
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                NavigationLink(value: Route.search) { Image(systemName: "magnifyingglass") }
+                NavigationLink(value: ExploreRoute.search) { Image(systemName: "magnifyingglass") }
                     .accessibilityLabel(L10n.t("搜索", "Search"))
             }
         }
@@ -67,7 +71,7 @@ struct TodayView: View {
             SectionTitle(title: L10n.t("感官探索工坊", "Sensory Discovery"))
 
             LazyVGrid(columns: cols, spacing: 10) {
-                NavigationLink(value: Route.toybox(.xylophone)) {
+                NavigationLink(value: ExploreRoute.toybox(.xylophone)) {
                     discoveryTile(
                         color: Crayon.teal,
                         title: L10n.t("感官玩具盒", "Sensory Toybox"),
@@ -81,7 +85,7 @@ struct TodayView: View {
                 }
                 .buttonStyle(.toy)
 
-                NavigationLink(value: Route.foodAtlas) {
+                NavigationLink(value: ExploreRoute.foodAtlas) {
                     discoveryTile(
                         color: Crayon.leaf,
                         title: L10n.t("百味食盒", "First Foods"),
@@ -178,363 +182,85 @@ enum AtelierDockMetrics {
     }
 }
 
-/// 「陪伴小器具 / Quiet Instruments」 — Living Montessori Atelier Dock on Home:
-/// Row 1: Twilight Bedside Lamp with 1-tap Soundscape play/pause + Live 24h Circadian Rhythm Dial;
-/// Row 2: Live 6-Petal First Foods Wreath + Handcrafted 5-Bar Xylophone Toybox;
-/// Row 3: Fanned Polaroid Storybook Stack + Folded Wax-Seal Time Capsule Envelope.
-private struct QuietInstrumentsDock: View {
+/// Compact greeting strip at the top of `Explore` linking cleanly across tabs to `留念 (Keepsakes)` without cloning `MonthView` on Tab 0.
+struct ExploreGreetingStrip: View {
+    @Environment(AppModel.self) private var app
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
-    @Environment(\.accessibilityReduceMotion) private var reduce
-
-    let soundscape: SoundscapeEngine
-    let foods: FoodAtlasStore
-    let todayLogs: [LogEntry]
-    let today: Day
-    let currentMonth: Int
-    let capsuleTotal: Int
-    let capsuleReady: Int
-    let toyTodayCount: Int
-    let todaySleepCount: Int
-    let todayFeedCount: Int
-    let bookMonths: Int
-    let firstsCount: Int
-    let openLamp: () -> Void
-    let openStorybook: () -> Void
-    @State private var livePulse = false
+    let month: Int
+    let baby: Int
+    let isNight: Bool
+    let openKeepsakes: () -> Void
 
     var body: some View {
         let dark = lamp || scheme == .dark
-        let foodsTasted = foods.tastedCount
-        let sleepSlices = AtelierDockMetrics.sleepSlices(in: todayLogs, on: today)
-        let feedFractions = AtelierDockMetrics.feedFractions(in: todayLogs, on: today)
-        let columns: [GridItem] = type.isAccessibilitySize
-            ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        let land = Land.of(month)
+        let mo = app.content.month(month)
 
-        VStack(alignment: .leading, spacing: 10) {
-            SectionTitle(title: L10n.t("陪伴小器具", "Quiet Instruments"))
-                .padding(.top, -10)
+        Button(action: openKeepsakes) {
+            HStack(alignment: .center, spacing: 12) {
+                MonthPostcardArt(
+                    month: month,
+                    festive: month == baby && app.age?.days == 0 && app.age != nil,
+                    night: isNight,
+                    width: type.isAccessibilitySize ? 68 : 58
+                )
 
-            LazyVGrid(columns: columns, spacing: 10) {
-                bedsideLampConsoleCard(dark: dark)
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 6) {
+                        Label(land.name, systemImage: land.symbol)
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
 
-                NavigationLink(value: JournalRoute.stats) {
-                    atelierTile(
-                        color: Crayon.lilac,
-                        title: L10n.t("昼夜节律盘", "Rhythm Dial"),
-                        subtitle: (todaySleepCount > 0 || todayFeedCount > 0)
-                            ? L10n.t("\(todaySleepCount) 觉 · \(todayFeedCount) 喂", "\(todaySleepCount) sleep · \(todayFeedCount) feeds")
-                            : L10n.t("24h 睡眠节律", "24h dial"),
-                        badge: nil,
-                        minHeight: 124,
-                        dark: dark
-                    ) {
-                        MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFractions, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: Route.foodAtlas) {
-                    atelierTile(
-                        color: Crayon.leaf,
-                        title: L10n.t("百味食盒", "First Foods"),
-                        subtitle: foodsTasted > 0
-                            ? L10n.t("已尝 \(foodsTasted) / \(FoodItem.catalog.count)", "\(foodsTasted) / \(FoodItem.catalog.count) tasted")
-                            : L10n.t("60 种辅食图鉴", "60 foods atlas"),
-                        badge: nil,
-                        minHeight: 112,
-                        dark: dark
-                    ) {
-                        MiniFoodsWreathCanvas(foods: foods, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: Route.toybox(.xylophone)) {
-                    atelierTile(
-                        color: Crayon.teal,
-                        title: L10n.t("感官玩具盒", "Sensory Toybox"),
-                        subtitle: toyTodayCount > 0
-                            ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
-                            : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
-                        badge: nil,
-                        minHeight: 112,
-                        dark: dark
-                    ) {
-                        MiniXylophoneArt(dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
-
-                Button(action: openStorybook) {
-                    atelierTile(
-                        color: Crayon.caramel,
-                        title: L10n.t("成长绘本", "Storybook"),
-                        subtitle: bookMonths > 0
-                            ? L10n.t("\(bookMonths) 个月 · \(firstsCount) 第一次", "\(bookMonths) mo · \(firstsCount) firsts")
-                            : L10n.t("翻页绘本 · 相纸", "Storybook"),
-                        badge: nil,
-                        minHeight: 102,
-                        dark: dark
-                    ) {
-                        MiniStorybookStackArt(month: currentMonth, dark: dark)
-                    }
-                }
-                .buttonStyle(.toy)
-
-                NavigationLink(value: Route.capsules) {
-                    capsuleEnvelopeTile(dark: dark)
-                }
-                .buttonStyle(.toy)
-            }
-        }
-        .onAppear {
-            guard soundscape.isPlaying, !reduce, !Perf.still else { return }
-            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                livePulse = true
-            }
-        }
-        .onChange(of: soundscape.isPlaying) { _, playing in
-            if playing && !reduce && !Perf.still {
-                withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
-                    livePulse = true
-                }
-            } else {
-                livePulse = false
-            }
-        }
-    }
-
-    private func bedsideLampConsoleCard(dark: Bool) -> some View {
-        let shape = RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-        let cardFill = Color(hex: dark ? 0x19213F : 0x1D264A)
-        let playing = soundscape.isPlaying
-
-        return VStack(alignment: .leading, spacing: 8) {
-            Button(action: openLamp) {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(alignment: .top) {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [Palette.amber.opacity(playing ? 0.55 : 0.25), .clear],
-                                        center: .center,
-                                        startRadius: 2,
-                                        endRadius: 22
-                                    )
-                                )
-                                .frame(width: 40, height: 40)
-                            ToolArtBadge(toolId: "bedside_lamp", size: 34, active: playing)
-                        }
-                        Spacer(minLength: 4)
-                        HStack(spacing: 5) {
-                            if playing {
-                                ZStack {
-                                    if !reduce {
-                                        Circle()
-                                            .fill(Palette.amber.opacity(livePulse ? 0.38 : 0.14))
-                                            .frame(width: livePulse ? 14 : 10, height: livePulse ? 14 : 10)
-                                    }
-                                    Circle()
-                                        .fill(Palette.amber)
-                                        .frame(width: 7, height: 7)
-                                }
-                            }
-                            Image(systemName: "chevron.right")
+                        if let a = app.age {
+                            Text(L10n.ageText(a))
                                 .font(.caption2.weight(.bold))
-                                .foregroundStyle(Palette.lampInk.opacity(0.55))
+                                .foregroundStyle(.primary)
+                                .monospacedDigit()
+                        } else {
+                            Text(L10n.t("0–3 岁旅程", "0–3y Journey"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Palette.secondaryText)
                         }
-                        .padding(.top, 2)
                     }
 
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.t("床头夜灯", "Bedside Lamp"))
-                            .font(.subheadline.weight(.bold))
-                            .foregroundStyle(Palette.lampInk)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.85)
-                        Text(soundscape.activeSummary ?? L10n.t("暖光 · 6 声景", "Warm light · 6 sounds"))
-                            .font(.caption2)
-                            .foregroundStyle(Palette.lampInk.opacity(0.76))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.78)
-                    }
+                    Text(mo.title)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(type.isAccessibilitySize ? 3 : 1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
 
-            Button {
-                TactileEngine.shared.beadClick()
-                withAnimation(reduce ? nil : .snappy) {
-                    soundscape.toggleQuick()
-                }
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: playing ? "pause.fill" : "play.fill")
-                        .font(.system(size: 9.5, weight: .bold))
-                    Text(playing ? L10n.t("停声", "Pause") : soundscape.lastUsedKind.title)
-                        .font(.caption2.weight(.bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.78)
-                    Spacer(minLength: 2)
-                    if playing {
-                        MiniAcousticBars(reduce: reduce)
-                    }
-                }
-                .foregroundStyle(playing ? Color(hex: 0x3A2400) : Palette.lampInk)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .background(
-                    Capsule().fill(
-                        playing ? Palette.amber : Color.white.opacity(0.13)
-                    )
-                )
-            }
-            .buttonStyle(.toy)
-            .accessibilityLabel(
-                playing
-                    ? L10n.t("暂停助眠声景", "Pause soundscape")
-                    : L10n.t("播放\(soundscape.lastUsedKind.title)", "Play \(soundscape.lastUsedKind.title)")
-            )
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 124, alignment: .topLeading)
-        .background {
-            ZStack {
-                shape.fill(cardFill)
-                    .shadow(color: Color(hex: 0x0B1028).opacity(dark ? 0.34 : 0.20), radius: 8, y: 4)
-                RadialGradient(
-                    colors: [Palette.amber.opacity(playing ? 0.24 : 0.11), .clear],
-                    center: UnitPoint(x: 0.25, y: 0.12),
-                    startRadius: 2,
-                    endRadius: 120
-                )
-                .clipShape(shape)
-                shape.strokeBorder(
-                    LinearGradient(
-                        colors: [Palette.amber.opacity(playing ? 0.48 : 0.22), .white.opacity(0.06), .clear],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 1.15
-                )
-            }
-        }
-    }
-
-    private func atelierTile<Art: View>(
-        color: Color,
-        title: String,
-        subtitle: String,
-        badge: String?,
-        minHeight: CGFloat,
-        dark: Bool,
-        @ViewBuilder art: () -> Art
-    ) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top) {
-                art()
                 Spacer(minLength: 4)
-                if let badge {
-                    Text(badge)
+
+                HStack(spacing: 3) {
+                    Text(L10n.t("旅程", "Journey"))
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(Color(hex: 0x4A3300))
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Palette.bead))
-                } else {
                     Image(systemName: "chevron.right")
                         .font(.caption2.weight(.bold))
-                        .foregroundStyle(.tertiary)
-                        .padding(.top, 2)
                 }
+                .foregroundStyle(Palette.accent)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(Palette.accent.opacity(dark ? 0.18 : 0.11)))
             }
-            Spacer(minLength: 0)
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.85)
-                Text(subtitle)
-                    .font(.caption)
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-        }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: minHeight, alignment: .topLeading)
-        .background(
-            LinearGradient(
-                colors: [color.opacity(dark ? 0.14 : 0.13), color.opacity(dark ? 0.03 : 0.02)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .printCard(radius: Radius.card)
-    }
-
-    private func capsuleEnvelopeTile(dark: Bool) -> some View {
-        atelierTile(
-            color: Palette.bead,
-            title: L10n.t("时光胶囊", "Time Capsules"),
-            subtitle: capsuleReady > 0
-                ? L10n.t("火漆待拆封", "Ready to unseal")
-                : (capsuleTotal > 0
-                    ? L10n.t("已封存 \(capsuleTotal) 封", "\(capsuleTotal) sealed")
-                    : L10n.t("火漆写给未来", "Wax letters")),
-            badge: capsuleReady > 0 ? L10n.t("\(capsuleReady) 封可拆", "\(capsuleReady) ready") : nil,
-            minHeight: 102,
-            dark: dark
-        ) {
-            WaxSealBadge(seal: .gold, size: 38)
-        }
-        .overlay {
-            // Delicate envelope V-flap crease geometry echoing cotton-paper keepsake letters
-            Canvas { ctx, size in
-                var flap = Path()
-                flap.move(to: CGPoint(x: 8, y: 0))
-                flap.addLine(to: CGPoint(x: size.width * 0.5, y: size.height * 0.42))
-                flap.addLine(to: CGPoint(x: size.width - 8, y: 0))
-                ctx.stroke(
-                    flap,
-                    with: .color((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.20 : 0.24)),
-                    style: StrokeStyle(lineWidth: 1.0, lineCap: .round, lineJoin: .round)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .background(
+                LinearGradient(
+                    colors: [land.crayon.opacity(dark ? 0.12 : 0.09), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
                 )
-            }
-            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .allowsHitTesting(false)
-            .accessibilityHidden(true)
+            )
+            .printCard(radius: Radius.card)
         }
-    }
-}
-
-private struct MiniAcousticBars: View {
-    let reduce: Bool
-    @Environment(\.scenePhase) private var scenePhase
-    @Environment(\.scrolling) private var scrolling
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 15.0, paused: reduce || Perf.still || scenePhase != .active || scrolling.moving)) { tl in
-            let t = (reduce || Perf.still) ? 0.5 : tl.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .center, spacing: 2) {
-                ForEach(0..<3, id: \.self) { i in
-                    let h = 4 + 5 * (0.5 + 0.5 * sin(t * 4.2 + Double(i) * 1.4))
-                    Capsule()
-                        .fill(Color(hex: 0x3A2400))
-                        .frame(width: 2.2, height: h)
-                }
-            }
-            .frame(height: 10)
-        }
-        .accessibilityHidden(true)
+        .buttonStyle(.toy)
+        .accessibilityLabel(L10n.t("当前月龄第 \(month) 站，\(mo.title)，前往留念查看月龄指南与成长足迹", "Station \(month), \(mo.title), switch to Keepsakes tab"))
     }
 }
 
@@ -667,51 +393,6 @@ private struct MiniXylophoneArt: View {
     }
 }
 
-private struct MiniStorybookStackArt: View {
-    let month: Int
-    let dark: Bool
-
-    var body: some View {
-        let clampedMonth = min(max(month, 0), 36)
-        ZStack {
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .fill(dark ? Color(hex: 0x29335C) : Color(hex: 0xF5EBDC))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6, style: .continuous)
-                        .strokeBorder(Crayon.caramel.opacity(0.35), lineWidth: 0.8)
-                )
-                .frame(width: 44, height: 34)
-                .rotationEffect(.degrees(5))
-                .offset(x: 4, y: 2)
-
-            LivingMonthCoverStage(
-                month: clampedMonth,
-                dark: dark,
-                posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
-                interactive: false,
-                compact: true
-            )
-            .frame(width: 42, height: 32)
-            .clipShape(RoundedRectangle(cornerRadius: 5, style: .continuous))
-            .padding(2.5)
-            .background(
-                RoundedRectangle(cornerRadius: 7, style: .continuous)
-                    .fill(dark ? Color(hex: 0xECE5D8) : .white)
-                    .shadow(color: .black.opacity(0.14), radius: 2, y: 1)
-            )
-            .overlay(alignment: .topTrailing) {
-                RoundedRectangle(cornerRadius: 1)
-                    .fill(Palette.bead)
-                    .frame(width: 5, height: 9)
-                    .offset(x: -5, y: -2)
-            }
-            .rotationEffect(.degrees(-4))
-        }
-        .frame(width: 50, height: 38)
-        .accessibilityHidden(true)
-    }
-}
-
 /// What is due this month and not yet done — vaccines and check-ups — as one line that opens them; shown only while
 /// something is left, so the home is quiet when nothing is.
 struct DueCard: View {
@@ -728,7 +409,7 @@ struct DueCard: View {
         let earlier = app.duePending(before: month).count
         let dotsCount = max(1, min(total, 8))
         if total > done || earlier > 0 {
-            NavigationLink(value: Route.care(month)) {
+            NavigationLink(value: KeepsakesRoute.care(month)) {
                 HStack(spacing: 12) {
                     IconTile(symbol: "syringe.fill", color: Crayon.pink, size: 34)
                     VStack(alignment: .leading, spacing: 5) {
@@ -790,202 +471,6 @@ struct DueCard: View {
             .padding(.horizontal, 7)
             .padding(.vertical, 2)
             .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.22 : 0.16)))
-    }
-}
-
-/// Now: what the baby is doing, from the parent's own records, and what that means for play — the one place where
-/// the care log and the picture book meet. Asleep: the companions sleep too, and one tap says the baby woke. Feeding:
-/// how long, and the timer. Awake: said in 今天一起玩's own header (醒了 40 分钟 · 一起玩), not in a card of its own.
-/// At night, the last feed, waking and nappy. Only facts from the records; no predictions. Hidden when there is
-/// nothing to say.
-private struct NowCard: View {
-    @Environment(AppModel.self) private var app
-    @Environment(JournalStore.self) private var j
-    @Environment(\.night) private var night
-    @Environment(\.lamp) private var lamp
-    let month: Int
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { tl in
-            let now = tl.date.timeIntervalSince1970 * 1000
-            if let sleep = j.timers.first(where: { $0.type == LogType.sleep }) {
-                // waking is recorded on the sleep's own page (one place to start and end a timer)
-                Button { j.focus = LogType.sleep } label: {
-                    card(tint: Crayon.lilac) {
-                        Duo(primary: app.companion, size: 44, mood: .sleep, night: true)
-                        words(
-                            sleep.pausedAt != nil ? L10n.timerStatus(LogType.sleep, side: nil, paused: true) : L10n.t("宝宝在睡觉", "Baby is sleeping"),
-                            L10n.t("已经睡了 " + durationValue(sleep.total(now)) + " · 醒了点这里记下", "Asleep " + L10n.duration(sleep.total(now)) + " · Tap when awake")
-                        )
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
-                    }
-                }
-                .buttonStyle(.toy)
-            } else if let feed = j.timers.first(where: { $0.type == LogType.nurse }) {
-                Button { j.focus = LogType.nurse } label: {
-                    card(tint: Crayon.pink) {
-                        IconTile(symbol: LogType.symbol(LogType.nurse), color: Crayon.pink, size: 40)
-                        words(
-                            feed.pausedAt != nil ? L10n.timerStatus(LogType.nurse, side: feed.side, paused: true) : L10n.t("正在亲喂" + (feed.side == "r" ? " · 右侧" : " · 左侧"), "Nursing" + (feed.side == "r" ? " · Right" : " · Left")),
-                            L10n.t("已经 " + durationValue(feed.total(now)), L10n.duration(feed.total(now)) + " elapsed")
-                        )
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right").font(.footnote.weight(.bold)).foregroundStyle(.tertiary)
-                    }
-                }
-                .buttonStyle(.toy)
-            } else if night && !j.logs.isEmpty {
-                // at night, with nothing running: the three things asked at 2 a.m. — when the last feed was, when the
-                // baby last woke, the last nappy — each one tap from recording the next
-                HStack(spacing: 8) {
-                    fact(LogType.nurse, "care/nurse", tl.date)
-                    fact(LogType.sleep, "care/sleep", tl.date)
-                    fact(LogType.diaper, "log/diaper", tl.date)
-                }
-            }
-        }
-    }
-    @Environment(\.openURL) private var openURL
-    private func fact(_ type: String, _ link: String, _ now: Date) -> some View {
-        let f = LastLine.fact(type, in: j.logs)
-        let c = LogType.color(type)
-        let fallbackLabel = L10n.t("上次" + LogType.name(type), "Last " + L10n.logName(type).lowercased())
-        return Button { if let u = URL(string: "mossling://" + link) { openURL(u) } } label: {
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 5) {
-                    IconTile(symbol: LogType.symbol(type), color: c, size: 20, round: true)
-                    Text(L10n.isEnglish ? fallbackLabel : (f?.label ?? fallbackLabel)).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).lineLimit(1).minimumScaleFactor(0.8)
-                }
-                Text(f.map { L10n.agoText($0.at, now: now) } ?? "—").font(Typeface.numerals(17, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(c))
-                    .lineLimit(1).minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(10)
-            .background(c.opacity(0.14)).printCard(radius: Radius.inner)
-        }
-        .buttonStyle(.toy)
-        .accessibilityHint(L10n.t("记下一次" + LogType.name(type), "Log " + L10n.logName(type).lowercased()))
-    }
-    private func words(_ a: String, _ b: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(a).font(.headline).foregroundStyle(.primary)
-            Text(b).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(2).multilineTextAlignment(.leading)
-        }
-    }
-    private func card<C: View>(tint: Color, @ViewBuilder _ c: () -> C) -> some View {
-        HStack(spacing: 12) { c() }
-            .padding(12).frame(maxWidth: .infinity, alignment: .leading)
-            .background(tint.opacity(0.16)).printCard(radius: Radius.card)
-    }
-}
-
-/// 「蒙氏成长航线明信片 / Journey Passport Card」 — Picture-book 4:3 month postcard paired with the live 37-station bead chain.
-private struct MonthCard: View {
-    @Environment(AppModel.self) private var app
-    @Environment(\.colorScheme) private var scheme
-    @Environment(\.night) private var night
-    @Environment(\.lamp) private var lamp
-    @Environment(\.dynamicTypeSize) private var type
-    let month: Int, baby: Int
-    let open: () -> Void
-
-    var body: some View {
-        let dark = lamp || scheme == .dark
-        let isNight = night || lamp
-        let land = Land.of(month)
-        let monthFrac = (month == baby) ? (app.age.map { JourneyStripMetrics.monthProgressFraction(days: $0.days, toNext: $0.toNext) } ?? 0) : 0
-        let countdown: String? = (month == baby) ? app.age.flatMap { a in
-            a.toNext > 0 && month < 36 ? L10n.t("\(a.toNext) 天后满 \(month + 1) 个月", "\(a.toNext)d to mo \(month + 1)") : nil
-        } : nil
-        let layout = type.isAccessibilitySize ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10)) : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
-
-        Button(action: open) {
-            VStack(alignment: .leading, spacing: 11) {
-                layout {
-                    MonthPostcardArt(
-                        month: month,
-                        festive: month == baby && app.age?.days == 0 && app.age != nil,
-                        night: isNight,
-                        width: type.isAccessibilitySize ? 96 : 104
-                    )
-
-                    HStack(alignment: .center, spacing: 8) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 6) {
-                                Label(land.name, systemImage: land.symbol)
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                                    .padding(.horizontal, 7)
-                                    .padding(.vertical, 2)
-                                    .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
-
-                                if month != baby {
-                                    Text(month < baby ? L10n.t("走过的一站", "Past") : L10n.t("以后的一站", "Ahead"))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Palette.secondaryText)
-                                } else if let a = app.age {
-                                    Text(L10n.livedDays(a.lived))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Palette.secondaryText)
-                                        .monospacedDigit()
-                                } else {
-                                    Text(L10n.t("0–3 岁地图", "0–3y Map"))
-                                        .font(.caption2.weight(.semibold))
-                                        .foregroundStyle(Palette.secondaryText)
-                                }
-                            }
-
-                            HStack(alignment: .firstTextBaseline, spacing: 3) {
-                                Text(month == 0 ? L10n.t("出生", "Birth") : "\(month)")
-                                    .font(Typeface.numerals(34, relativeTo: .largeTitle, weight: .bold))
-                                if month > 0 {
-                                    Text(L10n.t("个月", "mo")).font(.subheadline.weight(.semibold))
-                                }
-                                if month == baby, let d = app.age?.days, d > 0 {
-                                    Text("\(d)")
-                                        .font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
-                                        .padding(.leading, 2)
-                                    Text(L10n.t("天", "d")).font(.subheadline.weight(.semibold))
-                                }
-                            }
-
-                            Text(app.content.month(month).title)
-                                .font(.subheadline)
-                                .foregroundStyle(Palette.secondaryText)
-                                .lineLimit(type.isAccessibilitySize ? nil : 2)
-                                .truncationMode(.tail)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        Spacer(minLength: 0)
-                        Image(systemName: "chevron.right")
-                            .font(.footnote.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                }
-                .foregroundStyle(.primary)
-
-                MiniJourneyBeadStrip(
-                    month: month,
-                    monthFraction: monthFrac,
-                    hasBirth: app.age != nil,
-                    countdownText: countdown,
-                    dark: dark,
-                    night: isNight
-                )
-            }
-            .padding(12)
-            .background(
-                LinearGradient(
-                    colors: [land.crayon.opacity(dark ? 0.14 : 0.12), Crayon.sunflower.opacity(dark ? 0.03 : 0.05)],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .printCard(radius: Radius.card)
-        }
-        .buttonStyle(.toy)
-        .accessibilityLabel("\(month == 0 ? L10n.t("出生", "Birth") : L10n.t("\(month) 个月", "\(month) months")), \(app.content.month(month).title)")
-        .accessibilityHint(L10n.t("打开串珠旅程与本月指南", "Open 37-station Journey and month guide"))
     }
 }
 
@@ -1070,7 +555,7 @@ struct Topics: View {
             // one card of rows: each title whole on its line, nothing wrapped mid-word, no row half filled
             Box {
                 ForEach(items) { x in
-                    NavigationLink(value: Route.topic(x.t.id)) {
+                    NavigationLink(value: KeepsakesRoute.topic(x.t.id)) {
                         BoxRow(symbol: topicMarks[x.i % topicMarks.count].0, color: topicMarks[x.i % topicMarks.count].1, title: x.t.title, last: x.i == items.count - 1, opens: true)
                     }
                     .buttonStyle(.plain)
@@ -1170,7 +655,7 @@ struct TodayPlayCard: View {
         return L10n.t("今天一起玩", "Today's Play")
     }
 
-    private func route(_ p: Play) -> Route { Route.play(p.code, month) }
+    private func route(_ p: Play) -> ExploreRoute { ExploreRoute.play(p.code, month) }
 
     /// Today's play — clean crisp 4:3 picture-book hero stage with bold title & Step 1 cue below (zero stray floating orbs).
     private func lead(_ p: Play) -> some View {
@@ -1392,7 +877,7 @@ struct ShelfEditor: View {
     var body: some View {
         NavigationStack(path: $sheetPath) {
             PlanView(path: $sheetPath)
-                .routes(path: $sheetPath)
+                .exploreRoutes(path: $sheetPath)
                 .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { dismiss() } } }
                 .navigationBarTitleDisplayMode(.inline)
         }
@@ -1405,7 +890,7 @@ struct BirthSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
-    /// Asked the first time only: whether to keep the day's records too (the 记录 tab), so a parent of a newborn has
+    /// Asked the first time only: whether to keep the day's records too (under 台灯), so a parent of a newborn has
     /// the feeds, sleeps and nappies from the start rather than finding them later behind a switch.
     @State private var first = false
     @State private var records = true
@@ -1434,7 +919,7 @@ struct BirthSheet: View {
                 if first {
                     Section {
                         Toggle(L10n.t("也记录喂奶、睡眠、尿布", "Also track feeds, sleep & diapers"), isOn: $records)
-                    } footer: { Text(L10n.t("打开后多一个「记录」页；以后在「我的」里随时可以开关。", "Adds a Log tab; you can toggle it anytime in Me.")) }
+                    } footer: { Text(L10n.t("打开后会在「台灯」下方显示喂睡与尿布轻记；以后在「工坊」里随时可以开关。", "Enables feeding, sleep & diaper quick logs under Lamp; toggle anytime in Studio.")) }
                 }
             }
             .scrollContentBackground(.hidden)

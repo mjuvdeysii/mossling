@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 22（v2.0 正式发布候选 19 · Edition I Round 22 · 零迷宫单一真源信息架构 · Tab Bar 与入口统一 · 30 部活动全动态光锥与 8 部空间穿模物理重铸）**：
+  - **【零迷宫单一真源架构手术 Single-Source-of-Truth IA】**：新建 `AppRouter.swift` 以 4 组互不重叠的独立路由枚举（`ExploreRoute`、`LampRoute`、`KeepsakesRoute`、`StudioRoute`）与 `CanonicalDestination` 彻底取代全局混用 `Route`/`JournalRoute` 迷宫；`AboutView`、`MonthCard`、`QuietInstrumentsDock`、`NowCard`、`JournalView` 与重复的 `GrowthBookView` 全量退役下线，并将过往多日回看/补记并入 **台灯（`LampHubView`）**，将空生日引导入口并入唯一 **成长绘本（`StorybookView`）**，将「工坊」透明循证收口为单层清单与 Duo 彩蛋；同步仅在沉浸互动页面（`ToyboxView`、`PlayView`）隐藏底部 Tab Bar，普通子页一律保留标签栏退路。
+  - **【30 部活动短片全动态光锥 × 8 部空间物理精修】**：升级 `BespokeActivitySceneRegistry` 为全部 30 部短片（`N01–N06`、`A01–A24`）注入精准的 Otto 金珠与教具目标坐标及 `lightAnchors(for:step:stageSize:)`（淘汰硬编码占位光锥）；针对 `A24`、`A20`、`N06`、`A16`、`A11`、`A13`、`A14`、`A19` 逐一重铸三平面纵深、落地接触阴影、无浮空蜡笔/抹布/羽毛笔/鸟架物理牵引、严格对调可触达站位并与 `content.json` 步骤字字严丝合缝，新增 `testRound22SingleSourceOfTruthIAAndScenePhysics` 与 `test72Round22ZeroMazeIAAndScenePhysicsRepair`，并同步将 5 轮彻底推翻重构框架固化为 `docs/METHODOLOGY.md` v3.1。
+
 - **Batch 21（v2.0 正式发布候选 18 · Batch C 独立小动画 `A15–A24` · Tab 3 蒙氏纪念书架与折叠三境章节 · Swift 6 零警告与 Tab 3/4 无障碍精修）**：
   - **【Bespoke 独立活动动画 Batch C（`A15–A24` 共 10 部完全独立短片 · 累计 30 / 46）】**：严格遵循 `docs/IP.md`（Otto 永远无手、零腮红、零气泡、`1:1` Pixar 3D × Ghibli 2D 地面坐标对齐）手工编排 `A15`（绗缝游戏垫清障与木环自由探索）、`A16`（矮柜木鸟共同注意追视光弧）、`A17`（门拱下波浪天线与薄荷叶无手致意）、`A18`（六瓣布球滚动物理自转与回合拉长）、`A19`（正式升格的三层倒角木积木搭高与欢呼倒塌）、`A20`（实用生活矮桌擦水珠与棉布入篮）、`A21`（双桦木托盘二选一高亮询问）、`A22`（植物梨卡片与实木梨配对落点）、`A23`（前展书架选书翻页与随心合书）与 `A24`（棉纸胶带粗蜡笔自由有机笔触），注册至 `BespokeActivitySceneRegistry`（累计 30 部独立镜头语法），补全 `testRound21BespokeBatchCScenesAndKeepsakeTab` 与 `test71Round21BespokeBatchCAndKeepsakesUpgrade`。
   - **【创意炼金术升级 · Tab 3 蒙氏纪念藏品盒与三境折叠章节】**：将 `JourneyHubView` 四格入口升级为数据驱动的实体微缩质感藏品（`MiniStorybookArtifact` 布面书脊绘本、`MiniPolaroidArtifact` 胶带拍立得直显最近照片、`MiniCapsuleEnvelopeArtifact` 对应火漆色信封与待拆微光、`MiniGrowthCurveArtifact` WHO P15–P85 曲线配实时体重金珠折线）；在头卡下方新增「草地 / 森林小丘 / 小河村庄」三境进度跳转条，并将 37 站珠链按三境收纳进平滑 `CalmAccordion` 剪纸章节（默认仅展开宝宝当前王国，大幅压缩首屏滑屏长度）。

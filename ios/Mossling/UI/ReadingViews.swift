@@ -31,7 +31,6 @@ struct TopicView: View {
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(topic.title).navigationBarTitleDisplayMode(.large)
-        .toolbar(.hidden, for: .tabBar)
     }
 }
 
@@ -126,8 +125,10 @@ enum SearchEngine {
 }
 
 /// Visual Discovery Search Compass across Quiet Instruments, First Foods, plays, months, and care topics.
+/// Cross-tab destinations switch tabs via `AppRouter` to their single canonical owner rather than cloning onto Tab 0.
 struct SearchView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
@@ -141,6 +142,17 @@ struct SearchView: View {
         self._path = path
         self.initialQuery = initialQuery
         self._q = State(initialValue: initialQuery)
+    }
+
+    private func openDestination(_ destination: CanonicalDestination) {
+        TactileEngine.shared.beadClick()
+        if let router {
+            router.open(destination)
+        } else if let explore = destination.exploreRoute {
+            path.append(explore)
+        } else if destination == .bedsideLamp, let url = URL(string: "mossling://lamp") {
+            openURL(url)
+        }
     }
 
     var body: some View {
@@ -205,7 +217,7 @@ struct SearchView: View {
                             SectionTitle(title: L10n.t("这周一起玩", "This Week's Plays"))
                             VStack(spacing: 0) {
                                 ForEach(Array(weekPlays.enumerated()), id: \.element.code) { idx, p in
-                                    NavigationLink(value: Route.play(p.code, m)) {
+                                    NavigationLink(value: ExploreRoute.play(p.code, m)) {
                                         searchRow(last: idx == weekPlays.count - 1) {
                                             PlayRowLabel(play: p)
                                         }
@@ -217,13 +229,15 @@ struct SearchView: View {
                         }
                     }
 
-                    // 4. Care Topics Grid
+                    // 4. Care Topics Grid (cross-tab switches to Tab 2 Keepsakes)
                     VStack(alignment: .leading, spacing: 10) {
                         SectionTitle(title: L10n.t("专题", "Topics"))
                         LazyVGrid(columns: topicCols, spacing: 10) {
                             ForEach(app.content.topics) { tp in
                                 let mark = topicMark(for: tp)
-                                NavigationLink(value: Route.topic(tp.id)) {
+                                Button {
+                                    openDestination(.topic(tp.id))
+                                } label: {
                                     VStack(alignment: .leading, spacing: 8) {
                                         HStack {
                                             IconTile(symbol: mark.0, color: mark.1, size: 30)
@@ -288,7 +302,7 @@ struct SearchView: View {
                         let slice = Array(res.foods.prefix(8))
                         resultSection(L10n.t("百味食盒", "First Foods")) {
                             ForEach(Array(slice.enumerated()), id: \.element.id) { idx, food in
-                                NavigationLink(value: Route.foodAtlas) {
+                                NavigationLink(value: ExploreRoute.foodAtlas) {
                                     searchRow(last: idx == slice.count - 1 && res.foods.count <= 8) {
                                         HStack(spacing: 12) {
                                             FoodGlyphView(food: food, size: 32)
@@ -312,7 +326,7 @@ struct SearchView: View {
                                 .buttonStyle(.plain)
                             }
                             if res.foods.count > 8 {
-                                NavigationLink(value: Route.foodAtlas) {
+                                NavigationLink(value: ExploreRoute.foodAtlas) {
                                     searchRow(last: true) {
                                         Text(L10n.t("查看全部 \(res.foods.count) 项匹配食材", "See all \(res.foods.count) matching foods"))
                                             .font(.subheadline.weight(.semibold))
@@ -328,7 +342,7 @@ struct SearchView: View {
                         resultSection(L10n.t("活动", "Activities")) {
                             ForEach(Array(res.plays.enumerated()), id: \.element.code) { idx, p in
                                 let targetMonth = app.babyMonth.map { max(p.from, min(p.to, $0)) } ?? p.from
-                                NavigationLink(value: Route.play(p.code, targetMonth)) {
+                                NavigationLink(value: ExploreRoute.play(p.code, targetMonth)) {
                                     searchRow(last: idx == res.plays.count - 1) {
                                         PlayRowLabel(play: p)
                                     }
@@ -341,7 +355,9 @@ struct SearchView: View {
                     if (activeScope == .all || activeScope == .months), !res.months.isEmpty {
                         resultSection(L10n.t("月份", "Months")) {
                             ForEach(Array(res.months.enumerated()), id: \.element.month) { idx, mo in
-                                NavigationLink(value: Route.month(mo.month)) {
+                                Button {
+                                    openDestination(.month(mo.month))
+                                } label: {
                                     searchRow(last: idx == res.months.count - 1) {
                                         HStack(spacing: 12) {
                                             Bead(month: mo.month, here: mo.month == m, past: mo.month <= m)
@@ -364,7 +380,9 @@ struct SearchView: View {
                     if (activeScope == .all || activeScope == .topics), !res.topics.isEmpty {
                         resultSection(L10n.t("专题", "Topics")) {
                             ForEach(Array(res.topics.enumerated()), id: \.element.id) { idx, tp in
-                                NavigationLink(value: Route.topic(tp.id)) {
+                                Button {
+                                    openDestination(.topic(tp.id))
+                                } label: {
                                     searchRow(last: idx == res.topics.count - 1) {
                                         topicLabel(tp)
                                     }
@@ -382,7 +400,6 @@ struct SearchView: View {
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("搜索", "Search"))
-        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -414,44 +431,39 @@ struct SearchView: View {
 
     @ViewBuilder
     private func toolPortalTile(_ tool: QuietToolResult, dark: Bool) -> some View {
-        let label = VStack(spacing: 7) {
-            ToolArtBadge(toolId: tool.artId, size: 36, flat: ArtStyle.current == .flat)
-            Text(tool.title)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-                .multilineTextAlignment(.center)
-                .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
-                .minimumScaleFactor(0.8)
+        Button {
+            openDestination(tool.destination)
+        } label: {
+            VStack(spacing: 7) {
+                ToolArtBadge(toolId: tool.artId, size: 36, flat: ArtStyle.current == .flat)
+                Text(tool.title)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
+                    .minimumScaleFactor(0.8)
+            }
+            .padding(.vertical, 12)
+            .padding(.horizontal, 6)
+            .frame(maxWidth: .infinity)
+            .printCard(radius: Radius.tile)
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 6)
-        .frame(maxWidth: .infinity)
-        .printCard(radius: Radius.tile)
-
-        if let route = tool.route {
-            NavigationLink(value: route) { label }.buttonStyle(.toy)
-        } else if let jRoute = tool.journalRoute {
-            NavigationLink(value: jRoute) { label }.buttonStyle(.toy)
-        } else if let url = tool.url {
-            Button { openURL(url) } label: { label }.buttonStyle(.toy)
-        }
+        .buttonStyle(.toy)
     }
 
     @ViewBuilder
     private func toolResultRow(_ tool: QuietToolResult, last: Bool) -> some View {
-        let row = searchRow(last: last) {
-            HStack(spacing: 12) {
-                ToolArtBadge(toolId: tool.artId, size: 34, flat: ArtStyle.current == .flat)
-                Text(tool.title).font(.body.weight(.medium)).foregroundStyle(.primary)
+        Button {
+            openDestination(tool.destination)
+        } label: {
+            searchRow(last: last) {
+                HStack(spacing: 12) {
+                    ToolArtBadge(toolId: tool.artId, size: 34, flat: ArtStyle.current == .flat)
+                    Text(tool.title).font(.body.weight(.medium)).foregroundStyle(.primary)
+                }
             }
         }
-        if let route = tool.route {
-            NavigationLink(value: route) { row }.buttonStyle(.plain)
-        } else if let jRoute = tool.journalRoute {
-            NavigationLink(value: jRoute) { row }.buttonStyle(.plain)
-        } else if let url = tool.url {
-            Button { openURL(url) } label: { row }.buttonStyle(.plain)
-        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
@@ -532,9 +544,7 @@ struct QuietToolResult: Identifiable {
     let keywords: [String]
     let symbol: String
     let color: Color
-    var route: Route? = nil
-    var journalRoute: JournalRoute? = nil
-    var url: URL? = nil
+    let destination: CanonicalDestination
 
     var title: String { L10n.t(zh, en) }
 
@@ -545,12 +555,12 @@ struct QuietToolResult: Identifiable {
     }
 
     static let all: [QuietToolResult] = [
-        QuietToolResult(id: "lamp", artId: "bedside_lamp", zh: "床头夜灯", en: "Bedside Lamp", keywords: ["夜灯", "声景", "呼吸", "白噪音", "白噪声", "助眠", "sound", "sleep", "breath", "lamp"], symbol: "lamp.desk.fill", color: Palette.amber, url: URL(string: "mossling://lamp")),
-        QuietToolResult(id: "toybox", artId: "sensory_toybox", zh: "感官玩具盒", en: "Sensory Toybox", keywords: ["木琴", "金珠", "雨棒", "萤火", "视卡", "黑白", "xylophone", "rainstick", "fireflies", "contrast"], symbol: "music.note", color: Crayon.teal, route: .toybox(.xylophone)),
-        QuietToolResult(id: "foods", artId: "first_foods", zh: "百味食盒", en: "First Foods", keywords: ["辅食", "食材", "致敏", "食盒", "味觉", "food", "allergen", "solids"], symbol: "carrot.fill", color: Crayon.leaf, route: .foodAtlas),
-        QuietToolResult(id: "rhythm", artId: "rhythm_dial", zh: "昼夜节律盘", en: "Rhythm Dial", keywords: ["节律", "昼夜", "统计", "作息", "rhythm", "dial", "circadian"], symbol: "sun.and.horizon.fill", color: Crayon.lilac, journalRoute: .stats),
-        QuietToolResult(id: "book", artId: "storybook", zh: "成长绘本", en: "Storybook", keywords: ["绘本", "成长册", "相纸", "book", "storybook"], symbol: "book.pages.fill", color: Crayon.caramel, route: .book),
-        QuietToolResult(id: "capsules", artId: "time_capsules", zh: "时光胶囊信笺", en: "Time Capsules", keywords: ["胶囊", "信", "火漆", "capsule", "letter", "wax"], symbol: "envelope.badge.fill", color: Palette.bead, route: .capsules),
+        QuietToolResult(id: "lamp", artId: "bedside_lamp", zh: "床头夜灯", en: "Bedside Lamp", keywords: ["夜灯", "声景", "呼吸", "白噪音", "白噪声", "助眠", "sound", "sleep", "breath", "lamp"], symbol: "lamp.desk.fill", color: Palette.amber, destination: .bedsideLamp),
+        QuietToolResult(id: "toybox", artId: "sensory_toybox", zh: "感官玩具盒", en: "Sensory Toybox", keywords: ["木琴", "金珠", "雨棒", "萤火", "视卡", "黑白", "xylophone", "rainstick", "fireflies", "contrast"], symbol: "music.note", color: Crayon.teal, destination: .toybox(.xylophone)),
+        QuietToolResult(id: "foods", artId: "first_foods", zh: "百味食盒", en: "First Foods", keywords: ["辅食", "食材", "致敏", "食盒", "味觉", "food", "allergen", "solids"], symbol: "carrot.fill", color: Crayon.leaf, destination: .foodAtlas),
+        QuietToolResult(id: "rhythm", artId: "rhythm_dial", zh: "昼夜节律盘", en: "Rhythm Dial", keywords: ["节律", "昼夜", "统计", "作息", "rhythm", "dial", "circadian"], symbol: "sun.and.horizon.fill", color: Crayon.lilac, destination: .stats),
+        QuietToolResult(id: "book", artId: "storybook", zh: "成长绘本", en: "Storybook", keywords: ["绘本", "成长册", "相纸", "book", "storybook"], symbol: "book.pages.fill", color: Crayon.caramel, destination: .storybook),
+        QuietToolResult(id: "capsules", artId: "time_capsules", zh: "时光胶囊信笺", en: "Time Capsules", keywords: ["胶囊", "信", "火漆", "capsule", "letter", "wax"], symbol: "envelope.badge.fill", color: Palette.bead, destination: .capsules),
     ]
 }
 
@@ -688,7 +698,6 @@ struct PlanView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Palette.bead)
         .navigationTitle(L10n.t("这周一起玩", "This Week"))
-        .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Montessori Wooden Shelf Stage
@@ -1142,7 +1151,7 @@ struct PlanView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
-            NavigationLink(value: Route.play(p.code, targetMonth)) {
+            NavigationLink(value: ExploreRoute.play(p.code, targetMonth)) {
                 Label(L10n.t("打开完整图文步骤", "Open full step guide"), systemImage: "arrow.up.right.circle.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Palette.accent)

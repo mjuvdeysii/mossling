@@ -95,7 +95,6 @@ struct GrowthView: View {
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("生长曲线", "Growth Curve"))
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if !j.measures.isEmpty {
@@ -492,7 +491,6 @@ struct StatsView: View {
         .calmWhileScrolling()
         .pageBackground()
         .navigationTitle(L10n.t("昼夜节律", "Rhythm & Week"))
-        .toolbar(.hidden, for: .tabBar)
     }
     /// Each of the last seven days: feeds, hours asleep, nappies, minutes at the breast (pauses left out), bottle ml.
     private func week() -> [(Day, Int, Double, Int, Double, Double)] {

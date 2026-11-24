@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// A20 (Wiping & Tidying Together · 3 Steps):
-/// Low birch practical-life table with glistening water droplets & a side woven tidy tray:
-/// Step 0: Folded cream cotton cloth sweeps calmly across tabletop wiping water droplets into bright sheen sparkles ->
-/// Step 1: A smaller child-sized mint-stitched washcloth arcs smoothly onto Moss's side of the table ->
-/// Step 2: Moss wipes in playful curves across the tabletop while a small wooden cup tucks neatly into the side basket.
+/// Wide low birch practical-life table cleanly bridged between Otto (left) and Moss (right):
+/// Step 0: Grounded cream cotton cloth sweeps calmly across left tabletop clearing water droplets into sheen sparkles ->
+/// Step 1: Child-sized mint washcloth glides smoothly ALONG the tabletop surface toward Moss (zero levitation) ->
+/// Step 2: Moss wipes playful S-curves across right tabletop while the wooden cup slides neatly along tabletop into the side tidy basket.
 struct SceneA20_WipingTidying: View {
     let ctx: BespokeSceneContext
 
@@ -22,19 +22,19 @@ struct SceneA20_WipingTidying: View {
             let ms = s * 0.34
             let os = ms * Kind.otto.scale
             let groundY = h * 0.875
-            let tableTopY = h * 0.675
+            let tableTopY = h * 0.69
 
             let ottoX = w * 0.21
-            let mossX = w * 0.78
+            let mossX = w * (step == 2 ? 0.75 : 0.79)
 
             let mossHopLift: CGFloat = (step == 2 && p.raw >= 0.46)
                 ? CGFloat(max(0.0, sin((p.raw - 0.46) / 0.34 * .pi))) * ms * 0.08
                 : 0
-            let ottoLean: Double = step == 0 ? 7.5 * p.action : (step == 1 ? 5.0 * p.action : 3.0)
-            let mossLean: Double = step == 2 ? -9.0 * p.action + sin(p.raw * .pi * 2.0) * 3.0 : (step == 1 ? -5.0 * p.contactEnvelope : -3.0)
+            let ottoLean: Double = step == 0 ? 11.0 * p.action : (step == 1 ? 7.5 * p.action : 3.0)
+            let mossLean: Double = step == 2 ? -10.5 * p.action + sin(p.raw * .pi * 2.0) * 3.0 : (step == 1 ? -6.0 * p.contactEnvelope : -3.0)
 
             let ottoLook = CGPoint(x: 0.78, y: 0.28)
-            let mossLook = CGPoint(x: -0.82, y: 0.25)
+            let mossLook = CGPoint(x: -0.82, y: 0.26)
 
             let ottoMood: Mood = step == 2 ? .happy : .open
             let mossMood: Mood = step == 2 ? .happy : (step == 1 && p.raw >= 0.44 ? .wow : .open)
@@ -163,9 +163,9 @@ struct SceneA20_WipingTidying: View {
             )
         )
 
-        // Low beech Montessori practical-life table in center
-        let tLeft = w * 0.31
-        let tWidth = w * 0.38
+        // Wide low birch Montessori practical-life table reaching close to both companions
+        let tLeft = w * 0.27
+        let tWidth = w * 0.46
         let legW: CGFloat = 8
         let legH = groundY - tableTopY
         PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: w * 0.50, y: groundY + 2), rx: tWidth * 0.52, ry: 5, dark: dark)
@@ -177,63 +177,61 @@ struct SceneA20_WipingTidying: View {
         let topRect = CGRect(x: tLeft, y: tableTopY, width: tWidth, height: 12)
         PixarDrawHelpers.drawBeechwood(in: &ctx, path: Path(roundedRect: topRect, cornerRadius: 5), bounds: topRect, dark: dark, warmth: 0.7, grainLines: 3)
 
-        // Woven side tidy basket at right edge of tabletop
-        let basketRect = CGRect(x: tLeft + tWidth - 36, y: tableTopY - 14, width: 30, height: 14)
-        let cupRect: CGRect
-        if step == 2 {
-            let t = CGFloat(p.action)
-            let cx = (tLeft + tWidth * 0.42) + ((basketRect.midX - 6) - (tLeft + tWidth * 0.42)) * t
-            let cy = tableTopY - 14 - CGFloat(sin(Double(t) * .pi)) * 18
-            cupRect = CGRect(x: cx, y: cy, width: 14, height: 14)
-        } else {
-            cupRect = CGRect(x: tLeft + tWidth * 0.42, y: tableTopY - 14, width: 14, height: 14)
-        }
+        // Low tidy basket resting cleanly on right edge of tabletop
+        let basketRect = CGRect(x: tLeft + tWidth - 38, y: tableTopY - 14, width: 32, height: 14)
+        PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: basketRect.midX, y: tableTopY + 0.5), rx: 16, ry: 2.5, dark: dark)
+
+        let cupStartX = tLeft + tWidth * 0.48
+        let cupEndX = basketRect.midX - 7
+        let cupX = step == 2 ? cupStartX + (cupEndX - cupStartX) * CGFloat(p.action) : cupStartX
+        let cupRect = CGRect(x: cupX, y: tableTopY - 14, width: 14, height: 14)
+        PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: cupRect.midX, y: tableTopY + 0.5), rx: 8, ry: 2.2, dark: dark)
         ctx.fill(Path(roundedRect: cupRect, cornerRadius: 3), with: .color(Crayon.teal))
         PixarDrawHelpers.drawBeechwood(in: &ctx, path: Path(roundedRect: basketRect, cornerRadius: 4), bounds: basketRect, dark: dark, warmth: 0.5, grainLines: 2)
 
-        // Water droplets on tabletop in Step 0 that clear as cloth sweeps across
+        let clothW = min(w, h) * 0.105
+        let clothH = clothW * 0.54
         let sweepT = p.action
+        let clothCenter: CGPoint
+        let clothTint: Color
+        let clothAngle: Double
+
+        switch step {
+        case 0:
+            let sweepX = tLeft + tWidth * (0.14 + 0.34 * CGFloat(sin(sweepT * .pi)))
+            clothCenter = CGPoint(x: sweepX, y: tableTopY - clothH * 0.42)
+            clothTint = Color(hex: 0xF7EFE0)
+            clothAngle = sin(sweepT * .pi * 2.0) * 5.0
+        case 1:
+            let slideT = CGFloat(p.action)
+            let startX = tLeft + tWidth * 0.34
+            let endX = tLeft + tWidth * 0.70
+            clothCenter = CGPoint(x: startX + (endX - startX) * slideT, y: tableTopY - clothH * 0.42)
+            clothTint = Palette.mintPale
+            clothAngle = (1.0 - Double(slideT)) * -6.0
+        default:
+            let wiggle = CGFloat(sin(p.raw * .pi * 3.0))
+            clothCenter = CGPoint(x: tLeft + tWidth * 0.56 + wiggle * tWidth * 0.14, y: tableTopY - clothH * 0.42)
+            clothTint = Palette.mintPale
+            clothAngle = Double(wiggle) * 6.0
+        }
+
+        // Water droplets on tabletop in Step 0 cleared synchronously when cloth leading edge passes
         if step == 0 {
+            let leadingEdge = clothCenter.x + clothW * 0.42
             for idx in 0..<3 {
-                let dx = tLeft + tWidth * (0.20 + CGFloat(idx) * 0.14)
-                let wiped = sweepT > Double(idx) * 0.28 + 0.15
-                if !wiped {
+                let dx = tLeft + tWidth * (0.18 + CGFloat(idx) * 0.11)
+                if leadingEdge < dx {
                     ctx.fill(
                         Path(ellipseIn: CGRect(x: dx - 3, y: tableTopY - 3, width: 6, height: 4)),
-                        with: .color(Crayon.sky.opacity(0.80))
+                        with: .color(Crayon.sky.opacity(0.82))
                     )
                 }
             }
         }
 
-        // Folded cloth trajectory
-        let clothW = min(w, h) * 0.105
-        let clothH = clothW * 0.56
-        let clothCenter: CGPoint
-        let clothTint: Color
-        let clothAngle: Double
-        switch step {
-        case 0:
-            let sweepX = tLeft + tWidth * (0.18 + 0.36 * CGFloat(sin(sweepT * .pi)))
-            clothCenter = CGPoint(x: sweepX, y: tableTopY - clothH * 0.38)
-            clothTint = Color(hex: 0xF7EFE0)
-            clothAngle = sin(sweepT * .pi * 2.0) * 6.0
-        case 1:
-            let arcT = CGFloat(p.action)
-            let start = CGPoint(x: w * 0.34, y: tableTopY - 34)
-            let end = CGPoint(x: tLeft + tWidth * 0.72, y: tableTopY - clothH * 0.38)
-            clothCenter = CGPoint(
-                x: start.x + (end.x - start.x) * arcT,
-                y: start.y + (end.y - start.y) * arcT - CGFloat(sin(Double(arcT) * .pi)) * 22
-            )
-            clothTint = Palette.mintPale
-            clothAngle = (1.0 - Double(arcT)) * -12.0
-        default:
-            let wiggle = CGFloat(sin(p.raw * .pi * 3.0))
-            clothCenter = CGPoint(x: tLeft + tWidth * 0.52 + wiggle * tWidth * 0.18, y: tableTopY - clothH * 0.38)
-            clothTint = Palette.mintPale
-            clothAngle = Double(wiggle) * 7.0
-        }
+        // Crisp tabletop contact AO beneath folded cloth
+        PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: clothCenter.x, y: tableTopY + 0.5), rx: clothW * 0.48, ry: 2.5, dark: dark)
 
         var cCtx = ctx
         cCtx.translateBy(x: clothCenter.x, y: clothCenter.y)
@@ -258,7 +256,7 @@ struct SceneA20_WipingTidying: View {
         // Clean sheen sparkles along wiped surface
         BespokeStageHelpers.drawContactSparkles(
             in: &ctx,
-            center: CGPoint(x: tLeft + tWidth * (step == 0 ? 0.38 : 0.62), y: tableTopY - 10),
+            center: CGPoint(x: tLeft + tWidth * (step == 0 ? 0.34 : 0.62), y: tableTopY - 10),
             pulse: p.contact,
             radius: min(w, h) * 0.10,
             color: Palette.amber

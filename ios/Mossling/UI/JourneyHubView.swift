@@ -269,6 +269,7 @@ struct JourneyHubView: View {
     var isRootTab: Bool = false
 
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.colorScheme) private var scheme
@@ -413,9 +414,8 @@ struct JourneyHubView: View {
             }
             .calmWhileScrolling()
             .pageBackground(tone: Land.of(baby).crayon)
-            .navigationTitle(isRootTab ? L10n.t("留念", "Keepsakes") : L10n.t("串珠旅程", "Journey"))
+            .navigationTitle(L10n.t("留念", "Keepsakes"))
             .navigationBarTitleDisplayMode(.large)
-            .toolbar(isRootTab ? .visible : .hidden, for: .tabBar)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -514,7 +514,7 @@ struct JourneyHubView: View {
 
             landChapterJumpStrip(proxy: proxy)
 
-            NavigationLink(value: Route.month(baby)) {
+            NavigationLink(value: KeepsakesRoute.month(baby)) {
                 HStack(spacing: 8) {
                     Image(systemName: "book.closed.fill")
                         .font(.subheadline.weight(.bold))
@@ -637,34 +637,27 @@ struct JourneyHubView: View {
             SectionTitle(title: L10n.t("纪念书架", "Keepsake Cabinet"))
 
             LazyVGrid(columns: cols, spacing: 10) {
-                if app.birth != nil {
-                    Button {
-                        TactileEngine.shared.pageTurn()
+                Button {
+                    TactileEngine.shared.pageTurn()
+                    if let router {
+                        router.openStorybook()
+                    } else {
                         showingStorybook = true
-                    } label: {
-                        shelfTile(
-                            title: L10n.t("成长绘本", "Storybook"),
-                            detail: L10n.t("已收录 \(bookMonths) 个月", "\(bookMonths) mo collected"),
-                            tint: Crayon.caramel
-                        ) {
-                            MiniStorybookArtifact(month: baby, dark: dark)
-                        }
                     }
-                    .buttonStyle(.toy)
-                } else {
-                    NavigationLink(value: Route.book) {
-                        shelfTile(
-                            title: L10n.t("成长册", "Growth Book"),
-                            detail: L10n.t("每一站留影", "Month keepsakes"),
-                            tint: Crayon.caramel
-                        ) {
-                            MiniStorybookArtifact(month: baby, dark: dark)
-                        }
+                } label: {
+                    shelfTile(
+                        title: L10n.t("成长绘本", "Storybook"),
+                        detail: app.birth != nil
+                            ? L10n.t("已收录 \(bookMonths) 个月", "\(bookMonths) mo collected")
+                            : L10n.t("填生日开启绘本", "Add birthday to begin"),
+                        tint: Crayon.caramel
+                    ) {
+                        MiniStorybookArtifact(month: baby, dark: dark)
                     }
-                    .buttonStyle(.toy)
                 }
+                .buttonStyle(.toy)
 
-                NavigationLink(value: JournalRoute.firsts) {
+                NavigationLink(value: KeepsakesRoute.firsts) {
                     shelfTile(
                         title: L10n.t("第一次相纸", "Firsts"),
                         detail: j.firsts.isEmpty
@@ -677,7 +670,7 @@ struct JourneyHubView: View {
                 }
                 .buttonStyle(.toy)
 
-                NavigationLink(value: Route.capsules) {
+                NavigationLink(value: KeepsakesRoute.capsules) {
                     shelfTile(
                         title: L10n.t("时光胶囊", "Time Capsules"),
                         detail: capsuleReady > 0
@@ -692,7 +685,7 @@ struct JourneyHubView: View {
                 }
                 .buttonStyle(.toy)
 
-                NavigationLink(value: JournalRoute.growth) {
+                NavigationLink(value: KeepsakesRoute.growth) {
                     shelfTile(
                         title: L10n.t("生长曲线", "Growth Curves"),
                         detail: latestWeight ?? L10n.t("WHO 百分位参考", "WHO standards"),
@@ -954,7 +947,7 @@ struct JourneyHubView: View {
         let playsCount = app.content.plays(of: m).count
         let waveOffset = CGFloat(sin(Double(m) * 0.72) * 11)
 
-        return NavigationLink(value: Route.month(m)) {
+        return NavigationLink(value: KeepsakesRoute.month(m)) {
             HStack(alignment: .center, spacing: 12) {
                 // Winding Montessori vertical bead slot
                 stationBead(month: m, land: land, here: here, past: past)

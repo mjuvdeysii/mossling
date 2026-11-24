@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// 「成长绘本」 — Full-screen horizontal-paging keepsake picture book built automatically from the child's lived months,
+/// 「成长绘本」 — Unified full-screen horizontal-paging keepsake picture book built automatically from the child's lived months,
 /// Firsts (with optional local Polaroid photos), Montessori play trays, measurements, and quiet notes.
+/// When birthday is not yet set, welcomes parents directly on the heirloom cover spread with an inline Birthday setup button.
 struct StorybookView: View {
     @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
@@ -12,6 +13,7 @@ struct StorybookView: View {
 
     @State private var pageIndex: Int
     @State private var photoVersion = FirstPhotoVersion.shared
+    @State private var askBirth = false
     @Namespace private var trailNS
     private let foodStore: FoodAtlasStore?
 
@@ -61,8 +63,10 @@ struct StorybookView: View {
                     .padding(.bottom, 6)
 
                 TabView(selection: $pageIndex) {
-                    StorybookCoverSpread(pages: pages)
-                        .tag(0)
+                    StorybookCoverSpread(pages: pages) {
+                        if app.mayKeep() { askBirth = true }
+                    }
+                    .tag(0)
 
                     ForEach(Array(pages.enumerated()), id: \.element.month) { offset, page in
                         StorybookMonthSpread(
@@ -89,6 +93,7 @@ struct StorybookView: View {
                     .padding(.bottom, 12)
             }
         }
+        .sheet(isPresented: $askBirth) { BirthSheet() }
         .accessibilityElement(children: .contain)
     }
 
@@ -297,6 +302,7 @@ private struct StorybookCoverSpread: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     let pages: [BookPage]
+    var onAddBirth: () -> Void = {}
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -368,23 +374,42 @@ private struct StorybookCoverSpread: View {
 
                         Divider().padding(.horizontal, 12).opacity(0.45)
 
-                        HStack(spacing: 0) {
-                            coverStat("\(pages.count)", L10n.t("个月份", pages.count == 1 ? "month" : "months"))
-                            Divider().frame(height: 28)
-                            coverStat("\(plays)", L10n.t("次一起玩", plays == 1 ? "play" : "plays"))
-                            Divider().frame(height: 28)
-                            coverStat("\(firsts)", L10n.t("个第一次", firsts == 1 ? "first" : "firsts"))
-                        }
+                        if pages.isEmpty {
+                            VStack(spacing: 10) {
+                                Text(L10n.t("填写出生日期，第一页从宝宝出生的那个月写起。", "Add your baby's birthday to begin collecting monthly chapters, firsts, and keepsake spreads."))
+                                    .font(.footnote)
+                                    .foregroundStyle(Palette.secondaryText)
+                                    .multilineTextAlignment(.center)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                Button {
+                                    TactileEngine.shared.beadClick()
+                                    onAddBirth()
+                                } label: {
+                                    Label(L10n.t("填写出生日期，开启成长绘本", "Add Birthday to Start Storybook"), systemImage: "calendar.badge.plus")
+                                        .font(.subheadline.weight(.bold))
+                                }
+                                .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+                            }
+                            .padding(.top, 2)
+                        } else {
+                            HStack(spacing: 0) {
+                                coverStat("\(pages.count)", L10n.t("个月份", pages.count == 1 ? "month" : "months"))
+                                Divider().frame(height: 28)
+                                coverStat("\(plays)", L10n.t("次一起玩", plays == 1 ? "play" : "plays"))
+                                Divider().frame(height: 28)
+                                coverStat("\(firsts)", L10n.t("个第一次", firsts == 1 ? "first" : "firsts"))
+                            }
 
-                        HStack(spacing: 6) {
-                            Text(L10n.t("向左轻翻，从出生那一页开始", "Swipe left to open from Month 0"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Palette.secondaryText)
-                            Image(systemName: "arrow.right")
-                                .font(.caption2.weight(.bold))
-                                .foregroundStyle(Palette.accent)
+                            HStack(spacing: 6) {
+                                Text(L10n.t("向左轻翻，从出生那一页开始", "Swipe left to open from Month 0"))
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(Palette.secondaryText)
+                                Image(systemName: "arrow.right")
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(Palette.accent)
+                            }
+                            .padding(.top, 2)
                         }
-                        .padding(.top, 2)
                     }
                     .padding(20)
                     .frame(maxWidth: .infinity)

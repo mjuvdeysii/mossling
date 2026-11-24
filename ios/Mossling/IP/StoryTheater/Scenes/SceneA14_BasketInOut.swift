@@ -1,11 +1,10 @@
 import SwiftUI
 
 /// A14 (In and Out of a Basket · 3 Steps):
-/// Warm parquet floor with a two-layer hand-woven low rattan treasure basket (back wall behind the ball,
-/// front braided lip in front of the ball so dropping inside looks physically three-dimensional):
-/// Step 0: Otto arcs chunky terracotta wooden ball IN ->
-/// Step 1: Moss reaches into rim & pulls ball OUT ->
-/// Step 2: Dotted trajectory curves & "in" / "out" silk narration ribbons.
+/// Tightened spacing with true front/back braided rattan basket lip containment and low realistic rim clearance:
+/// Step 0: Otto leans warmly as terracotta sphere clears left rim cleanly into basket interior behind braided front lip ->
+/// Step 1: Moss leans in and lifts sphere cleanly over right rim onto woven floor rug ->
+/// Step 2: Sphere rests grounded on mat beside dotted "in / out" trajectory arc & Otto's naming voice ribbon.
 struct SceneA14_BasketInOut: View {
     let ctx: BespokeSceneContext
 
@@ -23,42 +22,41 @@ struct SceneA14_BasketInOut: View {
             let ms = s * 0.36
             let os = ms * Kind.otto.scale
             let groundY = h * 0.855
+            let ballR = s * 0.050
 
-            let ottoX = w * 0.22
-            let mossX = w * 0.77
+            let ottoX = w * 0.25
+            let mossX = w * (step == 1 ? 0.69 : 0.73)
             let basketCenter = CGPoint(x: w * 0.50, y: groundY - s * 0.045)
-            let insideRest = CGPoint(x: basketCenter.x, y: basketCenter.y + s * 0.015)
-            let startOutsideLeft = CGPoint(x: w * 0.35, y: groundY - s * 0.04)
-            let endOutsideRight = CGPoint(x: w * 0.635, y: groundY - s * 0.04)
+            let insideRest = CGPoint(x: basketCenter.x, y: basketCenter.y + s * 0.014)
+            let startOutsideLeft = CGPoint(x: w * 0.355, y: groundY - ballR + 1)
+            let endOutsideRight = CGPoint(x: w * 0.625, y: groundY - ballR + 1)
 
-            // Ball arc position & front/back layer depth inside woven basket
+            // Low rim-clearing trajectory (s * 0.095 peak clearance rather than midair launch)
             let ballPos: CGPoint = {
                 switch step {
                 case 0:
                     let t = CGFloat(p.action)
                     let x = startOutsideLeft.x + (insideRest.x - startOutsideLeft.x) * t
-                    let y = startOutsideLeft.y + (insideRest.y - startOutsideLeft.y) * t - CGFloat(sin(Double(t) * .pi)) * s * 0.22
+                    let y = startOutsideLeft.y + (insideRest.y - startOutsideLeft.y) * t - CGFloat(sin(Double(t) * .pi)) * s * 0.095
                     return CGPoint(x: x, y: y)
                 case 1:
                     let t = CGFloat(p.action)
                     let x = insideRest.x + (endOutsideRight.x - insideRest.x) * t
-                    let y = insideRest.y + (endOutsideRight.y - insideRest.y) * t - CGFloat(sin(Double(t) * .pi)) * s * 0.21
+                    let y = insideRest.y + (endOutsideRight.y - insideRest.y) * t - CGFloat(sin(Double(t) * .pi)) * s * 0.095
                     return CGPoint(x: x, y: y)
                 default:
-                    let cycle = 0.5 - 0.5 * cos(p.raw * .pi * 2.0)
-                    let x = insideRest.x + (endOutsideRight.x - insideRest.x) * CGFloat(cycle)
-                    let y = insideRest.y - CGFloat(sin(cycle * .pi)) * s * 0.16
-                    return CGPoint(x: x, y: y)
+                    let roll = CGFloat(sin(p.raw * .pi * 2.0) * 3.5)
+                    return CGPoint(x: endOutsideRight.x + roll, y: endOutsideRight.y)
                 }
             }()
 
             let mossHopLift: CGFloat = (step == 1 && p.raw >= 0.48)
                 ? CGFloat(max(0.0, sin((p.raw - 0.48) / 0.34 * .pi))) * ms * 0.10
                 : 0
-            let ottoLean: Double = step == 0 ? 9.5 * p.action : 4.0
-            let mossLean: Double = step == 1 ? -10.5 * p.action : -4.5
+            let ottoLean: Double = step == 0 ? 11.5 * p.action : 4.0
+            let mossLean: Double = step == 1 ? -11.5 * p.action : -4.5
 
-            let dx = max(-1.0, min(1.0, Double((ballPos.x - w * mossX / max(1, w)) / max(1, w * 0.35))))
+            let dx = max(-1.0, min(1.0, Double((ballPos.x - mossX) / max(1, w * 0.35))))
             let mossLook = CGPoint(x: dx, y: 0.28)
             let ottoLook = CGPoint(x: 0.75, y: 0.28)
             let ottoMood: Mood = step == 2 ? .happy : .open
@@ -132,7 +130,6 @@ struct SceneA14_BasketInOut: View {
                 )
                 .position(mossCenter)
 
-                // Back basket cavity -> wooden sphere -> front woven basket lip (3D containment occlusion!)
                 Canvas(rendersAsynchronously: false) { c, size in
                     drawLayeredBasketAndBall(
                         in: &c,
@@ -141,7 +138,7 @@ struct SceneA14_BasketInOut: View {
                         basketCenter: basketCenter,
                         groundY: groundY,
                         ballPos: ballPos,
-                        startOutsideLeft: startOutsideLeft,
+                        ballR: ballR,
                         endOutsideRight: endOutsideRight,
                         insideRest: insideRest,
                         ottoVoice: CGPoint(x: ottoCenter.x + os * 0.18, y: ottoCenter.y - os * 0.05),
@@ -212,7 +209,7 @@ struct SceneA14_BasketInOut: View {
         basketCenter: CGPoint,
         groundY: CGFloat,
         ballPos: CGPoint,
-        startOutsideLeft: CGPoint,
+        ballR: CGFloat,
         endOutsideRight: CGPoint,
         insideRest: CGPoint,
         ottoVoice: CGPoint,
@@ -234,13 +231,12 @@ struct SceneA14_BasketInOut: View {
             dark: dark
         )
 
-        // Dashed movement guide arc in Step 2 ("in" / "out")
         if step == 2 {
             var arc = Path()
             arc.move(to: insideRest)
             arc.addQuadCurve(
                 to: endOutsideRight,
-                control: CGPoint(x: (insideRest.x + endOutsideRight.x) * 0.5, y: insideRest.y - min(w, h) * 0.24)
+                control: CGPoint(x: (insideRest.x + endOutsideRight.x) * 0.5, y: insideRest.y - min(w, h) * 0.13)
             )
             ctx.stroke(arc, with: .color(Palette.amber.opacity(0.46)), style: StrokeStyle(lineWidth: 1.7, dash: [4, 4]))
             BespokeStageHelpers.drawSilkVoiceRibbon(
@@ -262,10 +258,10 @@ struct SceneA14_BasketInOut: View {
             with: .color(dark ? Color(hex: 0x3D2614) : Color(hex: 0x7A5430))
         )
 
-        // Layer 2 (Terracotta hardwood sphere)
-        let ballR = min(w, h) * 0.052
-        if ballPos.y >= rimY && abs(ballPos.x - basketCenter.x) > bw * 0.42 {
-            PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: ballPos.x, y: groundY + 2), rx: ballR, ry: ballR * 0.26, dark: dark)
+        // Layer 2 (Terracotta hardwood sphere + contact AO when resting on rug)
+        if abs(ballPos.x - basketCenter.x) > bw * 0.44 {
+            let airFactor = max(0.35, 1.0 - (groundY - ballPos.y) / max(1, min(w, h) * 0.20))
+            PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: ballPos.x, y: groundY + 2), rx: ballR * airFactor, ry: ballR * 0.26, dark: dark)
         }
         let bRect = CGRect(x: ballPos.x - ballR, y: ballPos.y - ballR, width: ballR * 2, height: ballR * 2)
         let sphereCol = Color(hex: 0xD97D54)
@@ -282,7 +278,7 @@ struct SceneA14_BasketInOut: View {
             ctx.stroke(Path(ellipseIn: bRect), with: .color(Color(hex: 0x612F1A).opacity(0.6)), lineWidth: 1.0)
         }
 
-        // Layer 3 (Front woven basket bowl overlapping bottom of ball when resting inside!)
+        // Layer 3 (Front woven basket bowl overlapping bottom of ball when inside)
         var frontBowl = Path()
         frontBowl.move(to: CGPoint(x: basketCenter.x - bw * 0.50, y: rimY))
         frontBowl.addQuadCurve(
@@ -306,7 +302,6 @@ struct SceneA14_BasketInOut: View {
         let bowlBounds = CGRect(x: basketCenter.x - bw * 0.5, y: rimY, width: bw, height: groundY - rimY + 6)
         PixarDrawHelpers.drawBeechwood(in: &ctx, path: frontBowl, bounds: bowlBounds, dark: dark, warmth: 0.72, grainLines: 3)
 
-        // Front braided top rim arc + vertical weave ribs
         var lip = Path()
         lip.move(to: CGPoint(x: basketCenter.x - bw * 0.50, y: rimY))
         lip.addQuadCurve(

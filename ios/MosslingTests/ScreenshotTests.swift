@@ -109,7 +109,7 @@ final class ScreenshotTests: XCTestCase {
     }()
 
     private func tabs(_ m: AppModel, _ tab: some View) -> some View {
-        NavigationStack { tab }.environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)
+        NavigationStack { tab }.environment(m).environment(journal).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded)
     }
 
     /// IP v1.3 first run: shot C, Otto chosen — the page says so, Otto looks down at 填写出生日期, Moss at Otto.
@@ -136,7 +136,7 @@ final class ScreenshotTests: XCTestCase {
         let m = model()
         let pic = CGRect(x: 16, y: 120, width: 361, height: 180)
         for (n, t, light) in [("37_wash_spread", 0.32, false), ("37_wash_dry", 1.1, false), ("37_wash_light", 0.4, true)] {
-            shot(n, settle: 0.8, ZStack { tabs(m, AboutView()); Wash(start: .now, frame: pic, impact: CGPoint(x: 0.4, y: 0.5), light: light, at: t).ignoresSafeArea() })
+            shot(n, settle: 0.8, ZStack { tabs(m, YouView(path: .constant(NavigationPath()))); Wash(start: .now, frame: pic, impact: CGPoint(x: 0.4, y: 0.5), light: light, at: t).ignoresSafeArea() })
         }
     }
     /// The month's parts for the early months (fewer parts): rows spread evenly, no tile stretched alone.
@@ -179,11 +179,11 @@ final class ScreenshotTests: XCTestCase {
     func test31Lamp2D() {
         let m = model(); m.journal = true; ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
         shot("31_lamp_home_2d", height: 1200, lamp: true, tabs(m, TodayView(path: .constant(NavigationPath())).lamp(true).environment(\.night, true)))
-        shot("31_lamp_journal_2d", height: 1200, lamp: true, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true)))
+        shot("31_lamp_journal_2d", height: 1200, lamp: true, tabs(m, LampHubView(path: .constant(NavigationPath())).lamp(true)))
     }
     func test15Journal2D() {
         let m = model(); m.journal = true; ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
-        shot("15_journal_2d", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()))))
+        shot("15_journal_2d", height: 1700, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true)))
     }
     func test03TodayOtto() { let m = model(companion: .otto); shot("03_today_otto_dark", dark: true, height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     func test04TodayNoBirth() { let m = model(birth: nil); m.onboarded = true; shot("04_today_nobirth", tabs(m, TodayView(path: .constant(NavigationPath())))) }
@@ -419,7 +419,7 @@ final class ScreenshotTests: XCTestCase {
             ])
 
             func nav<V: View>(_ j: JournalStore, _ v: V) -> AnyView {
-                AnyView(NavigationStack { v }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+                AnyView(NavigationStack { v }.environment(m).environment(j).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
             }
 
             // 1. Home + 2x3 Quiet Instruments Dock
@@ -450,7 +450,7 @@ final class ScreenshotTests: XCTestCase {
             shot("store_\(prefix)7_capsules", height: 956, width: 440, nav(quiet, TimeCapsuleListView(store: caps)))
 
             // 8. Dot-Grid Care Journal with Stickers, Bead Ribbon & Handover Button
-            shot("store_\(prefix)8_journal", height: 956, width: 440, nav(quiet, JournalView(path: .constant(NavigationPath()))))
+            shot("store_\(prefix)8_journal", height: 956, width: 440, nav(quiet, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true)))
 
             // 9. Kid's Book Kinetic Step Diagram Stage (4:3 Die-Cut Art & Page Folio)
             if let playA11 = m.content.play("A11") {
@@ -477,20 +477,20 @@ final class ScreenshotTests: XCTestCase {
         let j = JournalStore(preview: JournalFile.Body())
         j.toast = Toast(type: LogType.diaper, text: "已记下 尿布 · 湿 · 14:05", restore: JournalFile.Body())
         m.journal = true
-        shot("33_toast", height: 700, tabs(m, JournalView(path: .constant(NavigationPath()))).environment(j).toasts().environment(j))
+        shot("33_toast", height: 700, tabs(m, LampHubView(path: .constant(NavigationPath()))).environment(j).toasts().environment(j))
     }
     func test07Care() { let m = model(); shot("07_care", tabs(m, CareView(month: 6))) }
     func test07Areas() { let m = model(); shot("07_areas", height: 1400, tabs(m, AreasView(month: 6))) }
     func test07Observe() { let m = model(); shot("07_observe", height: 1400, tabs(m, ObserveView(month: 6))) }
     func test06PlayDark() { let m = model(); shot("06_play_dark", dark: true, height: 1400, tabs(m, PlayView(play: m.content.play("A11")!, month: 6))) }
-    func test15JournalDark() { let m = model(); m.journal = true; shot("15_journal_dark", dark: true, height: 1500, tabs(m, JournalView(path: .constant(NavigationPath())))) }
+    func test15JournalDark() { let m = model(); m.journal = true; shot("15_journal_dark", dark: true, height: 1500, tabs(m, LampHubView(path: .constant(NavigationPath())))) }
     func test20YouDark() { let m = model(); shot("20_you_dark", dark: true, height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test08You() { let m = model(); shot("08_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test08You2D() {
         let m = model(); ArtStyle.current = .flat; defer { ArtStyle.current = .vinyl }
         shot("08_you_2d", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))))
     }
-    func test09About() { let m = model(); shot("09_about", tabs(m, AboutView())) }
+    func test09About() { let m = model(); shot("09_about", tabs(m, YouView(path: .constant(NavigationPath())))) }
     func test10Topic() { let m = model(); shot("10_topic", height: 1600, tabs(m, TopicView(topic: m.content.topics[0]))) }
     func test11Plan() { let m = model(); shot("11_plan", tabs(m, PlanView(path: .constant(NavigationPath())))) }
     private var characters: some View {
@@ -506,8 +506,8 @@ final class ScreenshotTests: XCTestCase {
     func test12CharactersDark() { shot("12_characters_dark", dark: true, height: 1100, settle: 3, characters) }
     func test13Doc() { let m = model(); shot("13_terms", height: 1400, tabs(m, DocView(name: "TERMS"))) }
     /// One kind alone: tap 喂奶 and the day shows only feeds, with how many and the usual gap between them.
-    func test15JournalOnlyFeeds() { let m = model(); m.journal = true; shot("15_journal_feeds", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath()), only: "feed"))) }
-    func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, JournalView(path: .constant(NavigationPath())))) }
+    func test15JournalOnlyFeeds() { let m = model(); m.journal = true; shot("15_journal_feeds", height: 1700, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true))) }
+    func test15Journal() { let m = model(); m.journal = true; shot("15_journal", height: 1700, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true))) }
     /// 成长册: a page for every month lived — plays as pictures with how many times, the month's measurement, care
     /// averages and notes — newest first; and its door in 我的.
     func test36GrowthBook() {
@@ -523,8 +523,8 @@ final class ScreenshotTests: XCTestCase {
         b.logs.sort { $0.start > $1.start }
         b.measures = [Measure(at: n - 140 * day, weightG: 5400, lengthMm: 580, headMm: 385), Measure(at: n - 10 * day, weightG: 7400, lengthMm: 655, headMm: 425)]
         let j = JournalStore(preview: b)
-        shot("36_growth_book", height: 2600, NavigationStack { GrowthBookView() }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
-        shot("36_growth_book_dark", dark: true, height: 1400, NavigationStack { GrowthBookView() }.environment(m).environment(j).tint(Palette.accent).fontDesign(.rounded))
+        shot("36_growth_book", height: 2600, NavigationStack { StorybookView() }.environment(m).environment(j).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
+        shot("36_growth_book_dark", dark: true, height: 1400, NavigationStack { StorybookView() }.environment(m).environment(j).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
     }
     func test16Growth() { let m = model(); shot("16_growth", height: 1700, tabs(m, GrowthView())) }
     func test17Stats() { let m = model(); shot("17_stats", height: 1700, tabs(m, StatsView())) }
@@ -532,13 +532,13 @@ final class ScreenshotTests: XCTestCase {
     func test19Entry() { let m = model(); shot("19_entry", tabs(m, EntrySheet(entry: LogEntry(type: LogType.nurse, start: at(16, 10), end: at(16, 28), side: "l"), isNew: false))) }
     // the largest everyday text size: nothing may run off the side or need sideways scrolling
     func test25BigTextHome() { let m = model(); shot("25_bigtext_home", height: 1800, settle: 3, tabs(m, TodayView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
-    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2700, tabs(m, JournalView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
+    func test25BigTextJournal() { let m = model(); m.journal = true; shot("25_bigtext_journal", height: 2700, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true)).dynamicTypeSize(.accessibility2)) }
     func test25BigTextYou() { let m = model(); shot("25_bigtext_you", height: 1300, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2)) }
     func test25BigTextTimer() { let m = model(); shot("25_bigtext_timer", TimerScreen(type: LogType.nurse).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2)) }
     // records on: the Now card (a feed is running in the test journal)
     func test26HomeNow() { let m = model(); m.journal = true; shot("26_home_now", height: 1500, tabs(m, TodayView(path: .constant(NavigationPath())))) }
     // night: Otto's lamp on the records and the timer; the home under the night sky
-    func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", height: 1500, lamp: true, tabs(m, JournalView(path: .constant(NavigationPath())).lamp(true))) }
+    func test27LampJournal() { let m = model(); m.journal = true; shot("27_lamp_journal", height: 1500, lamp: true, tabs(m, LampHubView(path: .constant(NavigationPath())).lamp(true))) }
     func test27LampTimer() { let m = model(); shot("27_lamp_timer", lamp: true, TimerScreen(type: LogType.nurse).lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded)) }
     func test27LampAsk() { let m = model(); shot("27_lamp_ask", lamp: true, tabs(m, AskSheet(type: LogType.diaper).lamp(true))) }
     func test28TimerPausedAndSleep() {
@@ -736,9 +736,9 @@ final class ScreenshotTests: XCTestCase {
         ]
         jb.firsts = [First(at: ms(base.addingTimeInterval(-20 * 86_400)), key: "roll", title: "翻身")]
         let jEn = JournalStore(preview: jb)
-        shot("37_journal_en", height: 1050, tabs(m, JournalView(path: .constant(NavigationPath())).environment(jEn)))
+        shot("37_journal_en", height: 1050, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true).environment(jEn)))
         shot("38_timer_en", height: 860, TimerScreen(type: LogType.nurse).environment(m).environment(jEn).fontDesign(.rounded))
-        shot("39_growthbook_en", height: 1000, tabs(m, GrowthBookView().environment(jEn)))
+        shot("39_growthbook_en", height: 1000, tabs(m, StorybookView().environment(jEn)))
         shot("40_story_en", height: 960, tabs(m, StoryView()))
         shot("41_sources_en", height: 960, tabs(m, SourcesView()))
     }
@@ -1081,14 +1081,14 @@ final class ScreenshotTests: XCTestCase {
         let denseStore = JournalStore(preview: body)
 
         shot("50_journal_newborn37_past_zh", height: 1100,
-             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
-                 .environment(m).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+             NavigationStack { LampHubView(path: .constant(NavigationPath()), initialDay: nov18, initialLedgerExpanded: true) }
+                 .environment(m).environment(denseStore).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
         shot("50_journal_today_quicktray_zh", height: 920,
-             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov19, initialQuickTray: LogType.bottle) }
-                 .environment(m).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+             NavigationStack { LampHubView(path: .constant(NavigationPath()), initialDay: nov19, initialLedgerExpanded: false) }
+                 .environment(m).environment(denseStore).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
         shot("50_journal_lamp", height: 1100, lamp: true,
-             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
-                 .environment(m).environment(denseStore).lamp(true).tint(Palette.accent).fontDesign(.rounded))
+             NavigationStack { LampHubView(path: .constant(NavigationPath()), initialDay: nov18, initialLedgerExpanded: true) }
+                 .environment(m).environment(denseStore).environment(AppRouter()).lamp(true).tint(Palette.accent).fontDesign(.rounded))
 
         // 1-image complete DaySheetPoster (must fit all 37 entries on ONE single crisp sheet)
         let posterView = DaySheetPoster(babyName: m.nickname, ageText: "1个月18天", day: nov18, logs: denseStore.logs(on: nov18))
@@ -1098,8 +1098,8 @@ final class ScreenshotTests: XCTestCase {
         defer { L10n.overrideEnglish = nil }
         let mEn = model(birth: Day(y: 2026, m: 10, d: 1)); mEn.nickname = "Leo"; mEn.today = nov19; mEn.journal = true
         shot("50_journal_en", height: 1100,
-             NavigationStack { JournalView(path: .constant(NavigationPath()), initialDay: nov18) }
-                 .environment(mEn).environment(denseStore).tint(Palette.accent).fontDesign(.rounded))
+             NavigationStack { LampHubView(path: .constant(NavigationPath()), initialDay: nov18, initialLedgerExpanded: true) }
+                 .environment(mEn).environment(denseStore).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
     }
 
     /// Batch 2B Showcase: Smart Ear-Safe Volume Check (loud & safe), PlayView Living Motion Stage + Mat-Side Co-Play,
@@ -1386,7 +1386,7 @@ final class ScreenshotTests: XCTestCase {
              tabs(m, PlayView(play: playA11, month: 6, initialStep: playA11.steps.count)))
 
         shot("55_about_clean_2_0_zh", height: 956,
-             tabs(m, AboutView()))
+             tabs(m, YouView(path: .constant(NavigationPath()))))
 
         L10n.overrideEnglish = true
         defer { L10n.overrideEnglish = nil }
@@ -1431,22 +1431,22 @@ final class ScreenshotTests: XCTestCase {
 
         struct RealPlayTabHost: View {
             @Namespace private var zoomNS
-            @State private var path = NavigationPath([Route.play("A11", 6)])
+            @State private var path = NavigationPath([ExploreRoute.play("A11", 6)])
             var body: some View {
                 TabView(selection: .constant(0)) {
                     Tab(value: 0) {
                         NavigationStack(path: $path) {
-                            TodayView(path: $path).routes(path: $path)
+                            TodayView(path: $path).exploreRoutes(path: $path)
                         }
                         .environment(\.zoomNS, zoomNS)
                     } label: {
-                        Label(L10n.t("本月", "Today"), systemImage: "leaf.fill")
+                        Label(L10n.t("摸索", "Explore"), systemImage: "leaf.fill")
                     }
                 }
             }
         }
         shot("56_play_real_tabview_zh", height: 852,
-             RealPlayTabHost().environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+             RealPlayTabHost().environment(m).environment(journal).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
     }
 
     /// Round 12 Three-Pillar Creative Alchemy (`v2.0 RC9 · Batch 12`):
@@ -1980,7 +1980,7 @@ final class ScreenshotTests: XCTestCase {
         if let playN01 = m.content.play("N01") {
             shot("68_play_n01_bespoke_zh", height: 1120, tabs(m, PlayView(play: playN01, month: 0)))
         }
-        shot("68_journal_readonly_swimlane_zh", height: 1200, tabs(m, JournalView(path: .constant(NavigationPath()))))
+        shot("68_journal_readonly_swimlane_zh", height: 1200, tabs(m, LampHubView(path: .constant(NavigationPath()), initialLedgerExpanded: true)))
         shot("68_story_act1_lamp_zh", height: 920, settle: 2.0, tabs(m, StoryView()))
     }
 
@@ -2067,5 +2067,41 @@ final class ScreenshotTests: XCTestCase {
         L10n.overrideEnglish = true
         let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
         shot("71_tab3_keepsakes_en", height: 1220, tabs(mEn, JourneyHubView(isRootTab: true)))
+    }
+
+    /// Edition I · Round 22 — Zero-Maze Single-Source-of-Truth IA, Unified Storybook & 8 Repaired Bespoke Physics Scenes.
+    func test72Round22ZeroMazeIAAndScenePhysicsRepair() {
+        defer {
+            ArtStyle.current = .vinyl
+            L10n.overrideEnglish = nil
+        }
+        let m = model(); m.journal = true
+
+        shot("72_tab0_explore_clean_zh", height: 1080, tabs(m, TodayView(path: .constant(NavigationPath()))))
+        shot("72_tab1_lamp_unified_zh", height: 1120, tabs(m, LampHubView(path: .constant(NavigationPath()))))
+        shot("72_tab3_studio_single_layer_zh", height: 1180, tabs(m, YouView(path: .constant(NavigationPath()))))
+
+        let mNoBirth = model(birth: nil); mNoBirth.onboarded = true
+        shot("72_storybook_empty_birth_zh", height: 920,
+             NavigationStack { StorybookView() }.environment(mNoBirth).environment(journal).environment(AppRouter()).tint(Palette.accent).fontDesign(.rounded))
+
+        for (code, step, phase) in [
+            ("A24", 1, 0.56),
+            ("A20", 1, 0.56),
+            ("N06", 0, 0.56),
+            ("A16", 1, 0.56),
+            ("A11", 1, 0.55),
+            ("A19", 0, 0.56)
+        ] {
+            if let script = LivingBookCatalog.script(for: code) {
+                let plate = showcase2x2(
+                    tl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: false),
+                    tr: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: false),
+                    bl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: true),
+                    br: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: true)
+                )
+                shot("72_repaired_\(code.lowercased())_4modes", height: 520, plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+            }
+        }
     }
 }

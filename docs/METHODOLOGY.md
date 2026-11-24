@@ -1,77 +1,108 @@
-# 摸索台灯（Moss & Otto）· 冲刺 Apple Design Awards 2027 开发与设计方法论
+# 摸索台灯（Moss & Otto）· 冲刺 Apple Design Awards 2027 开发与设计方法论 v3.1
 
-> **文档定位**：本方法论系统提炼自历轮用户核心指示、设计纠偏与架构演进（截至 Round 19 提交 `b7115289`），作为后续全站打磨、动画创作、文案规范与 CI 发包的唯一指导纲领。全文遵守仓库 **0 Emoji** 规范。
+> **文档定位**：本方法论在 Round 21（提交 `71679060`）基础上正式升级为 **v3.1 八大核心支柱与五大版螺旋自我推翻机制（Five-Edition Kill-Your-Darlings Cadence）**。明确界定：**完整的一轮全站大重构（如单源空间秩序 + 46/46 动画收官 + 夜灯与玩具盒器物跃迁，Rounds 22–26）仅构成「Edition I（第一大版）」**；其后必须通过强制归零重审门禁，以同等烈度再推翻重铸 **Edition II -> III -> IV -> V** 共五大版。全文严格遵守 **0 Emoji** 规范。
+>
+> **配套专项技能**：[ios-spatial-ia-tactile-craft/SKILL.md](file:///Users/someone/.gemini/config/skills/ios-spatial-ia-tactile-craft/SKILL.md)。
 
 ---
 
 ## 核心总纲
 
-**「孩子摸索，大人点灯」不止是一句口号，而必须由信息架构、画面克制、触感节奏与行业级透明共同传达。绝不能让产品看起来“有产品思维，但没有设计”。**
+**「孩子摸索，大人点灯」不止是一句口号，而必须由零迷路原生态 iOS 空间秩序、不靠繁琐点击的流动交互叙事、真材实料的器物物理手感和学术级透明共同传达。严禁用做网页的层级套娃思维堆砌软件，也绝不能把「一版完整大改拆成五小步做完」误当作迭代——必须在连续五个大版周期中反复把上一版打散重审、敢删敢重建，方能逼近 Apple Design Awards 水准。**
 
 ---
 
-## 六大核心支柱
+## 八大核心支柱
 
-### 一、设计叙事高于产品堆砌（Design Narrative > Feature Dumping）
+### 一、原生 iOS 空间秩序与单源真理（Zero-Maze Single-Source-of-Truth IA）
 
-1. **四屏纯血叙事分工**：一级界面严格按「探索 -> 点灯 -> 留念 -> 工坊」四步情感情境拆分，各自持有唯一视觉主角，严禁板块互串感染：
-   - **Tab 0 · 摸索（`Explore` / Moss 主角）**：晨光纸面质感；仅承载月龄探索头卡、本周主打游玩（Pixar 3D × Ghibli 2D 活态舞台）与双感官小工坊入口（感官玩具盒、百味食盒），坚决移出实时喂奶卡、儿保待办、夜灯入口与节律环。
-   - **Tab 1 · 台灯（`Lamp` / Otto 主角）**：暖琥珀夜灯舞台绝对居首（三暖光预设、亮度滑杆、六声景单触切换、全屏沉浸夜灯入口），下方收拢柔和可读的 24h 节律盘、纯只读日泳道总览、传灯交接与可折叠轻量手账；即使关闭「照护记录」，Otto 台灯与声景依旧完整独立可用。
-   - **Tab 2 · 留念（`Keepsakes` / Moss × Otto 成长轨）**：37 站「串珠小路」、当前月明信片、四大成长藏品入口（成长绘本、第一次拍立得画册、火漆时光胶囊、WHO 生长曲线）与温和儿保节律卡。
-   - **Tab 3 · 工坊（`Studio` / 理念展厅 · 设定 · 循证）**：紧凑宝宝名片、「摸索台灯的故事」三幕微剧院入口、四大克制支柱可视化展块、外观/语言/锁屏设置与循证透明文档中心。
-2. **少字多可视化（Show, Don't Tell）**：日常页面削减说教段落与重复分类胶囊墙，用串珠、节律盘、泳道色块、交互灯珠与 2–4 字短标直观呈现状态。
-
----
-
-### 二、拒绝套壳模板与半成品试水（Bespoke Craft & First-Shot Final Quality）
-
-1. **46 部活动逐一手工独立编排**：严禁「左 Otto 右 Moss 固定站位 + 居中道具 + 两层滤镜」的套壳模板。每张活动卡片（`N01–N06`、`A01–A40`）必须拥有独立 Swift 舞台文件、唯一 `cameraGrammar`（镜头语法/视口景别）、贴合蒙氏教具物理规律的轨迹（如穿过中线弧、藤编篮前后遮罩入篮出篮、墙面安全镜同步反射），以及与 `content.json` / `content_en.json` 步骤字面一一对应的动作演化。
-2. **首版即成片级定调**：绝不用草稿占位再反复返工，新场景首版即同时达到双画风最终成片品质：
-   - **Pixar 3D 标准**：三点棚拍暖光包裹、哑光软胶质地、双层 Contact AO 接地阴影、体积保留挤压拉伸（squash & stretch）与 Otto 金珠体积光池。
-   - **Studio Ghibli 2D 标准**：冷压棉纸颗粒与水彩湿边渗色着色器、木漏日（Komorebi）柔光、非纯黑彩铅轮廓线（深苔绿/深靛蓝）、严格基于 `Shapes.swift` 1:1 正典路径与次级延迟摆动。
-   - **1:1 空间坐标系零跳位**：两套画风共用同一 `actorCenterY` 与地平线坐标，切换画风原地渐变成形。
-3. **IP 正典红线（`docs/IP.md`）**：零腮红、零嘴点（仅在 `.wow` / `.happy` 时按规定绘制嘴型）、零台词/零对话气泡、**Otto 永远无手**（如躲猫猫使用柔和织物垂帘而非手掌）、不饿不哭不受伤、无连续打卡焦虑，同时严格遵守 `Mood` 枚举合法值（`.open`, `.happy`, `.wow`, `.sleep`）。
+1. **一物一处，全局唯一归属**：
+   - 严禁同一业务功能、清单或设置入口在两个页面重复出现（**唯一合法跨屏共享仅限 IP 性格彩蛋**，如点击 Moss/Otto 的互动彩蛋与解锁故事入口）。
+   - 彻底消灭“HTML 多级抽屉套娃”（如禁止 `YouView` 外层已有链接的前提下再嵌套一个重复半数链接的 `AboutView`）。任何二级页面只有在“内容体量独立且父级完全不再重复出现”时才值得存在。
+2. **四 Tab 路由严格分域，杜绝跨 Tab 交叉感染**：
+   - 将单一全域 `.routes(path:)` 拆分为四个互补相交的领域路由（`ExploreRoute`、`LampRoute`、`KeepsakesRoute`、`StudioRoute`），通过统一 `AppRouter` 治理跳转。
+   - **Tab 0 · 摸索（`Explore` / Moss 主角）**：晨光探索主轴，严格只留本周主打流动游玩、本周玩具架、感官玩具盒与百味食盒；坚决不出现跨界月卡、儿保待办、实时喂奶或夜灯。
+   - **Tab 1 · 台灯（`Lamp` / Otto 主角）**：暖琥珀床头夜灯器物舞台 + 声景 + 24h 节律盘 + 只读日泳道 + 传灯交接与随手照护轻记（支持页内切日与补记，不再另 push 克隆了夜灯与生长曲线的分裂手账页）；照护记录关闭时台灯与声景依旧完整独立可用。
+   - **Tab 2 · 留念（`Keepsakes` / Moss × Otto 成长轨）**：37 站可搓动串珠小路与月份详情 `MonthView` 的**唯一法定归属地**、统一成长绘本（废除无生日/有生日两套分裂绘本）、第一次相纸册、火漆时光胶囊、WHO 生长曲线与温和儿保卡。
+   - **Tab 3 · 工坊（`Studio` / 理念 · 伙伴 · 设定 · 透明循证）**：紧凑宝宝名片、Moss/Otto 切换、「摸索台灯的故事」三幕微剧院、四大克制支柱展牌、外观语言Preferences，以及单层平铺的循证/隐私/数据/条款/致谢/帮助分组（零嵌套 `AboutView`）。
+3. **搜索与跨 Tab 跳转守则 + HIG 底栏位置感**：
+   - 全局 `SearchView` 或 Deep Link 指向其他 Tab 资产时，**必须调用 `AppRouter` 切换 `selectedTab` 再推栈**，严禁把异域页面克隆压入当前 Tab 栈内。
+   - 遵照 Apple HIG（`tab-bars.md`）：正常层级推进时**保持底部 Tab Bar 清晰可见**，绝不随意隐藏底栏造成迷路；仅在真正全屏焦点剧场与床头夜灯模态中隐去外部导航栏。
 
 ---
 
-### 三、丝滑交互、防误触与零横滑红线（Fluidity & Ergonomics）
+### 二、去步骤化连续叙事与原生器物手感（Frictionless Story-Through-Touch & Creative Alchemy）
 
-1. **概览条纯只读防误触**：`DaySwimlaneCanvas` 保持零 `DragGesture`、零拖拽浮条、零内联误触编辑入口（`.allowsHitTesting(false)`），彻底杜绝与外层纵向 `ScrollView` 抢手势。
-2. **全站统一折叠物理学**：折叠容器统一复用 `CalmAccordion` / `CalmDisclosureNote`（平滑物理弹簧 + `.clipped()` 裁边），折叠态不执行离屏重计算。
-3. **零横向滚动（`ScrollView(.horizontal)` = 0）**：全站所有标签、筛选条、卡片列表均采用自适应折行 `FlowRow`、`LazyVGrid` 或静态分页点，彻底消灭横竖手势冲突与边缘截断。
-4. **滚动 120Hz 热路径减负与静态占位门禁**：所有滚动流中的预览缩略图必须走静态零 `TimelineView` 的 `ActivityPreviewThumb`（传固定 `posterPhase` 且 `compact: true`）；任何主舞台 `TimelineView` 必须同时受 `accessibilityReduceMotion`、`Perf.still`、`.onScrollVisibilityChange` 与 `scrolling.moving` 节流保护；Liquid Glass（`.glassEffect`）全站**有且仅允许**存在于 [ToastHost.swift:46](file:///Users/someone/Projects/mossling/ios/Mossling/UI/ToastHost.swift#L46)。
-5. **褪黑素安全与无障碍（AX2/AX3）合规**：夜灯深蓝底色上活跃控件避免高饱和大块亮底配浅字或刺眼撞色，改用低饱和柔光描边 + 高对比度暖白墨字；三联及以上横向胶囊在 `type.isAccessibilitySize` 下自动切为纵向堆叠，允许自然折行、零省略号截断。
-
----
-
-### 四、行业规范级透明与国际化可信度（Editorial & Global Rigor）
-
-1. **告别裸贴 URL，建立学术级循证视图（`SourcesView`）**：禁止一段文字下裸贴长网址；按机构与研究性质分四大类（`FlowRow` 筛选），每条展示机构认证胶囊（`WHO / AAP / CDC / NHC / UNICEF`）、修订年份、规范文献标题、一键复制引文与干净短域名外链（如 `who.int`）。
-2. **隐私营养标签与权限实事求是同步**：`DocView` 与 `PRIVACY*.md`、`TERMS*.md`、`DISCLAIMER*.md` 必须随 `Info.plist` 真实权限（如仅「第一次」手动选图时读取相册、仅床头灯/雨声棒使用零留存 Motion、纯离线后台声景播放）以及当前四屏路径同步更新，并以 Apple App Store 风格「隐私一图读懂」摘要与儿童数据专项说明高亮呈现。
-3. **面向父母的版本更新志（`ReleaseNotesView`）**：与工程师 [CHANGELOG.md](file:///Users/someone/Projects/mossling/ios/Docs/CHANGELOG.md) 解耦，自动读取 Bundle 版本号，用温暖清晰的家庭语言讲述新特性，绝不暴露源码类名或内部轮次编号。
-4. **海外健康内容纯离线地区分流**：`LocalizedHealthSchedule` 按 CN / US / UK / AU 四地离线提供儿保与疫苗参考时间线，并保留医疗审慎边界说明。
+1. **消灭“多步点按跑步机”**：
+   - 陪伴 0–3 岁孩子时父母往往只空得出半只手。活动页严禁强迫用户一步一步连点「下一步 -> 1 -> 2 -> 3 -> 4 -> 做完了」或重复堆砌完整步骤列表及分裂全屏模式。
+   - 取而代之：以**单卡片连续流动剧场（Continuous Living Vignette）**呈现每张活动卡——自动柔和演进完整过程，底部配备一根可单指顺滑搓动的**蒙氏滑珠时间轨（`CoreHaptics` 节拍卡点）**、原地展开无打扰焦点模式，以及页尾一颗「长按 0.6s 落珠」直接完成仪式。
+2. **让每一套核心仪器真正“令人屏息”（Metal + CoreHaptics + DSP + CoreMotion）**：
+   - 创意炼金术拒绝“换皮肤式排版”，必须直接突破软件的物理错觉边界：
+     - **Metal 着色器分工**：纯局部像素光色温与棉纸质感用 `colorEffect`；涉及半影柔和边缘、灯光涟漪与相邻像素采样的柔和衍射用 `layerEffect`；120Hz 手势拖拽仅传入平铺基础标量 uniforms。
+     - **CoreHaptics 生命力**：全站复用单一长寿 `CHHapticEngine`（配置 `resetHandler` 与硬件降级回落），严禁高频重建；将连续细腻波形（丝绸摩擦、无声掌心轻拍哄睡节律）与清晰瞬态敲击（滑珠卡点、金珠碰击、蜡封裂开）精准耦合。
+     - **物理直观讲故事**：围绕「孩子摸索，大人点灯」持续孵化标志性原生交互，包括「Otto 光影手影墙」、「黑体色温 + DSP 包络床头灯」、「无声掌心轻拍器」、「划屏传灯交接仪式」、「物理刚体碰撞雨声棒」与「37 站可搓动串珠望远镜」。
 
 ---
 
-### 五、本机零模拟器 + 零第三方依赖 + 错峰推包飞轮（Zero-Simulator CI Cadence）
+### 三、一卡一动画 1:1 咬合与三平面空间物理严谨（Bespoke 1:1 Craft & 3-Plane Grounding）
 
-1. **绝对禁用 Xcode 模拟器**：严禁运行 `Simulator.app`、`xcrun simctl`、`xcodebuild test` 或任何 `-destination 'platform=iOS Simulator...'` 命令。本机验证严格采用：
+1. **46 部活动 100% 独立手绘成片，零套壳、零幽灵道具**：
+   - 严禁任何“左右对称固定站位 + 居中悬浮物体”的模板，以及脱离 `content.json` / `content_en.json` 步骤描述的空转动作。46/46 全部完成后彻底清除通用 `MontessoriPropRig` 兜底模板。
+   - **三平面空间铁律**：严格区分「背景天空/墙面 -> 中景家具/地垫 -> 前景 Grounded 角色与手触道具」。严禁把整宽桌面画在人物脚底上方导致“角色站在桌子垂直立面上”（如历史问题 `A20`/`A24`）；严禁抹布、蜡笔、杯子、积木在未受角色肢体与地面承托的情况下凭空漂浮或自行动手。
+   - **动态灯珠着色器坐标**：`PixarStageGrade` 的金珠光源 `beadPos` 与焦距落点 `targetPos` 必须由每个场景实时计算并传入，禁止统一写死固定屏幕百分比。
+   - **多机位镜头语法**：积极采用俯视桌面/地垫平铺、肩后半身视角、同侧共读、墙面镜对望与斜向穿插景别，彻底打破「左 Otto 右 Moss」对称疲劳。
+2. **双画风成片标准 & IP 正典红线（`docs/IP.md`）**：
+   - **Pixar 3D × Studio Ghibli 2D**：共用同一 `groundY` 与重心锚点，切换画风原地渐变 Zero-Pop；Pixar 保有软胶体积与双层 Contact AO，Ghibli 保有冷压棉纸、木漏日与非纯黑彩铅线。
+   - **IP 正典红线**：零腮红、零嘴点（仅 `.wow` / `.happy` 绘制合法嘴型）、零对话气泡、**Otto 永远无手**、不饿不哭不受伤、无打卡焦虑、第 4 位照护交接伙伴正典名称固定为 **Mochi**（珊瑚针织帽白陶小鹅卵石）。
+
+---
+
+### 四、丝滑交互、防误触与零横滑红线（Fluidity & Ergonomics）
+
+1. **概览条纯只读防误触**：`DaySwimlaneCanvas` 保持 `.allowsHitTesting(false)`，零纵向抢手势。
+2. **全站统一折叠物理学**：折叠容器统一复用 `CalmAccordion` / `CalmDisclosureNote`（平滑弹簧 + `.clipped()`），折叠态不执行离屏重计算。
+3. **零横向滚动（`ScrollView(.horizontal)` = 0）**：所有标签、筛选条与卡片集采用自适应折行 `FlowRow`、`LazyVGrid` 或直向搓动滑轨，彻底消灭横竖手势冲突与边缘截断。
+4. **滚动 120Hz 热路径与 Liquid Glass 严格限额**：列表缩略图走静态零 `TimelineView` 的 `ActivityPreviewThumb`；主舞台 `TimelineView` 必须同时受 `accessibilityReduceMotion`、`Perf.still`、`.onScrollVisibilityChange` 与 `scrolling.moving` 保护；`.glassEffect` 全站**有且仅允许**存在于 [ToastHost.swift:46](file:///Users/someone/Projects/mossling/ios/Mossling/UI/ToastHost.swift#L46)。
+5. **褪黑素安全与无障碍（AX2/AX3 / VoiceOver）**：深蓝夜灯底避免高饱和大块亮底配浅字；三联及以上横向胶囊在 `type.isAccessibilitySize` 自动改纵向堆叠；所有自定义连续搓动器与手影舞台提供完整 VoiceOver 语义与 `.accessibilityAdjustableAction`。
+
+---
+
+### 五、行业规范级透明与国际化可信度（Editorial & Global Rigor）
+
+1. **学术级循证视图（`SourcesView`）**：禁止一段文字下裸贴长网址；提供 `FlowRow` 机构分类、认证胶囊、修订年份、引文复制与干净短域名链接。
+2. **隐私营养标签实事求是同步**：`DocView` 与 `PRIVACY*.md`、`TERMS*.md`、`DISCLAIMER*.md` 实时匹配真实 `Info.plist` 权限（照片手选、零留存 Motion、纯离线声景）与最新四屏路径，提供儿童数据专项说明。
+3. **面向父母的版本更新志（`ReleaseNotesView`）**：与工程师 [CHANGELOG.md](file:///Users/someone/Projects/mossling/ios/Docs/CHANGELOG.md) 严格解耦，自动读取 Bundle 版本，严禁出现类名、内部轮次或研发行话。
+4. **纯离线多地区健康日程**：`LocalizedHealthSchedule` 按 CN / US / UK / AU 四地离线提供儿保与疫苗时间参考与审慎医疗边界。
+
+---
+
+### 六、本机零模拟器 + 零第三方依赖 + 五大版螺旋推翻机制（Zero-Simulator & Five-Edition Cadence）
+
+1. **绝对禁用 Xcode 模拟器**：严禁调用 `Simulator.app`、`xcrun simctl`、`xcodebuild test` 或 `-destination 'platform=iOS Simulator...'`。本机日常编译门禁严格采用：
    - `xcodegen generate`
    - `xcodebuild build -project Mossling.xcodeproj -scheme Mossling -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`
-   - `xcodebuild build-for-testing ... -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`
-   - 静态边界审计（`ScrollView(.horizontal)` = 0、`.glassEffect` 仅 1 处、0 Emoji、`app/src/main/assets/` 未改动、新增 Swift 文件零 Warning/Error）。
-   - 全量单元测试、无障碍审计与截图回归交由 GitHub Actions 云端运行（`.github/workflows/ios.yml`），真机体验/能耗/VoiceOver 由用户连接 iPhone 真机协助完成。
-2. **零第三方运行时依赖**：不引入任何外部 Swift Package 或运行时 SDK；Metal 着色器（`StoryTheaterShaders.metal`）、物理弹簧、触觉（`CHHapticEngine`）与声景 DSP 均 100% 原生手写；**严禁调用任何 OpenMotion MCP 工具**。
-3. **每轮固定三板块推进**：每轮迭代必须同步交付：
-   - **【一、修复 Fix】**：针对文字截断、对比度、手势、编译警告或上轮遗留根因修复；
-   - **【二、创意炼金术升级 Creative Alchemy】**：提升核心交互仪式感与 IP 生命力；
-   - **【三、全局版面与交互优化 Layout & Ergonomics】**：消除静态堆砌，推进核心内容矩阵（如 Batch B/C/D/E 独立动画与全站手感）。
-4. **推包等包接力 & 智能 CI 门禁（防取消在途 TestFlight）**：因 `.github/workflows/ios.yml` 配置了 `concurrency: { cancel-in-progress: true }`，**利用云端等包窗口完成下一轮完整开发与本机 `generic/platform=iOS` 编译验收**；准备推送 `main` 前，务必通过 CLI 检查 `https://github.com/mjuvdeysii/mossling/actions/workflows/ios.yml`：若上一 Run 仍在运行或排队，绝不强行 `git push` 打断，改为设置定时检查并在其 `completed successfully` 后立即接力推包，触发新一轮自动构建与 TestFlight 上传；绝不通过 `git add -A` 暂存，严禁暂存 `.DS_Store`。
+   - `xcodebuild build-for-testing -project Mossling.xcodeproj -scheme Mossling -destination 'generic/platform=iOS' CODE_SIGNING_ALLOWED=NO`
+   - 静态扫描红线：`ScrollView(.horizontal)` = `0`、`.glassEffect` = `1`、`DisclosureGroup` = `0`、0 Emoji、`app/src/main/assets/` diff = `0`、目标 Swift 编译零新增警告。
+2. **零第三方运行时 SDK & 禁止 OpenMotion MCP**：100% 原生 Swift / Metal / CoreHaptics / AVAudioEngine；严禁调用 OpenMotion MCP 工具。
+3. **大版（Edition）与战术轮次（Round）严格区分**：
+   - 每一轮战术更新仍围绕「【一、修复 & 空间治理】+【二、创意炼金术物理跃迁】+【三、插画精修与全局交互打磨】」三板块闭环推进；
+   - 数个连续战术轮次（如 Rounds 22–26 共同构成 **Edition I**）合起来才完成**一整个大版**的架构、动画与器物重塑；严禁将同一轮架构工程切成五块就当作“打磨五个版本”。
+4. **跨大版强制归零重审门禁（Kill-Your-Darlings Reset Gate）**：每当 **Edition $N$** 交付并跑绿云端 CI 后、启动 **Edition $N+1$** 前，必须执行：真机全路径盲测 -> 调用 `creative-alchemy` + `bold-design-refactor` + `get-more-perspectives` 做陌生人挑刺 -> 输出显式「删减与推翻重构清单（Kill Your Darlings）」-> 依据实机发现动态定稿下一大版的战术轮次并与用户确认，如此真刀真枪迭代足足 **五大版（Edition I -> V）**。
+5. **智能错峰 CI 推包**：每次 `git push` 前务必 `curl -sL "https://github.com/mjuvdeysii/mossling/actions/workflows/ios.yml"` 检查队列。若上一轮仍在运行或排队，**严禁强行推包打断 TestFlight**（`cancel-in-progress: true`）；利用等包窗口打磨测试与文案，待上一轮 `completed successfully` 后再接力推送；严禁 `git add -A` 与暂存 `.DS_Store`。
 
 ---
 
-### 六、上下文主动交接门禁（Context Handoff Gate）
+### 七、物理真机协同验证规程（Physical iPhone Verification Gate）
 
-当多轮开发与构建推送稳步推进、上下文接近容量阈值（或每次完成重要推包节点且工作区仅剩无关临时文件）时：
-1. 不硬撑至上下文自动压缩失真，主动总结当前准确状态。
-2. 输出精炼、可直接在新窗口首行调用的交接文档 `HANDOFF_ROUNDXX_ADA2027.md`（写明实核最新 commit 哈希、远端 CI Run 状态、已完成资产清单、未竟红线与下一轮三板块精准切入点 + 开场提示词），让新窗口零失真接棒继续冲刺 App Award。
+由于严格零模拟器原则，凡涉及以下体验细节的终局验收，**主动邀请用户连接物理 iPhone 真机**进行联合实测，绝不凭空臆测效果：
+1. `CHHapticEngine` 无声掌心轻拍、蒙氏滑珠卡点与雨声棒颗粒触觉质感。
+2. 深夜低光实测床头灯 `1800K` 黑体调光、系统亮度天花板钳制与连续 30 分钟音频播放的温控/耗电。
+3. VoiceOver 实机焦点顺序、120Hz ProMotion 搓动跟手度与 3x 传灯海报微信/隔空投送视觉观感。
+
+---
+
+### 八、上下文主动交接门禁（Context Handoff Gate）
+
+当多轮开发推进至重要交付节点或上下文接近上限时：
+1. 绝不硬撑至上下文自动压缩失真，主动精确汇总当前状态与实核哈希/CI 结果。
+2. 生成可直接接棒的 `HANDOFF_ROUNDXX_ADA2027.md`（并对照 [ADA2027_MASTER_PLAN_v3.0.md](file:///Users/someone/.gemini/antigravity/brain/78a5a83f-079c-4bbd-bad3-bf0005e04eb2/ADA2027_MASTER_PLAN_v3.0.md) 标明所属 **Edition I–V 编号**、当前战术轮次，以及若抵达大版边界时必须先执行的 Reset Gate）。

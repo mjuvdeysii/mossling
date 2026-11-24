@@ -2,15 +2,12 @@ import SwiftUI
 import LocalAuthentication
 import TipKit
 
-enum Route: Hashable {
-    case story, data, play(String, Int), month(Int), observe(Int), areas(Int), care(Int), notes(Int), rhythm(Int), plan, topic(String), search, about, sources, licenses, releaseNotes, fullJournal, doc(String), book, toybox(ToyboxMode), capsules, foodAtlas, journey
-}
-
 @main
 struct MosslingApp: App {
     @State private var app = AppModel()
     @State private var journal = JournalStore()
     @State private var mascot = MascotDirector()
+    @State private var router = AppRouter()
     init() { Guide.configure(); DataView.tidyDocuments(); ArtCache.shared.prewarmCommonStickers() }
     var body: some Scene {
         WindowGroup {
@@ -19,6 +16,7 @@ struct MosslingApp: App {
                 .environment(app)
                 .environment(journal)
                 .environment(mascot)
+                .environment(router)
                 .tint(Palette.accent)
                 .tipViewStyle(PaperTipStyle())
                 .fontDesign(.rounded)
@@ -32,18 +30,14 @@ struct RootView: View {
     /// Whether it is night now (7 pm – 6 am), checked every minute while the app is open.
     @State private var night = Daylight.isNight()
     /// The tab open last time: the app comes back where the parent left it (a night of feeds opens on 台灯)
-    @SceneStorage("tab") private var tab = 0
-    @State private var todayPath = NavigationPath()
-    @State private var journalPath = NavigationPath()
-    @State private var keepsakesPath = NavigationPath()
-    @State private var youPath = NavigationPath()
+    @SceneStorage("tab") private var savedTab = 0
+    @Environment(AppRouter.self) private var router
     @Environment(JournalStore.self) private var journal
     @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
     @State private var locked = true
     @State private var unlocking = false
     @State private var pendingURL: URL?
-    @State private var showingBedsideLamp = false
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
@@ -53,7 +47,7 @@ struct RootView: View {
 
     /// Synchronizes TactileEngine's silent-night shield across dark theme, sleep timers, and any Bedside Lamp cover.
     private func syncQuietNight() {
-        TactileEngine.shared.quietNight = scheme == .dark || showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
+        TactileEngine.shared.quietNight = scheme == .dark || router.showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
     }
 
     /// Turns the week when it has gone by, counting each play's times from the records.
@@ -95,6 +89,7 @@ struct RootView: View {
                 if p == .background { locked = true; mascot.send(.appBackground) }
             }
             .task {
+                router.selectedTab = savedTab
                 if app.lock { unlock() }
                 roll()
                 app.publish(journal)
@@ -111,11 +106,12 @@ struct RootView: View {
                 journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
+            .onChange(of: router.selectedTab) { _, next in savedTab = next }
             .onChange(of: scheme) { _, s in
                 mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled)
                 syncQuietNight()
             }
-            .onChange(of: showingBedsideLamp) { _, _ in syncQuietNight() }
+            .onChange(of: router.showingBedsideLamp) { _, _ in syncQuietNight() }
             .onChange(of: app.isBedsideLampOpen) { _, _ in syncQuietNight() }
             .onChange(of: journal.timers) { _, _ in syncQuietNight() }
             .onChange(of: app.companion) { _, k in mascot.companion = k; mascot.send(.companionChanged) }
@@ -173,34 +169,43 @@ struct RootView: View {
 
     /// Crisp unified SF Symbol mark for the 4-Screen Pure-Blood Narrative Tab Bar: 摸索 · 台灯 · 留念 · 工坊.
     private func tabLabel(_ title: String, symbol: String, selectedSymbol: String, value: Int) -> Label<Text, Image> {
-        Label(title, systemImage: tab == value ? selectedSymbol : symbol)
+        Label(title, systemImage: router.selectedTab == value ? selectedSymbol : symbol)
     }
 
     private var tabView: some View {
-        TabView(selection: $tab) {
-            Tab(value: 0) {
-                NavigationStack(path: $todayPath) { TodayView(path: $todayPath).routes(path: $todayPath) }
-                    .environment(\.zoomNS, zoomToday)
-                    .environment(\.night, night || scheme == .dark)
-            } label: { tabLabel(L10n.t("摸索", "Explore"), symbol: "leaf", selectedSymbol: "leaf.fill", value: 0) }
+        @Bindable var r = router
+        return TabView(selection: $r.selectedTab) {
+            Tab(value: AppTab.explore.rawValue) {
+                NavigationStack(path: $r.explorePath) {
+                    TodayView(path: $r.explorePath).exploreRoutes(path: $r.explorePath)
+                }
+                .environment(\.zoomNS, zoomToday)
+                .environment(\.night, night || scheme == .dark)
+            } label: { tabLabel(L10n.t("摸索", "Explore"), symbol: "leaf", selectedSymbol: "leaf.fill", value: AppTab.explore.rawValue) }
 
-            Tab(value: 1) {
-                NavigationStack(path: $journalPath) { LampHubView(path: $journalPath).routes(path: $journalPath) }
-                    .environment(\.zoomNS, zoomJournal)
-            } label: { tabLabel(L10n.t("台灯", "Lamp"), symbol: "lamp.desk", selectedSymbol: "lamp.desk.fill", value: 1) }
+            Tab(value: AppTab.lamp.rawValue) {
+                NavigationStack(path: $r.lampPath) {
+                    LampHubView(path: $r.lampPath).lampRoutes()
+                }
+                .environment(\.zoomNS, zoomJournal)
+            } label: { tabLabel(L10n.t("台灯", "Lamp"), symbol: "lamp.desk", selectedSymbol: "lamp.desk.fill", value: AppTab.lamp.rawValue) }
 
-            Tab(value: 2) {
-                NavigationStack(path: $keepsakesPath) { JourneyHubView(isRootTab: true).routes(path: $keepsakesPath) }
-                    .environment(\.zoomNS, zoomJourney)
-            } label: { tabLabel(L10n.t("留念", "Keepsakes"), symbol: "book.pages", selectedSymbol: "book.pages.fill", value: 2) }
+            Tab(value: AppTab.keepsakes.rawValue) {
+                NavigationStack(path: $r.keepsakesPath) {
+                    JourneyHubView(isRootTab: true).keepsakesRoutes()
+                }
+                .environment(\.zoomNS, zoomJourney)
+            } label: { tabLabel(L10n.t("留念", "Keepsakes"), symbol: "book.pages", selectedSymbol: "book.pages.fill", value: AppTab.keepsakes.rawValue) }
 
-            Tab(value: 3) {
-                NavigationStack(path: $youPath) { YouView(path: $youPath).routes(path: $youPath) }
-                    .environment(\.zoomNS, zoomYou)
-            } label: { tabLabel(L10n.t("工坊", "Studio"), symbol: "square.grid.2x2", selectedSymbol: "square.grid.2x2.fill", value: 3) }
+            Tab(value: AppTab.studio.rawValue) {
+                NavigationStack(path: $r.studioPath) {
+                    YouView(path: $r.studioPath).studioRoutes()
+                }
+                .environment(\.zoomNS, zoomYou)
+            } label: { tabLabel(L10n.t("工坊", "Studio"), symbol: "square.grid.2x2", selectedSymbol: "square.grid.2x2.fill", value: AppTab.studio.rawValue) }
         }
         // a light tick as the chosen tab changes, like turning to a tabbed page
-        .sensoryFeedback(.selection, trigger: tab)
+        .sensoryFeedback(.selection, trigger: router.selectedTab)
         // a change of drawing style or language redraws every view immediately
         .id("\(app.artStyle.rawValue)-\(app.language.rawValue)")
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
@@ -210,8 +215,11 @@ struct RootView: View {
                                        set: { if !isLocked { journal.focus = $0?.id } })) { w in
             TimerScreen(type: w.id).lampPresented(sheet: false)
         }
-        .fullScreenCover(isPresented: Binding(get: { !isLocked && showingBedsideLamp }, set: { showingBedsideLamp = $0 })) {
+        .fullScreenCover(isPresented: Binding(get: { !isLocked && router.showingBedsideLamp }, set: { router.showingBedsideLamp = $0 })) {
             BedsideLampView()
+        }
+        .fullScreenCover(isPresented: Binding(get: { !isLocked && router.showingStorybook }, set: { router.showingStorybook = $0 })) {
+            StorybookView().lampPresented(sheet: false)
         }
     }
 
@@ -223,74 +231,47 @@ struct RootView: View {
         journal.reload()
         app.syncWidgetPick()
         let arg = url.pathComponents.dropFirst().first
-        let pushToday: (Route) -> Void = { route in
-            let needsSwitch = tab != 0
-            tab = 0
-            todayPath = NavigationPath()
-            Task { @MainActor in
-                if needsSwitch { try? await Task.sleep(for: .milliseconds(120)) }
-                else { await Task.yield() }
-                todayPath = NavigationPath([route])
-            }
-        }
-        let pushKeepsake: (Route) -> Void = { route in
-            let needsSwitch = tab != 2
-            tab = 2
-            keepsakesPath = NavigationPath()
-            Task { @MainActor in
-                if needsSwitch { try? await Task.sleep(for: .milliseconds(120)) }
-                else { await Task.yield() }
-                keepsakesPath = NavigationPath([route])
-            }
-        }
         switch url.host() {
         case "lamp":
-            tab = 1
-            journalPath = NavigationPath()
             journal.focus = nil
             journal.ask = nil
-            showingBedsideLamp = true
+            router.openBedsideLamp()
         case "today":
-            tab = 0
-            todayPath = NavigationPath()
+            router.openExplore()
         case "settings":
-            tab = 3
-            youPath = NavigationPath()
+            router.openStudio()
         case "play":
             let mo = app.babyMonth ?? 0
             if let raw = arg, let p = app.content.play(raw) ?? app.content.play(raw.uppercased()) {
-                pushToday(.play(p.code, mo))
+                router.openExplore(.play(p.code, mo))
             } else {
-                tab = 0
-                todayPath = NavigationPath()
+                router.openExplore()
             }
         case "month":
             let mo = arg.flatMap(Int.init) ?? (app.babyMonth ?? 0)
-            pushToday(.month(max(0, min(mo, 36))))
+            router.openKeepsakes(.month(max(0, min(mo, 36))))
         case "book":
-            pushKeepsake(.book)
+            router.openStorybook()
         case "toybox":
             let mode = arg.flatMap(ToyboxMode.init(rawValue:)) ?? .xylophone
-            pushToday(.toybox(mode))
+            router.openExplore(.toybox(mode))
         case "capsules":
-            pushKeepsake(.capsules)
+            router.openKeepsakes(.capsules)
         case "foods":
-            pushToday(.foodAtlas)
+            router.openExplore(.foodAtlas)
         case "journey":
-            tab = 2
-            keepsakesPath = NavigationPath()
+            router.openKeepsakes()
         case "journal":
             guard app.mayKeep() else { return }
             journal.focus = nil
             journal.ask = nil
             journal.jumpToToday &+= 1
-            tab = 1
-            if app.journal { journalPath = NavigationPath([Route.fullJournal]) }
+            router.openLamp(expandLedger: app.journal)
         case "care":
             guard let type = arg, LogType.timed.contains(type), app.mayKeep() else { return }
-            guard app.journal else { tab = 1; return }
-            let needsSwitch = tab != 1
-            tab = 1
+            guard app.journal else { router.openLamp(); return }
+            let needsSwitch = router.selectedTab != AppTab.lamp.rawValue
+            router.selectedTab = AppTab.lamp.rawValue
             journal.ask = nil
             journal.focus = nil
             Task { @MainActor in
@@ -300,9 +281,9 @@ struct RootView: View {
             }
         case "log":
             guard let type = arg, LogType.buttons.contains(type), type != LogType.growth, app.mayKeep() else { return }
-            guard app.journal else { tab = 1; return }
-            let needsSwitch = tab != 1
-            tab = 1
+            guard app.journal else { router.openLamp(); return }
+            let needsSwitch = router.selectedTab != AppTab.lamp.rawValue
+            router.selectedTab = AppTab.lamp.rawValue
             journal.focus = nil
             journal.ask = nil
             journal.jumpToToday &+= 1
@@ -343,44 +324,94 @@ private struct LockView: View {
 }
 
 extension View {
-    /// Every page that can be opened from a tab.
-    func routes(path: Binding<NavigationPath>) -> some View {
-        navigationDestination(for: Route.self) { r in RouteView(route: r, path: path) }
-            .navigationDestination(for: JournalRoute.self) { r in
-                switch r { case .stats: StatsView(); case .growth: GrowthView(); case .firsts: FirstsView() }
+    /// Tab 0 (`摸索`) scoped navigation destinations.
+    func exploreRoutes(path: Binding<NavigationPath>) -> some View {
+        navigationDestination(for: ExploreRoute.self) { route in
+            ExploreRouteDestinationView(route: route, path: path)
+        }
+    }
+
+    /// Tab 1 (`台灯`) scoped navigation destinations.
+    func lampRoutes() -> some View {
+        navigationDestination(for: LampRoute.self) { route in
+            switch route {
+            case let .rhythm(month): RhythmView(month: month)
+            case .stats: StatsView()
             }
+        }
+    }
+
+    /// Tab 2 (`留念`) scoped navigation destinations.
+    func keepsakesRoutes() -> some View {
+        navigationDestination(for: KeepsakesRoute.self) { route in
+            KeepsakesRouteDestinationView(route: route)
+        }
+    }
+
+    /// Tab 3 (`工坊`) scoped navigation destinations.
+    func studioRoutes() -> some View {
+        navigationDestination(for: StudioRoute.self) { route in
+            switch route {
+            case .story: StoryView()
+            case .sources: SourcesView()
+            case .releaseNotes: ReleaseNotesView()
+            case .data: DataView()
+            case let .doc(name): DocView(name: name)
+            case .licenses: LicensesView()
+            }
+        }
     }
 }
 
-private struct RouteView: View {
+private struct ExploreRouteDestinationView: View {
     @Environment(AppModel.self) private var app
-    let route: Route
+    let route: ExploreRoute
     @Binding var path: NavigationPath
+
     var body: some View {
         switch route {
-        case let .play(code, m): if let p = app.content.play(code) { PlayView(play: p, month: m).zoomDestination(route) }
-        case let .month(m): MonthView(month: m).zoomDestination(route)
-        case let .areas(m): AreasView(month: m)
-        case let .care(m): CareView(month: m)
-        case let .notes(m): NotesView(month: m)
-        case let .rhythm(m): RhythmView(month: m)
-        case let .observe(m): ObserveView(month: m)
-        case .plan: PlanView(path: $path)
-        case let .topic(id): if let t = app.content.topics.first(where: { $0.id == id }) { TopicView(topic: t) }
-        case .search: SearchView(path: $path)
-        case .about: AboutView()
-        case .story: StoryView()
-        case .data: DataView()
-        case .sources: SourcesView()
-        case .licenses: LicensesView()
-        case .releaseNotes: ReleaseNotesView()
-        case .fullJournal: JournalView(path: $path)
-        case let .doc(n): DocView(name: n)
-        case .book: GrowthBookView().zoomDestination(route)
-        case let .toybox(mode): ToyboxView(initialMode: mode)
-        case .capsules: TimeCapsuleListView()
-        case .foodAtlas: FoodAtlasView()
-        case .journey: JourneyHubView().zoomDestination(route)
+        case let .play(code, month):
+            if let play = app.content.play(code) {
+                PlayView(play: play, month: month).zoomDestination(route)
+            }
+        case .plan:
+            PlanView(path: $path)
+        case let .toybox(mode):
+            ToyboxView(initialMode: mode)
+        case .foodAtlas:
+            FoodAtlasView()
+        case .search:
+            SearchView(path: $path)
+        }
+    }
+}
+
+private struct KeepsakesRouteDestinationView: View {
+    @Environment(AppModel.self) private var app
+    let route: KeepsakesRoute
+
+    var body: some View {
+        switch route {
+        case let .month(month):
+            MonthView(month: month).zoomDestination(route)
+        case let .observe(month):
+            ObserveView(month: month)
+        case let .areas(month):
+            AreasView(month: month)
+        case let .care(month):
+            CareView(month: month)
+        case let .notes(month):
+            NotesView(month: month)
+        case let .topic(id):
+            if let topic = app.content.topics.first(where: { $0.id == id }) {
+                TopicView(topic: topic)
+            }
+        case .firsts:
+            FirstsView()
+        case .growth:
+            GrowthView()
+        case .capsules:
+            TimeCapsuleListView()
         }
     }
 }

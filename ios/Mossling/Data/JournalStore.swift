@@ -26,7 +26,7 @@ final class JournalStore {
     var focus: String?
     /// A record page to open in the journal (from a link, e.g. the widget's nappy button).
     var ask: String?
-    /// Incremented by deep links to bring JournalView back to today before opening a quick-log sheet.
+    /// Incremented by deep links to bring LampHubView back to today before opening a quick-log sheet.
     var jumpToToday = 0
     /// What was just recorded, said back for a few seconds with a way to take it back.
     var toast: Toast?

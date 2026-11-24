@@ -1,10 +1,12 @@
 import SwiftUI
 
-/// Tab 2: Otto's Bedside Lamp & Calm Rhythm Sanctuary.
-/// Places Otto's interactive warm light & soundscapes front and center, backed by a calm visual circadian overview
-/// (`MiniRhythmDialCanvas` + read-only `DaySwimlaneCanvas` + Care Handover) and a quiet, collapsible daily log drawer.
+/// Tab 1: Otto's Bedside Lamp & Unified Care Sanctuary.
+/// Combines Otto's interactive warm light & soundscapes, calm multi-day 24h rhythm overview
+/// (`MiniRhythmDialCanvas` + read-only `DaySwimlaneCanvas` + inline day switching & Care Handover),
+/// care quick-logging, and the unified collapsible ledger (eliminating the redundant split `JournalView`).
 struct LampHubView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(JournalStore.self) private var j
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
@@ -17,6 +19,8 @@ struct LampHubView: View {
     @Binding var path: NavigationPath
 
     @State private var soundscape = SoundscapeEngine.shared
+    @State private var selectedDay: Day = .today
+    @State private var pickingDay = false
     @State private var showingBedsideLamp = false
     @State private var showingHandover = false
     @State private var heroOnScreen = true
@@ -25,21 +29,55 @@ struct LampHubView: View {
     @State private var touchedPeriods = false
     @State private var expandAllChapters = false
     @State private var editing: LogEntry?
-    @State private var newFirst: First?
-    @State private var measuring: Measure?
+
+    init(path: Binding<NavigationPath>, initialDay: Day? = nil, initialLedgerExpanded: Bool = false) {
+        _path = path
+        _selectedDay = State(initialValue: initialDay ?? .today)
+        _ledgerExpanded = State(initialValue: initialLedgerExpanded)
+    }
 
     private var warmth: LampWarmth {
         LampWarmth(rawValue: app.lampWarmthRaw) ?? .amber
     }
 
+    private func openBedsideLamp() {
+        TactileEngine.shared.vinylPop()
+        if let router {
+            router.openBedsideLamp()
+        } else {
+            showingBedsideLamp = true
+        }
+    }
+
+    private func moveDay(to next: Day) {
+        guard next != selectedDay else { return }
+        TactileEngine.shared.pageTurn()
+        withAnimation(reduce ? nil : .snappy) {
+            selectedDay = next
+            expandedPeriods = []
+            touchedPeriods = false
+            expandAllChapters = false
+        }
+    }
+
+    private var pastNoon: Date {
+        Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: selectedDay.date)
+            ?? selectedDay.date.addingTimeInterval(12 * 3600)
+    }
+
+    private func defaultTimeForSelectedDay() -> Double {
+        selectedDay == app.today ? JournalFile.now() : ms(pastNoon)
+    }
+
     var body: some View {
         let dark = lamp || scheme == .dark
-        let today = app.today
-        let dayLogs = j.logs(on: today)
-        let own = dayLogs.filter { !$0.carriedOver(into: today) }
-        let startMs = today.date.timeIntervalSince1970 * 1000
+        let activeDay = selectedDay
+        let isToday = activeDay == app.today
+        let dayLogs = j.logs(on: activeDay)
+        let own = dayLogs.filter { !$0.carriedOver(into: activeDay) }
+        let startMs = activeDay.date.timeIntervalSince1970 * 1000
         let feedCount = dayLogs.feedCount(from: startMs)
-        let sleepSec = dayLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: today) }
+        let sleepSec = dayLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: activeDay) }
         let diaperCount = own.filter { $0.type == LogType.diaper }.count
         let entryCount = dayLogs.rows().count
 
@@ -55,7 +93,8 @@ struct LampHubView: View {
 
                 if app.journal {
                     rhythmCollectionCard(
-                        today: today,
+                        day: activeDay,
+                        isToday: isToday,
                         dayLogs: dayLogs,
                         feedCount: feedCount,
                         sleepSec: sleepSec,
@@ -63,10 +102,10 @@ struct LampHubView: View {
                         dark: dark
                     )
 
-                    quietCareStrip(dark: dark)
+                    quietCareStrip(day: activeDay, isToday: isToday, dark: dark)
 
                     todayLedgerDrawer(
-                        today: today,
+                        day: activeDay,
                         dayLogs: dayLogs,
                         entryCount: entryCount,
                         dark: dark
@@ -87,31 +126,65 @@ struct LampHubView: View {
                 if app.journal {
                     Button {
                         TactileEngine.shared.beadClick()
-                        showingHandover = true
+                        pickingDay = true
                     } label: {
-                        Image(systemName: "person.2.wave.2")
-                    }
-                    .accessibilityLabel(L10n.t("打开家庭交接卡", "Open Care Handover Card"))
-
-                    NavigationLink(value: Route.fullJournal) {
                         Image(systemName: "calendar")
                     }
-                    .accessibilityLabel(L10n.t("完整多日手账", "Full Multi-Day Journal"))
+                    .accessibilityLabel(L10n.t("切换日期查看记录", "Choose day"))
+
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        editing = LogEntry(type: LogType.bottle, start: defaultTimeForSelectedDay(), amount: 120)
+                    } label: {
+                        Image(systemName: "square.and.pencil")
+                    }
+                    .accessibilityLabel(L10n.t("补记一条照护记录", "Add care entry"))
                 }
             }
         }
         .fullScreenCover(isPresented: $showingBedsideLamp) { BedsideLampView() }
         .sheet(isPresented: $showingHandover) {
-            HandoverSheet(day: app.today).lampPresented(sheet: true)
+            HandoverSheet(day: activeDay).lampPresented(sheet: true)
+        }
+        .sheet(isPresented: $pickingDay) {
+            NavigationStack {
+                let now = Date()
+                let lower = min(app.birth?.date ?? .distantPast, now)
+                DatePicker(
+                    L10n.t("哪一天", "Date"),
+                    selection: Binding(
+                        get: { min(max(selectedDay.date, lower), now) },
+                        set: { moveDay(to: Day($0)); pickingDay = false }
+                    ),
+                    in: lower...now,
+                    displayedComponents: .date
+                )
+                .datePickerStyle(.graphical)
+                .padding(.horizontal, 16)
+                .navigationTitle(L10n.t("看哪一天", "Choose Day"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { pickingDay = false }
+                    }
+                }
+            }
+            .presentationDetents([.medium])
+            .lampPresented()
         }
         .sheet(item: Binding(get: { j.ask.map { LampAskWrap(id: $0) } }, set: { j.ask = $0?.id })) { w in
-            AskSheet(type: w.id, on: nil).lampPresented()
+            AskSheet(type: w.id, on: isToday ? nil : pastNoon).lampPresented()
         }
         .sheet(item: $editing) { e in
             EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }, feed: j.feedEntries(containing: e.id)).lampPresented()
         }
-        .sheet(item: $newFirst) { f in FirstSheet(first: f, isNew: true).lampPresented() }
-        .sheet(item: $measuring) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }
+        .onChange(of: app.today) { _, t in selectedDay = t }
+        .onChange(of: j.jumpToToday) { _, _ in selectedDay = app.today }
+        .onChange(of: router?.expandLampLedgerToken ?? 0) { _, _ in
+            withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                ledgerExpanded = true
+            }
+        }
     }
 
     // MARK: - Section 1: Hero Otto Bedside Lamp Stage
@@ -126,13 +199,12 @@ struct LampHubView: View {
         return VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .center, spacing: 12) {
                 ottoLivingStage(brightness: brightness, playing: playing)
-                .frame(width: 82, height: 82)
-                .contentShape(Circle())
-                .onTapGesture {
-                    TactileEngine.shared.vinylPop()
-                    showingBedsideLamp = true
-                }
-                .accessibilityLabel(L10n.t("轻点打开 Otto 全屏床头夜灯", "Tap to open fullscreen Otto Bedside Lamp"))
+                    .frame(width: 82, height: 82)
+                    .contentShape(Circle())
+                    .onTapGesture {
+                        openBedsideLamp()
+                    }
+                    .accessibilityLabel(L10n.t("轻点打开 Otto 全屏床头夜灯", "Tap to open fullscreen Otto Bedside Lamp"))
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.t("Otto 的夜灯与助眠声景", "Otto's Bedside Lamp"))
@@ -151,8 +223,7 @@ struct LampHubView: View {
 
                     HStack(spacing: 8) {
                         Button {
-                            TactileEngine.shared.beadClick()
-                            showingBedsideLamp = true
+                            openBedsideLamp()
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "lamp.desk.fill")
@@ -351,10 +422,11 @@ struct LampHubView: View {
         }
     }
 
-    // MARK: - Section 2: Visual Rhythm Collection
+    // MARK: - Section 2: Visual Rhythm Collection (Single-Source Unified Day Sanctuary)
 
     private func rhythmCollectionCard(
-        today: Day,
+        day: Day,
+        isToday: Bool,
         dayLogs: [LogEntry],
         feedCount: Int,
         sleepSec: Double,
@@ -362,39 +434,77 @@ struct LampHubView: View {
         dark: Bool
     ) -> some View {
         let baby = max(0, min(app.babyMonth ?? 0, 36))
-        let sleepSlices = AtelierDockMetrics.sleepSlices(in: dayLogs, on: today)
-        let feedFracs = AtelierDockMetrics.feedFractions(in: dayLogs, on: today)
+        let sleepSlices = AtelierDockMetrics.sleepSlices(in: dayLogs, on: day)
+        let feedFracs = AtelierDockMetrics.feedFractions(in: dayLogs, on: day)
+        let prevDay = day.plus(days: -1)
+        let nextDay = day.plus(days: 1)
+        let canStepBack = app.birth.map { prevDay.epochDay >= $0.epochDay } ?? true
+        let canStepForward = nextDay.epochDay <= app.today.epochDay
+        let dayLabel = isToday ? L10n.t("今日", "Today") : (L10n.isEnglish ? "\(Day.enMonths[day.m - 1]) \(day.d)" : day.md)
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: 12) {
-                NavigationLink(value: Route.rhythm(baby)) {
-                    HStack(spacing: 10) {
-                        MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFracs, dark: dark)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(L10n.t("今日节律可视化", "Today's Rhythm"))
-                                .font(.subheadline.weight(.bold))
-                                .foregroundStyle(.primary)
-                            Text(
-                                L10n.t(
-                                    "睡 \(durationValue(sleepSec)) · 喂 \(feedCount) 次 · 护 \(diaperCount) 次",
-                                    "Sleep \(durationValue(sleepSec)) · \(feedCount) feeds · \(diaperCount) diapers"
-                                )
-                            )
-                            .font(.caption)
-                            .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(2)
-                        }
-                        Spacer(minLength: 4)
-                        Image(systemName: "chevron.right")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(.tertiary)
-                    }
-                    .contentShape(Rectangle())
+            HStack(alignment: .center, spacing: 10) {
+                MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFracs, dark: dark)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isToday ? L10n.t("今日节律可视化", "Today's Rhythm") : L10n.t("\(dayLabel) · 节律可视化", "\(dayLabel) Rhythm"))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                    Text(
+                        L10n.t(
+                            "睡 \(durationValue(sleepSec)) · 喂 \(feedCount) 次 · 护 \(diaperCount) 次",
+                            "Sleep \(durationValue(sleepSec)) · \(feedCount) feeds · \(diaperCount) diapers"
+                        )
+                    )
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .lineLimit(2)
                 }
-                .buttonStyle(.plain)
+                Spacer(minLength: 4)
+
+                HStack(spacing: 4) {
+                    Button {
+                        if canStepBack { moveDay(to: prevDay) }
+                    } label: {
+                        Image(systemName: "chevron.left")
+                            .font(.caption2.weight(.bold))
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Palette.fill))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canStepBack)
+                    .opacity(canStepBack ? 1 : 0.35)
+                    .accessibilityLabel(L10n.t("前一天", "Previous day"))
+
+                    if !isToday {
+                        Button {
+                            moveDay(to: app.today)
+                        } label: {
+                            Text(L10n.t("回今天", "Today"))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 5)
+                                .background(Capsule().fill(Palette.accentFill))
+                        }
+                        .buttonStyle(.plain)
+                    } else {
+                        Button {
+                            if canStepForward { moveDay(to: nextDay) }
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.caption2.weight(.bold))
+                                .frame(width: 26, height: 26)
+                                .background(Circle().fill(Palette.fill))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canStepForward)
+                        .opacity(canStepForward ? 1 : 0.35)
+                        .accessibilityLabel(L10n.t("后一天", "Next day"))
+                    }
+                }
             }
 
-            DaySwimlaneCanvas(day: today, logs: dayLogs, timers: j.timers, dark: dark)
+            DaySwimlaneCanvas(day: day, logs: dayLogs, timers: isToday ? j.timers : [], dark: dark)
                 .allowsHitTesting(false)
 
             if type.isAccessibilitySize {
@@ -413,12 +523,12 @@ struct LampHubView: View {
 
     @ViewBuilder
     private func rhythmNavControls(baby: Int, dark: Bool) -> some View {
-        NavigationLink(value: Route.rhythm(baby)) {
+        NavigationLink(value: LampRoute.rhythm(baby)) {
             compactNavPill(symbol: "clock.arrow.circlepath", text: L10n.t("24h 节律盘", "Rhythm Dial"), color: Crayon.lilac, dark: dark)
         }
         .buttonStyle(.toy)
 
-        NavigationLink(value: JournalRoute.stats) {
+        NavigationLink(value: LampRoute.stats) {
             compactNavPill(symbol: "chart.bar.fill", text: L10n.t("七日对比", "7-Day Stats"), color: Crayon.sky, dark: dark)
         }
         .buttonStyle(.toy)
@@ -455,31 +565,24 @@ struct LampHubView: View {
 
     // MARK: - Section 3: Low-Priority Quiet Care Strip & Collapsible Ledger
 
-    private func quietCareStrip(dark: Bool) -> some View {
+    private func quietCareStrip(day: Day, isToday: Bool, dark: Bool) -> some View {
         let primaryTypes = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
-        let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) }
+        let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) && $0 != LogType.growth }
 
         return VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(L10n.t("随手轻记", "Quiet Log"))
+                Text(isToday ? L10n.t("随手轻记", "Quiet Log") : L10n.t("补记 \(day.md)", "Log to \(day.md)"))
                     .font(.caption.weight(.bold))
                     .foregroundStyle(Palette.secondaryText)
                 Spacer()
                 Menu {
                     ForEach(extraTypes, id: \.self) { t in
                         Button(LogType.name(t), systemImage: LogType.symbol(t)) {
-                            handleTap(t)
+                            handleTap(t, day: day, isToday: isToday)
                         }
                     }
-                    Divider()
-                    Button(L10n.t("记一个第一次", "Log a first"), systemImage: "star") {
-                        newFirst = First(at: ms(Date()), title: "")
-                    }
-                    Button(L10n.t("记一次测量", "Log measurement"), systemImage: "ruler") {
-                        measuring = Measure(at: Date().timeIntervalSince1970 * 1000)
-                    }
                 } label: {
-                    Label(L10n.t("更多", "More"), systemImage: "plus.circle")
+                    Label(L10n.t("更多照护", "More"), systemImage: "plus.circle")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(Palette.accent)
                 }
@@ -494,7 +597,7 @@ struct LampHubView: View {
                     let col = LogType.color(t)
                     Button {
                         TactileEngine.shared.beadClick()
-                        handleTap(t)
+                        handleTap(t, day: day, isToday: isToday)
                     } label: {
                         VStack(spacing: 4) {
                             IconTile(symbol: LogType.symbol(t), color: col, size: 28, round: true)
@@ -515,17 +618,18 @@ struct LampHubView: View {
         .printCard(radius: Radius.card)
     }
 
-    private func todayLedgerDrawer(today: Day, dayLogs: [LogEntry], entryCount: Int, dark: Bool) -> some View {
-        VStack(spacing: 0) {
+    private func todayLedgerDrawer(day: Day, dayLogs: [LogEntry], entryCount: Int, dark: Bool) -> some View {
+        let isToday = day == app.today
+        return VStack(spacing: 0) {
             CalmAccordion(isExpanded: $ledgerExpanded, spacing: 10) { open in
                 HStack(spacing: 10) {
                     IconTile(symbol: "list.bullet.clipboard.fill", color: Crayon.caramel, size: 28, round: true)
                     VStack(alignment: .leading, spacing: 1) {
-                        Text(L10n.t("今日明细手账", "Today's Entries"))
+                        Text(isToday ? L10n.t("今日明细手账", "Today's Entries") : L10n.t("\(day.md) 明细手账", "\(day.md) Entries"))
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(.primary)
                         Text(entryCount == 0
-                             ? L10n.t("今日尚无条目，轻点展开或前往多日记录", "No entries yet today")
+                             ? L10n.t("这一天尚无条目，轻点展开或补记", "No entries yet for this day")
                              : L10n.t("共 \(entryCount) 条，平时折叠保持画面清爽", "\(entryCount) entries · collapsed for calm"))
                             .font(.caption)
                             .foregroundStyle(Palette.secondaryText)
@@ -540,8 +644,8 @@ struct LampHubView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     if !dayLogs.isEmpty {
                         DayChapterLedger(
-                            day: today,
-                            today: today,
+                            day: day,
+                            today: app.today,
                             logs: dayLogs,
                             only: nil,
                             expandedPeriods: $expandedPeriods,
@@ -552,20 +656,33 @@ struct LampHubView: View {
                         )
                     }
 
-                    NavigationLink(value: Route.fullJournal) {
-                        HStack {
-                            Text(L10n.t("查看多日完整手账与补记", "Open Full Multi-Day Journal"))
-                                .font(.footnote.weight(.bold))
-                            Spacer(minLength: 4)
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.bold))
+                    HStack(spacing: 8) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            editing = LogEntry(type: LogType.bottle, start: defaultTimeForSelectedDay(), amount: 120)
+                        } label: {
+                            Label(L10n.t("补记这一天", "Add Past Entry"), systemImage: "square.and.pencil")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Palette.accent)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.accent.opacity(dark ? 0.16 : 0.09)))
                         }
-                        .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 9)
-                        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.accent.opacity(dark ? 0.16 : 0.09)))
+                        .buttonStyle(.toy)
+
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            pickingDay = true
+                        } label: {
+                            Label(L10n.t("换一天查看", "Pick Day"), systemImage: "calendar")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(.primary)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 9)
+                                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.fill))
+                        }
+                        .buttonStyle(.toy)
                     }
-                    .buttonStyle(.toy)
                 }
             }
             .padding(14)
@@ -604,17 +721,13 @@ struct LampHubView: View {
         .printCard(radius: Radius.card)
     }
 
-    private func handleTap(_ t: String) {
-        if t == LogType.growth {
-            measuring = Measure(at: Date().timeIntervalSince1970 * 1000)
-            return
-        }
-        if LogType.timed.contains(t) {
+    private func handleTap(_ t: String, day: Day, isToday: Bool) {
+        if isToday && LogType.timed.contains(t) {
             j.focus = t
             return
         }
         if t == LogType.bath {
-            _ = j.record(LogEntry(type: t, start: JournalFile.now()))
+            _ = j.record(LogEntry(type: t, start: defaultTimeForSelectedDay()))
             return
         }
         j.ask = t

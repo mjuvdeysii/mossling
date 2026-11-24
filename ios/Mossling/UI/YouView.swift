@@ -83,7 +83,7 @@ private struct StoryPhilosophyBanner: View {
     let companion: Kind
 
     var body: some View {
-        NavigationLink(value: Route.story) {
+        NavigationLink(value: StudioRoute.story) {
             HStack(spacing: 12) {
                 Duo(primary: companion, size: 52, mood: .open, poke: false, lit: dark)
                     .frame(width: 60, height: 52)
@@ -644,80 +644,157 @@ private struct PreferenceStudioCard: View {
     }
 }
 
-/// Transparent Editorial & Evidence Hub + Local Data Vault for Tab 4 (`工坊 / Studio`).
+/// Flat Single-Layer Editorial, Evidence, Legal & Support Hub for Tab 3 (`工坊 / Studio`) —
+/// zero redundant `AboutView` sub-menu duplicating parent entries.
 private struct TransparencyEditorialDock: View {
+    @Environment(AppModel.self) private var app
     let dark: Bool
+    @State private var replay = false
+    @State private var hops = 0
+    @State private var lampLit = false
+    @State private var openStory = false
 
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
+        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
 
-        VStack(alignment: .leading, spacing: 8) {
-            Text(L10n.t("透明循证 · 数据与版本", "Evidence, Privacy & Releases"))
-                .font(.caption.weight(.bold))
-                .foregroundStyle(Palette.secondaryText)
-                .padding(.leading, 4)
+        VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.t("透明循证与离线数据", "Evidence & Local Data"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .padding(.leading, 4)
 
-            VStack(spacing: 0) {
-                NavigationLink(value: Route.sources) {
-                    DataRow(
-                        title: L10n.t("循证内容来源", "Evidence & Sources"),
-                        detail: L10n.t("WHO · AAP · CDC · 国家卫健委标准引文", "Structured public health & pediatric citations"),
-                        symbol: "books.vertical.fill",
-                        color: Crayon.caramel
-                    )
+                VStack(spacing: 0) {
+                    NavigationLink(value: StudioRoute.sources) {
+                        DataRow(
+                            title: L10n.t("循证内容来源", "Evidence & Sources"),
+                            detail: L10n.t("WHO · AAP · CDC · 国家卫健委标准引文", "Structured public health & pediatric citations"),
+                            symbol: "books.vertical.fill",
+                            color: Crayon.caramel
+                        )
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    NavigationLink(value: StudioRoute.releaseNotes) {
+                        DataRow(
+                            title: L10n.t("版本更新志", "What's New"),
+                            detail: L10n.t("与当前版本 v\(v) 同步 · 产品更新说明", "Synced to v\(v) · parent-facing notes"),
+                            symbol: "sparkles.rectangle.stack.fill",
+                            color: Crayon.lilac
+                        )
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    NavigationLink(value: StudioRoute.doc("PRIVACY")) {
+                        DataRow(
+                            title: L10n.t("隐私政策与儿童保护", "Privacy & Children's Data"),
+                            detail: L10n.t("不收集数据 · 零网络访问 · 权限清单", "Zero tracking · offline storage · permissions"),
+                            symbol: "hand.raised.fill",
+                            color: Crayon.sky
+                        )
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    NavigationLink(value: StudioRoute.data) {
+                        DataRow(
+                            title: L10n.t("离线数据与备份", "Local Data & Backup"),
+                            detail: L10n.t("导出全量备份、健康摘要、清空或撤回同意", "Export backup, doctor summary, or erase all"),
+                            symbol: "externaldrive.fill",
+                            color: Crayon.teal
+                        )
+                    }
+                    .buttonStyle(.toy)
                 }
-                .buttonStyle(.toy)
-
-                Divider().padding(.leading, 52).opacity(0.45)
-
-                NavigationLink(value: Route.releaseNotes) {
-                    DataRow(
-                        title: L10n.t("版本更新志", "What's New"),
-                        detail: L10n.t("与当前版本 v\(v) 同步 · 产品更新说明", "Synced to v\(v) · parent-facing notes"),
-                        symbol: "sparkles.rectangle.stack.fill",
-                        color: Crayon.lilac
-                    )
-                }
-                .buttonStyle(.toy)
-
-                Divider().padding(.leading, 52).opacity(0.45)
-
-                NavigationLink(value: Route.doc("PRIVACY")) {
-                    DataRow(
-                        title: L10n.t("隐私政策与儿童保护", "Privacy & Children's Data"),
-                        detail: L10n.t("不收集数据 · 零网络访问 · 权限清单", "Zero tracking · offline storage · permissions"),
-                        symbol: "hand.raised.fill",
-                        color: Crayon.sky
-                    )
-                }
-                .buttonStyle(.toy)
-
-                Divider().padding(.leading, 52).opacity(0.45)
-
-                NavigationLink(value: Route.data) {
-                    DataRow(
-                        title: L10n.t("离线数据与备份", "Local Data & Backup"),
-                        detail: L10n.t("导出全量备份、健康摘要、清空或撤回同意", "Export backup, doctor summary, or erase all"),
-                        symbol: "externaldrive.fill",
-                        color: Crayon.teal
-                    )
-                }
-                .buttonStyle(.toy)
-
-                Divider().padding(.leading, 52).opacity(0.45)
-
-                NavigationLink(value: Route.about) {
-                    DataRow(
-                        title: L10n.t("关于、条款与免责", "About, Terms & Disclaimer"),
-                        detail: "v\(v)",
-                        symbol: "info.circle.fill",
-                        color: Crayon.pebble
-                    )
-                }
-                .buttonStyle(.toy)
+                .printCard(radius: Radius.card)
             }
-            .printCard(radius: Radius.card)
+
+            VStack(alignment: .leading, spacing: 8) {
+                Text(L10n.t("条款、致谢与帮助", "Terms, Licenses & Support"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(Palette.secondaryText)
+                    .padding(.leading, 4)
+
+                VStack(spacing: 0) {
+                    NavigationLink(value: StudioRoute.doc("TERMS")) {
+                        DataRow(title: L10n.t("使用条款", "Terms of Use"), symbol: "doc.text.fill", color: Crayon.pebble)
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    NavigationLink(value: StudioRoute.doc("DISCLAIMER")) {
+                        DataRow(title: L10n.t("免责声明", "Disclaimer"), symbol: "exclamationmark.shield.fill", color: Crayon.tangerine)
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    NavigationLink(value: StudioRoute.licenses) {
+                        DataRow(title: L10n.t("许可与致谢", "Licenses & Credits"), symbol: "checkmark.seal.fill", color: Crayon.aqua)
+                    }
+                    .buttonStyle(.toy)
+
+                    Divider().padding(.leading, 52).opacity(0.45)
+
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        Guide.replayNextLaunch()
+                        replay = true
+                    } label: {
+                        HStack(spacing: 10) {
+                            IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
+                            Text(replay
+                                 ? L10n.t("下次打开时将重新显示提示", "Tips will appear on next launch")
+                                 : L10n.t("重新显示使用提示", "Replay Tips"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(replay ? Palette.accent : .primary)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.toy)
+                    .disabled(replay)
+
+                    if let url = Owner.contactURL {
+                        Divider().padding(.leading, 52).opacity(0.45)
+                        Link(destination: url) {
+                            DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
+                        }
+                        .buttonStyle(.toy)
+                    }
+                }
+                .printCard(radius: Radius.card)
+            }
+
+            // Quiet Colophon Footer preserving the 3-tap companion Easter egg without adding another sub-screen
+            HStack(alignment: .bottom, spacing: 12) {
+                Duo(primary: app.companion, size: 46, cheer: hops, lit: lampLit)
+                    .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(L10n.t("\(L10n.appName) · 版本 \(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .monospacedDigit()
+                    if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
+                        Link(L10n.t("ICP备案号：\(icp)", "ICP Filing: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
+                            .font(.caption2.weight(.semibold))
+                    }
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
+            .padding(.top, 2)
         }
+        .navigationDestination(isPresented: $openStory) { StoryView() }
     }
 }
 
@@ -786,101 +863,6 @@ struct ProfileSheet: View {
 }
 
 private var stamp: String { let d = Day.today; return String(format: "%04d%02d%02d", d.y, d.m, d.d) }
-
-/// About, in the same calm PrintCard language as 我的: hero header (tap the pair three times for their story),
-/// content & documents, and help.
-struct AboutView: View {
-    @Environment(AppModel.self) private var app
-    @State private var replay = false
-    @State private var hops = 0
-    @State private var lamp = false
-    @State private var story = false
-    var body: some View {
-        let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? ""
-        let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? ""
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                HStack(alignment: .bottom, spacing: 14) {
-                    Duo(primary: app.companion, size: 64, cheer: hops, lit: lamp)
-                        .storyKnock(hops: $hops, lamp: $lamp) { story = true }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.appName).font(.title2.weight(.bold))
-                        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.accent)
-                        Text(L10n.t("Moss & Otto · 版本 \(v)（\(b)）", "Version \(v) (\(b))")).font(.caption).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                    }
-                    .padding(.bottom, 4)
-                    Spacer(minLength: 0)
-                }
-                .padding(.horizontal, 4).padding(.top, 2)
-
-                aboutGroup(L10n.t("内容与说明", "Content & Info")) {
-                    row(Route.story, L10n.t("摸索台灯的故事", "Our Story"), "lamp.desk.fill", Palette.bead)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.sources, L10n.t("内容来源", "Sources"), "books.vertical.fill", Crayon.caramel)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.releaseNotes, L10n.t("版本更新志", "What's New"), "clock.arrow.circlepath", Crayon.lilac)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.licenses, L10n.t("许可与致谢", "Licenses"), "checkmark.seal.fill", Crayon.aqua)
-                }
-
-                aboutGroup(L10n.t("条款与隐私", "Privacy & Terms")) {
-                    row(Route.doc("TERMS"), L10n.t("使用条款", "Terms of Use"), "doc.text.fill", Crayon.pebble)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("PRIVACY"), L10n.t("隐私政策", "Privacy Policy"), "hand.raised.fill", Crayon.sky)
-                    Divider().padding(.leading, 52).opacity(0.5)
-                    row(Route.doc("DISCLAIMER"), L10n.t("免责声明", "Disclaimer"), "exclamationmark.shield.fill", Crayon.tangerine)
-                }
-
-                aboutGroup(L10n.t("帮助", "Help")) {
-                    Button { Guide.replayNextLaunch(); replay = true } label: {
-                        HStack(spacing: 10) {
-                            IconTile(symbol: "lightbulb.fill", color: Crayon.sunflower, size: 28, round: true)
-                            Text(replay ? L10n.t("下次打开时将重新显示提示", "Tips will appear on next launch") : L10n.t("重新显示使用提示", "Replay Tips"))
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(replay ? Palette.accent : .primary)
-                            Spacer(minLength: 0)
-                        }
-                        .padding(.horizontal, 14).padding(.vertical, 11).contentShape(Rectangle())
-                    }
-                    .buttonStyle(.toy).disabled(replay)
-                    if let url = Owner.contactURL {
-                        Divider().padding(.leading, 52).opacity(0.5)
-                        Link(destination: url) {
-                            DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
-                        }
-                        .buttonStyle(.toy)
-                    }
-                }
-
-                if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                    Link(L10n.t("ICP备案号：\(icp)", "ICP Filing: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
-                        .font(.footnote.weight(.semibold))
-                        .padding(.horizontal, 6)
-                }
-            }
-            .padding(.horizontal, 16).padding(.vertical, 10).padding(.bottom, 28)
-        }
-        .calmWhileScrolling()
-        .pageBackground(tone: Crayon.lilac)
-        .navigationDestination(isPresented: $story) { StoryView() }
-        .navigationTitle(L10n.t("关于摸索台灯", "About Moss & Otto")).navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
-    }
-
-    private func aboutGroup<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text(title).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).padding(.leading, 6)
-                .accessibilityAddTraits(.isHeader)
-            VStack(spacing: 0) { content() }
-                .buttonStyle(.toy)
-                .printCard(radius: Radius.card)
-        }
-    }
-
-    private func row(_ r: Route, _ t: String, _ sym: String, _ c: Color) -> some View {
-        NavigationLink(value: r) { DataRow(title: t, symbol: sym, color: c) }
-    }
-}
 
 /// Three interactive theatrical chapters in 「摸索台灯的故事」.
 enum StoryTheaterAct: Int, CaseIterable, Identifiable, Sendable {
@@ -1045,7 +1027,6 @@ struct StoryView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Crayon.sunflower)
         .navigationTitle(L10n.t("摸索台灯的故事", "Our Story")).navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
     }
 
     @ViewBuilder
@@ -1592,7 +1573,6 @@ struct LicensesView: View {
         }
         .scrollContentBackground(.hidden).pageBackground()
         .navigationTitle(L10n.t("许可与致谢", "Licenses & Credits"))
-        .toolbar(.hidden, for: .tabBar)
     }
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
         VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }

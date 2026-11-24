@@ -204,6 +204,7 @@ struct DailyRhythmComparison: Sendable, Equatable {
 /// 5-stage 0–3 yr developmental evolution rail, and gentle factual alignment with the child's own logs.
 struct RhythmView: View {
     @Environment(AppModel.self) private var app
+    @Environment(AppRouter.self) private var router: AppRouter?
     @Environment(JournalStore.self) private var j
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
@@ -260,7 +261,6 @@ struct RhythmView: View {
         .pageBackground(tone: Crayon.tangerine)
         .navigationTitle(L10n.t("一天的节奏", "Daily Rhythm"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
-        .toolbar(.hidden, for: .tabBar)
         .sensoryFeedback(.selection, trigger: selectedStage)
     }
 
@@ -601,21 +601,36 @@ struct RhythmView: View {
 
             // Contextual bridge buttons
             FlowRow(spacing: 8, lineSpacing: 8) {
-                Button {
-                    TactileEngine.shared.beadClick()
-                    if let url = URL(string: "mossling://lamp") { openURL(url) }
-                } label: {
-                    Label(L10n.t("床头夜灯与声景", "Bedside Lamp"), systemImage: "lamp.desk.fill")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 7)
-                        .background(Capsule().fill(Palette.amber.opacity(dark ? 0.22 : 0.16)))
+                if let router {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        router.openBedsideLamp()
+                    } label: {
+                        Label(L10n.t("床头夜灯与声景", "Bedside Lamp"), systemImage: "lamp.desk.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Palette.amber.opacity(dark ? 0.22 : 0.16)))
+                    }
+                    .buttonStyle(.toy)
+                } else {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        if let url = URL(string: "mossling://lamp") { openURL(url) }
+                    } label: {
+                        Label(L10n.t("床头夜灯与声景", "Bedside Lamp"), systemImage: "lamp.desk.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
+                            .padding(.horizontal, 11)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Palette.amber.opacity(dark ? 0.22 : 0.16)))
+                    }
+                    .buttonStyle(.toy)
                 }
-                .buttonStyle(.toy)
 
                 if app.journal {
-                    NavigationLink(value: JournalRoute.stats) {
+                    NavigationLink(value: LampRoute.stats) {
                         Label(L10n.t("查看 7 天节律盘", "Open 7d Rhythm Dial"), systemImage: "dial.medium.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(ink)
@@ -716,7 +731,15 @@ struct RhythmView: View {
                 .fixedSize(horizontal: false, vertical: true)
 
             FlowRow(spacing: 8, lineSpacing: 8) {
-                NavigationLink(value: Route.toybox(selectedStage == .newborn ? .contrast : .xylophone)) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    let mode: ToyboxMode = selectedStage == .newborn ? .contrast : .xylophone
+                    if let router {
+                        router.openExplore(.toybox(mode))
+                    } else if let url = URL(string: "mossling://toybox/\(mode.rawValue)") {
+                        openURL(url)
+                    }
+                } label: {
                     Label(
                         selectedStage == .newborn ? L10n.t("打开黑白视卡", "Open Contrast Cards") : L10n.t("打开感官玩具盒", "Open Sensory Toybox"),
                         systemImage: selectedStage == .newborn ? "circle.lefthalf.filled" : "music.note"

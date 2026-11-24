@@ -1,10 +1,10 @@
 import SwiftUI
 
 /// A11 (Passing Hand to Hand · 3 Steps):
-/// Circular woven cushion viewed from 3/4 high angle with vertical stitched midline seam and an
-/// hourglass-waisted maple & sage/amber transfer rattle: Step 0: Offer within reach ->
-/// Step 1: Smooth figure-8 midline transfer arc (-38 deg <-> +38 deg) with sparkle contact ->
-/// Step 2: Otto steps gently back so baby rotates freely without nudging.
+/// Moss sits on the LEFT-CENTER on a real elliptical stitched woven cushion; Otto stands calmly on the RIGHT:
+/// Step 0: Rattle slides smoothly along the cushion within easy reach from Otto's side ->
+/// Step 1: Foreground hourglass maple rattle passes cleanly across Moss's chest midline ->
+/// Step 2: Otto steps calmly back without urging as Moss freely tilts and explores the rattle.
 struct SceneA11_HandToHandTransfer: View {
     let ctx: BespokeSceneContext
 
@@ -23,69 +23,69 @@ struct SceneA11_HandToHandTransfer: View {
             let os = ms * Kind.otto.scale
             let groundY = h * 0.855
 
-            let ottoX = w * (step == 2 ? 0.21 : 0.23)
-            let mossX = w * 0.65
+            let mossX = w * 0.35
+            let ottoX = w * (step == 2 ? 0.80 : 0.75)
 
-            // Hourglass rattle traverses right across Moss's midline seam
+            // Foreground hourglass rattle: grounded slide -> chest midline transfer -> gentle free tilt
             let rattlePos: CGPoint = {
-                let leftSpot = CGPoint(x: mossX - w * 0.145, y: groundY - s * 0.08)
-                let midSpot = CGPoint(x: mossX, y: groundY - s * 0.14)
-                let rightSpot = CGPoint(x: mossX + w * 0.145, y: groundY - s * 0.08)
+                let rightChest = CGPoint(x: mossX + w * 0.105, y: groundY - ms * 0.24)
+                let leftChest = CGPoint(x: mossX - w * 0.105, y: groundY - ms * 0.24)
+                let matRight = CGPoint(x: mossX + w * 0.24, y: groundY - s * 0.036)
                 switch step {
                 case 0:
                     let t = CGFloat(p.action)
                     return CGPoint(
-                        x: w * 0.37 + (leftSpot.x - w * 0.37) * t,
-                        y: groundY - s * 0.04 - CGFloat(sin(Double(t) * .pi) * 14.0)
+                        x: matRight.x + (mossX + w * 0.10 - matRight.x) * t,
+                        y: matRight.y - CGFloat(sin(Double(t) * .pi) * s * 0.025)
                     )
                 case 1:
                     let arc = p.action
-                    let x = leftSpot.x + (rightSpot.x - leftSpot.x) * CGFloat(arc)
-                    let y = leftSpot.y - CGFloat(sin(arc * .pi)) * s * 0.11
+                    let x = rightChest.x + (leftChest.x - rightChest.x) * CGFloat(arc)
+                    let y = rightChest.y - CGFloat(sin(arc * .pi)) * s * 0.045
                     return CGPoint(x: x, y: y)
                 default:
-                    let sway = CGFloat(sin(p.raw * .pi * 2.0) * 12.0)
-                    return CGPoint(x: midSpot.x + sway, y: groundY - s * 0.075)
+                    let sway = CGFloat(sin(p.raw * .pi * 2.0) * 8.0)
+                    return CGPoint(x: mossX + sway, y: groundY - s * 0.055)
                 }
             }()
 
             let rattleAngle: Double = {
                 switch step {
-                case 0: return -24.0 * (1.0 - p.action)
-                case 1: return -38.0 + 76.0 * p.action
-                default: return sin(p.raw * .pi * 2.0) * 28.0
+                case 0: return 18.0 * (1.0 - p.action)
+                case 1: return 28.0 - 56.0 * p.action
+                default: return sin(p.raw * .pi * 2.0) * 14.0
                 }
             }()
 
             let ottoLean: Double = {
                 switch step {
-                case 0: return 9.0 * p.action
-                case 1: return 2.5
-                default: return -3.5
+                case 0: return -9.0 * p.action
+                case 1: return -2.5
+                default: return 4.0
                 }
             }()
             let mossLean: Double = {
                 switch step {
-                case 0: return -4.0 * p.action
-                case 1: return -6.0 + 12.0 * p.action
-                default: return sin(p.raw * .pi * 2.0) * 4.0
+                case 0: return 4.0 * p.action
+                case 1: return 5.5 - 11.0 * p.action
+                default: return sin(p.raw * .pi * 2.0) * 3.5
                 }
             }()
 
-            let dx = max(-1.0, min(1.0, Double((rattlePos.x - w * mossX / max(1, w)) / max(1, w * 0.25))))
-            let mossLook = CGPoint(x: dx, y: 0.38)
-            let ottoLook = CGPoint(x: 0.78, y: 0.18)
+            let dx = max(-1.0, min(1.0, Double((rattlePos.x - mossX) / max(1, w * 0.25))))
+            let mossLook = CGPoint(x: dx, y: 0.34)
+            let ottoLook = CGPoint(x: -0.78, y: 0.20)
 
             let mossMood: Mood = step == 1 ? (p.isContactWindow ? .happy : .wow) : (step == 2 ? .happy : .open)
             let ottoMood: Mood = step == 2 ? .open : .happy
 
-            let ottoCenter = CGPoint(
-                x: ottoX,
-                y: BespokeStageHelpers.actorCenterY(kind: .otto, size: os, groundY: groundY, flat: flat)
-            )
             let mossCenter = CGPoint(
                 x: mossX,
                 y: BespokeStageHelpers.actorCenterY(kind: .moss, size: ms, groundY: groundY, flat: flat)
+            )
+            let ottoCenter = CGPoint(
+                x: ottoX,
+                y: BespokeStageHelpers.actorCenterY(kind: .otto, size: os, groundY: groundY, flat: flat)
             )
 
             let ottoState = Creature.state(.otto, face: ottoMood, look: ottoLook, lid: dark ? 0.40 : 0.24, hopping: false, yawning: false)
@@ -99,7 +99,64 @@ struct SceneA11_HandToHandTransfer: View {
 
             ZStack {
                 Canvas(rendersAsynchronously: false) { c, size in
-                    drawMidlineCushionAndRattle(
+                    drawCushionStageBackground(
+                        in: &c,
+                        w: size.width,
+                        h: size.height,
+                        mossX: mossX,
+                        groundY: groundY,
+                        step: step,
+                        flat: flat,
+                        dark: dark
+                    )
+                }
+
+                LampLightRig(
+                    beadPos: beadWorld,
+                    targetPoint: rattlePos,
+                    phase: p,
+                    dark: dark,
+                    flat: flat,
+                    layer: .floorPool
+                )
+
+                StoryTheaterActorView(
+                    kind: .moss,
+                    size: ms,
+                    mood: mossMood,
+                    look: mossLook,
+                    lid: dark ? 0.16 : 0,
+                    lean: mossLean,
+                    breathTime: ctx.breathTime,
+                    isStatic: ctx.isStatic,
+                    dark: dark,
+                    flat: flat,
+                    compact: ctx.compact,
+                    lightDirection: CGPoint(x: -0.78, y: -0.62),
+                    secondaryLagDegrees: -mossLean * 0.45
+                )
+                .position(mossCenter)
+
+                StoryTheaterActorView(
+                    kind: .otto,
+                    size: os,
+                    mood: ottoMood,
+                    look: ottoLook,
+                    lid: dark ? 0.40 : 0.24,
+                    lean: ottoLean,
+                    breathTime: ctx.breathTime,
+                    isStatic: ctx.isStatic,
+                    dark: dark,
+                    flat: flat,
+                    compact: ctx.compact,
+                    lightDirection: CGPoint(x: -0.78, y: -0.62),
+                    secondaryLagDegrees: -ottoLean * 0.30
+                )
+                .position(ottoCenter)
+
+                // Foreground layer in front of Moss's torso so chest midline transfer occludes naturally
+                Canvas(rendersAsynchronously: false) { c, size in
+                    drawForegroundRattleAndCues(
                         in: &c,
                         w: size.width,
                         h: size.height,
@@ -120,49 +177,6 @@ struct SceneA11_HandToHandTransfer: View {
                     phase: p,
                     dark: dark,
                     flat: flat,
-                    layer: .floorPool
-                )
-
-                StoryTheaterActorView(
-                    kind: .otto,
-                    size: os,
-                    mood: ottoMood,
-                    look: ottoLook,
-                    lid: dark ? 0.40 : 0.24,
-                    lean: ottoLean,
-                    breathTime: ctx.breathTime,
-                    isStatic: ctx.isStatic,
-                    dark: dark,
-                    flat: flat,
-                    compact: ctx.compact,
-                    lightDirection: CGPoint(x: 0.78, y: -0.62),
-                    secondaryLagDegrees: -ottoLean * 0.30
-                )
-                .position(ottoCenter)
-
-                StoryTheaterActorView(
-                    kind: .moss,
-                    size: ms,
-                    mood: mossMood,
-                    look: mossLook,
-                    lid: dark ? 0.16 : 0,
-                    lean: mossLean,
-                    breathTime: ctx.breathTime,
-                    isStatic: ctx.isStatic,
-                    dark: dark,
-                    flat: flat,
-                    compact: ctx.compact,
-                    lightDirection: CGPoint(x: 0.78, y: -0.62),
-                    secondaryLagDegrees: -mossLean * 0.48
-                )
-                .position(mossCenter)
-
-                LampLightRig(
-                    beadPos: beadWorld,
-                    targetPoint: rattlePos,
-                    phase: p,
-                    dark: dark,
-                    flat: flat,
                     layer: .airCone
                 )
                 .blendMode(dark ? .plusLighter : .normal)
@@ -170,16 +184,13 @@ struct SceneA11_HandToHandTransfer: View {
         }
     }
 
-    private func drawMidlineCushionAndRattle(
+    private func drawCushionStageBackground(
         in ctx: inout GraphicsContext,
         w: CGFloat,
         h: CGFloat,
         mossX: CGFloat,
         groundY: CGFloat,
-        rattlePos: CGPoint,
-        rattleAngle: Double,
         step: Int,
-        p: LivingPhaseSample,
         flat: Bool,
         dark: Bool
     ) {
@@ -194,55 +205,92 @@ struct SceneA11_HandToHandTransfer: View {
             dark: dark
         )
 
-        // Circular woven cushion centered around Moss's midline workspace
-        let matRect = CGRect(x: -6, y: h * 0.73, width: w + 12, height: h * 0.29)
+        let s = min(w, h)
+        let floorRect = CGRect(x: -6, y: h * 0.73, width: w + 12, height: h * 0.29)
         ctx.fill(
-            Path(matRect),
+            Path(floorRect),
             with: .linearGradient(
                 Gradient(colors: [
-                    dark ? Color(hex: 0x203048) : Color(hex: 0xF3EBDA),
-                    dark ? Color(hex: 0x141F32) : Color(hex: 0xD9CEB8)
+                    dark ? Color(hex: 0x1D2B42) : Color(hex: 0xEFE6D4),
+                    dark ? Color(hex: 0x131D2E) : Color(hex: 0xD8CCB6)
                 ]),
                 startPoint: CGPoint(x: w * 0.5, y: h * 0.73),
                 endPoint: CGPoint(x: w * 0.5, y: h)
             )
         )
 
-        // Subtle dashed midline axis in front of Moss
+        // Elliptical stitched circular woven cushion centered cleanly around Moss
+        let cushionRect = CGRect(x: mossX - w * 0.24, y: groundY - s * 0.075, width: w * 0.48, height: s * 0.145)
+        let cushionPath = Path(ellipseIn: cushionRect)
+        PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: mossX, y: cushionRect.maxY + 1), rx: cushionRect.width * 0.48, ry: 4.5, dark: dark)
+        if flat {
+            GhibliDrawHelpers.fillWatercolor(
+                in: &ctx,
+                path: cushionPath,
+                bounds: cushionRect,
+                light: dark ? Color(hex: 0x2B415B) : Color(hex: 0xF7EFE0),
+                rich: dark ? Color(hex: 0x1E2F44) : Color(hex: 0xE2D3B8),
+                pencilOutline: (dark ? Color(hex: 0x5B7B9C) : Crayon.caramel).opacity(0.55),
+                lineWidth: 1.1
+            )
+        } else {
+            ctx.fill(cushionPath, with: .color(dark ? Color(hex: 0x263952) : Color(hex: 0xF4EAD6)))
+            ctx.stroke(
+                Path(ellipseIn: cushionRect.insetBy(dx: 4, dy: 3)),
+                with: .color((dark ? Palette.amber : Crayon.caramel).opacity(0.45)),
+                style: StrokeStyle(lineWidth: 1.2, dash: [4, 4])
+            )
+        }
+
+        // Midline stitched axis right down Moss's center
         var seam = Path()
-        seam.move(to: CGPoint(x: mossX, y: h * 0.74))
-        seam.addLine(to: CGPoint(x: mossX, y: groundY + 12))
+        seam.move(to: CGPoint(x: mossX, y: cushionRect.minY + 3))
+        seam.addLine(to: CGPoint(x: mossX, y: cushionRect.maxY - 3))
         ctx.stroke(
             seam,
-            with: .color((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.35 : 0.40)),
-            style: StrokeStyle(lineWidth: 1.4, dash: [4, 4])
+            with: .color((dark ? Palette.amber : Crayon.caramel).opacity(dark ? 0.42 : 0.46)),
+            style: StrokeStyle(lineWidth: 1.3, dash: [3, 3])
         )
+    }
 
-        // Step 1 transfer arc preview trail
+    private func drawForegroundRattleAndCues(
+        in ctx: inout GraphicsContext,
+        w: CGFloat,
+        h: CGFloat,
+        mossX: CGFloat,
+        groundY: CGFloat,
+        rattlePos: CGPoint,
+        rattleAngle: Double,
+        step: Int,
+        p: LivingPhaseSample,
+        flat: Bool,
+        dark: Bool
+    ) {
+        let s = min(w, h)
         if step == 1 {
             var trail = Path()
-            let leftX = mossX - w * 0.145
-            let rightX = mossX + w * 0.145
-            let baseY = groundY - min(w, h) * 0.08
-            trail.move(to: CGPoint(x: leftX, y: baseY))
+            let rightX = mossX + w * 0.105
+            let leftX = mossX - w * 0.105
+            let baseY = groundY - s * 0.088
+            trail.move(to: CGPoint(x: rightX, y: baseY))
             trail.addQuadCurve(
-                to: CGPoint(x: rightX, y: baseY),
-                control: CGPoint(x: mossX, y: baseY - min(w, h) * 0.20)
+                to: CGPoint(x: leftX, y: baseY),
+                control: CGPoint(x: mossX, y: baseY - s * 0.06)
             )
             ctx.stroke(
                 trail,
                 with: .color(Palette.amber.opacity(dark ? 0.45 : 0.38)),
-                style: StrokeStyle(lineWidth: 1.8, dash: [5, 5])
+                style: StrokeStyle(lineWidth: 1.8, dash: [4, 4])
             )
         }
 
-        // Hourglass-waisted beechwood transfer rattle
-        let len = min(w, h) * 0.115
+        let len = s * 0.11
+        let aoScale = step == 1 ? 0.55 : 0.90
         PixarDrawHelpers.drawContactAO(
             in: &ctx,
-            center: CGPoint(x: rattlePos.x, y: groundY + 2),
-            rx: len * 0.46,
-            ry: len * 0.16,
+            center: CGPoint(x: rattlePos.x, y: groundY + 1),
+            rx: len * 0.44 * aoScale,
+            ry: len * 0.14 * aoScale,
             dark: dark
         )
 
@@ -280,16 +328,16 @@ struct SceneA11_HandToHandTransfer: View {
         if step == 1 {
             BespokeStageHelpers.drawContactSparkles(
                 in: &ctx,
-                center: CGPoint(x: mossX, y: groundY - min(w, h) * 0.15),
+                center: CGPoint(x: mossX, y: groundY - s * 0.12),
                 pulse: p.contact,
-                radius: min(w, h) * 0.095,
+                radius: s * 0.095,
                 color: Palette.amber
             )
         } else if step == 2 {
             BespokeStageHelpers.drawPauseHalo(
                 in: &ctx,
-                center: CGPoint(x: mossX, y: groundY - min(w, h) * 0.08),
-                baseRadius: min(w, h) * 0.12,
+                center: CGPoint(x: mossX, y: groundY - s * 0.06),
+                baseRadius: s * 0.115,
                 progress: p.raw,
                 tint: Crayon.leaf,
                 dark: dark

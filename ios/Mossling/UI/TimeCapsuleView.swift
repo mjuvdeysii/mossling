@@ -83,7 +83,6 @@ struct TimeCapsuleListView: View {
         .pageBackground(tone: Crayon.caramel)
         .navigationTitle(L10n.t("时光胶囊信笺", "Time Capsules"))
         .navigationBarTitleDisplayMode(.large)
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button {

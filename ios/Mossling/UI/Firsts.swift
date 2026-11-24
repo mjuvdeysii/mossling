@@ -488,7 +488,6 @@ struct FirstsView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Palette.bead)
         .navigationTitle(L10n.t("第一次", "Firsts"))
-        .toolbar(.hidden, for: .tabBar)
         .toolbar {
             if !j.firsts.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -1064,7 +1063,7 @@ struct FirstStamps: View {
             Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
             WrapLayout(spacing: 6) {
                 ForEach(firsts) { f in
-                    NavigationLink(value: JournalRoute.firsts) {
+                    NavigationLink(value: KeepsakesRoute.firsts) {
                         HStack(spacing: 6) {
                             FirstCharmBadge(key: f.key, color: Firsts.color(f), size: 20)
                             Text(Firsts.displayTitle(f)).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)

@@ -38,6 +38,8 @@ struct BespokeSceneMetadata: Sendable {
     let posterPhases: [Double]
     let audioAnchors: [LivingAudioAnchor]
     let lightKeyNormalized: CGPoint
+    let ottoBeadNormalized: CGPoint
+    let propTargetNormalized: CGPoint
     let komorebiStrength: Double
 }
 
@@ -57,6 +59,23 @@ enum BespokeActivitySceneRegistry {
         return metadata(for: id)
     }
 
+    static func lightAnchors(for id: BespokeActivityID, step: Int, stageSize: CGSize) -> (key: CGPoint, bead: CGPoint, target: CGPoint) {
+        let meta = metadata(for: id)
+        let w = stageSize.width
+        let h = stageSize.height
+        var targetNorm = meta.propTargetNormalized
+        if id == .a13 {
+            targetNorm = CGPoint(x: step >= 2 ? 0.59 : 0.40, y: meta.propTargetNormalized.y)
+        } else if id == .a14 {
+            targetNorm = CGPoint(x: step == 0 ? 0.48 : 0.53, y: meta.propTargetNormalized.y)
+        }
+        return (
+            key: CGPoint(x: w * meta.lightKeyNormalized.x, y: h * meta.lightKeyNormalized.y),
+            bead: CGPoint(x: w * meta.ottoBeadNormalized.x, y: h * meta.ottoBeadNormalized.y),
+            target: CGPoint(x: w * targetNorm.x, y: h * targetNorm.y)
+        )
+    }
+
     static func metadata(for id: BespokeActivityID) -> BespokeSceneMetadata {
         switch id {
         case .n01:
@@ -67,6 +86,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.54, 0.62],
                 audioAnchors: [.softChime, .none, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.31, y: 0.43),
+                propTargetNormalized: CGPoint(x: 0.68, y: 0.64),
                 komorebiStrength: 0.72
             )
         case .n02:
@@ -77,6 +98,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.55, 0.64],
                 audioAnchors: [.softChime, .none],
                 lightKeyNormalized: CGPoint(x: 0.22, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.31, y: 0.42),
+                propTargetNormalized: CGPoint(x: 0.70, y: 0.62),
                 komorebiStrength: 0.85
             )
         case .n03:
@@ -87,6 +110,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.52, 0.58],
                 audioAnchors: [.clothSwish, .none],
                 lightKeyNormalized: CGPoint(x: 0.70, y: 0.20),
+                ottoBeadNormalized: CGPoint(x: 0.37, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.62, y: 0.64),
                 komorebiStrength: 0.52
             )
         case .n04:
@@ -97,6 +122,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.62],
                 audioAnchors: [.clothSwish, .none, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.80, y: 0.12),
+                ottoBeadNormalized: CGPoint(x: 0.71, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.44, y: 0.66),
                 komorebiStrength: 0.82
             )
         case .n05:
@@ -107,6 +134,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.55, 0.64],
                 audioAnchors: [.clothSwish, .none],
                 lightKeyNormalized: CGPoint(x: 0.26, y: 0.18),
+                ottoBeadNormalized: CGPoint(x: 0.33, y: 0.40),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.70),
                 komorebiStrength: 0.68
             )
         case .n06:
@@ -117,6 +146,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.64],
                 audioAnchors: [.woodTap, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.24, y: 0.22),
+                ottoBeadNormalized: CGPoint(x: 0.27, y: 0.40),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.74),
                 komorebiStrength: 0.58
             )
         case .a01:
@@ -127,6 +158,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.52, 0.50, 0.60],
                 audioAnchors: [.none, .softChime, .none, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.74, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.27, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.73, y: 0.64),
                 komorebiStrength: 0.78
             )
         case .a02:
@@ -137,6 +170,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.62],
                 audioAnchors: [.softChime, .none, .clothSwish],
                 lightKeyNormalized: CGPoint(x: 0.76, y: 0.18),
+                ottoBeadNormalized: CGPoint(x: 0.27, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.60),
                 komorebiStrength: 0.70
             )
         case .a03:
@@ -147,6 +182,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.52, 0.56, 0.60],
                 audioAnchors: [.none, .clothSwish, .softChime, .woodTap],
                 lightKeyNormalized: CGPoint(x: 0.80, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.25, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.64, y: 0.66),
                 komorebiStrength: 0.86
             )
         case .a04:
@@ -157,6 +194,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.52, 0.60],
                 audioAnchors: [.woodTap, .none, .woodTap],
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.74, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.26, y: 0.64),
                 komorebiStrength: 0.84
             )
         case .a05:
@@ -167,6 +206,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.52, 0.58],
                 audioAnchors: [.softChime, .none],
                 lightKeyNormalized: CGPoint(x: 0.24, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.24, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.56, y: 0.62),
                 komorebiStrength: 0.80
             )
         case .a06:
@@ -177,6 +218,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.54, 0.54, 0.58, 0.55],
                 audioAnchors: [.clothSwish, .none, .softChime, .none, .clothSwish],
                 lightKeyNormalized: CGPoint(x: 0.52, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.27, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.68),
                 komorebiStrength: 0.72
             )
         case .a07:
@@ -187,6 +230,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.52, 0.58, 0.60],
                 audioAnchors: [.softChime, .woodTap, .none, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.80, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.30, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.66, y: 0.62),
                 komorebiStrength: 0.82
             )
         case .a08:
@@ -197,6 +242,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.55, 0.54, 0.60],
                 audioAnchors: [.clothSwish, .clothSwish, .none, .none],
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.26, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.76),
                 komorebiStrength: 0.74
             )
         case .a09:
@@ -207,6 +254,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.52, 0.58, 0.54, 0.60],
                 audioAnchors: [.none, .vinylPop, .softChime, .none],
                 lightKeyNormalized: CGPoint(x: 0.50, y: 0.12),
+                ottoBeadNormalized: CGPoint(x: 0.30, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.44),
                 komorebiStrength: 0.76
             )
         case .a10:
@@ -217,6 +266,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.58, 0.62],
                 audioAnchors: [.none, .softChime, .none],
                 lightKeyNormalized: CGPoint(x: 0.76, y: 0.12),
+                ottoBeadNormalized: CGPoint(x: 0.29, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.60, y: 0.32),
                 komorebiStrength: 0.92
             )
         case .a11:
@@ -227,6 +278,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.55, 0.60],
                 audioAnchors: [.woodTap, .softChime, .none],
                 lightKeyNormalized: CGPoint(x: 0.74, y: 0.15),
+                ottoBeadNormalized: CGPoint(x: 0.77, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.36, y: 0.76),
                 komorebiStrength: 0.78
             )
         case .a12:
@@ -237,6 +290,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.58, 0.56, 0.60],
                 audioAnchors: [.clothSwish, .vinylPop, .none],
                 lightKeyNormalized: CGPoint(x: 0.72, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.31, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.68, y: 0.64),
                 komorebiStrength: 0.76
             )
         case .a13:
@@ -247,6 +302,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.52, 0.58, 0.60],
                 audioAnchors: [.woodTap, .none, .woodTap, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.76, y: 0.15),
+                ottoBeadNormalized: CGPoint(x: 0.26, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.76),
                 komorebiStrength: 0.80
             )
         case .a14:
@@ -257,6 +314,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.56, 0.60],
                 audioAnchors: [.woodTap, .vinylPop, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.25, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
                 komorebiStrength: 0.78
             )
         case .a15:
@@ -267,6 +326,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.56, 0.62],
                 audioAnchors: [.clothSwish, .woodTap, .vinylPop],
                 lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.23, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
                 komorebiStrength: 0.86
             )
         case .a16:
@@ -277,6 +338,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.54, 0.60],
                 audioAnchors: [.none, .softChime, .none, .woodTap],
                 lightKeyNormalized: CGPoint(x: 0.26, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.24, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.72, y: 0.38),
                 komorebiStrength: 0.80
             )
         case .a17:
@@ -287,6 +350,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.55, 0.56, 0.62],
                 audioAnchors: [.softChime, .softChime, .vinylPop],
                 lightKeyNormalized: CGPoint(x: 0.74, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.29, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.69, y: 0.64),
                 komorebiStrength: 0.82
             )
         case .a18:
@@ -297,6 +362,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.60],
                 audioAnchors: [.clothSwish, .vinylPop, .clothSwish],
                 lightKeyNormalized: CGPoint(x: 0.50, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.26, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
                 komorebiStrength: 0.78
             )
         case .a19:
@@ -307,6 +374,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.56, 0.58, 0.64],
                 audioAnchors: [.woodTap, .woodTap, .vinylPop],
                 lightKeyNormalized: CGPoint(x: 0.78, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.76, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.48, y: 0.72),
                 komorebiStrength: 0.80
             )
         case .a20:
@@ -317,6 +386,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.62],
                 audioAnchors: [.clothSwish, .clothSwish, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.26, y: 0.15),
+                ottoBeadNormalized: CGPoint(x: 0.24, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.70),
                 komorebiStrength: 0.82
             )
         case .a21:
@@ -327,6 +398,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.60],
                 audioAnchors: [.woodTap, .softChime, .vinylPop],
                 lightKeyNormalized: CGPoint(x: 0.50, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.24, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.51, y: 0.78),
                 komorebiStrength: 0.76
             )
         case .a22:
@@ -337,6 +410,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.55, 0.56, 0.62],
                 audioAnchors: [.woodTap, .clothSwish, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.74, y: 0.15),
+                ottoBeadNormalized: CGPoint(x: 0.24, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.52, y: 0.78),
                 komorebiStrength: 0.78
             )
         case .a23:
@@ -347,6 +422,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.62],
                 audioAnchors: [.clothSwish, .softChime, .clothSwish],
                 lightKeyNormalized: CGPoint(x: 0.28, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.26, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
                 komorebiStrength: 0.74
             )
         case .a24:
@@ -357,6 +434,8 @@ enum BespokeActivitySceneRegistry {
                 posterPhases: [0.54, 0.56, 0.62, 0.60],
                 audioAnchors: [.woodTap, .clothSwish, .vinylPop, .softChime],
                 lightKeyNormalized: CGPoint(x: 0.76, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.77, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.48, y: 0.74),
                 komorebiStrength: 0.82
             )
         }
@@ -365,11 +444,7 @@ enum BespokeActivitySceneRegistry {
     @ViewBuilder
     static func stageView(id: BespokeActivityID, context: BespokeSceneContext) -> some View {
         let meta = metadata(for: id)
-        let w = context.stageSize.width
-        let h = context.stageSize.height
-        let keyPt = CGPoint(x: w * meta.lightKeyNormalized.x, y: h * meta.lightKeyNormalized.y)
-        let beadDefault = CGPoint(x: w * 0.30, y: h * 0.44)
-        let targetDefault = CGPoint(x: w * 0.66, y: h * 0.64)
+        let anchors = lightAnchors(for: id, step: context.stepIndex, stageSize: context.stageSize)
 
         ZStack {
             rawScene(id: id, context: context)
@@ -390,9 +465,9 @@ enum BespokeActivitySceneRegistry {
         .modifier(
             PixarStageGrade(
                 stageSize: context.stageSize,
-                keyPos: keyPt,
-                beadPos: beadDefault,
-                targetPos: targetDefault,
+                keyPos: anchors.key,
+                beadPos: anchors.bead,
+                targetPos: anchors.target,
                 time: context.breathTime,
                 dark: context.dark,
                 keyIntensity: context.dark ? 0.92 : 1.0,

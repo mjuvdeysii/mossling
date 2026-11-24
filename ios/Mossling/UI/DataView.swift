@@ -113,7 +113,6 @@ struct DataView: View {
         }
         .scrollContentBackground(.hidden).pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("数据", "Data")).navigationBarTitleDisplayMode(.inline)
-        .toolbar(.hidden, for: .tabBar)
         .confirmationDialog(L10n.t("清除这台手机上的全部数据？", "Clear all data on this iPhone?"), isPresented: $clearing, titleVisibility: .visible) {
             Button(L10n.t("全部清除", "Clear all"), role: .destructive) { app.clearAll(); j.reload(); saved = nil }
         } message: { Text(L10n.t("包括孩子资料、全部记录、设置和「导出」文件夹里的文件。清除后无法恢复。", "This includes your child's profile, all records, settings, and exported files. This cannot be undone.")) }
