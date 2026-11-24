@@ -549,39 +549,7 @@ struct NotesView: View {
     }
 }
 
-/// The day's rhythm: sleep, activity and screens, as the WHO guideline puts it for this age.
-struct RhythmView: View {
-    @Environment(AppModel.self) private var app
-    let month: Int
-    var body: some View {
-        let mo = app.content.month(month)
-        let parts = mo.who.replacingOccurrences(of: "WHO", with: "").split(whereSeparator: { $0 == "；" || $0 == ";" })
-            .map { $0.trimmingCharacters(in: .whitespaces).trimmingCharacters(in: CharacterSet(charactersIn: "。")) }.filter { !$0.isEmpty }
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                ForEach(Array(parts.enumerated()), id: \.offset) { _, t in
-                    let low = t.lowercased()
-                    let (sym, col, name): (String, Color, String) =
-                        (t.contains("睡") || low.contains("sleep")) ? ("moon.zzz.fill", Crayon.lilac, L10n.t("睡眠", "Sleep"))
-                        : (t.contains("屏幕") || low.contains("screen")) ? ("iphone", Crayon.pebble, L10n.t("屏幕", "Screens"))
-                        : (t.contains("活动") || t.contains("趴") || t.contains("坐") || t.contains("久") || low.contains("active") || low.contains("activity") || low.contains("tummy") || low.contains("restrain") || low.contains("sit"))
-                            ? ("figure.walk", Crayon.tangerine, L10n.t("活动", "Activity"))
-                        : ("clock.fill", Crayon.aqua, L10n.t("节奏", "Rhythm"))
-                    Card(title: name, symbol: sym, color: col) { Text(t).font(.body).fixedSize(horizontal: false, vertical: true) }
-                }
-                Text(L10n.t(
-                    "依据世界卫生组织《5 岁以下儿童身体活动、久坐行为和睡眠指南》（2019）。",
-                    "Based on WHO Guidelines on Physical Activity, Sedentary Behaviour and Sleep for Children Under 5 Years of Age (2019)."
-                )).font(.footnote).foregroundStyle(Palette.secondaryText).padding(.horizontal, 16)
-            }
-            .padding(.horizontal, 16).padding(.bottom, 32)
-        }
-        .pageBackground()
-        .navigationTitle(L10n.t("一天的节奏", "Daily Rhythm"))
-        .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
-        .toolbar(.hidden, for: .tabBar)
-    }
-}
+// RhythmView moved to DailyRhythmStudio.swift (24-hour tactile circadian loom & 5-stage evolution)
 
 /// A play in the month's grid: its first picture, its name, its age.
 struct PlayTile: View {

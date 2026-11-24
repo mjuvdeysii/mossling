@@ -1595,4 +1595,38 @@ final class ScreenshotTests: XCTestCase {
         shot("59_today_journey_passport_en", height: 1260, tabs(mEn, TodayView(path: .constant(NavigationPath()))))
         shot("59_you_studio_en", height: 1080, tabs(mEn, YouView(path: .constant(NavigationPath()))))
     }
+
+    /// Daily Rhythm Studio: 24-hour circadian bead loom, 5-stage 0–3 yr evolution rail,
+    /// and gentle comparison with logged 7-day sleep across Day / Lamp / EN.
+    func test60DailyRhythmStudio() {
+        let m = model(); m.journal = true
+        let today = m.today
+
+        var body = JournalFile.Body()
+        for back in 0..<5 {
+            let d = today.plus(days: -back)
+            let wakeMs = Day.cal.date(bySettingHour: 7, minute: 0, second: 0, of: d.date)!.timeIntervalSince1970 * 1000
+            let napMs = Day.cal.date(bySettingHour: 13, minute: 15, second: 0, of: d.date)!.timeIntervalSince1970 * 1000
+            body.logs.append(LogEntry(type: LogType.sleep, start: wakeMs - 11 * 3_600_000, end: wakeMs))
+            body.logs.append(LogEntry(type: LogType.sleep, start: napMs, end: napMs + 105 * 60_000))
+        }
+        let playMs = Day.cal.date(bySettingHour: 10, minute: 30, second: 0, of: today.date)!.timeIntervalSince1970 * 1000
+        body.logs.append(LogEntry(type: LogType.play, start: playMs, detail: "A11"))
+        let liveJournal = JournalStore(preview: body)
+
+        shot("60_daily_rhythm_infant_zh", height: 1460,
+             NavigationStack { RhythmView(month: 6) }
+                 .environment(m).environment(liveJournal).tint(Palette.accent).fontDesign(.rounded))
+
+        shot("60_daily_rhythm_toddler_lamp_zh", dark: true, height: 1460, lamp: true,
+             NavigationStack { RhythmView(month: 24, initialInspectedHour: 14) }
+                 .environment(m).environment(liveJournal).lamp(true).tint(Palette.accent).fontDesign(.rounded))
+
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = false
+        shot("60_daily_rhythm_newborn_en", height: 1460,
+             NavigationStack { RhythmView(month: 0) }
+                 .environment(mEn).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+    }
 }

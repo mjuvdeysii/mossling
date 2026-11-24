@@ -1723,4 +1723,74 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "Explorer")
         XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "Lamp Keeper")
     }
+
+    func testDailyRhythmStageAndLiveComparison() throws {
+        // 1. Exact WHO age-band boundaries across 0–36+ months
+        XCTAssertEqual(DailyRhythmStage.stage(for: 0), .newborn)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 3), .newborn)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 4), .infant)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 11), .infant)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 12), .oneYear)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 23), .oneYear)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 24), .twoYears)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 35), .twoYears)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 36), .threeYears)
+        XCTAssertEqual(DailyRhythmStage.stage(for: 42), .threeYears)
+
+        // 2. Sleep, movement, and screen bounds per WHO 2019 guidelines
+        XCTAssertEqual(DailyRhythmStage.newborn.sleepMinHours, 14)
+        XCTAssertEqual(DailyRhythmStage.newborn.sleepMaxHours, 17)
+        XCTAssertEqual(DailyRhythmStage.infant.sleepMinHours, 12)
+        XCTAssertEqual(DailyRhythmStage.infant.sleepMaxHours, 16)
+        XCTAssertEqual(DailyRhythmStage.oneYear.sleepMinHours, 11)
+        XCTAssertEqual(DailyRhythmStage.oneYear.sleepMaxHours, 14)
+        XCTAssertEqual(DailyRhythmStage.twoYears.sleepMinHours, 11)
+        XCTAssertEqual(DailyRhythmStage.twoYears.sleepMaxHours, 14)
+        XCTAssertEqual(DailyRhythmStage.threeYears.sleepMinHours, 10)
+        XCTAssertEqual(DailyRhythmStage.threeYears.sleepMaxHours, 13)
+
+        XCTAssertEqual(DailyRhythmStage.newborn.activityTargetMinutes, 30)
+        XCTAssertEqual(DailyRhythmStage.infant.activityTargetMinutes, 30)
+        XCTAssertEqual(DailyRhythmStage.oneYear.activityTargetMinutes, 180)
+        XCTAssertEqual(DailyRhythmStage.threeYears.energeticMinutes, 60)
+        XCTAssertEqual(DailyRhythmStage.twoYears.energeticMinutes, 0)
+        XCTAssertEqual(DailyRhythmStage.oneYear.screenLimitMinutes, 0)
+        XCTAssertEqual(DailyRhythmStage.twoYears.screenLimitMinutes, 60)
+
+        // 3. Factual comparison respects journalEnabled toggle and computes accurate 7-day + today metrics
+        let today = Day(y: 2026, m: 10, d: 19)
+        let morningMs = Day.cal.date(bySettingHour: 7, minute: 0, second: 0, of: today.date)!.timeIntervalSince1970 * 1000
+        let napStartMs = Day.cal.date(bySettingHour: 13, minute: 0, second: 0, of: today.date)!.timeIntervalSince1970 * 1000
+        let logs = [
+            // 10h overnight sleep ending at 07:00 today + 2h afternoon nap + 1 play entry today
+            LogEntry(type: LogType.sleep, start: morningMs - 10 * 3_600_000, end: morningMs),
+            LogEntry(type: LogType.sleep, start: napStartMs, end: napStartMs + 2 * 3_600_000),
+            LogEntry(type: LogType.play, start: napStartMs - 2 * 3_600_000, detail: "A11"),
+        ]
+
+        let disabled = DailyRhythmComparison.build(logs: logs, today: today, journalEnabled: false)
+        XCTAssertFalse(disabled.hasSleepBaseline)
+        XCTAssertNil(disabled.avgSleepHours)
+        XCTAssertEqual(disabled.todayPlayCount, 0)
+
+        let enabled = DailyRhythmComparison.build(logs: logs, today: today, journalEnabled: true)
+        XCTAssertTrue(enabled.hasSleepBaseline)
+        XCTAssertEqual(enabled.todayPlayCount, 1)
+        XCTAssertEqual(enabled.todaySleepHours, 9.0, accuracy: 0.05) // 00:00..07:00 (7h) + 13:00..15:00 (2h)
+        XCTAssertNotNil(enabled.avgSleepHours)
+
+        L10n.overrideEnglish = false
+        let zhLine = enabled.sleepComparisonLine(for: .infant) ?? ""
+        XCTAssertTrue(zhLine.contains("12–16"))
+        L10n.overrideEnglish = true
+        defer { L10n.overrideEnglish = nil }
+        let enLine = enabled.sleepComparisonLine(for: .infant) ?? ""
+        XCTAssertTrue(enLine.contains("12–16h"))
+
+        // 4. Intact WHO guideline text across representative months in EN
+        let enContent = try Content.load()
+        for m in [0, 4, 12, 24, 36] {
+            XCTAssertTrue(enContent.month(m).who.contains("WHO"), "Month \(m) EN WHO text missing WHO")
+        }
+    }
 }
