@@ -21,6 +21,8 @@ final class TactileEngine {
         case vinylPop      // soft cushioned vinyl squish (poking Moss/Otto, stamping a sticker)
         case pageTurn      // feather-soft paper brush (day flip, Storybook page turn)
         case goldChime     // warm 2-note wooden marimba fifth (finishing a play, logging a First)
+        case breathInhale  // silent 4-6 inhale boundary cue for eyes-closed bedside soothing
+        case breathExhale  // silent 4-6 exhale boundary cue for eyes-closed bedside soothing
     }
 
     private var hapticEngine: CHHapticEngine?
@@ -48,6 +50,12 @@ final class TactileEngine {
     func vinylPop() { play(.vinylPop) }
     func pageTurn() { play(.pageTurn) }
     func goldChime() { play(.goldChime) }
+
+    /// Silent fingertip cadence cue for Bedside Lamp 4-6 breathing (never emits audio).
+    func breathCue(inhaling: Bool) {
+        guard !isTestHost else { return }
+        fireHaptic(inhaling ? .breathInhale : .breathExhale)
+    }
 
     // MARK: - CoreHaptics
 
@@ -89,6 +97,10 @@ final class TactileEngine {
             UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.7)
         case .goldChime:
             UINotificationFeedbackGenerator().notificationOccurred(.success)
+        case .breathInhale:
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.45)
+        case .breathExhale:
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.28)
         }
     }
 
@@ -147,6 +159,26 @@ final class TactileEngine {
                     CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.78)
                 ], relativeTime: 0.17)
             ]
+        case .breathInhale:
+            // Gentle double-soft pulse marking start of 4s inhale
+            events = [
+                CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.28),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.18)
+                ], relativeTime: 0, duration: 0.12),
+                CHHapticEvent(eventType: .hapticTransient, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.36),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.28)
+                ], relativeTime: 0.13)
+            ]
+        case .breathExhale:
+            // Feather-soft long settling release marking start of 6s exhale
+            events = [
+                CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.22),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.12)
+                ], relativeTime: 0, duration: 0.16)
+            ]
         }
         return try? CHHapticPattern(events: events, parameters: [])
     }
@@ -193,6 +225,7 @@ final class TactileEngine {
         case .vinylPop: 0.055
         case .pageTurn: 0.065
         case .goldChime: 0.44
+        case .breathInhale, .breathExhale: 0.01
         }
         let frames = AVAudioFrameCount(dur * sampleRate)
         guard let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
@@ -244,6 +277,8 @@ final class TactileEngine {
                 let env2: Float = t >= 0.09 ? Float(exp(-t2 * 8.5)) * Float(min(1, t2 / 0.003)) : 0
                 let n2 = Float(sin(2 * .pi * 1567.98 * t2) + 0.15 * sin(2 * .pi * 4703.9 * t2) * exp(-t2 * 32)) * env2
                 sample = (n1 * 0.55 + n2 * 0.55) * 0.18
+            case .breathInhale, .breathExhale:
+                sample = 0
             }
             ptr[i] = max(-0.95, min(0.95, sample))
         }

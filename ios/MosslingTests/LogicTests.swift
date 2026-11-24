@@ -1691,6 +1691,57 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(enSummary.facts.map(\.label), ["Feed", "Wake", "Diaper"])
         XCTAssertEqual(enSummary.facts[0].agoText, "2h ago")
         XCTAssertEqual(enSummary.facts[2].agoText, "45m ago")
+        XCTAssertNotNil(enSummary.nightStatusLine)
+        XCTAssertTrue(enSummary.nightStatusLine?.contains("Awake") == true)
+        XCTAssertTrue(enSummary.nightStatusLine?.contains("Night sleep") == true)
+    }
+
+    func testMidnightCareSummaryLiveTimersAndSoundscapeEnvelope() {
+        let now = Day.cal.date(bySettingHour: 3, minute: 0, second: 0, of: Day(y: 2026, m: 10, d: 20).date)!
+        let nowMs = now.timeIntervalSince1970 * 1000
+        let logs = [
+            LogEntry(type: LogType.bottle, start: nowMs - 2 * 3_600_000, amount: 120, detail: "formula"),
+        ]
+        let sleepTimer = RunningTimer(type: LogType.sleep, start: nowMs - 45 * 60_000, side: nil, pausedAt: nil, pausedTotal: 0)
+        let sleepingSummary = MidnightCareSummary.build(logs: logs, timers: [sleepTimer], now: now)
+        XCTAssertEqual(sleepingSummary.facts.map(\.id), ["feed", "sleep"])
+        XCTAssertTrue(sleepingSummary.nightStatusLine?.contains("45") == true)
+
+        let nurseTimer = RunningTimer(type: LogType.nurse, start: nowMs - 12 * 60_000, side: "r", pausedAt: nil, pausedTotal: 0)
+        let nursingSummary = MidnightCareSummary.build(logs: logs, timers: [nurseTimer], now: now)
+        XCTAssertTrue(nursingSummary.nightStatusLine?.contains("右") == true)
+
+        // Breathing haptic boundary timing (4s inhale -> 6s exhale)
+        let b1 = BedsideLampView.nextBreathingBoundary(at: 1.5)
+        XCTAssertEqual(b1.delay, 2.5, accuracy: 0.001)
+        XCTAssertFalse(b1.nextInhaling)
+        let b2 = BedsideLampView.nextBreathingBoundary(at: 6.2)
+        XCTAssertEqual(b2.delay, 3.8, accuracy: 0.001)
+        XCTAssertTrue(b2.nextInhaling)
+
+        // Soundscape acoustic-luminous rhythm envelope invariants across all 6 kinds
+        for kind in SoundscapeKind.allCases {
+            for t in stride(from: 0.0, through: 9.0, by: 0.15) {
+                let p = SoundscapeRhythmEnvelope.pulse(for: kind, at: t)
+                XCTAssertGreaterThanOrEqual(p, 0.0)
+                XCTAssertLessThanOrEqual(p, 1.0)
+            }
+        }
+        // Heartbeat lub-dub double peak > inter-beat rest
+        let hbLub = SoundscapeRhythmEnvelope.pulse(for: .heartbeat, at: 0.04)
+        let hbDub = SoundscapeRhythmEnvelope.pulse(for: .heartbeat, at: 0.27)
+        let hbRest = SoundscapeRhythmEnvelope.pulse(for: .heartbeat, at: 0.70)
+        XCTAssertGreaterThan(hbLub, hbDub)
+        XCTAssertGreaterThan(hbDub, hbRest)
+        // Shush active during first 1.15s and quiet during rest
+        let shushPeak = SoundscapeRhythmEnvelope.pulse(for: .shush, at: 0.575)
+        let shushRest = SoundscapeRhythmEnvelope.pulse(for: .shush, at: 1.8)
+        XCTAssertGreaterThan(shushPeak, 0.85)
+        XCTAssertLessThan(shushRest, 0.2)
+        // Dual-layer blend remains bounded
+        let blend = SoundscapeRhythmEnvelope.compositePulse(primary: .waves, secondary: .heartbeat, at: 2.0)
+        XCTAssertGreaterThanOrEqual(blend, 0.0)
+        XCTAssertLessThanOrEqual(blend, 1.0)
     }
 
     func testJourneyStripMetrics() {

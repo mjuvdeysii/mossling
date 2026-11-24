@@ -629,3 +629,53 @@ final class SoundscapeEngine {
         MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
     }
 }
+
+/// Pure acoustic-luminous rhythm envelope matching the exact DSP synthesis cycles in `SoundscapeDSPState`.
+/// Drives Otto's Bedside Lamp glow & acoustic rings in physical lockstep with the playing nursery soundscape.
+enum SoundscapeRhythmEnvelope {
+    /// Returns a normalized luminous pulse `0...1` for `kind` at `time` seconds.
+    static func pulse(for kind: SoundscapeKind?, at time: TimeInterval) -> Double {
+        guard let kind else { return 0.35 }
+        let t = time < 0 ? 0 : time
+        switch kind {
+        case .rain:
+            // Soft organic rain shimmer (4.4s gentle cycle)
+            return 0.32 + 0.36 * (0.5 + 0.5 * sin(2.0 * .pi * t / 4.4))
+        case .breeze:
+            // Exact 3.8s slow breathing swell matching DSP breeze filter
+            return 0.14 + 0.86 * (0.5 + 0.5 * sin(2.0 * .pi * t / 3.8))
+        case .heartbeat:
+            // Exact 64 BPM (0.9375s) maternal lub-dub double pulse matching DSP heartbeat
+            let period = 60.0 / 64.0
+            let phase = t.truncatingRemainder(dividingBy: period)
+            let lub: Double = phase < 0.16 ? exp(-phase * 18.0) * min(1.0, phase / 0.018) : 0.0
+            let d = phase - 0.23
+            let dub: Double = (d >= 0 && d < 0.16) ? exp(-d * 20.0) * min(1.0, d / 0.018) * 0.70 : 0.0
+            return min(1.0, max(0.08, 0.08 + max(lub, dub) * 0.92))
+        case .lullaby:
+            // Soft 2.4s pentatonic marimba bell bloom
+            let pos = t.truncatingRemainder(dividingBy: 2.4)
+            return min(1.0, max(0.16, 0.16 + 0.84 * exp(-pos * 2.1)))
+        case .shush:
+            // Exact 2.4s raised-cosine parent shush cadence
+            let pos = t.truncatingRemainder(dividingBy: 2.4)
+            let env = pos < 1.15 ? 0.5 - 0.5 * cos(2.0 * .pi * pos / 1.15) : 0.0
+            return 0.10 + 0.90 * env
+        case .waves:
+            // Exact 8.2s asymmetric shoreline swell (rising 38%, receding 62%)
+            let norm = t.truncatingRemainder(dividingBy: 8.2) / 8.2
+            let swell = norm < 0.38
+                ? 0.5 - 0.5 * cos(.pi * norm / 0.38)
+                : 0.5 + 0.5 * cos(.pi * (norm - 0.38) / 0.62)
+            return 0.12 + 0.88 * swell
+        }
+    }
+
+    /// Blends primary and optional secondary soundscape envelopes cleanly when dual-layer mixing is active.
+    static func compositePulse(primary: SoundscapeKind?, secondary: SoundscapeKind?, at time: TimeInterval) -> Double {
+        let p = pulse(for: primary, at: time)
+        guard let secondary, secondary != primary else { return p }
+        let s = pulse(for: secondary, at: time)
+        return min(1.0, max(0.0, p * 0.78 + s * 0.22))
+    }
+}
