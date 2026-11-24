@@ -276,6 +276,7 @@ extension Palette {
 /// (ios/DESIGN.md §3); hierarchy comes from layout and grouping.
 struct PageBackground: View {
     @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     /// Reduce Transparency: the page becomes plain and opaque — no drifting seeds, motes or grain behind the cards;
     /// only the solid paper (or the lamp's blue) and the still wash of light remain.
     @Environment(\.accessibilityReduceTransparency) private var solid
@@ -283,8 +284,9 @@ struct PageBackground: View {
     /// but each place has its own light, like a room lit by a different window.
     var tone: Color? = nil
     var body: some View {
-        if lamp {
-            // night: deep blue, warmed from the top by Otto's lamp
+        let darkPage = lamp || scheme == .dark
+        if darkPage {
+            // night & dark mode: deep indigo paper, warmed from the top by Otto's lamp (never daytime sunbeams)
             ZStack {
                 ZStack {
                     Palette.lampPage

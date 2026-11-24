@@ -115,8 +115,8 @@ struct ArtView: View {
         let shown = ArtIndex.variant(name, girl: girl)
         GeometryReader { g in
             let px = Int(g.size.width * scale)
-            // already decoded (coming back to a page): drawn at once, no placeholder, no fade
-            let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px)
+            // already decoded (coming back to a page): drawn at once, no placeholder, no fade; small thumbnails decode synchronously
+            let ready = Perf.noArt ? nil : img ?? ArtCache.shared.cached(shown, maxPixel: px) ?? (px > 0 && px <= 512 ? ArtCache.shared.image(shown, maxPixel: px) : nil)
             ZStack {
                 Palette.fill
                 if let ready { Image(uiImage: ready).resizable().scaledToFill().transition(.opacity) }

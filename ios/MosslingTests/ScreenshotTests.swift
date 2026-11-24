@@ -1762,4 +1762,79 @@ final class ScreenshotTests: XCTestCase {
         let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
         shot("62_foods_clean_en", height: 1060, tabs(mEn, FoodAtlasView(store: sampleFoods)))
     }
+
+    /// Round 16 Apple Design Award Sprint — Living Picture-Book StoryTheater Phase 1 (A04 & A12 across Day/Lamp/2D/EN).
+    func test63Round16LivingBookA04AndA12() {
+        defer {
+            ArtStyle.current = .vinyl
+            L10n.overrideEnglish = nil
+        }
+        let m = model(); m.journal = true
+        let playA04 = m.content.play("A04")!
+        let playA12 = m.content.play("A12")!
+
+        shot("63_living_a04_step1_day_zh", height: 960, tabs(m, PlayView(play: playA04, month: 4, initialStep: 0)))
+        shot("63_living_a04_step3_day_zh", height: 960, tabs(m, PlayView(play: playA04, month: 4, initialStep: 2)))
+
+        shot("63_living_a12_step1_day_zh", height: 960, tabs(m, PlayView(play: playA12, month: 9, initialStep: 0)))
+        shot("63_living_a12_step3_day_zh", height: 960, tabs(m, PlayView(play: playA12, month: 9, initialStep: 2)))
+        shot("63_living_a12_lamp_zh", height: 960, lamp: true, tabs(m, PlayView(play: playA12, month: 9, initialStep: 0).lamp(true)))
+
+        ArtStyle.current = .flat
+        shot("63_living_a12_2d_zh", height: 960, tabs(m, PlayView(play: playA12, month: 9, initialStep: 0)))
+        ArtStyle.current = .vinyl
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        let playA12En = mEn.content.play("A12")!
+        shot("63_living_a12_en", height: 960, tabs(mEn, PlayView(play: playA12En, month: 9, initialStep: 0)))
+    }
+
+    /// Round 16 — Living Picture-Book StoryTheater Phase 1 (A19 3-step build/tumble, Dark, Mat Mode, AX2, & Triptych).
+    func test63Round16LivingBookA19AndModes() {
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.journal = true
+        let playA19 = m.content.play("A19")!
+
+        shot("63_living_a19_step1_day_zh", height: 960, tabs(m, PlayView(play: playA19, month: 14, initialStep: 0)))
+        shot("63_living_a19_step2_day_zh", height: 960, tabs(m, PlayView(play: playA19, month: 14, initialStep: 1)))
+        shot("63_living_a19_step3_tumble_zh", height: 960, tabs(m, PlayView(play: playA19, month: 14, initialStep: 2)))
+        shot("63_living_a19_dark_zh", dark: true, height: 960, tabs(m, PlayView(play: playA19, month: 14, initialStep: 1)))
+        shot("63_living_a19_matside_lamp_zh", height: 852, lamp: true,
+             MatSideCoPlayView(play: playA19, month: 14, companion: .moss, currentStep: .constant(1), onSelectStep: { _ in })
+                 .lamp(true).environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+        shot("63_living_a19_ax2_zh", height: 1240,
+             tabs(m, PlayView(play: playA19, month: 14, initialStep: 1)).dynamicTypeSize(.accessibility2))
+
+        L10n.overrideEnglish = true
+        let s04 = LivingBookCatalog.script(for: "A04")!
+        let s12 = LivingBookCatalog.script(for: "A12")!
+        let s19 = LivingBookCatalog.script(for: "A19")!
+        let triptych = ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Living StoryTheater · Daylight · Night Lamp · 2D Cut-Paper")
+                    .font(.headline.weight(.bold))
+                LivingBookStage(script: s04, stepIndex: 0, companion: .moss, dark: false, accent: Crayon.teal, posterPhase: s04.steps[0].posterPhase, interactive: false, forceFlat: false)
+                LivingBookStage(script: s12, stepIndex: 0, companion: .moss, dark: true, accent: Crayon.pink, posterPhase: s12.steps[0].posterPhase, interactive: false, forceFlat: false)
+                LivingBookStage(script: s19, stepIndex: 2, companion: .moss, dark: false, accent: Crayon.cherry, posterPhase: s19.steps[2].posterPhase, interactive: false, forceFlat: true)
+            }
+            .padding(16)
+        }
+        .background(Palette.paper)
+        shot("63_living_triptych_modes_en", height: 960, triptych)
+    }
+
+    /// Round 16 — Dark Mode PageBackground fix, YouView AX2 Swatch fix, SearchView 4-pill balance & Finished/Legacy PlayView polish.
+    func test63Round16FixesAndParity() {
+        let m = model(); m.journal = true
+        let playA19 = m.content.play("A19")!
+        let playA11 = m.content.play("A11")!
+
+        shot("63_fix_month_dark_zh", dark: true, height: 1280, tabs(m, MonthView(month: 6)))
+        shot("63_fix_you_ax2_zh", height: 1460, tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+        shot("63_fix_search_4pills_zh", height: 1120, tabs(m, SearchView(path: .constant(NavigationPath()))))
+        shot("63_fix_search_4pills_ax2", height: 1480, tabs(m, SearchView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
+        shot("63_living_finished_a19_zh", height: 1020, tabs(m, PlayView(play: playA19, month: 14, initialStep: 3)))
+        shot("63_fix_play_a11_clean_zh", height: 1160, tabs(m, PlayView(play: playA11, month: 6, initialStep: 0)))
+    }
 }

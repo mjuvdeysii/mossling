@@ -23,13 +23,28 @@ struct LevelGauge: View {
     var liquid: Color = Color(hex: 0xFFF1D2)
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         GeometryReader { geo in
             let size = geo.size
-            Canvas { ctx, s in draw(&ctx, s) }
-                .contentShape(Rectangle())
-                .gesture(DragGesture(minimumDistance: 0).onChanged { g in set(g.location.y, size) })
+            FluidGaugeCanvas(
+                vessel: vessel,
+                animatedValue: value,
+                range: range,
+                marks: marks,
+                label: label,
+                tint: tint,
+                alarm: alarm,
+                liquid: liquid,
+                dark: lamp || scheme == .dark
+            )
+            .animation(reduceMotion ? nil : .spring(response: 0.30, dampingFraction: 0.80), value: value)
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { g in set(g.location.y, size) }
+            )
         }
         .sensoryFeedback(.selection, trigger: value)
         .accessibilityElement()
@@ -45,7 +60,7 @@ struct LevelGauge: View {
     }
 
     /// The part of the height that holds the fill: (top, bottom) in points.
-    private func span(_ size: CGSize) -> (CGFloat, CGFloat) {
+    static func span(_ vessel: Vessel, _ size: CGSize) -> (CGFloat, CGFloat) {
         let h: CGFloat = size.height
         switch vessel {
         case .bottle: return (h * 0.27, h - 8)
@@ -53,36 +68,61 @@ struct LevelGauge: View {
         }
     }
 
-    private func y(of v: Double, _ size: CGSize) -> CGFloat {
-        let (top, bottom) = span(size)
-        let f: CGFloat = CGFloat((v - range.lowerBound) / (range.upperBound - range.lowerBound))
-        return bottom - (bottom - top) * f
-    }
-
     private func set(_ py: CGFloat, _ size: CGSize) {
-        let (top, bottom) = span(size)
+        let (top, bottom) = Self.span(vessel, size)
         let f: Double = Double(min(1, max(0, (bottom - py) / (bottom - top))))
         let raw: Double = range.lowerBound + f * (range.upperBound - range.lowerBound)
         let snapped: Double = (raw / step).rounded() * step
         let v: Double = min(range.upperBound, max(range.lowerBound, snapped))
         if v != value { value = v }
     }
+}
+
+/// Animatable Canvas wrapper so preset chips, nudge taps, and drags smoothly animate the liquid meniscus & mercury column.
+private struct FluidGaugeCanvas: View, Animatable {
+    let vessel: LevelGauge.Vessel
+    var animatedValue: Double
+    let range: ClosedRange<Double>
+    let marks: [Double]
+    let label: (Double) -> String
+    let tint: Color
+    let alarm: Double?
+    let liquid: Color
+    let dark: Bool
+
+    var animatableData: Double {
+        get { animatedValue }
+        set { animatedValue = newValue }
+    }
+
+    var body: some View {
+        Canvas { ctx, size in
+            draw(&ctx, size)
+        }
+    }
+
+    private func y(of v: Double, _ size: CGSize) -> CGFloat {
+        let (top, bottom) = LevelGauge.span(vessel, size)
+        let clamped = min(range.upperBound, max(range.lowerBound, v))
+        let f: CGFloat = CGFloat((clamped - range.lowerBound) / (range.upperBound - range.lowerBound))
+        return bottom - (bottom - top) * f
+    }
 
     private func draw(_ ctx: inout GraphicsContext, _ size: CGSize) {
-        let dark = lamp || scheme == .dark
         let glass = Color.white.opacity(dark ? 0.08 : 0.72)
-        let rim = tint.mix(with: .black, by: dark ? 0 : 0.15).opacity(dark ? 0.6 : 0.55)
-        let hot: Bool = alarm.map { value >= $0 } ?? false
-        let fill: Color = hot ? Palette.danger : (vessel == .bottle ? liquid : tint)
-        let level: CGFloat = y(of: value, size)
+        let rim = tint.mix(with: .black, by: dark ? 0 : 0.15).opacity(dark ? 0.62 : 0.55)
+        let hot: Bool = alarm.map { animatedValue >= $0 - 0.05 } ?? false
+        let warm: Bool = vessel == .thermometer && animatedValue >= 37.45 && !hot
+        let fill: Color = hot ? Palette.danger : (warm ? Crayon.tangerine : (vessel == .bottle ? liquid : tint))
+        let level: CGFloat = y(of: animatedValue, size)
         let w: CGFloat = size.width, h: CGFloat = size.height
         let shell: Path
+
         switch vessel {
         case .bottle:
             let bw: CGFloat = w * 0.66
             let body = CGRect(x: (w - bw) / 2, y: h * 0.24, width: bw, height: h * 0.76 - 2)
             shell = Path(roundedRect: body, cornerRadius: bw * 0.26, style: .continuous)
-            // the teat and the collar, above the glass
             let teat = Path(roundedRect: CGRect(x: w / 2 - bw * 0.17, y: h * 0.02, width: bw * 0.34, height: h * 0.15), cornerRadius: bw * 0.17, style: .continuous)
             ctx.fill(teat, with: .linearGradient(Gradient(colors: [Color(hex: 0xF8D8A8), Color(hex: 0xE9B477)]), startPoint: CGPoint(x: w / 2 - bw * 0.17, y: 0), endPoint: CGPoint(x: w / 2 + bw * 0.17, y: 0)))
             let collar = Path(roundedRect: CGRect(x: (w - bw * 1.08) / 2, y: h * 0.14, width: bw * 1.08, height: h * 0.11), cornerRadius: 8, style: .continuous)
@@ -95,45 +135,112 @@ struct LevelGauge: View {
             p.addEllipse(in: CGRect(x: w / 2 - r, y: h - 2 * r, width: 2 * r, height: 2 * r))
             shell = p
         }
-        // a soft shadow on the page, then the glass
+
+        // Fever bulb glow behind the glass shell when temperature crosses threshold
+        if hot, vessel == .thermometer {
+            let r: CGFloat = w * 0.34
+            let bulbCenter = CGPoint(x: w / 2, y: h - w * 0.3)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: bulbCenter.x - r * 1.45, y: bulbCenter.y - r * 1.45, width: r * 2.9, height: r * 2.9)),
+                with: .radialGradient(Gradient(colors: [Palette.danger.opacity(dark ? 0.36 : 0.24), .clear]), center: bulbCenter, startRadius: r * 0.3, endRadius: r * 1.45)
+            )
+        }
+
+        // Soft shadow on the page, then the glass
         var under = ctx
         under.addFilter(.shadow(color: Color(hex: 0x7A5230).opacity(dark ? 0 : 0.16), radius: 6, x: 0, y: 4))
         under.fill(shell, with: .color(glass))
-        // the fill, up to the level
+
         var inner = ctx
         inner.clip(to: shell)
-        let liquidRect = CGRect(x: 0, y: level, width: w, height: h - level)
-        let shade: Color = fill.mix(with: .black, by: hot || vessel == .thermometer ? 0.12 : 0.06)
-        inner.fill(Path(liquidRect), with: .linearGradient(Gradient(colors: [fill.mix(with: .white, by: 0.15), shade]), startPoint: CGPoint(x: w * 0.2, y: 0), endPoint: CGPoint(x: w * 0.85, y: 0)))
-        if vessel == .bottle {
-            // the surface of the milk, a little lighter
-            inner.fill(Path(ellipseIn: CGRect(x: 0, y: level - 3, width: w, height: 6)), with: .color(.white.opacity(0.55)))
+
+        // Subtle thermal reference zones along the thermometer channel
+        if vessel == .thermometer {
+            let feverY = y(of: 38.0, size)
+            let warmY = y(of: 37.5, size)
+            let normalLowY = y(of: 36.0, size)
+            inner.fill(
+                Path(CGRect(x: 0, y: 0, width: w, height: feverY)),
+                with: .color(Palette.danger.opacity(dark ? 0.14 : 0.09))
+            )
+            inner.fill(
+                Path(CGRect(x: 0, y: feverY, width: w, height: max(0, warmY - feverY))),
+                with: .color(Crayon.tangerine.opacity(dark ? 0.13 : 0.09))
+            )
+            inner.fill(
+                Path(CGRect(x: 0, y: warmY, width: w, height: max(0, normalLowY - warmY))),
+                with: .color(Crayon.leaf.opacity(dark ? 0.10 : 0.07))
+            )
         }
-        // the marks, inside the glass on the right
+
+        // Liquid or mercury fill up to the animated level
+        let liquidRect = CGRect(x: 0, y: level, width: w, height: h - level)
+        let shade: Color = fill.mix(with: .black, by: hot || vessel == .thermometer ? 0.14 : 0.06)
+        inner.fill(
+            Path(liquidRect),
+            with: .linearGradient(
+                Gradient(colors: [fill.mix(with: .white, by: 0.18), shade]),
+                startPoint: CGPoint(x: w * 0.2, y: 0),
+                endPoint: CGPoint(x: w * 0.85, y: 0)
+            )
+        )
+        if vessel == .bottle {
+            // Curved milk meniscus rim
+            inner.fill(Path(ellipseIn: CGRect(x: w * 0.14, y: level - 3.5, width: w * 0.72, height: 7)), with: .color(.white.opacity(dark ? 0.38 : 0.68)))
+        } else {
+            // Crisp mercury meniscus cap
+            inner.fill(Path(CGRect(x: 0, y: level - 1, width: w, height: 2.5)), with: .color(.white.opacity(0.45)))
+        }
+
+        // Graduation ticks inside the glass on the right
         for m in marks {
             let my: CGFloat = y(of: m, size)
+            let near = abs(my - level) < 6
             let x1: CGFloat = vessel == .bottle ? w * 0.5 + w * 0.33 - 4 : w / 2 + w * 0.15 - 1
-            var line = Path(); line.move(to: CGPoint(x: x1 - (vessel == .bottle ? 12 : 7), y: my)); line.addLine(to: CGPoint(x: x1, y: my))
-            inner.stroke(line, with: .color(rim.opacity(0.9)), lineWidth: 1.2)
+            var line = Path()
+            line.move(to: CGPoint(x: x1 - (vessel == .bottle ? 12 : 7), y: my))
+            line.addLine(to: CGPoint(x: x1, y: my))
+            let tickColor = (vessel == .thermometer && m >= 38) ? Palette.danger.opacity(0.92) : (near ? Palette.bead : rim.opacity(0.9))
+            inner.stroke(line, with: .color(tickColor), lineWidth: near ? 2.0 : 1.2)
         }
-        // the glass catching the light: a long highlight down the left, the rim round it
+
+        // Specular glass highlight down the left & crisp rim stroke
         let hl = CGRect(x: vessel == .bottle ? w * 0.24 : w / 2 - w * 0.09, y: vessel == .bottle ? h * 0.3 : h * 0.07, width: vessel == .bottle ? 5 : 3.5, height: vessel == .bottle ? h * 0.52 : h * 0.6)
         inner.fill(Path(roundedRect: hl, cornerRadius: 3), with: .color(.white.opacity(dark ? 0.18 : 0.75)))
-        ctx.stroke(shell, with: .color(rim), lineWidth: 1.5)
-        // the labels of the marks, outside on the right (bottle) or left (thermometer)
+        ctx.stroke(shell, with: .color(hot ? Palette.danger.opacity(0.75) : rim), lineWidth: 1.5)
+
+        // Mark labels
+        let labelColor = dark ? Palette.lampInk.opacity(0.68) : Palette.secondaryText
         for m in marks {
             let my: CGFloat = y(of: m, size)
-            let t = Text(label(m)).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(Palette.secondaryText)
+            let isAlarmMark = vessel == .thermometer && m == 38
+            let t = Text(label(m))
+                .font(.system(size: 10, weight: isAlarmMark ? .bold : .semibold, design: .rounded))
+                .foregroundStyle(isAlarmMark ? Palette.danger : labelColor)
             if vessel == .bottle {
                 ctx.draw(t, at: CGPoint(x: w * 0.5 + w * 0.33 - 18, y: my), anchor: .trailing)
             } else {
                 ctx.draw(t, at: CGPoint(x: w / 2 - w * 0.15 - 6, y: my), anchor: .trailing)
             }
         }
-        // where the finger sets it: a small bead at the level
+
+        // Tactile bead thumb-pointer aligned to the level
         let bx: CGFloat = vessel == .bottle ? w * 0.5 + w * 0.33 + 7 : w / 2 + w * 0.15 + 9
-        let bead = CGRect(x: bx - 6, y: level - 6, width: 12, height: 12)
-        ctx.fill(Path(ellipseIn: bead), with: .radialGradient(Gradient(colors: [Palette.beadLight, Palette.bead]), center: CGPoint(x: bead.minX + 4, y: bead.minY + 4), startRadius: 0, endRadius: 10))
+        let bead = CGRect(x: bx - 6.5, y: level - 6.5, width: 13, height: 13)
+        ctx.fill(
+            Path(ellipseIn: bead.insetBy(dx: -3, dy: -3)),
+            with: .color((hot ? Palette.danger : Palette.bead).opacity(0.20))
+        )
+        ctx.fill(
+            Path(ellipseIn: bead),
+            with: .radialGradient(
+                Gradient(colors: [Palette.beadLight, hot ? Palette.danger : Palette.bead]),
+                center: CGPoint(x: bead.minX + 4, y: bead.minY + 4),
+                startRadius: 0,
+                endRadius: 10
+            )
+        )
+        ctx.stroke(Path(ellipseIn: bead), with: .color(.white.opacity(0.75)), lineWidth: 1)
     }
 }
 
@@ -239,7 +346,10 @@ struct NudgeButtons: View {
         }
     }
     private func nudge(_ sym: String, _ d: Double) -> some View {
-        Button { value = min(range.upperBound, max(range.lowerBound, ((value + d) / step).rounded() * step)) } label: {
+        Button {
+            TactileEngine.shared.beadClick()
+            value = min(range.upperBound, max(range.lowerBound, ((value + d) / step).rounded() * step))
+        } label: {
             Image(systemName: sym).font(.title3.weight(.bold)).frame(width: 52, height: 44)
         }
         .buttonStyle(.vinyl(tint))

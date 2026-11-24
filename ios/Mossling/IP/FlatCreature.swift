@@ -152,7 +152,7 @@ struct FlatCreature: View {
         let sy: Double = (1 + b * amp) * (1 - 0.2 * stone)
         ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: sx, y: sy); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -88)
 
-        let patted = now.timeIntervalSince(pattedAt) < 1.6
+        let patted = !still && now.timeIntervalSince(pattedAt) < 1.6
         let rest = lid ?? (kind == .otto ? 0.34 : 0)
         // Otto's yawn: slow, the mouth opening tall while the heavy lid comes down, then both back (two seconds)
         let yt = now.timeIntervalSince(yawnAt)

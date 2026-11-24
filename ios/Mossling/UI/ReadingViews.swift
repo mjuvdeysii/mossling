@@ -121,13 +121,13 @@ enum SearchEngine {
     static func quickQueries(for month: Int) -> [String] {
         switch month {
         case ...3:
-            return L10n.isEnglish ? ["Sleep", "Tummy", "Lamp", "Feed", "Roll"] : ["睡眠", "俯卧", "夜灯", "喂养", "翻身"]
+            return L10n.isEnglish ? ["Sleep", "Tummy", "Lamp", "Feed"] : ["睡眠", "俯卧", "夜灯", "喂养"]
         case 4...8:
-            return L10n.isEnglish ? ["Solids", "Sit", "Sleep", "Lamp", "Sound"] : ["辅食", "坐稳", "睡眠", "夜灯", "发声"]
+            return L10n.isEnglish ? ["Solids", "Sit", "Sleep", "Lamp"] : ["辅食", "坐稳", "睡眠", "夜灯"]
         case 9...18:
-            return L10n.isEnglish ? ["Stand", "Grasp", "Solids", "Sleep", "Lamp"] : ["站立", "抓握", "辅食", "睡眠", "夜灯"]
+            return L10n.isEnglish ? ["Stand", "Grasp", "Solids", "Lamp"] : ["站立", "抓握", "辅食", "夜灯"]
         default:
-            return L10n.isEnglish ? ["Language", "Book", "Sleep", "Doctor", "Lamp"] : ["语言", "绘本", "睡眠", "医生", "夜灯"]
+            return L10n.isEnglish ? ["Language", "Book", "Sleep", "Lamp"] : ["语言", "绘本", "睡眠", "夜灯"]
         }
     }
 }

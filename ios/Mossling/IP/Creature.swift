@@ -295,7 +295,7 @@ struct Creature: View {
         let sy: Double = (1 + b * amp) * (1 - 0.2 * stone)
         ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: sx, y: sy); ctx.rotate(by: .degrees(leanNow)); ctx.translateBy(x: -50, y: -feet)
 
-        let patted = now.timeIntervalSince(pattedAt) < 1.6
+        let patted = !still && now.timeIntervalSince(pattedAt) < 1.6
         // the resting lids are part of the figures (Moss half-lidded, Otto heavier); only a real blink or a shut lid swaps
         let l = max(lid ?? 0, !still && blinkValue(now) >= 0.5 ? 1 : 0)
         let face: Mood = patted ? .happy : (arms == .cheer ? .happy : mood)

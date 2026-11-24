@@ -1185,67 +1185,82 @@ struct TodayPlayCard: View {
         let key = Palette.areaKey(of: p)
         let darkStage = night || envLamp || scheme == .dark
         let toneInk = darkStage ? Palette.area(key).mix(with: .white, by: 0.25) : Palette.areaInk(key)
-        let action = StepKineticAction.infer(
-            stepText: p.steps.first ?? ActivityMotionIndex.spec(for: p).cue,
-            stepIndex: 0,
-            stepCount: p.steps.count,
-            template: ActivityMotionIndex.spec(for: p).template
-        )
-        let firstStepArt = ArtIndex.shared.steps(p.code).first
-        let shownName = firstStepArt.map { ArtIndex.variant($0, girl: app.drawsGirl) }
-        let readyImg = shownName.flatMap { name in
-            Perf.noArt ? nil : (ArtCache.shared.cached(name, maxPixel: 800) ?? ArtCache.shared.image(name, maxPixel: 800))
-        }
 
-        ZStack(alignment: .bottomLeading) {
-            Color(hex: darkStage ? 0x161E3D : 0xFAF4E8)
-
-            if let readyImg {
-                Image(uiImage: readyImg)
-                    .resizable()
-                    .scaledToFit()
-            } else if let art = firstStepArt {
-                ArtFill(name: art, label: p.name)
-            } else {
-                TrayTile(code: p.code, color: Palette.area(key), flat: flat)
-            }
-
-            if darkStage {
-                Color(hex: 0x0A1026).opacity(0.22)
-            }
-
-            StepKineticOverlay(
-                action: action,
-                accent: Palette.area(key),
+        if let livingScript = LivingBookCatalog.script(for: p.code) {
+            LivingBookStage(
+                script: livingScript,
+                stepIndex: 0,
+                companion: app.companion,
                 dark: darkStage,
-                pulseAt: .distantPast,
-                pulseOrigin: nil,
-                reduce: reduce
+                accent: Palette.area(key),
+                posterPhase: nil,
+                interactive: false,
+                compact: false
             )
-            .allowsHitTesting(false)
-
-            HStack(spacing: 5) {
-                Image(systemName: action.symbol)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(toneInk)
-                Text(action.label)
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(darkStage ? Palette.lampInk : Palette.text)
+            .zoomSource(route(p))
+        } else {
+            let action = StepKineticAction.infer(
+                stepText: p.steps.first ?? ActivityMotionIndex.spec(for: p).cue,
+                stepIndex: 0,
+                stepCount: p.steps.count,
+                template: ActivityMotionIndex.spec(for: p).template
+            )
+            let firstStepArt = ArtIndex.shared.steps(p.code).first
+            let shownName = firstStepArt.map { ArtIndex.variant($0, girl: app.drawsGirl) }
+            let readyImg = shownName.flatMap { name in
+                Perf.noArt ? nil : (ArtCache.shared.cached(name, maxPixel: 800) ?? ArtCache.shared.image(name, maxPixel: 800))
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
-            .background(Capsule().fill((darkStage ? Palette.lampCard : .white).opacity(0.90)))
-            .overlay(Capsule().strokeBorder(Palette.area(key).opacity(darkStage ? 0.42 : 0.32), lineWidth: 0.75))
-            .padding(10)
+
+            ZStack(alignment: .bottomLeading) {
+                Color(hex: darkStage ? 0x161E3D : 0xFAF4E8)
+
+                if let readyImg {
+                    Image(uiImage: readyImg)
+                        .resizable()
+                        .scaledToFit()
+                } else if let art = firstStepArt {
+                    ArtFill(name: art, label: p.name)
+                } else {
+                    TrayTile(code: p.code, color: Palette.area(key), flat: flat)
+                }
+
+                if darkStage {
+                    Color(hex: 0x0A1026).opacity(0.22)
+                }
+
+                StepKineticOverlay(
+                    action: action,
+                    accent: Palette.area(key),
+                    dark: darkStage,
+                    pulseAt: .distantPast,
+                    pulseOrigin: nil,
+                    reduce: reduce
+                )
+                .allowsHitTesting(false)
+
+                HStack(spacing: 5) {
+                    Image(systemName: action.symbol)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(toneInk)
+                    Text(action.label)
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(darkStage ? Palette.lampInk : Palette.text)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(Capsule().fill((darkStage ? Palette.lampCard : .white).opacity(0.90)))
+                .overlay(Capsule().strokeBorder(Palette.area(key).opacity(darkStage ? 0.42 : 0.32), lineWidth: 0.75))
+                .padding(10)
+            }
+            .frame(maxWidth: .infinity)
+            .aspectRatio(firstStepArt.map { ArtIndex.shared.ratio($0) } ?? (4.0 / 3.0), contentMode: .fit)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                    .strokeBorder(Palette.area(key).opacity(darkStage ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
+            )
+            .zoomSource(route(p))
         }
-        .frame(maxWidth: .infinity)
-        .aspectRatio(firstStepArt.map { ArtIndex.shared.ratio($0) } ?? (4.0 / 3.0), contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(Palette.area(key).opacity(darkStage ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-        )
-        .zoomSource(route(p))
     }
 
     private func leadWords(_ p: Play, last: String, times: Int, big: Bool) -> some View {

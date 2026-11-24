@@ -1811,7 +1811,7 @@ final class LogicTests: XCTestCase {
 
         for month in [0, 6, 12, 24] {
             let qs = SearchEngine.quickQueries(for: month)
-            XCTAssertEqual(qs.count, 5)
+            XCTAssertEqual(qs.count, 4)
             for term in qs {
                 XCTAssertFalse(SearchEngine.results(query: term, in: zhContent).isEmpty, "ZH quickQuery \(term) returned empty")
             }
@@ -1822,7 +1822,7 @@ final class LogicTests: XCTestCase {
         XCTAssertFalse(SearchEngine.results(query: "pumpkin", in: enContent).foods.isEmpty)
         for month in [0, 6, 12, 24] {
             let qs = SearchEngine.quickQueries(for: month)
-            XCTAssertEqual(qs.count, 5)
+            XCTAssertEqual(qs.count, 4)
             for term in qs {
                 XCTAssertFalse(SearchEngine.results(query: term, in: enContent).isEmpty, "EN quickQuery \(term) returned empty")
             }
@@ -1972,5 +1972,135 @@ final class LogicTests: XCTestCase {
         let sleepPose = CareCompanionPose.resolve(type: LogType.sleep, side: nil, paused: false, soundscapePlaying: true, lamp: true)
         XCTAssertEqual(sleepPose.mood, .sleep)
         XCTAssertTrue(sleepPose.acousticRings)
+    }
+
+    func testCareEntryHelpersSolidSuggestionsTimeShiftAndTempStatus() {
+        defer { L10n.overrideEnglish = nil }
+        L10n.overrideEnglish = false
+
+        let records: [String: FoodRecord] = [
+            "pumpkin": FoodRecord(foodId: "pumpkin", firstTastedEpochDay: 20_000, reaction: .tasted, times: 2),
+            "avocado": FoodRecord(foodId: "avocado", firstTastedEpochDay: 20_005, reaction: .loved, times: 3),
+            "banana": FoodRecord(foodId: "banana", firstTastedEpochDay: 20_002, reaction: .tryAgain, times: 1),
+        ]
+        let chips = CareEntryHelpers.solidChips(from: records, staples: ["米粉", "南瓜", "蔬菜泥"])
+        // Loved food appears first, no duplicate "南瓜", staples remain available
+        XCTAssertEqual(chips.first, "牛油果")
+        XCTAssertEqual(chips.filter { $0 == "南瓜" }.count, 1)
+        XCTAssertTrue(chips.contains("米粉"))
+
+        // Time shifting preserves timed duration and clamps end <= nowMs
+        let nowMs = 1_700_000_000_000.0
+        let startMs = nowMs - 25 * 60_000
+        let endMs = nowMs - 10 * 60_000
+        let back = CareEntryHelpers.shiftStart(startMs: startMs, endMs: endMs, byMinutes: -15, nowMs: nowMs)
+        XCTAssertEqual(back.start, startMs - 15 * 60_000, accuracy: 0.1)
+        XCTAssertEqual(back.end! - back.start, 15 * 60_000, accuracy: 0.1)
+
+        let forward = CareEntryHelpers.shiftStart(startMs: startMs, endMs: endMs, byMinutes: 20, nowMs: nowMs)
+        XCTAssertEqual(forward.end!, nowMs, accuracy: 0.1)
+        XCTAssertGreaterThanOrEqual(forward.end! - forward.start, 60_000)
+
+        // Temperature status bands
+        XCTAssertFalse(CareEntryHelpers.temperatureStatus(tenthsC: 368).isFever)
+        XCTAssertFalse(CareEntryHelpers.temperatureStatus(tenthsC: 376).isFever)
+        XCTAssertTrue(CareEntryHelpers.temperatureStatus(tenthsC: 380).isFever)
+    }
+
+    @MainActor
+    func testLivingBookPhaseClockAndCatalogPhase1() throws {
+        // 1. Verify 5-phase OpenMotion temporal clock over [0, 1] and out-of-range clamping
+        let sStart = LivingMotionClock.sample(u: -0.2)
+        XCTAssertEqual(sStart.raw, 0.0, accuracy: 0.001)
+        XCTAssertEqual(sStart.anticipation, 0.0, accuracy: 0.001)
+        XCTAssertEqual(sStart.action, 0.0, accuracy: 0.001)
+        XCTAssertFalse(sStart.isContactWindow)
+
+        let sAnt = LivingMotionClock.sample(u: 0.08)
+        XCTAssertGreaterThan(sAnt.anticipation, 0.0)
+        XCTAssertLessThan(sAnt.anticipation, 1.0)
+        XCTAssertEqual(sAnt.action, 0.0, accuracy: 0.001)
+
+        let sAct = LivingMotionClock.sample(u: 0.31)
+        XCTAssertEqual(sAct.anticipation, 1.0, accuracy: 0.001)
+        XCTAssertGreaterThan(sAct.action, 0.0)
+        XCTAssertLessThan(sAct.action, 1.0)
+        XCTAssertEqual(sAct.contact, 0.0, accuracy: 0.001)
+
+        let sContact = LivingMotionClock.sample(u: 0.52)
+        XCTAssertTrue(sContact.isContactWindow)
+        XCTAssertEqual(sContact.action, 1.0, accuracy: 0.001)
+        XCTAssertGreaterThan(sContact.contact, 0.1)
+        XCTAssertEqual(sContact.followThrough, 0.0, accuracy: 0.001)
+
+        let sFollow = LivingMotionClock.sample(u: 0.70)
+        XCTAssertFalse(sFollow.isContactWindow)
+        XCTAssertEqual(sFollow.contact, 0.0, accuracy: 0.001)
+        XCTAssertGreaterThan(sFollow.followThrough, 0.0)
+        XCTAssertLessThan(sFollow.followThrough, 1.0)
+
+        let sHold = LivingMotionClock.sample(u: 0.90)
+        XCTAssertEqual(sHold.followThrough, 1.0, accuracy: 0.001)
+        XCTAssertGreaterThan(sHold.hold, 0.0)
+
+        let sEnd = LivingMotionClock.sample(u: 1.5)
+        XCTAssertEqual(sEnd.raw, 1.0, accuracy: 0.001)
+        XCTAssertEqual(sEnd.hold, 1.0, accuracy: 0.001)
+
+        // 2. Verify Phase 1 catalog covers A04, A12, A19 with exact authoritative step counts
+        let content = try Content.load()
+        XCTAssertEqual(LivingBookCatalog.supportedCodes, ["A04", "A12", "A19"])
+        for code in LivingBookCatalog.supportedCodes {
+            XCTAssertTrue(LivingBookCatalog.hasScript(for: code))
+            let play = try XCTUnwrap(content.play(code))
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: code))
+            XCTAssertEqual(script.steps.count, play.steps.count, "Step count mismatch for \(code)")
+            for (idx, step) in script.steps.enumerated() {
+                XCTAssertEqual(step.stepIndex, idx)
+                XCTAssertGreaterThan(step.posterPhase, 0.0)
+                XCTAssertLessThan(step.posterPhase, 1.0)
+                XCTAssertGreaterThan(step.duration, 0.5)
+            }
+            XCTAssertEqual(LivingBookCatalog.stepScript(for: code, stepIndex: -5)?.stepIndex, 0)
+            XCTAssertEqual(LivingBookCatalog.stepScript(for: code, stepIndex: 99)?.stepIndex, script.steps.count - 1)
+        }
+
+        // 3. Verify LampLightRig bead coordinates stay finite and track Otto's lean in 3D & 2D
+        let center = CGPoint(x: 240, y: 120)
+        let bead3DIdle = LampLightRig.beadWorldPosition(ottoCenter: center, ottoSize: 120, ottoState: "idle", leanDegrees: 0, flat: false)
+        let bead3DLean = LampLightRig.beadWorldPosition(ottoCenter: center, ottoSize: 120, ottoState: "idle", leanDegrees: -8, flat: false)
+        XCTAssertLessThan(bead3DLean.x, bead3DIdle.x)
+        let bead2D = LampLightRig.beadWorldPosition(ottoCenter: center, ottoSize: 120, ottoState: "idle", leanDegrees: -4, flat: true)
+        XCTAssertTrue(bead2D.x.isFinite && bead2D.y.isFinite)
+
+        // 4. Verify choreography differentiation across steps (A12 adult vs child lead, A19 tumbleCheer hop)
+        let a12Step0 = try XCTUnwrap(LivingBookCatalog.stepScript(for: "A12", stepIndex: 0))
+        let a12Step2 = try XCTUnwrap(LivingBookCatalog.stepScript(for: "A12", stepIndex: 2))
+        XCTAssertEqual(a12Step0.lead, .adult)
+        XCTAssertEqual(a12Step2.lead, .child)
+
+        let a19Step2 = try XCTUnwrap(LivingBookCatalog.stepScript(for: "A19", stepIndex: 2))
+        let a19Actors = a19Step2.actors(at: sContact, dark: false)
+        XCTAssertEqual(a19Actors.moss.mood, .happy)
+        XCTAssertTrue(a19Actors.moss.hopping)
+        XCTAssertEqual(a19Actors.otto.mood, .happy)
+
+        // 5. Verify deterministic posterPhase snapshot rendering via ImageRenderer
+        let a19Script = try XCTUnwrap(LivingBookCatalog.script(for: "A19"))
+        let view = LivingBookStage(
+            script: a19Script,
+            stepIndex: 1,
+            companion: .moss,
+            dark: false,
+            accent: Crayon.cherry,
+            posterPhase: 0.56,
+            interactive: false
+        )
+        .frame(width: 320, height: 240)
+        let renderer = ImageRenderer(content: view)
+        renderer.scale = 2.0
+        let img = renderer.uiImage
+        XCTAssertNotNil(img)
+        XCTAssertGreaterThan(img?.size.width ?? 0, 200)
     }
 }

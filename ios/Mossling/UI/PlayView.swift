@@ -59,7 +59,8 @@ struct PlayView: View {
                             companion: app.companion,
                             dark: dark,
                             onPrev: open > 0 ? { go(open - 1, proxy) } : nil,
-                            onNext: { go(open + 1, proxy) }
+                            onNext: { go(open + 1, proxy) },
+                            onJump: { go($0, proxy) }
                         )
                         .id("stage")
                     } else {
@@ -73,11 +74,10 @@ struct PlayView: View {
                         )
                         .transition(reduce ? .opacity : .scale(scale: 0.94).combined(with: .opacity))
                         .id("finished")
-                    }
 
-                    // 2. Interactive Montessori Bead Bar
-                    if play.steps.count > 1 {
-                        StepBeadBar(total: play.steps.count, current: open) { go($0, proxy) }
+                        if play.steps.count > 1 {
+                            StepBeadBar(total: play.steps.count, current: open) { go($0, proxy) }
+                        }
                     }
 
                     // 3. Prep & Safety Drawer (folded only after first play unless opened)
@@ -100,23 +100,18 @@ struct PlayView: View {
 
                     // 4. Clean Scannable Steps Index (1-tap jump to any step, zero redundant giant stacking boxes)
                     VStack(alignment: .leading, spacing: 8) {
-                        HStack {
-                            Text(L10n.t("共玩步骤", "Play Rhythm"))
-                                .font(.footnote.weight(.bold))
-                                .foregroundStyle(Palette.secondaryText)
-                            Spacer(minLength: 0)
-                            if !art.isEmpty {
-                                Text(L10n.t("轻点任意一步切换示范", "Tap any step to focus"))
-                                    .font(.caption2)
-                                    .foregroundStyle(Palette.secondaryText.opacity(0.85))
-                            }
-                        }
-                        .padding(.horizontal, 4)
+                        Text(L10n.t("共玩步骤", "Play Rhythm"))
+                            .font(.footnote.weight(.bold))
+                            .foregroundStyle(Palette.secondaryText)
+                            .padding(.horizontal, 4)
 
                         VStack(spacing: 8) {
                             ForEach(Array(play.steps.enumerated()), id: \.offset) { i, s in
                                 CompactStepOutlineRow(
                                     n: i + 1,
+                                    playCode: play.code,
+                                    stepIndex: i,
+                                    companion: app.companion,
                                     text: s,
                                     art: i < art.count ? art[i] : nil,
                                     active: i == open,
@@ -285,12 +280,13 @@ private struct PlayLivingHeroCard: View {
     let dark: Bool
     let onPrev: (() -> Void)?
     let onNext: () -> Void
+    let onJump: (Int) -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduce
+    @State private var replayTrigger = 0
+    @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
         let last = stepIndex == play.steps.count - 1
-        let areaKey = Palette.areaKey(of: play)
 
         VStack(alignment: .leading, spacing: 0) {
             ActivityMotionStage(
@@ -300,7 +296,9 @@ private struct PlayLivingHeroCard: View {
                 stepText: stepText,
                 companion: companion,
                 compact: false,
-                dark: dark
+                dark: dark,
+                replayTrigger: replayTrigger,
+                showOverlays: false
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
@@ -318,48 +316,72 @@ private struct PlayLivingHeroCard: View {
                     }
             )
 
+            if play.steps.count > 1 {
+                StepBeadBar(total: play.steps.count, current: stepIndex, inline: true, pick: onJump)
+                    .padding(.horizontal, 12)
+                    .padding(.top, 8)
+            }
+
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline, spacing: 11) {
                     StepCircleBadge(number: stepIndex + 1, done: false)
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.t("第 \(stepIndex + 1) 步 · 共 \(play.steps.count) 步", "Step \(stepIndex + 1) of \(play.steps.count)"))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(Palette.areaInk(areaKey))
-                        Text(stepText)
-                            .font(.title3.weight(.semibold))
-                            .foregroundStyle(.primary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text(stepText)
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
 
-                HStack(spacing: 8) {
-                    if let onPrev {
-                        Button(action: onPrev) {
-                            Label(L10n.t("上一步", "Back"), systemImage: "chevron.left")
-                                .font(.subheadline.weight(.semibold))
+                Group {
+                    if type.isAccessibilitySize {
+                        VStack(spacing: 8) {
+                            nextButton(last: last, fullWidth: true)
+                            leadingActionButton(fullWidth: true)
                         }
-                        .buttonStyle(.vinyl(Crayon.caramel))
                     } else {
-                        Text(L10n.t("轻点上方插画重播 · 左右扫翻步", "Tap diagram to replay · Swipe to step"))
-                            .font(.caption.weight(.medium))
-                            .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                        HStack(spacing: 8) {
+                            leadingActionButton(fullWidth: false)
+                            Spacer(minLength: 4)
+                            nextButton(last: last, fullWidth: false)
+                        }
                     }
-
-                    Spacer(minLength: 4)
-
-                    Button(action: onNext) {
-                        Label(last ? L10n.t("做完了", "All Done") : L10n.t("下一步", "Next Step"), systemImage: last ? "checkmark" : "arrow.forward")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 4)
-                    }
-                    .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
                 }
             }
             .padding(16)
         }
         .printCard(radius: Radius.card)
+    }
+
+    @ViewBuilder
+    private func leadingActionButton(fullWidth: Bool) -> some View {
+        if let onPrev {
+            Button(action: onPrev) {
+                Label(L10n.t("上一步", "Back"), systemImage: "chevron.left")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: fullWidth ? .infinity : nil)
+            }
+            .buttonStyle(.vinyl(Crayon.caramel))
+        } else {
+            Button {
+                TactileEngine.shared.beadClick()
+                replayTrigger += 1
+            } label: {
+                Label(L10n.t("重播", "Replay"), systemImage: "arrow.counterclockwise")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: fullWidth ? .infinity : nil)
+            }
+            .buttonStyle(.vinyl(Crayon.caramel))
+            .accessibilityLabel(L10n.t("重播这一步示范动画", "Replay this step animation"))
+        }
+    }
+
+    private func nextButton(last: Bool, fullWidth: Bool) -> some View {
+        Button(action: onNext) {
+            Label(last ? L10n.t("做完了", "All Done") : L10n.t("下一步", "Next Step"), systemImage: last ? "checkmark" : "arrow.forward")
+                .font(.subheadline.weight(.semibold))
+                .padding(.horizontal, 4)
+                .frame(maxWidth: fullWidth ? .infinity : nil)
+        }
+        .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
     }
 }
 
@@ -367,6 +389,9 @@ private struct PlayLivingHeroCard: View {
 
 private struct CompactStepOutlineRow: View {
     let n: Int
+    let playCode: String
+    let stepIndex: Int
+    let companion: Kind
     let text: String
     let art: String?
     let active: Bool
@@ -394,7 +419,21 @@ private struct CompactStepOutlineRow: View {
 
                 Spacer(minLength: 4)
 
-                if let art {
+                if let livingScript = LivingBookCatalog.script(for: playCode) {
+                    let clamped = min(max(0, stepIndex), max(0, livingScript.steps.count - 1))
+                    LivingBookStage(
+                        script: livingScript,
+                        stepIndex: clamped,
+                        companion: companion,
+                        dark: dark,
+                        accent: Palette.accent,
+                        posterPhase: livingScript.steps[clamped].posterPhase,
+                        interactive: false,
+                        compact: true
+                    )
+                    .frame(width: 56, height: 42)
+                    .opacity(done ? 0.58 : 1)
+                } else if let art {
                     ArtView(name: art, radius: 9)
                         .frame(width: 56, height: 42)
                         .opacity(done ? 0.58 : 1)
@@ -508,7 +547,7 @@ struct MatSideCoPlayView: View {
                     } label: {
                         Label(L10n.t("安全看护", "Safety"), systemImage: "exclamationmark.shield.fill")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(Crayon.ink(Crayon.tangerine))
+                            .foregroundStyle(dark ? Crayon.tangerine : Crayon.ink(Crayon.tangerine))
                             .padding(.horizontal, 11)
                             .padding(.vertical, 7)
                             .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.24 : 0.16)))
@@ -544,7 +583,8 @@ struct MatSideCoPlayView: View {
                             stepText: play.steps[currentStep],
                             companion: companion,
                             compact: false,
-                            dark: dark
+                            dark: dark,
+                            showOverlays: false
                         )
 
                         VStack(alignment: .leading, spacing: 12) {
@@ -560,10 +600,6 @@ struct MatSideCoPlayView: View {
                                 .font(.title2.weight(.bold))
                                 .foregroundStyle(.primary)
                                 .fixedSize(horizontal: false, vertical: true)
-
-                            Text(L10n.t("轻点上方插画重播 · 左右轻扫也能切步", "Tap the diagram to replay · Swipe left or right to step"))
-                                .font(.caption)
-                                .foregroundStyle(Palette.secondaryText)
                         }
                         .padding(18)
                         .frame(maxWidth: .infinity, alignment: .leading)
@@ -668,13 +704,25 @@ struct Fold<Content: View>: View {
     let color: Color
     @Binding var open: Bool
     @ViewBuilder let content: Content
+    @Environment(\.dynamicTypeSize) private var type
     var body: some View {
         VStack(spacing: 0) {
             Button { withAnimation(.snappy) { open.toggle() } } label: {
                 HStack(spacing: 12) {
                     IconTile(symbol: symbol, color: color, size: 30)
-                    Text(title).font(.headline).foregroundStyle(.primary)
-                    Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(1)
+                    if type.isAccessibilitySize {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(title).font(.headline).foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            if !summary.isEmpty {
+                                Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                        }
+                    } else {
+                        Text(title).font(.headline).foregroundStyle(.primary)
+                        Text(summary).font(.subheadline).foregroundStyle(Palette.secondaryText).lineLimit(1)
+                    }
                     Spacer(minLength: 0)
                     Image(systemName: "chevron.down").font(.footnote.weight(.bold)).foregroundStyle(Palette.secondaryText)
                         .rotationEffect(.degrees(open ? 180 : 0))
@@ -700,6 +748,7 @@ struct Fold<Content: View>: View {
 private struct StepBeadBar: View {
     let total: Int
     let current: Int
+    var inline: Bool = false
     let pick: (Int) -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Namespace private var beadNS
@@ -707,7 +756,7 @@ private struct StepBeadBar: View {
     var body: some View {
         let done = min(current, total)
         let label = current >= total ? L10n.t("全部 \(total) 步已完成", "All \(total) steps done") : L10n.t("第 \(current + 1) 步，共 \(total) 步", "Step \(current + 1) of \(total)")
-        HStack(spacing: 10) {
+        let row = HStack(spacing: 10) {
             HStack(spacing: 6) {
                 ForEach(0..<total, id: \.self) { i in
                     Button { pick(i) } label: {
@@ -736,8 +785,16 @@ private struct StepBeadBar: View {
                 .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
                 .contentTransition(.numericText(value: Double(done + 1)))
         }
-        .padding(.horizontal, 14).padding(.vertical, 6)
-        .printCard(radius: Radius.inner)
+        .padding(.horizontal, inline ? 4 : 14)
+        .padding(.vertical, inline ? 2 : 6)
+
+        Group {
+            if inline {
+                row
+            } else {
+                row.printCard(radius: Radius.inner)
+            }
+        }
         .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
         .accessibilityElement(children: .contain)
         .accessibilityLabel(label)
@@ -897,7 +954,38 @@ private struct FinishedCard: View {
                     .strokeBorder(Palette.bead.opacity(dark ? 0.35 : 0.30), style: StrokeStyle(lineWidth: 1, dash: [5, 4]))
 
                 HStack(spacing: 12) {
-                    if let thumbImg {
+                    if let livingScript = LivingBookCatalog.script(for: play.code) {
+                        let lastIdx = max(0, livingScript.steps.count - 1)
+                        ZStack(alignment: .top) {
+                            LivingBookStage(
+                                script: livingScript,
+                                stepIndex: lastIdx,
+                                companion: companion,
+                                dark: dark,
+                                accent: Palette.area(Palette.areaKey(of: play)),
+                                posterPhase: livingScript.steps[lastIdx].posterPhase,
+                                interactive: false,
+                                compact: true
+                            )
+                            .frame(width: 76, height: 57)
+                            .padding(3)
+                            .background(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .fill(dark ? Palette.lampCard : .white)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                    .strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75)
+                            )
+                            .shadow(color: .black.opacity(0.10), radius: 3, y: 2)
+                            .rotationEffect(.degrees(-3))
+
+                            RoundedRectangle(cornerRadius: 2, style: .continuous)
+                                .fill(Color(hex: 0xEFE1B8).opacity(0.88))
+                                .frame(width: 22, height: 7)
+                                .offset(y: -3)
+                        }
+                    } else if let thumbImg {
                         ZStack(alignment: .top) {
                             Image(uiImage: thumbImg)
                                 .resizable()

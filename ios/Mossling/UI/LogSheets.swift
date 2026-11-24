@@ -1,5 +1,53 @@
 import SwiftUI
 
+/// Pure suggestion & time-nudge helpers shared by `AskSheet` and `EntrySheet`.
+enum CareEntryHelpers {
+    /// Merges recently tasted & loved foods from `FoodAtlasStore` ahead of fallback staples without duplicates.
+    static func solidChips(from records: [String: FoodRecord], staples: [String], limit: Int = 6) -> [String] {
+        let ranked = records.values
+            .sorted { lhs, rhs in
+                let lScore = lhs.reaction == .loved ? 2 : (lhs.reaction == .tasted ? 1 : 0)
+                let rScore = rhs.reaction == .loved ? 2 : (rhs.reaction == .tasted ? 1 : 0)
+                if lScore != rScore { return lScore > rScore }
+                if lhs.firstTastedEpochDay != rhs.firstTastedEpochDay {
+                    return lhs.firstTastedEpochDay > rhs.firstTastedEpochDay
+                }
+                return lhs.times > rhs.times
+            }
+            .compactMap { FoodItem.item(id: $0.foodId)?.name }
+
+        var seen = Set<String>()
+        var result: [String] = []
+        for name in ranked + staples where !name.isEmpty {
+            if seen.insert(name).inserted {
+                result.append(name)
+                if result.count >= limit + staples.count { break }
+            }
+        }
+        return Array(result.prefix(max(staples.count, 8)))
+    }
+
+    /// Shifts an entry start (and preserves its timed duration when `end != nil`), clamping safely to `<= now`.
+    static func shiftStart(startMs: Double, endMs: Double?, byMinutes deltaMin: Int, nowMs: Double) -> (start: Double, end: Double?) {
+        let deltaMs = Double(deltaMin) * 60_000
+        let clampedStart = min(nowMs, max(0, startMs + deltaMs))
+        guard let endMs else { return (clampedStart, nil) }
+        let dur = max(60_000, endMs - startMs)
+        let clampedEnd = min(nowMs, max(clampedStart + 60_000, clampedStart + dur))
+        return (clampedStart, clampedEnd)
+    }
+
+    static func temperatureStatus(tenthsC: Int) -> (label: String, tint: Color, isFever: Bool) {
+        if tenthsC >= 380 {
+            return (L10n.t("发热警戒 · ≥38.0°C", "Fever alert · ≥38.0 °C"), Palette.danger, true)
+        }
+        if tenthsC >= 375 {
+            return (L10n.t("偏高 · 留意复测", "Slightly warm · recheck"), Crayon.tangerine, false)
+        }
+        return (L10n.t("体温平稳", "Normal range"), Crayon.leaf, false)
+    }
+}
+
 /// The page that follows a record button, made for each kind: a bottle, a nappy, a temperature, food or a note at an
 /// exact time (now unless changed), then one tap — said back at the top with 撤销. (A feed or a sleep has its own
 /// page, TimerScreen.)
@@ -8,6 +56,7 @@ struct AskSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     let type: String
     /// Opened from a past day's page: the time starts on that day (noon), not now.
     var on: Date? = nil
@@ -27,7 +76,6 @@ struct AskSheet: View {
     private var tempC: Binding<Double> { Binding(get: { Double(temp) / 10 }, set: { temp = Int(($0 * 10).rounded()) }) }
 
     var body: some View {
-        let c = LogType.color(type)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 22) {
@@ -57,6 +105,7 @@ struct AskSheet: View {
 
     @ViewBuilder private var content: some View {
         let c = LogType.color(type)
+        let dark = lamp || scheme == .dark
         switch type {
         case LogType.bottle:
             HStack(spacing: 12) {
@@ -70,12 +119,15 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     ValueText(parts: [("\(Int(ml))", L10n.t("毫升", "ml"))], size: 52).foregroundStyle(lamp ? Palette.lampInk : Color.primary)
                     Text(L10n.t("点按或上下拖动奶瓶", "Tap or drag the bottle")).font(.footnote).foregroundStyle(Palette.secondaryText)
-                    FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in withAnimation(.snappy) { ml = Double(v) } }
+                    FlowChips(items: [60, 90, 120, 150, 180].map { ($0, "\($0)") }, selected: Int(ml), tint: c) { v in
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { ml = Double(v) }
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
+            .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
         case LogType.diaper:
             Text(L10n.t("点一下即记下", "Tap one to log")).font(.subheadline).foregroundStyle(Palette.secondaryText)
             HStack(spacing: 10) {
@@ -91,11 +143,18 @@ struct AskSheet: View {
                 }
             }
         case LogType.temp:
+            let status = CareEntryHelpers.temperatureStatus(tenthsC: temp)
             HStack(alignment: .center, spacing: 16) {
                 LevelGauge(vessel: .thermometer, value: tempC, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" },
                            tint: Crayon.tangerine, alarm: 38)
                     .frame(width: 96, height: 268)
                 VStack(alignment: .leading, spacing: 12) {
+                    Text(status.label)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(status.tint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(status.tint.opacity(dark ? 0.20 : 0.13)))
                     ValueText(parts: [(String(format: "%.1f", Double(temp) / 10), "°C")], size: 52)
                         .foregroundStyle(temp >= 380 ? Palette.danger : lamp ? Palette.lampInk : .primary)
                     Text(L10n.t("点按或上下拖动体温计", "Tap or drag the thermometer")).font(.footnote).foregroundStyle(Palette.secondaryText)
@@ -113,21 +172,47 @@ struct AskSheet: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
             .padding(16)
-            .printCard(radius: Radius.card, fill: lamp ? Palette.lampCard : Palette.card)
+            .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
         default:
+            let stapleFoods = L10n.isEnglish
+                ? ["Cereal", "Veggie purée", "Fruit purée", "Meat purée", "Egg yolk", "Oatmeal"]
+                : ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"]
+            let solidQuick = CareEntryHelpers.solidChips(from: FoodAtlasStore.shared.records, staples: stapleFoods)
             let (title, hint, chips): (String, String, [String]) = type == LogType.solid
-                ? (L10n.t("吃了什么", "What did they eat?"), L10n.t("食物和大概的量", "Food and rough amount"),
-                   L10n.isEnglish ? ["Cereal", "Veggie purée", "Fruit purée", "Meat purée", "Egg yolk", "Oatmeal"] : ["米粉", "蔬菜泥", "水果泥", "肉泥", "蛋黄", "粥"])
+                ? (L10n.t("吃了什么", "What did they eat?"), L10n.t("食物和大概的量", "Food and rough amount"), solidQuick)
                 : type == LogType.medicine
                 ? (L10n.t("用了什么药", "Medicine"), L10n.t("药名与剂量，按医嘱或说明书", "Name and dose, per doctor or label"),
-                   L10n.isEnglish ? ["Vitamin D", "Vitamin AD"] : ["维生素 D", "维生素 AD"])
+                   L10n.isEnglish ? ["Vitamin D", "Vitamin AD", "Saline drops"] : ["维生素 D", "维生素 AD", "生理盐水"])
                 : (L10n.t("备注", "Note"), L10n.t("发生了什么", "What happened?"), [])
-            Text(title).font(.headline)
-            TextField(hint, text: $text, axis: .vertical).lineLimit(type == LogType.note ? 3...6 : 1...3).focused($typing)
-                .padding(14).background(Palette.card, in: RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
-            if !chips.isEmpty {
-                let sep = L10n.t("、", ", ")
-                FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in text = text.isEmpty ? chips[i] : text + sep + chips[i] }
+            VStack(alignment: .leading, spacing: 12) {
+                HStack {
+                    Text(title).font(.headline)
+                    Spacer(minLength: 8)
+                    if type == LogType.solid && !FoodAtlasStore.shared.records.isEmpty {
+                        Text(L10n.t("含百味食盒最近食材", "Includes First Foods"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Palette.secondaryText)
+                    }
+                }
+                TextField(hint, text: $text, axis: .vertical)
+                    .lineLimit(type == LogType.note ? 3...6 : 1...3)
+                    .focused($typing)
+                    .padding(14)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                            .fill(dark ? Palette.lampCard : Palette.card)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                            .strokeBorder(Palette.outline.opacity(dark ? 0.25 : 0.20), lineWidth: 0.75)
+                    )
+                if !chips.isEmpty {
+                    let sep = L10n.t("、", ", ")
+                    FlowChips(items: chips.enumerated().map { ($0.offset, $0.element) }, selected: nil, tint: c) { i in
+                        TactileEngine.shared.beadClick()
+                        text = text.isEmpty ? chips[i] : text + sep + chips[i]
+                    }
+                }
             }
         }
     }
@@ -206,8 +291,11 @@ struct WrapLayout: Layout {
 struct EntrySheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.lamp) private var lamp
+    @Environment(\.colorScheme) private var scheme
     @State var entry: LogEntry
     @State private var failed = false
+    @State private var saved = 0
     let isNew: Bool
     /// A breast feed of two sides is opened whole: its sides, oldest first, one of them being edited (`entry`).
     @State private var parts: [LogEntry]
@@ -222,7 +310,10 @@ struct EntrySheet: View {
     private var whole: Bool { parts.count > 1 }
     /// The sides as they stand now, the one being edited included.
     private var current: [LogEntry] { var p = parts; if p.indices.contains(sel) { p[sel] = entry }; return p }
-    private func choose(_ i: Int) { var p = parts; p[sel] = entry; parts = p; sel = i; entry = p[i] }
+    private func choose(_ i: Int) {
+        TactileEngine.shared.beadClick()
+        var p = parts; p[sel] = entry; parts = p; sel = i; entry = p[i]
+    }
     private func save() -> Bool {
         if isNew { return j.record(entry) }
         // nothing changed: nothing written, nothing said
@@ -233,21 +324,24 @@ struct EntrySheet: View {
     }
 
     var body: some View {
+        let c = LogType.color(entry.type)
+        let dark = lamp || scheme == .dark
+        let cardFill = dark ? Palette.lampCard : Palette.card
         NavigationStack {
-            Form {
-                if failed { Section { SaveFailed() } }
-                // the kind, large, in its own vinyl: what this entry is, before any field
-                Section {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 14) {
+                    if failed { SaveFailed() }
+
+                    // Tactile summary header card
                     HStack(spacing: 14) {
-                        IconTile(symbol: LogType.symbol(entry.type), color: LogType.color(entry.type), size: 52, round: true)
-                        VStack(alignment: .leading, spacing: 2) {
+                        IconTile(symbol: LogType.symbol(entry.type), color: c, size: 52, round: true)
+                        VStack(alignment: .leading, spacing: 3) {
                             Text(LogType.name(entry.type)).font(.title3.weight(.bold))
                             if whole {
-                                // the whole feed, as on the time line: its start and length, then each side
-                                let c = current
-                                Text(hm(c[0].startDate) + " · " + durationValue(c.reduce(0) { $0 + $1.activeSeconds }))
+                                let cur = current
+                                Text(hm(cur[0].startDate) + " · " + durationValue(cur.reduce(0) { $0 + $1.activeSeconds }))
                                     .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
-                                Text(c.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.activeSeconds) }.joined(separator: " · "))
+                                Text(cur.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.activeSeconds) }.joined(separator: " · "))
                                     .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                             } else {
                                 Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
@@ -256,106 +350,246 @@ struct EntrySheet: View {
                         }
                         Spacer(minLength: 0)
                     }
-                    .padding(.vertical, 4)
-                }
-                .listRowBackground(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(LogType.color(entry.type).opacity(0.16)))
-                if isNew {
-                    Picker(L10n.t("类型", "Kind"), selection: $entry.type) {
-                        ForEach(LogType.buttons.filter { $0 != LogType.growth }, id: \.self) { Text(LogType.name($0)).tag($0) }
+                    .padding(16)
+                    .printCard(radius: Radius.card, fill: c.opacity(dark ? 0.22 : 0.16))
+
+                    if isNew {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(L10n.t("记录类型", "Kind"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.secondaryText)
+                            let kinds = LogType.buttons.filter { $0 != LogType.growth }
+                            FlowChips(items: kinds.map { ($0, LogType.name($0)) }, selected: entry.type, tint: c) { t in
+                                TactileEngine.shared.beadClick()
+                                withAnimation(.snappy) {
+                                    entry.type = t
+                                    if LogType.timed.contains(t) && entry.end == nil {
+                                        entry.end = min(JournalFile.now(), entry.start + 20 * 60_000)
+                                    }
+                                    if !LogType.timed.contains(t) { entry.end = nil }
+                                }
+                            }
+                        }
+                        .padding(16)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .printCard(radius: Radius.card, fill: cardFill)
                     }
-                    .onChange(of: entry.type) { _, t in
-                        if LogType.timed.contains(t) && entry.end == nil { entry.end = min(JournalFile.now(), entry.start + 20 * 60_000) }
-                        if !LogType.timed.contains(t) { entry.end = nil }
+
+                    if whole {
+                        HStack(spacing: 10) {
+                            ForEach(parts.indices, id: \.self) { i in
+                                let part = current[i]
+                                let active = sel == i
+                                let sideLabel = part.side == "r" ? L10n.t("右侧", "Right") : L10n.t("左侧", "Left")
+                                Button {
+                                    withAnimation(.snappy) { choose(i) }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 4) {
+                                        HStack(spacing: 6) {
+                                            Circle()
+                                                .fill(active ? c : Palette.secondaryText.opacity(0.35))
+                                                .frame(width: 8, height: 8)
+                                            Text(L10n.t("第 \(i + 1) 段 · \(sideLabel)", "Part \(i + 1) · \(sideLabel)"))
+                                                .font(.subheadline.weight(.bold))
+                                                .foregroundStyle(.primary)
+                                        }
+                                        Text(hm(part.startDate) + " · " + durationValue(part.activeSeconds))
+                                            .font(.caption.monospacedDigit())
+                                            .foregroundStyle(Palette.secondaryText)
+                                    }
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                                            .fill(active ? c.opacity(dark ? 0.22 : 0.14) : cardFill)
+                                    )
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                                            .strokeBorder(active ? c : Palette.outline.opacity(0.22), lineWidth: active ? 1.5 : 0.75)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(active ? .isSelected : [])
+                            }
+                        }
+                    }
+
+                    timeCard(color: c, cardFill: cardFill, dark: dark)
+
+                    fieldsCard(color: c, cardFill: cardFill, dark: dark)
+
+                    if !isNew {
+                        Button(role: .destructive) {
+                            if whole { j.delete(original) } else { j.delete(entry) }
+                            dismiss()
+                        } label: {
+                            Label(whole ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除这条", "Delete entry"), systemImage: "trash")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(Palette.danger)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                        }
+                        .buttonStyle(.plain)
+                        .printCard(radius: Radius.card, fill: cardFill)
                     }
                 }
-                if whole {
-                    // which side is being changed: each keeps its own times and side
-                    Picker(L10n.t("修改", "Side"), selection: Binding(get: { sel }, set: { choose($0) })) {
-                        ForEach(parts.indices, id: \.self) { i in Text(L10n.t("第 \(i + 1) 段 · " + (current[i].side == "r" ? "右侧" : "左侧"), "Part \(i + 1) · " + (current[i].side == "r" ? "Right" : "Left"))).tag(i) }
-                    }
-                    .pickerStyle(.segmented)
-                    .listRowBackground(Color.clear)
-                }
-                Section {
-                    let now = Date()
-                    DatePicker(entry.end != nil ? L10n.t("开始", "Start") : L10n.t("时间", "Time"), selection: Binding(get: { min(entry.startDate, now) }, set: { d in
-                        let delta = ms(d) - entry.start
-                        entry.start = ms(d)
-                        if let e = entry.end { entry.end = min(ms(Date()), max(entry.start + 60_000, e + delta)) }
-                    }), in: ...now, displayedComponents: [.date, .hourAndMinute])
-                    if let e = entry.endDate {
-                        let endLower = min(entry.startDate, now)
-                        DatePicker(L10n.t("结束", "End"), selection: Binding(get: { min(max(e, endLower), now) }, set: { entry.end = max(entry.start + 60_000, ms($0)) }),
-                                   in: endLower...now, displayedComponents: [.date, .hourAndMinute])
-                        LabeledContent(L10n.t("时长", "Duration"), value: minutesOf(entry.activeSeconds))
-                    }
-                }
-                Section { fields }
-                if !isNew {
-                    // a feed of two sides goes whole: one change, one 撤销
-                    Section { Button(whole ? L10n.t("删除这一顿", "Delete feed") : L10n.t("删除这条", "Delete entry"), role: .destructive) { if whole { j.delete(original) } else { j.delete(entry) }; dismiss() } }
-                }
+                .padding(16)
             }
-            .scrollContentBackground(.hidden)
-            .pageBackground(tone: LogType.color(entry.type))
-            .navigationTitle((isNew ? L10n.t("补记 · ", "Add · ") : "") + LogType.name(entry.type)).navigationBarTitleDisplayMode(.inline)
+            .safeAreaBar(edge: .bottom) {
+                Button {
+                    if save() { saved += 1; dismiss() } else { failed = true }
+                } label: {
+                    Text(L10n.t("保存", "Save")).frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.vinyl(Crayon.fill(c, lamp), prominent: true, large: true))
+                .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
+            }
+            .pageBackground(tone: c)
+            .navigationTitle((isNew ? L10n.t("补记 · ", "Add · ") : "") + LogType.name(entry.type))
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if save() { dismiss() } else { failed = true } } }
             }
         }
+        .sensoryFeedback(.success, trigger: saved)
     }
 
-    @ViewBuilder private var fields: some View {
-        let c = LogType.color(entry.type)
+    @ViewBuilder private func timeCard(color: Color, cardFill: Color, dark: Bool) -> some View {
+        let now = Date()
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(L10n.t("时间", "Time")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                Spacer(minLength: 8)
+                if entry.end != nil {
+                    Text(minutesOf(entry.activeSeconds))
+                        .font(.caption.weight(.bold).monospacedDigit())
+                        .foregroundStyle(color)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(color.opacity(dark ? 0.22 : 0.14)))
+                }
+            }
+
+            DatePicker(entry.end != nil ? L10n.t("开始", "Start") : L10n.t("时刻", "At"), selection: Binding(get: { min(entry.startDate, now) }, set: { d in
+                let delta = ms(d) - entry.start
+                entry.start = ms(d)
+                if let e = entry.end { entry.end = min(ms(Date()), max(entry.start + 60_000, e + delta)) }
+            }), in: ...now, displayedComponents: [.date, .hourAndMinute])
+
+            if let e = entry.endDate {
+                let endLower = min(entry.startDate, now)
+                DatePicker(L10n.t("结束", "End"), selection: Binding(get: { min(max(e, endLower), now) }, set: { entry.end = max(entry.start + 60_000, ms($0)) }),
+                           in: endLower...now, displayedComponents: [.date, .hourAndMinute])
+            }
+
+            HStack(spacing: 8) {
+                ForEach([(-15, L10n.t("-15 分钟", "-15m")), (-5, L10n.t("-5 分钟", "-5m")), (5, L10n.t("+5 分钟", "+5m"))], id: \.0) { delta, label in
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        let shifted = CareEntryHelpers.shiftStart(startMs: entry.start, endMs: entry.end, byMinutes: delta, nowMs: ms(Date()))
+                        withAnimation(.snappy) {
+                            entry.start = shifted.start
+                            entry.end = shifted.end
+                        }
+                    } label: {
+                        Text(label)
+                            .font(.caption.weight(.semibold).monospacedDigit())
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
+                    }
+                    .buttonStyle(.vinyl(color.opacity(0.85)))
+                }
+            }
+        }
+        .padding(16)
+        .printCard(radius: Radius.card, fill: cardFill)
+    }
+
+    @ViewBuilder private func fieldsCard(color: Color, cardFill: Color, dark: Bool) -> some View {
         switch entry.type {
         case LogType.bottle:
-            Picker(L10n.t("奶", "Milk"), selection: Binding(get: { entry.detail ?? "" }, set: { entry.detail = $0.isEmpty ? nil : $0 })) {
-                Text(L10n.t("未填", "Not set")).tag(""); Text(L10n.t("母乳", "Breast milk")).tag("breastmilk"); Text(L10n.t("配方奶", "Formula")).tag("formula")
-            }
-            let amount = Binding<Double>(get: { Double(entry.amount ?? 120) }, set: { entry.amount = Int($0) })
-            HStack(spacing: 16) {
-                LevelGauge(vessel: .bottle, value: amount, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" }, tint: c)
-                    .frame(width: 92, height: 196)
-                VStack(alignment: .leading, spacing: 12) {
-                    ValueText(parts: [("\(entry.amount ?? 120)", L10n.t("毫升", "ml"))], size: 40)
-                    NudgeButtons(value: amount, range: 5...300, step: 5, tint: c)
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(spacing: 12) {
+                    ChoiceTile(sticker: "ic_heart_fill.webp", symbol: "heart.fill", title: L10n.t("母乳", "Breast milk"), on: entry.detail == "breastmilk", tint: Crayon.pink, height: 74) {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { entry.detail = entry.detail == "breastmilk" ? nil : "breastmilk" }
+                    }
+                    ChoiceTile(sticker: "ic_waterbottle_fill.webp", symbol: "waterbottle.fill", title: L10n.t("配方奶", "Formula"), on: entry.detail == "formula", tint: Crayon.peach, height: 74) {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { entry.detail = entry.detail == "formula" ? nil : "formula" }
+                    }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                let amount = Binding<Double>(get: { Double(entry.amount ?? 120) }, set: { entry.amount = Int($0) })
+                HStack(spacing: 16) {
+                    LevelGauge(vessel: .bottle, value: amount, range: 5...300, step: 5, marks: [60, 120, 180, 240, 300], label: { "\(Int($0))" },
+                               tint: color, liquid: entry.detail == "breastmilk" ? Color(hex: 0xFFF6E2) : Color(hex: 0xF6E2BC))
+                        .frame(width: 96, height: 210)
+                    VStack(alignment: .leading, spacing: 12) {
+                        ValueText(parts: [("\(entry.amount ?? 120)", L10n.t("毫升", "ml"))], size: 42)
+                        NudgeButtons(value: amount, range: 5...300, step: 5, tint: color)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                }
             }
-            .padding(.vertical, 6)
+            .padding(16)
+            .printCard(radius: Radius.card, fill: cardFill)
         case LogType.nurse:
             HStack(spacing: 10) {
-                // the sides read 左侧 / 右侧, never L / R; the arrow only points the way
                 ForEach([("l", L10n.t("左侧", "Left")), ("r", L10n.t("右侧", "Right"))], id: \.0) { k, t in
-                    ChoiceTile(sticker: nil, symbol: k == "l" ? "arrow.left.circle.fill" : "arrow.right.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: c, height: 76) { withAnimation(.snappy) { entry.side = k } }
-                        .accessibilityLabel(t)
+                    ChoiceTile(sticker: nil, symbol: k == "l" ? "arrow.left.circle.fill" : "arrow.right.circle.fill", title: t, on: (entry.side ?? "l") == k, tint: color, height: 78) {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { entry.side = k }
+                    }
+                    .accessibilityLabel(t)
                 }
             }
-            .padding(.vertical, 4)
         case LogType.diaper:
             HStack(spacing: 10) {
                 ForEach([("wet", L10n.t("湿", "Wet"), "drop.halffull", "ic_drop_halffull.webp"), ("dirty", L10n.t("便", "Dirty"), "circle.fill", "ic_diaper_dirty.webp"), ("both", L10n.t("都有", "Both"), "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
-                    ChoiceTile(sticker: art, symbol: sym, title: t, on: (entry.detail ?? "wet") == k, tint: c, height: 96) { withAnimation(.snappy) { entry.detail = k } }
+                    ChoiceTile(sticker: art, symbol: sym, title: t, on: (entry.detail ?? "wet") == k, tint: color, height: 98) {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { entry.detail = k }
+                    }
                 }
             }
-            .padding(.vertical, 4)
         case LogType.temp:
-            let t = Binding<Double>(get: { Double(entry.amount ?? 368) / 10 }, set: { entry.amount = Int(($0 * 10).rounded()) })
+            let tenths = entry.amount ?? 368
+            let t = Binding<Double>(get: { Double(tenths) / 10 }, set: { entry.amount = Int(($0 * 10).rounded()) })
+            let status = CareEntryHelpers.temperatureStatus(tenthsC: tenths)
             HStack(spacing: 16) {
                 LevelGauge(vessel: .thermometer, value: t, range: 34...42.5, step: 0.1, marks: [35, 36, 37, 38, 39, 40, 41, 42], label: { "\(Int($0))" }, tint: Crayon.tangerine, alarm: 38)
-                    .frame(width: 84, height: 220)
-                VStack(alignment: .leading, spacing: 12) {
-                    ValueText(parts: [(String(format: "%.1f", Double(entry.amount ?? 368) / 10), "°C")], size: 40)
-                        .foregroundStyle((entry.amount ?? 368) >= 380 ? Palette.danger : .primary)
-                    NudgeButtons(value: t, range: 34...42.5, step: 0.1, tint: c)
+                    .frame(width: 88, height: 224)
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(status.label)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(status.tint)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(status.tint.opacity(dark ? 0.20 : 0.13)))
+                    ValueText(parts: [(String(format: "%.1f", Double(tenths) / 10), "°C")], size: 42)
+                        .foregroundStyle(tenths >= 380 ? Palette.danger : .primary)
+                    NudgeButtons(value: t, range: 34...42.5, step: 0.1, tint: tenths >= 380 ? Palette.danger : color)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .padding(.vertical, 6)
+            .padding(16)
+            .printCard(radius: Radius.card, fill: cardFill)
         case LogType.solid, LogType.medicine, LogType.note:
-            TextField(entry.type == LogType.solid ? L10n.t("食物和大概的量", "Food and rough amount") : entry.type == LogType.medicine ? L10n.t("药名与剂量", "Name and dose") : L10n.t("发生了什么", "What happened?"),
-                      text: Binding(get: { entry.detail ?? "" }, set: { entry.detail = String($0.prefix(120)) }), axis: .vertical)
+            let hint = entry.type == LogType.solid
+                ? L10n.t("食物和大概的量", "Food and rough amount")
+                : entry.type == LogType.medicine
+                ? L10n.t("药名与剂量", "Name and dose")
+                : L10n.t("发生了什么", "What happened?")
+            VStack(alignment: .leading, spacing: 10) {
+                Text(LogType.name(entry.type)).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)
+                TextField(hint, text: Binding(get: { entry.detail ?? "" }, set: { entry.detail = String($0.prefix(120)) }), axis: .vertical)
+                    .lineLimit(entry.type == LogType.note ? 3...6 : 1...3)
+                    .padding(12)
+                    .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(dark ? Palette.lampPage : Palette.paper))
+                    .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Palette.outline.opacity(0.20), lineWidth: 0.75))
+            }
+            .padding(16)
+            .printCard(radius: Radius.card, fill: cardFill)
         default: EmptyView()
         }
     }

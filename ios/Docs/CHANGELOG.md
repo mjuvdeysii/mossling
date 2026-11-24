@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 16（v2.0 正式发布候选 13 · 活态绘本微剧场引擎 Phase 1 · 深色宣纸夜境修复与活动页减负）**：
+  - **全维度视觉与状态修复**：修复深色模式下 `PageBackground` 未跟随 `colorScheme == .dark` 仍渲染日间天光草地的问题；修复 `YouView` 外观色板 `Swatch` 在 AX2 大字下勾选标与标签重叠；将 `SearchEngine.quickQueries`（`ReadingViews.swift`）优化为分龄 4 枚均衡胶囊（`...3`、`4...8`、`9...18`、`default`）消除 4+1 孤儿换行；为 `Creature` / `FlatCreature` 的 `patted` 状态补齐 `!still` 守卫修复 2D 静态定格闭眼问题；修复 `Fold` 在 AX2 下「准备 · ...」标题截断并补充 `ArtView` 缩略图（`px <= 512`）同步解码回退消除 `MonthView` 深色冷启动空白。
+  - **活态绘本微剧场 StoryTheater（Phase 1）**：新建 `ios/Mossling/IP/StoryTheater/`（`LivingBookModels.swift`、`PictureBookBackdrop.swift`、`LampLightRig.swift`、`MontessoriPropRig.swift`、`LivingBookStage.swift`），落地 5 相位 OpenMotion 动作时钟（蓄势 -> 主体表演 -> 接触反馈 -> 次级跟随 -> 稳定落点）、恪守 `docs/IP.md` 角色正典（零腮红/零嘴点/零台词气泡，严格沿用 `Sprites.mossFeet`/`ottoFeet`/`bead` 比例）、Otto 金珠实时光学追踪光锥、5 套北欧剪纸布景，并率先完成 `A04`（递木环摇铃）、`A12`（躲猫猫真实掀布）与 `A19`（叠积木搭建与倒塌欢呼）全模态动态脚本（Daylight 3D / Dark & Lamp 3D / 2D Flat / ZH-EN / AX2 / `Reduce Motion` `posterPhase` 确定性定格 / `ImageRenderer`），接入 `ActivityMotionStage`、`PlayView` 与 `TodayView`。
+  - **全站版面减负与触控优化**：将 `PlayView` 多处冗余步骤计数与提示语收口为 `PlayLivingHeroCard` 内联 `StepBeadBar` 与轻触 `重播` 按钮；AX2 下操作按钮纵向排布；`CompactStepOutlineRow` 与 `FinishedCard` 同步升级为活态舞台微缩预览，并提升 `MatSideCoPlayView` 深色/夜灯模式下「安全看护」橘色调对比度；同时升级 `Gauges.swift`（`FluidGaugeCanvas` 弹簧液面与体温温区色带）及 `LogSheets.swift`（`CareEntryHelpers` 百味食盒快捷食材、`-15m/-5m/+5m` 快速调时与卡片化 `EntrySheet`）。
+
 - **Batch 15（v2.0 正式发布候选 12 · 首页蒙氏工作台 · 三幕交互故事微剧院 · 活态计时伴护与 iOS 26 细节精修）**：
   - **【修复 Fix】**：在全站 `CalmScroll` 统一启用 iOS 26 `.scrollEdgeEffectStyle(.soft, for: .all)`，消除导航栏与底栏下滚动卡片出现的硬切模糊线；修复 `TimerScreen` 在 AX2 超大字号下声景控制行（`"床头..."` / `"草坡..."`）与尿布按钮（`"都有"`）的省略截断；优化 `StorybookView` 成长绘本单页纵深留白与底部柔化边界，完整呈现页尾父母随笔不被翻页豆链遮挡。
   - **【创意炼金术升级 Creative Alchemy Upgrade】**：彻底清理首页主卡多余的悬浮灯珠点与重复角标伙伴，将「**陪伴小器具**」重塑为三阶 **蒙氏生活工作台（Living Montessori Atelier Dock）**——首行直觉呈现带一键播/停助眠声景的深夜暖灯控制台与真实 24 小时睡眠/喂奶微型节律盘；中行换装实时六色花环食盒与五音条手工木琴；底行以折角纪念画册叠卡与信封折痕火漆囊收尾；同步将「**摸索台灯的故事 `StoryView`**」升级为「**点灯 -> 摸索 -> 0–36 个月长大**」三幕交互微剧院，支持轻拉灯绳开关暖光、轻碰木套环激发弹跳与撒叶、拖动金珠标尺实时看宝宝月龄成长。

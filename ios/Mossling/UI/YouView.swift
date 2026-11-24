@@ -390,43 +390,59 @@ private struct Swatch: View {
 
     var body: some View {
         Button(action: pick) {
-            ZStack(alignment: .bottom) {
-                preview
-                    .frame(height: type.isAccessibilitySize ? 70 : 54)
-                    .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                            .strokeBorder(on ? Palette.accent : Palette.outline.opacity(0.22), lineWidth: on ? 2.2 : 0.85)
-                    )
-                    .overlay(alignment: .topTrailing) {
-                        if on {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(.white, Palette.accentFill)
-                                .padding(5)
-                        }
+            Group {
+                if type.isAccessibilitySize {
+                    VStack(spacing: 5) {
+                        swatchWindow
+                        swatchLabel
                     }
-
-                HStack(spacing: 3) {
-                    Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
-                        .font(.system(size: 8.5, weight: .bold))
-                        .foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
-                    Text(mode.label)
-                        .font(.caption2.weight(on ? .bold : .semibold))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.72)
+                } else {
+                    ZStack(alignment: .bottom) {
+                        swatchWindow
+                        swatchLabel
+                            .padding(.bottom, 5)
+                    }
                 }
-                .padding(.horizontal, 5)
-                .padding(.vertical, 2)
-                .background(Palette.card.opacity(0.94), in: Capsule())
-                .padding(.bottom, 5)
             }
             .frame(maxWidth: .infinity)
         }
         .buttonStyle(.toy)
         .accessibilityLabel(mode.label)
         .accessibilityAddTraits(on ? .isSelected : [])
+    }
+
+    private var swatchWindow: some View {
+        preview
+            .frame(height: 54)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
+                    .strokeBorder(on ? Palette.accent : Palette.outline.opacity(0.22), lineWidth: on ? 2.2 : 0.85)
+            )
+            .overlay(alignment: .topTrailing) {
+                if on {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white, Palette.accentFill)
+                        .padding(5)
+                }
+            }
+    }
+
+    private var swatchLabel: some View {
+        HStack(spacing: 3) {
+            Image(systemName: mode == .light ? "sun.max.fill" : mode == .dark ? "lamp.desk.fill" : "circle.lefthalf.filled")
+                .font(.system(size: 8.5, weight: .bold))
+                .foregroundStyle(mode == .light ? Crayon.ink(Crayon.sunflower) : mode == .dark ? Palette.lampTint : Palette.secondaryText)
+            Text(mode.label)
+                .font(.caption2.weight(on ? .bold : .semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.72)
+        }
+        .padding(.horizontal, 5)
+        .padding(.vertical, 2)
+        .background(Palette.card.opacity(0.94), in: Capsule())
     }
 
     @ViewBuilder private var preview: some View {

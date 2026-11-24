@@ -144,6 +144,8 @@ struct ActivityMotionStage: View {
     let companion: Kind
     var compact: Bool = false
     let dark: Bool
+    var replayTrigger: Int = 0
+    var showOverlays: Bool = true
 
     @State private var pulseAt: Date = .distantPast
     @State private var pulseOrigin: CGPoint? = nil
@@ -191,7 +193,29 @@ struct ActivityMotionStage: View {
         }
     }
 
+    @ViewBuilder
     var body: some View {
+        if let livingScript = LivingBookCatalog.script(for: play.code) {
+            LivingBookStage(
+                script: livingScript,
+                stepIndex: stepIndex,
+                companion: companion,
+                dark: dark,
+                accent: stageColor,
+                posterPhase: nil,
+                interactive: !compact,
+                compact: compact,
+                replayTrigger: replayTrigger
+            )
+            .accessibilityElement()
+            .accessibilityLabel(L10n.t("第 \(stepIndex + 1) 步活态绘本舞台：\(stepText.isEmpty ? spec.cue : stepText)", "Step \(stepIndex + 1) living picture-book stage: \(stepText.isEmpty ? spec.cue : stepText)"))
+            .accessibilityHint(L10n.t("轻点画面重播动作", "Tap the stage to replay"))
+        } else {
+            legacyBody
+        }
+    }
+
+    private var legacyBody: some View {
         let toneInk = dark ? stageColor.mix(with: .white, by: 0.25) : Crayon.ink(stageColor)
         let steps = ArtIndex.shared.steps(play.code)
         let artName = steps.isEmpty ? nil : steps[min(max(stepIndex, 0), steps.count - 1)]
@@ -202,7 +226,7 @@ struct ActivityMotionStage: View {
             template: spec.template
         )
 
-        GeometryReader { geo in
+        return GeometryReader { geo in
             let px = max(420, Int(geo.size.width * scale))
             let img = artName.flatMap { name -> UIImage? in
                 let shown = ArtIndex.variant(name, girl: girl)
@@ -253,7 +277,7 @@ struct ActivityMotionStage: View {
                     view.scaleEffect(scaleVal)
                 }
                 .overlay(alignment: .topTrailing) {
-                    if stepCount > 1 {
+                    if showOverlays && stepCount > 1 {
                         Text(String(format: "%02d / %02d", stepIndex + 1, stepCount))
                             .font(.caption2.weight(.bold).monospacedDigit())
                             .foregroundStyle(dark ? Palette.lampInk : Palette.text)
@@ -267,41 +291,43 @@ struct ActivityMotionStage: View {
                 }
 
                 // Bottom picture-book caption bar: step-specific kinetic badge + Montessori step bead track
-                HStack(alignment: .center, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: action.symbol)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(toneInk)
-                        Text(action.label)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(dark ? Palette.lampInk : Palette.text)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.92)))
-                    .overlay(Capsule().strokeBorder(stageColor.opacity(dark ? 0.45 : 0.30), lineWidth: 0.85))
-
-                    Spacer(minLength: 4)
-
-                    if stepCount > 1 {
-                        HStack(spacing: 4) {
-                            ForEach(0..<stepCount, id: \.self) { idx in
-                                let active = idx == stepIndex
-                                let done = idx < stepIndex
-                                Circle()
-                                    .fill(active ? (companion == .moss ? Palette.mint : Palette.bead) : done ? Palette.bead.opacity(0.55) : Palette.secondaryText.opacity(0.30))
-                                    .frame(width: active ? 7 : 5, height: active ? 7 : 5)
-                            }
+                if showOverlays {
+                    HStack(alignment: .center, spacing: 8) {
+                        HStack(spacing: 6) {
+                            Image(systemName: action.symbol)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(toneInk)
+                            Text(action.label)
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(dark ? Palette.lampInk : Palette.text)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                         }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
                         .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.92)))
-                        .overlay(Capsule().strokeBorder(stageColor.opacity(dark ? 0.40 : 0.24), lineWidth: 0.7))
+                        .overlay(Capsule().strokeBorder(stageColor.opacity(dark ? 0.45 : 0.30), lineWidth: 0.85))
+
+                        Spacer(minLength: 4)
+
+                        if stepCount > 1 {
+                            HStack(spacing: 4) {
+                                ForEach(0..<stepCount, id: \.self) { idx in
+                                    let active = idx == stepIndex
+                                    let done = idx < stepIndex
+                                    Circle()
+                                        .fill(active ? (companion == .moss ? Palette.mint : Palette.bead) : done ? Palette.bead.opacity(0.55) : Palette.secondaryText.opacity(0.30))
+                                        .frame(width: active ? 7 : 5, height: active ? 7 : 5)
+                                }
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 6)
+                            .background(Capsule().fill((dark ? Palette.lampCard : .white).opacity(0.92)))
+                            .overlay(Capsule().strokeBorder(stageColor.opacity(dark ? 0.40 : 0.24), lineWidth: 0.7))
+                        }
                     }
+                    .padding(10)
                 }
-                .padding(10)
             }
             .contentShape(Rectangle())
             .gesture(
