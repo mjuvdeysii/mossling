@@ -2245,4 +2245,58 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testFirstsCharmMotifStudioMetricsAndPrintPoster() {
+        // Every built-in Firsts.Kind maps cleanly to a crafted motif (not falling back unintentionally)
+        XCTAssertEqual(Firsts.all.count, 28)
+        for kind in Firsts.all {
+            let motif = FirstCharmMotif.of(key: kind.id)
+            XCTAssertNotEqual(motif, .starCharm, "Built-in kind \(kind.id) should have a bespoke charm motif")
+        }
+        // Every custom icon key maps cleanly to its corresponding motif
+        for (sym, _) in Firsts.customIcons {
+            let motif = FirstCharmMotif.of(key: "icon:" + sym)
+            if sym != "star.fill" {
+                XCTAssertNotEqual(motif, .starCharm, "Custom icon \(sym) should resolve to its dedicated motif")
+            } else {
+                XCTAssertEqual(motif, .starCharm)
+            }
+        }
+
+        // Stage suggestion filtering excludes already recorded keys & matching titles
+        let birth = Day(y: 2026, m: 4, d: 19)
+        let logged = [
+            First(at: birth.plus(days: 40).date.timeIntervalSince1970 * 1000, key: "smile", title: "第一次笑"),
+            First(at: birth.plus(days: 120).date.timeIntervalSince1970 * 1000, key: nil, title: "翻身"),
+        ]
+        let suggestions = FirstsStudioMetrics.suggestedCharms(for: logged, babyMonth: 6, limit: 6)
+        XCTAssertEqual(suggestions.count, 6)
+        XCTAssertFalse(suggestions.contains { $0.id == "smile" || $0.id == "roll" })
+
+        // Photo entries helper & deterministic FirstsPrintPoster render
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 1
+        let sampleImg = UIGraphicsImageRenderer(size: CGSize(width: 80, height: 80), format: fmt).image { ctx in
+            UIColor.systemTeal.setFill()
+            ctx.cgContext.fill(CGRect(x: 0, y: 0, width: 80, height: 80))
+        }
+        let photoEntries = FirstsStudioMetrics.photoEntries(in: logged) { id in
+            id == logged[0].id ? sampleImg : nil
+        }
+        XCTAssertEqual(photoEntries.count, 1)
+        XCTAssertEqual(photoEntries.first?.first.id, logged[0].id)
+
+        let poster = FirstsPrintPoster(
+            babyName: "小满",
+            ageText: "6 个月",
+            birth: birth,
+            firsts: logged,
+            photos: [logged[0].id: sampleImg]
+        )
+        let renderer = ImageRenderer(content: poster)
+        renderer.scale = 2.0
+        let rendered = renderer.uiImage
+        XCTAssertNotNil(rendered)
+        XCTAssertEqual(rendered?.size.width ?? 0, 360, accuracy: 2)
+    }
 }

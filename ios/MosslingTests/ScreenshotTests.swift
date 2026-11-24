@@ -1895,4 +1895,51 @@ final class ScreenshotTests: XCTestCase {
         let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
         shot("66_month_12_ax2_en", height: 1320, tabs(mEn, MonthView(month: 12)).dynamicTypeSize(.accessibility2))
     }
+
+    /// Round 18 — Montessori Firsts Keepsake Studio (Empty Stage Invitation, Polaroid Garland, Night Lamp, AX2, & EN).
+    func test67FirstsKeepsakeStudio() {
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.journal = true
+        shot("67_firsts_empty_zh", height: 1080, tabs(m, FirstsView()))
+
+        let fmt = UIGraphicsImageRendererFormat(); fmt.scale = 2
+        let sampleA = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 240), format: fmt).image { ctx in
+            UIColor(red: 0.96, green: 0.88, blue: 0.72, alpha: 1).setFill()
+            ctx.cgContext.fill(CGRect(x: 0, y: 0, width: 240, height: 240))
+            UIColor(red: 0.25, green: 0.62, blue: 0.54, alpha: 1).setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(x: 56, y: 74, width: 128, height: 128))
+        }
+        let sampleB = UIGraphicsImageRenderer(size: CGSize(width: 240, height: 240), format: fmt).image { ctx in
+            UIColor(red: 0.88, green: 0.93, blue: 0.97, alpha: 1).setFill()
+            ctx.cgContext.fill(CGRect(x: 0, y: 0, width: 240, height: 240))
+            UIColor(red: 0.90, green: 0.56, blue: 0.36, alpha: 1).setFill()
+            ctx.cgContext.fillEllipse(in: CGRect(x: 64, y: 64, width: 112, height: 112))
+        }
+
+        let f1 = First(at: at(10, 0) - 90 * 86_400_000, key: "smile", title: "第一次笑", note: "醒来看到窗帘透进的光就咧嘴笑了")
+        let f2 = First(at: at(10, 0) - 42 * 86_400_000, key: "roll", title: "翻身", note: "在软垫上自己翻过去了")
+        let f3 = First(at: at(10, 0) - 8 * 86_400_000, key: "sit", title: "坐", note: "靠着抱枕稳稳坐住")
+        FirstPhotoStore.save(sampleA, for: f3.id)
+        FirstPhotoStore.save(sampleB, for: f1.id)
+        defer {
+            FirstPhotoStore.delete(for: f3.id)
+            FirstPhotoStore.delete(for: f1.id)
+        }
+
+        var b = JournalFile.Body()
+        b.firsts = [f3, f2, f1]
+        let fj = JournalStore(preview: b)
+
+        shot("67_firsts_gallery_zh", height: 1320,
+             NavigationStack { FirstsView() }.environment(m).environment(fj).tint(Palette.accent).fontDesign(.rounded))
+        shot("67_firsts_gallery_lamp_zh", height: 1320, lamp: true,
+             NavigationStack { FirstsView() }.lamp(true).environment(m).environment(fj).tint(Palette.accent).fontDesign(.rounded))
+        shot("67_firsts_gallery_ax2_zh", height: 1620,
+             NavigationStack { FirstsView() }.environment(m).environment(fj).tint(Palette.accent).fontDesign(.rounded).dynamicTypeSize(.accessibility2))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("67_firsts_gallery_en", height: 1320,
+             NavigationStack { FirstsView() }.environment(mEn).environment(fj).tint(Palette.accent).fontDesign(.rounded))
+    }
 }

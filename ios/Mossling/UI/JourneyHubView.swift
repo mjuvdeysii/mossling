@@ -520,7 +520,7 @@ struct JourneyHubView: View {
                             : L10n.t("已留存 \(j.firsts.count) 个第一次", "\(j.firsts.count) captured"),
                         tint: Crayon.pink
                     ) {
-                        IconTile(symbol: "camera.macro", color: Crayon.pink, size: 32)
+                        FirstCharmBadge(key: "smile", color: Crayon.pink, size: 32)
                     }
                 }
                 .buttonStyle(.toy)

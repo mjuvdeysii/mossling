@@ -546,7 +546,7 @@ private struct StorybookMonthSpread: View {
 
                         ForEach(page.firsts) { f in
                             HStack(alignment: .top, spacing: 10) {
-                                IconTile(symbol: Firsts.symbol(f), color: Firsts.color(f), size: 28, round: true)
+                                FirstCharmBadge(key: f.key, color: Firsts.color(f), size: 28)
                                 VStack(alignment: .leading, spacing: 2) {
                                     HStack(spacing: 6) {
                                         Text(Firsts.displayTitle(f))
