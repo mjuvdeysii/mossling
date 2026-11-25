@@ -74,10 +74,10 @@ struct TodayView: View {
             NavigationLink(value: ExploreRoute.toybox(.xylophone)) {
                 discoveryTile(
                     color: Crayon.teal,
-                    title: L10n.t("感官玩具盒", "Sensory Toybox"),
+                    title: L10n.t("感官玩具盒", "Toybox"),
                     subtitle: toyTodayCount > 0
-                        ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
-                        : L10n.t("木琴 · 手影 · 雨棒 · 萤火", "5 studios · Shadow Wall"),
+                        ? L10n.t("今日玩了 \(toyTodayCount) 次", "\(toyTodayCount) today")
+                        : L10n.t("5 种感官玩具", "5 sensory toys"),
                     dark: dark
                 ) {
                     MiniXylophoneArt(dark: dark)
@@ -112,33 +112,32 @@ struct TodayView: View {
         dark: Bool,
         @ViewBuilder art: () -> Art
     ) -> some View {
-        HStack(alignment: .center, spacing: 10) {
+        HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
             art()
 
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: LayoutSpec.titleDescGap) {
                 Text(title)
                     .font(.subheadline.weight(.semibold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.84)
+                    .minimumScaleFactor(0.9)
                 Text(subtitle)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
-                    .minimumScaleFactor(0.82)
+                    .minimumScaleFactor(0.9)
                     .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
             }
-
-            Spacer(minLength: 2)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             Image(systemName: "chevron.right")
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 13)
-        .frame(maxWidth: .infinity, minHeight: 64, alignment: .leading)
+        .padding(.horizontal, LayoutSpec.cardPad - 2)
+        .padding(.vertical, LayoutSpec.cardPad - 2)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
         .background(
             LinearGradient(
                 colors: [color.opacity(dark ? 0.14 : 0.12), color.opacity(dark ? 0.03 : 0.02)],

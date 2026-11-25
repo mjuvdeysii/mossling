@@ -788,16 +788,11 @@ struct LampHubView: View {
                     .scaleEffect(0.86)
                     .frame(width: 42, height: 42)
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(isToday ? L10n.t("今日节律可视化", "Today's Rhythm") : L10n.t("\(dayLabel) · 节律可视化", "\(dayLabel) Rhythm"))
+                    Text(isToday ? L10n.t("今日照护一览", "Today at a Glance") : L10n.t("\(dayLabel) · 照护一览", "\(dayLabel) at a Glance"))
                         .font(.headline.weight(.semibold))
                         .tracking(LayoutSpec.titleTracking)
                         .foregroundStyle(.primary)
-                    Text(
-                        L10n.t(
-                            "睡 \(durationValue(sleepSec)) · 喂 \(feedCount) 次 · 护 \(diaperCount) 次",
-                            "Sleep \(durationValue(sleepSec)) · \(feedCount) feeds · \(diaperCount) diapers"
-                        )
-                    )
+                    Text(L10n.t("睡眠 · 喂奶 · 尿布，一眼看清", "Sleep, feeds and diapers in one look"))
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? 3 : 1)
@@ -846,6 +841,8 @@ struct LampHubView: View {
                     }
                 }
             }
+
+            DaySummaryTiles(day: day, logs: dayLogs, feedCount: feedCount, sleepSec: sleepSec, diaperCount: diaperCount, dark: dark)
 
             DaySwimlaneCanvas(day: day, logs: dayLogs, timers: isToday ? j.timers : [], dark: dark)
                 .allowsHitTesting(false)
@@ -1079,3 +1076,90 @@ struct LampHubView: View {
 }
 
 private struct LampAskWrap: Identifiable { let id: String }
+
+/// The day's four numbers a parent checks first — how long they slept, how many feeds and for how long in all, how
+/// many diapers — set large, in three soft tiles (after "我喜欢很明显的看到他今天睡了多少个小时，喝了多少小时的奶，
+/// 喝了多少次奶，换了多少次尿包"). Big rounded figures, one regular caption line each; nothing hidden in a footnote.
+struct DaySummaryTiles: View {
+    let day: Day
+    let logs: [LogEntry]
+    let feedCount: Int
+    let sleepSec: Double
+    let diaperCount: Int
+    let dark: Bool
+    @Environment(\.dynamicTypeSize) private var type
+
+    var body: some View {
+        let nurseSec = logs.filter { $0.type == LogType.nurse }.reduce(0) { $0 + $1.seconds(on: day) }
+        let bottleMl = logs.filter { $0.type == LogType.bottle }.compactMap(\.amount).reduce(0, +)
+        let longest = logs.filter { $0.type == LogType.sleep }.map { $0.seconds(on: day) }.max() ?? 0
+        let wet = logs.filter { $0.type == LogType.diaper && ($0.detail == "wet" || $0.detail == "both") }.count
+        let dirty = logs.filter { $0.type == LogType.diaper && ($0.detail == "dirty" || $0.detail == "both") }.count
+
+        let feedDetail: String = {
+            var parts: [String] = []
+            if nurseSec >= 60 { parts.append(L10n.t("亲喂共 \(durationValue(nurseSec))", "Nursed \(durationValue(nurseSec))")) }
+            if bottleMl > 0 { parts.append(L10n.t("瓶喂 \(bottleMl) 毫升", "Bottle \(bottleMl) ml")) }
+            return parts.isEmpty ? L10n.t("还没有记录", "None yet") : parts.joined(separator: " · ")
+        }()
+
+        let layout = type.isAccessibilitySize
+            ? AnyLayout(VStackLayout(spacing: 8))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+        layout {
+            tile(color: LogType.color(LogType.nurse), symbol: LogType.symbol(LogType.nurse),
+                 title: L10n.t("喂奶", "Feeds"),
+                 value: "\(feedCount)", unit: L10n.t("次", feedCount == 1 ? "feed" : "feeds"),
+                 detail: feedDetail)
+            tile(color: LogType.color(LogType.sleep), symbol: LogType.symbol(LogType.sleep),
+                 title: L10n.t("睡眠", "Sleep"),
+                 value: hoursValue(sleepSec), unit: "",
+                 detail: longest >= 60 ? L10n.t("最长一觉 \(durationValue(longest))", "Longest \(durationValue(longest))") : L10n.t("还没有记录", "None yet"))
+            tile(color: LogType.color(LogType.diaper), symbol: LogType.symbol(LogType.diaper),
+                 title: L10n.t("尿布", "Diapers"),
+                 value: "\(diaperCount)", unit: L10n.t("片", ""),
+                 detail: diaperCount > 0 ? L10n.t("湿 \(wet) · 便 \(dirty)", "Wet \(wet) · Dirty \(dirty)") : L10n.t("还没有记录", "None yet"))
+        }
+        .accessibilityElement(children: .combine)
+    }
+
+    /// "12时41分" — hours and minutes as one bold figure.
+    private func hoursValue(_ s: Double) -> String {
+        let m = Int((max(0, s) / 60).rounded())
+        let h = m / 60, r = m % 60
+        if h == 0 { return L10n.t("\(r)分", "\(r)m") }
+        return L10n.t("\(h)时\(r)分", "\(h)h \(r)m")
+    }
+
+    private func tile(color c: Color, symbol: String, title: String, value: String, unit: String, detail: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Label(title, systemImage: symbol)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(Crayon.ink(c))
+                .labelStyle(.titleAndIcon)
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 2) {
+                Text(value)
+                    .font(.system(.title2, design: .rounded).weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                if !unit.isEmpty {
+                    Text(unit).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
+                }
+            }
+            Text(detail)
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryText)
+                .lineLimit(type.isAccessibilitySize ? nil : 2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                .fill(c.opacity(dark ? 0.16 : 0.11))
+        )
+    }
+}

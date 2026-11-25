@@ -156,6 +156,8 @@ struct TimerScreen: View {
     @State private var pickingStart = false
     @State private var showingLamp = false
     @State private var sideSwitchNotice = 0
+    /// The timer as it was when 结束 was tapped: held on screen until the cover has slid away.
+    @State private var closingTimer: RunningTimer?
     @State private var soundscape = SoundscapeEngine.shared
     @State private var volumeMonitor: EarSafeVolumeMonitor
 
@@ -167,9 +169,12 @@ struct TimerScreen: View {
     var body: some View {
         let c = LogType.color(type)
         let activeTimer = j.timers.first(where: { $0.type == type })
+        // while closing after 醒了/喂完了, keep the last running page frozen on screen so the cover slides away
+        // whole — never morphing into the 「准备开始」 page or collapsing into an empty dark sheet mid-dismissal
+        let shown = activeTimer ?? closingTimer
         NavigationStack {
             ZStack {
-                if let t = activeTimer {
+                if let t = shown {
                     running(t, c)
                         .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
                 } else {
@@ -177,7 +182,7 @@ struct TimerScreen: View {
                         .transition(reduce ? .opacity : .opacity.combined(with: .scale(scale: 0.96)))
                 }
             }
-            .animation(reduce ? nil : .spring(response: 0.38, dampingFraction: 0.84), value: activeTimer != nil)
+            .animation(reduce || closingTimer != nil ? nil : .spring(response: 0.38, dampingFraction: 0.84), value: shown != nil)
             .background {
                 // the same air as every page — sunlight and seeds by day, the lamp and its motes at night — tinted by
                 // the kind being timed
@@ -317,7 +322,7 @@ struct TimerScreen: View {
                 lamp: lamp
             )
             ScrollView {
-                VStack(spacing: 10) {
+                VStack(spacing: LayoutSpec.cardGap) {
                     if let q = question(t, now) {
                         Check(text: q.text, keep: q.keep, end: q.end, color: c,
                               onKeep: { acked.insert(q.key) }, onEnd: { ending = true })
@@ -375,18 +380,18 @@ struct TimerScreen: View {
                             }
                             Stat(title: L10n.t("暂停", "Paused"), value: t.paused(now) >= 1 ? span(t.paused(now)) : "—", strong: false)
                         }
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 12)
 
-                        Divider().padding(.horizontal, 14).opacity(0.6)
+                        Divider().padding(.horizontal, LayoutSpec.cardPad).opacity(0.6)
 
                         if type == LogType.nurse {
                             NursingBalanceRibbon(rhythm: rhythm, activeSide: side, color: c, dark: dark)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, LayoutSpec.cardPad)
+                                .padding(.vertical, 10)
                         } else {
                             SleepRhythmRibbon(rhythm: rhythm, color: c, dark: dark)
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
+                                .padding(.horizontal, LayoutSpec.cardPad)
+                                .padding(.vertical, 10)
                         }
                     }
                     .printCard(radius: Radius.card)
@@ -431,9 +436,7 @@ struct TimerScreen: View {
         // ending, alone: a full-width button in its own band, nothing beside it to hit by mistake
         .safeAreaBar(edge: .bottom) {
             Button {
-                TactileEngine.shared.goldChime()
-                j.stop(type)
-                dismiss()
+                finish(t)
             } label: {
                 Label(type == LogType.sleep ? L10n.t("醒了，记下", "Awake — Save") : L10n.t("喂完了，记下", "Done — Save"), systemImage: "checkmark")
                     .font(.headline).frame(maxWidth: .infinity)
@@ -454,12 +457,23 @@ struct TimerScreen: View {
             TimeSheet(title: type == LogType.sleep ? L10n.t("什么时候醒的", "When did they wake?") : L10n.t("什么时候喂完的", "When did the feed end?"),
                       initial: t.pausedAt.map { Date(timeIntervalSince1970: $0 / 1000) } ?? Date(),
                       notBefore: Date(timeIntervalSince1970: t.start / 1000)) { d in
-                TactileEngine.shared.goldChime()
-                j.stop(type, at: d)
-                dismiss()
+                finish(t, at: d)
             }
                 .lampPresented()
         }
+    }
+
+    /// Ends the timer and closes the page in one calm motion: the running page is frozen first, the record is saved
+    /// without animating the page swap, then the cover is dismissed (the 「已记下」 toast shows on the page beneath).
+    private func finish(_ t: RunningTimer, at end: Date? = nil) {
+        guard closingTimer == nil else { return }
+        TactileEngine.shared.goldChime()
+        closingTimer = t
+        var tx = Transaction()
+        tx.disablesAnimations = true
+        withTransaction(tx) { j.stop(type, at: end) }
+        if j.focus == type { j.focus = nil }
+        dismiss()
     }
 
     /// Mid-feed cockpit controls (Bedside Lamp & 1-tap soundscape toggle, high-volume guard, and 1-tap diaper log).
@@ -480,14 +494,14 @@ struct TimerScreen: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                HStack(spacing: 10) {
+                HStack(spacing: LayoutSpec.iconTextGap) {
                     lampInfoButton(ax: false)
                     soundToggleButton(color: c, ax: false)
                 }
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, LayoutSpec.cardPad)
+        .padding(.vertical, 12)
         .printCard(radius: Radius.inner)
 
         let diaperRow = Group {
@@ -508,8 +522,8 @@ struct TimerScreen: View {
             }
         }
         diaperRow
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, LayoutSpec.cardPad)
+            .padding(.vertical, 12)
             .printCard(radius: Radius.inner)
 
         if type != LogType.sleep {
@@ -537,9 +551,10 @@ struct TimerScreen: View {
                     .font(.subheadline.weight(.bold))
                     .foregroundStyle(Palette.lampTint)
                     .padding(.top, ax ? 2 : 0)
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: LayoutSpec.titleDescGap) {
                     Text(soundscape.activeSummary ?? L10n.t("床头夜灯与舒缓声景", "Bedside Lamp & Sound"))
                         .font(.subheadline.weight(.semibold))
+                        .tracking(LayoutSpec.titleTracking)
                         .foregroundStyle(.primary)
                         .lineLimit(ax ? nil : 1)
                         .fixedSize(horizontal: false, vertical: true)
@@ -548,7 +563,7 @@ struct TimerScreen: View {
                             ? L10n.t("轻点调节夜灯暖光与混音", "Tap to tune lamp glow & mix")
                             : L10n.t("不刺眼夜灯 · 内置助眠声", "Low-glare lamp & soothing audio")
                     )
-                    .font(.caption2)
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(ax ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
@@ -580,13 +595,14 @@ struct TimerScreen: View {
     }
 
     private var diaperHeader: some View {
-        HStack(spacing: 5) {
+        HStack(spacing: 6) {
             Image(systemName: LogType.symbol(LogType.diaper))
-                .font(.caption2.weight(.bold))
+                .font(.subheadline.weight(.semibold))
                 .foregroundStyle(Crayon.ink(LogType.color(LogType.diaper)))
             Text(L10n.t("顺手记尿布", "Diaper"))
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(Palette.secondaryText)
+                .font(.subheadline.weight(.semibold))
+                .tracking(LayoutSpec.titleTracking)
+                .foregroundStyle(.primary)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }
