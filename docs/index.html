@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>摸索台灯 Moss &amp; Otto | 孩子摸索，大人点灯</title>
-  <meta name="description" content="摸索台灯（Moss &amp; Otto）献给 0–3 岁家庭的纯离线图画故事与陪伴应用：立体软陶与水彩剪纸双画风、37 站串珠小路、桌面玩具盒与深夜床头无声轻拍夜灯。">
+  <title>摸索台灯 Moss &amp; Otto | 0–3 岁 iPhone 亲子共玩、床头夜灯与成长手账</title>
+  <meta name="description" content="摸索台灯（Moss &amp; Otto）：献给 0–3 岁家庭的纯离线 iPhone 原生应用。集成 46 场手边共玩、护耳八音木琴与手影墙、无声掌心轻拍床头灯、60 种植物学初尝食盒与火漆时光胶囊，一次买断零追踪。">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/app-icon.png">
   <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <a class="skip-link" href="#main" data-zh="跳到正文" data-en="Skip to story">跳到正文</a>
+  <a class="skip-link" href="#main" data-zh="跳到主要内容" data-en="Skip to content">跳到主要内容</a>
 
   <header class="nav">
     <div class="wrap">
@@ -20,16 +20,17 @@
       </a>
 
       <nav class="nav-links" aria-label="主导航">
-        <a href="#duo" data-zh="故事" data-en="Story">故事</a>
-        <a href="#table" data-zh="画风" data-en="Art">画风</a>
-        <a href="#road" data-zh="小路" data-en="Road">小路</a>
-        <a href="#night" data-zh="夜灯" data-en="Lamp">夜灯</a>
-        <a href="#edition" data-zh="目录" data-en="Inside">目录</a>
+        <a href="#night-lab" data-zh="夜间台灯" data-en="Night Lamp">夜间台灯</a>
+        <a href="#bento-lab" data-zh="应用交互体验" data-en="Interactive Lab">应用交互体验</a>
+        <a href="#screens" data-zh="10 屏实机全览" data-en="All 10 Screens">10 屏实机全览</a>
+        <a href="#trust" data-zh="买断与隐私" data-en="Privacy &amp; Model">买断与隐私</a>
+        <a href="support.html" data-zh="支持" data-en="Support">支持</a>
       </nav>
 
       <div class="nav-actions">
-        <button class="lang-toggle" type="button" id="langBtn" aria-label="切换语言">EN</button>
-        <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mobileDrawer" aria-label="展开菜单">
+        <button class="lang-toggle" type="button" id="langBtn" aria-label="切换中英文">EN</button>
+        <a class="nav-cta" href="#night-lab" data-zh="体验交互" data-en="Try Demos">体验交互</a>
+        <button class="menu-btn" type="button" id="menuBtn" aria-expanded="false" aria-controls="mobileDrawer" aria-label="打开菜单">
           <svg width="16" height="12" viewBox="0 0 16 12" fill="none" aria-hidden="true">
             <path d="M1 1.5h14M1 6h14M1 10.5h14" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
           </svg>
@@ -38,350 +39,623 @@
     </div>
 
     <div class="mobile-drawer" id="mobileDrawer">
-      <a href="#duo" data-zh="两位伙伴的故事" data-en="Moss &amp; Otto">两位伙伴的故事</a>
-      <a href="#table" data-zh="3D 软陶与 2D 水彩画风" data-en="3D Clay &amp; 2D Watercolor">3D 软陶与 2D 水彩画风</a>
-      <a href="#road" data-zh="三十七站串珠小路" data-en="Thirty-Seven Bead Road">三十七站串珠小路</a>
-      <a href="#night" data-zh="晚上七点与床头夜灯" data-en="Seven at Night &amp; Lamp">晚上七点与床头夜灯</a>
-      <a href="#edition" data-zh="应用内角落与出版说明" data-en="Inside &amp; Colophon">应用内角落与出版说明</a>
-      <a href="support.html" data-zh="支持与帮助" data-en="Support">支持与帮助</a>
+      <a href="#night-lab" data-zh="夜间台灯交互模拟" data-en="Bedside Night Lamp Lab">夜间台灯交互模拟</a>
+      <a href="#bento-lab" data-zh="木琴、手影与传灯体验" data-en="Toybox, Shadow &amp; Handover">木琴、手影与传灯体验</a>
+      <a href="#screens" data-zh="全部 10 屏实机界面" data-en="All 10 iPhone Screens">全部 10 屏实机界面</a>
+      <a href="#trust" data-zh="一次买断与纯离线隐私" data-en="One-Time Purchase &amp; Privacy">一次买断与纯离线隐私</a>
+      <a href="support.html" data-zh="支持与帮助中心" data-en="Support Center">支持与帮助中心</a>
     </div>
   </header>
 
   <main id="main">
-    <!-- Cover Spread -->
-    <section class="book-cover" id="coverStage">
-      <button class="pull-cord" type="button" id="cordBtn" aria-label="轻拉 Otto 金色灯珠切换封面昼夜">
-        <span class="cord-line" aria-hidden="true"></span>
-        <span class="cord-bead" aria-hidden="true"></span>
-        <span class="cord-caption" id="cordLabel" data-zh="拉亮夜灯" data-en="Pull for dusk">拉亮夜灯</span>
-      </button>
-
-      <div class="wrap cover-stack">
-        <h1 data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</h1>
-        <p class="cover-sub" data-zh="孩子在前面摸索，大人在旁边照亮。献给 0–3 岁家庭的离线绘本与日常伴侣。" data-en="They explore in front. You hold the light beside them. An offline picture-book companion for ages 0–3.">
-          孩子在前面摸索，大人在旁边照亮。献给 0–3 岁家庭的离线绘本与日常伴侣。
-        </p>
-        <div class="cover-action">
-          <a class="book-cta" href="#duo" data-zh="翻开绘本" data-en="Open the book">翻开绘本</a>
-        </div>
-
-        <figure class="cover-plate">
-          <img class="cover-plate-day" src="assets/art/cover_00.webp" alt="Otto 用金色灯珠照亮正在向前好奇张望的 Moss">
-          <img class="cover-plate-night" src="assets/art/stage_room.webp" alt="夜晚婴儿床里安睡的 Moss 与月光照亮的卧室">
-        </figure>
-      </div>
-    </section>
-
-    <!-- Spread I: Facing Pages (Moss & Otto) -->
-    <section class="spread" id="duo">
-      <div class="wrap">
-        <div class="spread-head">
-          <h2 data-zh="两位不说话的伙伴" data-en="Two silent companions share one low table">两位不说话的伙伴</h2>
-          <p data-zh="住在同一张矮桌旁：「摸索」是孩子伸出手的好奇，「台灯」是大人站在半步之外的光亮。" data-en="Moss is the child's hand reaching out. Otto leans half a step behind, keeping the table softly lit.">
-            住在同一张矮桌旁：「摸索」是孩子伸出手的好奇，「台灯」是大人站在半步之外的光亮。
-          </p>
-        </div>
-
-        <div class="facing-spread">
-          <div class="facing-page">
-            <button class="character-stage moss" type="button" id="mossStageBtn" aria-label="轻点让 Moss 换一个动作">
-              <img id="mossImg" src="assets/ip/ip_moss_right.webp" alt="Moss 苔绿色圆软石看着身旁的 Otto">
-            </button>
-            <h3 data-zh="Moss · 摸索" data-en="Moss">Moss · 摸索</h3>
-            <span class="role-line" data-zh="苔绿色的圆软石" data-en="The moss-green pebble">苔绿色的圆软石</span>
-            <p data-zh="头顶冒出两对锯齿薄荷叶，浑圆没有尖角。眨眼很快，闲不住，看见木块或镜子总要凑过去摸一会儿。" data-en="Soft matte green pebble crowned with toothed mint leaves. Quick to blink, slow to sit still, pausing at every wooden block.">
-              头顶冒出两对锯齿薄荷叶，浑圆没有尖角。眨眼很快，闲不住，看见木块或镜子总要凑过去摸一会儿。
-            </p>
-            <span class="pose-note" id="mossPose" data-zh="看着桌边的 Otto（轻点看动作）" data-en="Glancing toward Otto (tap to move)">看着桌边的 Otto（轻点看动作）</span>
-          </div>
-
-          <div class="facing-page otto-page">
-            <button class="character-stage otto" type="button" id="ottoStageBtn" aria-label="轻点让 Otto 换一个神态">
-              <img id="ottoImg" src="assets/ip/ip_otto_left.webp" alt="Otto 深蓝色高圆顶回头看身旁的 Moss">
-            </button>
-            <h3 data-zh="Otto · 台灯" data-en="Otto">Otto · 台灯</h3>
-            <span class="role-line" data-zh="深蓝色的高圆顶" data-en="The indigo desk lamp">深蓝色的高圆顶</span>
-            <p data-zh="大眼睛总微微垂着眼皮，偶尔打个长哈欠，弯弯天线末端的金色灯珠从不熄灭。Moss 摸到哪里，光就偏到哪里。" data-en="Heavy eyelids and a curved stem with one golden bulb. He yawns softly, yet the light follows wherever Moss travels.">
-              大眼睛总微微垂着眼皮，偶尔打个长哈欠，弯弯天线末端的金色灯珠从不熄灭。Moss 摸到哪里，光就偏到哪里。
-            </p>
-            <span class="pose-note" id="ottoPose" data-zh="把灯珠照向 Moss（轻点换神态）" data-en="Tilting the bulb toward Moss (tap to shift)">把灯珠照向 Moss（轻点换神态）</span>
-          </div>
-        </div>
-
-        <p class="epigraph-line" data-zh="画面里没有对话气泡，也没有倒计时。一个只管往前摸索，一个只管把光留在这里。" data-en="No speech bubbles, no daily streaks, and no timers chasing anyone. One explores ahead while the other keeps the room lit.">
-          画面里没有对话气泡，也没有倒计时。一个只管往前摸索，一个只管把光留在这里。
+    <!-- Section I: Commercial Hero with Real 3-iPhone Showcase -->
+    <section class="hero">
+      <div class="wrap hero-head">
+        <img class="hero-icon" src="assets/app-icon.png" alt="摸索台灯 App 图标" width="68" height="68">
+        <p class="hero-kicker" data-zh="0–3 岁 iPhone 原生亲子共玩 · 昼夜照护 · 成长留念" data-en="iPhone App for Ages 0–3 · Co-Play · Night Care · Keepsakes">0–3 岁 iPhone 原生亲子共玩 · 昼夜照护 · 成长留念</p>
+        <h1 data-zh="孩子摸索，大人点灯。" data-en="They explore. You hold the light.">孩子摸索，大人点灯。</h1>
+        <p class="hero-sub" data-zh="把 46 场零筹备手边游戏、护耳感官玩具盒、凌晨三点无声轻拍夜灯、60 种植物学百味食盒与火漆时光胶囊，装进纯粹离线的 iPhone 应用里。" data-en="Forty-six zero-prep home plays, an ear-safe sensory toybox, a silent 3 AM palm-pat bedside lamp, sixty botanical first foods, and sealed letters in one offline iPhone app.">
+          把 46 场零筹备手边游戏、护耳感官玩具盒、凌晨三点无声轻拍夜灯、60 种植物学百味食盒与火漆时光胶囊，装进纯粹离线的 iPhone 应用里。
         </p>
 
-        <div class="spread-folio"><span>01</span></div>
+        <div class="hero-actions">
+          <a class="btn-primary" href="#night-lab" data-zh="试玩应用内交互" data-en="Try Interactive Demos">试玩应用内交互</a>
+          <a class="btn-secondary" href="#screens" data-zh="浏览全部 10 屏实机" data-en="Inspect All 10 Screens">浏览全部 10 屏实机</a>
+        </div>
+
+        <p class="hero-platform" data-zh="一次性买断 · 零账号零广告 · 支持 iOS 26 深浅双色与早产矫正月龄" data-en="One-time purchase · Zero ads or accounts · iOS 26 Dark &amp; Light · Preterm corrected age">
+          一次性买断 · 零账号零广告 · 支持 iOS 26 深浅双色与早产矫正月龄
+        </p>
+
+        <div class="hero-triptych" aria-label="摸索台灯实机界面展示">
+          <div class="iphone-frame phone-side left">
+            <img class="lang-swap-img" src="assets/screens/scr-toybox-zh.jpg" data-src-zh="assets/screens/scr-toybox-zh.jpg" data-src-en="assets/screens/scr-toybox-en.jpg" alt="摸索台灯感官玩具盒与护耳木琴实机界面">
+          </div>
+          <div class="iphone-frame phone-center">
+            <img class="lang-swap-img" src="assets/screens/scr-home-zh.jpg" data-src-zh="assets/screens/scr-home-zh.jpg" data-src-en="assets/screens/scr-home-en.jpg" alt="摸索台灯今日摸索首页实机界面">
+          </div>
+          <div class="iphone-frame phone-side right">
+            <img class="lang-swap-img" src="assets/screens/scr-rhythm-zh.jpg" data-src-zh="assets/screens/scr-rhythm-zh.jpg" data-src-en="assets/screens/scr-rhythm-en.jpg" alt="摸索台灯 24 小时昼夜节律盘实机界面">
+          </div>
+        </div>
+
+        <div class="fact-ribbon">
+          <div class="fact-cell">
+            <span class="fact-num num">46</span>
+            <span class="fact-label" data-zh="家里日常材料可玩的互动剧场" data-en="Zero-prep floor play activities">家里日常材料可玩的互动剧场</span>
+          </div>
+          <div class="fact-cell">
+            <span class="fact-num num">60</span>
+            <span class="fact-label" data-zh="手绘植物学初尝食材与致敏卡" data-en="Hand-drawn first foods &amp; allergens">手绘植物学初尝食材与致敏卡</span>
+          </div>
+          <div class="fact-cell">
+            <span class="fact-num num">60 -> 48 BPM</span>
+            <span class="fact-label" data-zh="零声音掌心微震与双层白噪音" data-en="Silent haptic cadence &amp; sound mixer">零声音掌心微震与双层白噪音</span>
+          </div>
+          <div class="fact-cell">
+            <span class="fact-num num">0 KB Cloud</span>
+            <span class="fact-label" data-zh="纯设备本地存储与面容锁守护" data-en="Offline local storage &amp; Face ID">纯设备本地存储与面容锁守护</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- Spread II: Tipped-In Art Plate & Brass-Bead Curtain -->
-    <section class="spread" id="table">
+    <!-- Section II: Full-Bleed OLED Midnight Interactive Night Lamp Stage -->
+    <section class="night-stage" id="night-lab">
       <div class="wrap">
-        <div class="spread-head">
-          <h2 data-zh="同一场游戏，两套世界" data-en="One floor activity, drawn two ways">同一场游戏，两套世界</h2>
-          <p data-zh="46 个用丝巾、纸杯和木块摆出的家里玩法，可以在立体哑光软陶与水彩剪纸之间随时拉动切换。" data-en="Forty-six home plays built from scarves, cups, and blocks live side by side in matte 3D soft clay and cut-paper watercolor.">
-            46 个用丝巾、纸杯和木块摆出的家里玩法，可以在立体哑光软陶与水彩剪纸之间随时拉动切换。
+        <div class="sec-head">
+          <h2 data-zh="晚上七点之后，屏上只留一盏小灯" data-en="After seven, only one bedside lamp stays lit">晚上七点之后，屏上只留一盏小灯</h2>
+          <p data-zh="半夜抱哄不用开大灯找按键。点击下方金色灯珠跟着你拍哄的手速测拍，或叠搭两层白噪音与锁屏计时。" data-en="Designed for 3 AM drowsy rooms. Tap the amber core to match your patting cadence, toggle two soundscape layers, and inspect live dark UI screens.">
+            半夜抱哄不用开大灯找按键。点击下方金色灯珠跟着你拍哄的手速测拍，或叠搭两层白噪音与锁屏计时。
           </p>
         </div>
 
-        <div class="plate-frame">
-          <div class="curtain-stage" id="curtainStage" style="--split:52%;">
-            <img class="curtain-layer" id="curtain2d" src="assets/art/2d_play_a28_2.webp" alt="2D 水彩剪纸绘本插画">
-            <img class="curtain-layer curtain-top" id="curtain3d" src="assets/art/play_a28_2.webp" alt="3D 软陶立体绘本插画">
-            <span class="curtain-corner left" data-zh="3D 软陶" data-en="3D Soft Clay">3D 软陶</span>
-            <span class="curtain-corner right" data-zh="2D 水彩剪纸" data-en="2D Watercolor">2D 水彩剪纸</span>
-            <div class="curtain-divider" aria-hidden="true">
-              <div class="curtain-handle"></div>
+        <div class="night-grid">
+          <div class="lamp-console">
+            <div class="console-top">
+              <span class="console-label">
+                <span class="lamp-dot" aria-hidden="true"></span>
+                <span data-zh="Otto 床头夜灯 · 浏览器实时交互" data-en="Bedside Lamp Simulator">Otto 床头夜灯 · 浏览器实时交互</span>
+              </span>
+              <div class="seg-dark" role="group" aria-label="选择夜灯色温">
+                <button class="active" type="button" data-temp="amber" data-zh="琥珀光" data-en="Amber">琥珀光</button>
+                <button type="button" data-temp="candle" data-zh="深烛红" data-en="Candle Red">深烛红</button>
+                <button type="button" data-temp="peach" data-zh="蜜桃暖" data-en="Warm Peach">蜜桃暖</button>
+              </div>
             </div>
-            <input class="curtain-range" id="curtainRange" type="range" min="8" max="92" value="52" aria-label="左右拉动金色灯珠对比 3D 软陶与 2D 水彩画风">
+
+            <div class="orb-stage">
+              <button class="lamp-orb-btn" type="button" id="lampOrbBtn" style="--pulse-ms: 1000ms;" aria-label="连续轻点灯珠校准你的轻拍节拍">
+                <span class="lamp-orb-halo" aria-hidden="true"></span>
+                <span class="lamp-orb-core">
+                  <span data-zh="点我跟拍" data-en="Tap Beat">点我跟拍</span>
+                </span>
+              </button>
+
+              <div class="orb-controls">
+                <div class="bpm-readout">
+                  <strong class="bpm-val num" id="bpmValue">60 BPM</strong>
+                  <span class="bpm-note" id="bpmStatus" data-zh="入夜安抚 · 连续轻点灯珠可按手速同步" data-en="Settling pace · tap orb repeatedly to sync">入夜安抚 · 连续轻点灯珠可按手速同步</span>
+                </div>
+                <div class="seg-dark" role="group" aria-label="预设安抚节拍">
+                  <button class="active" type="button" data-bpm="60">60 BPM</button>
+                  <button type="button" data-bpm="54">54 BPM</button>
+                  <button type="button" data-bpm="48">48 BPM</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <div class="mix-header">
+                <span class="mix-status num" id="mixStatus" data-zh="双层声景混音（已选 2/2）：雨落纸窗 + 木琴摇篮" data-en="2-Layer Mixer (2/2 active): Rain on Paper + Xylophone Lullaby">
+                  双层声景混音（已选 2/2）：雨落纸窗 + 木琴摇篮
+                </span>
+                <button class="audio-btn" type="button" id="nightAudioBtn" data-zh="开启柔和白噪音试听" data-en="Preview Soft Audio">开启柔和白噪音试听</button>
+              </div>
+
+              <div class="mix-grid" role="group" aria-label="六层白噪音混音器（最多同时激活两层）">
+                <button class="mix-chip active" type="button" data-sound="rain" data-zh="雨落纸窗" data-en="Paper Rain">雨落纸窗</button>
+                <button class="mix-chip" type="button" data-sound="breeze" data-zh="草坡微风" data-en="Meadow Breeze">草坡微风</button>
+                <button class="mix-chip" type="button" data-sound="heartbeat" data-zh="温暖心跳" data-en="Warm Heartbeat">温暖心跳</button>
+                <button class="mix-chip active" type="button" data-sound="lullaby" data-zh="木琴摇篮" data-en="Xylophone Lullaby">木琴摇篮</button>
+                <button class="mix-chip" type="button" data-sound="shush" data-zh="轻声嘘拍" data-en="Gentle Shush">轻声嘘拍</button>
+                <button class="mix-chip" type="button" data-sound="tide" data-zh="暖海潮汐" data-en="Warm Tide">暖海潮汐</button>
+              </div>
+            </div>
+
+            <div class="live-activity">
+              <div class="la-left">
+                <div class="la-icon" aria-hidden="true">
+                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 2a4 4 0 0 1 2.2 7.3c-.4.3-.7.8-.7 1.3V11H6.5v-.4c0-.5-.3-1-.7-1.3A4 4 0 0 1 8 2Z" stroke="#F5B841" stroke-width="1.4"/>
+                    <path d="M6.5 13h3" stroke="#F5B841" stroke-width="1.4" stroke-linecap="round"/>
+                  </svg>
+                </div>
+                <div class="la-meta">
+                  <strong data-zh="锁屏睡眠实况计时" data-en="Sleep Timer Live Activity">锁屏睡眠实况计时</strong>
+                  <span data-zh="已开启锁屏脱敏（不暴露小名与详情）" data-en="Lock Screen masked for privacy">已开启锁屏脱敏（不暴露小名与详情）</span>
+                </div>
+              </div>
+              <span class="la-timer num" id="liveTimer">01:14:22</span>
+            </div>
           </div>
 
-          <div class="plate-tabs" role="group" aria-label="切换绘本插画场景">
-            <button class="plate-tab active" type="button" data-3d="assets/art/play_a28_2.webp" data-2d="assets/art/2d_play_a28_2.webp" data-zh="小矮桌过家家与轮流" data-en="Parallel Turn-Taking">小矮桌过家家与轮流</button>
-            <button class="plate-tab" type="button" data-3d="assets/art/cover_07.webp" data-2d="assets/art/2d_cover_07.webp" data-zh="第七个月，坐稳够手鼓" data-en="Month 7, Reaching the Drum">第七个月，坐稳够手鼓</button>
-            <button class="plate-tab" type="button" data-3d="assets/art/play_a08_1.webp" data-2d="assets/art/2d_play_a08_1.webp" data-zh="膝上共读厚纸板书" data-en="Reading Board Books">膝上共读厚纸板书</button>
-            <button class="plate-tab" type="button" data-3d="assets/art/play_a39_3.webp" data-2d="assets/art/2d_play_a39_3.webp" data-zh="客厅小路停看走游戏" data-en="Living-Room Crosswalk">客厅小路停看走游戏</button>
+          <div class="night-device-col">
+            <div class="iphone-frame iphone-frame-dark">
+              <img id="nightPhoneImg" class="lang-swap-img" src="assets/screens/scr-lamp-zh.jpg" data-src-zh="assets/screens/scr-lamp-zh.jpg" data-src-en="assets/screens/scr-lamp-en.jpg" alt="摸索台灯床头夜灯实机画面">
+            </div>
+            <div class="seg-dark" role="group" aria-label="切换夜间实机截图">
+              <button class="active" type="button" data-night-scr="lamp" data-zh="床头夜灯" data-en="Bedside Lamp">床头夜灯</button>
+              <button type="button" data-night-scr="journal" data-zh="照护中枢" data-en="Care Hub">照护中枢</button>
+            </div>
           </div>
         </div>
-
-        <div class="spread-folio"><span>02</span></div>
       </div>
     </section>
 
-    <!-- Spread III: 37-Bead Linen Cord & Monthly Story Vignette -->
-    <section class="spread" id="road">
+    <!-- Section III: Asymmetric Commercial Bento Grid -->
+    <section class="bento-section" id="bento-lab">
       <div class="wrap">
-        <div class="spread-head">
-          <h2 data-zh="三十七颗珠子的串珠小路" data-en="Thirty-seven beads along a linen cord">三十七颗珠子的串珠小路</h2>
-          <p data-zh="从第 0 个月到第 36 个月，经过草地、森林小丘与小河村庄；最后一颗珠子之后，小路用虚线接着往前伸。" data-en="Spanning Month 0 to Month 36 through Meadow, Forest Hills, and River Village. Beyond bead thirty-six, a dotted path continues forward.">
-            从第 0 个月到第 36 个月，经过草地、森林小丘与小河村庄；最后一颗珠子之后，小路用虚线接着往前伸。
+        <div class="sec-head">
+          <h2 data-zh="把应用里的手感，搬上官网亲手试" data-en="Try the real in-app craft right here">把应用里的手感，搬上官网亲手试</h2>
+          <p data-zh="每一张模块都对应软件里的真实体验：亲手弹一曲护耳木琴、拖动 Otto 手影墙，或者推亮一次夜班传灯。" data-en="Every card mirrors real app workflows: play the ear-safe rainbow xylophone, drag Otto's optical shadow wall, or swipe a quiet handover.">
+            每一张模块都对应软件里的真实体验：亲手弹一曲护耳木琴、拖动 Otto 手影墙，或者推亮一次夜班传灯。
           </p>
         </div>
 
-        <div class="cord-regions">
-          <span class="region-meadow" data-zh="草地（0–1 岁）" data-en="Meadow (0–1 yr)">草地（0–1 岁）</span>
-          <span class="region-forest" data-zh="森林小丘（1–2 岁）" data-en="Forest Hills (1–2 yrs)">森林小丘（1–2 岁）</span>
-          <span class="region-river" data-zh="小河村庄（2–3 岁）" data-en="River Village (2–3 yrs)">小河村庄（2–3 岁）</span>
-        </div>
-
-        <div class="linen-rail" role="tablist" aria-label="选择 0 到 36 个月珠子">
-          <button class="bead-step meadow" type="button" data-month="0" aria-label="第 0 个月">0</button>
-          <button class="bead-step meadow" type="button" data-month="3" aria-label="第 3 个月">3</button>
-          <button class="bead-step meadow active" type="button" data-month="7" aria-label="第 7 个月">7</button>
-          <button class="bead-step forest" type="button" data-month="12" aria-label="第 12 个月">12</button>
-          <button class="bead-step forest" type="button" data-month="18" aria-label="第 18 个月">18</button>
-          <button class="bead-step river" type="button" data-month="24" aria-label="第 24 个月">24</button>
-          <button class="bead-step river" type="button" data-month="36" aria-label="第 36 个月">36</button>
-        </div>
-
-        <div class="road-spread">
-          <div class="road-plate-wrap">
-            <div class="road-plate">
-              <img id="roadPlateImg" src="assets/art/cover_07.webp" alt="当前选定月龄的绘本插画">
-            </div>
-            <div class="road-plate-controls">
-              <span id="roadPlateCaption" data-zh="第 7 站封面插画" data-en="Station 7 cover plate">第 7 站封面插画</span>
-              <div class="connected-seg" role="group" aria-label="切换该月封面的 3D 与 2D 画风">
-                <button class="active" type="button" data-road-style="3d" data-zh="3D 软陶" data-en="3D Clay">3D 软陶</button>
-                <button type="button" data-road-style="2d" data-zh="2D 水彩" data-en="2D Paper">2D 水彩</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="road-story">
-            <span class="station-kicker" id="roadKicker">第 7 个月 · 草地</span>
-            <h3 id="roadTitle">坐稳伸手与第一勺果泥</h3>
-            <p class="station-body" id="roadDesc">双手开始在胸前互相递玩具，小手掌也敲出第一声清脆的手鼓，迎来了百味食盒的最初味道。</p>
-            <ul class="road-plays" id="roadPlays">
-              <li>两只手换着拿同一只圆木杯</li>
-              <li>往前倾身伸手够向几寸外的小铃鼓</li>
-              <li>在食盒里记住今天尝试的蔬菜味道</li>
-            </ul>
-          </div>
-        </div>
-
-        <div class="spread-folio"><span>03</span></div>
-      </div>
-    </section>
-
-    <!-- Spread IV: Single Nursery Indigo Night Spread -->
-    <section class="spread spread-night" id="night">
-      <div class="wrap">
-        <div class="night-room-wrap">
-          <figure class="night-room-plate">
-            <img id="nightRoomImg" src="assets/art/stage_room.webp" alt="晚上七点之后在婴儿床边亮着一盏灯的卧室场景">
-          </figure>
-          <div class="night-room-bar">
-            <span data-zh="卧室夜灯场景：小床里的 Moss 与窗外月亮" data-en="Nursery at night: Moss resting beside the window">卧室夜灯场景：小床里的 Moss 与窗外月亮</span>
-            <div class="connected-seg" role="group" aria-label="切换夜房场景 3D 与 2D">
-              <button class="active" type="button" data-night-art="3d" data-zh="3D 夜房" data-en="3D Room">3D 夜房</button>
-              <button type="button" data-night-art="2d" data-zh="2D 剪纸" data-en="2D Paper">2D 剪纸</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="night-facing">
-          <div class="night-copy">
-            <h2 data-zh="晚上七点之后，屋里只留一盏小灯" data-en="After seven, only one bedside lamp remains">晚上七点之后，屋里只留一盏小灯</h2>
-            <p data-zh="夜里抱哄或喂奶时，应用整页自动沉入柔和的深蓝底色，只亮暖金色光晕。把手机贴近掌心切到「轻拍」，还能以每分钟 60 到 48 拍发出完全零声音的微震节奏，或是叠加细雨敲窗与木琴摇篮。" data-en="From seven in the evening, screens turn deep nursery indigo with warm amber halos. Resting the phone against your palm in Pat mode delivers silent gentle pulses from 60 down to 48 beats per minute alongside soft rain.">
-              夜里抱哄或喂奶时，应用整页自动沉入柔和的深蓝底色，只亮暖金色光晕。把手机贴近掌心切到「轻拍」，还能以每分钟 60 到 48 拍发出完全零声音的微震节奏，或是叠加细雨敲窗与木琴摇篮。
-            </p>
-
-            <div class="pat-lamp-block">
-              <div class="pat-row">
-                <div class="pat-pulse" id="patPulse" style="--pat-dur:1.00s;">
-                  <div class="pat-halo" aria-hidden="true"></div>
-                  <div class="pat-bead" aria-hidden="true"></div>
-                </div>
-                <div class="pat-status">
-                  <strong data-zh="无声掌心轻拍演示" data-en="Silent Palm-Pat Rhythm">无声掌心轻拍演示</strong>
-                  <span id="bpmCaption" data-zh="当前节律：每分钟 60 拍（入夜安抚）" data-en="Active cadence: 60 BPM (Settling)">当前节律：每分钟 60 拍（入夜安抚）</span>
-                </div>
-              </div>
-
+        <div class="bento-grid">
+          <!-- Bento 1 (span-7): Sensory Toybox -> Xylophone + Shadow Wall -->
+          <article class="bento-card span-7">
+            <div class="bento-head">
               <div>
-                <div class="connected-seg" role="group" aria-label="选择掌心轻拍节拍">
-                  <button class="active" type="button" data-bpm="60" data-zh="60 拍/分" data-en="60 BPM">60 拍/分</button>
-                  <button type="button" data-bpm="54" data-zh="54 拍/分" data-en="54 BPM">54 拍/分</button>
-                  <button type="button" data-bpm="48" data-zh="48 拍/分" data-en="48 BPM">48 拍/分</button>
+                <h3 data-zh="桌面玩具盒 · 护耳八音琴与光学手影墙" data-en="Sensory Toybox &amp; Optical Shadow Wall">桌面玩具盒 · 护耳八音琴与光学手影墙</h3>
+                <p class="bento-desc" data-zh="实时检测宝宝近耳分贝安全区，点击木条真发声；切到右侧拖动纸偶体验物理反距离光学手影。" data-en="Real Web Audio pastel keys inside an ear-safe volume guard, paired with an inverse-distance shadow theater.">
+                  实时检测宝宝近耳分贝安全区，点击木条真发声；切到右侧拖动纸偶体验物理反距离光学手影。
+                </p>
+              </div>
+              <div class="seg-light" role="group" aria-label="切换玩具盒演示模式">
+                <button class="active" type="button" data-toy-tab="xylo" data-zh="护耳木琴" data-en="Xylophone">护耳木琴</button>
+                <button type="button" data-toy-tab="shadow" data-zh="手影墙" data-en="Shadow Wall">手影墙</button>
+              </div>
+            </div>
+
+            <div class="toy-panel active" id="panelXylo">
+              <div class="ear-guard-bar">
+                <span class="guard-badge num" id="earBadge" data-zh="护耳绿区 · 40% 安全音量" data-en="Ear-Safe Green · 40% Vol">护耳绿区 · 40% 安全音量</span>
+                <label class="vol-control">
+                  <span data-zh="音量试听护耳带" data-en="Safe Volume">音量试听护耳带</span>
+                  <input type="range" id="earVolSlider" min="15" max="85" value="40" aria-label="调整护耳木琴试听音量">
+                </label>
+              </div>
+
+              <div class="xylo-keys" role="group" aria-label="可弹奏八音木琴琴键">
+                <button class="xylo-bar" type="button" data-note="0">Do</button>
+                <button class="xylo-bar" type="button" data-note="1">Re</button>
+                <button class="xylo-bar" type="button" data-note="2">Mi</button>
+                <button class="xylo-bar" type="button" data-note="3">Fa</button>
+                <button class="xylo-bar" type="button" data-note="4">Sol</button>
+                <button class="xylo-bar" type="button" data-note="5">La</button>
+                <button class="xylo-bar" type="button" data-note="6">Ti</button>
+                <button class="xylo-bar" type="button" data-note="7">Do'</button>
+              </div>
+
+              <div class="xylo-foot">
+                <div class="seg-light" role="group" aria-label="选择玩具盒音色">
+                  <button class="active" type="button" data-timbre="marimba" data-zh="温润木琴" data-en="Xylophone">温润木琴</button>
+                  <button type="button" data-timbre="musicbox" data-zh="八音盒" data-en="Music Box">八音盒</button>
+                  <button type="button" data-timbre="kalimba" data-zh="拇指琴" data-en="Kalimba">拇指琴</button>
+                </div>
+                <button class="btn-chip" type="button" id="playTuneBtn" data-zh="自动弹奏摇篮段" data-en="Play Short Lullaby">自动弹奏摇篮段</button>
+              </div>
+            </div>
+
+            <div class="toy-panel" id="panelShadow">
+              <div class="shadow-stage" id="shadowStage" aria-label="左右拖动纸偶观察墙面影子随距离缩放">
+                <div class="shadow-bulb" aria-hidden="true"></div>
+                <div class="shadow-wall-proj" id="shadowProj" style="transform: translateY(-50%) scale(1.45);" aria-hidden="true"></div>
+                <div class="shadow-puppet" id="shadowPuppet" style="left: 42%;" role="slider" tabindex="0" aria-valuemin="20" aria-valuemax="80" aria-valuenow="42" aria-label="左右拖动剪影纸偶"></div>
+              </div>
+
+              <div class="shadow-bar">
+                <div class="seg-light" role="group" aria-label="选择剪影纸偶造型">
+                  <button class="active" type="button" data-shape="rabbit" data-zh="垂耳兔" data-en="Rabbit">垂耳兔</button>
+                  <button type="button" data-shape="bird" data-zh="小飞鸟" data-en="Bird">小飞鸟</button>
+                  <button type="button" data-shape="boat" data-zh="纸帆船" data-en="Sailboat">纸帆船</button>
+                </div>
+                <span class="num" id="shadowMeta" style="font-size:14px;color:var(--ink-2);" data-zh="距灯珠 42% · 投射缩放 1.45x（越近灯越大越柔和）" data-en="42% distance · Shadow scale 1.45x (drag closer to enlarge)">
+                  距灯珠 42% · 投射缩放 1.45x（越近灯越大越柔和）
+                </span>
+              </div>
+            </div>
+          </article>
+
+          <!-- Bento 2 (span-5): Swipe-to-Pass Lantern Handover -->
+          <article class="bento-card span-5">
+            <div class="bento-head">
+              <div>
+                <h3 data-zh="划屏传灯交接仪式" data-en="Swipe-to-Pass Lantern Handover">划屏传灯交接仪式</h3>
+                <p class="bento-desc" data-zh="伴侣或老人接班看护，不用追问几点吃的奶、睡了几小时。向右推动灯珠，把今夜重点一盏传递。" data-en="Slide the amber beacon across to hand off latest feed timing, total sleep, and care status in one gesture.">
+                  伴侣或老人接班看护，不用追问几点吃的奶、睡了几小时。向右推动灯珠，把今夜重点一盏传递。
+                </p>
+              </div>
+            </div>
+
+            <div class="shift-summary">
+              <div class="shift-metric">
+                <strong class="num">130 ml</strong>
+                <span data-zh="上次瓶喂" data-en="Last Bottle">上次瓶喂</span>
+              </div>
+              <div class="shift-metric">
+                <strong class="num">2h 15m</strong>
+                <span data-zh="距今间隔" data-en="Time Since">距今间隔</span>
+              </div>
+              <div class="shift-metric">
+                <strong class="num">9h 51m</strong>
+                <span data-zh="今夜累计睡" data-en="Night Sleep">今夜累计睡</span>
+              </div>
+            </div>
+
+            <div class="dial-box" style="padding:14px 16px;">
+              <div style="font-size:14px;color:var(--ink-2);line-height:1.55;">
+                <strong style="color:var(--ink);display:block;margin-bottom:2px;" data-zh="今夜交接要点已整理" data-en="Overnight summary ready">今夜交接要点已整理</strong>
+                <span data-zh="近 12 小时含喂养 3 次、睡眠 2 段与尿布记录，滑动灯珠即可静音同步给下一位家人。" data-en="Past 12 hours summarized with feeds, naps, and quiet notes ready to pass silently.">近 12 小时含喂养 3 次、睡眠 2 段与尿布记录，滑动灯珠即可静音同步给下一位家人。</span>
+              </div>
+            </div>
+
+            <div class="lantern-track" id="lanternTrack">
+              <div class="lantern-fill" id="lanternFill"></div>
+              <div class="lantern-knob" id="lanternKnob" role="slider" tabindex="0" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-label="向右拖动灯珠完成照护交班">&gt;</div>
+              <span class="lantern-prompt" id="lanternPrompt" data-zh="向右滑动灯珠完成接班" data-en="Slide lantern to hand over">向右滑动灯珠完成接班</span>
+            </div>
+
+            <div class="handover-foot" style="margin-top:auto;">
+              <span class="handover-state" id="handoverState" data-zh="待交班 · 拖动或点击灯轨末尾完成" data-en="Ready · drag lantern right to confirm">待交班 · 拖动或点击灯轨末尾完成</span>
+              <button class="btn-chip" type="button" id="handoverReset" style="display:none;" data-zh="再试一次" data-en="Reset">再试一次</button>
+            </div>
+          </article>
+
+          <!-- Bento 3 (span-5): 24h Circadian Rhythm Dial -->
+          <article class="bento-card span-5">
+            <div class="bento-head">
+              <div>
+                <h3 data-zh="24 小时昼夜节律盘" data-en="24-Hour Circadian Rhythm Dial">24 小时昼夜节律盘</h3>
+                <p class="bento-desc" data-zh="把琐碎的睡眠、喂奶与玩耍收进同心圆盘，一眼看清作息正在往哪个方向稳步形成。" data-en="Concentric 7-day and 14-day sleep arcs reveal natural rhythm shifts at a calm glance.">
+                  把琐碎的睡眠、喂奶与玩耍收进同心圆盘，一眼看清作息正在往哪个方向稳步形成。
+                </p>
+              </div>
+              <div class="seg-light" role="group" aria-label="切换节律统计天数">
+                <button class="active" type="button" data-dial-days="7" data-zh="近 7 天" data-en="7 Days">近 7 天</button>
+                <button type="button" data-dial-days="14" data-zh="近 14 天" data-en="14 Days">近 14 天</button>
+              </div>
+            </div>
+
+            <div class="dial-box">
+              <svg width="116" height="116" viewBox="0 0 120 120" aria-hidden="true">
+                <circle cx="60" cy="60" r="46" stroke="#ECEFF6" stroke-width="10" fill="none"/>
+                <circle cx="60" cy="60" r="32" stroke="#ECEFF6" stroke-width="8" fill="none"/>
+                <path id="dialOuterArc" d="M 60 14 A 46 46 0 1 1 21 84" stroke="#6D28D9" stroke-width="10" stroke-linecap="round" fill="none"/>
+                <path id="dialInnerArc" d="M 60 28 A 32 32 0 1 1 30 70" stroke="#087F75" stroke-width="8" stroke-linecap="round" fill="none"/>
+                <circle cx="96" cy="40" r="4.5" fill="#EC4899"/>
+                <circle cx="34" cy="30" r="4.5" fill="#EC4899"/>
+                <circle cx="78" cy="100" r="4.5" fill="#087F75"/>
+              </svg>
+              <div class="dial-stats">
+                <div class="dial-stat">
+                  <strong class="num" id="dialAvgSleep">12.0h</strong>
+                  <span data-zh="日均规律睡眠" data-en="Avg daily sleep">日均规律睡眠</span>
+                </div>
+                <div class="dial-stat">
+                  <strong class="num" id="dialLongSleep">6.7h</strong>
+                  <span data-zh="最长连续一觉" data-en="Longest stretch">最长连续一觉</span>
                 </div>
               </div>
             </div>
-          </div>
 
-          <div class="specimen-night">
-            <img class="lang-swap-img" src="assets/screens/scr-lamp-zh.jpg" data-src-zh="assets/screens/scr-lamp-zh.jpg" data-src-en="assets/screens/scr-lamp-en.jpg" alt="摸索台灯应用内夜间全屏灯与无声轻拍界面">
-          </div>
+            <div class="bento-phone-crop focus-dial">
+              <img class="lang-swap-img" src="assets/screens/scr-rhythm-zh.jpg" data-src-zh="assets/screens/scr-rhythm-zh.jpg" data-src-en="assets/screens/scr-rhythm-en.jpg" alt="摸索台灯 24 小时同心圆节律盘实机页面">
+            </div>
+          </article>
+
+          <!-- Bento 4 (span-7): 60 Botanical First Foods -->
+          <article class="bento-card span-7">
+            <div class="bento-head">
+              <div>
+                <h3 data-zh="60 种植物学手绘百味食盒" data-en="60 Hand-Drawn Botanical First Foods">60 种植物学手绘百味食盒</h3>
+                <p class="bento-desc" data-zh="不用干瘪文字勾选也不堆砌 Emoji，全定制植物插画记下每次口味反应、常见致敏筛查与温柔再试。" data-en="Bespoke zero-emoji produce artwork tracking taste reactions, 16 common allergens, and gentle retries.">
+                  不用干瘪文字勾选也不堆砌 Emoji，全定制植物插画记下每次口味反应、常见致敏筛查与温柔再试。
+                </p>
+              </div>
+              <div class="seg-light" role="group" aria-label="筛选辅食演示分类">
+                <button class="active" type="button" data-food-filter="all" data-zh="全部" data-en="All">全部</button>
+                <button type="button" data-food-filter="allergen" data-zh="致敏筛查" data-en="Allergens">致敏筛查</button>
+                <button type="button" data-food-filter="retry" data-zh="温柔再试" data-en="Gentle Retry">温柔再试</button>
+              </div>
+            </div>
+
+            <div class="bento-split">
+              <div class="food-grid" id="foodGrid">
+                <div class="food-pill" data-cat="liked">
+                  <span class="food-dot" style="background:rgba(21,128,61,0.12);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 2.2c2.5 0 4.2 2.4 4.2 5.4a4.2 4.2 0 1 1-8.4 0c0-3 1.7-5.4 4.2-5.4Z" fill="#4D7C0F"/><circle cx="8" cy="8.8" r="1.7" fill="#A16207"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="牛油果" data-en="Avocado">牛油果</strong>
+                    <span data-zh="已喜欢 · 第 4 次" data-en="Loved · 4th try">已喜欢 · 第 4 次</span>
+                  </div>
+                </div>
+                <div class="food-pill" data-cat="retry">
+                  <span class="food-dot" style="background:rgba(8,127,117,0.12);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M8 13V9M5.2 6.8a2.5 2.5 0 1 1 5.6 0 2 2 0 0 1-1.3 3.2h-3a2 2 0 0 1-1.3-3.2Z" fill="#15803D"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="西兰花" data-en="Broccoli">西兰花</strong>
+                    <span data-zh="温柔再试 · 轻微皱眉" data-en="Retry · mildly unsure">温柔再试 · 轻微皱眉</span>
+                  </div>
+                </div>
+                <div class="food-pill" data-cat="allergen">
+                  <span class="food-dot" style="background:rgba(245,184,65,0.22);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><ellipse cx="8" cy="8.3" rx="4.2" ry="5" fill="#FDE68A" stroke="#D97706" stroke-width="1.2"/><circle cx="8" cy="9" r="1.9" fill="#F59E0B"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="鸡蛋黄" data-en="Egg Yolk">鸡蛋黄</strong>
+                    <span data-zh="常见致敏 · 观察 3 天" data-en="Allergen · 3d watch">常见致敏 · 观察 3 天</span>
+                  </div>
+                </div>
+                <div class="food-pill" data-cat="liked">
+                  <span class="food-dot" style="background:rgba(234,88,12,0.12);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8.5" r="4.6" fill="#EA580C"/><path d="M8 3.9V2.4" stroke="#65A30D" stroke-width="1.5" stroke-linecap="round"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="蒸甜南瓜" data-en="Pumpkin">蒸甜南瓜</strong>
+                    <span data-zh="已尝试 3 次" data-en="Tried 3 times">已尝试 3 次</span>
+                  </div>
+                </div>
+                <div class="food-pill" data-cat="allergen">
+                  <span class="food-dot" style="background:rgba(225,29,72,0.10);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M3 8.5c2-2.6 5.5-2.6 8.5 0l1.8-1.5v3L11.5 8.5c-3 2.5-6.5 2.5-8.5 0Z" fill="#FB7185"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="三文鱼泥" data-en="Salmon">三文鱼泥</strong>
+                    <span data-zh="常见致敏 · 吞咽顺畅" data-en="Allergen · smooth">常见致敏 · 吞咽顺畅</span>
+                  </div>
+                </div>
+                <div class="food-pill" data-cat="retry">
+                  <span class="food-dot" style="background:rgba(161,98,7,0.12);" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><ellipse cx="8" cy="8.5" rx="4.5" ry="3.2" fill="#D97706"/><path d="M5 7c1.5 1 4.5 1 6 0" stroke="#78350F" stroke-width="1.2" stroke-linecap="round"/></svg>
+                  </span>
+                  <div>
+                    <strong data-zh="奇异果" data-en="Kiwi">奇异果</strong>
+                    <span data-zh="温柔再试 · 稍有酸感" data-en="Retry · tart note">温柔再试 · 稍有酸感</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="bento-phone-crop">
+                <img class="lang-swap-img" src="assets/screens/scr-foods-zh.jpg" data-src-zh="assets/screens/scr-foods-zh.jpg" data-src-en="assets/screens/scr-foods-en.jpg" alt="摸索台灯 60 种百味食盒实机界面">
+              </div>
+            </div>
+          </article>
+
+          <!-- Bento 5 (span-6): Step-by-Step Play & Wooden Bead Scrubber -->
+          <article class="bento-card span-6">
+            <div class="bento-head">
+              <div>
+                <h3 data-zh="流动绘本剧场与木珠控帧" data-en="Storybook Theater &amp; Bead Scrubber">流动绘本剧场与木珠控帧</h3>
+                <p class="bento-desc" data-zh="陪玩腾不开手点多次「下一步」，单指沿底部桦木滑珠一划即可连续播放、定格或收尾盖印。" data-en="Glide one thumb along the wooden bead rail to scrub continuously through setup, play, and when to wrap up.">
+                  陪玩腾不开手点多次「下一步」，单指沿底部桦木滑珠一划即可连续播放、定格或收尾盖印。
+                </p>
+              </div>
+            </div>
+
+            <div class="bead-rail" role="tablist" aria-label="选择地板共玩步骤示范">
+              <button class="bead-step-btn active" type="button" data-play-step="0">
+                <strong data-zh="第 1 步" data-en="Step 1">第 1 步</strong>
+                <span data-zh="摆好家里道具" data-en="Gather scarf">摆好家里道具</span>
+              </button>
+              <button class="bead-step-btn" type="button" data-play-step="1">
+                <strong data-zh="第 2 步" data-en="Step 2">第 2 步</strong>
+                <span data-zh="面对面共玩" data-en="Peek &amp; smile">面对面共玩</span>
+              </button>
+              <button class="bead-step-btn" type="button" data-play-step="2">
+                <strong data-zh="第 3 步" data-en="Step 3">第 3 步</strong>
+                <span data-zh="见好就收盖印" data-en="Wrap &amp; stamp">见好就收盖印</span>
+              </button>
+            </div>
+
+            <div class="step-card-copy" id="playStepCopy" data-zh="准备：随手取一条透气雪纺丝巾与地板软垫，不买昂贵教具也能立刻开始。" data-en="Setup: Grab any sheer kitchen scarf and a soft floor mat, no special kit required.">
+              准备：随手取一条透气雪纺丝巾与地板软垫，不买昂贵教具也能立刻开始。
+            </div>
+
+            <div class="bento-phone-crop">
+              <img class="lang-swap-img" src="assets/screens/scr-play-zh.jpg" data-src-zh="assets/screens/scr-play-zh.jpg" data-src-en="assets/screens/scr-play-en.jpg" alt="摸索台灯地板共玩木珠控帧实机画面">
+            </div>
+          </article>
+
+          <!-- Bento 6 (span-6): 37-Station Journey, Storybook & Capsules -->
+          <article class="bento-card span-6">
+            <div class="bento-head">
+              <div>
+                <h3 data-zh="37 站旅程、成长册与时光胶囊" data-en="37 Stations, Memory Book &amp; Capsules">37 站旅程、成长册与时光胶囊</h3>
+                <p class="bento-desc" data-zh="从满月、100 天到 3 岁，把照片、身高曲线与给孩子写的火漆信笺，离线折进家庭私密档案。" data-en="Fold monthly stages, physical milestones, and wax-sealed future letters into one offline archive.">
+                  从满月、100 天到 3 岁，把照片、身高曲线与给孩子写的火漆信笺，离线折进家庭私密档案。
+                </p>
+              </div>
+              <div class="seg-light" role="group" aria-label="切换成长留念页面">
+                <button class="active" type="button" data-keep-tab="journey" data-zh="37 站" data-en="Journey">37 站</button>
+                <button type="button" data-keep-tab="storybook" data-zh="成长册" data-en="Storybook">成长册</button>
+                <button type="button" data-keep-tab="capsules" data-zh="时光胶囊" data-en="Capsules">时光胶囊</button>
+              </div>
+            </div>
+
+            <div class="step-card-copy" id="keepCaption" data-zh="0–36 个月串联草地、森林小丘与小河村庄，直观追踪矫正月龄站次与预防接种节拍。" data-en="Navigate 37 stations across Meadow, Forest Hills, and River Village with corrected preterm age support.">
+              0–36 个月串联草地、森林小丘与小河村庄，直观追踪矫正月龄站次与预防接种节拍。
+            </div>
+
+            <div class="bento-phone-crop">
+              <img id="keepPhoneImg" class="lang-swap-img" src="assets/screens/scr-journey-zh.jpg" data-src-zh="assets/screens/scr-journey-zh.jpg" data-src-en="assets/screens/scr-journey-en.jpg" alt="摸索台灯成长留念实机画面">
+            </div>
+          </article>
         </div>
-
-        <div class="spread-folio"><span>04</span></div>
       </div>
     </section>
 
-    <!-- Spread V: Pocket Edition Table of Contents & Publisher Colophon -->
-    <section class="spread" id="edition">
+    <!-- Section IV: Full 10-Screen Interactive Explorer -->
+    <section class="gallery-section" id="screens">
       <div class="wrap">
-        <div class="edition-grid">
-          <div>
-            <h2 data-zh="装进手机里的五个角落" data-en="Five quiet rooms on your iPhone">装进手机里的五个角落</h2>
-            <p class="prose-muted" style="margin-top:0.65rem;max-width:44ch;" data-zh="所有绘本故事、桌面玩具、食盒记录与成长册都在设备本地安静运转，打开任意一章就能翻看实机画面。" data-en="All plays, tactile instruments, first foods, and keepsakes run offline on your phone. Select any room below to inspect its screen.">
-              所有绘本故事、桌面玩具、食盒记录与成长册都在设备本地安静运转，打开任意一章就能翻看实机画面。
+        <div class="sec-head">
+          <h2 data-zh="十屏实机界面，一屏一处秩序" data-en="All 10 real iPhone screens at a glance">十屏实机界面，一屏一处秩序</h2>
+          <p data-zh="点击右侧任意模块查看未裁剪实机真图；点击页面右上角「EN」即可整套切换至英文实机界面。" data-en="Select any screen on the right for its full-height preview. Toggle EN in the header to view native English screenshots.">
+            点击右侧任意模块查看未裁剪实机真图；点击页面右上角「EN」即可整套切换至英文实机界面。
+          </p>
+        </div>
+
+        <div class="gallery-layout">
+          <div class="gallery-device">
+            <div class="iphone-frame">
+              <img id="galleryPhoneImg" class="lang-swap-img" src="assets/screens/scr-home-zh.jpg" data-src-zh="assets/screens/scr-home-zh.jpg" data-src-en="assets/screens/scr-home-en.jpg" alt="当前选定实机界面截图">
+            </div>
+            <span class="gallery-caption" id="galleryCaption" data-zh="01 / 今日摸索：清晨唤醒一天的轻盈共玩首页" data-en="01 / Today's Explore: calm daily home hub">01 / 今日摸索：清晨唤醒一天的轻盈共玩首页</span>
+          </div>
+
+          <div class="screen-selector" role="tablist" aria-label="选择摸索台灯全部 10 屏实机截图">
+            <button class="screen-tab active" type="button" data-scr="home">
+              <strong data-zh="01 · 今日摸索首页" data-en="01 · Today Explore">01 · 今日摸索首页</strong>
+              <span data-zh="醒来几小时该玩什么，一眼推荐最契合月龄的手边活动。" data-en="Age-matched daily play cue with weekly toybox options.">醒来几小时该玩什么，一眼推荐最契合月龄的手边活动。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="play">
+              <strong data-zh="02 · 地板共玩剧场" data-en="02 · Play Theater">02 · 地板共玩剧场</strong>
+              <span data-zh="木珠轨连续控帧、连播步骤、3D 与 2D 画风切换。" data-en="Wooden bead scrubber, autoplay steps, and completion stamp.">木珠轨连续控帧、连播步骤、3D 与 2D 画风切换。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="toybox">
+              <strong data-zh="03 · 感官玩具盒" data-en="03 · Sensory Toybox">03 · 感官玩具盒</strong>
+              <span data-zh="木琴 / 手影 / 金珠 / 萤火 / 视卡五合一 + 护耳音量红绿带。" data-en="Xylophone, shadows, rainstick, fireflies, and ear-safe guard.">木琴 / 手影 / 金珠 / 萤火 / 视卡五合一 + 护耳音量红绿带。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="lamp">
+              <strong data-zh="04 · 床头夜灯" data-en="04 · Bedside Lamp">04 · 床头夜灯</strong>
+              <span data-zh="深夜 OLED 零刺眼灯光、无声轻拍节律与双层白噪音混音。" data-en="True dark lamp with silent palm-pat cadence and sound mixer.">深夜 OLED 零刺眼灯光、无声轻拍节律与双层白噪音混音。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="journal">
+              <strong data-zh="05 · 台灯照护中枢" data-en="05 · Lamp Care Hub">05 · 台灯照护中枢</strong>
+              <span data-zh="单手轻记喂养睡眠尿布、色温调节、传灯交接与 24h 时间带。" data-en="One-tap feeds &amp; naps, lantern handover, and daily log strip.">单手轻记喂养睡眠尿布、色温调节、传灯交接与 24h 时间带。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="rhythm">
+              <strong data-zh="06 · 昼夜节律盘" data-en="06 · Circadian Dial">06 · 昼夜节律盘</strong>
+              <span data-zh="7 日 / 14 日同心圆睡眠喂养弧线，平静态读懂作息规律。" data-en="7-day and 14-day concentric rhythm chart without alarmism.">7 日 / 14 日同心圆睡眠喂养弧线，平静态读懂作息规律。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="foods">
+              <strong data-zh="07 · 60 种百味食盒" data-en="07 · 60 First Foods">07 · 60 种百味食盒</strong>
+              <span data-zh="手绘植物蔬果图鉴、16 类致敏筛查与温柔再试追踪。" data-en="Hand-crafted food grid with allergen flags and gentle retries.">手绘植物蔬果图鉴、16 类致敏筛查与温柔再试追踪。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="journey">
+              <strong data-zh="08 · 37 站串珠旅程" data-en="08 · 37-Bead Journey">08 · 37 站串珠旅程</strong>
+              <span data-zh="草地、森林小丘与小河村庄三阶段站次，接入儿保接种计划。" data-en="0–36m Bead road, vaccination checkoffs, and keepsake vaults.">草地、森林小丘与小河村庄三阶段站次，接入儿保接种计划。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="storybook">
+              <strong data-zh="09 · 月度成长纪念册" data-en="09 · Memory Storybook">09 · 月度成长纪念册</strong>
+              <span data-zh="每月自动汇集第一次相纸、玩过的活动、吃过的食物与身高体重。" data-en="Monthly printed summary uniting photos, foods, and metrics.">每月自动汇集第一次相纸、玩过的活动、吃过的食物与身高体重。</span>
+            </button>
+            <button class="screen-tab" type="button" data-scr="capsules">
+              <strong data-zh="10 · 火漆时光胶囊" data-en="10 · Sealed Capsules">10 · 火漆时光胶囊</strong>
+              <span data-zh="用黄铜火漆把写给满周岁或三岁的信封存本机，到期才可拆封。" data-en="Brass wax-sealed birthday letters unlocked cleanly on target dates.">用黄铜火漆把写给满周岁或三岁的信封存本机，到期才可拆封。</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Section V: Commercial Promise, FAQ & Obsidian Closing Band -->
+    <section class="trust-section" id="trust">
+      <div class="wrap">
+        <div class="sec-head">
+          <h2 data-zh="不做订阅焦虑墙，也不碰家庭隐私" data-en="One transparent purchase. Zero privacy compromises.">不做订阅焦虑墙，也不碰家庭隐私</h2>
+          <p data-zh="市面上许多育儿软件靠弹窗逼迫高价年费或追踪家长数据，摸索台灯选择最朴素直接的方式。" data-en="Built against subscription fatigue and intrusive baby-data tracking.">
+            市面上许多育儿软件靠弹窗逼迫高价年费或追踪家长数据，摸索台灯选择最朴素直接的方式。
+          </p>
+        </div>
+
+        <div class="trust-grid">
+          <article class="trust-card">
+            <div>
+              <h3 data-zh="一次性买断，告别年度扣费墙" data-en="One-Time Purchase, No Upsells">一次性买断，告别年度扣费墙</h3>
+              <p data-zh="不含广告、没有连续包年诱导，也不会在记录到第 8 天时把基础辅食或睡眠按钮锁成只读逼迫付费。" data-en="No subscriptions, no lock-out paywalls after seven days of logs, and zero ads inside any screen.">
+                不含广告、没有连续包年诱导，也不会在记录到第 8 天时把基础辅食或睡眠按钮锁成只读逼迫付费。
+              </p>
+            </div>
+            <a class="trust-link" href="terms.html" data-zh="查看使用条款与免责说明 &gt;" data-en="Read Terms &amp; Disclaimer &gt;">查看使用条款与免责说明 &gt;</a>
+          </article>
+
+          <article class="trust-card">
+            <div>
+              <h3 data-zh="100% 设备本地运行，无后端收集" data-en="100% Local Offline Storage">100% 设备本地运行，无后端收集</h3>
+              <p data-zh="无需手机号或邮箱注册。宝宝出生日期、相纸照片、照护记录和火漆信只保存在您自己的 iPhone 内，支持面容 ID 上锁与整库导入导出。" data-en="No login, no remote analytics SDKs. Profiles, photos, and sealed letters stay on-device with Face ID lock and file backup.">
+                无需手机号或邮箱注册。宝宝出生日期、相纸照片、照护记录和火漆信只保存在您自己的 iPhone 内，支持面容 ID 上锁与整库导入导出。
+              </p>
+            </div>
+            <a class="trust-link" href="privacy.html" data-zh="查看完整隐私政策 &gt;" data-en="Read Full Privacy Policy &gt;">查看完整隐私政策 &gt;</a>
+          </article>
+
+          <article class="trust-card">
+            <div>
+              <h3 data-zh="循证公开指南，尊重每个孩子节奏" data-en="Public Pediatric Guidelines">循证公开指南，尊重每个孩子节奏</h3>
+              <p data-zh="生长百分位与阶段观察整理自 WHO、CDC、AAP 与中国国家卫健委公开文件；支持填入孕周自动按矫正月龄温柔陪伴，绝不代替儿科医生。" data-en="Compiled from published WHO, CDC, AAP, and China NHC sources with corrected preterm age support, never replacing clinical care.">
+                生长百分位与阶段观察整理自 WHO、CDC、AAP 与中国国家卫健委公开文件；支持填入孕周自动按矫正月龄温柔陪伴，绝不代替儿科医生。
+              </p>
+            </div>
+            <a class="trust-link" href="licenses.html" data-zh="查看公共文献出处 &gt;" data-en="Inspect Source Citations &gt;">查看公共文献出处 &gt;</a>
+          </article>
+        </div>
+
+        <div class="faq-wrap">
+          <h3 data-zh="常见问题" data-en="Frequently Asked Questions">常见问题</h3>
+
+          <details class="faq-item">
+            <summary data-zh="不填写宝宝生日或小名，可以先试用全部互动工具吗？" data-en="Can I try every play card and night lamp without filling out a profile?">不填写宝宝生日或小名，可以先试用全部互动工具吗？</summary>
+            <p data-zh="完全可以。46 场手边活动、护耳感官玩具盒、床头轻拍夜灯与 60 种百味食盒均可免资料即刻体验；需要按月龄匹配生长曲线或写时光胶囊时再随时补充。" data-en="Yes. Every play card, sensory instrument, bedtime lamp, and food item opens immediately before any personal details are added.">
+              完全可以。46 场手边活动、护耳感官玩具盒、床头轻拍夜灯与 60 种百味食盒均可免资料即刻体验；需要按月龄匹配生长曲线或写时光胶囊时再随时补充。
             </p>
+          </details>
 
-            <div class="toc-list" role="tablist" aria-label="应用内五个角落预览目录">
-              <button class="toc-row active" type="button" data-toc="home">
-                <span class="toc-dot" aria-hidden="true"></span>
-                <span>
-                  <span class="toc-title" data-zh="今天一起玩" data-en="Today's Co-Play Stage">今天一起玩</span>
-                  <span class="toc-sub" data-zh="每天一个适合当前月龄的小游戏，外加本周几个温和备选。" data-en="One age-matched play each morning with quiet weekly alternatives.">每天一个适合当前月龄的小游戏，外加本周几个温和备选。</span>
-                </span>
-              </button>
+          <details class="faq-item">
+            <summary data-zh="早产宝宝如何在 37 站旅程中匹配适合的玩法？" data-en="How are preterm ages handled along the 37-station road?">早产宝宝如何在 37 站旅程中匹配适合的玩法？</summary>
+            <p data-zh="在宝宝名片中填好出生孕周后，系统会依照儿科通行的矫正月龄匹配对应月龄站次与活动节奏，不催促赶进度。" data-en="Once birth gestational weeks are recorded, Moss &amp; Otto automatically aligns stages and floor plays to corrected pediatric age.">
+              在宝宝名片中填好出生孕周后，系统会依照儿科通行的矫正月龄匹配对应月龄站次与活动节奏，不催促赶进度。
+            </p>
+          </details>
 
-              <button class="toc-row" type="button" data-toc="play">
-                <span class="toc-dot" aria-hidden="true"></span>
-                <span>
-                  <span class="toc-title" data-zh="分步绘本剧场" data-en="Step-by-Step Storybook">分步绘本剧场</span>
-                  <span class="toc-sub" data-zh="单指轻滑木珠轨看清准备、玩法步骤与什么时候先停下。" data-en="Scrub along a wooden bead rail across preparation, steps, and when to pause.">单指轻滑木珠轨看清准备、玩法步骤与什么时候先停下。</span>
-                </span>
-              </button>
+          <details class="faq-item">
+            <summary data-zh="换新 iPhone 后，成长记录和时光胶囊会丢吗？" data-en="How do I migrate my records and sealed letters to a new iPhone?">换新 iPhone 后，成长记录和时光胶囊会丢吗？</summary>
+            <p data-zh="应用无云端数据库，除跟随 Apple 换机整机迁移外，还可以在「工坊 › 离线数据与备份」随时导出完整便携档案保存到系统文件 App，在新手机一键导入。" data-en="Beyond standard iPhone device transfer, export one portable encrypted archive anytime in Studio › Local Data &amp; Backup.">
+              应用无云端数据库，除跟随 Apple 换机整机迁移外，还可以在「工坊 › 离线数据与备份」随时导出完整便携档案保存到系统文件 App，在新手机一键导入。
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
 
-              <button class="toc-row" type="button" data-toc="toybox">
-                <span class="toc-dot" aria-hidden="true"></span>
-                <span>
-                  <span class="toc-title" data-zh="桌面玩具盒与手影墙" data-en="Sensory Toybox &amp; Shadow Wall">桌面玩具盒与手影墙</span>
-                  <span class="toc-sub" data-zh="平放手机敲柔和木琴、倾斜听雨珠滚落，或是贴近灯珠投出墙壁手影。" data-en="Pastel wooden bars, rainstick beads, and an optical shadow wall beside Otto's bulb.">平放手机敲柔和木琴、倾斜听雨珠滚落，或是贴近灯珠投出墙壁手影。</span>
-                </span>
-              </button>
-
-              <button class="toc-row" type="button" data-toc="foods">
-                <span class="toc-dot" aria-hidden="true"></span>
-                <span>
-                  <span class="toc-title" data-zh="60 种百味食盒" data-en="Sixty Botanical First Foods">60 种百味食盒</span>
-                  <span class="toc-sub" data-zh="全手绘蔬菜水果谷物图鉴，记下第一次尝到的口味反应与致敏观察。" data-en="Hand-drawn produce catalog tracking first tastes, preferences, and allergen notes.">全手绘蔬菜水果谷物图鉴，记下第一次尝到的口味反应与致敏观察。</span>
-                </span>
-              </button>
-
-              <button class="toc-row" type="button" data-toc="storybook">
-                <span class="toc-dot" aria-hidden="true"></span>
-                <span>
-                  <span class="toc-title" data-zh="月度成长册与时光信" data-en="Memory Sheets &amp; Sealed Letters">月度成长册与时光信</span>
-                  <span class="toc-sub" data-zh="把玩过的卡片、写真与生长曲线叠成一页纸，也能压一枚火漆写信给未来的三岁。" data-en="Collect snapshots, activity stamps, and wax-sealed birthday letters offline.">把玩过的卡片、写真与生长曲线叠成一页纸，也能压一枚火漆写信给未来的三岁。</span>
-                </span>
-              </button>
+    <!-- Closing Obsidian Band -->
+    <section class="closing-band">
+      <div class="wrap">
+        <div class="closing-slab">
+          <div class="closing-info">
+            <img src="assets/app-icon-dark.png" alt="摸索台灯深色图标" width="76" height="76">
+            <div>
+              <h2 data-zh="点亮床头那一小盏温柔的灯" data-en="A calmer companion on your bedside table">点亮床头那一小盏温柔的灯</h2>
+              <p data-zh="摸索台灯（Moss &amp; Otto）适用于 iPhone（iOS 26）。即将登陆 App Store，欢迎来信订阅测试体验与上架通知。" data-en="Moss &amp; Otto for iPhone (iOS 26). Launching soon on the Apple App Store. Write to request TestFlight access or launch notice.">
+                摸索台灯（Moss &amp; Otto）适用于 iPhone（iOS 26）。即将登陆 App Store，欢迎来信订阅测试体验与上架通知。
+              </p>
             </div>
           </div>
 
-          <div class="specimen-day">
-            <img id="tocScreenImg" class="lang-swap-img" src="assets/screens/scr-home-zh.jpg" data-src-zh="assets/screens/scr-home-zh.jpg" data-src-en="assets/screens/scr-home-en.jpg" alt="摸索台灯应用实机页面展示">
+          <div class="closing-actions">
+            <a class="btn-primary" href="mailto:lbuiuiysdeyzxl@yeah.net?subject=Moss%20%26%20Otto%20TestFlight" data-zh="写信预约体验与反馈" data-en="Email for Access">写信预约体验与反馈</a>
+            <a class="btn-dark-ghost" href="support.html" data-zh="使用指南与常见问题" data-en="Support Guide">使用指南与常见问题</a>
           </div>
         </div>
-
-        <!-- Book Colophon -->
-        <div class="colophon">
-          <div class="colophon-head">
-            <img src="assets/app-icon.png" alt="摸索台灯图标" width="52" height="52">
-            <h3 data-zh="出版与说明" data-en="Colophon &amp; Notes">出版与说明</h3>
-            <p data-zh="摸索台灯（Moss &amp; Otto）· iPhone 离线版" data-en="Moss &amp; Otto · Offline Edition for iPhone">摸索台灯（Moss &amp; Otto）· iPhone 离线版</p>
-          </div>
-
-          <div class="colophon-cols">
-            <div class="colophon-col">
-              <h3 data-zh="购买与版本" data-en="Edition">购买与版本</h3>
-              <p data-zh="在 App Store 采取一次性付费买断，无广告、无订阅扣费，也不含后续应用内购买。" data-en="Available on the Apple App Store as one clear purchase with zero ads, subscriptions, or in-app upsells.">
-                在 App Store 采取一次性付费买断，无广告、无订阅扣费，也不含后续应用内购买。
-              </p>
-              <a href="terms.html" data-zh="阅读使用条款与免责说明" data-en="Read Terms &amp; Disclaimer">阅读使用条款与免责说明</a>
-            </div>
-
-            <div class="colophon-col">
-              <h3 data-zh="纯离线与家庭隐私" data-en="Offline Privacy">纯离线与家庭隐私</h3>
-              <p data-zh="不要求手机号或邮箱登录，没有后台服务器。照片、喂养记录与火漆信全部留在设备本机，支持面容锁与便携导出。" data-en="Zero accounts and zero servers. Photos, care logs, and sealed letters stay on your phone with Face ID lock and file backup.">
-                不要求手机号或邮箱登录，没有后台服务器。照片、喂养记录与火漆信全部留在设备本机，支持面容锁与便携导出。
-              </p>
-              <a href="privacy.html" data-zh="阅读完整隐私政策" data-en="Read Privacy Policy">阅读完整隐私政策</a>
-            </div>
-
-            <div class="colophon-col">
-              <h3 data-zh="公共健康参考出处" data-en="Published Sources">公共健康参考出处</h3>
-              <p data-zh="月龄线索与身高体重百分位均依据 WHO、UNICEF、CDC、AAP 及中国国家卫健委公开发布文件整理，仅供家庭查阅。" data-en="Age references and growth standards summarize public guidelines from WHO, UNICEF, CDC, AAP, and China NHC for home reference.">
-                月龄线索与身高体重百分位均依据 WHO、UNICEF、CDC、AAP 及中国国家卫健委公开发布文件整理，仅供家庭查阅。
-              </p>
-              <a href="licenses.html" data-zh="查看全部参考来源" data-en="View All Sources">查看全部参考来源</a>
-            </div>
-          </div>
-
-          <div class="notes-list">
-            <details class="note-item">
-              <summary data-zh="还没填宝宝小名和生日，也能先看里面的内容吗？" data-en="Can I browse the plays and night lamp before adding profile details?">还没填宝宝小名和生日，也能先看里面的内容吗？</summary>
-              <p data-zh="可以。即使暂不填写资料，0 到 36 个月的全部活动绘本、感官玩具盒和深夜夜灯都可以完整使用，需要记照片或日期时再补充即可。" data-en="Yes. Every 0 to 36 month play, sensory toy, and bedside lamp works immediately without entering personal profile details.">
-                可以。即使暂不填写资料，0 到 36 个月的全部活动绘本、感官玩具盒和深夜夜灯都可以完整使用，需要记照片或日期时再补充即可。
-              </p>
-            </details>
-
-            <details class="note-item">
-              <summary data-zh="早产宝宝的月龄怎么对应小路上的站次？" data-en="How are preterm ages mapped on the 37-bead road?">早产宝宝的月龄怎么对应小路上的站次？</summary>
-              <p data-zh="只要在资料页填入出生孕周，应用就会按儿科习惯使用矫正月龄匹配对应月份的活动，不急着对齐足月时间。" data-en="Enter gestational age at birth and Moss &amp; Otto matches stations using corrected pediatric age rather than chronological age.">
-                只要在资料页填入出生孕周，应用就会按儿科习惯使用矫正月龄匹配对应月份的活动，不急着对齐足月时间。
-              </p>
-            </details>
-
-            <details class="note-item">
-              <summary data-zh="换新 iPhone 时怎么保留记录和时光信？" data-en="How do I move my family archive to a new iPhone?">换新 iPhone 时怎么保留记录和时光信？</summary>
-              <p data-zh="除了通过苹果换机迁移自动还原之外，也可以在「工坊 › 离线数据与备份」导出一份完整档案存在系统文件 App 里，在新设备上点一下即恢复。" data-en="Use standard iPhone migration or export one portable backup archive under Studio › Local Data &amp; Backup anytime.">
-                除了通过苹果换机迁移自动还原之外，也可以在「工坊 › 离线数据与备份」导出一份完整档案存在系统文件 App 里，在新设备上点一下即恢复。
-              </p>
-            </details>
-          </div>
-        </div>
-
-        <div class="spread-folio"><span>05</span></div>
       </div>
     </section>
   </main>
 
-  <footer class="book-footer">
+  <footer class="site-footer">
     <div class="wrap">
       <span data-zh="© 2026 摸索台灯 Moss &amp; Otto" data-en="© 2026 Moss &amp; Otto">© 2026 摸索台灯 Moss &amp; Otto</span>
       <div class="footer-links">
@@ -405,293 +679,630 @@
         return localStorage.getItem("mossling-lang") === "en" ? "en" : "zh";
       }
 
-      /* 1. Cover brass pull-cord */
-      var coverStage = document.getElementById("coverStage");
-      var cordBtn = document.getElementById("cordBtn");
-      var cordLabel = document.getElementById("cordLabel");
-
-      function updateCord(lang) {
-        if (!cordLabel || !coverStage) return;
-        var night = coverStage.classList.contains("is-night");
-        cordLabel.textContent = night
-          ? (lang === "en" ? "Return to daylight" : "回到白天")
-          : (lang === "en" ? "Pull for dusk" : "拉亮夜灯");
+      /* Web Audio helper (strictly created on explicit user click) */
+      var audioCtx = null;
+      function getAudioCtx() {
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return null;
+        if (!audioCtx) audioCtx = new Ctx();
+        if (audioCtx.state === "suspended") audioCtx.resume();
+        return audioCtx;
       }
 
-      if (cordBtn && coverStage) {
-        cordBtn.addEventListener("click", function () {
-          cordBtn.classList.add("tugging");
-          coverStage.classList.toggle("is-night");
-          updateCord(getLang());
-          setTimeout(function () { cordBtn.classList.remove("tugging"); }, 220);
-        });
-      }
-
-      /* 2. Spread I clickable Moss & Otto poses */
-      var mossSeq = [
-        { img: "assets/ip/ip_moss_right.webp", zh: "看着桌边的 Otto（轻点看动作）", en: "Glancing toward Otto (tap to move)" },
-        { img: "assets/ip/ip_moss_idle.webp", zh: "正前方认真张望", en: "Looking straight ahead" },
-        { img: "assets/ip/ip_moss_hop.webp", zh: "头顶薄荷叶竖起，原地蹦了一下", en: "Leaves perked up mid-hop" },
-        { img: "assets/ip/ip_moss_glee.webp", zh: "发现好玩的东西，弯起眼睛", en: "Spotted something curious" },
-        { img: "assets/ip/ip_moss_sleep.webp", zh: "盖着软毛毯闭眼休息", en: "Resting calmly" }
-      ];
-      var ottoSeq = [
-        { img: "assets/ip/ip_otto_left.webp", zh: "把灯珠照向 Moss（轻点换神态）", en: "Tilting the bulb toward Moss (tap to shift)" },
-        { img: "assets/ip/ip_otto_idle.webp", zh: "静静守在矮桌边", en: "Sitting quietly beside the table" },
-        { img: "assets/ip/ip_otto_yawn.webp", zh: "打了一个悠长的哈欠", en: "A slow, unhurried yawn" },
-        { img: "assets/ip/ip_otto_glee.webp", zh: "只有一边嘴角轻轻笑起来", en: "Warm one-sided smile" },
-        { img: "assets/ip/ip_otto_sleep.webp", zh: "半闭着眼，灯珠还微亮着", en: "Drowsy lids, bulb still glowing" }
-      ];
-      var mossIdx = 0;
-      var ottoIdx = 0;
-
-      function renderDuoPoses(lang) {
-        var mImg = document.getElementById("mossImg");
-        var mNote = document.getElementById("mossPose");
-        var oImg = document.getElementById("ottoImg");
-        var oNote = document.getElementById("ottoPose");
-        var m = mossSeq[mossIdx];
-        var o = ottoSeq[ottoIdx];
-        if (mImg) mImg.setAttribute("src", m.img);
-        if (mNote) mNote.textContent = lang === "en" ? m.en : m.zh;
-        if (oImg) oImg.setAttribute("src", o.img);
-        if (oNote) oNote.textContent = lang === "en" ? o.en : o.zh;
-      }
-
-      var mossBtn = document.getElementById("mossStageBtn");
-      var ottoBtn = document.getElementById("ottoStageBtn");
-      if (mossBtn) {
-        mossBtn.addEventListener("click", function () {
-          mossIdx = (mossIdx + 1) % mossSeq.length;
-          renderDuoPoses(getLang());
-        });
-      }
-      if (ottoBtn) {
-        ottoBtn.addEventListener("click", function () {
-          ottoIdx = (ottoIdx + 1) % ottoSeq.length;
-          renderDuoPoses(getLang());
-        });
-      }
-
-      /* 3. Spread II 3D <-> 2D Brass Curtain */
-      var curtainStage = document.getElementById("curtainStage");
-      var curtainRange = document.getElementById("curtainRange");
-      var curtain3d = document.getElementById("curtain3d");
-      var curtain2d = document.getElementById("curtain2d");
-
-      if (curtainRange && curtainStage) {
-        curtainRange.addEventListener("input", function () {
-          curtainStage.style.setProperty("--split", curtainRange.value + "%");
-        });
-      }
-
-      document.querySelectorAll(".plate-tab").forEach(function (tab) {
-        tab.addEventListener("click", function () {
-          document.querySelectorAll(".plate-tab").forEach(function (b) { b.classList.toggle("active", b === tab); });
-          var s3 = tab.getAttribute("data-3d");
-          var s2 = tab.getAttribute("data-2d");
-          if (curtain3d && s3) curtain3d.setAttribute("src", s3);
-          if (curtain2d && s2) curtain2d.setAttribute("src", s2);
-        });
-      });
-
-      /* 4. Spread III 37-Bead Road + Cover 3D/2D Switch */
-      var stations = {
-        "0": {
-          kZh: "第 0 个月 · 草地",
-          kEn: "Month 0 · Meadow",
-          cZh: "第 0 站封面插画",
-          cEn: "Station 0 cover plate",
-          tZh: "落地的第一束微光",
-          tEn: "The First Gentle Light",
-          dZh: "刚来到屋子里，宝宝喜欢二三十厘米内的柔和注视、黑白对比卡和贴着胸口的稳定呼吸声。",
-          dEn: "Fresh into a bright home, newborns settle with close face-to-face gaze, bold contrasts, and quiet breathing.",
-          pZh: ["拿着黑白轮廓卡在视距内慢慢左右移动", "用柔棉布轻抚手心和脚背", "趴在大人胸口感受稳定的心跳节奏"],
-          pEn: ["Move bold contrast cards slowly across view", "Trace soft cotton along fingers and soles", "Rest chest-to-chest in calm breathing stillness"]
-        },
-        "3": {
-          kZh: "第 3 个月 · 草地",
-          kEn: "Month 3 · Meadow",
-          cZh: "第 3 站封面插画",
-          cEn: "Station 3 cover plate",
-          tZh: "抬头看见客厅的阳光",
-          tEn: "Lifting Up to See the Room",
-          dZh: "俯卧时前臂撑得更稳了，听到家人在侧面轻唤，会把圆脑袋转过来露出整片笑容。",
-          dEn: "Forearms grow steadier on the mat as familiar voices draw open turns of the head and bright smiles.",
-          pZh: ["随着木摇铃从左向右缓缓转头追声", "在垫高的软毯前面看看地面安全镜里的自己", "蹬腿踢响系在低架上的轻丝巾"],
-          pEn: ["Turn smoothly toward gentle wooden rattles", "Lift up to meet a calm reflection in a floor mirror", "Kick gently at tied scarves above the rug"]
-        },
-        "7": {
-          kZh: "第 7 个月 · 草地",
-          kEn: "Month 7 · Meadow",
-          cZh: "第 7 站封面插画",
-          cEn: "Station 7 cover plate",
-          tZh: "坐稳伸手与第一勺果泥",
-          tEn: "Sitting Tall & First Flavors",
-          dZh: "双手开始在胸前互相递玩具，小手掌也敲出第一声清脆的手鼓，迎来了百味食盒的最初味道。",
-          dEn: "Passing wooden toys from hand to hand across the mat as squash and soft purees join the low table.",
-          pZh: ["两只手换着拿同一只圆木杯", "往前倾身伸手够向几寸外的小铃鼓", "在食盒里记住今天尝试的蔬菜味道"],
-          pEn: ["Transfer one smooth cup calmly between both hands", "Lean forward slightly for a small drum nearby", "Note gentle reactions to first soft foods"]
-        },
-        "12": {
-          kZh: "第 12 个月 · 森林小丘",
-          kEn: "Month 12 · Forest Hills",
-          cZh: "第 12 站封面插画",
-          cEn: "Station 12 cover plate",
-          tZh: "摇晃站立与套叠大纸杯",
-          tEn: "First Steps & Nesting Bowls",
-          dZh: "扶着矮木架慢慢站直身子，把小纸杯一个套进另一个里，还会指着图画发出清晰的单音。",
-          dEn: "Pulling up beside low wooden shelves, nesting bowls by trial, and pointing proudly at picture pages.",
-          pZh: ["把三个大小不同的纸杯叠成高塔再收在一起", "指着纸板书上的圆月亮听大人轻轻读出来", "一岁生日夜里拆开半年前保存的火漆信"],
-          pEn: ["Stack three cups high and nest them back inside", "Point at familiar objects on thick board pages", "Unseal the wax letter kept six months earlier"]
-        },
-        "18": {
-          kZh: "第 18 个月 · 森林小丘",
-          kEn: "Month 18 · Forest Hills",
-          cZh: "第 18 站封面插画",
-          cEn: "Station 18 cover plate",
-          tZh: "我自己端起小碗走两步",
-          tEn: "Carrying My Own Bowl",
-          dZh: "开始想亲手完成每件事。把两只短袜收进玄关小篮，或是跨过门口软枕搭出的小坡。",
-          dEn: "Determined to carry socks to the basket, stir their bowl, and step across cushions laid down the hall.",
-          pZh: ["在矮凳旁把成双的小袜子配对收好", "赤脚稳稳走过软枕排成的房间小径", "用两个熟悉词拼出今天的第一个小句子"],
-          pEn: ["Pair clean socks beside the low wooden bench", "Walk barefoot over cushions on the living-room floor", "Join two familiar words into early phrases"]
-        },
-        "24": {
-          kZh: "第 24 个月 · 小河村庄",
-          kEn: "Month 24 · River Village",
-          cZh: "第 24 站封面插画",
-          cEn: "Station 24 cover plate",
-          tZh: "铺好旧布给小熊盖被子",
-          tEn: "Pretend Tea & Turn-Taking",
-          dZh: "积木变成了跨河大桥，小块亚麻布变成了被单；在小河村庄，孩子开始和桌边的伙伴轮流游戏。",
-          dEn: "Blocks become bridges and cloth scraps become blankets as turn-taking blossoms beside a friend.",
-          pZh: ["合力搭起高木拱门，欣喜看它散落后再重来", "按早晨到睡前的顺序排好三张小故事卡", "在床边投影墙前和家长轮流摆出动物手影"],
-          pEn: ["Build tall wooden arches and laugh when they tumble", "Line up three picture cards from morning to bedtime", "Take turns shaping animals on Otto's shadow wall"]
-        },
-        "36": {
-          kZh: "第 36 个月 · 小河村庄",
-          kEn: "Month 36 · River Village",
-          cZh: "第 36 站封面插画",
-          cEn: "Station 36 cover plate",
-          tZh: "三十七颗珠子走完，故事仍在继续",
-          tEn: "Thirty-Seven Beads & Still Going",
-          dZh: "能指着布面家庭相册叫出每一位亲人的名字，也会一起拆开写给三岁的最后一封火漆长信。",
-          dEn: "Naming family photos along the sofa and unsealing the final brass-stamped capsule written at birth.",
-          pZh: ["翻看家里老相册说出每个人的称呼与趣事", "在晚餐桌灯下听一则节气和家常老故事", "回看从出生到三岁离线保留下来的全部月份卡片"],
-          pEn: ["Name loved ones across pages of a cloth photo album", "Share favorite family stories over dinner lamplight", "Browse all thirty-seven monthly keepsakes kept offline"]
-        }
+      /* Section II: Midnight Lamp, Tap-Tempo & 2-Layer Soundscape Mixer */
+      var nightStage = document.getElementById("night-lab");
+      var tempMap = {
+        amber: "245, 184, 65",
+        candle: "224, 82, 70",
+        peach: "242, 140, 99"
       };
-      var activeMonth = "7";
-      var activeRoadStyle = "3d";
 
-      function padMonth(m) {
-        return m.length === 1 ? "0" + m : m;
-      }
-
-      function renderRoad(lang) {
-        var st = stations[activeMonth];
-        if (!st) return;
-        var prefix = activeRoadStyle === "2d" ? "assets/art/2d_cover_" : "assets/art/cover_";
-        var img = document.getElementById("roadPlateImg");
-        var cap = document.getElementById("roadPlateCaption");
-        var kicker = document.getElementById("roadKicker");
-        var title = document.getElementById("roadTitle");
-        var desc = document.getElementById("roadDesc");
-        var list = document.getElementById("roadPlays");
-
-        if (img) img.setAttribute("src", prefix + padMonth(activeMonth) + ".webp");
-        if (cap) cap.textContent = lang === "en" ? st.cEn : st.cZh;
-        if (kicker) kicker.textContent = lang === "en" ? st.kEn : st.kZh;
-        if (title) title.textContent = lang === "en" ? st.tEn : st.tZh;
-        if (desc) desc.textContent = lang === "en" ? st.dEn : st.dZh;
-        if (list) {
-          var arr = lang === "en" ? st.pEn : st.pZh;
-          list.innerHTML = arr.map(function (t) { return "<li>" + t + "</li>"; }).join("");
-        }
-      }
-
-      document.querySelectorAll(".bead-step").forEach(function (btn) {
+      document.querySelectorAll("[data-temp]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          activeMonth = btn.getAttribute("data-month") || "0";
-          document.querySelectorAll(".bead-step").forEach(function (b) { b.classList.toggle("active", b === btn); });
-          renderRoad(getLang());
-        });
-      });
-
-      document.querySelectorAll("[data-road-style]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          activeRoadStyle = btn.getAttribute("data-road-style") || "3d";
-          document.querySelectorAll("[data-road-style]").forEach(function (b) { b.classList.toggle("active", b === btn); });
-          renderRoad(getLang());
-        });
-      });
-
-      /* 5. Spread IV Night Room Art & Silent Palm-Pat BPM */
-      var nightRoomImg = document.getElementById("nightRoomImg");
-      document.querySelectorAll("[data-night-art]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          var mode = btn.getAttribute("data-night-art") || "3d";
-          document.querySelectorAll("[data-night-art]").forEach(function (b) { b.classList.toggle("active", b === btn); });
-          if (nightRoomImg) {
-            nightRoomImg.setAttribute("src", mode === "2d" ? "assets/art/2d_stage_room.webp" : "assets/art/stage_room.webp");
+          var key = btn.getAttribute("data-temp") || "amber";
+          document.querySelectorAll("[data-temp]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          if (nightStage && tempMap[key]) {
+            nightStage.style.setProperty("--lamp-rgb", tempMap[key]);
           }
         });
       });
 
-      var patPulse = document.getElementById("patPulse");
-      var bpmCaption = document.getElementById("bpmCaption");
-      var activeBpm = "60";
-      var bpmMap = {
-        "60": { dur: "1.00s", zh: "当前节律：每分钟 60 拍（入夜安抚）", en: "Active cadence: 60 BPM (Settling)" },
-        "54": { dur: "1.11s", zh: "当前节律：每分钟 54 拍（放缓呼吸）", en: "Active cadence: 54 BPM (Easing Down)" },
-        "48": { dur: "1.25s", zh: "当前节律：每分钟 48 拍（沉稳静夜）", en: "Active cadence: 48 BPM (Deep Night)" }
-      };
+      var lampOrbBtn = document.getElementById("lampOrbBtn");
+      var bpmValue = document.getElementById("bpmValue");
+      var bpmStatus = document.getElementById("bpmStatus");
+      var currentBpm = 60;
+      var tapTimes = [];
 
-      function renderBpm(lang) {
-        var b = bpmMap[activeBpm];
-        if (!b) return;
-        if (patPulse) patPulse.style.setProperty("--pat-dur", b.dur);
-        if (bpmCaption) bpmCaption.textContent = lang === "en" ? b.en : b.zh;
+      function updateBpmUI(bpm, isCustomTap) {
+        currentBpm = bpm;
+        var ms = Math.round(60000 / bpm);
+        if (lampOrbBtn) lampOrbBtn.style.setProperty("--pulse-ms", ms + "ms");
+        if (bpmValue) bpmValue.textContent = bpm + " BPM";
+        var lang = getLang();
+        if (bpmStatus) {
+          if (isCustomTap) {
+            bpmStatus.textContent = lang === "en"
+              ? "Synced to your hand tap rhythm"
+              : "已同步为你手心轻拍节律";
+          } else if (bpm >= 58) {
+            bpmStatus.textContent = lang === "en"
+              ? "Settling pace · tap orb repeatedly to sync"
+              : "入夜安抚 · 连续轻点灯珠可按手速同步";
+          } else if (bpm >= 52) {
+            bpmStatus.textContent = lang === "en"
+              ? "Easing breathing · transitioning toward sleep"
+              : "放缓呼吸 · 从安抚稳步过渡到深眠";
+          } else {
+            bpmStatus.textContent = lang === "en"
+              ? "Deep night hold · whisper-slow steady pulse"
+              : "深静稳睡 · 极缓慢温柔微震";
+          }
+        }
       }
 
       document.querySelectorAll("[data-bpm]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          activeBpm = btn.getAttribute("data-bpm") || "60";
+          var bpm = parseInt(btn.getAttribute("data-bpm") || "60", 10);
+          tapTimes = [];
           document.querySelectorAll("[data-bpm]").forEach(function (b) { b.classList.toggle("active", b === btn); });
-          renderBpm(getLang());
+          updateBpmUI(bpm, false);
         });
       });
 
-      /* 6. Spread V Pocket Edition TOC */
-      var tocScreens = {
-        home: { srcZh: "assets/screens/scr-home-zh.jpg", srcEn: "assets/screens/scr-home-en.jpg" },
-        play: { srcZh: "assets/screens/scr-play-zh.jpg", srcEn: "assets/screens/scr-play-en.jpg" },
-        toybox: { srcZh: "assets/screens/scr-toybox-zh.jpg", srcEn: "assets/screens/scr-toybox-en.jpg" },
-        foods: { srcZh: "assets/screens/scr-foods-zh.jpg", srcEn: "assets/screens/scr-foods-en.jpg" },
-        storybook: { srcZh: "assets/screens/scr-storybook-zh.jpg", srcEn: "assets/screens/scr-storybook-en.jpg" }
-      };
-      var activeToc = "home";
+      if (lampOrbBtn) {
+        lampOrbBtn.addEventListener("click", function () {
+          lampOrbBtn.classList.add("tapped");
+          setTimeout(function () { lampOrbBtn.classList.remove("tapped"); }, 130);
+          var now = performance.now();
+          if (tapTimes.length && now - tapTimes[tapTimes.length - 1] > 2600) {
+            tapTimes = [];
+          }
+          tapTimes.push(now);
+          if (tapTimes.length > 5) tapTimes.shift();
+          if (tapTimes.length >= 2) {
+            var span = tapTimes[tapTimes.length - 1] - tapTimes[0];
+            var avg = span / (tapTimes.length - 1);
+            var calculated = Math.min(84, Math.max(40, Math.round(60000 / avg)));
+            document.querySelectorAll("[data-bpm]").forEach(function (b) { b.classList.remove("active"); });
+            updateBpmUI(calculated, true);
+          }
+        });
+      }
 
-      function renderTocScreen(lang) {
-        var item = tocScreens[activeToc];
-        var img = document.getElementById("tocScreenImg");
-        if (img && item) {
-          img.setAttribute("data-src-zh", item.srcZh);
-          img.setAttribute("data-src-en", item.srcEn);
-          img.setAttribute("src", lang === "en" ? item.srcEn : item.srcZh);
+      /* 2-layer Soundscape Mixer */
+      var activeSounds = ["rain", "lullaby"];
+      var mixStatus = document.getElementById("mixStatus");
+      var nightAudioBtn = document.getElementById("nightAudioBtn");
+      var nightAudioOn = false;
+      var nightNoiseSource = null;
+      var nightGain = null;
+
+      function renderMixStatus() {
+        var lang = getLang();
+        var names = activeSounds.map(function (id) {
+          var el = document.querySelector('[data-sound="' + id + '"]');
+          return el ? el.getAttribute(lang === "en" ? "data-en" : "data-zh") : id;
+        });
+        if (mixStatus) {
+          mixStatus.textContent = lang === "en"
+            ? "2-Layer Mixer (" + activeSounds.length + "/2 active): " + (names.join(" + ") || "Muted")
+            : "双层声景混音（已选 " + activeSounds.length + "/2）：" + (names.join(" + ") || "已静音");
         }
       }
 
-      document.querySelectorAll("[data-toc]").forEach(function (row) {
-        row.addEventListener("click", function () {
-          activeToc = row.getAttribute("data-toc") || "home";
-          document.querySelectorAll("[data-toc]").forEach(function (r) { r.classList.toggle("active", r === row); });
-          renderTocScreen(getLang());
+      function stopNightAudio() {
+        if (nightNoiseSource) {
+          try { nightNoiseSource.stop(); } catch (e) {}
+          nightNoiseSource.disconnect();
+          nightNoiseSource = null;
+        }
+        if (nightGain) {
+          nightGain.disconnect();
+          nightGain = null;
+        }
+        nightAudioOn = false;
+        if (nightAudioBtn) {
+          nightAudioBtn.classList.remove("playing");
+          nightAudioBtn.textContent = getLang() === "en" ? "Preview Soft Audio" : "开启柔和白噪音试听";
+        }
+      }
+
+      function startNightAudio() {
+        var ctx = getAudioCtx();
+        if (!ctx) return;
+        stopNightAudio();
+        var len = ctx.sampleRate * 2;
+        var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+        var data = buf.getChannelData(0);
+        var lastOut = 0;
+        for (var i = 0; i < len; i++) {
+          var white = Math.random() * 2 - 1;
+          lastOut = (lastOut + 0.025 * white) / 1.025;
+          data[i] = lastOut * 2.2;
+        }
+        var src = ctx.createBufferSource();
+        src.buffer = buf;
+        src.loop = true;
+
+        var filter = ctx.createBiquadFilter();
+        filter.type = "lowpass";
+        filter.frequency.value = activeSounds.indexOf("rain") >= 0 ? 720 : 420;
+
+        var gain = ctx.createGain();
+        gain.gain.value = 0.07;
+
+        src.connect(filter);
+        filter.connect(gain);
+        gain.connect(ctx.destination);
+        src.start();
+        nightNoiseSource = src;
+        nightGain = gain;
+        nightAudioOn = true;
+        if (nightAudioBtn) {
+          nightAudioBtn.classList.add("playing");
+          nightAudioBtn.textContent = getLang() === "en" ? "Stop Ambient Audio" : "暂停网页声景试听";
+        }
+      }
+
+      document.querySelectorAll("[data-sound]").forEach(function (chip) {
+        chip.addEventListener("click", function () {
+          var id = chip.getAttribute("data-sound");
+          var idx = activeSounds.indexOf(id);
+          if (idx >= 0) {
+            if (activeSounds.length > 1) activeSounds.splice(idx, 1);
+          } else {
+            if (activeSounds.length >= 2) activeSounds.shift();
+            activeSounds.push(id);
+          }
+          document.querySelectorAll("[data-sound]").forEach(function (c) {
+            c.classList.toggle("active", activeSounds.indexOf(c.getAttribute("data-sound")) >= 0);
+          });
+          renderMixStatus();
+          if (nightAudioOn) startNightAudio();
         });
       });
 
-      /* 7. Global Bilingual Application */
+      if (nightAudioBtn) {
+        nightAudioBtn.addEventListener("click", function () {
+          if (nightAudioOn) stopNightAudio();
+          else startNightAudio();
+        });
+      }
+
+      /* Live ticking sleep duration inside Live Activity preview */
+      var liveTimerEl = document.getElementById("liveTimer");
+      var liveSeconds = 1 * 3600 + 14 * 60 + 22;
+      function formatClock(sec) {
+        var h = String(Math.floor(sec / 3600)).padStart(2, "0");
+        var m = String(Math.floor((sec % 3600) / 60)).padStart(2, "0");
+        var s = String(sec % 60).padStart(2, "0");
+        return h + ":" + m + ":" + s;
+      }
+      setInterval(function () {
+        liveSeconds += 1;
+        if (liveTimerEl) liveTimerEl.textContent = formatClock(liveSeconds);
+      }, 1000);
+
+      /* Night Phone Screen Switcher */
+      var nightPhoneImg = document.getElementById("nightPhoneImg");
+      var nightScrMap = {
+        lamp: { zh: "assets/screens/scr-lamp-zh.jpg", en: "assets/screens/scr-lamp-en.jpg" },
+        journal: { zh: "assets/screens/scr-journal-zh.jpg", en: "assets/screens/scr-journal-en.jpg" }
+      };
+      document.querySelectorAll("[data-night-scr]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var key = btn.getAttribute("data-night-scr") || "lamp";
+          document.querySelectorAll("[data-night-scr]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          if (nightPhoneImg && nightScrMap[key]) {
+            nightPhoneImg.setAttribute("data-src-zh", nightScrMap[key].zh);
+            nightPhoneImg.setAttribute("data-src-en", nightScrMap[key].en);
+            nightPhoneImg.setAttribute("src", getLang() === "en" ? nightScrMap[key].en : nightScrMap[key].zh);
+          }
+        });
+      });
+
+      /* Bento 1: Toybox Tab Switcher */
+      var panelXylo = document.getElementById("panelXylo");
+      var panelShadow = document.getElementById("panelShadow");
+      document.querySelectorAll("[data-toy-tab]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var mode = btn.getAttribute("data-toy-tab") || "xylo";
+          document.querySelectorAll("[data-toy-tab]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          if (panelXylo) panelXylo.classList.toggle("active", mode === "xylo");
+          if (panelShadow) panelShadow.classList.toggle("active", mode === "shadow");
+        });
+      });
+
+      /* Bento 1A: Playable Ear-Safe Xylophone */
+      var notesHz = [523.25, 587.33, 659.25, 698.46, 783.99, 880.0, 987.77, 1046.5];
+      var activeTimbre = "marimba";
+      var earVolSlider = document.getElementById("earVolSlider");
+      var earBadge = document.getElementById("earBadge");
+
+      function updateEarGuard() {
+        var val = earVolSlider ? parseInt(earVolSlider.value, 10) : 40;
+        var isSafe = val <= 55;
+        var lang = getLang();
+        if (earBadge) {
+          earBadge.classList.toggle("loud", !isSafe);
+          earBadge.textContent = isSafe
+            ? (lang === "en" ? "Ear-Safe Green · " + val + "% Vol" : "护耳绿区 · " + val + "% 安全音量")
+            : (lang === "en" ? "Caution Too Loud · " + val + "%" : "建议调柔和 · " + val + "% 偏响");
+        }
+      }
+
+      if (earVolSlider) earVolSlider.addEventListener("input", updateEarGuard);
+
+      function playXyloNote(index) {
+        var bar = document.querySelector('.xylo-bar[data-note="' + index + '"]');
+        if (bar) {
+          bar.classList.add("hit");
+          setTimeout(function () { bar.classList.remove("hit"); }, 140);
+        }
+        var ctx = getAudioCtx();
+        if (!ctx) return;
+        var vol = (earVolSlider ? parseInt(earVolSlider.value, 10) : 40) / 100 * 0.35;
+        var now = ctx.currentTime;
+        var osc = ctx.createOscillator();
+        var gain = ctx.createGain();
+        osc.frequency.setValueAtTime(notesHz[index] || 523.25, now);
+        if (activeTimbre === "musicbox") {
+          osc.type = "sine";
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.exponentialRampToValueAtTime(vol, now + 0.01);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.9);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.95);
+        } else if (activeTimbre === "kalimba") {
+          osc.type = "triangle";
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.exponentialRampToValueAtTime(vol * 1.1, now + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.72);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start(now);
+          osc.stop(now + 0.76);
+        } else {
+          osc.type = "sine";
+          var harmonic = ctx.createOscillator();
+          var hGain = ctx.createGain();
+          harmonic.type = "triangle";
+          harmonic.frequency.setValueAtTime((notesHz[index] || 523.25) * 2, now);
+          hGain.gain.setValueAtTime(vol * 0.25, now);
+          hGain.gain.exponentialRampToValueAtTime(0.0008, now + 0.14);
+          gain.gain.setValueAtTime(0.001, now);
+          gain.gain.exponentialRampToValueAtTime(vol, now + 0.008);
+          gain.gain.exponentialRampToValueAtTime(0.0008, now + 0.55);
+          osc.connect(gain);
+          harmonic.connect(hGain);
+          gain.connect(ctx.destination);
+          hGain.connect(ctx.destination);
+          osc.start(now);
+          harmonic.start(now);
+          osc.stop(now + 0.6);
+          harmonic.stop(now + 0.2);
+        }
+      }
+
+      document.querySelectorAll(".xylo-bar").forEach(function (bar) {
+        bar.addEventListener("click", function () {
+          playXyloNote(parseInt(bar.getAttribute("data-note") || "0", 10));
+        });
+      });
+
+      document.querySelectorAll("[data-timbre]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeTimbre = btn.getAttribute("data-timbre") || "marimba";
+          document.querySelectorAll("[data-timbre]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+        });
+      });
+
+      var playTuneBtn = document.getElementById("playTuneBtn");
+      var tuneTimerIds = [];
+      if (playTuneBtn) {
+        playTuneBtn.addEventListener("click", function () {
+          tuneTimerIds.forEach(clearTimeout);
+          tuneTimerIds = [];
+          var seq = [0, 0, 4, 4, 5, 5, 4, 3, 3, 2, 2, 1, 1, 0];
+          seq.forEach(function (note, idx) {
+            tuneTimerIds.push(setTimeout(function () { playXyloNote(note); }, idx * 320));
+          });
+        });
+      }
+
+      /* Bento 1B: Draggable Optical Shadow Wall */
+      var shapeSvgs = {
+        rabbit: '<svg width="34" height="34" viewBox="0 0 36 36" fill="currentColor"><ellipse cx="14" cy="10" rx="3" ry="8"/><ellipse cx="22" cy="10" rx="3" ry="8"/><circle cx="18" cy="23" r="9"/></svg>',
+        bird: '<svg width="34" height="34" viewBox="0 0 36 36" fill="currentColor"><path d="M5 17c5-6 11-5 14 0 3-5 9-6 12-1-4 4-8 8-13 8-5 0-9-3-13-7Z"/></svg>',
+        boat: '<svg width="34" height="34" viewBox="0 0 36 36" fill="currentColor"><path d="M18 6v16h10L18 6ZM16 10l-7 12h7V10ZM6 24h24l-3 5H9l-3-5Z"/></svg>'
+      };
+      var activeShape = "rabbit";
+      var shadowRatio = 42;
+      var shadowStage = document.getElementById("shadowStage");
+      var shadowPuppet = document.getElementById("shadowPuppet");
+      var shadowProj = document.getElementById("shadowProj");
+      var shadowMeta = document.getElementById("shadowMeta");
+
+      function renderShadow(pct) {
+        shadowRatio = Math.min(82, Math.max(18, pct));
+        var norm = (shadowRatio - 18) / (82 - 18);
+        var scale = (2.15 - norm * 1.15).toFixed(2);
+        var blur = ((1 - norm) * 7 + 0.5).toFixed(1);
+        if (shadowPuppet) {
+          shadowPuppet.style.left = shadowRatio + "%";
+          shadowPuppet.setAttribute("aria-valuenow", String(Math.round(shadowRatio)));
+          shadowPuppet.innerHTML = shapeSvgs[activeShape];
+        }
+        if (shadowProj) {
+          shadowProj.innerHTML = shapeSvgs[activeShape];
+          shadowProj.style.transform = "translateY(-50%) scale(" + scale + ")";
+          shadowProj.style.filter = "blur(" + blur + "px)";
+        }
+        if (shadowMeta) {
+          shadowMeta.textContent = getLang() === "en"
+            ? Math.round(shadowRatio) + "% distance · Shadow scale " + scale + "x (closer enlarges)"
+            : "距灯珠 " + Math.round(shadowRatio) + "% · 投射缩放 " + scale + "x（越近灯越大越柔和）";
+        }
+      }
+
+      document.querySelectorAll("[data-shape]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeShape = btn.getAttribute("data-shape") || "rabbit";
+          document.querySelectorAll("[data-shape]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          renderShadow(shadowRatio);
+        });
+      });
+
+      if (shadowPuppet && shadowStage) {
+        var draggingShadow = false;
+        shadowPuppet.addEventListener("pointerdown", function (e) {
+          draggingShadow = true;
+          shadowPuppet.setPointerCapture(e.pointerId);
+        });
+        window.addEventListener("pointermove", function (e) {
+          if (!draggingShadow || !shadowStage) return;
+          var rect = shadowStage.getBoundingClientRect();
+          var pct = ((e.clientX - rect.left) / rect.width) * 100;
+          renderShadow(pct);
+        });
+        window.addEventListener("pointerup", function () { draggingShadow = false; });
+        shadowStage.addEventListener("click", function (e) {
+          if (e.target === shadowPuppet) return;
+          var rect = shadowStage.getBoundingClientRect();
+          renderShadow(((e.clientX - rect.left) / rect.width) * 100);
+        });
+        shadowPuppet.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowLeft") renderShadow(shadowRatio - 6);
+          if (e.key === "ArrowRight") renderShadow(shadowRatio + 6);
+        });
+      }
+
+      /* Bento 2: Draggable Swipe-to-Pass Lantern Handover */
+      var lanternTrack = document.getElementById("lanternTrack");
+      var lanternKnob = document.getElementById("lanternKnob");
+      var lanternFill = document.getElementById("lanternFill");
+      var lanternPrompt = document.getElementById("lanternPrompt");
+      var handoverState = document.getElementById("handoverState");
+      var handoverReset = document.getElementById("handoverReset");
+      var handoverDone = false;
+
+      function setLanternProgress(pct) {
+        if (!lanternTrack || !lanternKnob || !lanternFill) return;
+        var maxShift = Math.max(0, lanternTrack.clientWidth - 60);
+        var clamped = Math.min(1, Math.max(0, pct));
+        var px = clamped * maxShift;
+        lanternKnob.style.transform = "translateX(" + px + "px)";
+        lanternFill.style.width = Math.max(56, px + 54) + "px";
+        lanternKnob.setAttribute("aria-valuenow", String(Math.round(clamped * 100)));
+      }
+
+      function completeHandover() {
+        handoverDone = true;
+        setLanternProgress(1);
+        if (lanternTrack) lanternTrack.classList.add("done");
+        var lang = getLang();
+        if (lanternPrompt) lanternPrompt.textContent = lang === "en" ? "Handed off to next caregiver" : "已把照护灯光顺利移交";
+        if (handoverState) handoverState.textContent = lang === "en" ? "Shift active for Mochi · summary saved locally" : "Mochi 已接力值班 · 本次照护交接已完成";
+        if (handoverReset) handoverReset.style.display = "inline-flex";
+      }
+
+      function resetHandover() {
+        handoverDone = false;
+        setLanternProgress(0);
+        if (lanternTrack) lanternTrack.classList.remove("done");
+        var lang = getLang();
+        if (lanternPrompt) lanternPrompt.textContent = lang === "en" ? "Slide lantern to hand over" : "向右滑动灯珠完成接班";
+        if (handoverState) handoverState.textContent = lang === "en" ? "Ready · drag lantern right to confirm" : "待交班 · 拖动或点击灯轨末尾完成";
+        if (handoverReset) handoverReset.style.display = "none";
+      }
+
+      if (lanternTrack && lanternKnob) {
+        var draggingLantern = false;
+        var currentPct = 0;
+        lanternKnob.addEventListener("pointerdown", function (e) {
+          if (handoverDone) return;
+          draggingLantern = true;
+          lanternKnob.setPointerCapture(e.pointerId);
+        });
+        window.addEventListener("pointermove", function (e) {
+          if (!draggingLantern || handoverDone) return;
+          var rect = lanternTrack.getBoundingClientRect();
+          currentPct = (e.clientX - rect.left - 24) / Math.max(1, rect.width - 60);
+          setLanternProgress(currentPct);
+          if (currentPct >= 0.86) {
+            draggingLantern = false;
+            completeHandover();
+          }
+        });
+        window.addEventListener("pointerup", function () {
+          if (!draggingLantern) return;
+          draggingLantern = false;
+          if (!handoverDone && currentPct < 0.86) setLanternProgress(0);
+        });
+        lanternTrack.addEventListener("click", function (e) {
+          if (handoverDone || e.target === lanternKnob) return;
+          var rect = lanternTrack.getBoundingClientRect();
+          if (e.clientX - rect.left > rect.width * 0.55) completeHandover();
+        });
+        lanternKnob.addEventListener("keydown", function (e) {
+          if (e.key === "ArrowRight" || e.key === "Enter") completeHandover();
+        });
+      }
+      if (handoverReset) handoverReset.addEventListener("click", resetHandover);
+
+      /* Bento 3: 24h Circadian Rhythm Dial */
+      var dialAvgSleep = document.getElementById("dialAvgSleep");
+      var dialLongSleep = document.getElementById("dialLongSleep");
+      var dialOuterArc = document.getElementById("dialOuterArc");
+      document.querySelectorAll("[data-dial-days]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var d = btn.getAttribute("data-dial-days") || "7";
+          document.querySelectorAll("[data-dial-days]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          if (d === "14") {
+            if (dialAvgSleep) dialAvgSleep.textContent = "12.4h";
+            if (dialLongSleep) dialLongSleep.textContent = "7.2h";
+            if (dialOuterArc) dialOuterArc.setAttribute("d", "M 60 14 A 46 46 0 1 1 36 100");
+          } else {
+            if (dialAvgSleep) dialAvgSleep.textContent = "12.0h";
+            if (dialLongSleep) dialLongSleep.textContent = "6.7h";
+            if (dialOuterArc) dialOuterArc.setAttribute("d", "M 60 14 A 46 46 0 1 1 21 84");
+          }
+        });
+      });
+
+      /* Bento 4: 60 First Foods Interactive Filter */
+      document.querySelectorAll("[data-food-filter]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var f = btn.getAttribute("data-food-filter") || "all";
+          document.querySelectorAll("[data-food-filter]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          document.querySelectorAll("#foodGrid .food-pill").forEach(function (card) {
+            var cat = card.getAttribute("data-cat");
+            card.style.display = (f === "all" || cat === f) ? "flex" : "none";
+          });
+        });
+      });
+
+      /* Bento 5: Wooden Bead Scrubber */
+      var activePlayStep = "0";
+      var playCopyMap = {
+        "0": {
+          zh: "准备：随手取一条透气雪纺丝巾与地板软垫，不买昂贵教具也能立刻开始。",
+          en: "Setup: Grab any sheer kitchen scarf and a soft floor mat, no special kit required."
+        },
+        "1": {
+          zh: "玩法：轻轻把丝巾盖在宝宝能抓到的头顶边缘，笑着拉下露出笑脸，观察伸手配合。",
+          en: "Together: Drape the scarf lightly at reach, pause for curiosity, then celebrate every peek."
+        },
+        "2": {
+          zh: "收尾：只要宝宝扭头不再看丝巾就自然停下，点击一次木珠盖印留下今日纪念。",
+          en: "Pause calmly: End when attention drifts elsewhere, then stamp the activity card gently."
+        }
+      };
+      var playStepCopy = document.getElementById("playStepCopy");
+
+      function renderPlayStep() {
+        var item = playCopyMap[activePlayStep];
+        if (playStepCopy && item) {
+          playStepCopy.textContent = getLang() === "en" ? item.en : item.zh;
+        }
+      }
+
+      document.querySelectorAll("[data-play-step]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activePlayStep = btn.getAttribute("data-play-step") || "0";
+          document.querySelectorAll("[data-play-step]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          renderPlayStep();
+        });
+      });
+
+      /* Bento 6: 37 Stations / Storybook / Time Capsules */
+      var activeKeep = "journey";
+      var keepMap = {
+        journey: {
+          zh: "0–36 个月串联草地、森林小丘与小河村庄，直观追踪矫正月龄站次与预防接种节拍。",
+          en: "Navigate 37 stations across Meadow, Forest Hills, and River Village with corrected preterm age support.",
+          srcZh: "assets/screens/scr-journey-zh.jpg",
+          srcEn: "assets/screens/scr-journey-en.jpg"
+        },
+        storybook: {
+          zh: "每月一页成长汇总册：自然折入第一次相纸、点亮的活动印章、尝过的新味道与生长数据。",
+          en: "Monthly printed summary sheet unifying milestone photos, played cards, foods, and measurements.",
+          srcZh: "assets/screens/scr-storybook-zh.jpg",
+          srcEn: "assets/screens/scr-storybook-en.jpg"
+        },
+        capsules: {
+          zh: "以黄铜火漆把此时心意封存进本机时光信，设定周岁、两岁或三岁生日那天拆封回味。",
+          en: "Brass wax-sealed birthday letters saved strictly offline until your child's future milestone.",
+          srcZh: "assets/screens/scr-capsules-zh.jpg",
+          srcEn: "assets/screens/scr-capsules-en.jpg"
+        }
+      };
+      var keepCaption = document.getElementById("keepCaption");
+      var keepPhoneImg = document.getElementById("keepPhoneImg");
+
+      function renderKeepTab() {
+        var item = keepMap[activeKeep];
+        if (!item) return;
+        var lang = getLang();
+        if (keepCaption) keepCaption.textContent = lang === "en" ? item.en : item.zh;
+        if (keepPhoneImg) {
+          keepPhoneImg.setAttribute("data-src-zh", item.srcZh);
+          keepPhoneImg.setAttribute("data-src-en", item.srcEn);
+          keepPhoneImg.setAttribute("src", lang === "en" ? item.srcEn : item.srcZh);
+        }
+      }
+
+      document.querySelectorAll("[data-keep-tab]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeKeep = btn.getAttribute("data-keep-tab") || "journey";
+          document.querySelectorAll("[data-keep-tab]").forEach(function (b) { b.classList.toggle("active", b === btn); });
+          renderKeepTab();
+        });
+      });
+
+      /* Section IV: Full 10-Screen Explorer */
+      var activeScreen = "home";
+      var galleryData = {
+        home: { capZh: "01 / 今日摸索首页：清晨唤醒一天的轻盈共玩首页", capEn: "01 / Today Explore: age-matched play hub" },
+        play: { capZh: "02 / 地板共玩剧场：单指搓动木珠控帧播放 46 个家庭活动", capEn: "02 / Play Theater: scrub through 46 home activities" },
+        toybox: { capZh: "03 / 感官玩具盒：五合一手作器具与护耳绿区监测", capEn: "03 / Sensory Toybox: five instruments & ear-safe guard" },
+        lamp: { capZh: "04 / 床头夜灯：凌晨三点 OLED 护眼轻拍与双层白噪音", capEn: "04 / Bedside Lamp: 3 AM dark calming & silent palm-pat" },
+        journal: { capZh: "05 / 台灯照护中枢：单手喂睡记录、传灯交接与 24h 时间轴", capEn: "05 / Care Hub: one-tap logging, handover & daily timeline" },
+        rhythm: { capZh: "06 / 24h 节律盘：7 日 / 14 日同心圆睡眠与喂养趋势", capEn: "06 / Circadian Dial: concentric 7-day & 14-day sleep arcs" },
+        foods: { capZh: "07 / 60 种百味食盒：纯植物手绘蔬果与 16 类致敏观测", capEn: "07 / First Foods: 60 botanical produce items & allergens" },
+        journey: { capZh: "08 / 37 站串珠旅程：三片土地站次与儿保接种计划", capEn: "08 / 37-Bead Journey: 0–36m lands & vaccination pace" },
+        storybook: { capZh: "09 / 月度成长册：照片、食盒与测量汇总成完整纪念页", capEn: "09 / Storybook: monthly keepsake layout for your child" },
+        capsules: { capZh: "10 / 火漆时光胶囊：写给周岁和三岁的私密离线纪念信", capEn: "10 / Time Capsules: wax-sealed offline birthday letters" }
+      };
+      var galleryPhoneImg = document.getElementById("galleryPhoneImg");
+      var galleryCaption = document.getElementById("galleryCaption");
+
+      function renderGalleryScreen() {
+        var lang = getLang();
+        var sZh = "assets/screens/scr-" + activeScreen + "-zh.jpg";
+        var sEn = "assets/screens/scr-" + activeScreen + "-en.jpg";
+        var meta = galleryData[activeScreen];
+        if (galleryPhoneImg) {
+          galleryPhoneImg.setAttribute("data-src-zh", sZh);
+          galleryPhoneImg.setAttribute("data-src-en", sEn);
+          galleryPhoneImg.setAttribute("src", lang === "en" ? sEn : sZh);
+        }
+        if (galleryCaption && meta) {
+          galleryCaption.textContent = lang === "en" ? meta.capEn : meta.capZh;
+        }
+      }
+
+      document.querySelectorAll("[data-scr]").forEach(function (tab) {
+        tab.addEventListener("click", function () {
+          activeScreen = tab.getAttribute("data-scr") || "home";
+          document.querySelectorAll("[data-scr]").forEach(function (t) { t.classList.toggle("active", t === tab); });
+          renderGalleryScreen();
+        });
+      });
+
+      /* Global Bilingual Sync */
       function applyLang(lang) {
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
@@ -708,11 +1319,15 @@
           if (s) img.setAttribute("src", s);
         });
 
-        updateCord(lang);
-        renderDuoPoses(lang);
-        renderRoad(lang);
-        renderBpm(lang);
-        renderTocScreen(lang);
+        updateBpmUI(currentBpm, tapTimes.length >= 2);
+        renderMixStatus();
+        updateEarGuard();
+        renderShadow(shadowRatio);
+        if (handoverDone) completeHandover();
+        else resetHandover();
+        renderPlayStep();
+        renderKeepTab();
+        renderGalleryScreen();
       }
 
       if (langBtn) {
@@ -734,6 +1349,7 @@
         });
       }
 
+      renderShadow(shadowRatio);
       applyLang(getLang());
     })();
   </script>
