@@ -1,9 +1,63 @@
 import XCTest
 import SwiftUI
 import UIKit
+import QuartzCore
 @testable import Mossling
 
 final class LogicTests: XCTestCase {
+    @MainActor private static var hostedWindow: UIWindow?
+
+    @MainActor
+    private func renderHostedSnapshot<V: View>(
+        _ view: V,
+        width: CGFloat = 393,
+        height: CGFloat = 852,
+        dark: Bool = false
+    ) -> UIImage {
+        let size = CGSize(width: width, height: height)
+        let host = UIHostingController(
+            rootView: view
+                .frame(width: width, height: height)
+                .environment(\.colorScheme, dark ? .dark : .light)
+        )
+        let window: UIWindow
+        if let existing = Self.hostedWindow {
+            existing.isHidden = false
+            existing.frame = CGRect(origin: .zero, size: size)
+            window = existing
+        } else {
+            let created: UIWindow
+            if let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first {
+                created = UIWindow(windowScene: scene)
+                created.frame = CGRect(origin: .zero, size: size)
+            } else {
+                created = UIWindow(frame: CGRect(origin: .zero, size: size))
+            }
+            Self.hostedWindow = created
+            window = created
+        }
+        window.overrideUserInterfaceStyle = dark ? .dark : .light
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.frame = window.bounds
+        host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.08))
+        CATransaction.flush()
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = 1
+        let img = UIGraphicsImageRenderer(size: size, format: format).image { _ in
+            host.view.drawHierarchy(in: host.view.bounds, afterScreenUpdates: true)
+        }
+        window.rootViewController = UIViewController()
+        window.layoutIfNeeded()
+        CATransaction.flush()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        window.rootViewController = nil
+        window.isHidden = true
+        CATransaction.flush()
+        return img
+    }
+
     /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
     override func setUp() { super.setUp(); L10n.overrideEnglish = false }
     func testContentLoads() throws {
@@ -2873,15 +2927,14 @@ final class LogicTests: XCTestCase {
         ]
 
         for view in rootTabs {
-            let img = ImageRenderer(
-                content: view
-                    .frame(width: 393, height: 852)
+            let img = renderHostedSnapshot(
+                view
                     .environment(envApp)
                     .environment(envJournal)
                     .environment(router)
-            ).uiImage
-            XCTAssertNotNil(img)
-            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
         }
 
         // 3. Night Lamp, EN & AX2 Studio variants at single-viewport width
@@ -2892,16 +2945,14 @@ final class LogicTests: XCTestCase {
         ] {
             L10n.overrideEnglish = en
             let studio = NavigationStack { YouView(path: .constant(NavigationPath())) }
-                .frame(width: 393, height: 852)
                 .environment(envApp)
                 .environment(envJournal)
                 .environment(router)
                 .environment(\.lamp, lamp)
-                .environment(\.colorScheme, lamp ? .dark : .light)
                 .dynamicTypeSize(size)
-            let img = ImageRenderer(content: studio).uiImage
-            XCTAssertNotNil(img)
-            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            let img = renderHostedSnapshot(studio, dark: lamp)
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
         }
     }
 
@@ -2957,14 +3008,13 @@ final class LogicTests: XCTestCase {
             AnyView(BedsideLampView(initialBrightness: 0.78, initialPalmPat: true, previewClock: envApp.today.date)),
             AnyView(HandoverSheet(day: envApp.today, previewNow: envApp.today.date, initialPassProgress: 0.92))
         ] {
-            let img = ImageRenderer(
-                content: renderView
-                    .frame(width: 393, height: 852)
+            let img = renderHostedSnapshot(
+                renderView
                     .environment(envApp)
                     .environment(envJournal)
-            ).uiImage
-            XCTAssertNotNil(img)
-            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
         }
     }
 
@@ -3057,13 +3107,12 @@ final class LogicTests: XCTestCase {
         let envApp = AppModel(defaults: UserDefaults(suiteName: "round27-\(UUID().uuidString)")!)
         let envJournal = JournalStore(preview: JournalFile.Body())
         let sheet = StudioLegalSheet(dark: false)
-            .frame(width: 393, height: 640)
             .environment(envApp)
             .environment(envJournal)
             .environment(AppRouter())
-        let img = ImageRenderer(content: sheet).uiImage
-        XCTAssertNotNil(img)
-        XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        let img = renderHostedSnapshot(sheet, width: 393, height: 640)
+        XCTAssertNotNil(img.cgImage)
+        XCTAssertGreaterThan(img.size.width, 100)
     }
 
     @MainActor
@@ -3161,14 +3210,14 @@ final class LogicTests: XCTestCase {
         let envRouter = AppRouter()
 
         func assertRenders<V: View>(_ view: V) {
-            let rendered = view
-                .frame(width: 393, height: 852)
-                .environment(envApp)
-                .environment(envJournal)
-                .environment(envRouter)
-            let img = ImageRenderer(content: rendered).uiImage
-            XCTAssertNotNil(img)
-            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            let img = renderHostedSnapshot(
+                view
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(envRouter)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
         }
 
         assertRenders(LampHubView(path: .constant(NavigationPath()), initialQuickNight3AM: true))

@@ -219,6 +219,7 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: 6px;
   height: 34px;
   padding: 0 16px;
   border-radius: var(--radius-pill);
@@ -362,6 +363,59 @@ a {
 .btn-secondary:hover {
   background: var(--surface);
   border-color: var(--ink-2);
+}
+
+.apple-mark {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.store-quickbar {
+  margin-top: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  max-width: 780px;
+}
+
+.store-quickbar-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-3);
+}
+
+.store-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink);
+  transition: border-color 0.18s ease, background-color 0.18s ease, color 0.18s ease;
+}
+
+.store-pill:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.store-code {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--ink-3);
+}
+
+.store-pill:hover .store-code {
+  color: var(--accent);
 }
 
 /* iPhone Hardware Bezel */
@@ -1615,16 +1669,21 @@ a {
 
 .closing-slab {
   background:
-    radial-gradient(ellipse 65% 80% at 88% 50%, rgba(245, 184, 65, 0.16), transparent 68%),
+    radial-gradient(ellipse 65% 80% at 88% 36%, rgba(245, 184, 65, 0.16), transparent 68%),
     var(--night-bg);
   color: var(--night-ink);
   border-radius: var(--radius-xl);
-  padding: 52px 48px;
+  padding: 48px;
+  display: grid;
+  gap: 28px;
+}
+
+.closing-top {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 32px;
+  gap: 28px;
 }
 
 .closing-info {
@@ -1660,6 +1719,129 @@ a {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
+}
+
+.store-region-band {
+  border-top: 1px solid var(--night-line);
+  padding-top: 24px;
+  display: grid;
+  gap: 14px;
+}
+
+.store-region-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.store-region-title {
+  font-size: var(--t-small);
+  font-weight: 600;
+  color: var(--night-ink);
+}
+
+.store-region-hint {
+  font-size: 13px;
+  color: var(--night-ink-2);
+}
+
+.store-region-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.store-region-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--night-line);
+  color: var(--night-ink);
+  font-size: var(--t-small);
+  font-weight: 500;
+  transition: background-color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.store-region-card:hover {
+  background: rgba(255, 255, 255, 0.11);
+  border-color: rgba(245, 184, 65, 0.55);
+  transform: translateY(-1px);
+}
+
+.store-region-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.region-iso {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(245, 184, 65, 0.16);
+  color: var(--amber);
+  flex-shrink: 0;
+}
+
+.region-arrow {
+  color: var(--night-ink-2);
+  flex-shrink: 0;
+}
+
+.store-region-card:hover .region-arrow {
+  color: var(--amber);
+}
+
+@media (max-width: 860px) {
+  .store-region-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .store-quickbar-label {
+    width: 100%;
+    text-align: center;
+  }
+
+  .store-region-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .closing-slab {
+    padding: 32px 18px;
+  }
+
+  .store-region-card {
+    padding: 10px 10px;
+    font-size: 13px;
+    gap: 6px;
+  }
+
+  .store-region-left {
+    gap: 6px;
+    white-space: nowrap;
+  }
+
+  .region-iso {
+    padding: 2px 5px;
+    font-size: 10px;
+  }
+
+  .region-arrow {
+    width: 12px;
+    height: 12px;
+  }
 }
 
 .btn-dark-ghost {
