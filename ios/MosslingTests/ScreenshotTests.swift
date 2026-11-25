@@ -459,6 +459,9 @@ final class ScreenshotTests: XCTestCase {
 
             // 10. Paper-Cut 3-Land Vertical Bead Journey & Keepsake Shelf
             shot("store_\(prefix)10_journey", height: 956, width: 440, nav(quiet, JourneyHubView()))
+
+            // 11. Studio: profile, theme, language, Face ID, sources & local data (the website's fourth tab)
+            shot("store_\(prefix)11_studio", height: 956, width: 440, nav(quiet, YouView(path: .constant(NavigationPath()))))
         }
 
         defer {
