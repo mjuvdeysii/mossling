@@ -333,7 +333,7 @@ struct JourneyHubView: View {
         let _ = photoVersion.tick
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(alignment: .leading, spacing: 9) {
+                VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
                     currentStationHero()
 
                     keepsakeShelf
@@ -345,26 +345,29 @@ struct JourneyHubView: View {
                     // Compact Bead Journey header bar + inline filters (zero horizontal scrolling)
                     Group {
                         if type.isAccessibilitySize {
-                            VStack(alignment: .leading, spacing: 6) {
+                            VStack(alignment: .leading, spacing: 8) {
                                 Text(L10n.t("串珠小路 · 37 站", "Bead Journey · 37 Stations"))
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Palette.secondaryText)
+                                    .font(.headline.weight(.bold))
+                                    .tracking(LayoutSpec.sectionTracking)
+                                    .foregroundStyle(.primary)
                                 FlowRow(spacing: 6, lineSpacing: 6) { beadFilterPills }
                             }
                         } else {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) {
                                 Text(L10n.t("串珠小路 · 37 站", "Bead Journey · 37"))
-                                    .font(.caption.weight(.bold))
-                                    .foregroundStyle(Palette.secondaryText)
+                                    .font(.headline.weight(.bold))
+                                    .tracking(LayoutSpec.sectionTracking)
+                                    .foregroundStyle(.primary)
                                 Spacer(minLength: 4)
                                 beadFilterPills
                             }
                             .padding(.horizontal, 2)
                         }
                     }
+                    .padding(.top, 6)
 
                     // Collapsible vertical winding Montessori bead chain grouped by the 3 Lands (all collapsed by default)
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 10) {
                         ForEach(visibleLands, id: \.rawValue) { land in
                             let list = months(in: land)
                             if !list.isEmpty {
@@ -377,9 +380,9 @@ struct JourneyHubView: View {
                         StoryGoesOn(primary: app.companion)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
-                .padding(.bottom, 16)
+                .padding(.horizontal, LayoutSpec.pageH)
+                .padding(.top, 8)
+                .padding(.bottom, 24)
             }
             .scrollBounceBehavior(.basedOnSize)
             .calmWhileScrolling()
@@ -469,10 +472,10 @@ struct JourneyHubView: View {
                 : nil
         }
         let headerLayout = type.isAccessibilitySize
-            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
-            : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
 
-        return VStack(alignment: .leading, spacing: 8) {
+        return VStack(alignment: .leading, spacing: 12) {
             headerLayout {
                 MonthPostcardArt(
                     month: baby,
@@ -481,7 +484,7 @@ struct JourneyHubView: View {
                     width: type.isAccessibilitySize ? 82 : 66
                 )
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     FlowRow(spacing: 6, lineSpacing: 4) {
                         Label(land.name, systemImage: land.symbol)
                             .font(.caption2.weight(.bold))
@@ -492,7 +495,7 @@ struct JourneyHubView: View {
 
                         if let a = app.age {
                             Text(L10n.livedDays(a.lived))
-                                .font(.caption2.weight(.semibold))
+                                .font(.caption2)
                                 .foregroundStyle(Palette.secondaryText)
                         }
                     }
@@ -501,18 +504,19 @@ struct JourneyHubView: View {
                         Text(baby == 0 ? L10n.t("出生", "Birth") : "\(baby)")
                             .font(Typeface.numerals(28, relativeTo: .title2, weight: .bold))
                         if baby > 0 {
-                            Text(L10n.t("个月", "mo")).font(.caption.weight(.semibold))
+                            Text(L10n.t("个月", "mo")).font(.caption.weight(.medium))
                         }
                         if let d = app.age?.days, d > 0 {
                             Text("\(d)").font(Typeface.numerals(16, relativeTo: .subheadline, weight: .bold)).padding(.leading, 2)
-                            Text(L10n.t("天", "d")).font(.caption.weight(.semibold))
+                            Text(L10n.t("天", "d")).font(.caption.weight(.medium))
                         }
                     }
 
                     Text(mo.title)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(type.isAccessibilitySize ? nil : 1)
+                        .lineLimit(type.isAccessibilitySize ? nil : 2)
+                        .lineSpacing(1.5)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -535,7 +539,7 @@ struct JourneyHubView: View {
                 night: lamp
             )
         }
-        .padding(11)
+        .padding(LayoutSpec.cardPad)
         .background(
             LinearGradient(
                 colors: [land.crayon.opacity(dark ? 0.14 : 0.12), Palette.bead.opacity(dark ? 0.06 : 0.06)],
@@ -570,7 +574,7 @@ struct JourneyHubView: View {
     private var keepsakeShelf: some View {
         let cols = type.isAccessibilitySize
             ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+            : [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)]
         let bookMonths = app.birth != nil ? max(1, min(app.age?.bookMonth ?? 0, 36) + 1) : 0
         let capsuleTotal = capsules.items.count
         let capsuleReady = capsules.readyCount(on: app.today)
@@ -578,7 +582,7 @@ struct JourneyHubView: View {
         let weights = JourneyKeepsakeMetrics.normalizedWeights(from: j.measures)
         let latestWeight = JourneyKeepsakeMetrics.latestWeightText(from: j.measures)
 
-        return LazyVGrid(columns: cols, spacing: 8) {
+        return LazyVGrid(columns: cols, spacing: LayoutSpec.gridGap) {
             Button {
                 TactileEngine.shared.pageTurn()
                 if let router {
@@ -650,7 +654,7 @@ struct JourneyHubView: View {
         tint: Color,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
-        VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top) {
                 icon()
                 Spacer(minLength: 4)
@@ -659,25 +663,26 @@ struct JourneyHubView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
-            VStack(alignment: .leading, spacing: 1) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.caption.weight(.bold))
+                    .font(.subheadline.weight(.semibold))
+                    .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.caption2)
+                    .font(.caption)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.84)
             }
         }
-        .padding(9)
-        .frame(maxWidth: .infinity, minHeight: 74, alignment: .topLeading)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
         .background(
             LinearGradient(
-                colors: [tint.opacity(dark ? 0.14 : 0.11), tint.opacity(0.02)],
+                colors: [tint.opacity(dark ? 0.14 : 0.10), tint.opacity(0.01)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

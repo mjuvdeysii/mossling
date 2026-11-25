@@ -60,7 +60,7 @@ struct YouView: View {
         let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
 
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
                 FamilyCard(dark: dark) {
                     if app.mayKeep() { editing = true }
                 }
@@ -75,9 +75,9 @@ struct YouView: View {
                     showingLegalSheet = true
                 }
             }
-            .padding(.top, 4)
-            .padding(.horizontal, 16)
-            .padding(.bottom, 14)
+            .padding(.top, 8)
+            .padding(.horizontal, LayoutSpec.pageH)
+            .padding(.bottom, 24)
         }
         .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
@@ -102,24 +102,25 @@ private struct FamilyCard: View {
         let land = Land.of(baby)
         let ax = type.isAccessibilitySize
 
-        VStack(alignment: .leading, spacing: 9) {
-            HStack(alignment: .center, spacing: 10) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .center, spacing: 12) {
                 BabyPortrait(month: baby, sex: app.sex, giggle: giggles)
-                    .frame(width: ax ? 68 : 52, height: ax ? 68 : 52)
+                    .frame(width: ax ? 68 : 54, height: ax ? 68 : 54)
                     .contentShape(Circle())
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname)
                             .font(.headline.weight(.bold))
+                            .tracking(LayoutSpec.titleTracking)
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
 
                         if let a = app.age {
                             Text(L10n.ageText(a))
-                                .font(.caption.weight(.bold))
+                                .font(.caption.weight(.semibold))
                                 .foregroundStyle(Palette.accent)
                                 .monospacedDigit()
                                 .lineLimit(1)
@@ -154,7 +155,7 @@ private struct FamilyCard: View {
 
             CompanionPicker()
         }
-        .padding(11)
+        .padding(LayoutSpec.cardPad)
         .printCard(radius: Radius.card)
     }
 
@@ -166,7 +167,7 @@ private struct FamilyCard: View {
                     .font(.system(size: 10, weight: .bold))
                     .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
                 Text("\(land.name) · \(L10n.livedDays(a.lived))")
-                    .font(.caption2.weight(.semibold))
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
@@ -174,7 +175,7 @@ private struct FamilyCard: View {
         } else {
             Button(action: edit) {
                 Label(L10n.t("填写出生日期", "Add birthday"), systemImage: "calendar.badge.plus")
-                    .font(.caption.weight(.semibold))
+                    .font(.footnote.weight(.medium))
                     .foregroundStyle(Palette.accent)
             }
             .buttonStyle(.plain)
@@ -261,33 +262,22 @@ private struct CompanionPicker: View {
                 Button {
                     if on { cheer += 1 } else { withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) { app.companion = k }; cheer += 1 }
                 } label: {
-                    HStack(alignment: .center, spacing: 6) {
+                    HStack(alignment: .center, spacing: 9) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
                                  alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
                             .frame(width: (on ? 32 : 28) * k.scale, height: (on ? 32 : 28) * k.scale)
                             .frame(width: 34, height: 34, alignment: .bottom)
 
-                        if ax {
-                            VStack(alignment: .leading, spacing: 1) {
-                                Text(k.rawValue)
-                                    .font(.subheadline.weight(on ? .bold : .semibold))
-                                    .foregroundStyle(on ? .primary : Palette.secondaryText)
-                                Text(YouStudioCopy.companionBadge(k))
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
-                            }
-                        } else {
-                            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                                Text(k.rawValue)
-                                    .font(.subheadline.weight(on ? .bold : .semibold))
-                                    .foregroundStyle(on ? .primary : Palette.secondaryText)
-                                    .lineLimit(1)
-                                Text(YouStudioCopy.companionBadge(k))
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.72)
-                            }
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(k.rawValue)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(on ? .primary : Palette.secondaryText)
+                                .lineLimit(1)
+                            Text(YouStudioCopy.companionBadge(k))
+                                .font(.caption)
+                                .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
 
                         Spacer(minLength: 2)
@@ -296,9 +286,9 @@ private struct CompanionPicker: View {
                             .font(.footnote.weight(.semibold))
                             .foregroundStyle(on ? Palette.accent : Palette.outline.opacity(0.35))
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 6)
-                    .frame(minHeight: 40)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 10)
+                    .frame(minHeight: 54)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .fill(on ? Palette.accent.opacity(dark ? 0.20 : 0.10) : (dark ? Color.white.opacity(0.03) : Palette.fill.opacity(0.45)))
@@ -326,14 +316,14 @@ private struct ThemeLanguageCard: View {
 
     var body: some View {
         let ax = type.isAccessibilitySize
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             if ax {
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     themeLabel
                     themePills(ax: true)
                 }
                 Divider().opacity(0.42)
-                VStack(alignment: .leading, spacing: 6) {
+                VStack(alignment: .leading, spacing: 8) {
                     langLabel
                     langPills(ax: true)
                 }
@@ -351,8 +341,8 @@ private struct ThemeLanguageCard: View {
                 }
             }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 9)
+        .padding(.horizontal, LayoutSpec.cardPad)
+        .padding(.vertical, 14)
         .printCard(radius: Radius.card)
     }
 
@@ -478,10 +468,10 @@ private struct PreferenceStudioCard: View {
         let cols = ax
             ? [GridItem(.flexible())]
             : (face
-                ? [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
-                : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)])
+                ? [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)]
+                : [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)])
 
-        LazyVGrid(columns: cols, spacing: 8) {
+        LazyVGrid(columns: cols, spacing: LayoutSpec.gridGap) {
             preferenceTile(
                 title: L10n.t("夜间自动灯", "Auto Lamp"),
                 status: nightStatus,
@@ -551,36 +541,37 @@ private struct PreferenceStudioCard: View {
         let ink = dark ? color : Crayon.ink(color)
 
         return Button(action: action) {
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
-                    StudioBadge(symbol: symbol, color: color, active: active, dark: dark, size: 24)
+                    StudioBadge(symbol: symbol, color: color, active: active, dark: dark, size: 26)
                     Spacer(minLength: 2)
                     Circle()
                         .fill(active ? ink : Palette.outline.opacity(0.28))
                         .frame(width: 7, height: 7)
                 }
 
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(resting ? Palette.secondaryText : .primary)
-                    .lineLimit(ax ? nil : 1)
-                    .minimumScaleFactor(0.82)
-                    .fixedSize(horizontal: false, vertical: true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(resting ? Palette.secondaryText : .primary)
+                        .lineLimit(ax ? nil : 1)
+                        .minimumScaleFactor(0.84)
+                        .fixedSize(horizontal: false, vertical: true)
 
-                Text(status)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(active ? ink : Palette.secondaryText)
-                    .monospacedDigit()
-                    .lineLimit(ax ? nil : 1)
-                    .minimumScaleFactor(0.78)
-                    .fixedSize(horizontal: false, vertical: true)
+                    Text(status)
+                        .font(.caption)
+                        .foregroundStyle(active ? ink : Palette.secondaryText)
+                        .monospacedDigit()
+                        .lineLimit(ax ? nil : 1)
+                        .minimumScaleFactor(0.82)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, minHeight: ax ? 66 : 58, alignment: .topLeading)
+            .padding(14)
+            .frame(maxWidth: .infinity, minHeight: ax ? 78 : 74, alignment: .topLeading)
             .background(
                 LinearGradient(
-                    colors: [color.opacity(active ? (dark ? 0.16 : 0.11) : 0.02), .clear],
+                    colors: [color.opacity(active ? (dark ? 0.14 : 0.08) : 0.01), .clear],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
@@ -600,7 +591,7 @@ private struct PreferenceStudioCard: View {
     }
 }
 
-/// 2×2 Primary Transparency & Data Portal Grid keeping all key evidence, privacy, backup & release-notes 1 tap away.
+/// Grouped Headspace-style single PrintCard housing Sources, Local Data, Privacy & What's New with calm hairline rows.
 private struct StudioPortalGrid: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
@@ -609,13 +600,10 @@ private struct StudioPortalGrid: View {
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
         let ax = type.isAccessibilitySize
-        let cols = ax
-            ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
 
-        LazyVGrid(columns: cols, spacing: 8) {
+        VStack(spacing: 0) {
             NavigationLink(value: StudioRoute.sources) {
-                portalTile(
+                portalRow(
                     title: L10n.t("循证来源", "Sources"),
                     badge: "\(app.content.sources.count + 1)",
                     symbol: "books.vertical.fill",
@@ -625,8 +613,10 @@ private struct StudioPortalGrid: View {
             }
             .buttonStyle(.toy)
 
+            Divider().padding(.leading, 54).opacity(0.45)
+
             NavigationLink(value: StudioRoute.data) {
-                portalTile(
+                portalRow(
                     title: L10n.t("离线备份", "Local Data"),
                     badge: L10n.t("纯本机", "Offline"),
                     symbol: "externaldrive.fill",
@@ -636,8 +626,10 @@ private struct StudioPortalGrid: View {
             }
             .buttonStyle(.toy)
 
+            Divider().padding(.leading, 54).opacity(0.45)
+
             NavigationLink(value: StudioRoute.doc("PRIVACY")) {
-                portalTile(
+                portalRow(
                     title: L10n.t("隐私保护", "Privacy"),
                     badge: L10n.t("零上传", "Zero Data"),
                     symbol: "hand.raised.fill",
@@ -647,8 +639,10 @@ private struct StudioPortalGrid: View {
             }
             .buttonStyle(.toy)
 
+            Divider().padding(.leading, 54).opacity(0.45)
+
             NavigationLink(value: StudioRoute.releaseNotes) {
-                portalTile(
+                portalRow(
                     title: L10n.t("更新志", "What's New"),
                     badge: "v\(v)",
                     symbol: "sparkles.rectangle.stack.fill",
@@ -658,41 +652,34 @@ private struct StudioPortalGrid: View {
             }
             .buttonStyle(.toy)
         }
+        .printCard(radius: Radius.card)
     }
 
-    private func portalTile(title: String, badge: String, symbol: String, color: Color, ax: Bool) -> some View {
-        let ink = dark ? color : Crayon.ink(color)
-        return HStack(spacing: 8) {
-            StudioBadge(symbol: symbol, color: color, active: true, dark: dark, size: 26)
-            VStack(alignment: .leading, spacing: 1) {
-                Text(title)
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.primary)
-                    .lineLimit(ax ? nil : 1)
-                    .minimumScaleFactor(0.82)
-                    .fixedSize(horizontal: false, vertical: true)
-                Text(badge)
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(ink)
-                    .monospacedDigit()
-                    .lineLimit(1)
-            }
-            Spacer(minLength: 2)
+    private func portalRow(title: String, badge: String, symbol: String, color: Color, ax: Bool) -> some View {
+        HStack(spacing: LayoutSpec.iconTextGap) {
+            StudioBadge(symbol: symbol, color: color, active: true, dark: dark, size: 28)
+
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.primary)
+                .lineLimit(ax ? nil : 1)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Spacer(minLength: 4)
+
+            Text(badge)
+                .font(.footnote)
+                .foregroundStyle(Palette.secondaryText)
+                .monospacedDigit()
+                .lineLimit(1)
+
             Image(systemName: "chevron.right")
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, minHeight: 46, alignment: .leading)
-        .background(
-            LinearGradient(
-                colors: [color.opacity(dark ? 0.12 : 0.08), .clear],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
-        .printCard(radius: Radius.inner)
+        .padding(.horizontal, LayoutSpec.cardPad)
+        .padding(.vertical, 13)
+        .contentShape(Rectangle())
     }
 }
 

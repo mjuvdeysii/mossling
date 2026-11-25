@@ -260,6 +260,21 @@ enum Radius {
     static let chip: CGFloat = 10
 }
 
+/// Precision spatial & typographic cadence benchmarked against Headspace, Airbnb, and iOS 26 App Store.
+enum LayoutSpec {
+    static let pageH: CGFloat = 20
+    static let sectionGap: CGFloat = 20
+    static let cardGap: CGFloat = 14
+    static let gridGap: CGFloat = 12
+    static let cardPad: CGFloat = 16
+    static let cardPadHero: CGFloat = 18
+    static let titleDescGap: CGFloat = 4
+    static let iconTextGap: CGFloat = 12
+    static let sectionHeaderGap: CGFloat = 10
+    static let sectionTracking: CGFloat = -0.4
+    static let titleTracking: CGFloat = -0.2
+}
+
 /// Timing, said once. A tap answers at once; a page settles on one spring; the ambient things (the companions, the
 /// air) move at film rate — smooth enough to read as alive, half the work of 60 frames.
 enum Motion {
@@ -689,47 +704,37 @@ struct PrintCard: ViewModifier {
         let dark = lamp || scheme == .dark
         let base = lamp ? Palette.lampCard : fill
         if ArtStyle.current == .flat || Perf.plainCards {
-            // build 196: one flat colour of paper, a soft shadow
             content
-                .background { ZStack { base; Grain(dark: dark, strength: 0.6) }.clipShape(shape) }
+                .background { ZStack { base; Grain(dark: dark, strength: 0.25) }.clipShape(shape) }
                 .clipShape(shape)
-                .overlay { if scheme == .dark { shape.strokeBorder(.white.opacity(0.07), lineWidth: 1) } }
-                .shadow(color: scheme == .dark ? .clear : Color(hex: 0x7A5230).opacity(0.09), radius: 10, y: 4)
+                .overlay {
+                    shape.strokeBorder(dark ? .white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.5)
+                        .allowsHitTesting(false)
+                }
+                .shadow(color: dark ? .clear : Color.black.opacity(0.055), radius: 14, y: 5)
         } else {
         content
             .background {
                 ZStack {
                     base
-                    // lit from above: a plain gradient (a blend mode here cost every card an off-screen pass on each frame
-                    // of a scroll)
-                    LinearGradient(colors: [.white.opacity(dark ? 0.04 : 0.2), .white.opacity(0), Color(hex: 0x7A5230).opacity(dark ? 0 : 0.03)],
-                                   startPoint: .top, endPoint: .bottom)
-                    Grain(dark: dark, strength: 0.6)
+                    LinearGradient(
+                        colors: [.white.opacity(dark ? 0.03 : 0.10), .clear],
+                        startPoint: .top, endPoint: .bottom
+                    )
+                    Grain(dark: dark, strength: 0.25)
                 }
             }
             .clipShape(shape)
             .background {
-                // one soft shadow (two blurred passes per card cost every frame of a scroll or a page transition)
                 shape.fill(base)
-                    .shadow(color: dark ? .black.opacity(0.22) : Color(hex: 0x7A5230).opacity(0.13), radius: 7, y: 4)
+                    .shadow(color: dark ? .black.opacity(0.24) : Color.black.opacity(0.055), radius: 14, y: 5)
             }
             .overlay {
-                // the lit rim: light along the top edge fading down the sides, as on a cast vinyl piece;
-                // under Otto's lamp the upper bevel catches warm amber rather than cold white
                 shape.strokeBorder(
-                    LinearGradient(
-                        stops: dark
-                            ? [.init(color: Palette.amber.opacity(0.16), location: 0),
-                               .init(color: .white.opacity(0.05), location: 0.28),
-                               .init(color: .clear, location: 0.72),
-                               .init(color: Color.black.opacity(0.24), location: 1)]
-                            : [.init(color: .white.opacity(0.95), location: 0),
-                               .init(color: .white.opacity(0.26), location: 0.35),
-                               .init(color: .clear, location: 0.78),
-                               .init(color: Color(hex: 0x7A5230).opacity(0.08), location: 1)],
-                        startPoint: .top, endPoint: .bottom),
-                    lineWidth: 1.2)
-                    .allowsHitTesting(false)
+                    dark ? Palette.amber.opacity(0.16) : Color.black.opacity(0.06),
+                    lineWidth: 0.6
+                )
+                .allowsHitTesting(false)
             }
             .contentShape(shape)
         }
