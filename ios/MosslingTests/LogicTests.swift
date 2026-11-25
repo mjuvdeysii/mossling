@@ -3032,4 +3032,31 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testRound27OfficialWebsiteAndCommercialMetadata() {
+        XCTAssertEqual(Owner.developer, "温树垚")
+        XCTAssertEqual(Owner.email, "lbuiuiysdeyzxl@yeah.net")
+        XCTAssertEqual(Owner.website, "https://mjuvdeysii.github.io/mossling/")
+        XCTAssertEqual(Owner.websiteURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/")
+        XCTAssertEqual(Owner.supportURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/support.html")
+        XCTAssertEqual(Owner.privacyURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/privacy.html")
+        XCTAssertEqual(Owner.termsURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/terms.html")
+        XCTAssertEqual(Owner.licensesURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/licenses.html")
+
+        let filled = Owner.fill("{{DEVELOPER}}|{{WEBSITE}}")
+        XCTAssertTrue(filled.contains("温树垚"))
+        XCTAssertTrue(filled.contains("https://mjuvdeysii.github.io/mossling/"))
+
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round27-\(UUID().uuidString)")!)
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let sheet = StudioLegalSheet(dark: false)
+            .frame(width: 393, height: 640)
+            .environment(envApp)
+            .environment(envJournal)
+            .environment(AppRouter())
+        let img = ImageRenderer(content: sheet).uiImage
+        XCTAssertNotNil(img)
+        XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+    }
 }

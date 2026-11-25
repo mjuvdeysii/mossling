@@ -18,6 +18,7 @@ settings:
     # developer name and 「App 支持」 link on the App Store page, and 反馈问题 is hidden
     MOSSLING_DEVELOPER: "温树垚"
     MOSSLING_EMAIL: "lbuiuiysdeyzxl@yeah.net"
+    MOSSLING_WEBSITE: "https://mjuvdeysii.github.io/mossling/"
     CURRENT_PROJECT_VERSION: "1"
     DEVELOPMENT_TEAM: ""
     TARGETED_DEVICE_FAMILY: "1"

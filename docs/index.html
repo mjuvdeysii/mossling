@@ -1,1454 +1,766 @@
-<!DOCTYPE html>
-<html lang="zh-CN" data-theme="night">
+<!doctype html>
+<html lang="zh-Hans" data-theme="day" data-lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>摸索台灯 Moss &amp; Otto | 0 至 3 岁纯离线亲子陪伴与床头夜灯</title>
-  <meta name="description" content="为 0 至 3 岁家庭打造的纯离线蒙氏探索陪伴与床头夜灯 iOS 应用，融合双画风绘本动画、感官光影玩具与零上传本机隐私保护。" />
-  <meta property="og:title" content="摸索台灯 Moss &amp; Otto" />
-  <meta property="og:description" content="孩子摸索，大人点灯。纯离线 0 至 3 岁亲子探索、床头夜灯与成长留念。" />
-  <meta property="og:type" content="website" />
-  <meta name="theme-color" content="#0F162E" />
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg-hero: #0F162E;
-      --bg-porcelain: #FAF8F3;
-      --bg-porcelain-soft: #F1EDE3;
-      --bg-forest: #102B26;
-      --bg-forest-soft: #183A34;
-      --ink-dark: #181A18;
-      --ink-dark-muted: #4D5551;
-      --ink-light: #F7EFE0;
-      --ink-light-muted: #BFC6DC;
-      --accent: #0B7D74;
-      --accent-hover: #09665F;
-      --amber: #E5A032;
-      --amber-bright: #FFCA62;
-      --hairline-dark: rgba(24, 26, 24, 0.12);
-      --hairline-light: rgba(247, 239, 224, 0.14);
-      --fs-h2: clamp(1.75rem, 3.1vw, 2.5rem);
-      --fs-body: 1rem;
-      --fs-sm: 0.875rem;
-      --font-sans: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, BlinkMacSystemFont, "PingFang SC", sans-serif;
-    }
-
-    html[data-theme="day"] {
-      --bg-hero: #1B2748;
-      --bg-forest: #14332D;
-      --bg-forest-soft: #1C443C;
-    }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-
-    body {
-      margin: 0;
-      font-family: var(--font-sans);
-      font-size: var(--fs-body);
-      line-height: 1.6;
-      color: var(--ink-dark);
-      background: var(--bg-porcelain);
-      font-variant-numeric: tabular-nums;
-      -webkit-font-smoothing: antialiased;
-    }
-
-    a { color: inherit; }
-
-    /* Single-line top navigation bleeding seamlessly over y = 0 hero */
-    .site-header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 40;
-      padding: 14px 24px;
-      border-bottom: 1px solid transparent;
-      background: rgba(15, 22, 46, 0.0);
-      transition: background-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-                  border-color 200ms cubic-bezier(0.22, 1, 0.36, 1),
-                  backdrop-filter 200ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .site-header.scrolled {
-      background: rgba(15, 22, 46, 0.88);
-      backdrop-filter: blur(14px);
-      -webkit-backdrop-filter: blur(14px);
-      border-bottom-color: var(--hairline-light);
-    }
-
-    .nav-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-    }
-
-    .brand-wordmark {
-      display: inline-flex;
-      align-items: center;
-      gap: 10px;
-      text-decoration: none;
-      color: var(--ink-light);
-      font-size: 1.125rem;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .brand-orb {
-      width: 12px;
-      height: 12px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 35% 35%, #FFF4CF, var(--amber));
-      box-shadow: 0 0 12px rgba(255, 202, 98, 0.65);
-      flex-shrink: 0;
-    }
-
-    .nav-links {
-      display: flex;
-      align-items: center;
-      gap: 24px;
-      list-style: none;
-      margin: 0;
-      padding: 0;
-    }
-
-    .nav-links a {
-      text-decoration: none;
-      color: var(--ink-light-muted);
-      font-size: var(--fs-sm);
-      font-weight: 600;
-      white-space: nowrap;
-      transition: color 180ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .nav-links a:hover { color: var(--ink-light); }
-
-    .nav-controls {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      flex-shrink: 0;
-    }
-
-    /* Connected segmented controls for mode switching */
-    .seg-group {
-      display: inline-flex;
-      padding: 3px;
-      border-radius: 999px;
-      border: 1px solid var(--hairline-light);
-      background: rgba(255, 255, 255, 0.06);
-    }
-
-    .seg-group.on-light {
-      border-color: var(--hairline-dark);
-      background: var(--bg-porcelain-soft);
-    }
-
-    .seg-group.on-forest {
-      border-color: var(--hairline-light);
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .seg-btn {
-      appearance: none;
-      border: 0;
-      background: transparent;
-      color: var(--ink-light-muted);
-      font-family: inherit;
-      font-size: var(--fs-sm);
-      font-weight: 600;
-      padding: 6px 12px;
-      border-radius: 999px;
-      cursor: pointer;
-      white-space: nowrap;
-      transition: background-color 180ms cubic-bezier(0.22, 1, 0.36, 1),
-                  color 180ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .seg-btn[aria-pressed="true"],
-    .seg-btn[aria-selected="true"] {
-      background: var(--amber-bright);
-      color: #1F1502;
-    }
-
-    .seg-group.on-light .seg-btn { color: var(--ink-dark-muted); }
-    .seg-group.on-light .seg-btn[aria-selected="true"] {
-      background: var(--accent);
-      color: #FFFFFF;
-    }
-
-    .seg-group.on-forest .seg-btn[aria-pressed="true"] {
-      background: var(--amber-bright);
-      color: #1F1502;
-    }
-
-    .cta-primary {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      font-family: inherit;
-      font-size: var(--fs-sm);
-      font-weight: 700;
-      padding: 11px 22px;
-      border-radius: 999px;
-      border: 0;
-      cursor: pointer;
-      background: var(--amber-bright);
-      color: #1F1502;
-      white-space: nowrap;
-      transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1),
-                  background-color 180ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .cta-primary:hover {
-      background: #FFD885;
-      transform: translateY(-1px);
-    }
-
-    .cta-primary.teal {
-      background: var(--accent);
-      color: #FFFFFF;
-    }
-
-    .cta-primary.teal:hover { background: var(--accent-hover); }
-
-    /* Band 1: Full-Bleed Non-Split Nocturnal Hero bleeding to y = 0 */
-    .hero-band {
-      background: radial-gradient(ellipse 80% 60% at 50% 62%, rgba(229, 160, 50, 0.16), transparent 70%),
-                  linear-gradient(180deg, var(--bg-hero) 0%, #152142 100%);
-      color: var(--ink-light);
-      padding: 108px 24px 64px;
-    }
-
-    .hero-inner {
-      max-width: 1040px;
-      margin: 0 auto;
-      display: grid;
-      justify-items: center;
-      text-align: center;
-      gap: 20px;
-    }
-
-    .hero-inner h1 {
-      margin: 0;
-      font-size: clamp(2.5rem, 5.4vw, 4.75rem);
-      font-weight: 800;
-      line-height: 1.04;
-      letter-spacing: -0.03em;
-      max-width: 16ch;
-    }
-
-    .hero-sub {
-      margin: 0;
-      font-size: var(--fs-body);
-      color: var(--ink-light-muted);
-      max-width: 54ch;
-    }
-
-    .hero-action {
-      margin-top: 4px;
-    }
-
-    /* Interactive Otto Shadow Wall Live Optical Canvas */
-    .shadow-workbench {
-      width: 100%;
-      margin-top: 12px;
-      display: grid;
-      gap: 14px;
-    }
-
-    .shadow-canvas-wrap {
-      position: relative;
-      width: 100%;
-      aspect-ratio: 16 / 9;
-      min-height: 300px;
-      max-height: 500px;
-      border-radius: 22px;
-      overflow: hidden;
-      border: 1px solid var(--hairline-light);
-      background: #141B36;
-      cursor: grab;
-      touch-action: none;
-    }
-
-    .shadow-canvas-wrap:active { cursor: grabbing; }
-
-    #shadowCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    .workbench-bar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .workbench-caption {
-      margin: 0;
-      font-size: var(--fs-sm);
-      color: var(--ink-light-muted);
-      text-align: left;
-    }
-
-    /* Band 2: Four Calm Native Spaces (Crisp Gallery Ivory) */
-    .section-band {
-      padding: 84px 24px;
-    }
-
-    .section-porcelain {
-      background: var(--bg-porcelain);
-      color: var(--ink-dark);
-    }
-
-    .section-forest {
-      background: var(--bg-forest);
-      color: var(--ink-light);
-    }
-
-    .container {
-      max-width: 1120px;
-      margin: 0 auto;
-    }
-
-    h2 {
-      margin: 0;
-      font-size: var(--fs-h2);
-      font-weight: 800;
-      line-height: 1.12;
-      letter-spacing: -0.025em;
-    }
-
-    .section-intro {
-      margin: 12px 0 0;
-      font-size: var(--fs-body);
-      color: var(--ink-dark-muted);
-      max-width: 60ch;
-    }
-
-    .section-forest .section-intro { color: var(--ink-light-muted); }
-
-    .spaces-toolbar {
-      margin-top: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      flex-wrap: wrap;
-    }
-
-    .space-stage {
-      margin-top: 28px;
-      display: grid;
-      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
-      gap: 40px;
-      align-items: center;
-      padding-top: 28px;
-      border-top: 1px solid var(--hairline-dark);
-    }
-
-    .space-copy h3 {
-      margin: 0 0 12px;
-      font-size: var(--fs-body);
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .space-copy p {
-      margin: 0 0 18px;
-      font-size: var(--fs-body);
-      color: var(--ink-dark);
-      max-width: 52ch;
-    }
-
-    .space-list {
-      list-style: none;
-      margin: 0 0 24px;
-      padding: 0;
-      display: grid;
-      gap: 10px;
-    }
-
-    .space-list li {
-      font-size: var(--fs-body);
-      color: var(--ink-dark-muted);
-      padding-left: 18px;
-      position: relative;
-    }
-
-    .space-list li::before {
-      content: "";
-      position: absolute;
-      left: 0;
-      top: 0.62em;
-      width: 7px;
-      height: 7px;
-      border-radius: 999px;
-      background: var(--accent);
-    }
-
-    .space-preview-surface {
-      background: var(--bg-porcelain-soft);
-      border-radius: 20px;
-      padding: 20px;
-      border: 1px solid var(--hairline-dark);
-    }
-
-    #spaceCanvas {
-      width: 100%;
-      height: 290px;
-      display: block;
-      border-radius: 12px;
-    }
-
-    /* Band 3: Physical Instruments Craft (Deep Forest) */
-    .instruments-grid {
-      margin-top: 40px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 32px;
-    }
-
-    .instrument-panel {
-      background: var(--bg-forest-soft);
-      border-radius: 20px;
-      padding: 28px;
-      border: 1px solid var(--hairline-light);
-      display: grid;
-      gap: 18px;
-      align-content: start;
-    }
-
-    .instrument-panel h3 {
-      margin: 0;
-      font-size: var(--fs-body);
-      font-weight: 700;
-      color: var(--amber-bright);
-    }
-
-    .instrument-panel p {
-      margin: 0;
-      font-size: var(--fs-body);
-      color: var(--ink-light-muted);
-    }
-
-    .pat-stage {
-      height: 170px;
-      border-radius: 14px;
-      background: rgba(15, 22, 46, 0.55);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      position: relative;
-      overflow: hidden;
-    }
-
-    .pat-ring {
-      position: absolute;
-      width: 68px;
-      height: 68px;
-      border-radius: 999px;
-      border: 2px solid var(--amber-bright);
-      opacity: 0;
-      transform: scale(0.8);
-      pointer-events: none;
-    }
-
-    .pat-core {
-      width: 56px;
-      height: 56px;
-      border-radius: 999px;
-      background: radial-gradient(circle at 38% 34%, #FFF6DA, var(--amber));
-      box-shadow: 0 0 28px rgba(255, 202, 98, 0.45);
-      cursor: pointer;
-      border: 0;
-    }
-
-    .lantern-stage {
-      height: 170px;
-      border-radius: 14px;
-      background: rgba(15, 22, 46, 0.55);
-      overflow: hidden;
-    }
-
-    #lanternCanvas {
-      width: 100%;
-      height: 100%;
-      display: block;
-    }
-
-    .instrument-control-row {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      flex-wrap: wrap;
-    }
-
-    .range-slider {
-      flex: 1;
-      min-width: 160px;
-      accent-color: var(--amber-bright);
-      cursor: pointer;
-    }
-
-    .status-readout {
-      font-size: var(--fs-sm);
-      font-weight: 600;
-      color: var(--ink-light);
-    }
-
-    /* Band 4: Privacy & Clinical Evidence (Crisp Porcelain Split) */
-    .trust-grid {
-      margin-top: 36px;
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 48px;
-      padding-top: 28px;
-      border-top: 1px solid var(--hairline-dark);
-    }
-
-    .trust-col h3 {
-      margin: 0 0 14px;
-      font-size: var(--fs-body);
-      font-weight: 700;
-      color: var(--accent);
-    }
-
-    .trust-list {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: grid;
-      gap: 14px;
-    }
-
-    .trust-list li {
-      font-size: var(--fs-body);
-      color: var(--ink-dark);
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--hairline-dark);
-    }
-
-    .trust-list li:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
-    }
-
-    .trust-sub {
-      display: block;
-      margin-top: 4px;
-      font-size: var(--fs-sm);
-      color: var(--ink-dark-muted);
-    }
-
-    /* Footer */
-    .site-footer {
-      background: var(--bg-hero);
-      color: var(--ink-light-muted);
-      padding: 52px 24px 44px;
-    }
-
-    .footer-inner {
-      max-width: 1120px;
-      margin: 0 auto;
-      display: flex;
-      align-items: flex-start;
-      justify-content: space-between;
-      gap: 32px;
-      flex-wrap: wrap;
-    }
-
-    .footer-brand {
-      display: grid;
-      gap: 8px;
-      max-width: 44ch;
-    }
-
-    .footer-brand strong {
-      color: var(--ink-light);
-      font-size: var(--fs-body);
-    }
-
-    .footer-brand p {
-      margin: 0;
-      font-size: var(--fs-sm);
-    }
-
-    .footer-links {
-      display: flex;
-      align-items: center;
-      gap: 20px;
-      flex-wrap: wrap;
-      font-size: var(--fs-sm);
-    }
-
-    .footer-links a {
-      text-decoration: none;
-      color: var(--ink-light-muted);
-      font-weight: 600;
-      transition: color 180ms cubic-bezier(0.22, 1, 0.36, 1);
-    }
-
-    .footer-links a:hover { color: var(--ink-light); }
-
-    @media (max-width: 860px) {
-      .nav-links { display: none; }
-      .space-stage,
-      .instruments-grid,
-      .trust-grid {
-        grid-template-columns: 1fr;
-        gap: 24px;
-      }
-      .site-header { padding: 12px 16px; }
-      .hero-band { padding: 92px 16px 48px; }
-      .section-band { padding: 56px 16px; }
-    }
-
-    @media (prefers-reduced-motion: reduce) {
-      html { scroll-behavior: auto; }
-      *, *::before, *::after {
-        transition-duration: 0.01ms !important;
-        animation-duration: 0.01ms !important;
-      }
-    }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>摸索台灯 Moss &amp; Otto | 0–3 岁亲子绘本陪伴与纯离线照护应用</title>
+  <meta name="description" content="孩子在地上摸索，大人在旁边点灯。专为 0–36 个月家庭打造的原生 iPhone 应用：46 部 Pixar 3D 与吉卜力 2D 双画风绘本玩法、无声掌心轻拍安抚、百味食盒与 100% 离线记录。">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <header class="site-header" id="siteHeader">
-    <nav class="nav-inner" aria-label="Primary Navigation">
-      <a href="#top" class="brand-wordmark">
-        <span class="brand-orb" aria-hidden="true"></span>
+  <a class="skip-link" href="#main" data-zh="跳到正文" data-en="Skip to content">跳到正文</a>
+
+  <header class="site-nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="34" height="34">
         <span data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</span>
       </a>
 
-      <ul class="nav-links">
-        <li><a href="#spaces" data-zh="四个空间" data-en="Spaces">四个空间</a></li>
-        <li><a href="#instruments" data-zh="物理器物" data-en="Instruments">物理器物</a></li>
-        <li><a href="#trust" data-zh="循证与隐私" data-en="Evidence &amp; Privacy">循证与隐私</a></li>
-        <li><a href="support.html" data-zh="支持与指南" data-en="Support">支持与指南</a></li>
-      </ul>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="#walkthrough" data-zh="真实界面" data-en="App Screens">真实界面</a>
+        <a href="#activities" data-zh="双画风绘本" data-en="Storybook">双画风绘本</a>
+        <a href="#companions" data-zh="摸索与台灯" data-en="Moss &amp; Otto">摸索与台灯</a>
+        <a href="#night" data-zh="夜间伴睡" data-en="Night Lamp">夜间伴睡</a>
+        <a href="#privacy" data-zh="科学与隐私" data-en="Privacy">科学与隐私</a>
+      </nav>
 
       <div class="nav-controls">
-        <div class="seg-group" role="group" aria-label="Language">
-          <button type="button" class="seg-btn" data-lang="zh" aria-pressed="true">中文</button>
-          <button type="button" class="seg-btn" data-lang="en" aria-pressed="false">EN</button>
-        </div>
-        <div class="seg-group" role="group" aria-label="Lighting Theme">
-          <button type="button" class="seg-btn" data-theme-pick="night" aria-pressed="true" data-zh="夜灯" data-en="Lamp">夜灯</button>
-          <button type="button" class="seg-btn" data-theme-pick="day" aria-pressed="false" data-zh="日光" data-en="Day">日光</button>
-        </div>
+        <button class="pill-btn" type="button" id="langBtn" aria-label="切换语言">EN</button>
+        <button class="pill-btn" type="button" id="themeBtn" aria-label="切换日光与夜灯模式" data-zh="夜灯" data-en="Lamp">夜灯</button>
+        <button class="nav-burger" type="button" id="menuBtn" aria-expanded="false" aria-controls="mobileDrawer" aria-label="打开菜单">
+          <svg width="18" height="14" viewBox="0 0 18 14" fill="none" aria-hidden="true">
+            <path d="M1 2h16M1 7h16M1 12h16" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          </svg>
+        </button>
       </div>
-    </nav>
+    </div>
+
+    <div class="mobile-drawer" id="mobileDrawer">
+      <a href="#walkthrough" data-zh="真实界面" data-en="App Screens">真实界面</a>
+      <a href="#activities" data-zh="46 部双画风绘本" data-en="46 Storybook Scenes">46 部双画风绘本</a>
+      <a href="#companions" data-zh="认识 Moss 与 Otto" data-en="Meet Moss &amp; Otto">认识 Moss 与 Otto</a>
+      <a href="#night" data-zh="夜间伴睡与手影墙" data-en="Midnight &amp; Shadow Wall">夜间伴睡与手影墙</a>
+      <a href="#keepsakes" data-zh="成长留念与食盒" data-en="Keepsakes &amp; Foods">成长留念与食盒</a>
+      <a href="#privacy" data-zh="纯离线隐私承诺" data-en="Offline Privacy">纯离线隐私承诺</a>
+      <a href="support.html" data-zh="支持与帮助" data-en="Support &amp; FAQ">支持与帮助</a>
+    </div>
   </header>
 
-  <main id="top">
-    <!-- Full-Bleed Architectural Hero bleeding seamlessly to y = 0 -->
-    <section class="hero-band">
-      <div class="hero-inner">
-        <h1 data-zh="孩子摸索，大人点灯" data-en="They explore. You hold the light.">孩子摸索，大人点灯</h1>
-        <p class="hero-sub" data-zh="为 0 至 3 岁家庭打造的纯离线蒙氏探索与床头夜灯应用，用物理触感与温润光影安静陪伴成长。" data-en="A quiet, completely offline iPhone companion for ages 0 to 3, uniting Montessori play and bedside lighting.">为 0 至 3 岁家庭打造的纯离线蒙氏探索与床头夜灯应用，用物理触感与温润光影安静陪伴成长。</p>
-        <div class="hero-action">
-          <a href="support.html" class="cta-primary" data-zh="了解 iOS 版与功能详情" data-en="Explore the iOS App">了解 iOS 版与功能详情</a>
+  <main id="main">
+    <!-- Hero -->
+    <section class="hero">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <h1>
+            <span data-zh="孩子在地上摸索，" data-en="They explore the floor.">孩子在地上摸索，</span>
+            <span data-zh="大人在旁边点灯。" data-en="You hold the lamp.">大人在旁边点灯。</span>
+          </h1>
+          <p class="lead" data-zh="一套专为 0–36 个月家庭打造的原生 iPhone 陪伴应用。46 部 Pixar 3D 与吉卜力 2D 双画风分步玩法、凌晨三点单手可达的无声轻拍夜灯，以及绝不上传任何家庭信息的纯离线记录。" data-en="A calm, native iPhone companion for parents of children ages 0 to 36 months. Enjoy 46 interactive dual-style (Pixar 3D &amp; Ghibli 2D) play scenes, a midnight silent palm-pat lamp, and 100% offline keepsakes with zero account or cloud tracking.">
+            一套专为 0–36 个月家庭打造的原生 iPhone 陪伴应用。46 部 Pixar 3D 与吉卜力 2D 双画风分步玩法、凌晨三点单手可达的无声轻拍夜灯，以及绝不上传任何家庭信息的纯离线记录。
+          </p>
+          <div class="hero-actions">
+            <a class="btn-primary" href="#walkthrough" data-zh="浏览真实 iOS 2.0 界面" data-en="Explore Real iOS 2.0 Screens">浏览真实 iOS 2.0 界面</a>
+            <a class="btn-secondary" href="support.html" data-zh="支持与帮助" data-en="Support &amp; Help">支持与帮助</a>
+          </div>
+          <p class="hero-meta" data-zh="iPhone 原生应用 · iOS 26 · 一次买断无订阅 · 零账号纯离线" data-en="Built natively for iPhone · iOS 26 · One-time purchase, no subscription · 100% offline">
+            iPhone 原生应用 · iOS 26 · 一次买断无订阅 · 零账号纯离线
+          </p>
         </div>
 
-        <!-- Wide Live Interactive Optical Shadow Wall Stage visible above the fold -->
-        <div class="shadow-workbench">
-          <div class="shadow-canvas-wrap" id="shadowWrap">
-            <canvas id="shadowCanvas" aria-label="Interactive Optical Shadow Wall"></canvas>
+        <div class="hero-stage" aria-label="摸索台灯应用界面与 IP 形象展示">
+          <div class="hero-backdrop" aria-hidden="true">
+            <img src="assets/art/stage_day.webp" alt="">
           </div>
-          <div class="workbench-bar">
-            <p class="workbench-caption" data-zh="在光锥内拖动纸偶靠近 Otto 灯珠，观察墙面光影按真实光学比例放大与柔和虚化。" data-en="Drag the silhouette toward Otto's warm bead to scale and soften the nursery wall shadow in real time."></p>
-            <div class="seg-group" role="tablist" aria-label="Shadow Puppet Choice">
-              <button type="button" class="seg-btn" role="tab" data-puppet="rabbit" aria-selected="true" data-zh="垂耳兔" data-en="Rabbit">垂耳兔</button>
-              <button type="button" class="seg-btn" role="tab" data-puppet="bird" aria-selected="false" data-zh="飞鸟" data-en="Bird">飞鸟</button>
-              <button type="button" class="seg-btn" role="tab" data-puppet="boat" aria-selected="false" data-zh="小帆船" data-en="Sailboat">小帆船</button>
+          <div class="hero-companion hero-moss">
+            <img src="assets/ip/ip_moss_idle.webp" alt="Moss 绿芽小家伙">
+          </div>
+          <div class="hero-phone-wrap">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-home-zh.jpg" data-src-zh="assets/screens/scr-home-zh.jpg" data-src-en="assets/screens/scr-home-en.jpg" alt="摸索台灯 iOS 2.0 首页「探索」真实截图">
             </div>
+          </div>
+          <div class="hero-companion hero-otto">
+            <img src="assets/ip/ip_otto_idle.webp" alt="Otto 深蓝台灯伙伴">
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Band 2: Four Calm Native iOS Spaces -->
-    <section class="section-band section-porcelain" id="spaces">
-      <div class="container">
-        <h2 data-zh="四个各安其所的原生空间" data-en="Four calm spaces, zero navigation maze">四个各安其所的原生空间</h2>
-        <p class="section-intro" data-zh="每项能力只在唯一对应的空间安家，拒绝嵌套多层菜单与非必要下拉，单手抱娃也能一眼直达。" data-en="Every capability lives in one dedicated home with crisp single-viewport reachability, built for one-handed parenting.">每项能力只在唯一对应的空间安家，拒绝嵌套多层菜单与非必要下拉，单手抱娃也能一眼直达。</p>
+    <!-- Promises -->
+    <section class="section band-paper-deep">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="你陪孩子玩，其余交给一盏灯。" data-en="You stay with your child. The lamp remembers the rest.">你陪孩子玩，其余交给一盏灯。</h2>
+          <p data-zh="没有打扰注意力的红点与社区焦虑，把屏幕还给地垫上的真实亲子互动。" data-en="No feeds, badges, or parenting comparison. Everything stays quiet until you glance down at the mat.">
+            没有打扰注意力的红点与社区焦虑，把屏幕还给地垫上的真实亲子互动。
+          </p>
+        </div>
 
-        <div class="spaces-toolbar">
-          <div class="seg-group on-light" role="tablist" aria-label="App Spaces">
-            <button type="button" class="seg-btn" role="tab" data-space="explore" aria-selected="true" data-zh="摸索 Explore" data-en="Explore">摸索 Explore</button>
-            <button type="button" class="seg-btn" role="tab" data-space="lamp" aria-selected="false" data-zh="台灯 Lamp" data-en="Lamp">台灯 Lamp</button>
-            <button type="button" class="seg-btn" role="tab" data-space="keepsakes" aria-selected="false" data-zh="留念 Keepsakes" data-en="Keepsakes">留念 Keepsakes</button>
-            <button type="button" class="seg-btn" role="tab" data-space="studio" aria-selected="false" data-zh="工坊 Studio" data-en="Studio">工坊 Studio</button>
+        <div class="promises-grid">
+          <article class="promise-card">
+            <div class="promise-art">
+              <img src="assets/art/tray_a01.webp" alt="月龄家庭活动用具插画">
+            </div>
+            <h3 data-zh="贴合月龄，随手就能玩" data-en="Matched to their month, with home items">贴合月龄，随手就能玩</h3>
+            <p data-zh="覆盖出生到 36 个月共 37 个发育站点，只需毛巾、纸杯、积木等家中常见物件，每周推荐恰当的一组玩法。" data-en="Covering 37 monthly stages from birth to 36 months using everyday household items like cups, scarves, and wooden blocks.">
+              覆盖出生到 36 个月共 37 个发育站点，只需毛巾、纸杯、积木等家中常见物件，每周推荐恰当的一组玩法。
+            </p>
+          </article>
+
+          <article class="promise-card">
+            <div class="promise-art">
+              <img src="assets/art/ic_moon_zzz_fill.webp" alt="床头夜灯安抚图标插画">
+            </div>
+            <h3 data-zh="专为凌晨三点单手设计" data-en="Engineered for one thumb at 3 a.m.">专为凌晨三点单手设计</h3>
+            <p data-zh="拉动金珠即可切换夜灯模式，纯静音掌心轻拍柔震配合 6 种纯离线实时合成环境音，黑夜里不刺眼、不出错。" data-en="Pull the brass bead for instant night optics, silent CoreHaptics palm-pat rhythms, and 6 real-time offline soundscapes with ear-safe caps.">
+              拉动金珠即可切换夜灯模式，纯静音掌心轻拍柔震配合 6 种纯离线实时合成环境音，黑夜里不刺眼、不出错。
+            </p>
+          </article>
+
+          <article class="promise-card">
+            <div class="promise-art">
+              <img src="assets/art/ic_heart_fill.webp" alt="纯离线本地留念插画">
+            </div>
+            <h3 data-zh="纯离线，数据只留在你家" data-en="100% offline. No account. No cloud.">纯离线，数据只留在你家</h3>
+            <p data-zh="不请求位置、相机与通讯录权限，无任何第三方统计或广告 SDK。一次买断即可享用全部功能与未来本地备份导出。" data-en="Zero tracking SDKs, zero analytics, zero login walls. All photos, logs, and letters remain encrypted on your iPhone.">
+              不请求位置、相机与通讯录权限，无任何第三方统计或广告 SDK。一次买断即可享用全部功能与未来本地备份导出。
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Walkthrough: 6 Real iOS Screenshots -->
+    <section class="section" id="walkthrough">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="从地垫上的白天游戏，到凌晨的静夜灯光。" data-en="From daytime floor play to quiet midnight care.">从地垫上的白天游戏，到凌晨的静夜灯光。</h2>
+          <p data-zh="以下画面全部直接采集自摸索台灯 iOS 2.0 正式引擎渲染输出。" data-en="Six live screens captured directly from the Moss &amp; Otto iOS 2.0 app engine.">
+            以下画面全部直接采集自摸索台灯 iOS 2.0 正式引擎渲染输出。
+          </p>
+        </div>
+
+        <div class="walkthrough-grid">
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-home-zh.jpg" data-src-zh="assets/screens/scr-home-zh.jpg" data-src-en="assets/screens/scr-home-en.jpg" alt="首页「探索」三层光晕舞台">
+            </div>
+            <div>
+              <h3 data-zh="1. 首页「探索」" data-en="1. Explore Home">1. 首页「探索」</h3>
+              <p data-zh="日光棉纸与三层光晕舞台。向下轻拉 Otto 头顶的金色灯珠，画面会在 3D 软陶与 2D 水彩之间流淌切换。" data-en="Three-Halo Home stage on warm chalk paper. Pull Otto's Golden Bulb cord to morph softly between 3D clay and 2D watercolor.">
+                日光棉纸与三层光晕舞台。向下轻拉 Otto 头顶的金色灯珠，画面会在 3D 软陶与 2D 水彩之间流淌切换。
+              </p>
+            </div>
+          </article>
+
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-play-zh.jpg" data-src-zh="assets/screens/scr-play-zh.jpg" data-src-en="assets/screens/scr-play-en.jpg" alt="流动绘本剧场与桦木滑珠时间轨">
+            </div>
+            <div>
+              <h3 data-zh="2. 流动绘本剧场" data-en="2. Scrubbable Storybook Play">2. 流动绘本剧场</h3>
+              <p data-zh="告别繁琐的逐页点击。单指滑动下方实体桦木滑珠，就能像翻真绘本一样连续演出每一步的动作分解与光影变化。" data-en="No tedious next-page tapping. Glide one finger along the birch bead rail to scrub continuously through every illustrated step.">
+                告别繁琐的逐页点击。单指滑动下方实体桦木滑珠，就能像翻真绘本一样连续演出每一步的动作分解与光影变化。
+              </p>
+            </div>
+          </article>
+
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-toybox-zh.jpg" data-src-zh="assets/screens/scr-toybox-zh.jpg" data-src-en="assets/screens/scr-toybox-en.jpg" alt="感官玩具盒与光影手影墙">
+            </div>
+            <div>
+              <h3 data-zh="3. 桌面感官玩具盒与手影墙" data-en="3. Sensory Toybox &amp; Shadow Wall">3. 桌面感官玩具盒与手影墙</h3>
+              <p data-zh="汇集木琴、Otto 光影手影墙、雨声金珠棒、萤火虫与黑白高对比视卡五间安静小室，随附绿色护耳安全音量提示。" data-en="Five tactile studios: xylophone, Otto Optical Shadow Wall, rainstick beads, fireflies, and contrast cards with Ear-Safe Guard.">
+                汇集木琴、Otto 光影手影墙、雨声金珠棒、萤火虫与黑白高对比视卡五间安静小室，随附绿色护耳安全音量提示。
+              </p>
+            </div>
+          </article>
+
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-lamp-zh.jpg" data-src-zh="assets/screens/scr-lamp-zh.jpg" data-src-en="assets/screens/scr-lamp-en.jpg" alt="床头夜灯与无声掌心轻拍">
+            </div>
+            <div>
+              <h3 data-zh="4. 床头夜灯与无声掌心轻拍" data-en="4. Bedside Night Lamp &amp; Palm-Pat">4. 床头夜灯与无声掌心轻拍</h3>
+              <p data-zh="6 种纯离线实时合成声景（支持双层混音渐弱）搭配严格零声音的 60/54/48 BPM 掌心柔弹震动，黑夜单手一按即用。" data-en="Six live-synthesized offline soundscapes with fade-out plus silent CoreHaptics palm-pat rhythms and amber night optics.">
+                6 种纯离线实时合成声景（支持双层混音渐弱）搭配严格零声音的 60/54/48 BPM 掌心柔弹震动，黑夜单手一按即用。
+              </p>
+            </div>
+          </article>
+
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-foods-zh.jpg" data-src-zh="assets/screens/scr-foods-zh.jpg" data-src-en="assets/screens/scr-foods-en.jpg" alt="60 种植物学手绘百味食盒">
+            </div>
+            <div>
+              <h3 data-zh="5. 百味食盒与初尝记录" data-en="5. 60 Botanical First Foods">5. 百味食盒与初尝记录</h3>
+              <p data-zh="60 种纯手绘蔬果谷物，替代第三方 Emoji。轻松标记初次尝试、喜爱程度、温柔再试与常见致敏提醒。" data-en="Sixty handcrafted food illustrations (zero Emoji) to note first tastes, favorites, gentle retries, and allergens.">
+                60 种纯手绘蔬果谷物，替代第三方 Emoji。轻松标记初次尝试、喜爱程度、温柔再试与常见致敏提醒。
+              </p>
+            </div>
+          </article>
+
+          <article class="screen-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-rhythm-zh.jpg" data-src-zh="assets/screens/scr-rhythm-zh.jpg" data-src-en="assets/screens/scr-rhythm-en.jpg" alt="24 小时昼夜节律盘">
+            </div>
+            <div>
+              <h3 data-zh="6. 24 小时昼夜节律盘" data-en="6. 24h Circadian Rhythm Dial">6. 24 小时昼夜节律盘</h3>
+              <p data-zh="不用死盯冰冷数字表格，环形节律盘一眼看懂近 7 天或 14 天里睡眠弧、喂奶珠与白天玩耍的时间分布。" data-en="Read 7-day and 14-day sleep arcs, feeds, and playtime distributions at a calm glance around the 24-hour clock.">
+                不用死盯冰冷数字表格，环形节律盘一眼看懂近 7 天或 14 天里睡眠弧、喂奶珠与白天玩耍的时间分布。
+              </p>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dual Style 46 Storybook Scenes (Dark Bleed) -->
+    <section class="section bleed-lamp" id="activities">
+      <div class="wrap">
+        <div class="style-toolbar">
+          <div class="section-head" style="margin-bottom:0">
+            <h2 data-zh="46 部独立手绘活动，两种美学瞬间切换。" data-en="46 bespoke storybook scenes in two living craft worlds.">46 部独立手绘活动，两种美学瞬间切换。</h2>
+            <p data-zh="全部 46 部核心活动均手工编排独立镜头语法、地垫锚点与分步演出。现在点击右侧开关，直接对比原版插画的两种世界质感。" data-en="Every single one of our 46 activities features unique camera framing and step-by-step staging. Toggle below to compare original iOS artwork styles.">
+              全部 46 部核心活动均手工编排独立镜头语法、地垫锚点与分步演出。现在点击右侧开关，直接对比原版插画的两种世界质感。
+            </p>
+          </div>
+
+          <div class="segmented" role="group" aria-label="画风切换">
+            <button class="seg-btn active" type="button" data-style-mode="3d" data-zh="3D 软陶绘本" data-en="3D Clay Book">3D 软陶绘本</button>
+            <button class="seg-btn" type="button" data-style-mode="2d" data-zh="2D 水彩剪纸" data-en="2D Watercolor">2D 水彩剪纸</button>
           </div>
         </div>
 
-        <div class="space-stage">
-          <div class="space-copy">
-            <h3 id="spaceTitle">摸索：今日流动共玩与感官玩具盒</h3>
-            <p id="spaceSummary">根据宝宝月龄温柔递上今天的一件小事，手指在桦木滑珠轨上轻滑即可连贯预览每一步动作，无需反复连点翻页。</p>
-            <ul class="space-list" id="spaceBullets">
-              <li>全库活动全部独立手绘成片，支持软胶立体与水彩剪纸双世界切换</li>
-              <li>感官玩具盒内置木琴、光影手影墙、金珠雨声棒、萤火与黑白视卡</li>
-              <li>百味食盒记录前六十种初尝食材与过敏观察提示</li>
-            </ul>
-            <a href="support.html" class="cta-primary teal" data-zh="查看完整功能手册" data-en="Read Full Guide">查看完整功能手册</a>
+        <div class="art-grid-4">
+          <article class="art-card">
+            <img class="style-swap-img" src="assets/art/cover_07.webp" data-src-3d="assets/art/cover_07.webp" data-src-2d="assets/art/2d_cover_07.webp" alt="7 个月月龄封面插画">
+            <div class="art-card-body">
+              <h3 data-zh="第 7 个月 · 坐稳伸手" data-en="Month 7 · Reaching Out">第 7 个月 · 坐稳伸手</h3>
+              <p data-zh="跟随视野落点伸手够取玩具，建立手眼协调与因果期待。" data-en="Following objects across the mat to practice seated balance and reach.">跟随视野落点伸手够取玩具，建立手眼协调与因果期待。</p>
+            </div>
+          </article>
+
+          <article class="art-card">
+            <img class="style-swap-img" src="assets/art/play_a08_1.webp" data-src-3d="assets/art/play_a08_1.webp" data-src-2d="assets/art/2d_play_a08_1.webp" alt="指认绘本活动分镜">
+            <div class="art-card-body">
+              <h3 data-zh="一起读厚纸板书" data-en="Reading Board Books Together">一起读厚纸板书</h3>
+              <p data-zh="用指尖停在画面上命名日常物件，顺着孩子的视线慢下来等待回应。" data-en="Pointing and naming familiar objects at the child's own unhurried pace.">用指尖停在画面上命名日常物件，顺着孩子的视线慢下来等待回应。</p>
+            </div>
+          </article>
+
+          <article class="art-card">
+            <img class="style-swap-img" src="assets/art/play_a28_2.webp" data-src-3d="assets/art/play_a28_2.webp" data-src-2d="assets/art/2d_play_a28_2.webp" alt="过家家与轮流游戏分镜">
+            <div class="art-card-body">
+              <h3 data-zh="24–30 个月 · 假装与轮流" data-en="Parallel &amp; Turn-Taking Play">24–30 个月 · 假装与轮流</h3>
+              <p data-zh="在平行的游戏空间里交换小道具，温和练习等待与表达需要。" data-en="Practicing gentle turn-taking and pretend play beside a calm companion.">在平行的游戏空间里交换小道具，温和练习等待与表达需要。</p>
+            </div>
+          </article>
+
+          <article class="art-card">
+            <img class="style-swap-img" src="assets/art/play_a39_3.webp" data-src-3d="assets/art/play_a39_3.webp" data-src-2d="assets/art/2d_play_a39_3.webp" alt="交通安全演练分镜">
+            <div class="art-card-body">
+              <h3 data-zh="30–36 个月 · 停、看、走" data-en="Stop, Look &amp; Go Safety Play">30–36 个月 · 停、看、走</h3>
+              <p data-zh="把马路横道线搬进客厅地垫，用身体记住停下等待信号的小规则。" data-en="Turn the living room rug into a gentle crosswalk drill for early road awareness.">把马路横道线搬进客厅地垫，用身体记住停下等待信号的小规则。</p>
+            </div>
+          </article>
+        </div>
+
+        <div class="four-mode-plate">
+          <div class="plate-2x2">
+            <figure>
+              <img src="assets/art/cover_12.webp" alt="Pixar 3D 软陶绘本封面">
+              <figcaption data-zh="3D 软陶质感" data-en="3D Soft Clay">3D 软陶质感</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/art/2d_cover_12.webp" alt="吉卜力 2D 水彩封面">
+              <figcaption data-zh="2D 水彩剪纸" data-en="2D Watercolor">2D 水彩剪纸</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/art/play_n03_1.webp" alt="3D 亲子共玩舞台">
+              <figcaption data-zh="3D 地面实景舞台" data-en="3D Floor Stage">3D 地面实景舞台</figcaption>
+            </figure>
+            <figure>
+              <img src="assets/art/2d_play_n03_1.webp" alt="2D 亲子共玩舞台">
+              <figcaption data-zh="2D 绘本平涂舞台" data-en="2D Book Stage">2D 绘本平涂舞台</figcaption>
+            </figure>
           </div>
-          <div class="space-preview-surface">
-            <canvas id="spaceCanvas" aria-label="Space visual diagram"></canvas>
+          <div class="four-mode-copy">
+            <h3 data-zh="同一地垫坐标，无缝切换两种绘本工艺" data-en="Shared 1:1 ground coordinates across both art worlds">同一地垫坐标，无缝切换两种绘本工艺</h3>
+            <p data-zh="全部 46 部独立舞台都共享同一套 1:1 物理地面坐标与灯珠光锥锚点。无论是温润立体的 Pixar 3D 软陶，还是清透留白的吉卜力 2D 水彩，每次轻拉灯珠切换都会保持动作连续不跳帧。" data-en="Every one of the 46 bespoke stages shares identical 1:1 normalized floor anchors so morphing between 3D sculpted vinyl and 2D painted paper never breaks motion continuity.">
+              全部 46 部独立舞台都共享同一套 1:1 物理地面坐标与灯珠光锥锚点。无论是温润立体的 Pixar 3D 软陶，还是清透留白的吉卜力 2D 水彩，每次轻拉灯珠切换都会保持动作连续不跳帧。
+            </p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Band 3: Physical Instruments Craft -->
-    <section class="section-band section-forest" id="instruments">
-      <div class="container">
-        <h2 data-zh="像物理乐器一样回馈双手的器具" data-en="Crafted like physical bedside instruments">像物理乐器一样回馈双手的器具</h2>
-        <p class="section-intro" data-zh="结合原生 Metal 光学着色器、CoreHaptics 静音微振动与实时离线声景合成，把凌晨三点的焦虑转化为可触摸的安稳节律。" data-en="Built on native Metal shaders, silent CoreHaptics waveforms, and real-time DSP audio so late-night care feels steady in the hand.">结合原生 Metal 光学着色器、CoreHaptics 静音微振动与实时离线声景合成，把凌晨三点的焦虑转化为可触摸的安稳节律。</p>
+    <!-- Interactive IP Nursery Stage -->
+    <section class="section" id="companions">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="认识 Moss 与 Otto，两位安静守候的伙伴。" data-en="Meet Moss &amp; Otto, quiet companions for the floor and bedside.">认识 Moss 与 Otto，两位安静守候的伙伴。</h2>
+          <p data-zh="点击下方状态按钮或切换房间光线，看看原版 iOS 角色在日光地垫与暖光夜灯下的不同神态。" data-en="Switch moods or room lighting below to preview original iOS character sprites inside their nursery backdrop.">
+            点击下方状态按钮或切换房间光线，看看原版 iOS 角色在日光地垫与暖光夜灯下的不同神态。
+          </p>
+        </div>
 
-        <div class="instruments-grid">
-          <article class="instrument-panel">
-            <h3 data-zh="无声掌心轻拍安抚器" data-en="Silent Palm-Pat Bedside Cadence">无声掌心轻拍安抚器</h3>
-            <p data-zh="深夜完全不发出声音，只通过柔和宽脉冲带动父母掌心均匀慢拍，并在五分钟内自然从轻抚减速至深睡节律。" data-en="Zero audible clicks at 3 a.m., guiding your palm cleanly through a steady cadence that eases gradually toward deep sleep.">深夜完全不发出声音，只通过柔和宽脉冲带动父母掌心均匀慢拍，并在五分钟内自然从轻抚减速至深睡节律。</p>
-            <div class="pat-stage">
-              <div class="pat-ring" id="patRing1"></div>
-              <div class="pat-ring" id="patRing2"></div>
-              <button type="button" class="pat-core" id="patTrigger" aria-label="Pulse Preview"></button>
-            </div>
-            <div class="instrument-control-row">
-              <div class="seg-group on-forest" role="group" aria-label="Pat Tempo">
-                <button type="button" class="seg-btn" data-bpm="60" aria-pressed="true">60 BPM</button>
-                <button type="button" class="seg-btn" data-bpm="54" aria-pressed="false">54 BPM</button>
-                <button type="button" class="seg-btn" data-bpm="48" aria-pressed="false">48 BPM</button>
+        <div class="companion-stage-card">
+          <div class="nursery-backdrop" id="nurseryStage">
+            <img class="room-bg day-layer" src="assets/art/stage_day.webp" alt="">
+            <img class="room-bg night-layer" src="assets/art/stage_night.webp" alt="">
+            <img class="nursery-actor" id="mossSprite" src="assets/ip/ip_moss_idle.webp" alt="Moss">
+            <img class="nursery-actor" id="ottoSprite" src="assets/ip/ip_otto_idle.webp" alt="Otto">
+          </div>
+
+          <div class="companion-controls">
+            <div>
+              <h3 data-zh="Moss（摸索）" data-en="Moss">Moss（摸索）</h3>
+              <p style="color:var(--ink-soft);font-size:0.92rem;margin-top:0.25rem;" data-zh="头顶双叶、圆润好奇的小家伙。总是坐在地上先伸手试试，代表孩子对世界最原初的探索欲。" data-en="Curious, round, and unhurried with a fresh two-leaf sprout, always reaching out first on the floor.">
+                头顶双叶、圆润好奇的小家伙。总是坐在地上先伸手试试，代表孩子对世界最原初的探索欲。
+              </p>
+              <div class="mood-row" role="group" aria-label="切换 Moss 神态">
+                <button class="mood-chip active" type="button" data-moss="idle" data-zh="静待" data-en="Idle">静待</button>
+                <button class="mood-chip" type="button" data-moss="glee" data-zh="欢喜" data-en="Glee">欢喜</button>
+                <button class="mood-chip" type="button" data-moss="hop" data-zh="轻跳" data-en="Hop">轻跳</button>
+                <button class="mood-chip" type="button" data-moss="sleep" data-zh="浅眠" data-en="Sleep">浅眠</button>
               </div>
-              <span class="status-readout" id="patReadout" data-zh="每秒一次柔缓拍背" data-en="1 gentle pat per second">每秒一次柔缓拍背</span>
             </div>
+
+            <div>
+              <h3 data-zh="Otto（台灯）" data-en="Otto">Otto（台灯）</h3>
+              <p style="color:var(--ink-soft);font-size:0.92rem;margin-top:0.25rem;" data-zh="不插手替办、只用弯颈与一粒暖黄灯珠把地上照亮的大人，在孩子身旁守住温柔又笃定的安全边界。" data-en="Calm and hands-free. Rather than doing the play for Moss, Otto bends a single golden bulb to light the floor.">
+                不插手替办、只用弯颈与一粒暖黄灯珠把地上照亮的大人，在孩子身旁守住温柔又笃定的安全边界。
+              </p>
+              <div class="mood-row" role="group" aria-label="切换 Otto 神态">
+                <button class="mood-chip active" type="button" data-otto="idle" data-zh="守候" data-en="Idle">守候</button>
+                <button class="mood-chip" type="button" data-otto="glee" data-zh="微笑" data-en="Glee">微笑</button>
+                <button class="mood-chip" type="button" data-otto="yawn" data-zh="打哈欠" data-en="Yawn">打哈欠</button>
+                <button class="mood-chip" type="button" data-otto="sleep" data-zh="熄灯眠" data-en="Sleep">熄灯眠</button>
+              </div>
+            </div>
+
+            <div>
+              <h3 data-zh="房间光影" data-en="Room Lighting">房间光影</h3>
+              <p style="color:var(--ink-soft);font-size:0.92rem;margin-top:0.25rem;" data-zh="在白天日光屋景与夜晚暖黄床头灯景之间切换（使用原始舞台美术资源）。" data-en="Switch the stage background between warm morning daylight and the evening bedside glow.">
+                在白天日光屋景与夜晚暖黄床头灯景之间切换（使用原始舞台美术资源）。
+              </p>
+              <div class="mood-row" role="group" aria-label="切换房间日光与夜灯">
+                <button class="mood-chip active" type="button" data-stage-light="day" data-zh="日光客厅" data-en="Daylight">日光客厅</button>
+                <button class="mood-chip" type="button" data-stage-light="night" data-zh="夜灯模式" data-en="Night Lamp">夜灯模式</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Night Mode & Bedside Comfort -->
+    <section class="section bleed-lamp" id="night">
+      <div class="wrap split-showcase">
+        <div class="dual-phones">
+          <div class="phone-bezel">
+            <img class="lang-swap-img" src="assets/screens/scr-lamp-zh.jpg" data-src-zh="assets/screens/scr-lamp-zh.jpg" data-src-en="assets/screens/scr-lamp-en.jpg" alt="床头夜灯实时画面">
+          </div>
+          <div class="phone-bezel">
+            <img class="lang-swap-img" src="assets/screens/scr-journal-zh.jpg" data-src-zh="assets/screens/scr-journal-zh.jpg" data-src-en="assets/screens/scr-journal-en.jpg" alt="台灯照护主屏与今日节律实拍">
+          </div>
+        </div>
+
+        <div>
+          <div class="section-head" style="margin-bottom:1.5rem">
+            <h2 data-zh="整晚伴睡与单手照护，一眼不刺眼。" data-en="Calm night optics and one-thumb logging after dark.">整晚伴睡与单手照护，一眼不刺眼。</h2>
+            <p data-zh="天黑之后打开夜灯，全站沉入低对比的深海蓝 `#0E1430` 与琥珀金光，不打扰睡意。" data-en="When the lamp is on, every screen settles into low-glare deep midnight blue and amber light.">
+              天黑之后打开夜灯，全站沉入低对比的深海蓝 `#0E1430` 与琥珀金光，不打扰睡意。
+            </p>
+          </div>
+
+          <div class="feature-points">
+            <article class="feature-point">
+              <h3 data-zh="无声掌心轻拍 + 6 种纯离线白噪音" data-en="Silent Palm-Pat + 6 Offline Soundscapes">无声掌心轻拍 + 6 种纯离线白噪音</h3>
+              <p data-zh="无需连网即可实时合成轻雨、海浪、母胎心音与摇篮曲并自带护耳音量上限；不想出声时，单靠掌心静音柔震就能延续安抚节奏。" data-en="Synthesizes rain, ocean, womb hum, and lullabies live offline with safe decibel ceilings, or switch to silent CoreHaptics pulsing.">
+                无需连网即可实时合成轻雨、海浪、母胎心音与摇篮曲并自带护耳音量上限；不想出声时，单靠掌心静音柔震就能延续安抚节奏。
+              </p>
+            </article>
+
+            <article class="feature-point">
+              <h3 data-zh="喂养、睡眠、尿布与体温，一按即记" data-en="Feed, Sleep, Diaper &amp; Notes in One Tap">喂养、睡眠、尿布与体温，一按即记</h3>
+              <p data-zh="记奶量与亲喂左右侧、睡眠计时与排便状态。计时器会在锁屏实时活动与 StandBy 床头待机中安静续走，绝不外泄敏感情节。" data-en="Track nursing sides, bottles, sleep timers, and notes. Live Activities and StandBy continue running silently on Lock Screen.">
+                记奶量与亲喂左右侧、睡眠计时与排便状态。计时器会在锁屏实时活动与 StandBy 床头待机中安静续走，绝不外泄敏感情节。
+              </p>
+            </article>
+
+            <article class="feature-point">
+              <h3 data-zh="桌面的感官玩具盒与光影手影墙" data-en="Sensory Toybox &amp; Optical Shadow Wall">桌面的感官玩具盒与光影手影墙</h3>
+              <p data-zh="包含雨声木珠棒、风铃、砂纸画板、翻牌与光影手影墙。所有触摸响应都在 120Hz 原生 SwiftUI 与 Metal 材质中即时反馈。" data-en="Rainstick beads, pentatonic chimes, trace sandboard, memory flip tiles, and Shadow Wall crafted in native SwiftUI &amp; Metal.">
+                包含雨声木珠棒、风铃、砂纸画板、翻牌与光影手影墙。所有触摸响应都在 120Hz 原生 SwiftUI 与 Metal 材质中即时反馈。
+              </p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Keepsakes, Foods & Studio -->
+    <section class="section" id="keepsakes">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="把零散的第一次，封存成随时可翻的成长纪念册。" data-en="First foods, WHO curves, and a single-viewport Studio.">把零散的第一次，封存成随时可翻的成长纪念册。</h2>
+          <p data-zh="从辅食过敏观察、WHO 生长百分比到工坊单屏驾驶舱，常用能力一屏可达、不迷路。" data-en="Everything stays organized across four uncluttered tabs: First Foods, WHO percentiles, handover cards, and local JSON backup.">
+            从辅食过敏观察、WHO 生长百分比到工坊单屏驾驶舱，常用能力一屏可达、不迷路。
+          </p>
+        </div>
+
+        <div class="keepsake-trio">
+          <article class="keepsake-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-journey-zh.jpg" data-src-zh="assets/screens/scr-journey-zh.jpg" data-src-en="assets/screens/scr-journey-en.jpg" alt="留念页三片土地串珠旅程">
+            </div>
+            <h3 data-zh="留念 · 三片土地成长路" data-en="Keepsakes · Three Lands">留念 · 三片土地成长路</h3>
+            <p data-zh="默认折叠 37 个月龄驿站不制造冗长滚动，点击「现在」或任意一片土地即可定位本月关注点与第一次相纸。" data-en="Three clean collapsible lands spanning months 0 to 36 without endless vertical clutter.">
+              默认折叠 37 个月龄驿站不制造冗长滚动，点击「现在」或任意一片土地即可定位本月关注点与第一次相纸。
+            </p>
           </article>
 
-          <article class="instrument-panel">
-            <h3 data-zh="划屏传灯交接仪式" data-en="Swipe-to-Pass Lantern Handover">划屏传灯交接仪式</h3>
-            <p data-zh="换班时单指把暖金灯珠从 Otto 轻轻滑向下一位照护伙伴，地垫暖光物理迁移，并生成纯本地棉纸交接海报发给家人。" data-en="Slide the warm bead from Otto toward the next caregiver to migrate floor light and export a crisp cotton-paper shift card offline.">换班时单指把暖金灯珠从 Otto 轻轻滑向下一位照护伙伴，地垫暖光物理迁移，并生成纯本地棉纸交接海报发给家人。</p>
-            <div class="lantern-stage">
-              <canvas id="lanternCanvas" aria-label="Interactive Lantern Handover"></canvas>
+          <article class="keepsake-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-storybook-zh.jpg" data-src-zh="assets/screens/scr-storybook-zh.jpg" data-src-en="assets/screens/scr-storybook-en.jpg" alt="成长纪念绘本页">
             </div>
-            <div class="instrument-control-row">
-              <input type="range" class="range-slider" id="lanternSlider" min="0" max="100" value="18" aria-label="Pass the Lantern" />
-              <span class="status-readout" id="lanternReadout" data-zh="向右滑动传递暖灯" data-en="Slide right to pass">向右滑动传递暖灯</span>
+            <h3 data-zh="成长绘本 · 月度里程碑印章" data-en="Storybook · Monthly Seals">成长绘本 · 月度里程碑印章</h3>
+            <p data-zh="每个月自动凝练一张纸面纪念页，收录首次动作照片、共玩过的活动次数、新尝味道与体重身高平均值。" data-en="Each month compiles First-Moment cards, played activities, tasted foods, and average measurements cleanly on cotton paper.">
+              每个月自动凝练一张纸面纪念页，收录首次动作照片、共玩过的活动次数、新尝味道与体重身高平均值。
+            </p>
+          </article>
+
+          <article class="keepsake-card">
+            <div class="phone-bezel">
+              <img class="lang-swap-img" src="assets/screens/scr-capsules-zh.jpg" data-src-zh="assets/screens/scr-capsules-zh.jpg" data-src-en="assets/screens/scr-capsules-en.jpg" alt="火漆时光胶囊信笺">
             </div>
+            <h3 data-zh="时光胶囊 · 写给未来的火漆信" data-en="Time Capsules · Sealed for Later">时光胶囊 · 写给未来的火漆信</h3>
+            <p data-zh="把半岁夜里的絮语或百天纪念封入离线金色火漆，静候约定的拆封日期到来时轻点开启。全部信笺可随 JSON 导出备份。" data-en="Seal midnight letters inside offline brass wax capsules to unlock on future birthdays, backed up anytime via portable JSON.">
+              把半岁夜里的絮语或百天纪念封入离线金色火漆，静候约定的拆封日期到来时轻点开启。全部信笺可随 JSON 导出备份。
+            </p>
+          </article>
+        </div>
+
+        <div class="sticker-strip">
+          <div class="sticker-pair">
+            <img src="assets/art/ic_fork_knife.webp" alt="百味食盒餐具插画">
+            <span data-zh="60 种植物学手绘「百味食盒」初尝观察" data-en="60 Handcrafted Botanical First Foods">60 种植物学手绘「百味食盒」初尝观察</span>
+          </div>
+          <div class="sticker-pair">
+            <img src="assets/art/ic_ruler_fill.webp" alt="生长曲线尺插画">
+            <span data-zh="WHO 世界卫生组织 0–36 个月生长曲线" data-en="WHO 0–36m Growth Curves">WHO 世界卫生组织 0–36 个月生长曲线</span>
+          </div>
+          <div class="sticker-pair">
+            <img src="assets/art/tray_a25.webp" alt="活动教具插画">
+            <span data-zh="46 部独立活动全量覆盖 · 0 第三方表情符号" data-en="46 Bespoke Activity Guides · Zero Emoji">46 部独立活动全量覆盖 · 0 第三方表情符号</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Science -->
+    <section class="section band-paper-deep" id="science">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="每一条成长参考，都有明确出处。" data-en="Evidence-informed guidance, never diagnostic noise.">每一条成长参考，都有明确出处。</h2>
+          <p data-zh="摸索台灯定位为温和的家庭养育参考伴侣，不诊断、不替代儿科医生或正规儿童保健随访。" data-en="Moss &amp; Otto summarizes public pediatric frameworks clearly and cites every source inside the app.">
+            摸索台灯定位为温和的家庭养育参考伴侣，不诊断、不替代儿科医生或正规儿童保健随访。
+          </p>
+        </div>
+
+        <div class="science-grid">
+          <article class="science-card">
+            <h3 data-zh="WHO 与多国儿童保健节律" data-en="WHO Child Growth &amp; Well-Child Schedules">WHO 与多国儿童保健节律</h3>
+            <p data-zh="生长身长/身高、体重、头围百分位依据世界卫生组织（WHO）公开标准本地计算，并对照中国、美国、英国、澳大利亚常见儿保随访节点。" data-en="Length/height, weight, and head circumference percentiles follow published WHO Child Growth Standards locally on device.">
+              生长身长/身高、体重、头围百分位依据世界卫生组织（WHO）公开标准本地计算，并对照中国、美国、英国、澳大利亚常见儿保随访节点。
+            </p>
+          </article>
+
+          <article class="science-card">
+            <h3 data-zh="CDC 与 AAP 早产矫正月龄" data-en="CDC Milestones &amp; AAP Preterm Correction">CDC 与 AAP 早产矫正月龄</h3>
+            <p data-zh="参考美国疾控中心（CDC）发育观察里程碑、美国儿科学会（AAP）早期养育指引，支持为早产宝宝自动换算矫正周数。" data-en="Milestones align with CDC &amp; AAP developmental guidance with support for gestational age adjustment.">
+              参考美国疾控中心（CDC）发育观察里程碑、美国儿科学会（AAP）早期养育指引，支持为早产宝宝自动换算矫正周数。
+            </p>
+          </article>
+
+          <article class="science-card">
+            <h3 data-zh="中国国家卫健委 0–3 岁指南" data-en="National Health Commission 0–3 Guidance">中国国家卫健委 0–3 岁指南</h3>
+            <p data-zh="整合国家卫生健康委婴幼儿养育照护与辅食添加指导建议，应用内「内容来源」页逐条列出文献出处，不做夸张推销。" data-en="Includes China NHC infant care and complementary feeding guidance with transparent in-app citations.">
+              整合国家卫生健康委婴幼儿养育照护与辅食添加指导建议，应用内「内容来源」页逐条列出文献出处，不做夸张推销。
+            </p>
           </article>
         </div>
       </div>
     </section>
 
-    <!-- Band 4: Privacy & Pediatric Evidence -->
-    <section class="section-band section-porcelain" id="trust">
-      <div class="container">
-        <h2 data-zh="百分之百离线，零账号零追踪" data-en="Completely offline, with open sources">百分之百离线，零账号零追踪</h2>
-        <p class="section-intro" data-zh="没有服务器，不设登录体系，不含任何第三方统计或广告包；孩子的每一次记录都完完整整属于家庭自己的设备。" data-en="No accounts, no cloud database, and zero third-party SDKs. Every family note stays strictly encrypted on your own device.">没有服务器，不设登录体系，不含任何第三方统计或广告包；孩子的每一次记录都完完整整属于家庭自己的设备。</p>
+    <!-- Privacy -->
+    <section class="section bleed-lamp" id="privacy">
+      <div class="wrap privacy-layout">
+        <img class="privacy-icon" src="assets/app-icon-dark.png" alt="摸索台灯深色版图标">
 
-        <div class="trust-grid">
-          <div class="trust-col">
-            <h3 data-zh="设备端隐私保护" data-en="On-Device Family Privacy">设备端隐私保护</h3>
-            <ul class="trust-list">
-              <li>
-                <span data-zh="纯本地应用沙盒与 iOS 数据保护加密" data-en="iOS Sandbox &amp; Hardware Data Protection">纯本地应用沙盒与 iOS 数据保护加密</span>
-                <span class="trust-sub" data-zh="喂养、睡眠、成长测量与拍立得照片仅存储在手机本机，支持面容 ID 应用锁。" data-en="Logs, growth entries, and photos never leave your iPhone and can be locked behind Face ID.">喂养、睡眠、成长测量与拍立得照片仅存储在手机本机，支持面容 ID 应用锁。</span>
-              </li>
-              <li>
-                <span data-zh="体感动作与音频全程实时即用即弃" data-en="Zero-Storage Sensors &amp; Offline DSP Audio">体感动作与音频全程实时即用即弃</span>
-                <span class="trust-sub" data-zh="床头灯倾角与金珠滚落传感器信号实时丢弃；声景完全本地实时数学合成，无需联网下载。" data-en="Motion readings are discarded immediately; bedside soundscapes synthesize offline without audio streams.">床头灯倾角与金珠滚落传感器信号实时丢弃；声景完全本地实时数学合成，无需联网下载。</span>
-              </li>
-              <li>
-                <span data-zh="一键导出完整备份或彻底清除" data-en="One-Tap Full Export or Complete Erase">一键导出完整备份或彻底清除</span>
-                <span class="trust-sub" data-zh="支持随时导出 JSON/表格备份或医生摘要，并支持随时撤回同意清空全部本地记录。" data-en="Export full offline backups anytime or wipe all local records and withdraw consent in one tap.">支持随时导出 JSON/表格备份或医生摘要，并支持随时撤回同意清空全部本地记录。</span>
-              </li>
-            </ul>
+        <div>
+          <h2 data-zh="关于孩子的一切，只留在这台手机里。" data-en="Everything about your baby stays right on your iPhone.">关于孩子的一切，只留在这台手机里。</h2>
+          <p style="margin-top:0.85rem;color:var(--lamp-soft);max-width:58ch;" data-zh="从诞生第一天起，摸索台灯就坚持零服务器架构。我们没有后台数据库，不知道你是谁，也不搜集任何宝宝照片、体重或睡眠节律。" data-en="From day one, Moss &amp; Otto runs with zero backend servers. We have no user database and never touch your child's photos, logs, or milestones.">
+            从诞生第一天起，摸索台灯就坚持零服务器架构。我们没有后台数据库，不知道你是谁，也不搜集任何宝宝照片、体重或睡眠节律。
+          </p>
+
+          <div class="privacy-pillars">
+            <div class="privacy-pill" data-zh="无需注册账号与手机号" data-en="No account, email, or password required">无需注册账号与手机号</div>
+            <div class="privacy-pill" data-zh="零网络权限 · 无第三方 SDK" data-en="Zero network calls and zero third-party SDKs">零网络权限 · 无第三方 SDK</div>
+            <div class="privacy-pill" data-zh="支持面容 ID / 触控 ID 应用锁" data-en="Optional Face ID &amp; Touch ID app lock">支持面容 ID / 触控 ID 应用锁</div>
+            <div class="privacy-pill" data-zh="JSON 导出自由备份 · 一键彻底清空" data-en="Full JSON backup &amp; instant one-tap wipe">JSON 导出自由备份 · 一键彻底清空</div>
           </div>
 
-          <div class="trust-col">
-            <h3 data-zh="公开医学与发育参考来源" data-en="Public Pediatric &amp; Growth Sources">公开医学与发育参考来源</h3>
-            <ul class="trust-list">
-              <li>
-                <span>WHO Child Growth Standards (2006)</span>
-                <span class="trust-sub" data-zh="世界卫生组织 0 至 36 个月体重、身长/身高与头围年龄别标准百分位参考。" data-en="World Health Organization weight, length/height, and head circumference reference curves.">世界卫生组织 0 至 36 个月体重、身长/身高与头围年龄别标准百分位参考。</span>
-              </li>
-              <li>
-                <span>NHC China / AAP / CDC / NHS / NIP</span>
-                <span class="trust-sub" data-zh="按中国国家卫健委、美国儿科学会、CDC、英国 NHS 与澳大利亚免疫规范离线提供分区保健参比。" data-en="Regional immunization and checkup reference schedules tailored to CN, US, UK, and AU guidance.">按中国国家卫健委、美国儿科学会、CDC、英国 NHS 与澳大利亚免疫规范离线提供分区保健参比。</span>
-              </li>
-              <li>
-                <span data-zh="审慎非医疗定位" data-en="Calm Non-Medical Reference Boundary">审慎非医疗定位</span>
-                <span class="trust-sub" data-zh="提供养育陪伴参考，不打分、不催促、不作医疗诊断；具体健康疑问请随时咨询儿科医生。" data-en="Informational guidance only without diagnostic claims or scoring; always consult a pediatrician for health advice.">提供养育陪伴参考，不打分、不催促、不作医疗诊断；具体健康疑问请随时咨询儿科医生。</span>
-              </li>
-            </ul>
+          <div class="privacy-cta">
+            <a class="btn-primary" href="privacy.html" data-zh="阅读完整隐私政策（含儿童规则）" data-en="Read Full Privacy Policy">阅读完整隐私政策（含儿童规则）</a>
+            <a class="btn-secondary" style="background:var(--lamp-card);color:var(--lamp-ink);border-color:var(--lamp-rule);" href="terms.html" data-zh="使用条款与免责说明" data-en="Terms &amp; Disclaimer">使用条款与免责说明</a>
           </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQ -->
+    <section class="section" id="faq">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 data-zh="常见问题" data-en="Frequently Asked Questions">常见问题</h2>
+          <p data-zh="关于收费方式、数据安全、画风切换与适龄范围的简要解答。" data-en="Clear answers about pricing, privacy, styles, and age coverage.">
+            关于收费方式、数据安全、画风切换与适龄范围的简要解答。
+          </p>
+        </div>
+
+        <div class="faq-list">
+          <details class="faq-item">
+            <summary data-zh="打开应用需要注册账号或绑定手机号吗？" data-en="Do I need to create an account or sign in?">打开应用需要注册账号或绑定手机号吗？</summary>
+            <p data-zh="不需要。摸索台灯彻底离线运行，没有服务器，也没有账号系统。下载后填入或跳过小名与出生日期即可直接开始陪伴。" data-en="No. Moss &amp; Otto runs strictly offline without servers, logins, or email verification.">
+              不需要。摸索台灯彻底离线运行，没有服务器，也没有账号系统。下载后填入或跳过小名与出生日期即可直接开始陪伴。
+            </p>
+          </details>
+
+          <details class="faq-item">
+            <summary data-zh="收费模式是订阅制还是买断制？包含广告或内购吗？" data-en="Is it a subscription or a one-time purchase? Are there ads or IAPs?">收费模式是订阅制还是买断制？包含广告或内购吗？</summary>
+            <p data-zh="摸索台灯在 App Store 采用一次性买断方式提供，不含广告、不含订阅扣费、也没有后续付费解锁墙。" data-en="It is a one-time download in the App Store with zero ads, zero subscriptions, and zero locked content walls.">
+              摸索台灯在 App Store 采用一次性买断方式提供，不含广告、不含订阅扣费、也没有后续付费解锁墙。
+            </p>
+          </details>
+
+          <details class="faq-item">
+            <summary data-zh="Pixar 3D 软陶和吉卜力 2D 水彩两种画风有什么内容区别？" data-en="What changes between the 3D Clay and 2D Watercolor modes?">Pixar 3D 软陶和吉卜力 2D 水彩两种画风有什么内容区别？</summary>
+            <p data-zh="全部 46 部绘本活动、分步指导文字、交互节拍与照护记录功能在两种画风下完全一致；只需向下拉动首页或工坊中的 Otto 金珠，即可在两种手感与材质之间柔和转换。" data-en="All 46 scenes, steps, and care records remain identical. Pull Otto's brass bead cord anytime to morph between 3D soft vinyl and 2D cut-paper watercolor.">
+              全部 46 部绘本活动、分步指导文字、交互节拍与照护记录功能在两种画风下完全一致；只需向下拉动首页或工坊中的 Otto 金珠，即可在两种手感与材质之间柔和转换。
+            </p>
+          </details>
+
+          <details class="faq-item">
+            <summary data-zh="早产宝宝如何查看适合的月龄和发育关注点？" data-en="How are preterm babies supported?">早产宝宝如何查看适合的月龄和发育关注点？</summary>
+            <p data-zh="在宝宝资料或工坊设置中填入出生日期与出生孕周后，应用会依据美国儿科学会习惯自动展示矫正后的月龄与活动建议。" data-en="Enter gestational weeks alongside your child's birth date and the app adjusts stage suggestions accordingly.">
+              在宝宝资料或工坊设置中填入出生日期与出生孕周后，应用会依据美国儿科学会习惯自动展示矫正后的月龄与活动建议。
+            </p>
+          </details>
+
+          <details class="faq-item">
+            <summary data-zh="换新 iPhone 时，我记录的照片和成长日记怎么迁移？" data-en="How do I back up or move data to a new iPhone?">换新 iPhone 时，我记录的照片和成长日记怎么迁移？</summary>
+            <p data-zh="进入「工坊 › 离线数据与备份」即可导出完整备份文件保存到「文件」App（或随时导入恢复）；若手机开启了系统 iCloud 设备整机备份，也会一并安全保留。" data-en="Open Studio › Local Data &amp; Backup to export a full portable archive to the Files app anytime, or restore via iOS device backup.">
+              进入「工坊 › 离线数据与备份」即可导出完整备份文件保存到「文件」App（或随时导入恢复）；若手机开启了系统 iCloud 设备整机备份，也会一并安全保留。
+            </p>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- Closing -->
+    <section class="section band-paper-deep">
+      <div class="wrap closing-box">
+        <img src="assets/app-icon.png" alt="摸索台灯图标" width="84" height="84">
+        <h2 data-zh="白日漫长，童年很短。" data-en="The days are long, the years are brief.">白日漫长，童年很短。</h2>
+        <p data-zh="把这盏安静不催促的台灯留在客厅地垫和床头边，陪孩子一步步长大。" data-en="Keep a gentle lamp beside the rug and crib through their first three years.">
+          把这盏安静不催促的台灯留在客厅地垫和床头边，陪孩子一步步长大。
+        </p>
+        <div class="hero-actions" style="justify-content:center;margin-top:0.4rem;">
+          <a class="btn-primary" href="#walkthrough" data-zh="回到真实界面预览" data-en="Back to Screen Preview">回到真实界面预览</a>
+          <a class="btn-secondary" href="mailto:lbuiuiysdeyzxl@yeah.net" data-zh="联系开发者（lbuiuiysdeyzxl@yeah.net）" data-en="Contact Developer">联系开发者（lbuiuiysdeyzxl@yeah.net）</a>
         </div>
       </div>
     </section>
   </main>
 
   <footer class="site-footer">
-    <div class="footer-inner">
-      <div class="footer-brand">
-        <strong data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</strong>
-        <p data-zh="独立设计、纯原生构建的 0 至 3 岁亲子陪伴应用。愿每一次轻触与暖光都让家更安稳。" data-en="Independently crafted native iOS companion for ages 0 to 3. Warm light, zero noise."></p>
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">
+            <img src="assets/app-icon.png" alt="摸索台灯" width="30" height="30">
+            <span data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto · 摸索台灯">摸索台灯 · Moss &amp; Otto</span>
+          </div>
+          <p class="footer-note" data-zh="面向 0–36 个月家庭的纯离线 iOS 亲子绘本与日常节律伴侣。无广告、无账号、不上传任何儿童信息。" data-en="A 100% offline iOS storybook and daily rhythm companion for families with children 0–36 months. Zero ads, zero accounts.">
+            面向 0–36 个月家庭的纯离线 iOS 亲子绘本与日常节律伴侣。无广告、无账号、不上传任何儿童信息。
+          </p>
+        </div>
+
+        <div class="footer-col">
+          <h4 data-zh="页面导览" data-en="Explore">页面导览</h4>
+          <ul>
+            <li><a href="#walkthrough" data-zh="真实 iOS 界面" data-en="App Screens">真实 iOS 界面</a></li>
+            <li><a href="#activities" data-zh="46 部双画风绘本" data-en="46 Dual-Style Scenes">46 部双画风绘本</a></li>
+            <li><a href="#companions" data-zh="Moss 与 Otto" data-en="Moss &amp; Otto">Moss 与 Otto</a></li>
+            <li><a href="#night" data-zh="床头夜灯与轻拍" data-en="Night Lamp &amp; Palm-Pat">床头夜灯与轻拍</a></li>
+            <li><a href="#science" data-zh="科学依据" data-en="Evidence &amp; Sources">科学依据</a></li>
+          </ul>
+        </div>
+
+        <div class="footer-col">
+          <h4 data-zh="支持与法律文件" data-en="Support &amp; Legal">支持与法律文件</h4>
+          <ul>
+            <li><a href="support.html" data-zh="支持与常见问题" data-en="Support &amp; FAQ">支持与常见问题</a></li>
+            <li><a href="privacy.html" data-zh="隐私政策（含儿童保护规则）" data-en="Privacy Policy">隐私政策（含儿童保护规则）</a></li>
+            <li><a href="terms.html" data-zh="使用条款与免责声明" data-en="Terms &amp; Disclaimer">使用条款与免责声明</a></li>
+            <li><a href="licenses.html" data-zh="开源许可与内容致谢" data-en="Licenses &amp; Credits">开源许可与内容致谢</a></li>
+            <li><a href="mailto:lbuiuiysdeyzxl@yeah.net">lbuiuiysdeyzxl@yeah.net</a></li>
+          </ul>
+        </div>
       </div>
-      <div class="footer-links">
-        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy Policy">隐私政策</a>
-        <a href="terms.html" data-zh="使用条款" data-en="Terms of Use">使用条款</a>
-        <a href="support.html" data-zh="支持与常见问答" data-en="Support">支持与常见问答</a>
-        <a href="licenses.html" data-zh="许可与致谢" data-en="Licenses">许可与致谢</a>
-        <a href="https://github.com/mjuvdeysii/mossling" target="_blank" rel="noopener">GitHub</a>
+
+      <div class="footer-bottom">
+        <span data-zh="开发者：温树垚 · 适用于 iOS 2.0 正式版" data-en="Developer: Shuyao Wen (温树垚) · Applies to iOS v2.0">开发者：温树垚 · 适用于 iOS 2.0 正式版</span>
+        <span data-zh="官方网址：https://mjuvdeysii.github.io/mossling/" data-en="Official Site: https://mjuvdeysii.github.io/mossling/">官方网址：https://mjuvdeysii.github.io/mossling/</span>
       </div>
     </div>
   </footer>
 
   <script>
     (function () {
-      "use strict";
+      var html = document.documentElement;
+      var langBtn = document.getElementById("langBtn");
+      var themeBtn = document.getElementById("themeBtn");
+      var menuBtn = document.getElementById("menuBtn");
+      var drawer = document.getElementById("mobileDrawer");
 
-      let lang = "zh";
-      let currentPuppet = "rabbit";
-      let currentSpace = "explore";
-      let puppetNorm = { x: 0.56, y: 0.54 };
-      let flapAmount = 0;
-      let dragging = false;
-      let patBpm = 60;
-      let lanternT = 0.18;
-      let audioCtx = null;
+      function getLang() {
+        return localStorage.getItem("mossling-lang") || "zh";
+      }
 
-      const reducedMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      const header = document.getElementById("siteHeader");
+      function applyLang(lang) {
+        html.setAttribute("data-lang", lang);
+        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
+        localStorage.setItem("mossling-lang", lang);
+        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
 
-      window.addEventListener("scroll", function () {
-        if (window.scrollY > 24) {
-          header.classList.add("scrolled");
-        } else {
-          header.classList.remove("scrolled");
-        }
-      }, { passive: true });
-
-      const spaceCopy = {
-        explore: {
-          zhTitle: "摸索：今日流动共玩与感官玩具盒",
-          enTitle: "Explore: Flowing Daily Play & Sensory Studios",
-          zhSummary: "根据宝宝月龄温柔递上今天的一件小事，手指在桦木滑珠轨上轻滑即可连贯预览每一步动作，无需反复连点翻页。",
-          enSummary: "Delivers one age-matched activity per day on a continuous scrubbable Montessori bead rail, paired with tactile studios for shared co-play.",
-          zhBullets: [
-            "全库活动全部独立手绘成片，支持软胶立体与水彩剪纸双世界切换",
-            "感官玩具盒内置木琴、光影手影墙、金珠雨声棒、萤火与黑白视卡",
-            "百味食盒记录前六十种初尝食材与过敏观察提示"
-          ],
-          enBullets: [
-            "All 46 guided plays handcrafted with 3D soft-vinyl and 2D watercolor rendering",
-            "Sensory Toybox features xylophone, optical Shadow Wall, rainstick beads, fireflies, and visual cards",
-            "First Foods Atlas tracks 60 starter ingredients and gentle allergy watch notes"
-          ]
-        },
-        lamp: {
-          zhTitle: "台灯：褪黑素护眼夜灯与二十四小时节律",
-          enTitle: "Lamp: Melatonin-Safe Night Light & 24h Rhythm",
-          zhSummary: "把喂睡记录、白噪音混音、无声掌心轻拍安抚与划屏传灯交接收于一处，即使关闭记录也依然保留完整的床头暖灯。",
-          enSummary: "Unites Otto's bedside warm glow, offline DSP soundscapes, silent palm-pat pacing, and 24-hour circadian overview in one calm screen.",
-          zhBullets: [
-            "琥珀光、深烛红、蜜桃暖三色光场与垂直黄铜机械滑轨调光",
-            "六组纯数学实时合成舒缓声景，支持双声景叠音与定时温和熄灯",
-            "按日浏览照护泳道并生成三倍高清棉纸交接海报"
-          ],
-          enBullets: [
-            "Amber, Candle, and Peach presets coupled with a vertical mechanical dimmer rail",
-            "Six zero-asset DSP soundscapes with dual layering and 20-second ember fade-out",
-            "Read-only circadian dial, past-day switcher, and 3x cotton-paper handover card"
-          ]
-        },
-        keepsakes: {
-          zhTitle: "留念：三十七站成长足迹与火漆胶囊",
-          enTitle: "Keepsakes: 37-Station Journey & Wax Capsules",
-          zhSummary: "从出生到三十六个月按草地、森林小丘与小河村庄三境自然收纳，珍藏成长绘本、第一次相纸与写给未来的长信。",
-          enSummary: "Chronicles Birth through 36 months across three storybook lands with your Living Storybook, Polaroid Firsts, Time Capsules, and WHO curves.",
-          zhBullets: [
-            "统一成长绘本与三十七幅随宝宝年龄长高的活态封面",
-            "第一次相纸与可选火漆时间胶囊封存值得纪念的瞬间",
-            "纯离线计算 WHO 百分位参考与分地区疫苗儿保日程"
-          ],
-          enBullets: [
-            "Unified keepsake storybook backed by 37 living illustrated monthly covers",
-            "Polaroid Firsts keepsakes and wax-sealed future letters unlocked on birthdays",
-            "Offline WHO growth percentile plots paired with regional checkup schedules"
-          ]
-        },
-        studio: {
-          zhTitle: "工坊：单屏驾驶舱与全面本机掌控",
-          enTitle: "Studio: Single-Viewport Cockpit & Full Data Control",
-          zhSummary: "将家庭档案、伙伴切换、外观语言、偏好瓷砖与循证透明入口合理编排于同一视口，彻底告别多层套娃网页菜单。",
-          enSummary: "Places family profile, Moss & Otto companion choice, theme toggles, preferences, and transparent citations cleanly within one screen.",
-          zhBullets: [
-            "内联「摸索台灯的故事」三幕交互微剧院入口与伙伴彩蛋",
-            "一触切换日光、夜灯与自动模式，无缝切换中英双语界面",
-            "循证来源、隐私承诺、离线备份与条款声明一屏直达"
-          ],
-          enBullets: [
-            "Direct entrance to the 3-act interactive Story Micro-Theater",
-            "Instant switches for Daylight, Lamp Night Mode, and Bilingual ZH / EN display",
-            "Structured public-health citations, offline JSON export, and legal disclosures"
-          ]
-        }
-      };
-
-      function applyLanguage() {
-        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
-          el.textContent = el.getAttribute("data-" + lang);
+          var txt = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          if (txt !== null) el.textContent = txt;
         });
-        document.querySelectorAll("[data-lang]").forEach(function (btn) {
-          btn.setAttribute("aria-pressed", btn.getAttribute("data-lang") === lang ? "true" : "false");
+
+        document.querySelectorAll(".lang-swap-img").forEach(function (img) {
+          var nextSrc = img.getAttribute(lang === "en" ? "data-src-en" : "data-src-zh");
+          if (nextSrc) img.setAttribute("src", nextSrc);
         });
-        renderSpaceDetails();
-        updateLanternStatus();
-        updatePatStatus();
+
+        applyThemeLabel();
       }
 
-      document.querySelectorAll("[data-lang]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          lang = btn.getAttribute("data-lang");
-          applyLanguage();
-        });
-      });
-
-      document.querySelectorAll("[data-theme-pick]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          const picked = btn.getAttribute("data-theme-pick");
-          document.documentElement.setAttribute("data-theme", picked);
-          document.querySelectorAll("[data-theme-pick]").forEach(function (b) {
-            b.setAttribute("aria-pressed", b.getAttribute("data-theme-pick") === picked ? "true" : "false");
-          });
-        });
-      });
-
-      function renderSpaceDetails() {
-        const d = spaceCopy[currentSpace];
-        document.getElementById("spaceTitle").textContent = lang === "zh" ? d.zhTitle : d.enTitle;
-        document.getElementById("spaceSummary").textContent = lang === "zh" ? d.zhSummary : d.enSummary;
-        const ul = document.getElementById("spaceBullets");
-        ul.innerHTML = "";
-        (lang === "zh" ? d.zhBullets : d.enBullets).forEach(function (item) {
-          const li = document.createElement("li");
-          li.textContent = item;
-          ul.appendChild(li);
-        });
-        drawSpaceDiagram();
+      function getTheme() {
+        return localStorage.getItem("mossling-theme") || "day";
       }
 
-      document.querySelectorAll("[data-space]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          currentSpace = btn.getAttribute("data-space");
-          document.querySelectorAll("[data-space]").forEach(function (b) {
-            b.setAttribute("aria-selected", b.getAttribute("data-space") === currentSpace ? "true" : "false");
-          });
-          renderSpaceDetails();
-        });
-      });
-
-      function playChord() {
-        try {
-          if (!audioCtx) {
-            const Ctx = window.AudioContext || window.webkitAudioContext;
-            if (!Ctx) return;
-            audioCtx = new Ctx();
-          }
-          if (audioCtx.state === "suspended") audioCtx.resume();
-          const chordMap = {
-            rabbit: [523.25, 783.99],
-            bird: [659.25, 783.99, 1046.5],
-            boat: [587.33, 783.99]
-          };
-          const freqs = chordMap[currentPuppet] || [523.25, 783.99];
-          freqs.forEach(function (f, i) {
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = "sine";
-            osc.frequency.setValueAtTime(f, audioCtx.currentTime + i * 0.06);
-            gain.gain.setValueAtTime(0.001, audioCtx.currentTime + i * 0.06);
-            gain.gain.exponentialRampToValueAtTime(0.06, audioCtx.currentTime + i * 0.06 + 0.02);
-            gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + i * 0.06 + 0.55);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start(audioCtx.currentTime + i * 0.06);
-            osc.stop(audioCtx.currentTime + i * 0.06 + 0.58);
-          });
-        } catch (e) {}
-      }
-
-      document.querySelectorAll("[data-puppet]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          currentPuppet = btn.getAttribute("data-puppet");
-          document.querySelectorAll("[data-puppet]").forEach(function (b) {
-            b.setAttribute("aria-selected", b.getAttribute("data-puppet") === currentPuppet ? "true" : "false");
-          });
-          flapAmount = 1;
-          playChord();
-        });
-      });
-
-      /* Optical Shadow Wall Canvas */
-      const shadowCanvas = document.getElementById("shadowCanvas");
-      const sctx = shadowCanvas.getContext("2d");
-
-      function drawSilhouette(ctx, kind, size, flap) {
-        ctx.beginPath();
-        if (kind === "rabbit") {
-          ctx.ellipse(0, size * 0.14, size * 0.25, size * 0.22, 0, 0, Math.PI * 2);
-          ctx.ellipse(0, -size * 0.10, size * 0.18, size * 0.16, 0, 0, Math.PI * 2);
-          ctx.roundRect(-size * 0.14, -size * (0.44 - flap * 0.05), size * 0.10, size * 0.28, size * 0.05);
-          ctx.roundRect(size * (0.04 + flap * 0.05), -size * (0.42 - flap * 0.06), size * 0.10, size * 0.27, size * 0.05);
-        } else if (kind === "bird") {
-          ctx.ellipse(0, size * 0.04, size * 0.24, size * 0.13, 0, 0, Math.PI * 2);
-          ctx.ellipse(size * 0.22, -size * 0.06, size * 0.10, size * 0.10, 0, 0, Math.PI * 2);
-          ctx.moveTo(size * 0.31, -size * 0.09);
-          ctx.lineTo(size * 0.43, -size * 0.05);
-          ctx.lineTo(size * 0.31, -size * 0.01);
-          const wy = -size * (0.34 - flap * 0.20);
-          ctx.moveTo(-size * 0.06, 0);
-          ctx.quadraticCurveTo(-size * 0.26, wy, size * 0.10, -size * 0.02);
+      function applyThemeLabel() {
+        var t = html.getAttribute("data-theme") || "day";
+        var lang = html.getAttribute("data-lang") || "zh";
+        if (!themeBtn) return;
+        if (t === "night") {
+          themeBtn.textContent = lang === "en" ? "Day" : "日光";
         } else {
-          const rock = flap * size * 0.04;
-          ctx.moveTo(-size * 0.34, size * 0.16 - rock);
-          ctx.lineTo(size * 0.34, size * 0.16 + rock);
-          ctx.lineTo(size * 0.20, size * 0.36);
-          ctx.lineTo(-size * 0.20, size * 0.36);
-          ctx.closePath();
-          ctx.moveTo(0, -size * 0.38);
-          ctx.lineTo(size * 0.28, size * 0.10);
-          ctx.lineTo(0, size * 0.10);
-          ctx.closePath();
-          ctx.moveTo(-size * 0.05, -size * 0.28);
-          ctx.lineTo(-size * 0.26, size * 0.10);
-          ctx.lineTo(-size * 0.05, size * 0.10);
-          ctx.closePath();
+          themeBtn.textContent = lang === "en" ? "Lamp" : "夜灯";
         }
       }
 
-      function renderShadowWall(timeMs) {
-        const rect = shadowCanvas.getBoundingClientRect();
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const w = Math.max(320, Math.round(rect.width * dpr));
-        const h = Math.max(200, Math.round(rect.height * dpr));
-        if (shadowCanvas.width !== w || shadowCanvas.height !== h) {
-          shadowCanvas.width = w;
-          shadowCanvas.height = h;
-        }
-        const ctx = sctx;
-        ctx.save();
-        ctx.scale(dpr, dpr);
-        const cw = rect.width;
-        const ch = rect.height;
-
-        // Plaster bedroom wall gradient
-        const wallGrad = ctx.createLinearGradient(0, 0, 0, ch);
-        wallGrad.addColorStop(0, "#1A2242");
-        wallGrad.addColorStop(0.65, "#332B45");
-        wallGrad.addColorStop(1, "#4B383B");
-        ctx.fillStyle = wallGrad;
-        ctx.fillRect(0, 0, cw, ch);
-
-        const lampPt = { x: cw * 0.50, y: ch * 0.80 };
-        const px = cw * puppetNorm.x;
-        const py = ch * puppetNorm.y;
-        const dx = puppetNorm.x - 0.50;
-        const dy = puppetNorm.y - 0.80;
-        const dist = Math.max(0.08, Math.hypot(dx, dy));
-        const proximity = Math.min(1, Math.max(0, (0.58 - dist) / 0.44));
-        const shadowScale = 0.96 + proximity * 1.45;
-        const penumbra = 4 + proximity * 14;
-        const wx = cw * Math.min(0.84, Math.max(0.16, 0.50 + dx * 1.42));
-        const wy = ch * Math.min(0.56, Math.max(0.18, puppetNorm.y - 0.16 - proximity * 0.14));
-
-        // Conical amber light beam upward from Otto
-        const coneGrad = ctx.createLinearGradient(lampPt.x, lampPt.y, lampPt.x, 0);
-        coneGrad.addColorStop(0, "rgba(255, 198, 92, 0.36)");
-        coneGrad.addColorStop(0.5, "rgba(255, 224, 150, 0.15)");
-        coneGrad.addColorStop(1, "rgba(255, 224, 150, 0.02)");
-        ctx.fillStyle = coneGrad;
-        ctx.beginPath();
-        ctx.moveTo(lampPt.x - 14, lampPt.y);
-        ctx.lineTo(lampPt.x + 14, lampPt.y);
-        ctx.lineTo(cw * 0.94, 0);
-        ctx.lineTo(cw * 0.06, 0);
-        ctx.closePath();
-        ctx.fill();
-
-        // Projected Wall Shadow with real inverse-distance penumbra
-        ctx.save();
-        ctx.translate(wx, wy);
-        ctx.rotate(dx * 0.45);
-        ctx.scale(shadowScale, shadowScale);
-        ctx.filter = "blur(" + penumbra.toFixed(1) + "px)";
-        ctx.fillStyle = "rgba(18, 14, 30, " + (0.46 - proximity * 0.12).toFixed(2) + ")";
-        drawSilhouette(ctx, currentPuppet, 92, flapAmount);
-        ctx.fill();
-        ctx.filter = "none";
-        ctx.restore();
-
-        // Hardwood Nursery Floor
-        const floorY = ch * 0.85;
-        ctx.fillStyle = "#6E4D31";
-        ctx.fillRect(0, floorY, cw, ch - floorY);
-        ctx.fillStyle = "#9C754E";
-        ctx.fillRect(0, floorY - 5, cw, 5);
-
-        // Wooden control rod + paper silhouette puppet
-        ctx.strokeStyle = "rgba(220, 182, 130, 0.86)";
-        ctx.lineWidth = 2.6;
-        ctx.beginPath();
-        ctx.moveTo(px + 2, py + 14);
-        ctx.lineTo(px + 14, ch + 4);
-        ctx.stroke();
-
-        ctx.save();
-        ctx.translate(px, py);
-        ctx.rotate(dx * 0.25);
-        ctx.fillStyle = "#4A3A2B";
-        ctx.strokeStyle = "rgba(255, 232, 180, 0.7)";
-        ctx.lineWidth = 1.4;
-        drawSilhouette(ctx, currentPuppet, 54, flapAmount);
-        ctx.fill();
-        ctx.stroke();
-        ctx.restore();
-
-        // Grounded Moss (left) & Otto (center casting upward light, zero hands)
-        const mossPt = { x: cw * 0.22, y: floorY - 26 };
-        const mlX = (wx - mossPt.x) / cw;
-        const mlY = (wy - mossPt.y) / ch;
-        const mlLen = Math.max(0.01, Math.hypot(mlX, mlY));
-        drawMiniCharacter(ctx, "moss", mossPt.x, mossPt.y, 26, { x: mlX / mlLen, y: mlY / mlLen }, flapAmount > 0.2);
-        drawMiniCharacter(ctx, "otto", cw * 0.50, floorY - 29, 29, { x: dx * 1.4, y: -0.7 }, true);
-
-        ctx.restore();
-        if (flapAmount > 0.01) flapAmount = Math.max(0, flapAmount - 0.045);
-        if (!reducedMotion) {
-          requestAnimationFrame(renderShadowWall);
-        }
+      function applyTheme(theme) {
+        html.setAttribute("data-theme", theme);
+        localStorage.setItem("mossling-theme", theme);
+        applyThemeLabel();
       }
 
-      function drawMiniCharacter(ctx, kind, cx, cy, r, look, happy) {
-        ctx.save();
-        ctx.fillStyle = "rgba(0,0,0,0.28)";
-        ctx.beginPath();
-        ctx.ellipse(cx, cy + r * 0.92, r * 0.85, r * 0.24, 0, 0, Math.PI * 2);
-        ctx.fill();
-
-        if (kind === "otto") {
-          ctx.fillStyle = "#E4C58D";
-          ctx.beginPath();
-          ctx.roundRect(cx - r * 0.72, cy - r * 0.75, r * 1.44, r * 1.65, r * 0.65);
-          ctx.fill();
-          // Golden head bead light source
-          const beadY = cy - r * 1.05;
-          const bGlow = ctx.createRadialGradient(cx, beadY, 2, cx, beadY, r * 1.3);
-          bGlow.addColorStop(0, "rgba(255, 218, 120, 0.9)");
-          bGlow.addColorStop(1, "rgba(255, 218, 120, 0)");
-          ctx.fillStyle = bGlow;
-          ctx.beginPath();
-          ctx.arc(cx, beadY, r * 1.3, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "#FFCA62";
-          ctx.beginPath();
-          ctx.arc(cx, beadY, r * 0.28, 0, Math.PI * 2);
-          ctx.fill();
-        } else {
-          ctx.fillStyle = "#569D73";
-          ctx.beginPath();
-          ctx.roundRect(cx - r * 0.76, cy - r * 0.68, r * 1.52, r * 1.58, r * 0.70);
-          ctx.fill();
-          // Leaf sprout
-          ctx.fillStyle = "#88D08B";
-          ctx.beginPath();
-          ctx.ellipse(cx + r * 0.16, cy - r * 0.92, r * 0.24, r * 0.12, -0.4, 0, Math.PI * 2);
-          ctx.fill();
-        }
-
-        // Canonical sclera & tracking pupil (zero blush, zero mouth dots)
-        [-r * 0.26, r * 0.26].forEach(function (ox) {
-          const ex = cx + ox;
-          const ey = cy - r * 0.08;
-          ctx.fillStyle = "#FFFFFF";
-          ctx.beginPath();
-          ctx.arc(ex, ey, r * 0.18, 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = "#181A18";
-          ctx.beginPath();
-          ctx.arc(ex + look.x * r * 0.06, ey + look.y * r * 0.06, r * 0.095, 0, Math.PI * 2);
-          ctx.fill();
+      if (langBtn) {
+        langBtn.addEventListener("click", function () {
+          applyLang(getLang() === "zh" ? "en" : "zh");
         });
-        ctx.restore();
       }
 
-      function updatePointer(ev) {
-        const r = shadowCanvas.getBoundingClientRect();
-        puppetNorm.x = Math.min(0.86, Math.max(0.14, (ev.clientX - r.left) / Math.max(1, r.width)));
-        puppetNorm.y = Math.min(0.76, Math.max(0.24, (ev.clientY - r.top) / Math.max(1, r.height)));
+      if (themeBtn) {
+        themeBtn.addEventListener("click", function () {
+          applyTheme(getTheme() === "day" ? "night" : "day");
+        });
       }
 
-      shadowCanvas.addEventListener("pointerdown", function (ev) {
-        dragging = true;
-        updatePointer(ev);
-        flapAmount = 1;
-        playChord();
-      });
-      window.addEventListener("pointermove", function (ev) {
-        if (!dragging) return;
-        updatePointer(ev);
-      });
-      window.addEventListener("pointerup", function () { dragging = false; });
-
-      requestAnimationFrame(renderShadowWall);
-
-      /* Space Preview Diagram Canvas */
-      const spaceCanvas = document.getElementById("spaceCanvas");
-      const spCtx = spaceCanvas.getContext("2d");
-
-      function drawSpaceDiagram() {
-        const rect = spaceCanvas.getBoundingClientRect();
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const w = Math.max(240, Math.round(rect.width * dpr));
-        const h = Math.max(200, Math.round(rect.height * dpr));
-        spaceCanvas.width = w;
-        spaceCanvas.height = h;
-        const ctx = spCtx;
-        ctx.save();
-        ctx.scale(dpr, dpr);
-        const cw = rect.width;
-        const ch = rect.height;
-
-        const palettes = {
-          explore: { bg: "#EEF5F0", accent: "#0B7D74", sec: "#D99226" },
-          lamp: { bg: "#131B38", accent: "#FFCA62", sec: "#7A9CE8" },
-          keepsakes: { bg: "#F9EFE4", accent: "#C66452", sec: "#D48A18" },
-          studio: { bg: "#EFEBF7", accent: "#5F4BA6", sec: "#0B7D74" }
-        };
-        const pal = palettes[currentSpace];
-        ctx.fillStyle = pal.bg;
-        ctx.fillRect(0, 0, cw, ch);
-
-        if (currentSpace === "explore") {
-          // 5 wooden bead stations across birch track
-          ctx.strokeStyle = "rgba(24,26,24,0.18)";
-          ctx.lineWidth = 8;
-          ctx.lineCap = "round";
-          ctx.beginPath();
-          ctx.moveTo(42, ch * 0.72);
-          ctx.lineTo(cw - 42, ch * 0.72);
-          ctx.stroke();
-          for (let i = 0; i < 4; i++) {
-            const x = 58 + (cw - 116) * (i / 3);
-            ctx.fillStyle = i <= 2 ? pal.sec : "#D9D2C4";
-            ctx.beginPath();
-            ctx.arc(x, ch * 0.72, i === 2 ? 12 : 8, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          drawMiniCharacter(ctx, "moss", cw * 0.50, ch * 0.42, 34, { x: 0.4, y: 0.2 }, true);
-        } else if (currentSpace === "lamp") {
-          const rg = ctx.createRadialGradient(cw * 0.5, ch * 0.42, 10, cw * 0.5, ch * 0.42, 130);
-          rg.addColorStop(0, "rgba(255, 202, 98, 0.5)");
-          rg.addColorStop(1, "rgba(255, 202, 98, 0)");
-          ctx.fillStyle = rg;
-          ctx.fillRect(0, 0, cw, ch);
-          drawMiniCharacter(ctx, "otto", cw * 0.5, ch * 0.48, 36, { x: 0, y: 0.2 }, true);
-        } else if (currentSpace === "keepsakes") {
-          // 37-station curved Montessori trail
-          ctx.strokeStyle = "rgba(198, 100, 82, 0.3)";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(36, ch * 0.65);
-          ctx.quadraticCurveTo(cw * 0.5, ch * 0.22, cw - 36, ch * 0.65);
-          ctx.stroke();
-          for (let i = 0; i < 9; i++) {
-            const t = i / 8;
-            const bx = (1 - t) * (1 - t) * 36 + 2 * (1 - t) * t * (cw * 0.5) + t * t * (cw - 36);
-            const by = (1 - t) * (1 - t) * (ch * 0.65) + 2 * (1 - t) * t * (ch * 0.22) + t * t * (ch * 0.65);
-            ctx.fillStyle = i <= 4 ? "#D48A18" : "rgba(24,26,24,0.16)";
-            ctx.beginPath();
-            ctx.arc(bx, by, i === 4 ? 10 : 5, 0, Math.PI * 2);
-            ctx.fill();
-          }
-        } else {
-          // Crisp 2x2 viewport blueprint grid
-          const bw = (cw - 72) / 2;
-          const bh = (ch - 72) / 2;
-          for (let r = 0; r < 2; r++) {
-            for (let c = 0; c < 2; c++) {
-              ctx.fillStyle = "#FFFFFF";
-              ctx.beginPath();
-              ctx.roundRect(28 + c * (bw + 16), 28 + r * (bh + 16), bw, bh, 12);
-              ctx.fill();
-              ctx.fillStyle = (r + c) % 2 === 0 ? pal.accent : pal.sec;
-              ctx.beginPath();
-              ctx.arc(48 + c * (bw + 16), 48 + r * (bh + 16), 8, 0, Math.PI * 2);
-              ctx.fill();
-            }
-          }
-        }
-        ctx.restore();
-      }
-
-      /* Silent Palm-Pat Pulse Animation */
-      const ring1 = document.getElementById("patRing1");
-      const ring2 = document.getElementById("patRing2");
-
-      function updatePatStatus() {
-        const el = document.getElementById("patReadout");
-        el.textContent = lang === "zh"
-          ? (patBpm + " 次/分 静音节律")
-          : (patBpm + " BPM silent cadence");
-      }
-
-      function pulsePatRing() {
-        if (reducedMotion) return;
-        ring1.animate([
-          { transform: "scale(0.8)", opacity: 0.78 },
-          { transform: "scale(2.3)", opacity: 0 }
-        ], { duration: Math.round(60000 / patBpm * 0.85), easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
-        ring2.animate([
-          { transform: "scale(0.8)", opacity: 0.45 },
-          { transform: "scale(2.9)", opacity: 0 }
-        ], { duration: Math.round(60000 / patBpm * 0.95), easing: "cubic-bezier(0.22, 1, 0.36, 1)" });
-      }
-
-      let patTimer = setInterval(pulsePatRing, 1000);
-      document.querySelectorAll("[data-bpm]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-          patBpm = Number(btn.getAttribute("data-bpm"));
-          document.querySelectorAll("[data-bpm]").forEach(function (b) {
-            b.setAttribute("aria-pressed", Number(b.getAttribute("data-bpm")) === patBpm ? "true" : "false");
+      if (menuBtn && drawer) {
+        menuBtn.addEventListener("click", function () {
+          var open = drawer.classList.toggle("open");
+          menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        });
+        drawer.querySelectorAll("a").forEach(function (a) {
+          a.addEventListener("click", function () {
+            drawer.classList.remove("open");
+            menuBtn.setAttribute("aria-expanded", "false");
           });
-          clearInterval(patTimer);
-          pulsePatRing();
-          patTimer = setInterval(pulsePatRing, Math.round(60000 / patBpm));
-          updatePatStatus();
+        });
+      }
+
+      // 3D vs 2D storybook switcher
+      document.querySelectorAll("[data-style-mode]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var mode = btn.getAttribute("data-style-mode");
+          document.querySelectorAll("[data-style-mode]").forEach(function (b) {
+            b.classList.toggle("active", b === btn);
+          });
+          document.querySelectorAll(".style-swap-img").forEach(function (img) {
+            var next = img.getAttribute(mode === "2d" ? "data-src-2d" : "data-src-3d");
+            if (next) img.setAttribute("src", next);
+          });
         });
       });
 
-      document.getElementById("patTrigger").addEventListener("click", pulsePatRing);
+      // Interactive Moss & Otto nursery sprite switcher
+      var mossImg = document.getElementById("mossSprite");
+      var ottoImg = document.getElementById("ottoSprite");
+      var nurseryStage = document.getElementById("nurseryStage");
 
-      /* Swipe-to-Pass Lantern Handover Canvas */
-      const lCanvas = document.getElementById("lanternCanvas");
-      const lCtx = lCanvas.getContext("2d");
-      const lSlider = document.getElementById("lanternSlider");
-
-      function updateLanternStatus() {
-        const el = document.getElementById("lanternReadout");
-        const passed = lanternT >= 0.88;
-        el.textContent = lang === "zh"
-          ? (passed ? "暖灯已传给 Mochi" : "向右滑动传递暖灯")
-          : (passed ? "Lantern passed to Mochi" : "Slide right to pass light");
-      }
-
-      function drawLanternPass() {
-        const rect = lCanvas.getBoundingClientRect();
-        const dpr = Math.min(2, window.devicePixelRatio || 1);
-        const w = Math.max(240, Math.round(rect.width * dpr));
-        const h = Math.max(140, Math.round(rect.height * dpr));
-        lCanvas.width = w;
-        lCanvas.height = h;
-        const ctx = lCtx;
-        ctx.save();
-        ctx.scale(dpr, dpr);
-        const cw = rect.width;
-        const ch = rect.height;
-        const floorY = ch * 0.78;
-        const ox = cw * 0.28;
-        const mx = cw * 0.72;
-        const passed = lanternT >= 0.88;
-
-        ctx.fillStyle = "#162040";
-        ctx.fillRect(0, 0, cw, ch);
-        ctx.fillStyle = "#222E56";
-        ctx.fillRect(0, floorY, cw, ch - floorY);
-
-        // Migrating floor light pool
-        const poolX = ox + (mx - ox) * lanternT;
-        const pg = ctx.createRadialGradient(poolX, floorY, 4, poolX, floorY, cw * 0.24);
-        pg.addColorStop(0, passed ? "rgba(255, 202, 98, 0.56)" : "rgba(255, 202, 98, 0.36)");
-        pg.addColorStop(1, "rgba(255, 202, 98, 0)");
-        ctx.fillStyle = pg;
-        ctx.fillRect(0, floorY - 30, cw, 60);
-
-        const sPt = { x: ox + 26, y: ch * 0.32 };
-        const cPt = { x: cw * 0.5, y: ch * 0.14 };
-        const ePt = { x: mx - 26, y: ch * 0.36 };
-        ctx.setLineDash([6, 5]);
-        ctx.strokeStyle = "rgba(255, 202, 98, 0.42)";
-        ctx.lineWidth = 2.6;
-        ctx.beginPath();
-        ctx.moveTo(sPt.x, sPt.y);
-        ctx.quadraticCurveTo(cPt.x, cPt.y, ePt.x, ePt.y);
-        ctx.stroke();
-        ctx.setLineDash([]);
-
-        const u = 1 - lanternT;
-        const bx = u * u * sPt.x + 2 * u * lanternT * cPt.x + lanternT * lanternT * ePt.x;
-        const by = u * u * sPt.y + 2 * u * lanternT * cPt.y + lanternT * lanternT * ePt.y;
-        ctx.fillStyle = "#FFCA62";
-        ctx.beginPath();
-        ctx.arc(bx, by, 7.5, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = "#FFFFFF";
-        ctx.lineWidth = 1.6;
-        ctx.stroke();
-
-        // Otto & Mochi
-        drawMiniCharacter(ctx, "otto", ox, floorY - 22, 22, { x: 0.6, y: 0.1 }, true);
-
-        // Mochi pebble with coral knit beanie
-        ctx.fillStyle = "#F7EFE0";
-        ctx.beginPath();
-        ctx.roundRect(mx - 19, floorY - 34, 38, 34, 17);
-        ctx.fill();
-        ctx.fillStyle = "#E46A52";
-        ctx.beginPath();
-        ctx.roundRect(mx - 17, floorY - 43, 34, 15, 7);
-        ctx.fill();
-        ctx.fillStyle = "#181A18";
-        [-5, 5].forEach(function (dx) {
-          ctx.beginPath();
-          if (passed) {
-            ctx.arc(mx + dx, floorY - 17, 2.8, Math.PI * 1.1, Math.PI * 1.9);
-            ctx.stroke();
-          } else {
-            ctx.arc(mx + dx - 1, floorY - 18, 2.2, 0, Math.PI * 2);
-            ctx.fill();
-          }
+      document.querySelectorAll("[data-moss]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var m = btn.getAttribute("data-moss");
+          document.querySelectorAll("[data-moss]").forEach(function (b) {
+            b.classList.toggle("active", b === btn);
+          });
+          if (mossImg) mossImg.setAttribute("src", "assets/ip/ip_moss_" + m + ".webp");
         });
-
-        ctx.restore();
-      }
-
-      lSlider.addEventListener("input", function () {
-        lanternT = Number(lSlider.value) / 100;
-        updateLanternStatus();
-        drawLanternPass();
       });
 
-      window.addEventListener("resize", function () {
-        drawSpaceDiagram();
-        drawLanternPass();
+      document.querySelectorAll("[data-otto]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var o = btn.getAttribute("data-otto");
+          document.querySelectorAll("[data-otto]").forEach(function (b) {
+            b.classList.toggle("active", b === btn);
+          });
+          if (ottoImg) ottoImg.setAttribute("src", "assets/ip/ip_otto_" + o + ".webp");
+        });
       });
 
-      applyLanguage();
-      drawLanternPass();
+      document.querySelectorAll("[data-stage-light]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          var l = btn.getAttribute("data-stage-light");
+          document.querySelectorAll("[data-stage-light]").forEach(function (b) {
+            b.classList.toggle("active", b === btn);
+          });
+          if (nurseryStage) nurseryStage.classList.toggle("is-lamp", l === "night");
+        });
+      });
+
+      applyTheme(getTheme());
+      applyLang(getLang());
     })();
   </script>
 </body>

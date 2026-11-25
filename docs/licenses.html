@@ -1,133 +1,99 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
+<!doctype html>
+<html lang="zh-Hans" data-theme="day" data-lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>许可与致谢 · 摸索台灯 (Moss &amp; Otto)</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
-  <style>
-    :root {
-      --bg: #FAF8F3;
-      --surface: #FFFFFF;
-      --soft: #F1EDE3;
-      --ink: #181A18;
-      --sub: #4D5551;
-      --accent: #0B7D74;
-      --border: rgba(24, 26, 24, 0.12);
-    }
-    @media (prefers-color-scheme: dark) {
-      :root {
-        --bg: #0F162E;
-        --surface: #182143;
-        --soft: #1E284D;
-        --ink: #F7EFE0;
-        --sub: #BFC6DC;
-        --accent: #FFCA62;
-        --border: rgba(247, 239, 224, 0.14);
-      }
-    }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      padding: 28px 20px 56px;
-      background: var(--bg);
-      color: var(--ink);
-      font-family: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, sans-serif;
-      font-size: 1rem;
-      line-height: 1.72;
-    }
-    .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 20px; }
-    .topbar {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-      flex-wrap: wrap;
-      padding-bottom: 14px;
-      border-bottom: 1px solid var(--border);
-    }
-    .brand { font-weight: 800; font-size: 1.125rem; text-decoration: none; color: inherit; }
-    .nav-right { display: flex; align-items: center; gap: 10px; }
-    .pill-link {
-      display: inline-flex;
-      align-items: center;
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 700;
-      padding: 7px 14px;
-      border-radius: 999px;
-      background: var(--soft);
-      color: var(--ink);
-      border: 1px solid var(--border);
-    }
-    .lang-btn {
-      appearance: none;
-      font-family: inherit;
-      font-size: 0.875rem;
-      font-weight: 700;
-      padding: 7px 14px;
-      border-radius: 999px;
-      background: var(--accent);
-      color: var(--bg);
-      border: 0;
-      cursor: pointer;
-    }
-    h1 { margin: 8px 0 4px; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.15; }
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 16px;
-      padding: 20px 24px;
-      display: grid;
-      gap: 8px;
-    }
-    h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--accent); }
-    p { margin: 0; font-size: 1rem; }
-  </style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>许可与致谢 | 摸索台灯 Moss &amp; Otto</title>
+  <meta name="description" content="摸索台灯（Moss &amp; Otto）公开儿保数据引用清单、原生 Apple 框架架构声明与第三方零追踪承诺。">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
 </head>
 <body>
-  <div class="wrap">
-    <div class="topbar">
-      <a href="index.html" class="brand" data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</a>
-      <div class="nav-right">
-        <button type="button" class="lang-btn" id="toggleLang">English</button>
-        <a href="index.html" class="pill-link" data-zh="返回官网" data-en="Home">返回官网</a>
+  <header class="site-nav">
+    <div class="nav-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="34" height="34">
+        <span data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</span>
+      </a>
+      <nav class="nav-links" aria-label="许可致谢导航">
+        <a href="index.html" data-zh="返回官网" data-en="Home">返回官网</a>
+        <a href="support.html" data-zh="支持与帮助" data-en="Support">支持与帮助</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+        <a href="terms.html" data-zh="使用条款" data-en="Terms">使用条款</a>
+      </nav>
+      <div class="nav-controls">
+        <button class="pill-btn" type="button" id="langBtn">EN</button>
+        <button class="pill-btn" type="button" id="themeBtn" data-zh="夜灯" data-en="Lamp">夜灯</button>
       </div>
     </div>
+  </header>
 
-    <header>
-      <h1 data-zh="许可与致谢" data-en="Licenses &amp; Credits">许可与致谢</h1>
-    </header>
+  <main class="legal-main">
+    <div class="wrap">
+      <article class="legal-shell">
+        <h1 data-zh="许可与内容致谢" data-en="Licenses &amp; Citations">许可与内容致谢</h1>
+        <div class="legal-meta">
+          <span data-zh="原生 SwiftUI / Metal 构建 · 零第三方运行时依赖" data-en="100% Native SwiftUI &amp; Metal · Zero Third-Party Runtime SDKs">原生 SwiftUI / Metal 构建 · 零第三方运行时依赖</span>
+        </div>
 
-    <section class="card">
-      <h2 data-zh="独立设计" data-en="Independent Craft">独立设计</h2>
-      <p data-zh="由独立创作者设计与持续打磨，全站不引入第三方运行时商业 SDK，以原生 SwiftUI、Metal、CoreHaptics 与 AVAudioEngine 手工构建。" data-en="Independently designed and crafted with zero third-party runtime SDKs, powered exclusively by SwiftUI, Metal, CoreHaptics, and AVAudioEngine.">由独立创作者设计与持续打磨，全站不引入第三方运行时商业 SDK，以原生 SwiftUI、Metal、CoreHaptics 与 AVAudioEngine 手工构建。</p>
-    </section>
+        <h2 data-zh="一、纯原生 Apple 系统能力" data-en="1. Pure Native Apple Frameworks">一、纯原生 Apple 系统能力</h2>
+        <p data-zh="摸索台灯 iOS 版仅依赖 Apple 原生系统框架（SwiftUI、Metal、CoreHaptics、AVFoundation、ActivityKit、WidgetKit、CoreMotion 与 PhotosUI），未引入任何第三方商业 SDK、统计分析库或跨平台运行时。" data-en="Moss &amp; Otto for iOS is crafted exclusively on Apple system frameworks (SwiftUI, Metal, CoreHaptics, AVFoundation, ActivityKit, WidgetKit, CoreMotion, and PhotosUI) without external runtime SDKs.">
+          摸索台灯 iOS 版仅依赖 Apple 原生系统框架（SwiftUI、Metal、CoreHaptics、AVFoundation、ActivityKit、WidgetKit、CoreMotion 与 PhotosUI），未引入任何第三方商业 SDK、统计分析库或跨平台运行时。
+        </p>
 
-    <section class="card">
-      <h2>WHO Child Growth Standards</h2>
-      <p data-zh="世界卫生组织儿童生长标准（体重、身长/身高与头围年龄别标准），依照 WHO 官方公开使用条款离线内置参考计算。" data-en="World Health Organization weight, length/height, and head circumference reference values used in accordance with WHO open publication terms.">世界卫生组织儿童生长标准（体重、身长/身高与头围年龄别标准），依照 WHO 官方公开使用条款离线内置参考计算。</p>
-    </section>
+        <h2 data-zh="二、公共健康与育儿参考来源" data-en="2. Public Child Health &amp; Development Sources">二、公共健康与育儿参考来源</h2>
+        <ul>
+          <li data-zh="World Health Organization (WHO) Child Growth Standards（0–36 个月身长/体重/头围参考表，按世界卫生组织说明性引用条款使用）。" data-en="World Health Organization (WHO) Child Growth Standards (used descriptively under WHO terms).">World Health Organization (WHO) Child Growth Standards（0–36 个月身长/体重/头围参考表，按世界卫生组织说明性引用条款使用）。</li>
+          <li data-zh="CDC Developmental Milestones（发育观察与交流语言线索参考）。" data-en="U.S. CDC Developmental Milestones reference guidance.">CDC Developmental Milestones（发育观察与交流语言线索参考）。</li>
+          <li data-zh="American Academy of Pediatrics (AAP) 早期育儿、早产矫正月龄与睡眠安全公开指引。" data-en="American Academy of Pediatrics (AAP) public early care and safe sleep guidance.">American Academy of Pediatrics (AAP) 早期育儿、早产矫正月龄与睡眠安全公开指引。</li>
+          <li data-zh="中国国家卫生健康委员会《0–6 岁儿童健康管理技术规范》《婴幼儿喂养营养指南》公开资料。" data-en="National Health Commission of China 0–3 child health management &amp; feeding guidance.">中国国家卫健委《0–6 岁儿童健康管理技术规范》《婴幼儿喂养营养指南》公开资料。</li>
+        </ul>
 
-    <section class="card">
-      <h2>Apple Native Frameworks</h2>
-      <p>SwiftUI · Metal · CoreHaptics · AVAudioEngine · Swift Charts · WidgetKit · ActivityKit</p>
-    </section>
-  </div>
+        <h2 data-zh="三、原创 IP 与绘本美术著作权" data-en="3. Original IP &amp; Storybook Artwork">三、原创 IP 与绘本美术著作权</h2>
+        <p data-zh="「Moss（摸索）」与「Otto（台灯）」形象设定、46 部 Pixar 3D 与吉卜力 2D 双画风分步舞台、百味食盒植物学手绘及桌面图标均由摸索台灯独立创作，未经书面授权不得提取、再分发或用于商业衍生用途。" data-en="Moss &amp; Otto characters, all 46 dual-style interactive scenes, botanical food stickers, and AppIcon layers are original copyrighted works of developer Shuyao Wen.">
+          「Moss（摸索）」与「Otto（台灯）」形象设定、46 部 Pixar 3D 与吉卜力 2D 双画风分步舞台、百味食盒植物学手绘及桌面图标均由摸索台灯独立创作，未经书面授权不得提取、再分发或用于商业衍生用途。
+        </p>
+      </article>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-bottom" style="margin-top:0;border-top:0;padding-top:0;">
+      <span data-zh="摸索台灯 Moss &amp; Otto · 开发者：温树垚" data-en="Moss &amp; Otto · Developer: Shuyao Wen">摸索台灯 Moss &amp; Otto · 开发者：温树垚</span>
+      <a href="index.html" data-zh="回到首页" data-en="Back to Home">回到首页</a>
+    </div>
+  </footer>
+
   <script>
     (function () {
-      let lang = "zh";
-      const btn = document.getElementById("toggleLang");
-      btn.addEventListener("click", function () {
-        lang = lang === "zh" ? "en" : "zh";
-        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
-        btn.textContent = lang === "zh" ? "English" : "中文";
+      var html = document.documentElement;
+      var langBtn = document.getElementById("langBtn");
+      var themeBtn = document.getElementById("themeBtn");
+      function applyLang(lang) {
+        html.setAttribute("data-lang", lang);
+        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
+        localStorage.setItem("mossling-lang", lang);
+        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
-          el.textContent = el.getAttribute("data-" + lang);
+          el.textContent = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
         });
-      });
+        applyThemeLabel();
+      }
+      function applyThemeLabel() {
+        var t = html.getAttribute("data-theme") || "day";
+        var l = html.getAttribute("data-lang") || "zh";
+        if (themeBtn) themeBtn.textContent = t === "night" ? (l === "en" ? "Day" : "日光") : (l === "en" ? "Lamp" : "夜灯");
+      }
+      function applyTheme(t) {
+        html.setAttribute("data-theme", t);
+        localStorage.setItem("mossling-theme", t);
+        applyThemeLabel();
+      }
+      if (langBtn) langBtn.addEventListener("click", function () { applyLang((localStorage.getItem("mossling-lang") || "zh") === "zh" ? "en" : "zh"); });
+      if (themeBtn) themeBtn.addEventListener("click", function () { applyTheme((localStorage.getItem("mossling-theme") || "day") === "day" ? "night" : "day"); });
+      applyTheme(localStorage.getItem("mossling-theme") || "day");
+      applyLang(localStorage.getItem("mossling-lang") || "zh");
     })();
   </script>
 </body>

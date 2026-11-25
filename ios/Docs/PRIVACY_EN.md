@@ -4,6 +4,7 @@ Applies to the iOS app Moss & Otto
 
 Developer: {{DEVELOPER}}
 Contact: {{CONTACT}} (also the contact for the person responsible for children's personal information protection)
+Official Website: {{WEBSITE}}
 
 Effective date: November 24, 2026
 Last updated: November 24, 2026 (v2.0 alignment)

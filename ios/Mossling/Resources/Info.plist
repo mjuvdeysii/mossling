@@ -33,6 +33,7 @@
 	<key>MosslingICP</key><string>$(MOSSLING_ICP)</string>
 	<key>MosslingDeveloper</key><string>$(MOSSLING_DEVELOPER)</string>
 	<key>MosslingEmail</key><string>$(MOSSLING_EMAIL)</string>
+	<key>MosslingWebsite</key><string>$(MOSSLING_WEBSITE)</string>
 	<key>CFBundleLocalizations</key><array><string>zh-Hans</string><string>en</string></array>
 </dict>
 </plist>

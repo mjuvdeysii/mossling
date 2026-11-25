@@ -3,6 +3,7 @@
 Applies to the iOS app Moss & Otto
 
 Developer: {{DEVELOPER}}
+Official Website: {{WEBSITE}}
 
 Effective date: November 24, 2026 (v2.0 alignment)
 

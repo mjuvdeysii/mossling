@@ -807,6 +807,22 @@ struct StudioLegalSheet: View {
                         .buttonStyle(.toy)
                         .disabled(replay)
 
+                        if let site = Owner.websiteURL {
+                            Divider().padding(.leading, 52).opacity(0.45)
+                            Link(destination: site) {
+                                DataRow(title: L10n.t("官方网站", "Official Website"), symbol: "globe", color: Crayon.teal)
+                            }
+                            .buttonStyle(.toy)
+                        }
+
+                        if let support = Owner.supportURL {
+                            Divider().padding(.leading, 52).opacity(0.45)
+                            Link(destination: support) {
+                                DataRow(title: L10n.t("在线支持与帮助", "Online Support & FAQ"), symbol: "questionmark.circle.fill", color: Crayon.sky)
+                            }
+                            .buttonStyle(.toy)
+                        }
+
                         if let url = Owner.contactURL {
                             Divider().padding(.leading, 52).opacity(0.45)
                             Link(destination: url) {
@@ -1672,13 +1688,23 @@ enum Owner {
     }
     static var developer: String { value("MosslingDeveloper") }
     static var email: String { value("MosslingEmail") }
+    static var website: String { value("MosslingWebsite") }
+    static var websiteURL: URL? { website.isEmpty ? nil : URL(string: website) }
+    static var supportURL: URL? { websiteURL?.appendingPathComponent("support.html") }
+    static var privacyURL: URL? { websiteURL?.appendingPathComponent("privacy.html") }
+    static var termsURL: URL? { websiteURL?.appendingPathComponent("terms.html") }
+    static var licensesURL: URL? { websiteURL?.appendingPathComponent("licenses.html") }
+    static var websiteDisplay: String { website.isEmpty ? L10n.t("本应用 App Store 页面", "the App Store page") : website }
     /// How to reach the developer, as the documents say it.
     static var contact: String { email.isEmpty ? L10n.t("本应用 App Store 页面上的「App 支持」链接", "the App Support link on the App Store page") : L10n.t("电子邮件 ", "email ") + email }
     /// 反馈问题 opens mail; with no address yet there is no button (the documents name the App Store page instead).
     static var contactURL: URL? { email.isEmpty ? nil : URL(string: "mailto:" + email) }
     static var developerName: String { developer.isEmpty ? L10n.t("本应用 App Store 页面上显示的开发者", "the developer listed on the App Store page") : developer }
-    /// A document with the developer and the contact put in.
+    /// A document with the developer, contact, and official website put in.
     static func fill(_ text: String) -> String {
-        text.replacingOccurrences(of: "{{DEVELOPER}}", with: developerName).replacingOccurrences(of: "{{CONTACT}}", with: contact)
+        text
+            .replacingOccurrences(of: "{{DEVELOPER}}", with: developerName)
+            .replacingOccurrences(of: "{{CONTACT}}", with: contact)
+            .replacingOccurrences(of: "{{WEBSITE}}", with: websiteDisplay)
     }
 }
