@@ -157,6 +157,7 @@ struct HandoverSheet: View {
 
     @State private var note: String
     @State private var copied = false
+    @State private var copiedWebLink = false
     @State private var passProgress: Double
     @State private var lanternPassed: Bool
 
@@ -182,6 +183,7 @@ struct HandoverSheet: View {
             TimelineView(.periodic(from: .now, by: 30)) { tl in
                 let currentNow = previewNow ?? tl.date
                 let snap = HandoverSnapshot.build(app: app, journal: j, day: day, now: currentNow, extraNote: note)
+                let webURL = HandoverWebCodec.encodeURL(from: snap, now: currentNow)
                 let poster = RenderedPoster {
                     let card = HandoverPoster(snapshot: snap)
                     let renderer = ImageRenderer(content: card)
@@ -275,7 +277,39 @@ struct HandoverSheet: View {
                             .buttonStyle(.vinyl(copied ? Crayon.leaf : Crayon.caramel))
                         }
 
-                        Text(L10n.t("全部内容仅在本机即时生成，不上传云端，可直接发给伴侣、长辈或阿姨。", "Generated locally on your phone with zero cloud upload — ready for partner, grandparents, or nanny."))
+                        if let webURL {
+                            HStack(spacing: 10) {
+                                ShareLink(
+                                    item: webURL,
+                                    subject: Text(L10n.t("\(snap.babyName)的照护交接灯牌", "\(snap.babyName)'s Care Handover Beacon")),
+                                    message: Text(L10n.t("不用下载 App，手机浏览器点开即看最新喂睡与尿布交接：", "View the latest handover right in your browser (no download needed):"))
+                                ) {
+                                    Label(L10n.t("发给安卓家人（免下载灯牌）", "Send Web Beacon (Android)"), systemImage: "safari.fill")
+                                        .font(.subheadline.weight(.bold))
+                                        .frame(maxWidth: .infinity)
+                                        .padding(.vertical, 10)
+                                }
+                                .buttonStyle(.vinyl(Palette.rod))
+
+                                Button {
+                                    UIPasteboard.general.url = webURL
+                                    TactileEngine.shared.beadClick()
+                                    withAnimation(.snappy) { copiedWebLink = true }
+                                    Task { @MainActor in
+                                        try? await Task.sleep(for: .seconds(2))
+                                        withAnimation(.snappy) { copiedWebLink = false }
+                                    }
+                                } label: {
+                                    Image(systemName: copiedWebLink ? "checkmark.circle.fill" : "link")
+                                        .font(.subheadline.weight(.bold))
+                                        .frame(width: 46, height: 42)
+                                }
+                                .buttonStyle(.vinyl(copiedWebLink ? Crayon.leaf : Palette.rod))
+                                .accessibilityLabel(L10n.t("复制免下载网页交接链接", "Copy browser handover link"))
+                            }
+                        }
+
+                        Text(L10n.t("图片、文字与网页灯牌链接均在本机即时生成，数据仅编码在网址 # 之后，不经过云端服务器；安卓手机点开即看。", "Generated on-device with zero server uploads — browser beacon data stays strictly inside the # URL anchor for Android & WeChat."))
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryText)
                             .frame(maxWidth: .infinity, alignment: .center)

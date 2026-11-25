@@ -3,6 +3,12 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 29（Edition II · Round 27：3AM OLED 零眩光单手速记、端侧 Vision 辅食抠图贴纸、锁屏尿布捷径与零服务器网页交接信标）**：
+  - 昼夜场景分流：`Theme.swift` 新增 `CircadianDutyPhase.isLateNight3AM`（`21:00–05:59`）与极深夜色 `Palette.oledBlack` / `Palette.oledSurface`；`LampHubView` 在夜间时段及顶栏一键切换下提供 3AM 极速模式，2×2 大触控垫（<1 秒切换睡眠、启停喂养、预设智能奶量、一键记尿布）与冷静账本复位；日间探索 `TodayView` 问候条则以零打扰微缩植物辅食标与游玩金珠呈现当日印记。
+  - 零权限端侧 Vision 辅食抠图贴纸：新增 `FoodStickerStore`（仅存本地 `Application Support/food_stickers/` 并带硬件加密保护）与 `VisionSubjectCutout`，在 `FoodAtlasView`（`FoodTasteSheet` / `FoodEmblemArt` / `FoodPassportPoster`）通过系统原生 `PhotosPicker` 零权限选图，使用 `VNGenerateForegroundInstanceMaskRequest` 全离线主体抠图并合成棉纸白边与柔和投影，附确定性圆形印章回退与一键还原。
+  - 锁屏 Live Activity 与 Siri 捷径增强：`MosslingWidget` 深夜间锁屏计时横幅深化至 `#070B16` OLED 护眼底色，睡着计时面板直接提供一键记录「湿尿片」按钮；新增 `QuickLogSolidIntent` 并注册进 `MosslingShortcuts`，支持语音直达记录辅食。
+  - 零服务器网页交接信标：新增 `HandoverWebCodec` 将交接快照紧凑编码至纯本地 URL 锚点 `#d=`（无查询参数、零服务器上传）；`HandoverSheet` 新增安卓/跨设备免下载网页交接分享与复制按钮；官网新增纯静态 XSS 安全（仅用 `.textContent`，零 `innerHTML`）`docs/handover.html` 与首页入口，支持中英双语切换、OLED 夜间开关与实时已睡/喂养计时刷新。
+
 - **Batch 28（v2.0 正式发布候选 25 · 商业级杂志编辑风官网精修与个人署名隐私脱敏）**：
   - **官方网站商业级精修（`docs/`）**：参照成熟消费级母婴官网克制留白与版式比例重写官网样式与内容——非对称圆拱首屏缀入精确比例真机边框与原版 Moss & Otto、4 栏发丝线承诺带、无框 0–36 个月分龄互动选览与真实月龄封面、夜间深海蓝悬浮岛屿、叠放双机节律账本与三屏联展、透明买断制卡片与 4 栏品牌落款，全面祛除工程技术术语，全部以家长第一视角讲述。
   - **个人署名隐私脱敏**：清空 `ios/project.yml` 中的 `MOSSLING_DEVELOPER`（应用内合规文档自动通过 `Owner.developerName` 安全回退为「本应用 App Store 页面上显示的开发者」），并同步移除官网页面及公开仓库发布清单中的个人实名信息，仅保留品牌名「摸索台灯 Moss & Otto」与官方支持邮箱 `lbuiuiysdeyzxl@yeah.net`。

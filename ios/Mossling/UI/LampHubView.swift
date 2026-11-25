@@ -29,11 +29,18 @@ struct LampHubView: View {
     @State private var touchedPeriods = false
     @State private var expandAllChapters = false
     @State private var editing: LogEntry?
+    @State private var quickNight3AM: Bool
 
-    init(path: Binding<NavigationPath>, initialDay: Day? = nil, initialLedgerExpanded: Bool = false) {
+    init(
+        path: Binding<NavigationPath>,
+        initialDay: Day? = nil,
+        initialLedgerExpanded: Bool = false,
+        initialQuickNight3AM: Bool? = nil
+    ) {
         _path = path
         _selectedDay = State(initialValue: initialDay ?? .today)
         _ledgerExpanded = State(initialValue: initialLedgerExpanded)
+        _quickNight3AM = State(initialValue: initialLedgerExpanded ? false : (initialQuickNight3AM ?? CircadianDutyPhase.isLateNight3AM()))
     }
 
     private var warmth: LampWarmth {
@@ -81,37 +88,44 @@ struct LampHubView: View {
         let diaperCount = own.filter { $0.type == LogType.diaper }.count
         let entryCount = dayLogs.rows().count
 
+        let is3AMOled = app.journal && quickNight3AM && isToday
+        let effectiveDark = dark || is3AMOled
+
         ScrollView {
             VStack(alignment: .leading, spacing: 10) {
-                ottoLampHeroCard(dark: dark)
-
-                if app.journal && !j.timers.isEmpty {
-                    ForEach(j.timers, id: \.type) { t in
-                        RunningRow(timer: t)
-                    }
-                }
-
-                if app.journal {
-                    rhythmCollectionCard(
-                        day: activeDay,
-                        isToday: isToday,
-                        dayLogs: dayLogs,
-                        feedCount: feedCount,
-                        sleepSec: sleepSec,
-                        diaperCount: diaperCount,
-                        dark: dark
-                    )
-
-                    quietCareStrip(day: activeDay, isToday: isToday, dark: dark)
-
-                    todayLedgerDrawer(
-                        day: activeDay,
-                        dayLogs: dayLogs,
-                        entryCount: entryCount,
-                        dark: dark
-                    )
+                if is3AMOled {
+                    midnightOneHandSanctuary(day: activeDay)
                 } else {
-                    enableJournalInvitation(dark: dark)
+                    ottoLampHeroCard(dark: effectiveDark)
+
+                    if app.journal && !j.timers.isEmpty {
+                        ForEach(j.timers, id: \.type) { t in
+                            RunningRow(timer: t)
+                        }
+                    }
+
+                    if app.journal {
+                        rhythmCollectionCard(
+                            day: activeDay,
+                            isToday: isToday,
+                            dayLogs: dayLogs,
+                            feedCount: feedCount,
+                            sleepSec: sleepSec,
+                            diaperCount: diaperCount,
+                            dark: effectiveDark
+                        )
+
+                        quietCareStrip(day: activeDay, isToday: isToday, dark: effectiveDark)
+
+                        todayLedgerDrawer(
+                            day: activeDay,
+                            dayLogs: dayLogs,
+                            entryCount: entryCount,
+                            dark: effectiveDark
+                        )
+                    } else {
+                        enableJournalInvitation(dark: effectiveDark)
+                    }
                 }
             }
             .padding(.horizontal, 16)
@@ -120,10 +134,41 @@ struct LampHubView: View {
         }
         .scrollBounceBehavior(.basedOnSize)
         .calmWhileScrolling()
-        .pageBackground(tone: night || dark ? Palette.amber : Crayon.caramel)
-        .navigationTitle(L10n.t("台灯", "Lamp"))
+        .background {
+            if is3AMOled {
+                Palette.oledBlack.ignoresSafeArea()
+            } else {
+                PageBackground(tone: night || dark ? Palette.amber : Crayon.caramel)
+            }
+        }
+        .lamp(is3AMOled || lamp)
+        .navigationTitle(is3AMOled ? L10n.t("夜灯极速", "3AM Lamp") : L10n.t("台灯", "Lamp"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
+            ToolbarItem(placement: .topBarLeading) {
+                if app.journal && isToday {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) {
+                            quickNight3AM.toggle()
+                        }
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: quickNight3AM ? "sun.max.fill" : "moon.stars.fill")
+                                .font(.caption2.weight(.bold))
+                            Text(quickNight3AM ? L10n.t("日间台灯", "Full") : L10n.t("3AM 极速", "3AM"))
+                                .font(.caption2.weight(.bold))
+                        }
+                        .foregroundStyle(is3AMOled ? Palette.amber : Palette.accent)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 5)
+                        .background(Capsule().fill(is3AMOled ? Color.white.opacity(0.10) : Palette.accent.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(quickNight3AM ? L10n.t("切换回完整台灯与节律视图", "Switch to full Lamp & rhythm view") : L10n.t("切换到凌晨三点极速护眼模式", "Switch to 3AM one-handed OLED mode"))
+                }
+            }
+
             ToolbarItemGroup(placement: .topBarTrailing) {
                 if app.journal {
                     Button {
@@ -184,9 +229,303 @@ struct LampHubView: View {
         .onChange(of: j.jumpToToday) { _, _ in selectedDay = app.today }
         .onChange(of: router?.expandLampLedgerToken ?? 0) { _, _ in
             withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
+                quickNight3AM = false
                 ledgerExpanded = true
             }
         }
+    }
+
+    // MARK: - Scene-Driven 3AM One-Handed OLED Speed Sanctuary
+
+    @ViewBuilder
+    private func midnightOneHandSanctuary(day: Day) -> some View {
+        let now = Date()
+        let summary = MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: now)
+        let lastNurseSide = j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side
+        let suggestedSide = lastNurseSide == "l" ? "r" : "l"
+        let activeSleep = j.timers.first { $0.type == LogType.sleep }
+        let activeNurse = j.timers.first { $0.type == LogType.nurse }
+        let cols = type.isAccessibilitySize
+            ? [GridItem(.flexible())]
+            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+
+        VStack(alignment: .leading, spacing: 12) {
+            // 1. Minimalist OLED midnight facts banner + 1-tap Full Lamp / Handover actions
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 8) {
+                    Circle()
+                        .fill(warmth.primaryGlow)
+                        .frame(width: 8, height: 8)
+                    Text(summary.nightStatusLine ?? L10n.t("凌晨照护极速模式 · 单手轻点即记", "3AM One-Hand Mode · Instant tap logging"))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(Palette.lampInk)
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 4)
+                }
+
+                if !summary.facts.isEmpty {
+                    HStack(spacing: 8) {
+                        ForEach(summary.facts) { item in
+                            HStack(spacing: 4) {
+                                Image(systemName: item.symbol)
+                                    .font(.caption2.weight(.bold))
+                                    .foregroundStyle(warmth.primaryGlow)
+                                Text("\(item.label) \(item.agoText)")
+                                    .font(.caption2.weight(.semibold))
+                                    .foregroundStyle(Palette.lampInk.opacity(0.84))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                }
+
+                HStack(spacing: 8) {
+                    Button {
+                        openBedsideLamp()
+                    } label: {
+                        Label(L10n.t("全屏夜灯", "Bedside Lamp"), systemImage: "lamp.desk.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(warmth.onPrimaryInk)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Capsule().fill(warmth.primaryGlow))
+                    }
+                    .buttonStyle(.toy)
+
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        showingHandover = true
+                    } label: {
+                        Label(L10n.t("传灯交接", "Handover"), systemImage: "person.2.wave.2.fill")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(Capsule().fill(Color.white.opacity(0.10)))
+                    }
+                    .buttonStyle(.toy)
+                }
+            }
+            .padding(14)
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(warmth.primaryGlow.opacity(0.28), lineWidth: 1))
+
+            // 2. Active running timer deck (pause / switch side / finish right here without unlocking extra screens)
+            ForEach(j.timers, id: \.type) { t in
+                oledActiveTimerBar(t)
+            }
+
+            // 3. Thumb-zone 2x2 zero-glare <1s care pads
+            LazyVGrid(columns: cols, spacing: 10) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    if activeSleep != nil {
+                        TactileEngine.shared.goldChime()
+                        j.stop(LogType.sleep)
+                    } else {
+                        j.start(LogType.sleep, openFocus: false)
+                    }
+                } label: {
+                    oledPadSurface(
+                        symbol: LogType.symbol(LogType.sleep),
+                        title: activeSleep != nil ? L10n.t("醒了 · 存睡眠", "Awake · Save Sleep") : L10n.t("开始睡觉", "Start Sleep"),
+                        subtitle: activeSleep != nil ? L10n.t("计时运行中 · 点此结束", "Timer running · tap to finish") : L10n.t("单手一键夜灯计时", "One-tap night timer"),
+                        tint: Crayon.lilac,
+                        active: activeSleep != nil
+                    )
+                }
+                .buttonStyle(.toy)
+
+                Button {
+                    TactileEngine.shared.beadClick()
+                    if activeNurse != nil {
+                        j.switchSide(LogType.nurse)
+                    } else {
+                        j.start(LogType.nurse, side: suggestedSide, openFocus: false)
+                    }
+                } label: {
+                    oledPadSurface(
+                        symbol: LogType.symbol(LogType.nurse),
+                        title: activeNurse != nil
+                            ? (activeNurse?.side == "l" ? L10n.t("亲喂中 · 换右", "Nursing · Switch R") : L10n.t("亲喂中 · 换左", "Nursing · Switch L"))
+                            : L10n.t("开始亲喂", "Start Nursing"),
+                        subtitle: activeNurse != nil
+                            ? L10n.t("轻点直接换侧", "Tap to switch side")
+                            : (suggestedSide == "l" ? L10n.t("建议左侧 · 1 秒开始", "Left next · instant start") : L10n.t("建议右侧 · 1 秒开始", "Right next · instant start")),
+                        tint: Crayon.pink,
+                        active: activeNurse != nil
+                    )
+                }
+                .buttonStyle(.toy)
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: LogType.symbol(LogType.bottle))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(warmth.primaryGlow)
+                        Text(L10n.t("瓶喂速记", "Quick Bottle"))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                        Spacer(minLength: 0)
+                        Text(summary.defaultMilkKind == "breastmilk" ? L10n.t("母乳", "Milk") : L10n.t("配方", "Formula"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Palette.lampInk.opacity(0.62))
+                    }
+                    HStack(spacing: 6) {
+                        ForEach(summary.bottleSuggestions, id: \.self) { ml in
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                _ = j.record(LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: summary.defaultMilkKind))
+                            } label: {
+                                Text("\(ml)ml")
+                                    .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
+                                    .foregroundStyle(warmth.onPrimaryInk)
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.75)
+                                    .frame(maxWidth: .infinity, minHeight: 36)
+                                    .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
+                            }
+                            .buttonStyle(.toy)
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 6) {
+                        Image(systemName: LogType.symbol(LogType.diaper))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Crayon.sky)
+                        Text(L10n.t("尿布速记", "Quick Diaper"))
+                            .font(.subheadline.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                    }
+                    HStack(spacing: 6) {
+                        ForEach([("wet", L10n.t("湿", "Wet")), ("dirty", L10n.t("便", "Dirty")), ("both", L10n.t("都有", "Both"))], id: \.0) { kind, label in
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
+                            } label: {
+                                Text(label)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(Palette.lampInk)
+                                    .frame(maxWidth: .infinity, minHeight: 36)
+                                    .background(Capsule().fill(Crayon.sky.opacity(0.24)))
+                                    .overlay(Capsule().strokeBorder(Crayon.sky.opacity(0.55), lineWidth: 0.9))
+                            }
+                            .buttonStyle(.toy)
+                        }
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
+            }
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) {
+                    quickNight3AM = false
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock.arrow.circlepath")
+                    Text(L10n.t("展开完整 24h 节律盘、声景与今日手账明细", "Open full 24h rhythm dial, soundscapes & entries"))
+                }
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(warmth.primaryGlow.opacity(0.9))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 10)
+                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.oledSurface))
+            }
+            .buttonStyle(.plain)
+        }
+    }
+
+    private func oledActiveTimerBar(_ t: RunningTimer) -> some View {
+        let paused = t.pausedAt != nil
+        return TimelineView(.periodic(from: .now, by: 1)) { tl in
+            let elapsed = t.total(tl.date.timeIntervalSince1970 * 1000)
+            HStack(spacing: 10) {
+                Image(systemName: LogType.symbol(t.type))
+                    .font(.headline.weight(.bold))
+                    .foregroundStyle(warmth.primaryGlow)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L10n.timerStatus(t.type, side: t.side, paused: paused))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.lampInk.opacity(0.84))
+                    Text(clock(elapsed))
+                        .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
+                        .foregroundStyle(warmth.primaryGlow)
+                }
+                Spacer(minLength: 4)
+                Button {
+                    TactileEngine.shared.beadClick()
+                    j.togglePause(t.type)
+                } label: {
+                    Image(systemName: paused ? "play.fill" : "pause.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.lampInk)
+                        .frame(width: 34, height: 34)
+                        .background(Circle().fill(Color.white.opacity(0.12)))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(paused ? L10n.t("继续计时", "Resume timer") : L10n.t("暂停计时", "Pause timer"))
+
+                Button {
+                    TactileEngine.shared.goldChime()
+                    j.stop(t.type)
+                } label: {
+                    Text(t.type == LogType.sleep ? L10n.t("醒了", "Awake") : L10n.t("完成", "Done"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(warmth.onPrimaryInk)
+                        .padding(.horizontal, 12)
+                        .frame(height: 34)
+                        .background(Capsule().fill(warmth.primaryGlow))
+                }
+                .buttonStyle(.toy)
+            }
+            .padding(12)
+            .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+            .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(warmth.primaryGlow.opacity(0.45), lineWidth: 1.2))
+        }
+    }
+
+    private func oledPadSurface(symbol: String, title: String, subtitle: String, tint: Color, active: Bool) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 7) {
+                Image(systemName: symbol)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(active ? warmth.onPrimaryInk : tint)
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(active ? warmth.primaryGlow : tint.opacity(0.20)))
+                Spacer(minLength: 0)
+            }
+            Text(title)
+                .font(.subheadline.weight(.bold))
+                .foregroundStyle(Palette.lampInk)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+            Text(subtitle)
+                .font(.caption2)
+                .foregroundStyle(Palette.lampInk.opacity(0.68))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+        .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(active ? warmth.primaryGlow.opacity(0.72) : Color.white.opacity(0.10), lineWidth: active ? 1.4 : 1)
+        )
     }
 
     // MARK: - Section 1: Hero Otto Bedside Lamp Stage

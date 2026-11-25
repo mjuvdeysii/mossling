@@ -1080,6 +1080,12 @@ struct TimerControls: View {
                     Label(s.pausedAt == nil ? L10n.t("暂停", "Pause") : L10n.t("继续", "Resume"), systemImage: s.pausedAt == nil ? "pause.fill" : "play.fill").frame(maxWidth: .infinity)
                 }
                 .tint(Crayon.buttonFill(c))
+                if type == LogType.sleep {
+                    Button(intent: QuickLogDiaperIntent(kind: .wet)) {
+                        Label(L10n.t("湿尿布", "Wet"), systemImage: "drop.fill")
+                    }
+                    .tint(Crayon.buttonFill(LogType.color(LogType.diaper)))
+                }
             }
             Spacer(minLength: 10)
             Button(intent: TimerIntent(type: type, action: "stop")) { Text(type == LogType.sleep ? L10n.t("醒了", "Awake") : L10n.t("结束", "End")) }.tint(quiet)

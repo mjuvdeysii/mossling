@@ -1,5 +1,6 @@
 import SwiftUI
 import StoreKit
+import PhotosUI
 
 /// 「百味食盒 / First Foods Tasting Cabinet」 — Interactive Montessori bento cabinet of 60 whole foods across 6 collapsible
 /// botanical drawers with dual category + state rails, smart Next-Bite shuffle bench, thumb-zone Quick-Stamp Dock, and
@@ -105,7 +106,12 @@ struct FoodAtlasView: View {
         let snapshotRecords = store.records
         let ageLabel = app.age.map { L10n.ageText($0) } ?? ""
         let passportPoster = RenderedPoster {
-            let card = FoodPassportPoster(babyName: who, ageLabel: ageLabel, records: snapshotRecords)
+            let stickers = FoodItem.catalog.reduce(into: [String: UIImage]()) { out, item in
+                if let sticker = FoodStickerStore.load(for: item.id) {
+                    out[item.id] = sticker
+                }
+            }
+            let card = FoodPassportPoster(babyName: who, ageLabel: ageLabel, records: snapshotRecords, stickers: stickers)
             let renderer = ImageRenderer(content: card)
             renderer.scale = 3.0
             return renderer.uiImage
@@ -327,7 +333,7 @@ struct FoodAtlasView: View {
                 Circle()
                     .fill(color.opacity(dark ? 0.28 : 0.18))
                     .frame(width: 42, height: 42)
-                FoodGlyphView(food: candidate, size: 28)
+                FoodEmblemArt(food: candidate, size: 28)
             }
 
             VStack(alignment: .leading, spacing: 2) {
@@ -614,7 +620,7 @@ struct FoodAtlasView: View {
                     Circle()
                         .fill(color.opacity(dark ? 0.28 : 0.18))
                         .frame(width: 36, height: 36)
-                    FoodGlyphView(food: item, size: 24)
+                    FoodEmblemArt(food: item, size: 24)
                 }
                 VStack(alignment: .leading, spacing: 1) {
                     Text(item.name)
@@ -829,7 +835,7 @@ private struct FoodSpecimenChip: View {
                                     : (dark ? Color.white.opacity(0.05) : Palette.fill.opacity(0.72))
                             )
                             .frame(width: 38, height: 38)
-                        FoodGlyphView(food: item, size: 26)
+                        FoodEmblemArt(food: item, size: 26)
                             .saturation(tasted ? 1.0 : 0.78)
                             .opacity(tasted ? 1.0 : 0.88)
                     }
@@ -934,6 +940,29 @@ private struct FoodSpecimenChip: View {
     }
 }
 
+/// Renders an offline Vision die-cut food sticker when captured for `food`, falling back to handcrafted artwork.
+struct FoodEmblemArt: View {
+    let food: FoodItem
+    var size: CGFloat = 32
+    var flat: Bool = (ArtStyle.current == .flat)
+    var overrideSticker: UIImage? = nil
+
+    private var stickerVersion: FoodStickerVersion { FoodStickerVersion.shared }
+
+    var body: some View {
+        let _ = stickerVersion.tick
+        if let sticker = overrideSticker ?? FoodStickerStore.load(for: food.id) {
+            Image(uiImage: sticker)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size * 1.18, height: size * 1.18)
+                .accessibilityHidden(true)
+        } else {
+            FoodGlyphView(food: food, size: size, flat: flat)
+        }
+    }
+}
+
 /// Quick tactile stamp sheet for logging or updating a baby's first taste of a food.
 private struct FoodTasteSheet: View {
     @Environment(AppModel.self) private var app
@@ -941,6 +970,7 @@ private struct FoodTasteSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.requestReview) private var requestReview
 
     let item: FoodItem
@@ -954,6 +984,9 @@ private struct FoodTasteSheet: View {
     @State private var watchSkin: Bool
     @State private var times: Int
     @State private var alsoLogJournal: Bool
+    @State private var pickedPhotoItem: PhotosPickerItem? = nil
+    @State private var cuttingSticker = false
+    @State private var customSticker: UIImage? = nil
 
     init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore, onSaved: @escaping (String) -> Void = { _ in }) {
         self.item = item
@@ -979,22 +1012,62 @@ private struct FoodTasteSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    // Dish emblem header
-                    HStack(spacing: 14) {
+                    // Dish emblem header with offline Vision subject cutout sticker picker
+                    HStack(spacing: 12) {
                         ZStack {
                             Circle()
                                 .fill(item.category.color.opacity(dark ? 0.28 : 0.18))
                                 .frame(width: 62, height: 62)
-                            FoodGlyphView(food: item, size: 42)
+                            if cuttingSticker {
+                                Circle()
+                                    .strokeBorder(Palette.amber.opacity(0.85), lineWidth: 2.2)
+                                    .frame(width: 62, height: 62)
+                            }
+                            FoodEmblemArt(food: item, size: 42, overrideSticker: customSticker)
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name)
                                 .font(.title2.weight(.bold))
-                            Text(item.category.title + (item.isCommonAllergen ? L10n.t(" · 常见致敏食材", " · Common allergen") : ""))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(item.isCommonAllergen ? (dark ? Palette.amber : Crayon.ink(Palette.amber)) : Palette.secondaryText)
+                            Text(
+                                cuttingSticker
+                                    ? L10n.t("正在本机抠出贴纸…", "Cutting sticker locally…")
+                                    : (item.category.title + (item.isCommonAllergen ? L10n.t(" · 常见致敏", " · Allergen") : ""))
+                            )
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(cuttingSticker ? Palette.accent : (item.isCommonAllergen ? (dark ? Palette.amber : Crayon.ink(Palette.amber)) : Palette.secondaryText))
+
+                            if customSticker != nil {
+                                Button {
+                                    TactileEngine.shared.beadClick()
+                                    FoodStickerStore.delete(for: item.id)
+                                    withAnimation(reduce ? nil : .snappy) {
+                                        customSticker = nil
+                                    }
+                                } label: {
+                                    Text(L10n.t("恢复手绘图标", "Restore drawn icon"))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Palette.secondaryText)
+                                }
+                                .buttonStyle(.plain)
+                            }
                         }
-                        Spacer()
+                        Spacer(minLength: 4)
+
+                        PhotosPicker(selection: $pickedPhotoItem, matching: .images, photoLibrary: .shared()) {
+                            HStack(spacing: 4) {
+                                Image(systemName: customSticker == nil ? "sparkles" : "arrow.trianglehead.2.clockwise")
+                                    .font(.caption2.weight(.bold))
+                                Text(customSticker == nil ? L10n.t("拍成贴纸", "Sticker") : L10n.t("换贴纸", "Replace"))
+                                    .font(.caption.weight(.bold))
+                            }
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Palette.accentFill))
+                        }
+                        .buttonStyle(.toy)
+                        .disabled(cuttingSticker)
+                        .accessibilityLabel(L10n.t("选一张实物照片本机抠成辅食贴纸", "Pick a food photo to cut into an offline sticker"))
                     }
                     .padding(14)
                     .printCard(radius: Radius.card)
@@ -1187,6 +1260,31 @@ private struct FoodTasteSheet: View {
                     .fontWeight(.bold)
                 }
             }
+            .onAppear {
+                customSticker = FoodStickerStore.load(for: item.id)
+            }
+            .onChange(of: pickedPhotoItem) { _, newItem in
+                guard let newItem else { return }
+                cuttingSticker = true
+                let targetId = item.id
+                Task { @MainActor in
+                    defer {
+                        cuttingSticker = false
+                        pickedPhotoItem = nil
+                    }
+                    guard let data = try? await newItem.loadTransferable(type: Data.self),
+                          let rawImage = UIImage(data: data) else {
+                        return
+                    }
+                    let sticker = await VisionSubjectCutout.extractDieCutSticker(from: rawImage)
+                    if FoodStickerStore.save(sticker, for: targetId) {
+                        withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.62)) {
+                            customSticker = sticker
+                        }
+                        TactileEngine.shared.goldChime()
+                    }
+                }
+            }
         }
     }
 }
@@ -1196,6 +1294,7 @@ private struct FoodPassportPoster: View {
     let babyName: String
     let ageLabel: String
     let records: [String: FoodRecord]
+    var stickers: [String: UIImage] = [:]
 
     var body: some View {
         let paper = Color(hex: 0xFBF7F0)
@@ -1246,7 +1345,7 @@ private struct FoodPassportPoster: View {
                 LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 4), spacing: 8) {
                     ForEach(tasted.prefix(24)) { item in
                         VStack(spacing: 3) {
-                            FoodGlyphView(food: item, size: 26, flat: false)
+                            FoodEmblemArt(food: item, size: 26, flat: false, overrideSticker: stickers[item.id])
                             Text(item.name)
                                 .font(.system(size: 10, weight: .semibold, design: .rounded))
                                 .foregroundStyle(ink)

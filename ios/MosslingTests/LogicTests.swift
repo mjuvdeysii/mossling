@@ -3065,4 +3065,115 @@ final class LogicTests: XCTestCase {
         XCTAssertNotNil(img)
         XCTAssertGreaterThan(img?.size.width ?? 0, 100)
     }
+
+    @MainActor
+    func testRound27Edition2P0AndWebHandover() throws {
+        // 1. Circadian 3AM window boundary checks (21:00–05:59)
+        let baseDay = Day(y: 2026, m: 10, d: 19).date
+        func at(_ hour: Int, _ minute: Int) -> Date {
+            Day.cal.date(bySettingHour: hour, minute: minute, second: 0, of: baseDay)!
+        }
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(20, 59)))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(21, 0)))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(3, 15)))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(5, 59)))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(6, 0)))
+
+        // 2. Fallback round die-cut sticker & isolated FoodStickerStore lifecycle
+        let sampleFormat = UIGraphicsImageRendererFormat()
+        sampleFormat.scale = 1
+        let sampleImg = UIGraphicsImageRenderer(size: CGSize(width: 120, height: 120), format: sampleFormat).image { ctx in
+            UIColor(red: 0.92, green: 0.56, blue: 0.34, alpha: 1.0).setFill()
+            ctx.fill(CGRect(x: 0, y: 0, width: 120, height: 120))
+        }
+        let sticker = VisionSubjectCutout.makeFallbackRoundSticker(from: sampleImg, maxDimension: 128)
+        XCTAssertEqual(sticker.size.width, 128, accuracy: 0.5)
+        XCTAssertEqual(sticker.size.height, 128, accuracy: 0.5)
+
+        let tmpDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("food-sticker-tests-\(UUID().uuidString)", isDirectory: true)
+        defer { FoodStickerStore.clearAll(in: tmpDir) }
+        XCTAssertEqual(FoodStickerStore.stickerCount(in: tmpDir), 0)
+        XCTAssertTrue(FoodStickerStore.save(sticker, for: "pumpkin", maxDimension: 128, in: tmpDir))
+        XCTAssertTrue(FoodStickerStore.exists(for: "pumpkin", in: tmpDir))
+        XCTAssertEqual(FoodStickerStore.stickerCount(in: tmpDir), 1)
+        XCTAssertNotNil(FoodStickerStore.load(for: "pumpkin", in: tmpDir))
+
+        FoodStickerStore.delete(for: "pumpkin", in: tmpDir)
+        XCTAssertFalse(FoodStickerStore.exists(for: "pumpkin", in: tmpDir))
+        XCTAssertEqual(FoodStickerStore.stickerCount(in: tmpDir), 0)
+
+        XCTAssertTrue(FoodStickerStore.save(sticker, for: "avocado", maxDimension: 128, in: tmpDir))
+        XCTAssertEqual(FoodStickerStore.stickerCount(in: tmpDir), 1)
+        FoodStickerStore.clearAll(in: tmpDir)
+        XCTAssertEqual(FoodStickerStore.stickerCount(in: tmpDir), 0)
+
+        // 3. Zero-server HandoverWebCodec fragment encode/decode round-trip (ZH & EN)
+        let snap = HandoverSnapshot(
+            babyName: "小满",
+            ageText: "6个月17天",
+            dateLabel: "10月19日 周一",
+            timeLabel: "21:30",
+            activeTimerLine: "睡着中 · 已睡 42 分",
+            lastFeedHeadline: "2 小时前喝奶 120 ml",
+            lastFeedDetail: "今日奶量 640 ml · 辅食 1 次",
+            lastSleepHeadline: "睡前清醒 2 小时 10 分",
+            lastSleepDetail: "今日小睡 2 段",
+            lastDiaperHeadline: "45 分钟前 · 湿尿片",
+            lastDiaperDetail: "今日湿 5 · 便 1",
+            todayHeadline: "今日陪玩 2 项",
+            todayDetail: "双手物品传递机会",
+            extraNote: "睡前已吃维生素 D"
+        )
+        let zhURL = try XCTUnwrap(
+            HandoverWebCodec.encodeURL(from: snap, now: at(21, 30), isEnglish: false, baseURLString: "https://mossotto.pages.dev/")
+        )
+        XCTAssertNil(zhURL.query)
+        XCTAssertEqual(zhURL.path, "/handover")
+        XCTAssertTrue(zhURL.fragment?.hasPrefix("d=") ?? false)
+        let decodedZH = try XCTUnwrap(HandoverWebCodec.decode(from: zhURL))
+        XCTAssertEqual(decodedZH.l, "zh")
+        XCTAssertEqual(decodedZH.n, "小满")
+        XCTAssertEqual(decodedZH.ac, "睡着中 · 已睡 42 分")
+        XCTAssertEqual(decodedZH.no, "睡前已吃维生素 D")
+
+        let enURL = try XCTUnwrap(
+            HandoverWebCodec.encodeURL(from: snap, now: at(21, 30), isEnglish: true, baseURLString: "https://mossotto.pages.dev/")
+        )
+        let decodedEN = try XCTUnwrap(HandoverWebCodec.decode(from: enURL))
+        XCTAssertEqual(decodedEN.l, "en")
+        XCTAssertNil(HandoverWebCodec.decode(from: URL(string: "https://mossotto.pages.dev/handover")!))
+        XCTAssertNil(HandoverWebCodec.decode(from: URL(string: "https://mossotto.pages.dev/handover#d=!!!")!))
+
+        // 4. Siri Intent & safety gate
+        let solidIntent = QuickLogSolidIntent(foodName: "南瓜")
+        XCTAssertEqual(solidIntent.foodName, "南瓜")
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: nil))
+
+        // 5. Render smoke checks across Round 27 views
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round27-ed2-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.nickname = "小满"
+        envApp.journal = true
+        envApp.consent = Consent.version
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let envRouter = AppRouter()
+
+        func assertRenders<V: View>(_ view: V) {
+            let rendered = view
+                .frame(width: 393, height: 852)
+                .environment(envApp)
+                .environment(envJournal)
+                .environment(envRouter)
+            let img = ImageRenderer(content: rendered).uiImage
+            XCTAssertNotNil(img)
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+
+        assertRenders(LampHubView(path: .constant(NavigationPath()), initialQuickNight3AM: true))
+        assertRenders(FoodAtlasView())
+        assertRenders(HandoverSheet(day: Day(y: 2026, m: 10, d: 19)))
+        assertRenders(TodayView(path: .constant(NavigationPath())))
+    }
 }

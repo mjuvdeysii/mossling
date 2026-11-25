@@ -265,6 +265,7 @@ final class FoodAtlasStore {
 
     func remove(foodId: String) {
         records.removeValue(forKey: foodId)
+        FoodStickerStore.delete(for: foodId)
         persist()
     }
 
@@ -272,6 +273,9 @@ final class FoodAtlasStore {
         records = [:]
         if let url = fileURL {
             try? FileManager.default.removeItem(at: url)
+        }
+        if fileURL == FoodAtlasStore.defaultURL {
+            FoodStickerStore.clearAll()
         }
     }
 

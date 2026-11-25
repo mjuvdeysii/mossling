@@ -260,6 +260,7 @@ final class AppModel {
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
         FirstPhotoStore.clearAll()
+        FoodStickerStore.clearAll()
         Task { @MainActor in
             SoundscapeEngine.shared.stop()
             ToyboxAudioEngine.shared.stop()

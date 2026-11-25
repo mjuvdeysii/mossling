@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="zh-Hans" data-lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>照护交接灯牌 | 摸索台灯 Moss &amp; Otto</title>
+  <meta name="description" content="摸索台灯（Moss &amp; Otto）零服务器免下载照护交接灯牌：无需安装 App 或登录账号，安卓与 iOS 浏览器打开即看最新喂养、睡眠与尿布交接。">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <style>
+    body.beacon-night {
+      background: var(--night-bg);
+      color: var(--night-ink);
+    }
+
+    body.beacon-night .nav {
+      background: rgba(7, 11, 22, 0.94);
+      border-bottom-color: var(--night-line);
+    }
+
+    body.beacon-night .brand,
+    body.beacon-night .nav-links a {
+      color: var(--night-ink);
+    }
+
+    body.beacon-night .lang-toggle {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    body.beacon-night .site-footer {
+      background: var(--night-bg);
+      border-top-color: var(--night-line);
+      color: var(--night-ink-2);
+    }
+
+    body.beacon-night .footer-links a {
+      color: var(--night-ink-2);
+    }
+
+    .beacon-page {
+      min-height: calc(100vh - 130px);
+      padding: 44px 0 72px;
+      background: var(--surface);
+      transition: background-color 0.28s ease, color 0.28s ease;
+    }
+
+    body.beacon-night .beacon-page {
+      background: var(--night-bg);
+      color: var(--night-ink);
+    }
+
+    .beacon-shell {
+      max-width: 680px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .beacon-topbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .beacon-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 13px;
+      border-radius: var(--radius-pill);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      font-size: var(--t-small);
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    body.beacon-night .beacon-badge {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    .beacon-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 10px rgba(245, 184, 65, 0.85);
+    }
+
+    .beacon-mode-btn {
+      padding: 7px 14px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--line-strong);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: var(--t-small);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    body.beacon-night .beacon-mode-btn {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    .beacon-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 26px;
+      padding: 28px;
+      display: grid;
+      gap: 20px;
+      box-shadow: 0 20px 50px -28px rgba(11, 18, 32, 0.16);
+    }
+
+    body.beacon-night .beacon-card {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      box-shadow: 0 24px 60px -24px rgba(0, 0, 0, 0.72);
+    }
+
+    .beacon-header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 14px;
+    }
+
+    .beacon-header h1 {
+      margin: 0;
+      font-size: clamp(24px, 3.6vw, 32px);
+      line-height: 1.2;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+
+    .beacon-sub {
+      margin: 6px 0 0;
+      font-size: var(--t-small);
+      color: var(--ink-2);
+    }
+
+    body.beacon-night .beacon-sub {
+      color: var(--night-ink-2);
+    }
+
+    .beacon-stamp {
+      text-align: right;
+      font-size: var(--t-small);
+      color: var(--ink-2);
+    }
+
+    body.beacon-night .beacon-stamp {
+      color: var(--night-ink-2);
+    }
+
+    .beacon-stamp strong {
+      display: block;
+      font-size: 16px;
+      color: var(--ink);
+    }
+
+    body.beacon-night .beacon-stamp strong {
+      color: var(--night-ink);
+    }
+
+    .beacon-timer {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: rgba(245, 184, 65, 0.16);
+      border: 1px solid rgba(245, 184, 65, 0.42);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    body.beacon-night .beacon-timer {
+      background: rgba(245, 184, 65, 0.12);
+      color: var(--amber);
+    }
+
+    .beacon-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    @media (max-width: 560px) {
+      .beacon-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+
+      .beacon-card {
+        padding: 20px;
+      }
+
+      .beacon-stamp {
+        text-align: left;
+      }
+    }
+
+    .beacon-cell {
+      padding: 16px;
+      border-radius: 18px;
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: grid;
+      gap: 4px;
+    }
+
+    body.beacon-night .beacon-cell {
+      background: var(--night-card-2);
+      border-color: var(--night-line);
+    }
+
+    .beacon-k {
+      font-size: var(--t-small);
+      font-weight: 600;
+      color: var(--ink-2);
+    }
+
+    body.beacon-night .beacon-k {
+      color: var(--night-ink-2);
+    }
+
+    .beacon-v {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.015em;
+      color: var(--ink);
+    }
+
+    body.beacon-night .beacon-v {
+      color: #ffffff;
+    }
+
+    .beacon-d {
+      font-size: var(--t-small);
+      color: var(--ink-2);
+    }
+
+    body.beacon-night .beacon-d {
+      color: var(--night-ink-2);
+    }
+
+    .beacon-note {
+      padding: 14px 16px;
+      border-radius: 16px;
+      background: var(--accent-soft);
+      border: 1px solid rgba(8, 127, 117, 0.22);
+      display: grid;
+      gap: 4px;
+    }
+
+    body.beacon-night .beacon-note {
+      background: rgba(8, 127, 117, 0.18);
+      border-color: rgba(79, 216, 203, 0.32);
+    }
+
+    .beacon-note strong {
+      font-size: var(--t-small);
+      color: var(--accent);
+    }
+
+    body.beacon-night .beacon-note strong {
+      color: #4fd8cb;
+    }
+
+    .beacon-note p {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.55;
+    }
+
+    .beacon-privacy {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: 18px;
+      background: #ffffff;
+      border: 1px solid var(--line);
+      font-size: var(--t-small);
+      color: var(--ink-2);
+    }
+
+    body.beacon-night .beacon-privacy {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink-2);
+    }
+
+    .beacon-privacy a {
+      color: var(--accent);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    body.beacon-night .beacon-privacy a {
+      color: #4fd8cb;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav nav-subpage">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="28" height="28">
+        <span data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</span>
+      </a>
+      <nav class="nav-links" aria-label="灯牌导航">
+        <a href="index.html" data-zh="首页" data-en="Home">首页</a>
+        <a href="support.html" data-zh="支持与帮助" data-en="Support">支持与帮助</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="lang-toggle" type="button" id="langBtn">EN</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="beacon-page">
+    <div class="wrap">
+      <div class="beacon-shell">
+        <div class="beacon-topbar">
+          <div class="beacon-badge">
+            <span class="beacon-dot" aria-hidden="true"></span>
+            <span id="beaconModeText" data-zh="示例照护灯牌（演示预览）" data-en="Sample Handover Beacon (Demo)">示例照护灯牌（演示预览）</span>
+          </div>
+          <button class="beacon-mode-btn" type="button" id="nightToggleBtn" data-zh="深夜护眼黑" data-en="OLED Night Mode">深夜护眼黑</button>
+        </div>
+
+        <article class="beacon-card">
+          <div class="beacon-header">
+            <div>
+              <h1 id="beaconTitle">小满 · 照护交接灯牌</h1>
+              <p class="beacon-sub" id="beaconAge">6 个月 16 天 · 11 月 25 日</p>
+            </div>
+            <div class="beacon-stamp">
+              <strong class="num" id="beaconTime">21:40</strong>
+              <span class="num" id="beaconElapsed">刚刚生成于发起方 iPhone</span>
+            </div>
+          </div>
+
+          <div class="beacon-timer" id="beaconTimerRow" style="display:none;">
+            <span class="beacon-dot" aria-hidden="true"></span>
+            <span id="beaconTimerText"></span>
+          </div>
+
+          <div class="beacon-grid">
+            <section class="beacon-cell">
+              <span class="beacon-k" id="lblFeed" data-zh="上次喂奶" data-en="Last Feed">上次喂奶</span>
+              <strong class="beacon-v num" id="valFeedHead">2 小时 10 分前</strong>
+              <span class="beacon-d num" id="valFeedDetail">19:30 · 瓶喂 130 毫升</span>
+            </section>
+
+            <section class="beacon-cell">
+              <span class="beacon-k" id="lblSleep" data-zh="上次醒来" data-en="Last Wake">上次醒来</span>
+              <strong class="beacon-v num" id="valSleepHead">1 小时 45 分前</strong>
+              <span class="beacon-d num" id="valSleepDetail">今日累计 11 小时 40 分</span>
+            </section>
+
+            <section class="beacon-cell">
+              <span class="beacon-k" id="lblDiaper" data-zh="上次尿布" data-en="Last Diaper">上次尿布</span>
+              <strong class="beacon-v num" id="valDiaperHead">55 分钟前</strong>
+              <span class="beacon-d num" id="valDiaperDetail">湿 4 · 便 1</span>
+            </section>
+
+            <section class="beacon-cell">
+              <span class="beacon-k" id="lblRhythm" data-zh="今日节奏" data-en="Today's Rhythm">今日节奏</span>
+              <strong class="beacon-v num" id="valRhythmHead">喂 5 次 · 尿布 5</strong>
+              <span class="beacon-d" id="valRhythmDetail">辅食 · 西兰花（温柔再试）</span>
+            </section>
+          </div>
+
+          <section class="beacon-note" id="beaconNoteBox">
+            <strong id="lblNote" data-zh="上一位点灯人留言" data-en="Handover Note">上一位点灯人留言</strong>
+            <p id="valNote">刚拍完嗝，准备小睡</p>
+          </section>
+        </article>
+
+        <div class="beacon-privacy">
+          <span data-zh="纯端侧零服务器：数据仅存放在此链接 # 号之后，不经过云端，安卓与微信点开即看。" data-en="Zero-server beacon: data lives solely after the # anchor in your URL and is decoded locally in-browser.">
+            纯端侧零服务器：数据仅存放在此链接 # 号之后，不经过云端，安卓与微信点开即看。
+          </span>
+          <a href="index.html" data-zh="了解摸索台灯 &gt;" data-en="About Moss &amp; Otto &gt;">了解摸索台灯 &gt;</a>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span data-zh="© 2026 摸索台灯 Moss &amp; Otto" data-en="© 2026 Moss &amp; Otto">© 2026 摸索台灯 Moss &amp; Otto</span>
+      <div class="footer-links">
+        <a href="index.html" data-zh="返回首页" data-en="Home">返回首页</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+        <a href="support.html" data-zh="支持与帮助" data-en="Support">支持与帮助</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var langBtn = document.getElementById("langBtn");
+      var nightToggleBtn = document.getElementById("nightToggleBtn");
+
+      var demoZh = {
+        v: 1, l: "zh", n: "小满", a: "6 个月 16 天", d: "11 月 25 日", t: "21:40", ts: Date.now() - 8 * 60000,
+        ac: "正在夜间安睡计时（已 42 分钟）",
+        f1: "2 小时 10 分前", f2: "19:30 · 瓶喂 130 毫升",
+        s1: "1 小时 45 分前", s2: "今日累计 11 小时 40 分",
+        p1: "55 分钟前", p2: "湿 4 · 便 1",
+        r1: "喂 5 次 · 尿布 5", r2: "辅食 · 西兰花",
+        no: "刚拍完嗝，准备小睡"
+      };
+      var demoEn = {
+        v: 1, l: "en", n: "Moss", a: "6m 16d", d: "Nov 25", t: "21:40", ts: Date.now() - 8 * 60000,
+        ac: "Active now: Sleep (42m)",
+        f1: "2h 10m ago", f2: "19:30 · Bottle 130 ml",
+        s1: "1h 45m ago", s2: "Today total 11h 40m",
+        p1: "55m ago", p2: "4 wet · 1 dirty",
+        r1: "5 feeds · 5 diapers", r2: "First food · Broccoli",
+        no: "Just burped · ready for nap"
+      };
+
+      function decodeFragment() {
+        var h = window.location.hash || "";
+        if (!h || h.indexOf("d=") === -1) return null;
+        try {
+          var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
+          if (!raw) return null;
+          var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
+          while (b64.length % 4) b64 += "=";
+          var bin = atob(b64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          var jsonStr = new TextDecoder("utf-8").decode(bytes);
+          var obj = JSON.parse(jsonStr);
+          if (!obj || typeof obj !== "object" || typeof obj.n !== "string") return null;
+          return obj;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      var livePayload = decodeFragment();
+      var activeLang = livePayload && livePayload.l === "en" ? "en" : (localStorage.getItem("mossling-lang") === "en" ? "en" : "zh");
+
+      function updateNightBtn() {
+        var isNight = document.body.classList.contains("beacon-night");
+        if (nightToggleBtn) {
+          nightToggleBtn.textContent = isNight
+            ? (activeLang === "en" ? "Daylight View" : "切换日间明亮")
+            : (activeLang === "en" ? "OLED Night Mode" : "深夜护眼黑");
+        }
+      }
+
+      function renderPayload() {
+        var data = livePayload || (activeLang === "en" ? demoEn : demoZh);
+        var isLive = !!livePayload;
+        var modeEl = document.getElementById("beaconModeText");
+        if (modeEl) {
+          modeEl.textContent = isLive
+            ? (activeLang === "en" ? "Live Encrypted Handover Beacon" : "来自家庭 iPhone 的即时传灯交接")
+            : (activeLang === "en" ? "Sample Handover Beacon (Demo)" : "示例照护灯牌（演示预览）");
+        }
+
+        document.getElementById("beaconTitle").textContent = (data.n || (activeLang === "en" ? "Baby" : "宝宝"))
+          + (activeLang === "en" ? " · Care Handover" : " · 照护交接灯牌");
+        document.getElementById("beaconAge").textContent = [data.a, data.d].filter(Boolean).join(" · ");
+        document.getElementById("beaconTime").textContent = data.t || "";
+
+        var timerRow = document.getElementById("beaconTimerRow");
+        var timerText = document.getElementById("beaconTimerText");
+        if (data.ac && timerRow && timerText) {
+          timerRow.style.display = "flex";
+          timerText.textContent = String(data.ac);
+        } else if (timerRow) {
+          timerRow.style.display = "none";
+        }
+
+        document.getElementById("valFeedHead").textContent = data.f1 || "-";
+        document.getElementById("valFeedDetail").textContent = data.f2 || "";
+        document.getElementById("valSleepHead").textContent = data.s1 || "-";
+        document.getElementById("valSleepDetail").textContent = data.s2 || "";
+        document.getElementById("valDiaperHead").textContent = data.p1 || "-";
+        document.getElementById("valDiaperDetail").textContent = data.p2 || "";
+        document.getElementById("valRhythmHead").textContent = data.r1 || "-";
+        document.getElementById("valRhythmDetail").textContent = data.r2 || "";
+
+        var noteBox = document.getElementById("beaconNoteBox");
+        var noteEl = document.getElementById("valNote");
+        if (data.no && noteBox && noteEl) {
+          noteBox.style.display = "grid";
+          noteEl.textContent = data.no;
+        } else if (noteBox) {
+          noteBox.style.display = "none";
+        }
+
+        var elapsedEl = document.getElementById("beaconElapsed");
+        if (elapsedEl && data.ts) {
+          var mins = Math.max(0, Math.floor((Date.now() - Number(data.ts)) / 60000));
+          if (mins < 1) {
+            elapsedEl.textContent = activeLang === "en" ? "Shared just now" : "刚刚生成于发起方 iPhone";
+          } else if (mins < 60) {
+            elapsedEl.textContent = activeLang === "en" ? ("Shared " + mins + "m ago") : ("生成于 " + mins + " 分钟前");
+          } else {
+            var hrs = Math.floor(mins / 60);
+            elapsedEl.textContent = activeLang === "en" ? ("Shared " + hrs + "h ago") : ("生成于 " + hrs + " 小时前");
+          }
+        }
+      }
+
+      function applyLang(lang) {
+        activeLang = lang;
+        html.setAttribute("data-lang", lang);
+        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
+        localStorage.setItem("mossling-lang", lang);
+        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          var t = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          if (t !== null) el.textContent = t;
+        });
+        updateNightBtn();
+        renderPayload();
+      }
+
+      var hour = new Date().getHours();
+      if (hour >= 21 || hour < 6) {
+        document.body.classList.add("beacon-night");
+      }
+
+      if (nightToggleBtn) {
+        nightToggleBtn.addEventListener("click", function () {
+          document.body.classList.toggle("beacon-night");
+          updateNightBtn();
+        });
+      }
+
+      if (langBtn) {
+        langBtn.addEventListener("click", function () {
+          applyLang(activeLang === "zh" ? "en" : "zh");
+        });
+      }
+
+      window.addEventListener("hashchange", function () {
+        livePayload = decodeFragment();
+        renderPayload();
+      });
+
+      setInterval(renderPayload, 30000);
+      applyLang(activeLang);
+    })();
+  </script>
+</body>
+</html>

@@ -269,7 +269,7 @@ private struct LockScreenTimer: View {
         TimerFace(type: type, s: s)
             .environment(\.colorScheme, .dark)
             .opacity(dim ? 0.85 : 1)
-            .activityBackgroundTint(Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255).opacity(dim ? 0.92 : 1))
+            .activityBackgroundTint(Color(red: 0x07 / 255, green: 0x0B / 255, blue: 0x16 / 255).opacity(dim ? 0.96 : 1))
             .activitySystemActionForegroundColor(.white)
     }
 }

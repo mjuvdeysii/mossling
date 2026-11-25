@@ -246,6 +246,28 @@ struct QuickLogBottleIntent: AppIntent {
     }
 }
 
+/// Hands-free first-food logging via Siri or Shortcuts without opening the app.
+struct QuickLogSolidIntent: AppIntent {
+    static var title: LocalizedStringResource = "记一次辅食"
+    static var description = IntentDescription("无需打开应用，直接记下宝宝今天吃的辅食或初尝食材。")
+    @Parameter(title: "食材名称", default: "") var foodName: String
+
+    init() { self.foodName = "" }
+    init(foodName: String = "") { self.foodName = foodName }
+
+    func perform() async throws -> some IntentResult & ProvidesDialog {
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
+            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
+        }
+        let trimmed = foodName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let detail = trimmed.isEmpty ? nil : String(trimmed.prefix(40))
+        JournalFile.quickLog(type: LogType.solid, detail: detail)
+        WidgetCenter.shared.reloadAllTimelines()
+        let spoken = detail ?? L10n.t("辅食", "first food")
+        return .result(dialog: "\(L10n.t("已记下辅食：\(spoken)。", "Logged first food: \(spoken)."))")
+    }
+}
+
 /// Pure testable care status summary shared between `BabyCareStatusIntent` and Siri snippet UI.
 struct BabyCareStatusSummary: Equatable {
     let babyName: String

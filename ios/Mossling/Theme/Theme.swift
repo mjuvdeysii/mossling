@@ -163,6 +163,15 @@ struct IconTile: View {
 enum Daylight {
     static func isNight(_ d: Date = Date()) -> Bool { let h = Day.cal.component(.hour, from: d); return h >= 19 || h < 6 }
 }
+
+/// Scene duty phase decoupling late-night 3AM one-handed OLED speed logging from daytime cozy studio mode.
+enum CircadianDutyPhase {
+    /// Late-night window (21:00–05:59) when `LampHubView` defaults to true-black zero-glare one-tap care.
+    static func isLateNight3AM(_ d: Date = Date()) -> Bool {
+        let h = Day.cal.component(.hour, from: d)
+        return h >= 21 || h < 6
+    }
+}
 extension EnvironmentValues {
     @Entry var lamp: Bool = false
     /// Night (7 pm – 6 am): the sky on the home is the night sky and Otto's bead glows; the page itself stays as set.
@@ -262,6 +271,8 @@ enum Motion {
 extension Palette {
     static let lampPage = Color(hex: 0x0E1430)
     static let lampCard = Color(hex: 0x19213F)
+    static let oledBlack = Color(hex: 0x04060E)
+    static let oledSurface = Color(hex: 0x0D1326)
     static let amber = Color(hex: 0xFFB547)
     static let amberDeep = Color(hex: 0x9A5A00)
     /// The lamp's tint for controls. The glow (`amber`) is light only — under white text, as system controls draw a

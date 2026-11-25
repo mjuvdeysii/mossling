@@ -62,5 +62,16 @@ struct MosslingShortcuts: AppShortcutsProvider {
             shortTitle: "床头夜灯",
             systemImageName: "lamp.desk.fill"
         )
+        AppShortcut(
+            intent: QuickLogSolidIntent(),
+            phrases: [
+                "用\(.applicationName)记辅食",
+                "在\(.applicationName)记宝宝吃辅食",
+                "用\(.applicationName)记一顿辅食",
+                "Log first food in \(.applicationName)",
+            ],
+            shortTitle: "记辅食",
+            systemImageName: "carrot.fill"
+        )
     }
 }

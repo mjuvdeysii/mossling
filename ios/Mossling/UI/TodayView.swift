@@ -190,6 +190,7 @@ enum AtelierDockMetrics {
 /// Compact greeting strip at the top of `Explore` linking cleanly across tabs to `留念 (Keepsakes)` without cloning `MonthView` on Tab 0.
 struct ExploreGreetingStrip: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
@@ -198,10 +199,23 @@ struct ExploreGreetingStrip: View {
     let isNight: Bool
     let openKeepsakes: () -> Void
 
+    private var foods: FoodAtlasStore { FoodAtlasStore.shared }
+    private var stickerVersion: FoodStickerVersion { FoodStickerVersion.shared }
+
+    private func todayTastedFoods() -> [FoodItem] {
+        let todayEpoch = app.today.epochDay
+        return FoodItem.catalog.filter { item in
+            foods.record(for: item.id)?.firstTastedEpochDay == todayEpoch
+        }
+    }
+
     var body: some View {
         let dark = lamp || scheme == .dark
         let land = Land.of(month)
         let mo = app.content.month(month)
+        let _ = stickerVersion.tick
+        let todayFoods = !isNight ? Array(todayTastedFoods().prefix(2)) : []
+        let hasPlayToday = !isNight && j.logs(on: app.today).contains(where: { $0.type == LogType.play })
 
         Button(action: openKeepsakes) {
             HStack(alignment: .center, spacing: 10) {
@@ -230,6 +244,24 @@ struct ExploreGreetingStrip: View {
                             Text(L10n.t("0–3 岁旅程", "0–3y Journey"))
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(Palette.secondaryText)
+                        }
+
+                        if !todayFoods.isEmpty || hasPlayToday {
+                            HStack(spacing: -4) {
+                                ForEach(todayFoods) { food in
+                                    FoodEmblemArt(food: food, size: 15)
+                                        .frame(width: 17, height: 17)
+                                        .background(Circle().fill(dark ? Palette.lampCard : .white))
+                                        .overlay(Circle().strokeBorder(food.category.color.opacity(0.45), lineWidth: 0.8))
+                                }
+                                if hasPlayToday {
+                                    GoldBead(size: 10)
+                                        .frame(width: 17, height: 17)
+                                        .background(Circle().fill(dark ? Palette.lampCard : .white))
+                                        .overlay(Circle().strokeBorder(Palette.amber.opacity(0.45), lineWidth: 0.8))
+                                }
+                            }
+                            .accessibilityHidden(true)
                         }
                     }
 
