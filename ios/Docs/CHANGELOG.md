@@ -3,6 +3,11 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 25（v2.0 正式发布候选 22 · Edition I Round 25 · 三大创意炼金术原生物理仪与界面润色：Otto 光影手影墙 / 无声掌心轻拍 / 划屏传灯交接仪式）**：
+  - **【创意炼金术 I · 感官玩具盒第 5 独立工作室「Otto 光影手影墙」】**：在 `ToyboxMode` 新增 `.shadows` 工作室（`ShadowWallStudio.swift`），新增 Metal 着色器 `shadowWallAtmosphere` 渲染卧室墙壁暖金光锥与浮尘肌理；内置可单指拖动的五款纸艺剪影（垂耳兔 / 飞鸟 / 小狗 / 蝴蝶 / 帆船），遵循真实光学反距离平方投影模型 `ShadowWallPhysics`（越靠近 Otto 头部灯珠，投墙影子越大、半影虚化越柔），点触触发摆动并响起对应五声音阶八音盒和弦，地板端 `Moss` 视线实时追随墙上光影惊奇呼应，严格遵守 Otto 无手正典；同步更新首页 `TodayView` 玩具盒副标题入口。
+  - **【创意炼金术 II · 床头夜灯「无声掌心轻拍安抚器 Silent Palm-Pat」】**：为 `TactileEngine` 新增严格零声音、低锐度柔弹 `palmPatPulse` 触觉波形；在 `BedsideLampView` 顶部与 4–6 呼吸并列上线「轻拍 / Pat」模式，支持 60 / 54 / 48 BPM 与「渐缓（5 分钟内由 60 温和降至 48 BPM）」及点击灯光即刻对齐父母拍打频率的 Tap-Tempo（`PalmPatRhythm`），中心夜灯晕环实时与拍打脉搏同频闪烁。
+  - **【创意炼金术 III · `HandoverSheet` 划屏传灯交接仪式 & 紧凑版面】**：在 `HandoverSheet` 的 `PassingLanternArt` 上线沿二次贝塞尔拱桥单指推金珠交接交互（`LanternPassMath`）：每跨 25% 触发黄铜卡点触觉，地垫暖光池随金珠物理迁移，送达 `>= 0.88` 触发木琴金珠落定音并与佩戴珊瑚针织帽的 Mochi 眉眼弯弯致意；同步收紧交接卡内边距、添加 `.scrollBounceBehavior(.basedOnSize)` 并将「分享交接卡 / 复制文字」改为并排双操作条。补全 `testRound25CreativeAlchemyShadowWallPalmPatAndLanternPass` 与 `test75Round25CreativeAlchemyInstruments`。
+
 - **Batch 24（v2.0 正式发布候选 21 · Edition I Round 24 · 全局首屏主义与工坊单屏驾驶舱 `YouView` · 严禁非必要下拉浏览）**：
   - **【工坊页 `YouView` 单屏驾驶舱重构】**：将工坊首页由原先 6 张纵排大卡与 9 行透明清单（约 `1,550pt`）彻底重铸为 **一屏直达的原生态 iOS 驾驶舱（`~536pt`，零非必要下拉）**：将宝宝信息与「摸索台灯的故事」三幕微剧院入口柔和合入顶卡，外观与语言合为双行紧凑胶囊卡，偏好开关升级为 **2×2 触感控制瓷砖**，「循证来源 / 离线备份 / 隐私保护 / 更新志」化为 **2×2 核心透明门户**，其余法律条款、免责、致谢、重播提示、反馈与可折叠设计工艺四柱收纳进自含 `NavigationStack` 的 `StudioLegalSheet`。
   - **【全站四大主屏首屏纪律 + `.scrollBounceBehavior(.basedOnSize)`】**：统一在 **摸索（`TodayView`）**、**台灯（`LampHubView`）**、**留念（`JourneyHubView`）**、**工坊（`YouView`）** 与 **剧场（`StoryView` / `PlayView`）** 启用 `.inline` 精炼顶栏与 `.scrollBounceBehavior(.basedOnSize)`；优化本周其余活动为 2 列精巧网格并紧致感官双卡；紧致夜灯主卡与随手轻记；「留念」页面移除重复章节条并将三片土地串珠列表默认折叠收起（轻点土地条或“回到现在”才原地展开），全面消除非必要纵滑网页感，并新增 `testRound24ViewportFirstStudioAndFourTabs` 与 `852pt` 单屏检验截图 `test74Round24ViewportFirstFourTabs`。

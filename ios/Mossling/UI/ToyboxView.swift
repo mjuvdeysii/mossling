@@ -1,14 +1,15 @@
 import SwiftUI
 import CoreMotion
 
-/// The four tactile Montessori co-play studios inside 「感官玩具盒 / Sensory Toybox」.
+/// The five tactile Montessori co-play studios inside 「感官玩具盒 / Sensory Toybox」.
 enum ToyboxMode: String, CaseIterable, Identifiable {
-    case xylophone, rainstick, fireflies, contrast
+    case xylophone, shadows, rainstick, fireflies, contrast
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .xylophone: L10n.t("木琴", "Keys")
+        case .shadows: L10n.t("手影", "Shadow")
         case .rainstick: L10n.t("金珠", "Beads")
         case .fireflies: L10n.t("萤火", "Glow")
         case .contrast: L10n.t("视卡", "Cards")
@@ -18,6 +19,7 @@ enum ToyboxMode: String, CaseIterable, Identifiable {
     var symbol: String {
         switch self {
         case .xylophone: "music.note"
+        case .shadows: "rays"
         case .rainstick: "circle.grid.3x3.fill"
         case .fireflies: "sparkles"
         case .contrast: "circle.lefthalf.filled"
@@ -29,6 +31,7 @@ enum ToyboxMode: String, CaseIterable, Identifiable {
     var tone: Color {
         switch self {
         case .xylophone: Crayon.teal
+        case .shadows: Palette.amber
         case .rainstick: Crayon.sunflower
         case .fireflies: Crayon.lilac
         case .contrast: Crayon.caramel
@@ -71,6 +74,7 @@ struct ToyboxView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.dynamicTypeSize) private var type
     @State private var mode: ToyboxMode
     @State private var recordedSession = false
     @State private var volumeMonitor: EarSafeVolumeMonitor
@@ -78,6 +82,7 @@ struct ToyboxView: View {
     @Namespace private var pillNS
 
     private let previewPlayAlong: Bool
+    private let initialShadowPuppet: ShadowPuppetKind
     private let initialFormation: FireflyFormation
     private let initialRainstickLayout: RainstickLayout
     private let initialContrastIndex: Int
@@ -85,6 +90,7 @@ struct ToyboxView: View {
     init(
         initialMode: ToyboxMode = .xylophone,
         previewPlayAlong: Bool = false,
+        initialShadowPuppet: ShadowPuppetKind = .rabbit,
         initialFormation: FireflyFormation = .drift,
         initialRainstickLayout: RainstickLayout = .cascade,
         initialContrastIndex: Int = 0,
@@ -94,6 +100,7 @@ struct ToyboxView: View {
         _mode = State(initialValue: initialMode)
         _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume, previewForceShow: previewShowVolumeGuard))
         self.previewPlayAlong = previewPlayAlong
+        self.initialShadowPuppet = initialShadowPuppet
         self.initialFormation = initialFormation
         self.initialRainstickLayout = initialRainstickLayout
         self.initialContrastIndex = initialContrastIndex
@@ -120,6 +127,12 @@ struct ToyboxView: View {
                     XylophoneStudio(
                         dark: dark,
                         initialPlayAlong: previewPlayAlong,
+                        onInteract: markCoPlay
+                    )
+                case .shadows:
+                    ShadowWallStudio(
+                        dark: dark,
+                        initialPuppet: initialShadowPuppet,
                         onInteract: markCoPlay
                     )
                 case .rainstick:
@@ -193,37 +206,44 @@ struct ToyboxView: View {
     }
 
     private func modePicker(dark: Bool) -> some View {
-        HStack(spacing: 6) {
-            ForEach(ToyboxMode.allCases) { item in
-                let selected = mode == item
-                Button {
-                    guard mode != item else { return }
-                    TactileEngine.shared.beadClick()
-                    withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
-                        mode = item
-                    }
-                } label: {
-                    HStack(spacing: 5) {
-                        Image(systemName: item.symbol)
-                            .font(.caption.weight(.bold))
-                        Text(item.title)
-                            .font(.footnote.weight(.bold))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(selected ? .white : Palette.text)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background {
-                        if selected {
-                            Capsule()
-                                .fill(Palette.accentFill)
-                                .matchedGeometryEffect(id: "toyboxModePill", in: pillNS)
-                        }
+        let pills = ForEach(ToyboxMode.allCases) { item in
+            let selected = mode == item
+            Button {
+                guard mode != item else { return }
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
+                    mode = item
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: item.symbol)
+                        .font(.caption2.weight(.bold))
+                    Text(item.title)
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.74)
+                }
+                .foregroundStyle(selected ? .white : Palette.text)
+                .padding(.horizontal, type.isAccessibilitySize ? 10 : 4)
+                .padding(.vertical, 7)
+                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity)
+                .background {
+                    if selected {
+                        Capsule()
+                            .fill(Palette.accentFill)
+                            .matchedGeometryEffect(id: "toyboxModePill", in: pillNS)
                     }
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(selected ? .isSelected : [])
+        }
+
+        return Group {
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 6, lineSpacing: 6) { pills }
+            } else {
+                HStack(spacing: 4) { pills }
             }
         }
         .padding(4)

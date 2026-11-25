@@ -77,7 +77,7 @@ struct TodayView: View {
                     title: L10n.t("感官玩具盒", "Sensory Toybox"),
                     subtitle: toyTodayCount > 0
                         ? L10n.t("今日 \(toyTodayCount) 次 · 6 童谣", "\(toyTodayCount) today · 6 songs")
-                        : L10n.t("木琴 · 雨棒 · 萤火", "4 tactile studios"),
+                        : L10n.t("木琴 · 手影 · 雨棒 · 萤火", "5 studios · Shadow Wall"),
                     dark: dark
                 ) {
                     MiniXylophoneArt(dark: dark)

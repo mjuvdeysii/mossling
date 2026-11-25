@@ -234,6 +234,55 @@ struct MidnightCareSummary: Equatable {
     }
 }
 
+/// Soothing palm-pat tempo presets matching relaxed resting heart-rate rhythms.
+enum PalmPatPreset: Int, CaseIterable, Identifiable, Sendable {
+    case awake60 = 60
+    case settling54 = 54
+    case deep48 = 48
+
+    var id: Int { rawValue }
+    var bpm: Double { Double(rawValue) }
+
+    var label: String {
+        switch self {
+        case .awake60: L10n.t("轻抚 60", "Calm 60")
+        case .settling54: L10n.t("渐缓 54", "Settle 54")
+        case .deep48: L10n.t("深睡 48", "Deep 48")
+        }
+    }
+}
+
+/// Pure, testable silent palm-pat cadence math (automatic gradual deceleration toward 48 BPM + tap-tempo extraction).
+enum PalmPatRhythm {
+    static func intervalSeconds(bpm: Double) -> Double {
+        let clamped = max(42.0, min(72.0, bpm))
+        return 60.0 / clamped
+    }
+
+    static func effectiveBPM(startBPM: Double, elapsedSeconds: Double, autoSlow: Bool) -> Double {
+        let base = max(46.0, min(72.0, startBPM))
+        guard autoSlow, base > 48.0, elapsedSeconds > 0 else { return base }
+        let progress = min(1.0, elapsedSeconds / 300.0)
+        return max(46.0, base - (base - 48.0) * progress)
+    }
+
+    static func bpmFromTapTimestamps(_ timestamps: [TimeInterval]) -> Double? {
+        guard timestamps.count >= 3 else { return nil }
+        let recent = Array(timestamps.suffix(5))
+        var intervals: [Double] = []
+        for idx in 1..<recent.count {
+            let dt = recent[idx] - recent[idx - 1]
+            if dt >= 0.45 && dt <= 2.4 {
+                intervals.append(dt)
+            }
+        }
+        guard !intervals.isEmpty else { return nil }
+        let mean = intervals.reduce(0, +) / Double(intervals.count)
+        guard mean > 0 else { return nil }
+        return max(42.0, min(72.0, (60.0 / mean).rounded()))
+    }
+}
+
 /// Otto's Living Bedside Lamp (床头夜灯): a full-screen zero-glare midnight sanctuary for 3 a.m. feeds and settling.
 /// Features a vertical thumb-slide warm dimmer & double-tap quick-dim, 3 warmth color presets, gyroscope pendulum glow,
 /// six zero-asset real-time soothing soundscapes with dual-layer mixing & auto-fade, and midnight care controls.
@@ -252,6 +301,12 @@ struct BedsideLampView: View {
     @State private var showingDimmerHint = true
     @State private var breathingGuide: Bool
     @State private var breathingHaptics = false
+    @State private var palmPatActive: Bool
+    @State private var palmPatBPM: Double = 60
+    @State private var palmPatAutoSlow: Bool = true
+    @State private var palmPatStartedAt: Date = Date()
+    @State private var palmPatTapLog: [TimeInterval] = []
+    @State private var palmPatWaveTick: Int = 0
     @State private var soundscape = SoundscapeEngine.shared
     @State private var motion = LampTiltObserver()
     @State private var pulse = false
@@ -267,6 +322,7 @@ struct BedsideLampView: View {
     init(
         initialBrightness: Double? = nil,
         initialBreathingGuide: Bool? = nil,
+        initialPalmPat: Bool? = nil,
         initialWarmth: LampWarmth? = nil,
         initialQuickCare: MidnightQuickCareMode? = nil,
         previewClock: Date? = nil,
@@ -275,11 +331,17 @@ struct BedsideLampView: View {
         let clamped = max(0.15, min(1.0, initialBrightness ?? 0.72))
         _brightness = State(initialValue: clamped)
         _breathingGuide = State(initialValue: initialBreathingGuide ?? false)
+        _palmPatActive = State(initialValue: initialPalmPat ?? false)
         _warmth = State(initialValue: initialWarmth ?? .amber)
         _quickCareMode = State(initialValue: initialQuickCare)
         _volumeMonitor = State(initialValue: EarSafeVolumeMonitor(previewVolume: previewVolume))
         self.previewClock = previewClock
-        self.persistsToAppModel = initialBrightness == nil && initialBreathingGuide == nil && initialWarmth == nil && initialQuickCare == nil && previewClock == nil
+        self.persistsToAppModel = initialBrightness == nil
+            && initialBreathingGuide == nil
+            && initialPalmPat == nil
+            && initialWarmth == nil
+            && initialQuickCare == nil
+            && previewClock == nil
     }
 
     /// Computes live lamp brightness coupled with any finite soundscape auto-fade envelope and post-fade ember rest.
@@ -356,6 +418,27 @@ struct BedsideLampView: View {
 
     private var breathingHapticsActive: Bool {
         breathingGuide && breathingHaptics && !emberResting && scenePhase == .active && !Perf.still && previewClock == nil
+    }
+
+    private var palmPatTaskKey: String {
+        "\(palmPatActive && !emberResting && scenePhase == .active && !Perf.still && previewClock == nil)-\(Int(palmPatBPM))-\(palmPatAutoSlow)-\(palmPatWaveTick)"
+    }
+
+    private var livePalmPatBPM: Double {
+        let elapsed = max(0, Date().timeIntervalSince(palmPatStartedAt))
+        return PalmPatRhythm.effectiveBPM(startBPM: palmPatBPM, elapsedSeconds: elapsed, autoSlow: palmPatAutoSlow)
+    }
+
+    private func recordPalmPatTap() {
+        rekindleFromEmber()
+        let now = Date().timeIntervalSinceReferenceDate
+        palmPatTapLog = palmPatTapLog.filter { now - $0 <= 3.0 } + [now]
+        if let detected = PalmPatRhythm.bpmFromTapTimestamps(palmPatTapLog) {
+            palmPatBPM = detected
+            palmPatStartedAt = Date()
+        }
+        TactileEngine.shared.palmPatPulse(intensity: 0.60)
+        palmPatWaveTick += 1
     }
 
     var body: some View {
@@ -480,6 +563,15 @@ struct BedsideLampView: View {
                 try? await Task.sleep(for: .seconds(step.delay))
                 guard !Task.isCancelled, breathingHapticsActive else { return }
                 TactileEngine.shared.breathCue(inhaling: step.nextInhaling)
+            }
+        }
+        .task(id: palmPatTaskKey) {
+            guard palmPatActive, !emberResting, scenePhase == .active, !Perf.still, previewClock == nil else { return }
+            while !Task.isCancelled {
+                let interval = PalmPatRhythm.intervalSeconds(bpm: livePalmPatBPM)
+                try? await Task.sleep(for: .seconds(interval))
+                guard !Task.isCancelled, palmPatActive, !emberResting, scenePhase == .active else { return }
+                TactileEngine.shared.palmPatPulse(intensity: 0.56)
             }
         }
         .accessibilityElement(children: .contain)
@@ -627,31 +719,67 @@ struct BedsideLampView: View {
 
             Spacer()
 
-            // Calm 4-6 paced breathing guide toggle right on the top bar
-            Button {
-                TactileEngine.shared.beadClick()
-                rekindleFromEmber()
-                withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
-                    breathingGuide.toggle()
+            // Right soothing controls: Silent Palm-Pat & 4-6 Calm Breathing Halo
+            HStack(spacing: 6) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
+                        palmPatActive.toggle()
+                        if palmPatActive {
+                            breathingGuide = false
+                            palmPatStartedAt = Date()
+                            palmPatTapLog = []
+                        }
+                    }
+                    if palmPatActive {
+                        TactileEngine.shared.palmPatPulse(intensity: 0.54)
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: palmPatActive ? "hand.tap.fill" : "hand.tap")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text(L10n.t("轻拍", "Pat"))
+                            .font(.caption2.weight(.bold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(palmPatActive ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
+                    .padding(.horizontal, 9)
+                    .frame(height: 36)
+                    .background(Capsule().fill(palmPatActive ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
+                    .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(palmPatActive ? 0.85 : 0.28), lineWidth: 1))
                 }
-                commitLampPreferences()
-            } label: {
-                HStack(spacing: 5) {
-                    Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text(L10n.t("4–6 呼吸", "4–6"))
-                        .font(.caption2.weight(.bold))
-                        .lineLimit(1)
+                .buttonStyle(.toy)
+                .accessibilityLabel(L10n.t(palmPatActive ? "关闭无声掌心轻拍安抚" : "开启无声掌心轻拍安抚", palmPatActive ? "Turn off silent palm-pat soother" : "Turn on silent palm-pat soother"))
+
+                Button {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(reduce ? nil : .spring(response: 0.35, dampingFraction: 0.82)) {
+                        breathingGuide.toggle()
+                        if breathingGuide {
+                            palmPatActive = false
+                        }
+                    }
+                    commitLampPreferences()
+                } label: {
+                    HStack(spacing: 5) {
+                        Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(L10n.t("4–6 呼吸", "4–6"))
+                            .font(.caption2.weight(.bold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(breathingGuide ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
+                    .padding(.horizontal, 10)
+                    .frame(height: 36)
+                    .frame(minWidth: 40)
+                    .background(Capsule().fill(breathingGuide ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
+                    .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
                 }
-                .foregroundStyle(breathingGuide ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
-                .padding(.horizontal, 10)
-                .frame(height: 36)
-                .frame(minWidth: 40)
-                .background(Capsule().fill(breathingGuide ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
-                .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
+                .buttonStyle(.toy)
+                .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
             }
-            .buttonStyle(.toy)
-            .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
         }
     }
 
@@ -669,6 +797,8 @@ struct BedsideLampView: View {
                         if emberResting {
                             TactileEngine.shared.beadClick()
                             rekindleFromEmber()
+                        } else if palmPatActive {
+                            recordPalmPatTap()
                         }
                     }
                     .onTapGesture(count: 2) {
@@ -682,7 +812,37 @@ struct BedsideLampView: View {
                         commitLampPreferences()
                     }
 
-                if breathingGuide && !emberResting {
+                if palmPatActive && !emberResting {
+                    TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
+                        let t = (reduce || Perf.still) ? 0.28 : tl.date.timeIntervalSinceReferenceDate
+                        let beatHz = livePalmPatBPM / 60.0
+                        let phase = (t * beatHz).truncatingRemainder(dividingBy: 1.0)
+                        let pulseWave = exp(-phase * 3.4)
+                        let ringSize: CGFloat = 132 + CGFloat(phase) * 56
+
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    RadialGradient(
+                                        colors: [
+                                            warmth.highlightCore.opacity((0.36 + 0.34 * pulseWave) * b),
+                                            warmth.primaryGlow.opacity((0.16 + 0.18 * pulseWave) * b),
+                                            .clear
+                                        ],
+                                        center: .center,
+                                        startRadius: 12,
+                                        endRadius: 108
+                                    )
+                                )
+                                .frame(width: 212, height: 212)
+
+                            Circle()
+                                .strokeBorder(warmth.primaryGlow.opacity(max(0.08, (1.0 - phase) * 0.68 * b)), lineWidth: 2.0)
+                                .frame(width: ringSize, height: ringSize)
+                        }
+                    }
+                    .allowsHitTesting(false)
+                } else if breathingGuide && !emberResting {
                     TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
                         let ringSize: CGFloat = 132 + CGFloat(st.progress) * 56
@@ -830,6 +990,55 @@ struct BedsideLampView: View {
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("续播 15 分钟安抚声景", "Play 15-minute soundscape encore"))
+                } else if palmPatActive {
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(warmth.primaryGlow)
+                            .frame(width: 6, height: 6)
+                        Text(L10n.t("无声轻拍 \(Int(livePalmPatBPM.rounded())) · 点灯定拍", "Silent Pat \(Int(livePalmPatBPM.rounded()))"))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(warmth.primaryGlow.opacity(0.95))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.76)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 5)
+                    .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
+
+                    ForEach(PalmPatPreset.allCases) { preset in
+                        let on = Int(palmPatBPM.rounded()) == preset.rawValue
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            palmPatBPM = preset.bpm
+                            palmPatStartedAt = Date()
+                            TactileEngine.shared.palmPatPulse(intensity: 0.54)
+                        } label: {
+                            Text("\(preset.rawValue)")
+                                .font(.caption2.weight(.bold))
+                                .monospacedDigit()
+                                .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
+                                .padding(.horizontal, 7)
+                                .padding(.vertical, 4)
+                                .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                        }
+                        .buttonStyle(.plain)
+                    }
+
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        palmPatAutoSlow.toggle()
+                        palmPatStartedAt = Date()
+                    } label: {
+                        Text(L10n.t("渐缓", "Slow"))
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(palmPatAutoSlow ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.86))
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 4)
+                            .background(Capsule().fill(palmPatAutoSlow ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityAddTraits(palmPatAutoSlow ? .isSelected : [])
                 } else if breathingGuide {
                     TimelineView(.animation(minimumInterval: 0.25, paused: reduce || Perf.still || scenePhase != .active)) { tl in
                         let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)

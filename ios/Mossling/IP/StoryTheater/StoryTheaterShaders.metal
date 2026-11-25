@@ -257,3 +257,46 @@ inline float fbm3(float2 p) {
 
     return half4(clamp(rgb, 0.0h, 1.0h) * color.a, color.a);
 }
+
+/// Interactive bedroom wall amber spotlight cone, plaster micro-tooth, and rising dust glow from Otto's lamp bead.
+[[stitchable]] half4 shadowWallAtmosphere(
+    float2 position,
+    half4 color,
+    float2 size,
+    float2 lampPos,
+    float warmth,
+    float time
+) {
+    if (color.a <= 0.001h) {
+        return color;
+    }
+    float2 safeSize = max(size, float2(1.0));
+    float2 uv = position / safeSize;
+    float2 lampUV = lampPos / safeSize;
+
+    half3 rgb = color.rgb / color.a;
+
+    // Upward conical projection beam centered on Otto's golden head bead
+    float2 rel = uv - lampUV;
+    float upDist = max(0.0, -rel.y);
+    float coneHalfW = 0.12 + upDist * 0.82;
+    float inBeam = smoothstep(coneHalfW, coneHalfW * 0.18, abs(rel.x))
+        * smoothstep(-0.04, 0.10, -rel.y)
+        * (1.0 - smoothstep(0.55, 1.05, upDist));
+
+    float dust = valueNoise(position * 0.042 + float2(sin(time * 0.35) * 0.4, -time * 0.32));
+    float beamGlow = inBeam * (0.72 + 0.28 * dust) * warmth * 0.32;
+    half3 warmAmber = half3(1.0h, 0.78h, 0.42h);
+    rgb = mix(rgb, rgb + warmAmber * half(beamGlow), 0.90h);
+
+    // Subtle warm plaster tooth across the nursery wall
+    float plaster = (hash21(floor(position * 0.9)) - 0.5) * 0.016;
+    rgb += half3(plaster);
+
+    // Gentle twilight corner falloff framing the optical projection wall
+    float2 edge = uv - float2(0.5, 0.46);
+    float cornerDim = 1.0 - smoothstep(0.38, 0.92, length(edge)) * 0.24;
+    rgb *= half(cornerDim);
+
+    return half4(clamp(rgb, 0.0h, 1.0h) * color.a, color.a);
+}

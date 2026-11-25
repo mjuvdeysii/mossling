@@ -118,6 +118,31 @@ struct HandoverSnapshot: Sendable {
     }
 }
 
+/// Pure, testable geometry and haptic detent logic for the Swipe-to-Pass Lantern Handover ritual.
+enum LanternPassMath {
+    static let completionThreshold: Double = 0.88
+
+    static func clampedProgress(_ raw: Double) -> Double {
+        min(1.0, max(0.0, raw))
+    }
+
+    static func isPassed(_ progress: Double) -> Bool {
+        clampedProgress(progress) >= completionThreshold
+    }
+
+    static func detentStep(for progress: Double) -> Int {
+        min(4, max(0, Int((clampedProgress(progress) * 4.0).rounded())))
+    }
+
+    static func quadBezierPoint(t: Double, start: CGPoint, control: CGPoint, end: CGPoint) -> CGPoint {
+        let u = 1.0 - clampedProgress(t)
+        let s = clampedProgress(t)
+        let x = u * u * Double(start.x) + 2.0 * u * s * Double(control.x) + s * s * Double(end.x)
+        let y = u * u * Double(start.y) + 2.0 * u * s * Double(control.y) + s * s * Double(end.y)
+        return CGPoint(x: x, y: y)
+    }
+}
+
 /// 「家庭交接卡 / Care Handover Studio」 — Offline shift handover card for partners, grandparents, or nannies.
 /// Renders a crisp 3× cotton-paper visual card image or copies clean plain text with zero cloud accounts required.
 struct HandoverSheet: View {
@@ -132,11 +157,16 @@ struct HandoverSheet: View {
 
     @State private var note: String
     @State private var copied = false
+    @State private var passProgress: Double
+    @State private var lanternPassed: Bool
 
-    init(day: Day, previewNow: Date? = nil, initialNote: String = "") {
+    init(day: Day, previewNow: Date? = nil, initialNote: String = "", initialPassProgress: Double = 0.14) {
         self.day = day
         self.previewNow = previewNow
         _note = State(initialValue: initialNote)
+        let clamped = LanternPassMath.clampedProgress(initialPassProgress)
+        _passProgress = State(initialValue: clamped)
+        _lanternPassed = State(initialValue: LanternPassMath.isPassed(clamped))
     }
 
     private var quickNotes: [String] {
@@ -160,20 +190,26 @@ struct HandoverSheet: View {
                 }
 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 16) {
-                        // Live cotton-paper handover card preview
-                        HandoverCardContent(snapshot: snap, companion: app.companion, dark: dark)
-                            .printCard(radius: Radius.card)
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Live cotton-paper handover card preview with interactive Swipe-to-Pass Lantern Ritual
+                        HandoverCardContent(
+                            snapshot: snap,
+                            companion: app.companion,
+                            dark: dark,
+                            passProgress: $passProgress,
+                            lanternPassed: $lanternPassed
+                        )
+                        .printCard(radius: Radius.card)
 
                         // Optional handover note with 4 balanced quick chips
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: 7) {
                             Text(L10n.t("给下一位照护者留一句（可选）", "Quick note for next caregiver (optional)"))
-                                .font(.subheadline.weight(.bold))
+                                .font(.caption.weight(.bold))
                                 .foregroundStyle(.primary)
 
                             LazyVGrid(
                                 columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
-                                spacing: 8
+                                spacing: 7
                             ) {
                                 ForEach(quickNotes, id: \.self) { chip in
                                     let active = note == chip
@@ -188,7 +224,7 @@ struct HandoverSheet: View {
                                             .minimumScaleFactor(0.8)
                                             .frame(maxWidth: .infinity)
                                             .padding(.horizontal, 10)
-                                            .padding(.vertical, 8)
+                                            .padding(.vertical, 7)
                                             .background(Capsule().fill(active ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
                                             .overlay(Capsule().strokeBorder(Palette.outline.opacity(active ? 0 : 0.3), lineWidth: 0.75))
                                     }
@@ -197,24 +233,25 @@ struct HandoverSheet: View {
                             }
 
                             TextField(L10n.t("例如：半小时前刚吃过维生素 D", "e.g. Vitamin D given 30m ago"), text: $note)
+                                .font(.subheadline)
                                 .padding(.horizontal, 12)
-                                .padding(.vertical, 10)
+                                .padding(.vertical, 8)
                                 .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(dark ? Palette.lampCard : Palette.card))
                                 .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
                         }
 
-                        // Primary Share Visual Card + Secondary Copy Plain Text
-                        VStack(spacing: 10) {
+                        // Compact Side-by-Side Share Visual Card & Copy Text Actions
+                        HStack(spacing: 10) {
                             ShareLink(
                                 item: poster,
                                 preview: SharePreview(
                                     L10n.t("\(snap.babyName)的照护交接卡", "\(snap.babyName)'s Care Handover Card")
                                 )
                             ) {
-                                Label(L10n.t("分享精美交接卡图片", "Share Visual Handover Card"), systemImage: "square.and.arrow.up")
-                                    .font(.headline)
+                                Label(L10n.t("分享交接卡", "Share Card"), systemImage: "square.and.arrow.up")
+                                    .font(.subheadline.weight(.bold))
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 13)
+                                    .padding(.vertical, 11)
                             }
                             .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
 
@@ -228,7 +265,7 @@ struct HandoverSheet: View {
                                 }
                             } label: {
                                 Label(
-                                    copied ? L10n.t("已复制纯文字交接单", "Copied Text Summary") : L10n.t("复制纯文字发给家人", "Copy Plain Text"),
+                                    copied ? L10n.t("已复制", "Copied") : L10n.t("复制文字", "Copy Text"),
                                     systemImage: copied ? "checkmark.circle.fill" : "doc.on.doc"
                                 )
                                 .font(.subheadline.weight(.bold))
@@ -239,13 +276,16 @@ struct HandoverSheet: View {
                         }
 
                         Text(L10n.t("全部内容仅在本机即时生成，不上传云端，可直接发给伴侣、长辈或阿姨。", "Generated locally on your phone with zero cloud upload — ready for partner, grandparents, or nanny."))
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(Palette.secondaryText)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
                     }
-                    .padding(16)
+                    .padding(.horizontal, 16)
+                    .padding(.top, 8)
+                    .padding(.bottom, 16)
                 }
+                .scrollBounceBehavior(.basedOnSize)
             }
             .pageBackground(tone: Crayon.sunflower)
             .navigationTitle(L10n.t("交接给下一位点灯人", "Passing the Lantern"))
@@ -265,17 +305,75 @@ private struct HandoverCardContent: View {
     let snapshot: HandoverSnapshot
     let companion: Kind
     let dark: Bool
+    @Binding var passProgress: Double
+    @Binding var lanternPassed: Bool
+    @State private var lastDetent = 0
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            PassingLanternArt(dark: dark)
+        VStack(alignment: .leading, spacing: 10) {
+            ZStack(alignment: .bottom) {
+                GeometryReader { g in
+                    let w = max(1, g.size.width)
+                    PassingLanternArt(dark: dark, progress: passProgress, passed: lanternPassed)
+                        .frame(width: g.size.width, height: g.size.height)
+                        .contentShape(Rectangle())
+                        .gesture(
+                            DragGesture(minimumDistance: 2)
+                                .onChanged { value in
+                                    let normX = (value.location.x - w * 0.28) / (w * 0.44)
+                                    let clamped = LanternPassMath.clampedProgress(Double(normX))
+                                    passProgress = clamped
+                                    let det = LanternPassMath.detentStep(for: clamped)
+                                    if det != lastDetent {
+                                        lastDetent = det
+                                        TactileEngine.shared.dimmerTick()
+                                    }
+                                    if LanternPassMath.isPassed(clamped) && !lanternPassed {
+                                        lanternPassed = true
+                                        TactileEngine.shared.goldChime()
+                                    } else if !LanternPassMath.isPassed(clamped) && lanternPassed {
+                                        lanternPassed = false
+                                    }
+                                }
+                                .onEnded { _ in
+                                    withAnimation(.spring(response: 0.36, dampingFraction: 0.78)) {
+                                        if LanternPassMath.isPassed(passProgress) {
+                                            passProgress = 1.0
+                                            lanternPassed = true
+                                        }
+                                    }
+                                }
+                        )
+                }
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
-                .frame(maxWidth: .infinity)
-                .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
-                .overlay(
-                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .strokeBorder(Palette.amber.opacity(dark ? 0.25 : 0.30), lineWidth: 0.9)
+
+                HStack(spacing: 5) {
+                    GoldBead(size: 7)
+                    Text(
+                        lanternPassed
+                            ? L10n.t("暖灯已递给下一位点灯人", "Lantern passed to next keeper")
+                            : L10n.t("向右滑金珠 · 把暖灯递给 Mochi", "Slide gold bead right to pass light")
+                    )
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(lanternPassed ? Crayon.ink(Palette.bead) : (dark ? Palette.lampInk : Palette.text))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.76)
+                }
+                .padding(.horizontal, 9)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule().fill(lanternPassed ? Palette.beadLight.opacity(0.94) : (dark ? Color(hex: 0x1A2347).opacity(0.84) : .white.opacity(0.90)))
                 )
+                .overlay(Capsule().strokeBorder(Palette.amber.opacity(0.35), lineWidth: 0.75))
+                .padding(.bottom, 6)
+                .allowsHitTesting(false)
+            }
+            .frame(maxWidth: .infinity)
+            .clipShape(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(Palette.amber.opacity(dark ? 0.25 : 0.30), lineWidth: 0.9)
+            )
 
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
@@ -394,8 +492,8 @@ private struct HandoverCardContent: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.78)
         }
-        .padding(11)
-        .frame(maxWidth: .infinity, minHeight: 82, alignment: .topLeading)
+        .padding(9)
+        .frame(maxWidth: .infinity, minHeight: 68, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
                 .fill(color.opacity(dark ? 0.14 : 0.11))
@@ -407,8 +505,11 @@ private struct HandoverCardContent: View {
 /// Scandinavian crayon-orange dashed passing arc & warm amber lantern beads toward white-outlined Mochi.
 struct PassingLanternArt: View {
     let dark: Bool
+    var progress: Double = 0.50
+    var passed: Bool = false
 
     var body: some View {
+        let t = LanternPassMath.clampedProgress(progress)
         let ottoImg = Perf.noArt ? nil : (ArtCache.shared.cached("ip_otto_idle.webp", maxPixel: 320) ?? ArtCache.shared.image("ip_otto_idle.webp", maxPixel: 320))
         Canvas { ctx, size in
             let w = size.width
@@ -447,6 +548,18 @@ struct PassingLanternArt: View {
             let ottoCenterX = w * 0.30
             let mochiCenterX = w * 0.70
 
+            // Physically migrating warm light pool gliding across the mat from Otto toward Mochi
+            let poolX = ottoCenterX + (mochiCenterX - ottoCenterX) * CGFloat(t)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: poolX - w * 0.18, y: groundY - 12, width: w * 0.36, height: 24)),
+                with: .radialGradient(
+                    Gradient(colors: [Palette.amber.opacity(passed ? 0.55 : 0.38), Palette.amber.opacity(0)]),
+                    center: CGPoint(x: poolX, y: groundY),
+                    startRadius: 2,
+                    endRadius: w * 0.18
+                )
+            )
+
             // Warm Scandinavian crayon-orange dashed handover arrow arcing Otto -> Mochi
             let arcStart = CGPoint(x: ottoCenterX + w * 0.10, y: h * 0.28)
             let arcEnd = CGPoint(x: mochiCenterX - w * 0.10, y: h * 0.34)
@@ -456,30 +569,45 @@ struct PassingLanternArt: View {
             passArc.addQuadCurve(to: arcEnd, control: arcCtrl)
             ctx.stroke(
                 passArc,
-                with: .color(dark ? Palette.amber : Crayon.tangerine),
-                style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round, dash: [8, 6])
+                with: .color((dark ? Palette.amber : Crayon.tangerine).opacity(0.45)),
+                style: StrokeStyle(lineWidth: 3.0, lineCap: .round, lineJoin: .round, dash: [8, 6])
             )
+
+            // Lit gold trail tracing traveled progress behind the bead
+            var litTrail = Path()
+            litTrail.move(to: arcStart)
+            let steps = 16
+            for i in 1...steps {
+                let st = t * Double(i) / Double(steps)
+                litTrail.addLine(to: LanternPassMath.quadBezierPoint(t: st, start: arcStart, control: arcCtrl, end: arcEnd))
+            }
+            ctx.stroke(
+                litTrail,
+                with: .color(Palette.bead),
+                style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round)
+            )
+
             // Arrowhead nib
             var head = Path()
             head.move(to: CGPoint(x: arcEnd.x - 10, y: arcEnd.y - 6))
             head.addLine(to: arcEnd)
             head.addLine(to: CGPoint(x: arcEnd.x - 9, y: arcEnd.y + 7))
-            ctx.stroke(head, with: .color(dark ? Palette.amber : Crayon.tangerine), style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round))
+            ctx.stroke(head, with: .color(passed ? Palette.bead : (dark ? Palette.amber : Crayon.tangerine)), style: StrokeStyle(lineWidth: 3.4, lineCap: .round, lineJoin: .round))
 
-            // Glowing golden lantern bead resting along the passing arc
-            let beadCenter = CGPoint(x: w * 0.49, y: h * 0.22)
+            // Glowing golden lantern bead smoothly riding along the Bezier passing arc
+            let beadCenter = LanternPassMath.quadBezierPoint(t: t, start: arcStart, control: arcCtrl, end: arcEnd)
             ctx.fill(
-                Path(ellipseIn: CGRect(x: beadCenter.x - 16, y: beadCenter.y - 16, width: 32, height: 32)),
-                with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.45), .clear]), center: beadCenter, startRadius: 2, endRadius: 16)
+                Path(ellipseIn: CGRect(x: beadCenter.x - 18, y: beadCenter.y - 18, width: 36, height: 36)),
+                with: .radialGradient(Gradient(colors: [Palette.amber.opacity(passed ? 0.65 : 0.48), .clear]), center: beadCenter, startRadius: 2, endRadius: 18)
             )
-            ctx.fill(Path(ellipseIn: CGRect(x: beadCenter.x - 6, y: beadCenter.y - 6, width: 12, height: 12)), with: .color(Palette.bead))
-            ctx.stroke(Path(ellipseIn: CGRect(x: beadCenter.x - 6, y: beadCenter.y - 6, width: 12, height: 12)), with: .color(.white.opacity(0.85)), lineWidth: 1.5)
+            ctx.fill(Path(ellipseIn: CGRect(x: beadCenter.x - 7, y: beadCenter.y - 7, width: 14, height: 14)), with: .color(Palette.bead))
+            ctx.stroke(Path(ellipseIn: CGRect(x: beadCenter.x - 7, y: beadCenter.y - 7, width: 14, height: 14)), with: .color(.white.opacity(0.90)), lineWidth: 1.8)
 
             // Contact shadows under both companions
             ctx.fill(Path(ellipseIn: CGRect(x: ottoCenterX - 28, y: groundY - 4, width: 56, height: 9)), with: .color(.black.opacity(dark ? 0.35 : 0.12)))
             ctx.fill(Path(ellipseIn: CGRect(x: mochiCenterX - 26, y: groundY - 4, width: 52, height: 9)), with: .color(.black.opacity(dark ? 0.35 : 0.12)))
 
-            // Canonical Otto (using genuine white-outlined die-cut studio sprite when decoded)
+            // Canonical Otto (zero hands, live warm glow)
             let spriteH = h * 0.62
             if let ottoImg {
                 let ratio = ottoImg.size.width / max(1, ottoImg.size.height)
@@ -493,6 +621,14 @@ struct PassingLanternArt: View {
                 ctx.stroke(ottoBody, with: .color(.white), lineWidth: 3)
             }
 
+            // Celebratory warm lantern aura wrapping Mochi once handover completes
+            if passed {
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: mochiCenterX - 46, y: groundY - 68, width: 92, height: 76)),
+                    with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.42), .clear]), center: CGPoint(x: mochiCenterX, y: groundY - 30), startRadius: 4, endRadius: 46)
+                )
+            }
+
             // Matching white die-cut sticker Mochi (warm ivory pebble + matte coral knit beanie, zero blush)
             let mochiW: CGFloat = min(68, w * 0.17)
             let mochiH: CGFloat = mochiW * 0.88
@@ -501,11 +637,9 @@ struct PassingLanternArt: View {
             let bodyPath = RoundedRectangle(cornerRadius: mochiH * 0.46, style: .continuous).path(in: mochiBodyRect)
             let beaniePath = RoundedRectangle(cornerRadius: mochiH * 0.20, style: .continuous).path(in: beanieRect)
 
-            // Crisp creamy-white paper die-cut rim around Mochi so Mochi matches Otto's cut-out edge
             ctx.stroke(bodyPath, with: .color(dark ? Color(hex: 0xF3ECE0).opacity(0.85) : .white), style: StrokeStyle(lineWidth: 6.5, lineJoin: .round))
             ctx.stroke(beaniePath, with: .color(dark ? Color(hex: 0xF3ECE0).opacity(0.85) : .white), style: StrokeStyle(lineWidth: 6.5, lineJoin: .round))
 
-            // Mochi sculpted matte-ivory pebble body & coral beanie
             ctx.fill(
                 bodyPath,
                 with: .linearGradient(Gradient(colors: [Color(hex: 0xFFF9EE), Color(hex: 0xEFE1CB)]), startPoint: CGPoint(x: mochiCenterX, y: mochiBodyRect.minY), endPoint: CGPoint(x: mochiCenterX, y: mochiBodyRect.maxY))
@@ -514,17 +648,25 @@ struct PassingLanternArt: View {
                 beaniePath,
                 with: .linearGradient(Gradient(colors: [Color(hex: 0xF07B60), Color(hex: 0xD95941)]), startPoint: CGPoint(x: mochiCenterX, y: beanieRect.minY), endPoint: CGPoint(x: mochiCenterX, y: beanieRect.maxY))
             )
-            // Small pom-pom on Mochi's beanie
             let pomRect = CGRect(x: mochiCenterX - 5, y: beanieRect.minY - 7, width: 10, height: 9)
             ctx.fill(Path(ellipseIn: pomRect), with: .color(Color(hex: 0xF69C82)))
 
-            // Curious Mochi eyes turned left toward Otto's lantern light
+            // Mochi eyes: happy crescents when handed over, otherwise tracking the traveling gold bead
             let eyeY = mochiBodyRect.minY + mochiH * 0.44
-            for dx in [-8.0, 4.0] {
-                let sclera = CGRect(x: mochiCenterX + dx - 4.5, y: eyeY - 4.5, width: 9, height: 9)
-                ctx.fill(Path(ellipseIn: sclera), with: .color(.white))
-                let pupil = CGRect(x: mochiCenterX + dx - 3.8, y: eyeY - 2.6, width: 5.5, height: 5.5)
-                ctx.fill(Path(ellipseIn: pupil), with: .color(Palette.ink))
+            if passed {
+                for dx in [-8.0, 4.0] {
+                    var arc = Path()
+                    arc.addArc(center: CGPoint(x: mochiCenterX + dx, y: eyeY + 1), radius: 3.6, startAngle: .degrees(200), endAngle: .degrees(340), clockwise: false)
+                    ctx.stroke(arc, with: .color(Palette.ink), style: StrokeStyle(lineWidth: 1.9, lineCap: .round))
+                }
+            } else {
+                let lookX = CGFloat(max(-1.8, min(1.2, (Double(beadCenter.x) - Double(mochiCenterX)) / Double(w) * 4.5)))
+                for dx in [-8.0, 4.0] {
+                    let sclera = CGRect(x: mochiCenterX + dx - 4.5, y: eyeY - 4.5, width: 9, height: 9)
+                    ctx.fill(Path(ellipseIn: sclera), with: .color(.white))
+                    let pupil = CGRect(x: mochiCenterX + dx - 2.6 + lookX, y: eyeY - 2.6, width: 5.2, height: 5.2)
+                    ctx.fill(Path(ellipseIn: pupil), with: .color(Palette.ink))
+                }
             }
         }
         .accessibilityLabel(L10n.t("Otto 把暖金灯珠的光递给戴珊瑚针织帽的 Mochi", "Otto gently passing warm lantern light toward Mochi in a coral knit beanie"))
@@ -542,7 +684,7 @@ struct HandoverPoster: View {
         let teal = Color(hex: 0x0B7D74)
 
         VStack(alignment: .leading, spacing: 12) {
-            PassingLanternArt(dark: false)
+            PassingLanternArt(dark: false, progress: 0.90, passed: true)
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
                 .frame(maxWidth: .infinity)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

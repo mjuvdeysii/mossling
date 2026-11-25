@@ -23,6 +23,7 @@ final class TactileEngine {
         case goldChime     // warm 2-note wooden marimba fifth (finishing a play, logging a First)
         case breathInhale  // silent 4-6 inhale boundary cue for eyes-closed bedside soothing
         case breathExhale  // silent 4-6 exhale boundary cue for eyes-closed bedside soothing
+        case palmPat       // strictly silent rhythmic palm-pat comfort pulse for Bedside Lamp soothing
     }
 
     private var hapticEngine: CHHapticEngine?
@@ -55,6 +56,35 @@ final class TactileEngine {
     func breathCue(inhaling: Bool) {
         guard !isTestHost else { return }
         fireHaptic(inhaling ? .breathInhale : .breathExhale)
+    }
+
+    /// Strictly silent rhythmic palm-pat pulse (low-sharpness cushioned waveform, never emits sound).
+    func palmPatPulse(intensity: Float = 0.56) {
+        guard !isTestHost else { return }
+        let clamped = max(0.20, min(0.85, intensity))
+        if let engine = ensureHaptics() {
+            let events = [
+                CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: clamped),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.14)
+                ], relativeTime: 0, duration: 0.085),
+                CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: clamped * 0.44),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.10)
+                ], relativeTime: 0.095, duration: 0.045)
+            ]
+            if let pattern = try? CHHapticPattern(events: events, parameters: []) {
+                do {
+                    try engine.start()
+                    let p = try engine.makePlayer(with: pattern)
+                    try p.start(atTime: CHHapticTimeImmediate)
+                    return
+                } catch {
+                    // Fall through to soft UIImpactFeedbackGenerator
+                }
+            }
+        }
+        UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: CGFloat(clamped))
     }
 
     // MARK: - CoreHaptics
@@ -101,6 +131,8 @@ final class TactileEngine {
             UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.45)
         case .breathExhale:
             UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.28)
+        case .palmPat:
+            UIImpactFeedbackGenerator(style: .soft).impactOccurred(intensity: 0.56)
         }
     }
 
@@ -179,6 +211,13 @@ final class TactileEngine {
                     CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.12)
                 ], relativeTime: 0, duration: 0.16)
             ]
+        case .palmPat:
+            events = [
+                CHHapticEvent(eventType: .hapticContinuous, parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: 0.56),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: 0.14)
+                ], relativeTime: 0, duration: 0.085)
+            ]
         }
         return try? CHHapticPattern(events: events, parameters: [])
     }
@@ -225,7 +264,7 @@ final class TactileEngine {
         case .vinylPop: 0.055
         case .pageTurn: 0.065
         case .goldChime: 0.44
-        case .breathInhale, .breathExhale: 0.01
+        case .breathInhale, .breathExhale, .palmPat: 0.01
         }
         let frames = AVAudioFrameCount(dur * sampleRate)
         guard let buf = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames),
@@ -277,7 +316,7 @@ final class TactileEngine {
                 let env2: Float = t >= 0.09 ? Float(exp(-t2 * 8.5)) * Float(min(1, t2 / 0.003)) : 0
                 let n2 = Float(sin(2 * .pi * 1567.98 * t2) + 0.15 * sin(2 * .pi * 4703.9 * t2) * exp(-t2 * 32)) * env2
                 sample = (n1 * 0.55 + n2 * 0.55) * 0.18
-            case .breathInhale, .breathExhale:
+            case .breathInhale, .breathExhale, .palmPat:
                 sample = 0
             }
             ptr[i] = max(-0.95, min(0.95, sample))

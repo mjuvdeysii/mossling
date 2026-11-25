@@ -2166,4 +2166,25 @@ final class ScreenshotTests: XCTestCase {
         shot("74_viewport_tab3_studio_ax2", height: 1120,
              tabs(m, YouView(path: .constant(NavigationPath()))).dynamicTypeSize(.accessibility2))
     }
+
+    /// Edition I · Round 25 — Three Creative Alchemy Flagship Instruments (Otto Shadow Wall, Silent Palm-Pat Lamp, Swipe Lantern Handover).
+    func test75Round25CreativeAlchemyInstruments() {
+        defer { L10n.overrideEnglish = nil }
+        let m = model(); m.journal = true
+        let nightClock = Day.cal.date(from: DateComponents(year: m.today.y, month: m.today.m, day: m.today.d, hour: 22, minute: 30)) ?? m.today.date
+
+        shot("75_alchemy_shadow_wall_rabbit_zh", height: 852,
+             tabs(m, ToyboxView(initialMode: .shadows, initialShadowPuppet: .rabbit)))
+        shot("75_alchemy_bedside_lamp_palmpat_zh", dark: true, height: 852,
+             BedsideLampView(initialBrightness: 0.78, initialPalmPat: true, previewClock: nightClock)
+                 .environment(m).environment(journal).fontDesign(.rounded))
+        shot("75_alchemy_handover_lantern_pass_zh", height: 852,
+             HandoverSheet(day: m.today, previewNow: nightClock, initialPassProgress: 0.92)
+                 .environment(m).environment(journal).tint(Palette.accent).fontDesign(.rounded))
+
+        L10n.overrideEnglish = true
+        let mEn = model(); mEn.nickname = "Leo"; mEn.journal = true
+        shot("75_alchemy_shadow_wall_bird_en", height: 852,
+             tabs(mEn, ToyboxView(initialMode: .shadows, initialShadowPuppet: .bird)))
+    }
 }

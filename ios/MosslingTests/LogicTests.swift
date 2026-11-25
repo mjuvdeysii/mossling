@@ -2902,4 +2902,67 @@ final class LogicTests: XCTestCase {
             XCTAssertGreaterThan(img?.size.width ?? 0, 100)
         }
     }
+
+    @MainActor
+    func testRound25CreativeAlchemyShadowWallPalmPatAndLanternPass() {
+        defer { L10n.overrideEnglish = nil }
+
+        // 1. Otto Shadow Wall inverse-distance optics & Moss eye tracking
+        XCTAssertEqual(ShadowPuppetKind.allCases.count, 5)
+        let nearLamp = ShadowWallPhysics.project(puppetNorm: CGPoint(x: 0.52, y: 0.78))
+        let farWall = ShadowWallPhysics.project(puppetNorm: CGPoint(x: 0.70, y: 0.36))
+        XCTAssertGreaterThan(nearLamp.shadowScale, farWall.shadowScale)
+        XCTAssertGreaterThan(nearLamp.penumbraBlur, farWall.penumbraBlur)
+        let leftShadow = ShadowWallPhysics.project(puppetNorm: CGPoint(x: 0.24, y: 0.50))
+        let rightShadow = ShadowWallPhysics.project(puppetNorm: CGPoint(x: 0.80, y: 0.50))
+        XCTAssertLessThan(leftShadow.mossLook.x, rightShadow.mossLook.x)
+
+        // 2. Silent Palm-Pat rhythmic deceleration & tap-tempo cadence math
+        XCTAssertEqual(PalmPatRhythm.intervalSeconds(bpm: 60), 1.0, accuracy: 0.001)
+        let bpmStart = PalmPatRhythm.effectiveBPM(startBPM: 60, elapsedSeconds: 0, autoSlow: true)
+        let bpmMid = PalmPatRhythm.effectiveBPM(startBPM: 60, elapsedSeconds: 150, autoSlow: true)
+        let bpmEnd = PalmPatRhythm.effectiveBPM(startBPM: 60, elapsedSeconds: 300, autoSlow: true)
+        XCTAssertEqual(bpmStart, 60.0, accuracy: 0.01)
+        XCTAssertEqual(bpmMid, 54.0, accuracy: 0.01)
+        XCTAssertEqual(bpmEnd, 48.0, accuracy: 0.01)
+        XCTAssertNil(PalmPatRhythm.bpmFromTapTimestamps([1.0, 2.0]))
+        let tappedBPM = PalmPatRhythm.bpmFromTapTimestamps([10.0, 11.2, 12.4, 13.6])
+        XCTAssertEqual(tappedBPM ?? 0, 50.0, accuracy: 0.5)
+
+        // 3. Swipe-to-Pass Lantern Handover Bezier trajectory & detent completion threshold
+        let s = CGPoint(x: 40, y: 50), c = CGPoint(x: 150, y: 10), e = CGPoint(x: 260, y: 60)
+        let p0 = LanternPassMath.quadBezierPoint(t: 0.0, start: s, control: c, end: e)
+        let p1 = LanternPassMath.quadBezierPoint(t: 1.0, start: s, control: c, end: e)
+        let pMid = LanternPassMath.quadBezierPoint(t: 0.5, start: s, control: c, end: e)
+        XCTAssertEqual(p0.x, s.x, accuracy: 0.01)
+        XCTAssertEqual(p1.x, e.x, accuracy: 0.01)
+        XCTAssertLessThan(pMid.y, min(s.y, e.y))
+        XCTAssertFalse(LanternPassMath.isPassed(0.87))
+        XCTAssertTrue(LanternPassMath.isPassed(0.88))
+        XCTAssertEqual(LanternPassMath.detentStep(for: 0.50), 2)
+
+        // 4. Deterministic ImageRenderer verification of all 3 Creative Alchemy studios
+        let envApp = AppModel(defaults: UserDefaults(suiteName: "round25-\(UUID().uuidString)")!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.nickname = "小满"
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+
+        for renderView in [
+            AnyView(ToyboxView(initialMode: .shadows, initialShadowPuppet: .rabbit)),
+            AnyView(ShadowWallStudio(dark: true, initialPuppet: .butterfly, onInteract: {})),
+            AnyView(BedsideLampView(initialBrightness: 0.78, initialPalmPat: true, previewClock: envApp.today.date)),
+            AnyView(HandoverSheet(day: envApp.today, previewNow: envApp.today.date, initialPassProgress: 0.92))
+        ] {
+            let img = ImageRenderer(
+                content: renderView
+                    .frame(width: 393, height: 852)
+                    .environment(envApp)
+                    .environment(envJournal)
+            ).uiImage
+            XCTAssertNotNil(img)
+            XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+    }
 }
