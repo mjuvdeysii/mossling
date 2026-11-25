@@ -3035,7 +3035,11 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testRound27OfficialWebsiteAndCommercialMetadata() {
-        XCTAssertEqual(Owner.developer, "温树垚")
+        XCTAssertEqual(Owner.developer, "")
+        XCTAssertEqual(
+            Owner.developerName,
+            L10n.t("本应用 App Store 页面上显示的开发者", "the developer listed on the App Store page")
+        )
         XCTAssertEqual(Owner.email, "lbuiuiysdeyzxl@yeah.net")
         XCTAssertEqual(Owner.website, "https://mjuvdeysii.github.io/mossling/")
         XCTAssertEqual(Owner.websiteURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/")
@@ -3045,8 +3049,10 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(Owner.licensesURL?.absoluteString, "https://mjuvdeysii.github.io/mossling/licenses.html")
 
         let filled = Owner.fill("{{DEVELOPER}}|{{WEBSITE}}")
-        XCTAssertTrue(filled.contains("温树垚"))
+        XCTAssertTrue(filled.contains(Owner.developerName))
         XCTAssertTrue(filled.contains("https://mjuvdeysii.github.io/mossling/"))
+        XCTAssertFalse(filled.contains("{{DEVELOPER}}"))
+        XCTAssertFalse(filled.contains("{{WEBSITE}}"))
 
         let envApp = AppModel(defaults: UserDefaults(suiteName: "round27-\(UUID().uuidString)")!)
         let envJournal = JournalStore(preview: JournalFile.Body())

@@ -168,7 +168,7 @@ baby,tracker,montessori,feeding,sleep,white,noise,nightlight,solids,first,foods,
 *(99 chars)*
 
 **Copyright & Support**
-- **Copyright**：`© 2026 温树垚` / `© 2026 Shuyao Wen`
+- **Copyright**：`© 2026 摸索台灯` / `© 2026 Moss & Otto`
 - **Support URL / Privacy Policy URL**：填入托管后的公开网址（见第六部分）
 - **Version**：`1.3.2`
 
@@ -196,7 +196,7 @@ CI 产物 `appstore-screenshots` 已按 1–8 编号自动输出原尺寸无压�
 ## 五、App 审核备注（App Review Notes，直接粘贴）
 
 - **Sign-in Required**：取消勾选（无需任何登录账号）
-- **Contact**：温树垚 / `lbuiuiysdeyzxl@yeah.net` / 负责人手机号（含国家区号）
+- **Contact**：App Store Connect 账号主体 / `lbuiuiysdeyzxl@yeah.net` / 负责人手机号（含国家区号）
 - **Review Notes（中英双语，直接整段粘贴，便于北美/爱尔兰/上海审核团队秒懂）**：
 
 ```text

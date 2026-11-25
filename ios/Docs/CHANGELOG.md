@@ -3,6 +3,9 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 28（v2.0 正式发布候选 25 · 商业级杂志编辑风官网精修与个人署名隐私脱敏）**：
+  - **官方网站商业级精修（`docs/`）**：参照成熟消费级母婴官网克制留白与版式比例重写官网样式与内容——非对称圆拱首屏缀入精确比例真机边框与原版 Moss & Otto、4 栏发丝线承诺带、无框 0–36 个月分龄互动选览与真实月龄封面、夜间深海蓝悬浮岛屿、叠放双机节律账本与三屏联展、透明买断制卡片与 4 栏品牌落款，全面祛除工程技术术语，全部以家长第一视角讲述。
+  - **个人署名隐私脱敏**：清空 `ios/project.yml` 中的 `MOSSLING_DEVELOPER`（应用内合规文档自动通过 `Owner.developerName` 安全回退为「本应用 App Store 页面上显示的开发者」），并同步移除官网页面及公开仓库发布清单中的个人实名信息，仅保留品牌名「摸索台灯 Moss & Otto」与官方支持邮箱 `lbuiuiysdeyzxl@yeah.net`。
 - **Batch 27（v2.0 正式发布候选 24 · 商业级双语官方网站重构与 iOS 应用内官网/在线支持入口接入）**：
   - **商业化官网全景重构（`docs/`）**：参照成熟消费级母婴产品官网结构并全面采用 `Mossling` iOS v2.0 真实资产——应用图标（`AppIcon.icon` 多层合成）、`ip_moss_*` 与 `ip_otto_*` 原版伙伴角色、Pixar 3D × Studio Ghibli 2D 双画风插画，以及 6 张 iOS 2.0 真机实拍渲染截图；保留全离线、0 Emoji、纸纹质感与昼夜双主题。
   - **App 内官网与支持链接全链路打通**：在 `ios/project.yml`（`MOSSLING_WEBSITE`）、`Info.plist`（`MosslingWebsite`）、`YouView.swift`（`Owner.websiteURL / supportURL / privacyURL / termsURL / licensesURL` 与 `StudioLegalSheet` 的「官方网站」「在线支持与帮助」入口）及六份中英合规文档头部接入 `https://mjuvdeysii.github.io/mossling/`，并补充 `testRound27OfficialWebsiteAndCommercialMetadata` 单元测试与渲染校验。
