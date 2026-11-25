@@ -8,6 +8,7 @@ enum BespokeActivityID: String, CaseIterable, Sendable {
     case a05, a06, a07, a08, a09, a10, a11, a12, a13, a14
     case a15, a16, a17, a18, a19, a20, a21, a22, a23, a24
     case a25, a26, a27, a28, a29, a30, a31, a32
+    case a33, a34, a35, a36, a37, a38, a39, a40
 
     var code: String {
         rawValue.uppercased()
@@ -545,6 +546,102 @@ enum BespokeActivitySceneRegistry {
                 propTargetNormalized: CGPoint(x: 0.50, y: 0.78),
                 komorebiStrength: 0.82
             )
+        case .a33:
+            return BespokeSceneMetadata(
+                id: .a33,
+                cameraGrammar: "wide-block-arch-playroom",
+                durations: [4.5, 4.8, 5.0],
+                posterPhases: [0.52, 0.56, 0.64],
+                audioAnchors: [.woodTap, .none, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.26, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.70, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.70),
+                komorebiStrength: 0.76
+            )
+        case .a34:
+            return BespokeSceneMetadata(
+                id: .a34,
+                cameraGrammar: "sunlit-garden-footpath-sky",
+                durations: [4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.56, 0.64],
+                audioAnchors: [.softChime, .clothSwish, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.78, y: 0.14),
+                ottoBeadNormalized: CGPoint(x: 0.68, y: 0.44),
+                propTargetNormalized: CGPoint(x: 0.46, y: 0.46),
+                komorebiStrength: 0.90
+            )
+        case .a35:
+            return BespokeSceneMetadata(
+                id: .a35,
+                cameraGrammar: "entryway-dressing-bench",
+                durations: [4.4, 4.6, 4.8, 4.8],
+                posterPhases: [0.52, 0.56, 0.58, 0.66],
+                audioAnchors: [.clothSwish, .none, .clothSwish, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.24, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.74, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.54, y: 0.78),
+                komorebiStrength: 0.72
+            )
+        case .a36:
+            return BespokeSceneMetadata(
+                id: .a36,
+                cameraGrammar: "three-card-story-easel-mat",
+                durations: [4.8, 4.6, 4.8],
+                posterPhases: [0.54, 0.56, 0.64],
+                audioAnchors: [.clothSwish, .woodTap, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.24, y: 0.18),
+                ottoBeadNormalized: CGPoint(x: 0.73, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.58),
+                komorebiStrength: 0.70
+            )
+        case .a37:
+            return BespokeSceneMetadata(
+                id: .a37,
+                cameraGrammar: "dual-melody-story-rug",
+                durations: [4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.58, 0.64],
+                audioAnchors: [.softChime, .softChime, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.30, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.76),
+                komorebiStrength: 0.74
+            )
+        case .a38:
+            return BespokeSceneMetadata(
+                id: .a38,
+                cameraGrammar: "cloth-photo-album-lap-alcove",
+                durations: [4.6, 4.8, 4.8],
+                posterPhases: [0.54, 0.58, 0.62],
+                audioAnchors: [.clothSwish, .softChime, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.24, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.70, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.76),
+                komorebiStrength: 0.72
+            )
+        case .a39:
+            return BespokeSceneMetadata(
+                id: .a39,
+                cameraGrammar: "indoor-crosswalk-toy-car-mat",
+                durations: [4.6, 4.8, 5.0],
+                posterPhases: [0.52, 0.56, 0.64],
+                audioAnchors: [.woodTap, .woodTap, .softChime],
+                lightKeyNormalized: CGPoint(x: 0.74, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.32, y: 0.46),
+                propTargetNormalized: CGPoint(x: 0.60, y: 0.80),
+                komorebiStrength: 0.74
+            )
+        case .a40:
+            return BespokeSceneMetadata(
+                id: .a40,
+                cameraGrammar: "festive-lantern-tea-mat",
+                durations: [4.8, 4.8, 4.8],
+                posterPhases: [0.54, 0.58, 0.64],
+                audioAnchors: [.softChime, .softChime, .vinylPop],
+                lightKeyNormalized: CGPoint(x: 0.76, y: 0.16),
+                ottoBeadNormalized: CGPoint(x: 0.31, y: 0.45),
+                propTargetNormalized: CGPoint(x: 0.50, y: 0.38),
+                komorebiStrength: 0.78
+            )
         }
     }
 
@@ -625,6 +722,14 @@ enum BespokeActivitySceneRegistry {
         case .a30: SceneA30_ParentChildActionMusic(ctx: context)
         case .a31: SceneA31_TellingDayStories(ctx: context)
         case .a32: SceneA32_ParallelPlayTurnTaking(ctx: context)
+        case .a33: SceneA33_BuildingBigBlocks(ctx: context)
+        case .a34: SceneA34_NoticingNature(ctx: context)
+        case .a35: SceneA35_SocksPuttingAway(ctx: context)
+        case .a36: SceneA36_PictureStorySequence(ctx: context)
+        case .a37: SceneA37_TwoLanguagesNaturally(ctx: context)
+        case .a38: SceneA38_FamilyPhotosNames(ctx: context)
+        case .a39: SceneA39_RoadSafetyPractice(ctx: context)
+        case .a40: SceneA40_FamilyStoriesTraditions(ctx: context)
         }
     }
 }

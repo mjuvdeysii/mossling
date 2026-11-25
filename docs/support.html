@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>支持与常见问题 · 摸索台灯 (Moss &amp; Otto)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #FAF8F3;
+      --surface: #FFFFFF;
+      --soft: #F1EDE3;
+      --ink: #181A18;
+      --sub: #4D5551;
+      --accent: #0B7D74;
+      --border: rgba(24, 26, 24, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0F162E;
+        --surface: #182143;
+        --soft: #1E284D;
+        --ink: #F7EFE0;
+        --sub: #BFC6DC;
+        --accent: #FFCA62;
+        --border: rgba(247, 239, 224, 0.14);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 20px 56px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, sans-serif;
+      font-size: 1rem;
+      line-height: 1.72;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 20px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { font-weight: 800; font-size: 1.125rem; text-decoration: none; color: inherit; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .pill-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .lang-btn {
+      appearance: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    h1 { margin: 8px 0 4px; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.15; }
+    .meta { margin: 0; font-size: 0.875rem; color: var(--sub); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: grid;
+      gap: 10px;
+    }
+    h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    p { margin: 0; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a href="index.html" class="brand" data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</a>
+      <div class="nav-right">
+        <button type="button" class="lang-btn" id="toggleLang">English</button>
+        <a href="index.html" class="pill-link" data-zh="返回官网" data-en="Home">返回官网</a>
+      </div>
+    </div>
+
+    <header>
+      <h1 data-zh="使用支持与常见问答" data-en="Support &amp; Frequently Asked Questions">使用支持与常见问答</h1>
+      <p class="meta" data-zh="摸索台灯 iOS 版使用帮助与反馈渠道" data-en="Help and support resources for Moss &amp; Otto on iOS">摸索台灯 iOS 版使用帮助与反馈渠道</p>
+    </header>
+
+    <section class="card">
+      <h2 data-zh="如何使用双画风绘本与手影墙" data-en="Switching Worlds &amp; Optical Shadow Wall">如何使用双画风绘本与手影墙</h2>
+      <p data-zh="在「摸索 › 感官玩具盒」即可打开五间离线工作室（含最新 Otto 光影手影墙）。长按「工坊 › 故事」封面舞台即可触发软胶 3D 与吉卜力水彩 2D 世界原地切换。" data-en="Open Explore › Sensory Toybox to play across all five tactile studios including the Optical Shadow Wall, or use Our Story in Studio to switch between 3D soft-vinyl and 2D watercolor worlds.">在「摸索 › 感官玩具盒」即可打开五间离线工作室（含最新 Otto 光影手影墙）。长按「工坊 › 故事」封面舞台即可触发软胶 3D 与吉卜力水彩 2D 世界原地切换。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="怎么备份与转移设备数据" data-en="How to Back Up &amp; Transfer Data">怎么备份与转移设备数据</h2>
+      <p data-zh="前往「工坊 › 离线备份」，点击导出完整备份文件即可保存至「文件」App，换机后在同一页面导入即可无损恢复；若开启系统 iCloud 云备份也会自动加密跟随整机备份。" data-en="Open Studio › Local Data to export an offline archive into the Apple Files app and re-import it on a new iPhone anytime.">前往「工坊 › 离线备份」，点击导出完整备份文件即可保存至「文件」App，换机后在同一页面导入即可无损恢复；若开启系统 iCloud 云备份也会自动加密跟随整机备份。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="提交问题或建议" data-en="Contact &amp; Feedback">提交问题或建议</h2>
+      <p data-zh="欢迎前往 GitHub 开源仓库提交 Issue，或在 App Store 商品页面点击「App 支持」向开发者反映。" data-en="Report issues or share ideas on our GitHub repository or via the App Support link on the App Store page.">欢迎前往 GitHub 开源仓库提交 Issue，或在 App Store 商品页面点击「App 支持」向开发者反映。</p>
+      <p><a class="pill-link" href="https://github.com/mjuvdeysii/mossling/issues" target="_blank" rel="noopener">GitHub Issues</a></p>
+    </section>
+  </div>
+  <script>
+    (function () {
+      let lang = "zh";
+      const btn = document.getElementById("toggleLang");
+      btn.addEventListener("click", function () {
+        lang = lang === "zh" ? "en" : "zh";
+        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+        btn.textContent = lang === "zh" ? "English" : "中文";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          el.textContent = el.getAttribute("data-" + lang);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

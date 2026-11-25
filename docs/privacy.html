@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>隐私政策 · 摸索台灯 (Moss &amp; Otto)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #FAF8F3;
+      --surface: #FFFFFF;
+      --soft: #F1EDE3;
+      --ink: #181A18;
+      --sub: #4D5551;
+      --accent: #0B7D74;
+      --border: rgba(24, 26, 24, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0F162E;
+        --surface: #182143;
+        --soft: #1E284D;
+        --ink: #F7EFE0;
+        --sub: #BFC6DC;
+        --accent: #FFCA62;
+        --border: rgba(247, 239, 224, 0.14);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 20px 56px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, sans-serif;
+      font-size: 1rem;
+      line-height: 1.72;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 20px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { font-weight: 800; font-size: 1.125rem; text-decoration: none; color: inherit; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .pill-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .lang-btn {
+      appearance: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    h1 { margin: 8px 0 4px; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.15; }
+    .meta { margin: 0; font-size: 0.875rem; color: var(--sub); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: grid;
+      gap: 10px;
+    }
+    h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    p, li { margin: 0; font-size: 1rem; color: var(--ink); }
+    ul { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a href="index.html" class="brand" data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</a>
+      <div class="nav-right">
+        <button type="button" class="lang-btn" id="toggleLang">English</button>
+        <a href="index.html" class="pill-link" data-zh="返回官网" data-en="Home">返回官网</a>
+      </div>
+    </div>
+
+    <header>
+      <h1 data-zh="隐私政策与儿童信息保护" data-en="Privacy Policy &amp; Children's Data">隐私政策与儿童信息保护</h1>
+      <p class="meta" data-zh="适用于 iOS 应用「摸索台灯（Moss &amp; Otto）」 · 更新日期：2026 年 11 月 24 日" data-en="Applies to Moss &amp; Otto for iOS · Updated November 24, 2026">适用于 iOS 应用「摸索台灯（Moss &amp; Otto）」 · 更新日期：2026 年 11 月 24 日</p>
+    </header>
+
+    <section class="card">
+      <h2 data-zh="一、纯离线与零收集" data-en="1. Zero Accounts, Zero Collection">一、纯离线与零收集</h2>
+      <p data-zh="本应用不需要注册账号，不含任何广告、行为分析、崩溃上报或第三方 SDK，也不访问开发者服务器。你在本应用中录入的全部信息仅保存在你自己的设备上。" data-en="Moss &amp; Otto requires no account, connects to no servers, and contains zero analytics, advertising, or third-party tracking SDKs. All family data stays strictly on your iPhone.">本应用不需要注册账号，不含任何广告、行为分析、崩溃上报或第三方 SDK，也不访问开发者服务器。你在本应用中录入的全部信息仅保存在你自己的设备上。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="二、保存在设备本机的信息" data-en="2. Information Stored Locally">二、保存在设备本机的信息</h2>
+      <ul>
+        <li data-zh="宝宝资料：出生日期、可选小名与性别（性别仅用于匹配 WHO 生长曲线与称呼）。" data-en="Child profile: birth date and optional nickname or sex (used strictly to match WHO percentile curves).">宝宝资料：出生日期、可选小名与性别（性别仅用于匹配 WHO 生长曲线与称呼）。</li>
+        <li data-zh="日常照护与成长记录：喂养、睡眠、尿布、生长测量、第一次相纸、百味食盒与时光胶囊，均保存在由 iOS 数据保护加密的私有容器与同组小组件共享容器中。" data-en="Care and keepsake records: feeds, sleep, diapers, measurements, Polaroid Firsts, starter foods, and Time Capsules stored in iOS encrypted local sandboxes.">日常照护与成长记录：喂养、睡眠、尿布、生长测量、第一次相纸、百味食盒与时光胶囊，均保存在由 iOS 数据保护加密的私有容器与同组小组件共享容器中。</li>
+        <li data-zh="所有数据可通过「工坊 › 离线备份」随时导出完整备份，或一键清除全部数据并撤回同意。" data-en="Export full offline backups anytime or wipe every record and withdraw consent in Studio.">所有数据可通过「工坊 › 离线备份」随时导出完整备份，或一键清除全部数据并撤回同意。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="三、系统权限用途清单" data-en="3. iOS System Permissions">三、系统权限用途清单</h2>
+      <ul>
+        <li data-zh="面容 ID / 触控 ID：仅在开启应用锁时由系统本地验证，应用不读取生物特征。" data-en="Face ID / Touch ID: system authentication only when App Lock is enabled.">面容 ID / 触控 ID：仅在开启应用锁时由系统本地验证，应用不读取生物特征。</li>
+        <li data-zh="照片图库：仅在你主动为「第一次」挑选照片时导入所选单张照片并加密存至本机沙盒，不扫描相册、永不上传。" data-en="Photo Library: imports only the single photo you choose for a First moment; never scans or uploads.">照片图库：仅在你主动为「第一次」挑选照片时导入所选单张照片并加密存至本机沙盒，不扫描相册、永不上传。</li>
+        <li data-zh="动作传感器：仅在「床头夜灯」和「金珠」打开期间实时驱动光影倾斜与珠子碰撞物理效果，传感器数据实时丢弃、不留存。" data-en="Motion Sensors: used transiently while Bedside Lamp or Rainstick is open; readings are never recorded.">动作传感器：仅在「床头夜灯」和「金珠」打开期间实时驱动光影倾斜与珠子碰撞物理效果，传感器数据实时丢弃、不留存。</li>
+        <li data-zh="后台音频播放：仅用于在锁屏状态下持续轻柔播放离线实时合成的白噪音与摇篮曲。" data-en="Background Audio: plays offline synthesized bedside soundscapes softly while the screen is locked.">后台音频播放：仅用于在锁屏状态下持续轻柔播放离线实时合成的白噪音与摇篮曲。</li>
+        <li data-zh="不申请位置、通讯录、相机、麦克风、健康或营销推送权限。" data-en="Never requests Location, Contacts, Camera, Microphone, Health, or Marketing Notifications.">不申请位置、通讯录、相机、麦克风、健康或营销推送权限。</li>
+      </ul>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="四、儿童个人信息保护规则" data-en="4. Children's Data Protection">四、儿童个人信息保护规则</h2>
+      <p data-zh="本应用面向成年父母与照护者设计，不供儿童单独使用。任何关于儿童年龄、照护记录或体格数据仅由监护人在同意后于本机填写。如需联系儿童信息保护负责人，请通过 GitHub 仓库 Issues 或 App Store 支持页面与开发者联系。" data-en="Designed exclusively for adult parents and caregivers. Child information is entered only on device with guardian consent. Contact support via our GitHub Issues or App Store Support link.">本应用面向成年父母与照护者设计，不供儿童单独使用。任何关于儿童年龄、照护记录或体格数据仅由监护人在同意后于本机填写。如需联系儿童信息保护负责人，请通过 GitHub 仓库 Issues 或 App Store 支持页面与开发者联系。</p>
+    </section>
+  </div>
+  <script>
+    (function () {
+      let lang = "zh";
+      const btn = document.getElementById("toggleLang");
+      btn.addEventListener("click", function () {
+        lang = lang === "zh" ? "en" : "zh";
+        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+        btn.textContent = lang === "zh" ? "English" : "中文";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          el.textContent = el.getAttribute("data-" + lang);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

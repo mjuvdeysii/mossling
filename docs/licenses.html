@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>许可与致谢 · 摸索台灯 (Moss &amp; Otto)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #FAF8F3;
+      --surface: #FFFFFF;
+      --soft: #F1EDE3;
+      --ink: #181A18;
+      --sub: #4D5551;
+      --accent: #0B7D74;
+      --border: rgba(24, 26, 24, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0F162E;
+        --surface: #182143;
+        --soft: #1E284D;
+        --ink: #F7EFE0;
+        --sub: #BFC6DC;
+        --accent: #FFCA62;
+        --border: rgba(247, 239, 224, 0.14);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 20px 56px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, sans-serif;
+      font-size: 1rem;
+      line-height: 1.72;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 20px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { font-weight: 800; font-size: 1.125rem; text-decoration: none; color: inherit; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .pill-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .lang-btn {
+      appearance: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    h1 { margin: 8px 0 4px; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.15; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: grid;
+      gap: 8px;
+    }
+    h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    p { margin: 0; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a href="index.html" class="brand" data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</a>
+      <div class="nav-right">
+        <button type="button" class="lang-btn" id="toggleLang">English</button>
+        <a href="index.html" class="pill-link" data-zh="返回官网" data-en="Home">返回官网</a>
+      </div>
+    </div>
+
+    <header>
+      <h1 data-zh="许可与致谢" data-en="Licenses &amp; Credits">许可与致谢</h1>
+    </header>
+
+    <section class="card">
+      <h2 data-zh="独立设计" data-en="Independent Craft">独立设计</h2>
+      <p data-zh="由独立创作者设计与持续打磨，全站不引入第三方运行时商业 SDK，以原生 SwiftUI、Metal、CoreHaptics 与 AVAudioEngine 手工构建。" data-en="Independently designed and crafted with zero third-party runtime SDKs, powered exclusively by SwiftUI, Metal, CoreHaptics, and AVAudioEngine.">由独立创作者设计与持续打磨，全站不引入第三方运行时商业 SDK，以原生 SwiftUI、Metal、CoreHaptics 与 AVAudioEngine 手工构建。</p>
+    </section>
+
+    <section class="card">
+      <h2>WHO Child Growth Standards</h2>
+      <p data-zh="世界卫生组织儿童生长标准（体重、身长/身高与头围年龄别标准），依照 WHO 官方公开使用条款离线内置参考计算。" data-en="World Health Organization weight, length/height, and head circumference reference values used in accordance with WHO open publication terms.">世界卫生组织儿童生长标准（体重、身长/身高与头围年龄别标准），依照 WHO 官方公开使用条款离线内置参考计算。</p>
+    </section>
+
+    <section class="card">
+      <h2>Apple Native Frameworks</h2>
+      <p>SwiftUI · Metal · CoreHaptics · AVAudioEngine · Swift Charts · WidgetKit · ActivityKit</p>
+    </section>
+  </div>
+  <script>
+    (function () {
+      let lang = "zh";
+      const btn = document.getElementById("toggleLang");
+      btn.addEventListener("click", function () {
+        lang = lang === "zh" ? "en" : "zh";
+        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+        btn.textContent = lang === "zh" ? "English" : "中文";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          el.textContent = el.getAttribute("data-" + lang);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>

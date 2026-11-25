@@ -2187,4 +2187,27 @@ final class ScreenshotTests: XCTestCase {
         shot("75_alchemy_shadow_wall_bird_en", height: 852,
              tabs(mEn, ToyboxView(initialMode: .shadows, initialShadowPuppet: .bird)))
     }
+
+    /// Edition I · Round 26 — Batch E Complete (46/46) 4-mode visual regression plates.
+    func test76Round26BatchE46Of46Complete() {
+        let m = model(); m.journal = true
+        for (code, step, phase) in [
+            ("A33", 1, 0.58),
+            ("A35", 2, 0.62),
+            ("A36", 1, 0.60),
+            ("A38", 1, 0.62),
+            ("A39", 2, 0.60),
+            ("A40", 2, 0.64)
+        ] {
+            if let script = LivingBookCatalog.script(for: code) {
+                let plate = showcase2x2(
+                    tl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: false),
+                    tr: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: false),
+                    bl: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: false, posterPhase: phase, interactive: false, forceFlat: true),
+                    br: LivingBookStage(script: script, stepIndex: step, companion: .moss, dark: true, posterPhase: phase, interactive: false, forceFlat: true)
+                )
+                shot("76_batche_\(code.lowercased())_4modes", height: 520, plate.environment(m).tint(Palette.accent).fontDesign(.rounded))
+            }
+        }
+    }
 }

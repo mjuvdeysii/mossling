@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 26（v2.0 正式发布候选 23 · Edition I Round 26 收官 · 46/46 全活动独立双画风舞台达成 + 官方商业级中英双语官网与 GitHub Pages 部署 + CI 竞态修复）**：
+  - **Batch E 全量封顶（`A33–A40` 8 部独立绘本动画）**：补齐 `SceneA33_BuildingBigBlocks`、`SceneA34_NoticingNature`、`SceneA35_SocksPuttingAway`、`SceneA36_PictureStorySequence`、`SceneA37_TwoLanguagesNaturally`、`SceneA38_FamilyPhotosNames`、`SceneA39_RoadSafetyPractice` 与 `SceneA40_FamilyStoriesTraditions`，在 `BespokeActivityScene.swift` 达成 `N01–N06` + `A01–A40` **46/46（100%）** 独立 Pixar 3D × 吉卜力 2D 双画风手绘分步舞台全覆盖，全部 46 部具备互不重复的 `cameraGrammar` 镜头语法、严格对齐的 `lampAnchor` / `mossAnchor` 1:1 地面坐标与 0 违禁元素（Otto 永远无手、仅合法 `Mood`）。
+  - **商业化双语官方网站（`docs/` -> GitHub Pages）**：参照 Miemou 部署范式建立零外部依赖的静态商业官网（`docs/index.html`、`privacy.html`、`terms.html`、`support.html`、`licenses.html` 与 `docs/.nojekyll`），首屏全出血手绘交互光学影墙（垂耳兔 / 飞鸟 / 小帆船）、四工坊空间交互切换器、无声掌心轻拍节拍演示、划屏传灯交接仪式滑块，支持中英切换、昼夜主题与移动端 `390×844` 零溢出响应。
+  - **CI 稳定性修复与第 26 轮测试矩阵**：修复 `LogicTests.testRound22SingleSourceOfTruthIAAndScenePhysics` 在低调度性能云端 Runner 下因固定 `250ms` 休眠导致的 `studioPath` 竞态误报（改为确定性轮询等待），放宽 Round 23 注册数量下限为 `>= 38`，新增 `testRound26BatchEComplete46Of46Scenes` 逻辑单测与 `test76Round26BatchE46Of46Complete` 四模式 2×2 渲染截图测试；同步达成 Edition I 五轮深度打磨收官，准备进入 Edition II Reset Gate 1 归零重审。
 - **Batch 25（v2.0 正式发布候选 22 · Edition I Round 25 · 三大创意炼金术原生物理仪与界面润色：Otto 光影手影墙 / 无声掌心轻拍 / 划屏传灯交接仪式）**：
   - **【创意炼金术 I · 感官玩具盒第 5 独立工作室「Otto 光影手影墙」】**：在 `ToyboxMode` 新增 `.shadows` 工作室（`ShadowWallStudio.swift`），新增 Metal 着色器 `shadowWallAtmosphere` 渲染卧室墙壁暖金光锥与浮尘肌理；内置可单指拖动的五款纸艺剪影（垂耳兔 / 飞鸟 / 小狗 / 蝴蝶 / 帆船），遵循真实光学反距离平方投影模型 `ShadowWallPhysics`（越靠近 Otto 头部灯珠，投墙影子越大、半影虚化越柔），点触触发摆动并响起对应五声音阶八音盒和弦，地板端 `Moss` 视线实时追随墙上光影惊奇呼应，严格遵守 Otto 无手正典；同步更新首页 `TodayView` 玩具盒副标题入口。
   - **【创意炼金术 II · 床头夜灯「无声掌心轻拍安抚器 Silent Palm-Pat」】**：为 `TactileEngine` 新增严格零声音、低锐度柔弹 `palmPatPulse` 触觉波形；在 `BedsideLampView` 顶部与 4–6 呼吸并列上线「轻拍 / Pat」模式，支持 60 / 54 / 48 BPM 与「渐缓（5 分钟内由 60 温和降至 48 BPM）」及点击灯光即刻对齐父母拍打频率的 Tap-Tempo（`PalmPatRhythm`），中心夜灯晕环实时与拍打脉搏同频闪烁。

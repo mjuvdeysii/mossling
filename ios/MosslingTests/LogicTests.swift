@@ -2631,7 +2631,9 @@ final class LogicTests: XCTestCase {
 
         router.open(.story)
         XCTAssertEqual(router.selectedTab, AppTab.studio.rawValue)
-        try? await Task.sleep(for: .milliseconds(250))
+        for _ in 0..<60 where router.studioPath.isEmpty {
+            try? await Task.sleep(for: .milliseconds(25))
+        }
         XCTAssertFalse(router.studioPath.isEmpty)
 
         let beforeToken = router.expandLampLedgerToken
@@ -2742,12 +2744,12 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(PlayScrubMath.crossedContactDetent(from: 0.45, to: 0.51))
         XCTAssertFalse(PlayScrubMath.crossedContactDetent(from: 0.10, to: 0.30))
 
-        // 2. Registry & Batch D (38 bespoke scenes)
+        // 2. Registry & Batch D (>= 38 bespoke scenes)
         let expectedBatchD: Set<String> = ["A25", "A26", "A27", "A28", "A29", "A30", "A31", "A32"]
         XCTAssertTrue(BespokeActivitySceneRegistry.registeredCodes.isSuperset(of: expectedBatchD))
-        XCTAssertEqual(BespokeActivityID.allCases.count, 38)
+        XCTAssertGreaterThanOrEqual(BespokeActivityID.allCases.count, 38)
         let grammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
-        XCTAssertEqual(grammars.count, 38, "All 38 bespoke scenes must own unique cameraGrammar values")
+        XCTAssertEqual(grammars.count, BespokeActivityID.allCases.count, "All bespoke scenes must own unique cameraGrammar values")
 
         let content = try Content.load()
         let batchDIds: [BespokeActivityID] = [.a25, .a26, .a27, .a28, .a29, .a30, .a31, .a32]
@@ -2963,6 +2965,71 @@ final class LogicTests: XCTestCase {
             ).uiImage
             XCTAssertNotNil(img)
             XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+        }
+    }
+
+    @MainActor
+    func testRound26BatchEComplete46Of46Scenes() throws {
+        // 1. 46 / 46 complete bespoke coverage (N01-N06 + A01-A40) with unique cameraGrammar
+        XCTAssertEqual(BespokeActivityID.allCases.count, 46)
+        XCTAssertEqual(BespokeActivitySceneRegistry.registeredCodes.count, 46)
+        for n in 1...6 {
+            let code = String(format: "N%02d", n)
+            XCTAssertTrue(BespokeActivitySceneRegistry.hasBespokeScene(for: code), "Missing bespoke scene for \(code)")
+        }
+        for a in 1...40 {
+            let code = String(format: "A%02d", a)
+            XCTAssertTrue(BespokeActivitySceneRegistry.hasBespokeScene(for: code), "Missing bespoke scene for \(code)")
+        }
+        let grammars = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.metadata(for: $0).cameraGrammar })
+        XCTAssertEqual(grammars.count, 46, "All 46 bespoke scenes must own unique cameraGrammar values")
+
+        // 2. Batch E (A33-A40) metadata & finite light anchors
+        let content = try Content.load()
+        let batchEIds: [BespokeActivityID] = [.a33, .a34, .a35, .a36, .a37, .a38, .a39, .a40]
+        let expectedSteps: [BespokeActivityID: Int] = [
+            .a33: 3, .a34: 3, .a35: 4, .a36: 3,
+            .a37: 3, .a38: 3, .a39: 3, .a40: 3
+        ]
+        let sampleSize = CGSize(width: 280, height: 210)
+        for id in batchEIds {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let play = try XCTUnwrap(content.play(id.code))
+            XCTAssertEqual(play.steps.count, expectedSteps[id])
+            XCTAssertEqual(meta.durations.count, play.steps.count, "Durations count mismatch for \(id.code)")
+            XCTAssertEqual(meta.posterPhases.count, play.steps.count, "PosterPhases count mismatch for \(id.code)")
+            XCTAssertEqual(meta.audioAnchors.count, play.steps.count, "AudioAnchors count mismatch for \(id.code)")
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.x))
+            XCTAssertTrue((0.05...0.95).contains(meta.ottoBeadNormalized.y))
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.x))
+            XCTAssertTrue((0.05...0.95).contains(meta.propTargetNormalized.y))
+            for step in 0..<play.steps.count {
+                let anchors = BespokeActivitySceneRegistry.lightAnchors(for: id, step: step, stageSize: sampleSize)
+                XCTAssertTrue(anchors.bead.x.isFinite && anchors.bead.y.isFinite && anchors.target.x.isFinite && anchors.target.y.isFinite)
+            }
+        }
+
+        // 3. Dual-mode ImageRenderer verification across all Batch E scenes (3D Pixar & 2D Ghibli)
+        for id in batchEIds {
+            let meta = BespokeActivitySceneRegistry.metadata(for: id)
+            let script = try XCTUnwrap(LivingBookCatalog.script(for: id.code))
+            let midStep = min(1, max(0, meta.posterPhases.count - 1))
+            for flat in [false, true] {
+                let stage = LivingBookStage(
+                    script: script,
+                    stepIndex: midStep,
+                    companion: .moss,
+                    dark: false,
+                    accent: Crayon.teal,
+                    posterPhase: meta.posterPhases[midStep],
+                    interactive: false,
+                    forceFlat: flat
+                )
+                .frame(width: 280, height: 210)
+                let img = ImageRenderer(content: stage).uiImage
+                XCTAssertNotNil(img, "Batch E scene \(id.code) flat=\(flat) returned nil")
+                XCTAssertGreaterThan(img?.size.width ?? 0, 100)
+            }
         }
     }
 }

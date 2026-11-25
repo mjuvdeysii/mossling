@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>使用条款与免责声明 · 摸索台灯 (Moss &amp; Otto)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #FAF8F3;
+      --surface: #FFFFFF;
+      --soft: #F1EDE3;
+      --ink: #181A18;
+      --sub: #4D5551;
+      --accent: #0B7D74;
+      --border: rgba(24, 26, 24, 0.12);
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #0F162E;
+        --surface: #182143;
+        --soft: #1E284D;
+        --ink: #F7EFE0;
+        --sub: #BFC6DC;
+        --accent: #FFCA62;
+        --border: rgba(247, 239, 224, 0.14);
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 28px 20px 56px;
+      background: var(--bg);
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Noto Sans SC", -apple-system, sans-serif;
+      font-size: 1rem;
+      line-height: 1.72;
+    }
+    .wrap { max-width: 780px; margin: 0 auto; display: grid; gap: 20px; }
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--border);
+    }
+    .brand { font-weight: 800; font-size: 1.125rem; text-decoration: none; color: inherit; }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .pill-link {
+      display: inline-flex;
+      align-items: center;
+      text-decoration: none;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--soft);
+      color: var(--ink);
+      border: 1px solid var(--border);
+    }
+    .lang-btn {
+      appearance: none;
+      font-family: inherit;
+      font-size: 0.875rem;
+      font-weight: 700;
+      padding: 7px 14px;
+      border-radius: 999px;
+      background: var(--accent);
+      color: var(--bg);
+      border: 0;
+      cursor: pointer;
+    }
+    h1 { margin: 8px 0 4px; font-size: clamp(1.75rem, 3vw, 2.25rem); font-weight: 800; line-height: 1.15; }
+    .meta { margin: 0; font-size: 0.875rem; color: var(--sub); }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px 24px;
+      display: grid;
+      gap: 10px;
+    }
+    h2 { margin: 0; font-size: 1rem; font-weight: 700; color: var(--accent); }
+    p { margin: 0; font-size: 1rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <a href="index.html" class="brand" data-zh="摸索台灯 · Moss &amp; Otto" data-en="Moss &amp; Otto">摸索台灯 · Moss &amp; Otto</a>
+      <div class="nav-right">
+        <button type="button" class="lang-btn" id="toggleLang">English</button>
+        <a href="index.html" class="pill-link" data-zh="返回官网" data-en="Home">返回官网</a>
+      </div>
+    </div>
+
+    <header>
+      <h1 data-zh="使用条款与非医疗免责声明" data-en="Terms of Use &amp; Medical Disclaimer">使用条款与非医疗免责声明</h1>
+      <p class="meta" data-zh="适用于 iOS 应用「摸索台灯（Moss &amp; Otto）」 · 2026 年 11 月 24 日" data-en="Applies to Moss &amp; Otto for iOS · November 24, 2026">适用于 iOS 应用「摸索台灯（Moss &amp; Otto）」 · 2026 年 11 月 24 日</p>
+    </header>
+
+    <section class="card">
+      <h2 data-zh="一、应用性质与一次性买断" data-en="1. Scope &amp; One-Time Purchase">一、应用性质与一次性买断</h2>
+      <p data-zh="「摸索台灯」为面向 0 至 36 个月婴幼儿照护者的纯离线家庭陪伴软件。本应用在 App Store 采用一次性付费模式提供，不包含广告、订阅或应用内购买项目。" data-en="Moss &amp; Otto is an offline iOS companion designed for adult caregivers of children aged 0 to 36 months. Offered as a clean one-time App Store purchase with zero subscriptions, ads, or in-app purchases.">「摸索台灯」为面向 0 至 36 个月婴幼儿照护者的纯离线家庭陪伴软件。本应用在 App Store 采用一次性付费模式提供，不包含广告、订阅或应用内购买项目。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="二、非医疗用途声明" data-en="2. Non-Medical Disclaimer">二、非医疗用途声明</h2>
+      <p data-zh="应用内所有发育参考、养育活动、WHO 生长百分位曲线与保健日程参考均仅作日常陪伴与记录辅助，不属于医疗器械，亦不提供医疗诊断、发育筛查或治疗建议。若对孩子健康、生长或发育存在任何疑问，请立即咨询儿科医生或正规妇幼保健机构。" data-en="All developmental references, activities, WHO growth plots, and regional schedules are informational only and do not constitute medical devices, diagnoses, or clinical advice. Always consult a licensed pediatrician for medical concerns.">应用内所有发育参考、养育活动、WHO 生长百分位曲线与保健日程参考均仅作日常陪伴与记录辅助，不属于医疗器械，亦不提供医疗诊断、发育筛查或治疗建议。若对孩子健康、生长或发育存在任何疑问，请立即咨询儿科医生或正规妇幼保健机构。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="三、成人安全看护义务" data-en="3. Adult Supervision Required">三、成人安全看护义务</h2>
+      <p data-zh="全部家庭探索与感官互动均需在成年照护者全程近旁看护下开展。开展前请核实所用日常物品符合儿童安全规范，孩子出现疲倦或抗拒时请立刻暂停并改为轻柔安抚。" data-en="Every activity must be conducted under continuous adult supervision with child-safe everyday objects. Stop immediately and soothe whenever your child appears tired or uncomfortable.">全部家庭探索与感官互动均需在成年照护者全程近旁看护下开展。开展前请核实所用日常物品符合儿童安全规范，孩子出现疲倦或抗拒时请立刻暂停并改为轻柔安抚。</p>
+    </section>
+
+    <section class="card">
+      <h2 data-zh="四、知识产权与教育方法说明" data-en="4. Intellectual Property &amp; Educational Note">四、知识产权与教育方法说明</h2>
+      <p data-zh="应用程序、原创美术插画及角色形象（Moss、Otto、Mochi）权利归开发者所有；部分活动理念描述性参考蒙台梭利家庭实践方法，与任何第三方认证机构无隶属或背书关系。" data-en="Application source, artwork, and characters (Moss, Otto, Mochi) belong to the developer. Descriptive references to Montessori principles imply no affiliation or endorsement by AMI or AMS.">应用程序、原创美术插画及角色形象（Moss、Otto、Mochi）权利归开发者所有；部分活动理念描述性参考蒙台梭利家庭实践方法，与任何第三方认证机构无隶属或背书关系。</p>
+    </section>
+  </div>
+  <script>
+    (function () {
+      let lang = "zh";
+      const btn = document.getElementById("toggleLang");
+      btn.addEventListener("click", function () {
+        lang = lang === "zh" ? "en" : "zh";
+        document.documentElement.lang = lang === "zh" ? "zh-CN" : "en";
+        btn.textContent = lang === "zh" ? "English" : "中文";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          el.textContent = el.getAttribute("data-" + lang);
+        });
+      });
+    })();
+  </script>
+</body>
+</html>
