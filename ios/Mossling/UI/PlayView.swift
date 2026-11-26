@@ -186,7 +186,7 @@ struct PlayView: View {
                         .id("during")
                     }
                 }
-                .padding(.horizontal, 16)
+                .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.top, 6)
                 .padding(.bottom, 18)
             }
@@ -238,7 +238,7 @@ struct PlayView: View {
                     Color(hex: 0x050814).opacity(0.96).ignoresSafeArea()
                     VStack(spacing: 16) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 30, weight: .light))
+                            .font(.title.weight(.light))
                             .foregroundStyle(Palette.bead.opacity(0.85))
                         Text(L10n.t("放下手机，去陪宝宝摸索吧", "Put down the phone and play together"))
                             .font(.headline.weight(.semibold))
@@ -675,11 +675,12 @@ struct MatSideCoPlayView: View {
                     dismiss()
                 } label: {
                     Image(systemName: "xmark")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
-                        .frame(width: 38, height: 38)
+                        .frame(width: 44, height: 44)
                         .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
                         .overlay(Circle().strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("退出垫旁共玩", "Close Mat Mode"))

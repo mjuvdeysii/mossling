@@ -110,6 +110,15 @@ enum Typeface {
         }
         return .system(size: scaled(size, style), weight: weight, design: .rounded).monospacedDigit()
     }
+
+    /// Dynamic-type rounded label font enforcing an 11pt optical floor across all live interactive controls.
+    static func label(_ size: CGFloat, relativeTo style: Font.TextStyle = .caption, weight: Font.Weight = .semibold) -> Font {
+        let floored = max(11, size)
+        if let match = styleSizes.first(where: { $0.0 == style && $0.1 == floored }) ?? styleSizes.first(where: { $0.1 == floored }) {
+            return .system(match.0, design: .rounded, weight: weight)
+        }
+        return .system(size: scaled(floored, style), weight: weight, design: .rounded)
+    }
 }
 
 // MARK: building blocks
@@ -263,16 +272,36 @@ enum Radius {
 /// Precision spatial & typographic cadence benchmarked against Headspace, Airbnb, and iOS 26 App Store.
 enum LayoutSpec {
     static let pageH: CGFloat = 20
+    static let sheetH: CGFloat = 20
     static let sectionGap: CGFloat = 24
     static let cardGap: CGFloat = 18
     static let gridGap: CGFloat = 14
     static let cardPad: CGFloat = 18
     static let cardPadHero: CGFloat = 20
+    static let rowPadH: CGFloat = 16
+    static let rowPadV: CGFloat = 13
+    static let pillPadH: CGFloat = 14
+    static let pillPadV: CGFloat = 9
+    static let hitMin: CGFloat = 44
+    static let ctaPrimaryHeight: CGFloat = 52
+    static let ctaSecondaryHeight: CGFloat = 44
     static let titleDescGap: CGFloat = 5
     static let iconTextGap: CGFloat = 12
     static let sectionHeaderGap: CGFloat = 12
     static let sectionTracking: CGFloat = -0.4
     static let titleTracking: CGFloat = -0.2
+}
+
+extension View {
+    /// Expands compact circular icon controls to Apple HIG 44x44pt minimum hit geometry without changing visual chrome.
+    func hitTarget(_ minSize: CGFloat = LayoutSpec.hitMin) -> some View {
+        frame(minWidth: minSize, minHeight: minSize).contentShape(Rectangle())
+    }
+
+    /// Expands compact capsule/chip labels to 44pt minimum tap height while keeping visual pill proportions refined.
+    func pillHitTarget(_ minHeight: CGFloat = LayoutSpec.hitMin) -> some View {
+        frame(minHeight: minHeight).contentShape(Rectangle())
+    }
 }
 
 /// Timing, said once. A tap answers at once; a page settles on one spring; the ambient things (the companions, the
@@ -658,7 +687,7 @@ struct Card<Content: View>: View {
             }
             content
         }
-        .padding(16)
+        .padding(LayoutSpec.cardPad)
         .frame(maxWidth: .infinity, alignment: .leading)
         .printCard(radius: Radius.card)
         .contentShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
@@ -692,7 +721,7 @@ struct SectionTitle: View {
                     HStack(alignment: .firstTextBaseline, spacing: 8) {
                         // every section starts at a golden bead, the same bead as the counts and the growth chain
                         GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                        Text(title).font(.title3.weight(.bold)).fixedSize(horizontal: false, vertical: true)
+                        Text(title).font(.title3.weight(.bold)).tracking(LayoutSpec.sectionTracking).fixedSize(horizontal: false, vertical: true)
                     }
                     if let detail {
                         Text(detail)
@@ -707,7 +736,7 @@ struct SectionTitle: View {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
                     // every section starts at a golden bead, the same bead as the counts and the growth chain
                     GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                    Text(title).font(.title3.weight(.bold))
+                    Text(title).font(.title3.weight(.bold)).tracking(LayoutSpec.sectionTracking)
                     Spacer()
                     if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
                 }
@@ -872,8 +901,8 @@ struct VinylButton: ButtonStyle {
             configuration.label
                 .font((large ? Font.body : Font.subheadline).weight(.semibold))
                 .foregroundStyle(ink)
-                .padding(.horizontal, large ? 22 : 14).padding(.vertical, large ? 14 : 8)
-                .frame(minHeight: 44)
+                .padding(.horizontal, large ? 22 : LayoutSpec.pillPadH).padding(.vertical, large ? 15 : LayoutSpec.pillPadV)
+                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : LayoutSpec.hitMin)
                 .background(shape.fill(prominent ? tint : tint.opacity(dark ? 0.22 : 0.14)))
                 .contentShape(shape)
                 .opacity(enabled ? (pressed ? 0.6 : 1) : 0.45)
@@ -887,8 +916,8 @@ struct VinylButton: ButtonStyle {
             configuration.label
                 .font((large ? Font.body : Font.subheadline).weight(.semibold))
                 .foregroundStyle(ink)
-                .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 14 : 9)
-                .frame(minHeight: 44)
+                .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 15 : LayoutSpec.pillPadV)
+                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : LayoutSpec.hitMin)
                 .background {
                     // Direct shadowPath on base capsule avoids an off-screen alpha render pass on every 3D button
                     ZStack {

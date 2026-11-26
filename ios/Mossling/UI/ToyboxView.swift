@@ -156,7 +156,7 @@ struct ToyboxView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, 16)
+        .padding(.horizontal, LayoutSpec.pageH)
         .padding(.top, 8)
         .padding(.bottom, 14)
         .pageBackground(tone: mode.tone)
@@ -427,13 +427,14 @@ private struct XylophoneStudio: View {
                                 .font(.caption.weight(.bold))
                                 .lineLimit(1)
                             Image(systemName: "chevron.down")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
                         .background(Capsule().fill(Palette.accent.opacity(dark ? 0.22 : 0.12)))
                         .fixedSize(horizontal: true, vertical: false)
+                        .pillHitTarget()
                     }
                     .accessibilityLabel(L10n.t("选择童谣曲目", "Choose melody"))
                 }
@@ -1939,10 +1940,11 @@ private struct ContrastFocusCover: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(bg)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .background(Circle().fill(fg.opacity(0.75)))
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.toy)
                     .accessibilityLabel(L10n.t("退出全屏", "Exit fullscreen"))
@@ -1954,15 +1956,16 @@ private struct ContrastFocusCover: View {
                         inverted.toggle()
                     } label: {
                         Image(systemName: "circle.lefthalf.filled")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(bg)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                             .background(Circle().fill(fg.opacity(0.75)))
+                            .contentShape(Circle())
                     }
                     .buttonStyle(.toy)
                     .accessibilityLabel(L10n.t("黑白反色", "Invert card polarity"))
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.top, 12)
                 Spacer()
                 Text("\(cards[max(0, min(index, cards.count - 1))].title) · \(index + 1)/\(cards.count)")

@@ -494,7 +494,7 @@ struct RhythmDialCard: View {
             } else {
                 VStack(spacing: 3) {
                     Image(systemName: currentHour >= 19 || currentHour < 6 ? "moon.stars.fill" : "sun.max.fill")
-                        .font(.system(size: 16, weight: .semibold))
+                        .font(.callout.weight(.semibold))
                         .foregroundStyle(Palette.bead)
                     Text(L10n.t("近 \(spanDays) 天", "Last \(spanDays)d"))
                         .font(.subheadline.weight(.bold))

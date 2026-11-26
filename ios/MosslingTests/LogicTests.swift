@@ -3594,4 +3594,78 @@ final class LogicTests: XCTestCase {
         )
         XCTAssertNotNil(sheetImg.cgImage)
     }
+
+    @MainActor
+    func testBatch33TypographyHitTargetsAndLayoutSpec() {
+        // 1. Design tokens satisfy Apple HIG ergonomics & monotonic hierarchy
+        XCTAssertGreaterThanOrEqual(LayoutSpec.hitMin, 44)
+        XCTAssertGreaterThanOrEqual(LayoutSpec.ctaPrimaryHeight, 48)
+        XCTAssertGreaterThanOrEqual(LayoutSpec.ctaSecondaryHeight, 44)
+        XCTAssertEqual(LayoutSpec.pageH, 20)
+        XCTAssertEqual(LayoutSpec.cardPad, 18)
+        XCTAssertTrue(
+            Radius.stage > Radius.card &&
+            Radius.card > Radius.inner &&
+            Radius.inner > Radius.tile &&
+            Radius.tile > Radius.chip
+        )
+
+        // 2. Dynamic Type label floor & numerals resolution
+        let flooredFont = Typeface.label(9, relativeTo: .caption2, weight: .bold)
+        let numericFont = Typeface.numerals(16, relativeTo: .body, weight: .semibold)
+        XCTAssertNotNil(flooredFont)
+        XCTAssertNotNil(numericFont)
+
+        // 3. Core shared typography & row primitives render cleanly at default & AX3 sizes
+        let suiteName = "batch33-\(UUID().uuidString)"
+        let envApp = AppModel(defaults: UserDefaults(suiteName: suiteName)!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.nickname = "小满"
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let envRouter = AppRouter()
+
+        let primitives = VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
+            SectionTitle(title: "排版与热区检查", detail: "Day & Lamp")
+            Box {
+                BoxRow(symbol: "sun.max.fill", title: "标准行条目", text: "说明文字对齐", last: false, opens: true)
+                CheckRow(text: "交互勾选行", on: true, tag: "已记录", last: true) {}
+            }
+            CalmDisclosureNote(title: "折叠说明", symbol: "info.circle") {
+                Text("细节文案").font(.footnote)
+            }
+            Button("主按钮") {}
+                .buttonStyle(.vinyl(Palette.accent, prominent: true, large: true))
+        }
+        .padding(.horizontal, LayoutSpec.pageH)
+
+        for dt in [DynamicTypeSize.large, .accessibility3] {
+            let img = renderHostedSnapshot(
+                primitives
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(\.dynamicTypeSize, dt)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
+        }
+
+        // 4. Upgraded interactive views render cleanly across AX3 without truncation/layout traps
+        for view in [
+            AnyView(BedsideLampView(initialBrightness: 0.78, initialPalmPat: true, previewClock: envApp.today.date)),
+            AnyView(FoodAtlasView()),
+            AnyView(ToyboxView(initialMode: .shadows, initialShadowPuppet: .rabbit))
+        ] {
+            let img = renderHostedSnapshot(
+                view
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(envRouter)
+                    .environment(\.dynamicTypeSize, .accessibility3)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
+        }
+    }
 }

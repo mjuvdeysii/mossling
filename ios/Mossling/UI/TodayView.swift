@@ -691,7 +691,12 @@ struct TodayPlayCard: View {
                                 .padding(.bottom, LayoutSpec.cardPadHero)
                             }
                         } else {
-                            Button(action: arrange) { Text(L10n.t("调整这周的活动", "Adjust this week's plays")).font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 40) }
+                            Button(action: arrange) {
+                                Text(L10n.t("调整这周的活动", "Adjust this week's plays"))
+                                    .font(.footnote.weight(.semibold))
+                                    .frame(maxWidth: .infinity, minHeight: LayoutSpec.hitMin)
+                                    .contentShape(Rectangle())
+                            }
                         }
                     }
                     .background(alignment: .top) { if night { LampPool() } }
@@ -911,7 +916,8 @@ struct TodayPlayCard: View {
                 if times > 0 { BeadCount(times: times) }
                 Image(systemName: "chevron.right").font(.caption.weight(.bold)).foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, 14).padding(.vertical, 7)
+            .padding(.horizontal, LayoutSpec.rowPadH).padding(.vertical, 9)
+            .frame(minHeight: LayoutSpec.hitMin)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)

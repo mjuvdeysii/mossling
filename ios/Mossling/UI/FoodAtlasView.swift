@@ -270,14 +270,14 @@ struct FoodAtlasView: View {
                     } label: {
                         HStack(spacing: 3) {
                             Image(systemName: cat.symbol)
-                                .font(.system(size: 9, weight: .bold))
+                                .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                                 .foregroundStyle(dark ? cat.color : Crayon.ink(cat.color))
                             Text("\(c)")
                                 .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
                                 .foregroundStyle(active ? Palette.accent : (c > 0 ? .primary : Palette.secondaryText))
                         }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3.5)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
                         .background(
                             Capsule().fill(
                                 active
@@ -288,6 +288,7 @@ struct FoodAtlasView: View {
                         .overlay(
                             Capsule().strokeBorder(active ? cat.color.opacity(0.65) : .clear, lineWidth: 1)
                         )
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("\(cat.title)，已尝 \(c) / \(store.totalCount(in: cat))", "\(cat.title), \(c) of \(store.totalCount(in: cat)) tasted"))
@@ -412,16 +413,17 @@ struct FoodAtlasView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: activeCat.symbol)
-                                .font(.system(size: 10, weight: .bold))
+                                .font(.caption2.weight(.bold))
                             Text(activeCat.title)
                                 .font(.caption.weight(.bold))
                             Image(systemName: "xmark")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(.white)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(Palette.accentFill))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("清除分类筛选 \(activeCat.title)", "Clear category filter \(activeCat.title)"))
@@ -444,10 +446,11 @@ struct FoodAtlasView: View {
                         Text(label)
                             .font(.caption.weight(on ? .bold : .semibold))
                             .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
-                            .padding(.horizontal, 8.5)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
                             .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(on ? .isSelected : [])
@@ -642,9 +645,10 @@ struct FoodAtlasView: View {
                         Text("+1")
                             .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
                             .foregroundStyle(Crayon.ink(color))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 5)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
                             .background(Capsule().fill(color.opacity(dark ? 0.22 : 0.14)))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.toy)
                     .accessibilityLabel(L10n.t("尝过次数加一", "Add one tasting"))
@@ -658,9 +662,10 @@ struct FoodAtlasView: View {
                     Text(L10n.t("详情", "Edit"))
                         .font(.caption.weight(.bold))
                         .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(Palette.accent.opacity(dark ? 0.20 : 0.12)))
+                        .pillHitTarget()
                 }
                 .buttonStyle(.toy)
                 Button {
@@ -854,9 +859,9 @@ private struct FoodSpecimenChip: View {
 
                     if let rec = record {
                         Image(systemName: rec.reaction.symbol)
-                            .font(.system(size: 9, weight: .bold))
+                            .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 16, height: 16)
+                            .frame(width: 17, height: 17)
                             .background(Circle().fill(rec.reaction.color))
                             .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
                             .offset(x: 3, y: -2)
@@ -879,22 +884,23 @@ private struct FoodSpecimenChip: View {
                 if let rec = record {
                     if watch {
                         Text(times >= 2 ? L10n.t("留意·×\(times)", "Watch·×\(times)") : L10n.t("留意", "Watch"))
-                            .font(.system(size: 10, weight: .semibold, design: .rounded))
+                            .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                             .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.78)
                     } else {
                         Text(times >= 2 ? "×\(times)" : rec.firstTastedDay.md)
-                            .font(.system(size: 10, weight: .medium, design: .rounded))
+                            .font(Typeface.label(11, relativeTo: .caption2, weight: .medium))
                             .foregroundStyle(Palette.secondaryText)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.78)
                     }
                 } else if item.isCommonAllergen {
                     Text(L10n.t("致敏", "Allergen"))
-                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                         .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                 }
             }
             .padding(.horizontal, 4)

@@ -286,11 +286,12 @@ struct RhythmView: View {
                             month == 0 ? L10n.t("回出生月", "Back to Birth") : L10n.t("回第 \(month) 个月", "Back to Mo \(month)"),
                             systemImage: "arrow.uturn.backward"
                         )
-                        .font(.caption2.weight(.bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(Palette.accent.opacity(dark ? 0.22 : 0.12)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                 }
@@ -609,9 +610,10 @@ struct RhythmView: View {
                         Label(L10n.t("床头夜灯与声景", "Bedside Lamp"), systemImage: "lamp.desk.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
-                            .padding(.horizontal, 11)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(Capsule().fill(Palette.amber.opacity(dark ? 0.22 : 0.16)))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.toy)
                 } else {
@@ -622,9 +624,10 @@ struct RhythmView: View {
                         Label(L10n.t("床头夜灯与声景", "Bedside Lamp"), systemImage: "lamp.desk.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
-                            .padding(.horizontal, 11)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(Capsule().fill(Palette.amber.opacity(dark ? 0.22 : 0.16)))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.toy)
                 }
@@ -634,15 +637,16 @@ struct RhythmView: View {
                         Label(L10n.t("查看 7 天节律盘", "Open 7d Rhythm Dial"), systemImage: "dial.medium.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(ink)
-                            .padding(.horizontal, 11)
+                            .padding(.horizontal, 12)
                             .padding(.vertical, 7)
                             .background(Capsule().fill(c.opacity(dark ? 0.22 : 0.14)))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.toy)
                 }
             }
         }
-        .padding(16)
+        .padding(LayoutSpec.cardPad)
         .printCard(radius: Radius.card)
     }
 
@@ -746,9 +750,10 @@ struct RhythmView: View {
                     )
                     .font(.caption.weight(.bold))
                     .foregroundStyle(ink)
-                    .padding(.horizontal, 11)
+                    .padding(.horizontal, 12)
                     .padding(.vertical, 7)
                     .background(Capsule().fill(c.opacity(dark ? 0.22 : 0.14)))
+                    .pillHitTarget()
                 }
                 .buttonStyle(.toy)
 

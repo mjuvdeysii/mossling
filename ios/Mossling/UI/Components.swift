@@ -191,9 +191,10 @@ struct BoxRow<Trailing: View>: View {
                     Text(rich(text)).font(.subheadline).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
+                .padding(.horizontal, LayoutSpec.rowPadH).padding(.vertical, LayoutSpec.rowPadV)
+                .frame(minHeight: LayoutSpec.hitMin, alignment: .leading)
                 .contentShape(Rectangle())
-                if !last { Divider().padding(.leading, 16) }
+                if !last { Divider().padding(.leading, LayoutSpec.rowPadH) }
             } else {
                 HStack(alignment: .center, spacing: 14) {
                     if let symbol { IconTile(symbol: symbol, color: color) }
@@ -205,9 +206,10 @@ struct BoxRow<Trailing: View>: View {
                     trailing
                     if opens { Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary) }
                 }
-                .padding(.horizontal, 16).padding(.vertical, 12)
+                .padding(.horizontal, LayoutSpec.rowPadH).padding(.vertical, LayoutSpec.rowPadV)
+                .frame(minHeight: LayoutSpec.hitMin, alignment: .leading)
                 .contentShape(Rectangle())
-                if !last { Divider().padding(.leading, symbol == nil ? 16 : 60) }
+                if !last { Divider().padding(.leading, symbol == nil ? LayoutSpec.rowPadH : 60) }
             }
         }
     }
@@ -252,7 +254,8 @@ struct CheckRow: View {
                     }
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 16).padding(.vertical, 11)
+                .padding(.horizontal, LayoutSpec.rowPadH).padding(.vertical, 12)
+                .frame(minHeight: LayoutSpec.hitMin)
                 .background(on ? accent.opacity(dark ? 0.12 : 0.06) : .clear)
                 if !last { Divider().padding(.leading, 56) }
             }
@@ -363,12 +366,14 @@ struct TableBlock: View {
                                 Text(label)
                                     .font(.caption.weight(isOn ? .bold : .semibold))
                                     .lineLimit(1)
+                                    .minimumScaleFactor(0.82)
                             }
                             .foregroundStyle(isOn ? .white : .primary)
-                            .padding(.horizontal, 11)
-                            .padding(.vertical, 6)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 7)
                             .background(Capsule().fill(isOn ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.card)))
                             .overlay(Capsule().strokeBorder(isOn ? Color.clear : Palette.outline.opacity(dark ? 0.25 : 0.16), lineWidth: 0.75))
+                            .pillHitTarget()
                         }
                         .buttonStyle(.toy)
                         .accessibilityAddTraits(isOn ? .isSelected : [])
@@ -813,12 +818,12 @@ struct CalmDisclosureNote<Content: View>: View {
                     .foregroundStyle(Palette.accent)
                     .rotationEffect(.degrees(open ? 180 : 0))
             }
-            .frame(minHeight: 36)
+            .frame(minHeight: LayoutSpec.hitMin)
         } content: {
             content()
                 .padding(.top, 2)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, LayoutSpec.pillPadH)
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(

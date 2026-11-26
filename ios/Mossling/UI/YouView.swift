@@ -190,7 +190,7 @@ private struct FamilyCard: View {
         if let a = app.age {
             HStack(spacing: 5) {
                 Image(systemName: land.symbol)
-                    .font(.system(size: 10, weight: .bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                     .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
                 Text("\(land.name) · \(L10n.livedDays(a.lived))")
                     .font(.footnote)

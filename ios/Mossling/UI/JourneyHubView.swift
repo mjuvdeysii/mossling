@@ -105,7 +105,7 @@ struct MonthPostcardArt: View {
         .overlay(alignment: .topLeading) {
             if night {
                 Image(systemName: "moon.stars.fill")
-                    .font(.system(size: 10, weight: .bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                     .foregroundStyle(Palette.amber)
                     .padding(4)
                     .background(Circle().fill(Color(hex: 0x0E1430).opacity(0.75)))
@@ -211,7 +211,7 @@ struct MiniJourneyBeadStrip: View {
                 Spacer()
                 Text(L10n.t("3岁", "3y"))
             }
-            .font(.system(size: 9.5, weight: .semibold, design: .rounded))
+            .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
             .foregroundStyle(Palette.secondaryText.opacity(0.85))
             .monospacedDigit()
             .padding(.horizontal, 4)
@@ -476,12 +476,13 @@ struct JourneyHubView: View {
                     }
                 } label: {
                     Text(item.title)
-                        .font(.caption2.weight(.bold))
+                        .font(.caption.weight(.bold))
                         .foregroundStyle(on ? .white : .primary)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
                         .overlay(Capsule().strokeBorder(Palette.outline.opacity(on ? 0 : 0.28), lineWidth: 0.75))
+                        .pillHitTarget()
                 }
                 .buttonStyle(.plain)
                 .accessibilityAddTraits(on ? .isSelected : [])
@@ -496,12 +497,13 @@ struct JourneyHubView: View {
                 L10n.t("静谧", "Quiet"),
                 systemImage: quietBeads ? "circle.fill" : "circle.dotted"
             )
-            .font(.caption2.weight(.bold))
+            .font(.caption.weight(.bold))
             .foregroundStyle(quietBeads ? Color(hex: 0x4A3300) : .primary)
-            .padding(.horizontal, 9)
-            .padding(.vertical, 4)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 6)
             .background(Capsule().fill(quietBeads ? Palette.bead : (dark ? Palette.lampCard : Palette.card)))
             .overlay(Capsule().strokeBorder(Palette.outline.opacity(quietBeads ? 0 : 0.28), lineWidth: 0.75))
+            .pillHitTarget()
         }
         .buttonStyle(.plain)
         .accessibilityLabel(L10n.t("静谧珠链", "Quiet Beads"))
@@ -606,12 +608,13 @@ struct JourneyHubView: View {
                 Text(L10n.t("月龄指南", "Guide"))
                     .font(.caption2.weight(.bold))
                 Image(systemName: "chevron.right")
-                    .font(.system(size: 9, weight: .bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 11)
+            .padding(.vertical, 7)
             .background(Capsule().fill(Palette.accentFill))
+            .pillHitTarget()
         }
         .buttonStyle(.toy)
         .accessibilityLabel(L10n.t("本月发育要点与活动", "This Month's Guide"))

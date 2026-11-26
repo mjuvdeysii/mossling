@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 33（字体字号、间距、按钮热区与双端布局全面精修）**：
+  - **系统级排版与触控热区规范升级（`Theme.swift` + `Components.swift`）**：扩展 `LayoutSpec`（新增 `hitMin = 44pt`、`ctaPrimaryHeight = 52pt`、`ctaSecondaryHeight = 44pt`、`rowPadH/V`、`pillPadH/V`、`sheetH`）与 `Typeface.label(_:relativeTo:weight:)` 11pt 可读性底线；新增 `.hitTarget()` / `.pillHitTarget()` 无损热区扩展修饰器，为 `SectionTitle` 应用 `-0.4` 字距收敛，并将 `Card`、`VinylButton`、`BoxRow`、`CheckRow`、`TableBlock` 分龄胶囊与 `CalmDisclosureNote` 全面拉齐至苹果人机交互 44pt+ / 52pt 标准。
+  - **全站实时界面清零 `<11pt` 微小字号与低矮热区**：全面翻新夜灯全屏舱（`BedsideLampView`）、今日首页（`TodayView`）、共玩剧场（`PlayView`）、壁纸画室（`ActivityWallpaperStudio`）、感官玩具盒与黑白视卡全屏模式（`ToyboxView`）、百味食盒（`FoodAtlasView`）、第一次里程碑（`Firsts`）、37 站旅程（`JourneyHubView`）、成长月度页（`GrowthMap`）、成长绘本（`StorybookView`）、照护台灯中枢（`LampHubView`、`DailyRhythmStudio`、`RhythmDialView`）及科学依据与个人页（`EditorialViews`、`YouView`），全部可交互界面彻底清零 `<11pt` 固定小字并补齐 `44pt+` 点击区域。
+  - **官网视觉韵律与响应式按钮精修（`docs/assets/site.css`）**：清零全站所有 `<12px` 过小标注与 `<44px` 按钮最小高度约束（`.lang-toggle`、`.nav-cta`、`.menu-btn`、`.wp-ctrl-btn`、`.audio-btn`、`.btn-chip`、`.store-pill`、`.pill-cta` 等全量升级），优化桌面 Hero 主次按钮、OpenType 数字等宽特征与 `<=480px` 窄屏自动换行，新增单测 `testBatch33TypographyHitTargetsAndLayoutSpec()`。
 - **Batch 32（全量共玩插画精修与藏画级壁纸系统 · Collector Wallpaper Atelier Sync）**：
   - **GPU 边缘融景撕边与绘本微光着色（`StoryTheaterShaders.metal` + `PixarLightingRig`）**：在 `pixarActorRimShade` 加入 8 向外围 Alpha 贴纸白边智能剥离（`whiteHalo` 剥除）与地面暖光回弹；升级 `pixarKeyLightWrap` 增设午后斜射日影焦散与棉浆画纸纹理微粒，彻底消融 Moss 与 Otto 在剧场上的拼贴边缘感。
   - **五重绘本壁纸生境框架与旗舰精修**：将全部 46 个专属活动舞台归入五套手绘壁纸生境（日光窗边 / 绘本暖阁 / 草地日光 / 木作桌台 / 星夜台灯），并在 `BespokeActivitySceneRegistry.stageView` 加入非遮挡植物轮廓、日影光束与典藏纸框压边；重点深化 `A09` 镜面黄铜珠边与斜光星斑、`A11` 车工桦木哑铃摇铃、`N04` 橡木地板拼缝与双圈棉麻绗缝、`A08` 亚麻包边纽扣织垫、`A19` 倒角榉木刻环积木。

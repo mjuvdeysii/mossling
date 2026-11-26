@@ -71,9 +71,10 @@ body {
   margin: 0;
   font-family: var(--font-sans);
   font-size: var(--t-body);
-  line-height: 1.6;
+  line-height: 1.66;
   color: var(--ink);
   background: var(--bg);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
   overflow-x: clip;
@@ -145,7 +146,8 @@ a {
   position: sticky;
   top: 0;
   z-index: 200;
-  height: 64px;
+  min-height: 68px;
+  height: auto;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -203,8 +205,9 @@ a {
 }
 
 .lang-toggle {
-  height: 34px;
-  padding: 0 13px;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 14px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: var(--bg);
@@ -225,8 +228,8 @@ a {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  height: 34px;
-  padding: 0 16px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: #ffffff;
@@ -242,8 +245,8 @@ a {
 
 .menu-btn {
   display: none;
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: var(--bg);
@@ -271,7 +274,10 @@ a {
 }
 
 .mobile-drawer a {
-  padding: 11px 10px;
+  display: flex;
+  align-items: center;
+  min-height: 46px;
+  padding: 11px 12px;
   border-radius: 10px;
   font-size: 16px;
   font-weight: 500;
@@ -328,8 +334,8 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 46px;
-  padding: 0 24px;
+  min-height: 48px;
+  padding: 11px 24px;
   border-radius: var(--radius-pill);
   border: 0;
   background: var(--accent);
@@ -352,8 +358,8 @@ a {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  height: 46px;
-  padding: 0 22px;
+  min-height: 48px;
+  padding: 11px 22px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: var(--bg);
@@ -396,7 +402,8 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 11px;
+  min-height: 44px;
+  padding: 8px 13px;
   border-radius: var(--radius-pill);
   background: var(--surface);
   border: 1px solid var(--line);
@@ -413,7 +420,7 @@ a {
 }
 
 .store-code {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--ink-3);
@@ -1065,7 +1072,8 @@ a {
 }
 
 .audio-btn {
-  padding: 6px 14px;
+  min-height: 44px;
+  padding: 10px 16px;
   border-radius: var(--radius-pill);
   border: 1px solid rgba(var(--lamp-rgb), 0.42);
   background: rgba(var(--lamp-rgb), 0.12);
@@ -1090,7 +1098,8 @@ a {
 }
 
 .mix-chip {
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 10px 13px;
   border-radius: 12px;
   border: 1px solid var(--night-line);
   background: rgba(255, 255, 255, 0.04);
@@ -1409,7 +1418,8 @@ a {
 }
 
 .btn-chip {
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 9px 15px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: #ffffff;
@@ -1595,7 +1605,7 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  min-height: 36px;
+  min-height: 44px;
 }
 
 .handover-state {
@@ -1708,7 +1718,8 @@ a {
 }
 
 .bead-step-btn {
-  padding: 10px 12px;
+  min-height: 44px;
+  padding: 11px 13px;
   border-radius: 14px;
   border: 1px solid var(--line);
   background: #ffffff;
@@ -2019,7 +2030,7 @@ a {
 }
 
 .region-iso {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 2px 7px;
@@ -2071,8 +2082,8 @@ a {
   }
 
   .region-iso {
-    padding: 2px 5px;
-    font-size: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
   }
 
   .region-arrow {
@@ -2085,8 +2096,8 @@ a {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 46px;
-  padding: 0 20px;
+  min-height: 48px;
+  padding: 11px 22px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--night-line);
   background: rgba(255, 255, 255, 0.06);
@@ -3047,7 +3058,7 @@ a {
   .compare-table td.col-moss::before {
     content: "Moss & Otto";
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 700;
     letter-spacing: 0.04em;
     color: var(--accent);
@@ -3057,7 +3068,7 @@ a {
   .compare-table td.col-other::before {
     content: "Typical Subscription Apps";
     display: block;
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--ink-3);
     margin-bottom: 4px;
@@ -3696,8 +3707,8 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 7px;
-  height: 46px;
-  padding: 0 18px;
+  min-height: 48px;
+  padding: 11px 18px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: var(--bg);
@@ -3806,7 +3817,8 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 9px 15px;
   border-radius: var(--radius-pill);
   background: #ffffff;
   border: 1px solid var(--line);
@@ -3946,7 +3958,7 @@ a {
 }
 
 .closing-qr-note {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--night-ink-2);
 }
@@ -4056,8 +4068,8 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 36px;
-  padding: 0 14px;
+  min-height: 44px;
+  padding: 0 16px;
   border-radius: var(--radius-pill);
   background: var(--accent);
   color: #ffffff;
@@ -4440,8 +4452,8 @@ a {
 }
 
 .wp-ctrl-btn {
-  min-height: 40px;
-  padding: 8px 14px;
+  min-height: 44px;
+  padding: 10px 16px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--line-strong);
   background: rgba(255, 255, 255, 0.85);
@@ -4551,7 +4563,7 @@ a {
 .wp-lock-biome {
   display: block;
   margin-top: 6px;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
   opacity: 0.9;
@@ -4643,7 +4655,7 @@ a {
 }
 
 .wp-thumb-btn span {
-  font-size: 11.5px;
+  font-size: 12.5px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
@@ -4668,6 +4680,9 @@ a {
 }
 
 @media (max-width: 860px) {
+  .lang-toggle {
+    min-height: 44px;
+  }
   .wallpaper-atelier {
     padding: 22px 18px;
   }
@@ -4676,6 +4691,22 @@ a {
   }
   .wallpaper-stage {
     min-height: 360px;
+  }
+}
+
+@media (max-width: 480px) {
+  .hero-actions {
+    width: 100%;
+  }
+  .hero-actions .btn-primary,
+  .hero-actions .btn-secondary,
+  .hero-actions .hero-qr-wrap,
+  .hero-actions .btn-qr-pop {
+    width: 100%;
+    justify-content: center;
+    white-space: normal;
+    text-align: center;
+    line-height: 1.3;
   }
 }
 

@@ -178,7 +178,7 @@ struct StorybookView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(.primary)
                     .frame(width: 44, height: 44)
                     .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
@@ -216,7 +216,7 @@ struct StorybookView: View {
                 }
             } label: {
                 Image(systemName: "square.and.arrow.up")
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(Palette.accent)
                     .frame(width: 44, height: 44)
                     .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
@@ -559,9 +559,10 @@ private struct StorybookMonthSpread: View {
                                 .frame(width: 74, height: 74)
                                 .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
                             Text(Firsts.displayTitle(firstItem))
-                                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                                 .foregroundStyle(Color(hex: 0x3A2E24))
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.8)
                                 .frame(maxWidth: 74)
                         }
                         .padding(5)
@@ -654,7 +655,7 @@ private struct StorybookMonthSpread: View {
                                         .foregroundStyle(.primary)
                                     if entry.loved {
                                         Image(systemName: "heart.fill")
-                                            .font(.system(size: 8.5, weight: .bold))
+                                            .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                                             .foregroundStyle(Crayon.pink)
                                     }
                                 }

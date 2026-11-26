@@ -633,7 +633,7 @@ struct FirstsView: View {
                     stageCharmsTray(charms: charms, dark: dark)
                 }
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, LayoutSpec.pageH)
             .padding(.bottom, 40)
         }
         .calmWhileScrolling()
@@ -939,10 +939,11 @@ struct FirstsView: View {
                             .foregroundStyle(.primary)
                     }
                     .padding(.leading, 6)
-                    .padding(.trailing, 11)
-                    .padding(.vertical, 6)
+                    .padding(.trailing, 12)
+                    .padding(.vertical, 7)
                     .background(Capsule().fill(k.color.opacity(dark ? 0.20 : 0.11)))
                     .overlay(Capsule().strokeBorder(k.color.opacity(dark ? 0.38 : 0.25), lineWidth: 0.85))
+                    .pillHitTarget()
                 }
                 .buttonStyle(.toy)
             }
@@ -1092,7 +1093,7 @@ private struct FirstPhotoLightbox: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.system(size: 14, weight: .bold))
+                            .font(.subheadline.weight(.bold))
                             .foregroundStyle(.primary)
                             .frame(minWidth: 44, minHeight: 44)
                             .background(Circle().fill(dark ? Palette.lampCard : Palette.card))

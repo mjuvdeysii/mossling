@@ -273,7 +273,7 @@ struct ActivityWallpaperSheet: View {
                         if format == .lockScreen && !showPlaque {
                             VStack(spacing: 2) {
                                 Text("9:41")
-                                    .font(.system(size: 46, weight: .semibold, design: .rounded))
+                                    .font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .semibold))
                                     .foregroundStyle(.white.opacity(0.90))
                                     .shadow(color: .black.opacity(0.24), radius: 8, y: 2)
                                 Text(selected.biome)
@@ -301,6 +301,7 @@ struct ActivityWallpaperSheet: View {
                         Toggle(isOn: $eveningWarmth) {
                             Label(L10n.t("夜间暖釉", "Night Glaze"), systemImage: "moon.stars")
                                 .font(.footnote.weight(.medium))
+                                .pillHitTarget()
                         }
                         .toggleStyle(.button)
                         .tint(Palette.amber)
@@ -308,6 +309,7 @@ struct ActivityWallpaperSheet: View {
                         Toggle(isOn: $showPlaque) {
                             Label(L10n.t("底部画签", "Mat Plaque"), systemImage: "text.below.photo")
                                 .font(.footnote.weight(.medium))
+                                .pillHitTarget()
                         }
                         .toggleStyle(.button)
                         .tint(Color(hex: selected.accentHex))
@@ -379,13 +381,12 @@ struct ActivityWallpaperSheet: View {
                             systemImage: "square.and.arrow.down"
                         )
                         .font(.callout.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
+                        .frame(maxWidth: .infinity, minHeight: LayoutSpec.ctaPrimaryHeight)
                     }
                     .buttonStyle(.borderedProminent)
                     .tint(Color(hex: selected.accentHex))
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.bottom, 24)
             }
             .navigationTitle(L10n.t("藏画壁纸画室", "Wallpaper Atelier"))

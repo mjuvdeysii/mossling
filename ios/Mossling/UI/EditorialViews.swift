@@ -154,10 +154,11 @@ struct SourcesView: View {
                                         .opacity(on ? 0.92 : 0.72)
                                 }
                                 .foregroundStyle(on ? .white : .primary)
-                                .padding(.horizontal, 11)
+                                .padding(.horizontal, 12)
                                 .padding(.vertical, 6)
                                 .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
                                 .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
+                                .pillHitTarget()
                             }
                             .buttonStyle(.toy)
                             .accessibilityAddTraits(on ? .isSelected : [])
@@ -334,12 +335,13 @@ struct SourcesView: View {
                                 .lineLimit(type.isAccessibilitySize ? nil : 1)
                                 .fixedSize(horizontal: false, vertical: true)
                             Image(systemName: "arrow.up.right")
-                                .font(.system(size: 9, weight: .bold))
+                                .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                         }
                         .foregroundStyle(Palette.accent)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(Palette.accent.opacity(dark ? 0.18 : 0.10)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                 }
@@ -361,9 +363,10 @@ struct SourcesView: View {
                         .font(.caption2.weight(.semibold))
                 }
                 .foregroundStyle(copiedId == keyId ? Palette.accent : Palette.secondaryText)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
                 .background(Capsule().fill(Palette.fill.opacity(dark ? 0.35 : 0.80)))
+                .pillHitTarget()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L10n.t("复制第 \(index) 条标准引文", "Copy formatted citation \(index)"))

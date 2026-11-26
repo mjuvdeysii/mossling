@@ -180,9 +180,10 @@ struct LampHubView: View {
                                 .font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(is3AMOled ? Palette.amber : Palette.accent)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(is3AMOled ? Color.white.opacity(0.10) : Palette.accent.opacity(0.12)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(quickNight3AM ? L10n.t("切换回完整台灯与节律视图", "Switch to full Lamp & rhythm view") : L10n.t("切换到凌晨三点极速护眼模式", "Switch to 3AM one-handed OLED mode"))
@@ -583,9 +584,10 @@ struct LampHubView: View {
                 Image(systemName: "lamp.desk.fill")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(warmth.onPrimaryInk)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 7)
                     .background(Capsule().fill(warmth.primaryGlow))
+                    .pillHitTarget()
             }
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t("打开全屏夜灯", "Open fullscreen bedside lamp"))

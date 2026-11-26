@@ -686,11 +686,12 @@ struct BedsideLampView: View {
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
-                    .font(.system(size: 15, weight: .bold))
+                    .font(.subheadline.weight(.bold))
                     .foregroundStyle(Palette.lampInk.opacity(0.86))
-                    .frame(width: 40, height: 40)
+                    .frame(width: 44, height: 44)
                     .background(Circle().fill(Color(hex: 0x1A2346).opacity(0.75)))
                     .overlay(Circle().strokeBorder(warmth.primaryGlow.opacity(0.22), lineWidth: 1))
+                    .contentShape(Circle())
             }
             .buttonStyle(.toy)
             .accessibilityLabel(L10n.t("关闭夜灯", "Close Bedside Lamp"))
@@ -736,18 +737,20 @@ struct BedsideLampView: View {
                         TactileEngine.shared.palmPatPulse(intensity: 0.54)
                     }
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         Image(systemName: palmPatActive ? "hand.tap.fill" : "hand.tap")
-                            .font(.system(size: 13, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                         Text(L10n.t("轻拍", "Pat"))
-                            .font(.caption2.weight(.bold))
+                            .font(.caption.weight(.bold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                     .foregroundStyle(palmPatActive ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
-                    .padding(.horizontal, 9)
+                    .padding(.horizontal, 11)
                     .frame(height: 36)
                     .background(Capsule().fill(palmPatActive ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
                     .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(palmPatActive ? 0.85 : 0.28), lineWidth: 1))
+                    .pillHitTarget()
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t(palmPatActive ? "关闭无声掌心轻拍安抚" : "开启无声掌心轻拍安抚", palmPatActive ? "Turn off silent palm-pat soother" : "Turn on silent palm-pat soother"))
@@ -765,17 +768,19 @@ struct BedsideLampView: View {
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.footnote.weight(.semibold))
                         Text(L10n.t("4–6 呼吸", "4–6"))
-                            .font(.caption2.weight(.bold))
+                            .font(.caption.weight(.bold))
                             .lineLimit(1)
+                            .minimumScaleFactor(0.85)
                     }
                     .foregroundStyle(breathingGuide ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
-                    .padding(.horizontal, 10)
+                    .padding(.horizontal, 11)
                     .frame(height: 36)
-                    .frame(minWidth: 40)
+                    .frame(minWidth: 44)
                     .background(Capsule().fill(breathingGuide ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
                     .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
+                    .pillHitTarget()
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t(breathingGuide ? "关闭 4–6 慢呼吸光晕" : "开启 4–6 哄睡慢呼吸光晕", breathingGuide ? "Turn off calm breathing halo" : "Start 4–6 calm breathing halo"))
@@ -964,9 +969,10 @@ struct BedsideLampView: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(warmth.primaryGlow.opacity(0.14)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
 
@@ -978,15 +984,17 @@ struct BedsideLampView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: "play.fill")
-                                .font(.system(size: 8.5, weight: .bold))
-                            Text(L10n.t("续播 15m", "15m Encore"))
                                 .font(.caption2.weight(.bold))
+                            Text(L10n.t("续播 15m", "15m Encore"))
+                                .font(.caption.weight(.bold))
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .foregroundStyle(warmth.onPrimaryInk)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("续播 15 分钟安抚声景", "Play 15-minute soundscape encore"))
@@ -1015,12 +1023,13 @@ struct BedsideLampView: View {
                             TactileEngine.shared.palmPatPulse(intensity: 0.54)
                         } label: {
                             Text("\(preset.rawValue)")
-                                .font(.caption2.weight(.bold))
+                                .font(.caption.weight(.bold))
                                 .monospacedDigit()
                                 .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                                .padding(.horizontal, 7)
-                                .padding(.vertical, 4)
+                                .padding(.horizontal, 9)
+                                .padding(.vertical, 6)
                                 .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                                .pillHitTarget()
                         }
                         .buttonStyle(.plain)
                     }
@@ -1031,11 +1040,12 @@ struct BedsideLampView: View {
                         palmPatStartedAt = Date()
                     } label: {
                         Text(L10n.t("渐缓", "Slow"))
-                            .font(.caption2.weight(.bold))
+                            .font(.caption.weight(.bold))
                             .foregroundStyle(palmPatAutoSlow ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.86))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 4)
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 6)
                             .background(Capsule().fill(palmPatAutoSlow ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                            .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(palmPatAutoSlow ? .isSelected : [])
@@ -1072,15 +1082,17 @@ struct BedsideLampView: View {
                     } label: {
                         HStack(spacing: 4) {
                             Image(systemName: breathingHaptics ? "hand.tap.fill" : "hand.tap")
-                                .font(.system(size: 10, weight: .bold))
-                            Text(L10n.t("手心轻振", "Pulse"))
                                 .font(.caption2.weight(.bold))
+                            Text(L10n.t("手心轻振", "Pulse"))
+                                .font(.caption.weight(.bold))
                                 .lineLimit(1)
+                                .minimumScaleFactor(0.85)
                         }
                         .foregroundStyle(breathingHaptics ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background(Capsule().fill(breathingHaptics ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t(breathingHaptics ? "关闭闭眼手心呼吸轻振" : "开启闭眼手心呼吸轻振", breathingHaptics ? "Turn off silent palm breathing pulse" : "Turn on silent palm breathing pulse"))
@@ -1165,7 +1177,7 @@ struct BedsideLampView: View {
         let b = displayedBrightness
         return VStack(spacing: 6) {
             Image(systemName: "sun.max.fill")
-                .font(.system(size: 10, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(warmth.primaryGlow.opacity(active ? 0.9 : 0.42))
 
             GeometryReader { g in
@@ -1190,7 +1202,7 @@ struct BedsideLampView: View {
             .animation(.spring(response: 0.25, dampingFraction: 0.8), value: active)
 
             Image(systemName: "moon.fill")
-                .font(.system(size: 9, weight: .bold))
+                .font(.caption2.weight(.bold))
                 .foregroundStyle(Palette.lampInk.opacity(active ? 0.72 : 0.36))
         }
         .padding(.vertical, 6)
@@ -1260,7 +1272,7 @@ struct BedsideLampView: View {
                         } label: {
                             HStack(spacing: 6) {
                                 Image(systemName: kind.symbol)
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.caption.weight(.semibold))
                                     .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.90))
                                     .frame(width: 24, height: 24)
                                     .background(
@@ -1280,6 +1292,7 @@ struct BedsideLampView: View {
                                 }
                                 Spacer(minLength: 0)
                             }
+                            .frame(minHeight: 40)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -1293,10 +1306,12 @@ struct BedsideLampView: View {
                                 }
                             } label: {
                                 Image(systemName: isSecondary ? "checkmark" : "plus")
-                                    .font(.system(size: 9, weight: .bold))
+                                    .font(.caption2.weight(.bold))
                                     .foregroundStyle(isSecondary ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                                    .frame(width: 19, height: 19)
+                                    .frame(width: 22, height: 22)
                                     .background(Circle().fill(isSecondary ? warmth.secondaryBadgeFill : warmth.primaryGlow.opacity(0.18)))
+                                    .frame(minWidth: 36, minHeight: 36)
+                                    .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(isSecondary ? L10n.t("移除叠层\(kind.title)", "Remove \(kind.title) layer") : L10n.t("叠加\(kind.title)", "Blend \(kind.title)"))
@@ -1333,10 +1348,11 @@ struct BedsideLampView: View {
                                     .font(.caption.weight(sel ? .bold : .medium))
                                     .foregroundStyle(sel ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.75))
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 6)
+                                    .padding(.vertical, 8)
                                     .background(
                                         Capsule().fill(sel ? warmth.primaryGlow : Color(hex: 0x1B2547).opacity(0.8))
                                     )
+                                    .pillHitTarget()
                             }
                             .buttonStyle(.toy)
                             .accessibilityAddTraits(sel ? .isSelected : [])
@@ -1435,9 +1451,10 @@ struct BedsideLampView: View {
                 }
                 .font(.caption.weight(.bold))
                 .foregroundStyle(warmth.onPrimaryInk)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 5)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 7)
                 .background(Capsule().fill(warmth.primaryGlow))
+                .pillHitTarget()
                 .buttonStyle(.plain)
             }
         }
@@ -1503,7 +1520,7 @@ struct BedsideLampView: View {
                     ForEach(summary.facts) { item in
                         HStack(spacing: 4) {
                             Image(systemName: item.symbol)
-                                .font(.system(size: 10, weight: .bold))
+                                .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                                 .foregroundStyle(warmth.primaryGlow.opacity(0.88))
                             Text("\(item.label) \(item.agoText)")
                                 .font(.caption2.weight(.semibold))
@@ -1534,7 +1551,7 @@ struct BedsideLampView: View {
         return VStack(spacing: 8) {
             HStack(spacing: 10) {
                 Image(systemName: LogType.symbol(t.type))
-                    .font(.system(size: 18, weight: .bold))
+                    .font(.headline.weight(.bold))
                     .foregroundStyle(warmth.primaryGlow)
                     .frame(width: 36, height: 36)
                     .background(Circle().fill(warmth.primaryGlow.opacity(0.16)))
@@ -1760,8 +1777,9 @@ struct BedsideLampView: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(warmth.onPrimaryInk)
                         .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
+                        .padding(.vertical, 9)
                         .background(Capsule().fill(warmth.primaryGlow.opacity(0.92)))
+                        .pillHitTarget()
                 }
                 .buttonStyle(.toy)
             }
@@ -1775,6 +1793,7 @@ struct BedsideLampView: View {
                     .foregroundStyle(Palette.lampInk.opacity(0.75))
                     .frame(width: 28, height: 28)
                     .background(Circle().fill(Color(hex: 0x222D54)))
+                    .hitTarget()
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L10n.t("收起尿布选项", "Close diaper options"))
@@ -1790,66 +1809,69 @@ struct BedsideLampView: View {
                         TactileEngine.shared.beadClick()
                         bottleMilkKind = code
                     } label: {
-                        Text(title)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(on ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.78))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x222D54)))
-                    }
-                    .buttonStyle(.plain)
-                }
-
-                Spacer(minLength: 4)
-
-                Button {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Palette.lampInk.opacity(0.75))
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(Color(hex: 0x222D54)))
+                    Text(title)
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(on ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.78))
+                        .padding(.horizontal, 11)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x222D54)))
+                        .pillHitTarget()
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(L10n.t("收起瓶喂选项", "Close bottle options"))
             }
 
-            HStack(spacing: 6) {
-                ForEach(suggestions, id: \.self) { ml in
-                    Button {
-                        guard app.mayKeep() else { return }
-                        TactileEngine.shared.beadClick()
-                        rekindleFromEmber()
-                        let entry = LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: bottleMilkKind)
-                        if j.record(entry) {
-                            withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
-                        }
-                    } label: {
-                        Text(L10n.volume(ml: ml))
-                            .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
-                            .foregroundStyle(warmth.onPrimaryInk)
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.72)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 7)
-                            .background(Capsule().fill(warmth.primaryGlow.opacity(0.92)))
+            Spacer(minLength: 4)
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.lampInk.opacity(0.75))
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color(hex: 0x222D54)))
+                    .hitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t("收起瓶喂选项", "Close bottle options"))
+        }
+
+        HStack(spacing: 6) {
+            ForEach(suggestions, id: \.self) { ml in
+                Button {
+                    guard app.mayKeep() else { return }
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    let entry = LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: bottleMilkKind)
+                    if j.record(entry) {
+                        withAnimation(reduce ? nil : .snappy) { quickCareMode = nil }
                     }
-                    .buttonStyle(.toy)
+                } label: {
+                    Text(L10n.volume(ml: ml))
+                        .font(Typeface.numerals(13, relativeTo: .footnote, weight: .bold))
+                        .foregroundStyle(warmth.onPrimaryInk)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.72)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 9)
+                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.92)))
+                        .pillHitTarget()
                 }
+                .buttonStyle(.toy)
             }
         }
     }
+}
 
-    private func bedsideAction(title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 10) {
-                Image(systemName: symbol)
-                    .font(.system(size: 16, weight: .bold))
-                    .foregroundStyle(warmth.primaryGlow)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(warmth.primaryGlow.opacity(0.15)))
+private func bedsideAction(title: String, detail: String, symbol: String, action: @escaping () -> Void) -> some View {
+    Button(action: action) {
+        HStack(spacing: 10) {
+            Image(systemName: symbol)
+                .font(.callout.weight(.bold))
+                .foregroundStyle(warmth.primaryGlow)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(warmth.primaryGlow.opacity(0.15)))
                 VStack(alignment: .leading, spacing: 1) {
                     Text(title)
                         .font(.subheadline.weight(.bold))

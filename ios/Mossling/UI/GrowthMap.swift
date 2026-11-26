@@ -535,6 +535,7 @@ struct GrowthMap: View {
                     Button(action: close) {
                         Image(systemName: "chevron.up").font(.footnote.weight(.bold)).frame(width: 32, height: 32)
                             .background(Palette.outline.opacity(0.35), in: Circle())
+                            .hitTarget()
                     }
                     .foregroundStyle(.primary)
                     .accessibilityLabel(L10n.t("收起成长地图", "Collapse growth map"))
