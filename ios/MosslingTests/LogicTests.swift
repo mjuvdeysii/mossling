@@ -2304,7 +2304,7 @@ final class LogicTests: XCTestCase {
     @MainActor
     func testFirstsCharmMotifStudioMetricsAndPrintPoster() {
         // Every built-in Firsts.Kind maps cleanly to a crafted motif (not falling back unintentionally)
-        XCTAssertEqual(Firsts.all.count, 28)
+        XCTAssertEqual(Firsts.all.count, 29)
         for kind in Firsts.all {
             let motif = FirstCharmMotif.of(key: kind.id)
             XCTAssertNotEqual(motif, .starCharm, "Built-in kind \(kind.id) should have a bespoke charm motif")
