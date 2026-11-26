@@ -190,7 +190,7 @@ jobs:
           # app group reaches the exported build, and print what each one now declares.
           APPDIR=build/Mossling.xcarchive/Products/Applications/Mossling.app
           # Pre-upload compliance check: verify required purpose strings & matching versions across app and widget extension
-          for key in NSFaceIDUsageDescription NSMotionUsageDescription NSPhotoLibraryUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
+          for key in NSFaceIDUsageDescription NSMicrophoneUsageDescription NSMotionUsageDescription NSPhotoLibraryUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
             /usr/libexec/PlistBuddy -c "Print :$key" "$APPDIR/Info.plist" >/dev/null || { echo "::error::Missing required Info.plist key $key"; exit 1; }
           done
           APP_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPDIR/Info.plist")

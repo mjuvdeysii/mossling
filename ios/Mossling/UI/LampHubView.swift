@@ -309,8 +309,7 @@ struct LampHubView: View {
                         Label(L10n.t("全屏夜灯", "Bedside Lamp"), systemImage: "lamp.desk.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(warmth.onPrimaryInk)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Capsule().fill(warmth.primaryGlow))
                     }
                     .buttonStyle(.toy)
@@ -322,8 +321,7 @@ struct LampHubView: View {
                         Label(L10n.t("传灯交接", "Handover"), systemImage: "person.2.wave.2.fill")
                             .font(.caption.weight(.bold))
                             .foregroundStyle(Palette.lampInk)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(Capsule().fill(Color.white.opacity(0.10)))
                     }
                     .buttonStyle(.toy)
@@ -405,7 +403,7 @@ struct LampHubView: View {
                                     .foregroundStyle(warmth.onPrimaryInk)
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.75)
-                                    .frame(maxWidth: .infinity, minHeight: 36)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
                                     .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
                             }
                             .buttonStyle(.toy)
@@ -435,7 +433,7 @@ struct LampHubView: View {
                                 Text(label)
                                     .font(.caption.weight(.bold))
                                     .foregroundStyle(Palette.lampInk)
-                                    .frame(maxWidth: .infinity, minHeight: 36)
+                                    .frame(maxWidth: .infinity, minHeight: 44)
                                     .background(Capsule().fill(Crayon.sky.opacity(0.24)))
                                     .overlay(Capsule().strokeBorder(Crayon.sky.opacity(0.55), lineWidth: 0.9))
                             }
@@ -493,7 +491,7 @@ struct LampHubView: View {
                     Image(systemName: paused ? "play.fill" : "pause.fill")
                         .font(.caption.weight(.bold))
                         .foregroundStyle(Palette.lampInk)
-                        .frame(width: 34, height: 34)
+                        .frame(minWidth: 44, minHeight: 44)
                         .background(Circle().fill(Color.white.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
@@ -507,7 +505,7 @@ struct LampHubView: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(warmth.onPrimaryInk)
                         .padding(.horizontal, 12)
-                        .frame(height: 34)
+                        .frame(minHeight: 44)
                         .background(Capsule().fill(warmth.primaryGlow))
                 }
                 .buttonStyle(.toy)
@@ -894,29 +892,38 @@ struct LampHubView: View {
         let dayLabel = isToday ? L10n.t("今日", "Today") : (L10n.isEnglish ? "\(Day.enMonths[day.m - 1]) \(day.d)" : day.md)
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
-                MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFracs, dark: dark)
-                    .scaleEffect(0.86)
-                    .frame(width: 42, height: 42)
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(isToday ? L10n.t("今日照护一览", "Today at a Glance") : L10n.t("\(dayLabel) · 照护一览", "\(dayLabel) at a Glance"))
-                        .font(.headline.weight(.semibold))
-                        .tracking(LayoutSpec.titleTracking)
-                        .foregroundStyle(.primary)
-                    Text(L10n.t("睡眠 · 喂奶 · 尿布，一眼看清", "Feeds, sleep & diapers"))
-                    .font(.footnote)
-                    .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(type.isAccessibilitySize ? 3 : 2)
+            let headerLayout = type.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                : AnyLayout(HStackLayout(alignment: .center, spacing: LayoutSpec.iconTextGap))
+            headerLayout {
+                HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
+                    MiniRhythmDialCanvas(sleepSlices: sleepSlices, feedFractions: feedFracs, dark: dark)
+                        .scaleEffect(0.86)
+                        .frame(width: 42, height: 42)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(isToday ? L10n.t("今日照护一览", "Today at a Glance") : L10n.t("\(dayLabel) · 照护一览", "\(dayLabel) at a Glance"))
+                            .font(.headline.weight(.semibold))
+                            .tracking(LayoutSpec.titleTracking)
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
+                        Text(L10n.t("睡眠 · 喂奶 · 尿布，一眼看清", "Feeds, sleep & diapers"))
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(type.isAccessibilitySize ? nil : 2)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
-                Spacer(minLength: 4)
+                if !type.isAccessibilitySize {
+                    Spacer(minLength: 4)
+                }
 
-                HStack(spacing: 4) {
+                HStack(spacing: 6) {
                     Button {
                         if canStepBack { moveDay(to: prevDay) }
                     } label: {
                         Image(systemName: "chevron.left")
                             .font(.caption2.weight(.bold))
-                            .frame(width: 26, height: 26)
+                            .frame(minWidth: 44, minHeight: 44)
                             .background(Circle().fill(Palette.fill))
                     }
                     .buttonStyle(.plain)
@@ -931,8 +938,8 @@ struct LampHubView: View {
                             Text(L10n.t("回今天", "Today"))
                                 .font(.caption2.weight(.bold))
                                 .foregroundStyle(.white)
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 5)
+                                .padding(.horizontal, 10)
+                                .frame(minHeight: 44)
                                 .background(Capsule().fill(Palette.accentFill))
                         }
                         .buttonStyle(.plain)
@@ -942,7 +949,7 @@ struct LampHubView: View {
                         } label: {
                             Image(systemName: "chevron.right")
                                 .font(.caption2.weight(.bold))
-                                .frame(width: 26, height: 26)
+                                .frame(minWidth: 44, minHeight: 44)
                                 .background(Circle().fill(Palette.fill))
                         }
                         .buttonStyle(.plain)

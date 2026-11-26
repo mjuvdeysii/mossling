@@ -17,11 +17,12 @@ struct DataView: View {
     @State private var withdrawing = false
 
     enum Export: String, CaseIterable, Identifiable {
-        case summary, backup, table
+        case summary, yearbook, backup, table
         var id: String { rawValue }
         var title: String {
             switch self {
             case .summary: L10n.t("给医生或 AI 看的记录", "Record for doctor or AI")
+            case .yearbook: L10n.t("三岁成长年鉴（PDF）", "3-Year Growth Yearbook (PDF)")
             case .backup: L10n.t("完整备份", "Full backup")
             case .table: L10n.t("表格", "Spreadsheet")
             }
@@ -29,6 +30,7 @@ struct DataView: View {
         var fileSlug: String {
             switch self {
             case .summary: L10n.t("给医生或 AI 看的记录", "Record")
+            case .yearbook: L10n.t("三岁成长年鉴", "Yearbook")
             case .backup: L10n.t("完整备份", "Backup")
             case .table: L10n.t("表格", "Spreadsheet")
             }
@@ -36,13 +38,35 @@ struct DataView: View {
         var detail: String {
             switch self {
             case .summary: L10n.t("孩子的资料、生长测量与百分位、百味食盒辅食记录、每天汇总、每月记下的事与全部记录", "Child profile, growth measurements with percentiles, First Foods tasting log, daily totals, monthly notes, and every entry")
+            case .yearbook: L10n.t("图文并排的多页纪念册 PDF（含每月足迹、第一次相纸与辅食护照；未启封未来胶囊严格保密）", "Multi-page printable keepsake PDF with monthly milestones, Firsts photos, and Food Passport (locked capsules stay sealed)")
             case .backup: L10n.t("全部设置与记录（含百味食盒、时光胶囊与进行中计时）；可以导回摸索台灯", "All settings and records (including First Foods, Time Capsules, and active timers); can be imported back into Moss & Otto")
             case .table: L10n.t("每一条记录一行，可用 Numbers 或 Excel 打开", "One entry per row, ready to open in Numbers or Excel")
             }
         }
-        var symbol: String { switch self { case .summary: "doc.text.fill"; case .backup: "externaldrive.fill"; case .table: "tablecells.fill" } }
-        var color: Color { switch self { case .summary: Crayon.pink; case .backup: Crayon.sky; case .table: Crayon.leaf } }
-        var ext: String { switch self { case .summary: "md"; case .backup: "json"; case .table: "csv" } }
+        var symbol: String {
+            switch self {
+            case .summary: "doc.text.fill"
+            case .yearbook: "book.closed.fill"
+            case .backup: "externaldrive.fill"
+            case .table: "tablecells.fill"
+            }
+        }
+        var color: Color {
+            switch self {
+            case .summary: Crayon.pink
+            case .yearbook: Palette.bead
+            case .backup: Crayon.sky
+            case .table: Crayon.leaf
+            }
+        }
+        var ext: String {
+            switch self {
+            case .summary: "md"
+            case .yearbook: "pdf"
+            case .backup: "json"
+            case .table: "csv"
+            }
+        }
     }
 
     var body: some View {
@@ -134,6 +158,7 @@ struct DataView: View {
         let capsules = CapsuleStore.shared.items
         let data: Data = switch k {
         case .summary: RecordFile.summary(app, body, foods: foods)
+        case .yearbook: GrowthYearbookPDF.render(app: app, j: j, foods: foods, capsules: capsules)
         case .backup: RecordFile.json(app, body, foods: foods, capsules: capsules)
         case .table: RecordFile.csv(body)
         }

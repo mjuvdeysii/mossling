@@ -4103,3 +4103,285 @@ a {
     animation: none !important;
   }
 }
+
+/* Edition IV: Timeline Dimmer Lamp, L1/L2/L3 Full-Spectrum Theater & Zero-Tracking Micro-Tools */
+.spectrum-section {
+  padding: 88px 0;
+  background: var(--surface);
+  border-top: 1px solid var(--line);
+}
+
+.lamp-stage-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.stage-chip {
+  padding: 8px 14px;
+  min-height: 44px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: #ffffff;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.stage-chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.timeline-lamp-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1.25fr);
+  gap: 24px;
+  margin-bottom: 24px;
+}
+
+.lamp-dial-card,
+.spectrum-panel,
+.tool-card {
+  background: #ffffff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.lamp-dial-card {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+  background: linear-gradient(155deg, #fffdf8 0%, #f6efe2 100%);
+}
+
+.lamp-orb-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.lamp-orb-swatch {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: radial-gradient(circle at 35% 35%, #ffe6a3, #d9822b);
+  box-shadow: 0 0 24px rgba(217, 130, 43, 0.35);
+}
+
+.gear-meter-row {
+  display: grid;
+  gap: 8px;
+}
+
+.gear-bar-track {
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(11, 18, 32, 0.08);
+  overflow: hidden;
+}
+
+.gear-bar-fill {
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(90deg, #0f766e, #d9822b);
+  transition: width 0.25s ease;
+}
+
+.spectrum-panel {
+  display: grid;
+  gap: 16px;
+}
+
+.spectrum-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.spectrum-layer-box {
+  padding: 16px 18px;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: 8px;
+}
+
+.spectrum-layer-box strong {
+  font-size: 13px;
+  color: var(--accent);
+}
+
+.spectrum-layer-box p {
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.65;
+  color: var(--ink);
+}
+
+.theater-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 24px;
+}
+
+.tool-card {
+  display: grid;
+  gap: 14px;
+  align-content: start;
+}
+
+.tool-card h3 {
+  margin: 0;
+  font-size: 18px;
+  line-height: 1.3;
+}
+
+.tool-card p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--ink-2);
+  line-height: 1.55;
+}
+
+.tool-field {
+  display: grid;
+  gap: 6px;
+}
+
+.tool-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink-3);
+}
+
+.tool-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.who-bars {
+  display: grid;
+  gap: 8px;
+}
+
+.who-bar-item {
+  display: grid;
+  gap: 4px;
+}
+
+.who-bar-head {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.who-track {
+  position: relative;
+  height: 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(11, 18, 32, 0.08);
+}
+
+.who-band {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  border-radius: var(--radius-pill);
+  background: rgba(15, 118, 110, 0.42);
+}
+
+.who-band.match {
+  background: var(--accent);
+}
+
+.who-marker {
+  position: absolute;
+  top: -2px;
+  bottom: -2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--amber);
+}
+
+.tool-result {
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--ink);
+}
+
+.tool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.btn-small-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.btn-small-ghost {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid rgba(15, 118, 110, 0.35);
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+@media (max-width: 960px) {
+  .timeline-lamp-shell,
+  .tools-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+

@@ -121,13 +121,14 @@ struct TodayView: View {
                     .font(.subheadline.weight(.bold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.9)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.9)
+                    .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
-                    .minimumScaleFactor(0.9)
+                    .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.9)
                     .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -219,7 +220,10 @@ struct ExploreGreetingStrip: View {
         let hasPlayToday = !isNight && j.logs(on: app.today).contains(where: { $0.type == LogType.play })
 
         Button(action: openKeepsakes) {
-            HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
+            let layout = type.isAccessibilitySize
+                ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+                : AnyLayout(HStackLayout(alignment: .center, spacing: LayoutSpec.iconTextGap))
+            layout {
                 MonthPostcardArt(
                     month: month,
                     festive: month == baby && app.age?.days == 0 && app.age != nil,
@@ -228,7 +232,7 @@ struct ExploreGreetingStrip: View {
                 )
 
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(spacing: 6) {
+                    FlowRow(spacing: 6, lineSpacing: 4) {
                         Label(land.name, systemImage: land.symbol)
                             .font(.caption2.weight(.bold))
                             .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
@@ -269,12 +273,14 @@ struct ExploreGreetingStrip: View {
                     Text(mo.title)
                         .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(type.isAccessibilitySize ? 3 : 2)
+                        .lineLimit(type.isAccessibilitySize ? nil : 2)
                         .lineSpacing(1.5)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
-                Spacer(minLength: 4)
+                if !type.isAccessibilitySize {
+                    Spacer(minLength: 4)
+                }
 
                 HStack(spacing: 3) {
                     Text(L10n.t("旅程", "Journey"))

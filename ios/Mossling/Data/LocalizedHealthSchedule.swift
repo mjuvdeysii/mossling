@@ -229,4 +229,78 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         }
     }
+
+    // MARK: - Key Screening Cues & Checkup Timing Helpers
+
+    static let keyCheckupMonths = [1, 3, 6, 8, 9, 12, 18, 24, 30, 36]
+
+    /// Regional developmental, vision, dental, and anemia screening highlights for key pediatric visit months.
+    static func screeningCue(for region: HealthRegion, month: Int) -> String? {
+        switch month {
+        case 0:
+            return L10n.t(
+                "重点关注：出生后听力初筛、先天性心脏病筛查与足跟血遗传代谢病采血复核。",
+                "Visit focus: newborn hearing, pulse-oximetry CCHD screen, and metabolic heel-prick follow-up."
+            )
+        case 1:
+            return L10n.t(
+                "满月复诊常看：黄疸消退、体重回升与喂养节奏、髋关节体格检查。",
+                "1-month checkup focus: jaundice resolution, birth-weight regain, and routine hip exam."
+            )
+        case 3, 4:
+            return L10n.t(
+                "3–4 月儿保常见项目：抬头与四肢对称度评估、红光反射眼筛，大城市儿保常查维生素 D 补充情况。",
+                "3–4m visit focus: head control & symmetry, ocular red-reflex check, and vitamin D intake review."
+            )
+        case 6:
+            return L10n.t(
+                "6 月龄体检焦点：乳牙萌出检查与首次口腔涂氟评估，以及血红蛋白/铁储备与辅食引入沟通。",
+                "6-month visit focus: first teeth & fluoride varnish guidance, anemia risk, and starting iron-rich solids."
+            )
+        case 8, 9:
+            return L10n.t(
+                "8–9 月重点筛查：常规血红蛋白（贫血筛查）与标准化发育评估（如 ASQ / CDC 9m 检查）。",
+                "8–9m screening focus: routine hemoglobin/anemia check and standardized developmental screening."
+            )
+        case 12:
+            return L10n.t(
+                "1 周岁重点：视力屈光初筛、血红蛋白/血铅风险评估、12m 加强接种核对。",
+                "12-month focus: vision photoscreening, anemia/lead risk review, and 1-year immunization window."
+            )
+        case 18:
+            return L10n.t(
+                "18 月龄专项：社交互动与沟通筛查（如 M-CHAT-R 沟通问卷）、独立行走观察、口腔健康复核。",
+                "18-month focus: social-communication screen (e.g. M-CHAT-R), independent walking, and dental check."
+            )
+        case 24:
+            return region == .uk
+                ? L10n.t("2 岁重点：NHS 2–2.5 岁全面发展回顾（语言双词短语、听力视力与行为观察）。", "2-year focus: NHS 2–2.5 yr developmental review covering words, vision/hearing, and play.")
+                : L10n.t("2 周岁体检焦点：语言词汇组合与社交筛查、视力复筛、口腔涂氟。", "24-month focus: two-word language & social screening, repeat vision check, and dental varnish.")
+        case 30:
+            return L10n.t(
+                "30 月龄发育复核：动词短语、两步指令理解与双脚跳大运动能力。",
+                "30-month developmental focus: action phrases, two-step directions, and two-foot jumping."
+            )
+        case 36:
+            return L10n.t(
+                "3 周岁重点（入园前后）：标准化视力表检查、血压测查（AAP）、对话连贯度与社交适应评估。",
+                "3-year well-child focus: formal visual acuity, pediatric blood pressure (AAP), and preschool readiness."
+            )
+        default:
+            return nil
+        }
+    }
+
+    /// Returns days until the next milestone checkup month (`0...7` highlights an upcoming visit), plus target month.
+    static func daysUntilNextCheckup(birth: Day?, today: Day = .today) -> (month: Int, daysRemaining: Int)? {
+        guard let birth else { return nil }
+        for m in keyCheckupMonths {
+            let visitDay = birth.plus(months: m)
+            let diff = today.days(to: visitDay)
+            if diff >= -2 && diff <= 30 {
+                return (m, diff)
+            }
+        }
+        return nil
+    }
 }

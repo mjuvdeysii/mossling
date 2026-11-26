@@ -302,6 +302,44 @@ struct Snapshot: Codable {
     var weekPlays: [PlayRef]? = nil
     /// Epoch day when the user swapped today's play from a widget, so the main app adopts the pick on return.
     var playPickedEpochDay: Int? = nil
+    /// Preterm gestational weeks at birth (22...36 when preterm; nil or >=37 otherwise) for dual-track Widget sync.
+    var gestationalWeeks: Int? = nil
+    /// Active adaptive care gear (1...4 from `CareGear`).
+    var careGearRaw: Int? = nil
+    /// Whether manual low-burden Care Mode is enabled (sick/growth-spurt days).
+    var careModeActive: Bool? = nil
+    /// Log/module keys gently graduated by parent (e.g. `"feeds"`, `"diaper"`).
+    var graduatedModules: [String]? = nil
+}
+
+extension Snapshot {
+    /// Resolves developmental age (preterm corrected under 24 chronological months, chronological otherwise).
+    func developmentalAge(on today: Day) -> (age: Age, isCorrected: Bool)? {
+        guard let birthEpochDay else { return nil }
+        let birth = Day(epochDay: birthEpochDay)
+        if let corrected = Age.corrected(birth: birth, gestationalWeeks: gestationalWeeks, today: today) {
+            return (corrected, true)
+        }
+        return (Age.on(birth: birth, today: today), false)
+    }
+
+    /// Short bilingual badge summarizing Care Mode or Adaptive Gear for Home Screen & StandBy widgets.
+    func careBadgeLabel() -> String? {
+        if careModeActive == true {
+            return L10n.t("减负照护", "Care Mode")
+        }
+        guard let careGearRaw else { return nil }
+        switch careGearRaw {
+        case 1: return L10n.t("一档·护航", "Gear 1")
+        case 2: return L10n.t("二档·探索", "Gear 2")
+        case 3: return L10n.t("三档·自主", "Gear 3")
+        case 4: return L10n.t("四档·对话", "Gear 4")
+        default: return nil
+        }
+    }
+
+    var isFeedsGraduated: Bool { graduatedModules?.contains("feeds") == true }
+    var isDiaperGraduated: Bool { graduatedModules?.contains("diaper") == true }
 }
 
 /// The journal file, shared with the widget and the Live Activity through the app group.

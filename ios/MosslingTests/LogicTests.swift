@@ -3370,4 +3370,178 @@ final class LogicTests: XCTestCase {
         assertV40Renders(LampCardDetailSheet(card: LampCardCatalog.spotlight(forMonth: 6, day: app.today)))
         assertV40Renders(LampHubView(path: .constant(NavigationPath()), initialQuickNight3AM: false))
     }
+
+    @MainActor
+    func testEditionIIIToVUltimateSuite() throws {
+        let suite = "edition3to5-\(UUID().uuidString)"
+        let app = AppModel(defaults: UserDefaults(suiteName: suite)!)
+        app.consent = Consent.version
+        app.nickname = "小满"
+        app.sex = "girl"
+        app.birth = app.today.plus(months: -9)
+
+        let nowMs = app.today.date.timeIntervalSince1970 * 1000
+        var body = JournalFile.Body()
+        body.logs = [
+            LogEntry(type: LogType.nurse, start: nowMs - 7_200_000, end: nowMs - 6_600_000, side: "l"),
+            LogEntry(type: LogType.sleep, start: nowMs - 14_400_000, end: nowMs - 10_800_000),
+            LogEntry(type: LogType.temp, start: nowMs - 3_600_000, amount: 378),
+            LogEntry(type: LogType.medicine, start: nowMs - 1_800_000, detail: "Vitamin D3 400 IU")
+        ]
+        body.measures = [Measure(at: nowMs, weightG: 8650, lengthMm: 712, headMm: 446)]
+        let firstVoiceID = UUID()
+        body.firsts = [First(id: firstVoiceID, at: nowMs - 86_400_000, key: "quote", title: "会喊妈妈啦", note: "晨光里醒来轻轻喊")]
+        let store = JournalStore(preview: body)
+
+        // 1. Edition III: Zero-server Grandparent H5 Card Codec
+        let spotlight = LampCardCatalog.spotlight(forMonth: 6, day: app.today)
+        let lampURL = try XCTUnwrap(CardWebCodec.encodeURL(from: spotlight, babyName: app.nickname, month: 6, note: "少放学步车多放地垫"))
+        let lampComps = try XCTUnwrap(URLComponents(url: lampURL, resolvingAgainstBaseURL: false))
+        XCTAssertTrue(lampComps.path.hasSuffix("/card"))
+        XCTAssertNil(lampComps.query)
+        let decodedLamp = try XCTUnwrap(CardWebCodec.decode(from: lampURL))
+        XCTAssertEqual(decodedLamp.k, "lamp")
+        XCTAssertEqual(decodedLamp.b, "小满")
+        XCTAssertEqual(decodedLamp.n, "少放学步车多放地垫")
+        XCTAssertEqual(decodedLamp.gp, spotlight.grandparentNoteZh)
+
+        let play = try XCTUnwrap(app.content.play("A11"))
+        let playURL = try XCTUnwrap(CardWebCodec.encodeURL(from: play, babyName: app.nickname))
+        let decodedPlay = try XCTUnwrap(CardWebCodec.decode(from: playURL))
+        XCTAssertEqual(decodedPlay.k, "play")
+        XCTAssertEqual(decodedPlay.ti, play.name)
+        XCTAssertEqual(decodedPlay.steps, Array(play.steps.prefix(4)))
+
+        // 2. Edition III: Baby-voice .m4a Waveform Store lifecycle on temp dir
+        let bars = FirstVoiceWaveform.normalize([0.1, 0.5, 1.0, 0.2], targetCount: 24)
+        XCTAssertEqual(bars.count, 24)
+        XCTAssertTrue(bars.allSatisfy { $0 >= 0.08 && $0 <= 1.0 })
+        XCTAssertEqual(FirstVoiceStore.formatDuration(4.2), "5s")
+        XCTAssertEqual(FirstVoiceStore.formatDuration(65), "1:05")
+
+        let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("voice-suite-\(UUID().uuidString)", isDirectory: true)
+        defer { FirstVoiceStore.clearAll(in: tempDir) }
+        let orphanID = UUID()
+        XCTAssertNotNil(FirstVoiceStore.saveSample(audioData: Data([0x01, 0x02, 0x03]), peaks: [0.2, 0.9, 0.5], duration: 6.4, for: firstVoiceID, in: tempDir))
+        XCTAssertNotNil(FirstVoiceStore.saveSample(audioData: Data([0x04, 0x05]), peaks: [0.4, 0.6], duration: 2.1, for: orphanID, in: tempDir))
+        XCTAssertTrue(FirstVoiceStore.exists(for: firstVoiceID, in: tempDir))
+        XCTAssertEqual(FirstVoiceStore.count(in: [firstVoiceID, orphanID], dir: tempDir), 2)
+        FirstVoiceStore.prune(keeping: [firstVoiceID], in: tempDir)
+        XCTAssertFalse(FirstVoiceStore.exists(for: orphanID, in: tempDir))
+        XCTAssertNotNil(FirstVoiceStore.loadMeta(for: firstVoiceID, in: tempDir))
+
+        // 3. Edition III: Well-Child Screening Cue, Pre-checkup Countdown & Clinic PDF with Foods/Temp
+        XCTAssertNotNil(HealthRegion.screeningCue(for: .cn, month: 6))
+        XCTAssertNotNil(HealthRegion.screeningCue(for: .us, month: 18))
+        let sixMonthBirth = app.today.plus(days: 3).plus(months: -6)
+        let upcoming = HealthRegion.daysUntilNextCheckup(birth: sixMonthBirth, today: app.today)
+        XCTAssertEqual(upcoming?.month, 6)
+        XCTAssertEqual(upcoming?.daysRemaining, 3)
+
+        let foods: [FoodRecord] = [
+            FoodRecord(foodId: "peanut", firstTastedEpochDay: app.today.epochDay, reaction: .loved, watchSkin: true, times: 2),
+            FoodRecord(foodId: "broccoli", firstTastedEpochDay: app.today.epochDay, reaction: .tasted, watchSkin: false, times: 1)
+        ]
+        let clinicSections = ClinicSnapshotPDF.summaryLines(app: app, logs: store.logs, measures: store.measures, questions: ["Need iron check?"], foods: foods, region: .cn)
+        let flatClinic = clinicSections.flatMap(\.lines).joined(separator: "\n")
+        XCTAssertTrue(flatClinic.contains("Vitamin D3"))
+        XCTAssertTrue(flatClinic.contains("37.8"))
+        XCTAssertTrue(flatClinic.contains("花生酱") || flatClinic.lowercased().contains("peanut"))
+        let clinicPdf = ClinicSnapshotPDF.render(app: app, logs: store.logs, measures: store.measures, questions: ["Need iron check?"], foods: foods, region: .cn)
+        XCTAssertEqual(String(decoding: clinicPdf.prefix(5), as: UTF8.self), "%PDF-")
+
+        // 4. Edition III: 3AM unified midnight boundary (00:00-04:59)
+        let threeAm = try XCTUnwrap(Day.cal.date(bySettingHour: 3, minute: 20, second: 0, of: app.today.date))
+        let ninePm = try XCTUnwrap(Day.cal.date(bySettingHour: 21, minute: 0, second: 0, of: app.today.date))
+        let fiveAm = try XCTUnwrap(Day.cal.date(bySettingHour: 5, minute: 0, second: 0, of: app.today.date))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(threeAm))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(ninePm))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(fiveAm))
+
+        // 5. Edition IV: Dual-Track Preterm / Gear Snapshot Widget Sync
+        let pretermBirth = app.today.plus(months: -4)
+        let snap = Snapshot(
+            birthEpochDay: pretermBirth.epochDay,
+            nickname: "小满",
+            companion: Kind.moss.rawValue,
+            journal: true,
+            playCode: "A11",
+            playName: play.name,
+            consented: true,
+            gestationalWeeks: 32,
+            careGearRaw: CareGear.gear2Explore.rawValue,
+            careModeActive: true,
+            graduatedModules: [CareGearEngine.diaperModule]
+        )
+        let snapData = try JSONEncoder().encode(snap)
+        let decodedSnap = try JSONDecoder().decode(Snapshot.self, from: snapData)
+        let resolvedPreterm = try XCTUnwrap(decodedSnap.developmentalAge(on: app.today))
+        XCTAssertTrue(resolvedPreterm.isCorrected)
+        XCTAssertLessThan(resolvedPreterm.age.months, 4)
+        XCTAssertEqual(decodedSnap.careBadgeLabel(), "减负照护")
+        XCTAssertTrue(decodedSnap.isDiaperGraduated)
+
+        var overTwoYears = decodedSnap
+        overTwoYears.birthEpochDay = app.today.plus(months: -26).epochDay
+        let resolvedOver24 = try XCTUnwrap(overTwoYears.developmentalAge(on: app.today))
+        XCTAssertFalse(resolvedOver24.isCorrected)
+
+        // 6. Edition V: Multi-page Growth Yearbook PDF + Locked Future Time Capsule Secrecy
+        let futureBodySecret = "TOP_SECRET_FUTURE_BODY_DO_NOT_LEAK"
+        let openBodyToken = "UNLOCKED_VISIBLE_LETTER_BODY"
+        let lockedCap = TimeCapsule(
+            title: "Three Years Birthday",
+            body: futureBodySecret,
+            writtenAt: nowMs,
+            writtenAgeLabel: "9个月",
+            unlockEpochDay: app.today.plus(days: 500).epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        let unlockedCap = TimeCapsule(
+            title: "Nine Months Tonight",
+            body: openBodyToken,
+            writtenAt: nowMs,
+            writtenAgeLabel: "9个月",
+            unlockEpochDay: nil,
+            openedAt: nil,
+            seal: .teal
+        )
+        let yearbookSections = GrowthYearbookPDF.buildSections(app: app, j: store, foods: foods, capsules: [lockedCap, unlockedCap])
+        let joinedYearbook = yearbookSections.map { "\($0.title)\n\($0.lines.joined(separator: "\n"))" }.joined(separator: "\n")
+        XCTAssertTrue(joinedYearbook.contains(openBodyToken))
+        XCTAssertFalse(joinedYearbook.contains(futureBodySecret), "Locked future capsule body must NEVER leak into Growth Yearbook PDF")
+        let yearbookPdf = GrowthYearbookPDF.render(app: app, j: store, foods: foods, capsules: [lockedCap, unlockedCap])
+        XCTAssertEqual(String(decoding: yearbookPdf.prefix(5), as: UTF8.self), "%PDF-")
+        let provider = try XCTUnwrap(CGDataProvider(data: yearbookPdf as CFData))
+        let cgPdf = try XCTUnwrap(CGPDFDocument(provider))
+        XCTAssertGreaterThanOrEqual(cgPdf.numberOfPages, 1)
+
+        // 7. Edition IV & V: Widget & AX5 Accessibility Smoke Renders
+        let widgetToday = renderHostedSnapshot(TodayFace(date: app.today.date, snap: decodedSnap, body: body, size: .medium))
+        XCTAssertNotNil(widgetToday.cgImage)
+        let widgetLamp = renderHostedSnapshot(BedsideLampFace(date: threeAm, snap: decodedSnap, body_: body, isMedium: true))
+        XCTAssertNotNil(widgetLamp.cgImage)
+        let widgetStory = renderHostedSnapshot(StoryWindowFace(date: app.today.date, snap: decodedSnap, body_: body, isMedium: true))
+        XCTAssertNotNil(widgetStory.cgImage)
+
+        func assertAX5Renders<V: View>(_ view: V) {
+            let img = renderHostedSnapshot(
+                view
+                    .environment(app)
+                    .environment(store)
+                    .environment(AppRouter())
+                    .environment(\.dynamicTypeSize, .accessibility5)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
+        }
+        assertAX5Renders(TodayView(path: .constant(NavigationPath())))
+        assertAX5Renders(JourneyHubView())
+        assertAX5Renders(CareView(month: 6))
+        assertAX5Renders(FirstsView())
+        assertAX5Renders(StorybookView())
+        assertAX5Renders(YouView(path: .constant(NavigationPath())))
+        assertAX5Renders(DataView())
+    }
 }

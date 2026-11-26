@@ -42,6 +42,7 @@ enum Firsts {
         Kind(id: "kick", zh: "踢球", en: "Kicked a ball", symbol: "soccerball", color: Crayon.leaf, around: 20),
         Kind(id: "jump", zh: "双脚跳", en: "Jumped with both feet", symbol: "figure.jumprope", color: Crayon.lilac, around: 24),
         Kind(id: "sentence", zh: "说出一句话", en: "First sentence", symbol: "quote.bubble.fill", color: Crayon.sky, around: 24),
+        Kind(id: "quote", zh: "童言一句", en: "Funny little quote", symbol: "waveform.and.mic", color: Crayon.tangerine, around: 24),
         Kind(id: "draw", zh: "画出一个圈", en: "Drew a circle", symbol: "scribble.variable", color: Crayon.pink, around: 30),
         Kind(id: "potty", zh: "自己上厕所", en: "Used the potty", symbol: "toilet.fill", color: Crayon.aqua, around: 30),
     ]
@@ -142,6 +143,10 @@ struct FirstSheet: View {
     @State private var pickedPhoto: PhotosPickerItem? = nil
     @State private var photoImage: UIImage? = nil
     @State private var removeExistingPhoto = false
+    @State private var voiceController = FirstVoiceController.shared
+    @State private var draftVoiceURL: URL? = nil
+    @State private var voiceMeta: FirstVoiceMeta? = nil
+    @State private var removeExistingVoice = false
     @FocusState private var typing: Bool
 
     init(first: First, isNew: Bool) { _first = State(initialValue: first); self.isNew = isNew }
@@ -156,6 +161,7 @@ struct FirstSheet: View {
                     own(dark: dark)
                     if isNew { choices(dark: dark) }
                     photoSection
+                    voiceSection(dark: dark)
                     VStack(alignment: .leading, spacing: 0) {
                         let now = Date()
                         DatePicker(L10n.t("哪一天", "Date"), selection: $day, in: min(earliest, now)...now, displayedComponents: .date)
@@ -177,6 +183,7 @@ struct FirstSheet: View {
                     if !isNew {
                         Button(L10n.t("删除这个第一次", "Delete this first"), role: .destructive) {
                             FirstPhotoStore.delete(for: first.id)
+                            FirstVoiceStore.delete(for: first.id)
                             j.deleteFirst(first)
                             dismiss()
                         }
@@ -190,7 +197,15 @@ struct FirstSheet: View {
             .scrollDismissesKeyboard(.interactively)
             .background { PageBackground(tone: Palette.bead) }
             .navigationTitle(isNew ? L10n.t("记一个第一次", "Log a First") : L10n.t("这个第一次", "First")).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } } }
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("取消", "Cancel"), systemImage: "xmark") {
+                        voiceController.stopAll()
+                        voiceController.discardTemp(draftVoiceURL)
+                        dismiss()
+                    }
+                }
+            }
         }
         .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: cheers)
@@ -200,6 +215,12 @@ struct FirstSheet: View {
             if !isNew && photoImage == nil && !removeExistingPhoto {
                 photoImage = FirstPhotoStore.load(for: first.id)
             }
+            if !isNew && voiceMeta == nil && draftVoiceURL == nil && !removeExistingVoice {
+                voiceMeta = FirstVoiceStore.loadMeta(for: first.id)
+            }
+        }
+        .onDisappear {
+            voiceController.stopAll()
         }
         .onChange(of: pickedPhoto) { _, item in
             guard let item else { return }
@@ -328,6 +349,121 @@ struct FirstSheet: View {
         }
     }
 
+    private func voiceSection(dark: Bool) -> some View {
+        let hasSaved = !isNew && FirstVoiceStore.exists(for: first.id) && !removeExistingVoice
+        let activePlayURL: URL? = draftVoiceURL ?? (hasSaved ? FirstVoiceStore.audioURL(for: first.id) : nil)
+
+        return VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(L10n.t("录一段声音贴纸（可选 · 最长 30 秒）", "Attach a voice sticker (optional · up to 30s)"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.secondaryText)
+                Spacer()
+                if voiceMeta != nil && !voiceController.isRecording {
+                    Button(L10n.t("移除", "Remove"), role: .destructive) {
+                        voiceController.stopAll()
+                        voiceController.discardTemp(draftVoiceURL)
+                        draftVoiceURL = nil
+                        voiceMeta = nil
+                        removeExistingVoice = true
+                    }
+                    .font(.caption.weight(.semibold))
+                }
+            }
+
+            if voiceController.permissionDenied {
+                Text(L10n.t("未获得麦克风权限：可在 iOS「设置 > 摸索台灯」中开启，声音始终只存本机。", "Microphone access denied. Enable it in iOS Settings to keep local voice clips on this iPhone."))
+                    .font(.caption)
+                    .foregroundStyle(Palette.secondaryText)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+            } else if voiceController.isRecording {
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 10) {
+                        Circle().fill(Crayon.cherry).frame(width: 10, height: 10)
+                        Text(L10n.t("正在录制宝宝小声音…", "Recording baby's voice…"))
+                            .font(.subheadline.weight(.semibold))
+                        Spacer()
+                        Text(String(format: "%.1fs / 30s", voiceController.recordingSeconds))
+                            .font(.caption.weight(.bold))
+                            .monospacedDigit()
+                            .foregroundStyle(Palette.secondaryText)
+                    }
+                    VoiceWaveformBars(
+                        peaks: FirstVoiceWaveform.normalize(voiceController.livePeaks),
+                        progress: 1,
+                        tint: Crayon.cherry,
+                        dark: dark
+                    )
+                    .frame(height: 28)
+
+                    Button {
+                        if let temp = voiceController.finishDraftRecording() {
+                            draftVoiceURL = temp
+                            let extracted = FirstVoiceWaveform.extractPeaks(from: temp)
+                            voiceMeta = FirstVoiceMeta(
+                                duration: max(0.3, extracted.duration),
+                                peaks: extracted.peaks,
+                                createdAt: Date().timeIntervalSince1970
+                            )
+                            removeExistingVoice = false
+                        }
+                    } label: {
+                        Label(L10n.t("完成录制", "Stop Recording"), systemImage: "stop.circle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .frame(maxWidth: .infinity, minHeight: 44)
+                    }
+                    .buttonStyle(.vinyl(Crayon.cherry, prominent: true))
+                }
+                .padding(12)
+                .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+            } else if let meta = voiceMeta, let playURL = activePlayURL {
+                VStack(alignment: .leading, spacing: 8) {
+                    FirstVoiceWaveformPill(
+                        firstID: first.id,
+                        meta: meta,
+                        audioURL: playURL,
+                        tint: Firsts.color(first),
+                        dark: dark
+                    )
+                    Text(L10n.t("保存后会作为声波贴纸留在第一次丝线与年鉴里。", "Saved locally as a playable waveform sticker on your Firsts thread."))
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
+                }
+                .padding(12)
+                .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+            } else {
+                Button {
+                    Task {
+                        voiceController.discardTemp(draftVoiceURL)
+                        draftVoiceURL = await voiceController.startDraftRecording()
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        FirstCharmBadge(key: "icon:waveform", color: Crayon.tangerine, size: 34)
+                        VStack(alignment: .leading, spacing: 1) {
+                            Text(L10n.t("录一段童言或笑声", "Record a cooing voice or quote"))
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.primary)
+                            Text(L10n.t("纯本地 .m4a · 仅存这台手机 · 最长 30 秒", "Local .m4a only · never uploaded · up to 30s"))
+                                .font(.caption2)
+                                .foregroundStyle(Palette.secondaryText)
+                        }
+                        Spacer(minLength: 0)
+                        Image(systemName: "mic.circle.fill")
+                            .font(.title3)
+                            .foregroundStyle(Crayon.tangerine)
+                    }
+                    .padding(12)
+                    .frame(minHeight: 44)
+                    .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+                }
+                .buttonStyle(.toy)
+            }
+        }
+    }
+
     private var earliest: Date { app.birth.map { $0.date } ?? Date.distantPast }
 
     private var header: some View {
@@ -394,6 +530,10 @@ struct FirstSheet: View {
     private func save() {
         typing = false
         guard app.mayKeep() else { return }
+        if voiceController.isRecording, let temp = voiceController.finishDraftRecording() {
+            draftVoiceURL = temp
+        }
+        voiceController.stopAll()
         var f = first
         f.title = f.title.trimmingCharacters(in: .whitespacesAndNewlines)
         f.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)
@@ -402,6 +542,13 @@ struct FirstSheet: View {
             FirstPhotoStore.delete(for: f.id)
         } else if let img = photoImage {
             FirstPhotoStore.save(img, for: f.id)
+        }
+        if removeExistingVoice {
+            FirstVoiceStore.delete(for: f.id)
+        } else if let draftURL = draftVoiceURL {
+            _ = FirstVoiceStore.saveRecording(from: draftURL, for: f.id)
+            voiceController.discardTemp(draftURL)
+            draftVoiceURL = nil
         }
         TactileEngine.shared.goldChime()
         cheers += 1
@@ -423,15 +570,18 @@ struct FirstsView: View {
     @State private var draftNew: First?
     @State private var viewingPhoto: First?
     @State private var photoVersion = FirstPhotoVersion.shared
+    @State private var voiceVersion = FirstVoiceVersion.shared
     @State private var celebCheers = 0
     /// The first just kept: its bead on the thread blooms like a drop of colour on wet paper, once.
     @State private var fresh: First.ID?
 
     var body: some View {
         let _ = photoVersion.tick
+        let _ = voiceVersion.tick
         let dark = lamp || scheme == .dark
         let charms = FirstsStudioMetrics.suggestedCharms(for: j.firsts, babyMonth: app.babyMonth, limit: 6)
         let photoEntries = FirstsStudioMetrics.photoEntries(in: j.firsts)
+        let voiceCount = FirstVoiceStore.count(in: j.firsts.map(\.id))
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
         let ageStr = app.age.map { L10n.ageText($0) } ?? ""
         let photoMap = Dictionary(uniqueKeysWithValues: photoEntries.map { ($0.first.id, $0.image) })
@@ -450,7 +600,7 @@ struct FirstsView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
-                summary(photoCount: photoEntries.count, dark: dark)
+                summary(photoCount: photoEntries.count, voiceCount: voiceCount, dark: dark)
 
                 if !photoEntries.isEmpty {
                     polaroidGarland(entries: photoEntries, dark: dark)
@@ -471,6 +621,7 @@ struct FirstsView: View {
                             onDelete: {
                                 TactileEngine.shared.beadClick()
                                 FirstPhotoStore.delete(for: f.id)
+                                FirstVoiceStore.delete(for: f.id)
                                 j.deleteFirst(f)
                             }
                         )
@@ -525,7 +676,7 @@ struct FirstsView: View {
         }
     }
 
-    private func summary(photoCount: Int, dark: Bool) -> some View {
+    private func summary(photoCount: Int, voiceCount: Int, dark: Bool) -> some View {
         let duo = Duo(
             primary: app.companion,
             size: 60,
@@ -557,18 +708,35 @@ struct FirstsView: View {
                     .lineLimit(1)
                     .fixedSize(horizontal: true, vertical: false)
             }
-            if photoCount > 0 {
-                Label(
-                    L10n.t("\(photoCount) 张相纸", "\(photoCount) \(photoCount == 1 ? "photo" : "photos")"),
-                    systemImage: "photo.fill"
-                )
-                .font(.caption2.weight(.bold))
-                .lineLimit(1)
-                .fixedSize(horizontal: true, vertical: false)
-                .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
-                .padding(.horizontal, 8)
-                .padding(.vertical, 3)
-                .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.18)))
+            if photoCount > 0 || voiceCount > 0 {
+                WrapLayout(spacing: 6) {
+                    if photoCount > 0 {
+                        Label(
+                            L10n.t("\(photoCount) 张相纸", "\(photoCount) \(photoCount == 1 ? "photo" : "photos")"),
+                            systemImage: "photo.fill"
+                        )
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.18)))
+                    }
+                    if voiceCount > 0 {
+                        Label(
+                            L10n.t("\(voiceCount) 段声音", "\(voiceCount) \(voiceCount == 1 ? "voice clip" : "voice clips")"),
+                            systemImage: "waveform"
+                        )
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                        .foregroundStyle(dark ? Crayon.tangerine : Crayon.ink(Crayon.tangerine))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(Crayon.tangerine.opacity(dark ? 0.22 : 0.16)))
+                    }
+                }
             }
             if let latest = j.firsts.first {
                 let prefix = L10n.t("最近：", "Latest: ")
@@ -796,12 +964,16 @@ private struct FirstRow: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var photoVersion = FirstPhotoVersion.shared
+    @State private var voiceVersion = FirstVoiceVersion.shared
 
     var body: some View {
         let _ = photoVersion.tick
+        let _ = voiceVersion.tick
         let dark = lamp || scheme == .dark
         let c = Firsts.color(first)
         let photo = FirstPhotoStore.load(for: first.id)
+        let voiceMeta = FirstVoiceStore.loadMeta(for: first.id)
+        let voiceURL = FirstVoiceStore.audioURL(for: first.id)
 
         HStack(alignment: .top, spacing: 12) {
             Thread(top: true, bottom: true) {
@@ -810,61 +982,73 @@ private struct FirstRow: View {
             }
             .frame(width: 40)
 
-            HStack(alignment: .top, spacing: 10) {
-                Button(action: onEdit) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        WrapLayout(spacing: 6) {
-                            if let birth {
-                                Text(Firsts.age(from: birth, to: Day(first.date)))
-                                    .font(.caption.weight(.bold))
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 10) {
+                    Button(action: onEdit) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            WrapLayout(spacing: 6) {
+                                if let birth {
+                                    Text(Firsts.age(from: birth, to: Day(first.date)))
+                                        .font(.caption.weight(.bold))
+                                        .monospacedDigit()
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .foregroundStyle(Color(hex: 0x4A3300))
+                                        .padding(.horizontal, 8)
+                                        .padding(.vertical, 3)
+                                        .background(Capsule().fill(Palette.bead.opacity(0.88)))
+                                }
+                                Text(whenLabelDay(first.date))
+                                    .font(.caption)
+                                    .foregroundStyle(Palette.secondaryText)
                                     .monospacedDigit()
                                     .fixedSize(horizontal: true, vertical: false)
-                                    .foregroundStyle(Color(hex: 0x4A3300))
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(Capsule().fill(Palette.bead.opacity(0.88)))
                             }
-                            Text(whenLabelDay(first.date))
-                                .font(.caption)
-                                .foregroundStyle(Palette.secondaryText)
-                                .monospacedDigit()
-                                .fixedSize(horizontal: true, vertical: false)
-                        }
-                        Text(Firsts.displayTitle(first))
-                            .font(.headline)
-                            .foregroundStyle(.primary)
-                            .multilineTextAlignment(.leading)
-                            .fixedSize(horizontal: false, vertical: true)
-                        if let n = first.note, !n.isEmpty {
-                            Text(n)
-                                .font(.subheadline)
-                                .foregroundStyle(Palette.secondaryText)
+                            Text(Firsts.displayTitle(first))
+                                .font(.headline)
+                                .foregroundStyle(.primary)
                                 .multilineTextAlignment(.leading)
                                 .fixedSize(horizontal: false, vertical: true)
+                            if let n = first.note, !n.isEmpty {
+                                Text(n)
+                                    .font(.subheadline)
+                                    .foregroundStyle(Palette.secondaryText)
+                                    .multilineTextAlignment(.leading)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+                    .buttonStyle(.plain)
 
-                if let photo {
-                    Button {
-                        TactileEngine.shared.pageTurn()
-                        onViewPhoto()
-                    } label: {
-                        Image(uiImage: photo)
-                            .resizable()
-                            .scaledToFill()
-                            .frame(width: 60, height: 60)
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                            .padding(3.5)
-                            .background(RoundedRectangle(cornerRadius: 9.5, style: .continuous).fill(dark ? Color(hex: 0xF5EFE4) : .white))
-                            .shadow(color: Color(hex: 0x6B4A2B).opacity(dark ? 0.34 : 0.18), radius: 3, y: 2)
-                            .rotationEffect(.degrees(reduce ? 0 : 2.5))
+                    if let photo {
+                        Button {
+                            TactileEngine.shared.pageTurn()
+                            onViewPhoto()
+                        } label: {
+                            Image(uiImage: photo)
+                                .resizable()
+                                .scaledToFill()
+                                .frame(width: 60, height: 60)
+                                .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                                .padding(3.5)
+                                .background(RoundedRectangle(cornerRadius: 9.5, style: .continuous).fill(dark ? Color(hex: 0xF5EFE4) : .white))
+                                .shadow(color: Color(hex: 0x6B4A2B).opacity(dark ? 0.34 : 0.18), radius: 3, y: 2)
+                                .rotationEffect(.degrees(reduce ? 0 : 2.5))
+                        }
+                        .buttonStyle(.toy)
+                        .accessibilityLabel(L10n.t("查看拍立得照片", "View Polaroid photo"))
                     }
-                    .buttonStyle(.toy)
-                    .accessibilityLabel(L10n.t("查看拍立得照片", "View Polaroid photo"))
+                }
+
+                if let voiceMeta {
+                    FirstVoiceWaveformPill(
+                        firstID: first.id,
+                        meta: voiceMeta,
+                        audioURL: voiceURL,
+                        tint: c,
+                        dark: dark
+                    )
                 }
             }
             .padding(14)
@@ -1057,8 +1241,10 @@ private struct Thread<Bead: View>: View {
 struct FirstStamps: View {
     let firsts: [First]
     @State private var photoVersion = FirstPhotoVersion.shared
+    @State private var voiceVersion = FirstVoiceVersion.shared
     var body: some View {
         let _ = photoVersion.tick
+        let _ = voiceVersion.tick
         VStack(alignment: .leading, spacing: 8) {
             Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
             WrapLayout(spacing: 6) {
@@ -1070,6 +1256,9 @@ struct FirstStamps: View {
                             if FirstPhotoStore.exists(for: f.id) {
                                 Image(systemName: "photo.fill").font(.caption2).foregroundStyle(Palette.accent)
                             }
+                            if FirstVoiceStore.exists(for: f.id) {
+                                Image(systemName: "waveform").font(.caption2).foregroundStyle(Crayon.tangerine)
+                            }
                             Text(Day(f.date).md).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                         }
                         .padding(.horizontal, 10).padding(.vertical, 6)
@@ -1078,6 +1267,82 @@ struct FirstStamps: View {
                     .buttonStyle(.toy)
                 }
             }
+        }
+    }
+}
+
+/// Interactive play/pause waveform sticker rendered on First rows & in the recorder preview.
+struct FirstVoiceWaveformPill: View {
+    let firstID: UUID
+    let meta: FirstVoiceMeta
+    let audioURL: URL
+    let tint: Color
+    let dark: Bool
+    @State private var controller = FirstVoiceController.shared
+
+    var body: some View {
+        let playing = controller.playingID == firstID
+        let progress = playing ? controller.playProgress : 0
+        Button {
+            controller.togglePlay(id: firstID, url: audioURL)
+        } label: {
+            HStack(spacing: 10) {
+                Image(systemName: playing ? "pause.circle.fill" : "play.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(dark ? tint : Crayon.ink(tint))
+                    .frame(minWidth: 28, minHeight: 28)
+
+                VoiceWaveformBars(
+                    peaks: meta.peaks,
+                    progress: playing ? progress : 0,
+                    tint: tint,
+                    dark: dark
+                )
+                .frame(height: 22)
+
+                Text(FirstVoiceStore.formatDuration(meta.duration))
+                    .font(.caption.weight(.bold))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.secondaryText)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 8)
+            .frame(minHeight: 44)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(tint.opacity(dark ? 0.18 : 0.11))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(tint.opacity(playing ? 0.65 : 0.25), lineWidth: playing ? 1.2 : 0.75)
+            )
+        }
+        .buttonStyle(.toy)
+        .accessibilityLabel(playing ? L10n.t("暂停声音贴纸", "Pause voice keepsake") : L10n.t("播放声音贴纸", "Play voice keepsake"))
+        .accessibilityValue(FirstVoiceStore.formatDuration(meta.duration))
+    }
+}
+
+private struct VoiceWaveformBars: View {
+    let peaks: [Float]
+    let progress: Double
+    let tint: Color
+    let dark: Bool
+
+    var body: some View {
+        let bars = peaks.isEmpty ? Array(repeating: Float(0.2), count: 24) : peaks
+        GeometryReader { geo in
+            HStack(alignment: .center, spacing: 2.5) {
+                ForEach(Array(bars.enumerated()), id: \.offset) { idx, peak in
+                    let frac = Double(idx + 1) / Double(max(1, bars.count))
+                    let active = progress > 0 && frac <= progress
+                    RoundedRectangle(cornerRadius: 1.5, style: .continuous)
+                        .fill(active ? tint : tint.opacity(dark ? 0.48 : 0.36))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: max(4, geo.size.height * CGFloat(peak)))
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 }

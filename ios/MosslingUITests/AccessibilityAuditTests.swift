@@ -102,7 +102,11 @@ final class AccessibilityAuditTests: XCTestCase {
         let app = launch(size, theme: theme)
         lines = []; unlabeled = []; skipped = 0; heights = [:]; repeated = []
         measuring = theme == "light"
-        sizeTag = (size == nil ? "default" : "xxxl") + (theme == "dark" ? "_dark" : "")
+        sizeTag = switch size {
+        case "UICTContentSizeCategoryAccessibilityL": "ax3" + (theme == "dark" ? "_dark" : "")
+        case .some: "xxxl" + (theme == "dark" ? "_dark" : "")
+        case .none: "default" + (theme == "dark" ? "_dark" : "")
+        }
         let bar = app.tabBars.firstMatch
         XCTAssertTrue(bar.waitForExistence(timeout: 20), "tab bar")
         for tab in ["摸索", "台灯", "留念", "工坊"] {
@@ -148,5 +152,6 @@ final class AccessibilityAuditTests: XCTestCase {
 
     func testAuditDefaultSize() { run(nil, file: "ios_a11y_default.txt") }
     func testAuditLamplight() { run(nil, file: "ios_a11y_dark.txt", theme: "dark") }
+    func testAuditAX3AccessibilityLarge() { run("UICTContentSizeCategoryAccessibilityL", file: "ios_a11y_ax3.txt") }
     func testAuditLargestText() { run("UICTContentSizeCategoryAccessibilityXXXL", file: "ios_a11y_xxxl.txt") }
 }

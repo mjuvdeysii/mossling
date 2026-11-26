@@ -52,6 +52,23 @@
         }
       }
     },
+    "NSMicrophoneUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Record short baby voice keepsakes for Firsts and Quotes. Audio stays strictly on this iPhone and is never uploaded."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为「第一次」与「童言一句」录制宝宝的小声音，音频仅保存在这台手机本地，不会上传。"
+          }
+        }
+      }
+    },
     "NSMotionUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {

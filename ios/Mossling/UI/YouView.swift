@@ -712,6 +712,7 @@ private struct StudioPortalGrid: View {
 /// Compact Colophon bar preserving the 3-tap Duo Easter egg, version string, ICP link, and 1-tap `Legal & More` sheet.
 private struct StudioColophonBar: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     let dark: Bool
     let openLegal: () -> Void
     @State private var hops = 0
@@ -721,23 +722,31 @@ private struct StudioColophonBar: View {
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
         let b = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        let layout = type.isAccessibilitySize
+            ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .center, spacing: 10))
 
-        HStack(alignment: .center, spacing: 10) {
-            Duo(primary: app.companion, size: 36, cheer: hops, lit: lampLit)
-                .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
+        layout {
+            HStack(alignment: .center, spacing: 10) {
+                Duo(primary: app.companion, size: 36, cheer: hops, lit: lampLit)
+                    .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(L10n.t("\(L10n.appName) · v\(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
-                    .font(.caption2.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-                    .monospacedDigit()
-                if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                    Link(L10n.t("ICP备案：\(icp)", "ICP: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L10n.t("\(L10n.appName) · v\(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
                         .font(.caption2.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                        .monospacedDigit()
+                        .fixedSize(horizontal: false, vertical: true)
+                    if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
+                        Link(L10n.t("ICP备案：\(icp)", "ICP: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
+                            .font(.caption2.weight(.semibold))
+                    }
                 }
             }
 
-            Spacer(minLength: 4)
+            if !type.isAccessibilitySize {
+                Spacer(minLength: 4)
+            }
 
             Button(action: {
                 TactileEngine.shared.beadClick()
@@ -748,12 +757,12 @@ private struct StudioColophonBar: View {
                         .font(.caption2.weight(.bold))
                     Text(L10n.t("条款与帮助", "Legal & Help"))
                         .font(.caption.weight(.semibold))
-                        .lineLimit(1)
+                        .lineLimit(type.isAccessibilitySize ? nil : 1)
                 }
                 .foregroundStyle(.primary)
-                .padding(.horizontal, 10)
-                .padding(.vertical, 7)
-                .frame(minHeight: 34)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .frame(minHeight: 44)
                 .background(Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.card))
                 .overlay(Capsule().strokeBorder(Palette.outline.opacity(0.24), lineWidth: 0.75))
             }

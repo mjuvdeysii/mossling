@@ -380,6 +380,35 @@ private struct HandoverCardContent: View {
                         )
                 }
                 .aspectRatio(16.0 / 9.0, contentMode: .fit)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.t("交接传灯金珠滑块", "Handover lantern slider"))
+                .accessibilityValue(
+                    lanternPassed
+                        ? L10n.t("已递出，100%", "Lantern passed, 100%")
+                        : L10n.t("进度 \(Int(passProgress * 100))%", "\(Int(passProgress * 100)) percent")
+                )
+                .accessibilityAdjustableAction { direction in
+                    switch direction {
+                    case .increment:
+                        withAnimation(.snappy) {
+                            passProgress = min(1.0, passProgress + 0.34)
+                            TactileEngine.shared.dimmerTick()
+                            if LanternPassMath.isPassed(passProgress) {
+                                passProgress = 1.0
+                                lanternPassed = true
+                                TactileEngine.shared.goldChime()
+                            }
+                        }
+                    case .decrement:
+                        withAnimation(.snappy) {
+                            passProgress = max(0.0, passProgress - 0.34)
+                            lanternPassed = false
+                            TactileEngine.shared.dimmerTick()
+                        }
+                    @unknown default:
+                        break
+                    }
+                }
 
                 HStack(spacing: 5) {
                     GoldBead(size: 7)

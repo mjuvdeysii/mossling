@@ -59,8 +59,14 @@ struct TodayFace: View {
 
     init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize) { self.date = date; self.snap = snap; self.body_ = body; self.size = size }
 
-    private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
-    private var ageText: String { age.map { L10n.ageText($0) } ?? L10n.t("填写出生日期", "Add birthday") }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var age: Age? { resolvedAge?.age }
+    private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
+    private var ageText: String {
+        guard let a = age else { return L10n.t("填写出生日期", "Add birthday") }
+        let base = L10n.ageText(a)
+        return isCorrectedAge ? L10n.t("矫·\(base)", "Corr. \(base)") : base
+    }
     /// When it was last done, as the app says it (LastFact): a feed — breast or bottle — by when it began, a sleep by
     /// when the baby woke.
     private func last(_ t: String) -> Date? {
@@ -130,6 +136,14 @@ struct TodayFace: View {
                 if let n = snap?.nickname, !n.isEmpty { Text(n).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1) }
                 if let a = age {
                     HStack(alignment: .firstTextBaseline, spacing: 5) {
+                        if isCorrectedAge {
+                            Text(L10n.t("矫", "C"))
+                                .font(.system(size: 10, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 1.5)
+                                .background(Capsule().fill(WidgetInk.accent))
+                        }
                         HStack(alignment: .firstTextBaseline, spacing: 1) {
                             Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
                             Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
@@ -143,6 +157,12 @@ struct TodayFace: View {
                     }
                     .widgetAccentable()
                     .lineLimit(1).minimumScaleFactor(0.7)
+                    if let badge = snap?.careBadgeLabel() {
+                        Text(badge)
+                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(snap?.careModeActive == true ? Crayon.ink(Crayon.teal) : .secondary)
+                            .lineLimit(1)
+                    }
                 } else { Text(L10n.appName).font(.headline) }
             }
             Spacer(minLength: 0)
@@ -659,7 +679,9 @@ struct BedsideLampFace: View {
     private var accented: Bool { forceAccentedPreview || renderingMode != .fullColor }
     private var primaryAccent: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x4D / 255) : Self.amber }
     private var primaryInk: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x8F / 255, blue: 0x7A / 255) : .white }
-    private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var age: Age? { resolvedAge?.age }
+    private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
     private var horizonWindow: (startMs: Double, endMs: Double, sleeps: [(Double, Double)], feeds: [Double]) {
@@ -712,10 +734,18 @@ struct BedsideLampFace: View {
                             .widgetAccentable()
                     }
                     if let a = age {
-                        Text(L10n.livedDays(a.lived))
+                        let ageLine = (isCorrectedAge ? L10n.t("矫·\(a.months)m · ", "Corr. \(a.months)m · ") : "") + L10n.livedDays(a.lived)
+                        let extra = snap?.careModeActive == true ? L10n.t(" · 减负照护", " · Care Mode") : ""
+                        Text(ageLine + extra)
                             .font(.caption.weight(.bold))
                             .foregroundStyle(primaryInk.opacity(0.86))
                             .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                    } else if let badge = snap?.careBadgeLabel() {
+                        Text(badge)
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(primaryInk.opacity(0.82))
                             .lineLimit(1)
                     }
                 }
@@ -900,7 +930,9 @@ struct StoryWindowFace: View {
     let body_: JournalFile.Body
     let isMedium: Bool
 
-    private var age: Age? { snap?.birthEpochDay.map { Age.on(birth: Day(epochDay: $0), today: Day(date)) } }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var age: Age? { resolvedAge?.age }
+    private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var bookMonth: Int { age?.bookMonth ?? 0 }
     private var isSleeping: Bool { body_.timers.contains { $0.type == LogType.sleep } }
 
@@ -909,14 +941,22 @@ struct StoryWindowFace: View {
         let chapter = L10n.stretchName(for: bookMonth)
         let beadNum = min(bookMonth + 1, 37)
         let beadLabel = isMedium
-            ? L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37")
-            : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37")
+            ? (isCorrectedAge ? L10n.t("矫·第 \(beadNum)/37 颗成长珠", "Corr. Bead \(beadNum)/37") : L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37"))
+            : (isCorrectedAge ? L10n.t("矫 \(beadNum)/37 珠", "Corr \(beadNum)/37") : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37"))
         let monthDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
 
         VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(name).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
+                    HStack(spacing: 4) {
+                        Text(name).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1)
+                        if let badge = snap?.careBadgeLabel() {
+                            Text("· \(badge)")
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(WidgetInk.accent)
+                                .lineLimit(1)
+                        }
+                    }
                     Text(chapter)
                         .font(.system(size: isMedium ? 18 : 15, weight: .bold, design: .rounded))
                         .foregroundStyle(.primary)

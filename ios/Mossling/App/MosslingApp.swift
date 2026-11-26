@@ -45,9 +45,10 @@ struct RootView: View {
 
     private var isLocked: Bool { app.lock && locked }
 
-    /// Synchronizes TactileEngine's silent-night shield across dark theme, sleep timers, and any Bedside Lamp cover.
+    /// Synchronizes TactileEngine's silent-night shield across dark theme, sleep timers, 3AM duty phase, and any Bedside Lamp cover.
     private func syncQuietNight() {
-        TactileEngine.shared.quietNight = scheme == .dark || router.showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
+        let lateNight = CircadianDutyPhase.isLateNight3AM()
+        TactileEngine.shared.quietNight = scheme == .dark || lateNight || router.showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
     }
 
     /// Turns the week when it has gone by, counting each play's times from the records.
@@ -93,7 +94,9 @@ struct RootView: View {
                 if app.lock { unlock() }
                 roll()
                 app.publish(journal)
-                FirstPhotoStore.prune(keeping: Set(journal.firsts.map(\.id)))
+                let validFirsts = Set(journal.firsts.map(\.id))
+                FirstPhotoStore.prune(keeping: validFirsts)
+                FirstVoiceStore.prune(keeping: validFirsts)
             }
             // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
             // flows back into the journal

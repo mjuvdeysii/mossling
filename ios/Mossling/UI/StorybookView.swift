@@ -167,6 +167,11 @@ struct StorybookView: View {
             return renderer.uiImage
         }
 
+        let yearbookTransfer = GrowthYearbookPDFTransfer(
+            filename: L10n.t("\(who)-三岁成长年鉴.pdf", "\(who)-growth-yearbook.pdf"),
+            render: { GrowthYearbookPDF.render(app: app, j: j) }
+        )
+
         return HStack(spacing: 10) {
             Button {
                 TactileEngine.shared.beadClick()
@@ -175,7 +180,7 @@ struct StorybookView: View {
                 Image(systemName: "xmark")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.primary)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 44, height: 44)
                     .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
                     .shadow(color: dark ? .black.opacity(0.25) : Color(hex: 0x7A5230).opacity(0.10), radius: 4, y: 2)
             }
@@ -196,19 +201,29 @@ struct StorybookView: View {
 
             Spacer()
 
-            ShareLink(
-                item: exportPoster,
-                preview: SharePreview(L10n.t("摸索台灯 · 成长绘本页", "Moss & Otto · Storybook Page"))
-            ) {
+            Menu {
+                ShareLink(
+                    item: exportPoster,
+                    preview: SharePreview(L10n.t("摸索台灯 · 成长绘本页", "Moss & Otto · Storybook Page"))
+                ) {
+                    Label(L10n.t("导出当前这一页（图片）", "Export This Spread (Image)"), systemImage: "photo")
+                }
+                ShareLink(
+                    item: yearbookTransfer,
+                    preview: SharePreview(L10n.t("\(who) · 三岁成长年鉴 PDF", "\(who) · 3-Year Yearbook PDF"))
+                ) {
+                    Label(L10n.t("导出完整成长年鉴（多页 PDF）", "Export 3-Year Yearbook (PDF)"), systemImage: "book.closed.fill")
+                }
+            } label: {
                 Image(systemName: "square.and.arrow.up")
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(Palette.accent)
-                    .frame(width: 38, height: 38)
+                    .frame(width: 44, height: 44)
                     .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
                     .shadow(color: dark ? .black.opacity(0.25) : Color(hex: 0x7A5230).opacity(0.10), radius: 4, y: 2)
             }
             .buttonStyle(.toy)
-            .accessibilityLabel(L10n.t("留存这一页", "Save this page"))
+            .accessibilityLabel(L10n.t("导出绘本页或完整年鉴 PDF", "Share page image or full Yearbook PDF"))
         }
     }
 
@@ -225,7 +240,7 @@ struct StorybookView: View {
                 Image(systemName: "chevron.left")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(current > 0 ? Palette.accent : Palette.secondaryText.opacity(0.35))
-                    .frame(width: 32, height: 32)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .disabled(current == 0)
             .accessibilityLabel(L10n.t("上一页", "Previous page"))
@@ -284,7 +299,7 @@ struct StorybookView: View {
                 Image(systemName: "chevron.right")
                     .font(.caption.weight(.bold))
                     .foregroundStyle(current < total - 1 ? Palette.accent : Palette.secondaryText.opacity(0.35))
-                    .frame(width: 32, height: 32)
+                    .frame(minWidth: 44, minHeight: 44)
             }
             .disabled(current >= total - 1)
             .accessibilityLabel(L10n.t("下一页", "Next page"))
@@ -738,10 +753,16 @@ private struct StorybookMonthSpread: View {
 
 private struct StorybookEpilogueSpread: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j
     @Environment(\.lamp) private var lamp
     let totalMonths: Int
 
     var body: some View {
+        let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+        let yearbookTransfer = GrowthYearbookPDFTransfer(
+            filename: L10n.t("\(who)-三岁成长年鉴.pdf", "\(who)-growth-yearbook.pdf"),
+            render: { GrowthYearbookPDF.render(app: app, j: j) }
+        )
         VStack {
             Spacer(minLength: 16)
             VStack(spacing: 16) {
@@ -757,6 +778,20 @@ private struct StorybookEpilogueSpread: View {
                 .foregroundStyle(Palette.secondaryText)
                 .multilineTextAlignment(.center)
                 .fixedSize(horizontal: false, vertical: true)
+
+                ShareLink(
+                    item: yearbookTransfer,
+                    preview: SharePreview(L10n.t("\(who) · 三岁成长年鉴 PDF", "\(who) · 3-Year Yearbook PDF"))
+                ) {
+                    Label(L10n.t("导出完整《成长年鉴》多页 PDF", "Export Full 3-Year Yearbook PDF"), systemImage: "book.closed.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 10)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(Palette.accentFill))
+                }
+                .buttonStyle(.toy)
 
                 HStack(spacing: 6) {
                     GoldBead(size: 7)

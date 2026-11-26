@@ -1,0 +1,768 @@
+<!doctype html>
+<html lang="zh-Hans" data-lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>长辈共读摸索卡 | 摸索台灯 Moss &amp; Otto</title>
+  <meta name="description" content="摸索台灯（Moss &amp; Otto）零服务器长辈摸索卡与手边共玩卡：无需下载 App 或注册账号，支持特大字体与语音朗读，微信点开即看。">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <style>
+    body.card-night {
+      background: var(--night-bg);
+      color: var(--night-ink);
+    }
+
+    body.card-night .nav {
+      background: rgba(7, 11, 22, 0.94);
+      border-bottom-color: var(--night-line);
+    }
+
+    body.card-night .brand,
+    body.card-night .nav-links a {
+      color: var(--night-ink);
+    }
+
+    body.card-night .lang-toggle {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    body.card-night .site-footer {
+      background: var(--night-bg);
+      border-top-color: var(--night-line);
+      color: var(--night-ink-2);
+    }
+
+    body.card-night .footer-links a {
+      color: var(--night-ink-2);
+    }
+
+    .card-page {
+      min-height: calc(100vh - 130px);
+      padding: 40px 0 72px;
+      background: var(--surface);
+      transition: background-color 0.28s ease, color 0.28s ease;
+    }
+
+    body.card-night .card-page {
+      background: var(--night-bg);
+      color: var(--night-ink);
+    }
+
+    .card-shell {
+      max-width: 700px;
+      margin: 0 auto;
+      display: grid;
+      gap: 18px;
+    }
+
+    .card-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+    .card-controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .card-ctrl-btn {
+      padding: 9px 14px;
+      min-height: 44px;
+      border-radius: var(--radius-pill);
+      border: 1px solid var(--line-strong);
+      background: #ffffff;
+      color: var(--ink);
+      font-size: var(--t-small);
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .card-ctrl-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    body.card-night .card-ctrl-btn {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    body.card-night .card-ctrl-btn.active {
+      background: var(--amber);
+      border-color: var(--amber);
+      color: #070b16;
+    }
+
+    .card-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      min-height: 44px;
+      border-radius: var(--radius-pill);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      font-size: var(--t-small);
+      font-weight: 600;
+      color: var(--ink);
+    }
+
+    body.card-night .card-badge {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink);
+    }
+
+    .card-dot {
+      width: 9px;
+      height: 9px;
+      border-radius: 50%;
+      background: var(--amber);
+      box-shadow: 0 0 10px rgba(245, 184, 65, 0.85);
+    }
+
+    .lamp-paper {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-xl);
+      padding: clamp(22px, 4vw, 34px);
+      display: grid;
+      gap: 20px;
+      box-shadow: var(--shadow-md);
+    }
+
+    body.card-night .lamp-paper {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      box-shadow: none;
+    }
+
+    .card-meta-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .card-stage-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(245, 184, 65, 0.20);
+      color: #6b4600;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    body.card-night .card-stage-pill {
+      background: rgba(245, 184, 65, 0.16);
+      color: var(--amber);
+    }
+
+    .card-baby-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 12px;
+      border-radius: var(--radius-pill);
+      background: rgba(15, 118, 110, 0.10);
+      color: var(--accent);
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    body.card-night .card-baby-pill {
+      background: rgba(15, 118, 110, 0.24);
+      color: #84e1d4;
+    }
+
+    .lamp-paper h1 {
+      margin: 0;
+      font-size: clamp(24px, 4vw, 32px);
+      line-height: 1.28;
+      letter-spacing: -0.02em;
+    }
+
+    .say-box {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      background: #fcfaf3;
+      border-left: 4px solid var(--amber);
+      display: grid;
+      gap: 6px;
+    }
+
+    body.card-night .say-box {
+      background: rgba(245, 184, 65, 0.08);
+      border-left-color: var(--amber);
+    }
+
+    .say-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-3);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+    }
+
+    body.card-night .say-label {
+      color: var(--night-ink-2);
+    }
+
+    .say-quote {
+      margin: 0;
+      font-size: clamp(19px, 3vw, 23px);
+      font-weight: 700;
+      line-height: 1.48;
+      color: var(--ink);
+    }
+
+    body.card-night .say-quote {
+      color: #fff6e3;
+    }
+
+    .card-block {
+      padding: 16px 18px;
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      border: 1px solid var(--line);
+      display: grid;
+      gap: 8px;
+    }
+
+    body.card-night .card-block {
+      background: rgba(255, 255, 255, 0.03);
+      border-color: var(--night-line);
+    }
+
+    .card-block h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    body.card-night .card-block h2 {
+      color: var(--amber);
+    }
+
+    .card-block p,
+    .card-steps li {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.65;
+      color: var(--ink);
+    }
+
+    body.card-night .card-block p,
+    body.card-night .card-steps li {
+      color: var(--night-ink);
+    }
+
+    .card-steps {
+      margin: 4px 0 0;
+      padding-left: 20px;
+      display: grid;
+      gap: 6px;
+    }
+
+    .gp-block {
+      padding: 18px 20px;
+      border-radius: var(--radius-md);
+      background: rgba(15, 118, 110, 0.07);
+      border: 1px solid rgba(15, 118, 110, 0.20);
+      display: grid;
+      gap: 6px;
+    }
+
+    body.card-night .gp-block {
+      background: rgba(15, 118, 110, 0.16);
+      border-color: rgba(132, 225, 212, 0.25);
+    }
+
+    .gp-block h2 {
+      margin: 0;
+      font-size: 15px;
+      color: var(--accent);
+    }
+
+    body.card-night .gp-block h2 {
+      color: #84e1d4;
+    }
+
+    .gp-block p {
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.65;
+    }
+
+    .card-source {
+      font-size: 13px;
+      color: var(--ink-3);
+      line-height: 1.55;
+      border-top: 1px solid var(--line);
+      padding-top: 14px;
+    }
+
+    body.card-night .card-source {
+      color: var(--night-ink-2);
+      border-top-color: var(--night-line);
+    }
+
+    /* Elder / Large-Print accessibility mode */
+    body.card-large .lamp-paper h1 {
+      font-size: clamp(28px, 5vw, 38px);
+    }
+
+    body.card-large .say-quote {
+      font-size: clamp(23px, 3.8vw, 28px);
+    }
+
+    body.card-large .card-block p,
+    body.card-large .card-steps li,
+    body.card-large .gp-block p {
+      font-size: 20px;
+      line-height: 1.72;
+    }
+
+    body.card-large .card-block h2,
+    body.card-large .gp-block h2 {
+      font-size: 17px;
+    }
+
+    .demo-bar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 16px;
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      border: 1px solid var(--line);
+    }
+
+    body.card-night .demo-bar {
+      background: var(--night-card);
+      border-color: var(--night-line);
+    }
+
+    .demo-bar-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--ink-3);
+      margin-right: 4px;
+    }
+
+    body.card-night .demo-bar-label {
+      color: var(--night-ink-2);
+    }
+
+    .card-privacy {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 16px 20px;
+      border-radius: var(--radius-md);
+      background: #ffffff;
+      border: 1px solid var(--line);
+      font-size: var(--t-small);
+      color: var(--ink-2);
+    }
+
+    body.card-night .card-privacy {
+      background: var(--night-card);
+      border-color: var(--night-line);
+      color: var(--night-ink-2);
+    }
+
+    .card-privacy-links {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    .card-privacy a {
+      color: var(--accent);
+      font-weight: 600;
+      text-decoration: none;
+    }
+
+    body.card-night .card-privacy a {
+      color: var(--amber);
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="28" height="28">
+        <span data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html" data-zh="首页" data-en="Home">首页</a>
+        <a href="index.html#spectrum-theater" data-zh="全光谱剧场" data-en="Theater">全光谱剧场</a>
+        <a href="handover.html" data-zh="传灯交接" data-en="Handover">传灯交接</a>
+        <a href="charter.html" data-zh="光源宪章" data-en="Charter">光源宪章</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="lang-toggle" type="button" id="langBtn" aria-label="切换中英文">EN</button>
+        <a class="nav-cta" href="https://apps.apple.com/app/id6825856138" target="_blank" rel="noopener" data-zh="App Store 下载" data-en="App Store">App Store 下载</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <div class="card-page">
+      <div class="wrap card-shell">
+        <div class="card-toolbar">
+          <div class="card-badge">
+            <span class="card-dot" aria-hidden="true"></span>
+            <span id="cardStatusLabel" data-zh="零服务器长辈摸索卡 · 示例预览" data-en="Zero-Server Exploration Card · Sample View">零服务器长辈摸索卡 · 示例预览</span>
+          </div>
+          <div class="card-controls">
+            <button class="card-ctrl-btn" type="button" id="speakBtn" data-zh="读给家人听" data-en="Read Aloud">读给家人听</button>
+            <button class="card-ctrl-btn" type="button" id="largePrintBtn" data-zh="长辈大字" data-en="Large Print">长辈大字</button>
+            <button class="card-ctrl-btn" type="button" id="nightToggleBtn" data-zh="深夜护眼黑" data-en="OLED Night">深夜护眼黑</button>
+          </div>
+        </div>
+
+        <article class="lamp-paper">
+          <div class="card-meta-row">
+            <span class="card-stage-pill" id="cardStagePill">3–6 月 · 掌控身体</span>
+            <span class="card-baby-pill" id="cardKindPill">发光微直觉卡</span>
+            <span class="card-baby-pill" id="cardBabyPill" hidden></span>
+          </div>
+
+          <h1 id="cardHeadline">4 个月还没翻身很正常，CDC 已把基准放到 6 个月</h1>
+
+          <section class="say-box">
+            <span class="say-label" data-zh="现在可以这样对宝宝说" data-en="Say Aloud Right Now">现在可以这样对宝宝说</span>
+            <p class="say-quote" id="cardSayAloud">“手手伸到侧面够那个大木勺，身体自己扭一扭哦。”</p>
+          </section>
+
+          <section class="card-block">
+            <h2 id="lblAction" data-zh="手边微动作 / 怎么陪他试一试" data-en="Handy Micro-Action">手边微动作 / 怎么陪他试一试</h2>
+            <p id="cardAction">把干净大木勺放在宝宝斜前方伸手差一点的地方，鼓励自己侧身发力，不代劳帮翻。</p>
+            <ol class="card-steps" id="cardStepsList" hidden></ol>
+          </section>
+
+          <section class="card-block">
+            <h2 id="lblTranslation" data-zh="宝宝视角与儿科翻译" data-en="Developmental Translation">宝宝视角与儿科翻译</h2>
+            <p id="cardTranslation">CDC 2022 将旧版基于半数的 4m 翻身标尺调至 6m 75% 基准。只要清醒时抬头、踢腿有劲、伸手抓物即可。</p>
+          </section>
+
+          <section class="gp-block">
+            <h2 id="lblGrandparent" data-zh="写给爷爷奶奶、外公外婆与同住家人" data-en="Note for Grandparents &amp; Family">写给爷爷奶奶、外公外婆与同住家人</h2>
+            <p id="cardGrandparent">少久坐学步椅、多放平坦地垫自由蹬腿，核心力量攒够了翻身自然水到渠成。</p>
+          </section>
+
+          <section class="card-block" id="cardCustomNoteBox" hidden>
+            <h2 data-zh="家里刚写的留言" data-en="Personal Family Note">家里刚写的留言</h2>
+            <p id="cardCustomNote"></p>
+          </section>
+
+          <div class="card-source" id="cardSourceText">
+            依据：Pediatrics (Zubler) · CDC 发育里程碑修订解读 (2022)；NHC · 6月龄儿童健康检查 (2022)
+          </div>
+        </article>
+
+        <div class="demo-bar" id="demoBar">
+          <span class="demo-bar-label" data-zh="示例卡片切换：" data-en="Sample Cards:">示例卡片切换：</span>
+          <button class="card-ctrl-btn" type="button" data-sample="roll" data-zh="4m 不翻身不焦虑" data-en="4m Rolling Myth">4m 不翻身不焦虑</button>
+          <button class="card-ctrl-btn" type="button" data-sample="crawl" data-zh="WHO 爬行/独走光谱" data-en="WHO Motor Spectrum">WHO 爬行/独走光谱</button>
+          <button class="card-ctrl-btn" type="button" data-sample="play" data-zh="9m 手边共玩示例" data-en="9m Home Co-Play">9m 手边共玩示例</button>
+        </div>
+
+        <div class="card-privacy">
+          <span data-zh="零服务器承诺：本页所有卡片文字仅编码于网址 # 锚点之后，只在您手机浏览器本机解码，不上传、不建档、无需注册。" data-en="Zero-server pledge: card copy travels only in your URL # anchor and is decoded locally in this browser with zero uploads or tracking.">
+            零服务器承诺：本页所有卡片文字仅编码于网址 # 锚点之后，只在您手机浏览器本机解码，不上传、不建档、无需注册。
+          </span>
+          <div class="card-privacy-links">
+            <a href="charter.html" data-zh="阅读光源透明宪章 &gt;" data-en="Light-Source Charter &gt;">阅读光源透明宪章 &gt;</a>
+            <a href="index.html#free-tools" data-zh="网页免费微工具 &gt;" data-en="Free Web Tools &gt;">网页免费微工具 &gt;</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span data-zh="© 2026 摸索台灯 Moss &amp; Otto" data-en="© 2026 Moss &amp; Otto">© 2026 摸索台灯 Moss &amp; Otto</span>
+      <div class="footer-links">
+        <a href="index.html" data-zh="返回首页" data-en="Home">返回首页</a>
+        <a href="handover.html" data-zh="传灯交接" data-en="Handover">传灯交接</a>
+        <a href="charter.html" data-zh="光源宪章" data-en="Charter">光源宪章</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var langBtn = document.getElementById("langBtn");
+      var largePrintBtn = document.getElementById("largePrintBtn");
+      var nightToggleBtn = document.getElementById("nightToggleBtn");
+      var speakBtn = document.getElementById("speakBtn");
+
+      var samples = {
+        roll: {
+          zh: {
+            v: 1, l: "zh", k: "lamp", id: "3_6m_roll", st: "3–6 月 · 掌控身体",
+            ti: "4 个月还没翻身很正常，CDC 已把基准放到 6 个月",
+            sa: "手手伸到侧面够那个大木勺，身体自己扭一扭哦。",
+            ac: "把干净大木勺放在宝宝斜前方伸手差一点的地方，鼓励自己侧身发力，不代劳帮翻。",
+            tr: "CDC 2022 将旧版基于半数的 4m 翻身标尺调至 6m 75% 基准。只要清醒时抬头、踢腿有劲、伸手抓物即可。",
+            gp: "少久坐学步椅、多放平坦地垫自由蹬腿，核心力量攒够了翻身自然水到渠成。",
+            src: "Pediatrics (Zubler) · CDC 发育里程碑修订解读 (2022)；NHC · 6月龄儿童健康检查 (2022)"
+          },
+          en: {
+            v: 1, l: "en", k: "lamp", id: "3_6m_roll", st: "3–6m · Body & Voice",
+            ti: "Not rolling at 4m is normal—the 75% benchmark sits at 6 months",
+            sa: "Reach toward the wooden spoon on the side—feel your core twist!",
+            ac: "Place a large wooden spoon just past side reach on a firm mat; let baby initiate the twist.",
+            tr: "CDC 2022 moved tummy-to-back rolling to the 6m (75%) list to curb unnecessary parent panic.",
+            gp: "Floor mat freedom builds core strength far faster than propping in seats.",
+            src: "Pediatrics (Zubler) · Evidence-Informed Milestones Revision (2022); NHC 6-Month Check (2022)"
+          }
+        },
+        crawl: {
+          zh: {
+            v: 1, l: "zh", k: "lamp", id: "who_walk_band", st: "6–18 月 · WHO 常模光谱",
+            ti: "4.3% 的健康宝宝会跳过传统手膝爬直接站立迈步",
+            sa: "你想扶着沙发慢慢走，还是趴下来自己够小球？妈妈陪着你看。",
+            ac: "把沙发坐垫降成低矮稳固台阶，或地上垫枕头让宝宝扶抓起身与慢慢蹲下。",
+            tr: "WHO 多中心生长发育研究（MGRS 2006）指出，健康婴幼儿在 8.2 到 17.6 个月之间独走都属正常跨度；早产儿按矫正月龄顺延。",
+            gp: "不用比隔壁宝宝几月会爬会走，也别强迫站学步车；满 18 月龄仍未独走再请儿保评估即可。",
+            src: "WHO MGRS · Infant Motor Development Study (2006)"
+          },
+          en: {
+            v: 1, l: "en", k: "lamp", id: "who_walk_band", st: "6–18m · WHO Spectrum",
+            ti: "About 4.3% of healthy babies walk without classic hands-and-knees crawling",
+            sa: "Cruise along the sofa edge at your own pace—I am right behind you.",
+            ac: "Keep low, steady furniture safe for cruising without walkers or propping.",
+            tr: "WHO MGRS (2006) shows independent walking spans 8.2 to 17.6 months across healthy children.",
+            gp: "Skip comparisons on milestone dates; check with your pediatrician if not walking by 18 months.",
+            src: "WHO Multicentre Growth Reference Study (2006)"
+          }
+        },
+        play: {
+          zh: {
+            v: 1, l: "zh", k: "play", id: "09-A", st: "9–10 个月 · 精细抓握与客体永存",
+            ti: "小盖子掀一掀：藏在方巾下的木铃铛",
+            sa: "留心看他掀开纱巾那刻会不会笑出声、伸两根指头捏起玩具。",
+            ac: "只需一块干净纱巾和一个摇铃。趁宝宝看着时把摇铃盖住一半，看他伸手扯开。",
+            steps: [
+              "让宝宝坐在稳妥地垫上，摇两下响，吸引目光。",
+              "当着他的面把纱巾盖在玩具一半上，停下来等待。",
+              "他扯开布后轻轻说“被你找到啦”，然后再盖上全部。"
+            ],
+            tr: "若连扯两三次就扭头看别处，说明好奇够了，今天就可以收起纱巾。",
+            gp: "选大小超过纸筒芯的玩具，不放纽扣电池或小珠子，大人一直在旁边看着。",
+            src: "摸索台灯线下游戏卡（09-A）"
+          },
+          en: {
+            v: 1, l: "en", k: "play", id: "09-A", st: "9–10m · Object Permanence",
+            ti: "Lift the Cloth to Find the Bell",
+            sa: "Notice if they pull the cloth with delight and use thumb-and-finger pincer reach.",
+            ac: "Use one light cotton cloth and a safe wooden rattle.",
+            steps: [
+              "Sit on a firm mat together and give the wooden rattle one gentle shake.",
+              "While baby watches, drape the cloth loosely over half the rattle and wait quietly.",
+              "Smile and say 'You found it!' when they lift the cloth, then tuck it fully."
+            ],
+            tr: "Stop as soon as baby turns away—one calm round is already plenty.",
+            gp: "Keep every prop larger than a choking-tube test and stay within arm's reach.",
+            src: "Moss & Otto Play Library (09-A)"
+          }
+        }
+      };
+
+      function decodeFragment() {
+        var h = window.location.hash || "";
+        if (!h || h.indexOf("d=") === -1) return null;
+        try {
+          var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
+          if (!raw) return null;
+          var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
+          while (b64.length % 4) b64 += "=";
+          var bin = atob(b64);
+          var bytes = new Uint8Array(bin.length);
+          for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+          var obj = JSON.parse(new TextDecoder("utf-8").decode(bytes));
+          if (!obj || typeof obj !== "object" || typeof obj.ti !== "string") return null;
+          return obj;
+        } catch (e) {
+          return null;
+        }
+      }
+
+      var livePayload = decodeFragment();
+      var activeSample = "roll";
+      var activeLang = livePayload && livePayload.l === "en" ? "en" : (localStorage.getItem("mossling-lang") === "en" ? "en" : "zh");
+
+      function stopSpeech() {
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.cancel();
+        }
+        if (speakBtn) {
+          speakBtn.classList.remove("active");
+          speakBtn.textContent = activeLang === "en" ? "Read Aloud" : "读给家人听";
+        }
+      }
+
+      function render() {
+        var data = livePayload || samples[activeSample][activeLang];
+        html.setAttribute("data-lang", activeLang);
+        html.setAttribute("lang", activeLang === "en" ? "en" : "zh-Hans");
+        if (langBtn) langBtn.textContent = activeLang === "en" ? "中文" : "EN";
+
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          var txt = el.getAttribute(activeLang === "en" ? "data-en" : "data-zh");
+          if (txt !== null) el.textContent = txt;
+        });
+
+        var statusLabel = document.getElementById("cardStatusLabel");
+        if (statusLabel) {
+          if (livePayload) {
+            statusLabel.textContent = activeLang === "en" ? "From Family iPhone · Offline URL # Card" : "来自家人 iPhone · 零服务器长辈摸索卡";
+          } else {
+            statusLabel.textContent = activeLang === "en" ? "Zero-Server Exploration Card · Sample View" : "零服务器长辈摸索卡 · 示例预览";
+          }
+        }
+
+        var demoBar = document.getElementById("demoBar");
+        if (demoBar) {
+          demoBar.hidden = Boolean(livePayload);
+        }
+
+        document.getElementById("cardStagePill").textContent = data.st || "";
+        document.getElementById("cardKindPill").textContent = data.k === "play"
+          ? (activeLang === "en" ? "Home Co-Play Card" : "手边共玩卡")
+          : (activeLang === "en" ? "Micro-Intuition Card" : "发光微直觉卡");
+
+        var babyPill = document.getElementById("cardBabyPill");
+        if (data.b && String(data.b).trim()) {
+          babyPill.hidden = false;
+          babyPill.textContent = data.b;
+        } else {
+          babyPill.hidden = true;
+        }
+
+        document.getElementById("cardHeadline").textContent = data.ti || "";
+        document.getElementById("cardSayAloud").textContent = activeLang === "en"
+          ? '"' + (data.sa || "") + '"'
+          : "“" + (data.sa || "") + "”";
+        document.getElementById("cardAction").textContent = data.ac || "";
+
+        var stepsList = document.getElementById("cardStepsList");
+        if (Array.isArray(data.steps) && data.steps.length > 0) {
+          stepsList.hidden = false;
+          var stepNodes = data.steps.map(function (step) {
+            var li = document.createElement("li");
+            li.textContent = String(step);
+            return li;
+          });
+          stepsList.replaceChildren.apply(stepsList, stepNodes);
+        } else {
+          stepsList.hidden = true;
+          stepsList.replaceChildren();
+        }
+
+        document.getElementById("cardTranslation").textContent = data.tr || "";
+        document.getElementById("cardGrandparent").textContent = data.gp || "";
+
+        var noteBox = document.getElementById("cardCustomNoteBox");
+        var noteEl = document.getElementById("cardCustomNote");
+        if (data.n && String(data.n).trim()) {
+          noteBox.hidden = false;
+          noteEl.textContent = data.n;
+        } else {
+          noteBox.hidden = true;
+        }
+
+        document.getElementById("cardSourceText").textContent = (activeLang === "en" ? "Reference: " : "依据：") + (data.src || "");
+
+        document.querySelectorAll("[data-sample]").forEach(function (btn) {
+          btn.classList.toggle("active", btn.getAttribute("data-sample") === activeSample);
+        });
+        stopSpeech();
+      }
+
+      if (langBtn) {
+        langBtn.addEventListener("click", function () {
+          activeLang = activeLang === "zh" ? "en" : "zh";
+          localStorage.setItem("mossling-lang", activeLang);
+          render();
+        });
+      }
+
+      if (largePrintBtn) {
+        largePrintBtn.addEventListener("click", function () {
+          var on = document.body.classList.toggle("card-large");
+          largePrintBtn.classList.toggle("active", on);
+        });
+      }
+
+      if (nightToggleBtn) {
+        nightToggleBtn.addEventListener("click", function () {
+          var on = document.body.classList.toggle("card-night");
+          nightToggleBtn.classList.toggle("active", on);
+        });
+      }
+
+      if (speakBtn) {
+        speakBtn.addEventListener("click", function () {
+          if (!("speechSynthesis" in window)) {
+            speakBtn.textContent = activeLang === "en" ? "Speech unavailable" : "当前浏览器不支持朗读";
+            return;
+          }
+          if (window.speechSynthesis.speaking) {
+            stopSpeech();
+            return;
+          }
+          var data = livePayload || samples[activeSample][activeLang];
+          var parts = [data.ti, data.sa, data.ac, data.gp].filter(Boolean);
+          var utter = new SpeechSynthesisUtterance(parts.join(activeLang === "en" ? ". " : "。"));
+          utter.lang = activeLang === "en" ? "en-US" : "zh-CN";
+          utter.rate = 0.92;
+          utter.onend = stopSpeech;
+          utter.onerror = stopSpeech;
+          speakBtn.classList.add("active");
+          speakBtn.textContent = activeLang === "en" ? "Stop Voice" : "停止朗读";
+          window.speechSynthesis.speak(utter);
+        });
+      }
+
+      document.querySelectorAll("[data-sample]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeSample = btn.getAttribute("data-sample") || "roll";
+          render();
+        });
+      });
+
+      var hour = new Date().getHours();
+      if (hour >= 0 && hour < 5) {
+        document.body.classList.add("card-night");
+        if (nightToggleBtn) nightToggleBtn.classList.add("active");
+      }
+
+      render();
+    })();
+  </script>
+</body>
+</html>

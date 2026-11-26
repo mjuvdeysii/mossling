@@ -283,6 +283,7 @@ struct JourneyHubView: View {
     @State private var expandedLandsOverride: Set<Land>? = nil
     @State private var capsules = CapsuleStore.shared
     @State private var photoVersion = FirstPhotoVersion.shared
+    @State private var showingClinicSnapshot = false
 
     enum StationScope: String, CaseIterable, Identifiable {
         case all, lived
@@ -340,6 +341,7 @@ struct JourneyHubView: View {
 
                     if app.age != nil {
                         DueCard(month: baby)
+                        upcomingCheckupPrepBanner
                     }
 
                     // Compact Bead Journey header bar + inline filters (zero horizontal scrolling)
@@ -410,6 +412,52 @@ struct JourneyHubView: View {
             .fullScreenCover(isPresented: $showingStorybook) {
                 StorybookView().lampPresented(sheet: false)
             }
+            .sheet(isPresented: $showingClinicSnapshot) {
+                ClinicSnapshotSheet()
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var upcomingCheckupPrepBanner: some View {
+        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today),
+           upcoming.daysRemaining <= 7 {
+            let timing = upcoming.daysRemaining <= 0
+                ? L10n.t("满 \(upcoming.month) 月龄儿保窗口就在这几天", "\(upcoming.month)-month well-child window is here")
+                : L10n.t("还有 \(upcoming.daysRemaining) 天就是 \(upcoming.month) 月龄儿保", "\(upcoming.daysRemaining)d until \(upcoming.month)-month checkup")
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(spacing: 10) {
+                    IconTile(symbol: "stethoscope", color: Crayon.teal, size: 32, round: true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(timing)
+                            .font(.subheadline.weight(.bold))
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let cue = HealthRegion.screeningCue(for: HealthRegion.defaultRegion(), month: upcoming.month) {
+                            Text(cue)
+                                .font(.caption)
+                                .foregroundStyle(Palette.secondaryText)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingClinicSnapshot = true
+                } label: {
+                    Label(L10n.t("行前备忘：生成诊室一页摘要 PDF", "Prep Clinic Snapshot PDF"), systemImage: "doc.text.magnifyingglass")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .frame(minHeight: 44)
+                        .background(Capsule().fill(Crayon.teal))
+                }
+                .buttonStyle(.toy)
+            }
+            .padding(14)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
         }
     }
 

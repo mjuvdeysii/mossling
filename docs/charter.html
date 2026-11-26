@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="zh-Hans" data-lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光源透明宪章 | 摸索台灯 Moss &amp; Otto</title>
+  <meta name="description" content="摸索台灯（Moss &amp; Otto）数据源、4 级循证分级、早产儿矫正月龄承诺、反成瘾买断伦理与 AX3–AX5 无障碍宪章。">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/app-icon.png">
+  <link rel="stylesheet" href="assets/site.css">
+  <style>
+    .charter-hero {
+      padding: 64px 0 36px;
+      background: linear-gradient(180deg, #faf7f0 0%, #ffffff 100%);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .charter-hero h1 {
+      margin: 10px 0 12px;
+      font-size: clamp(28px, 4.5vw, 42px);
+      line-height: 1.18;
+      letter-spacing: -0.025em;
+    }
+
+    .charter-hero p {
+      margin: 0;
+      max-width: 720px;
+      font-size: var(--t-lead);
+      color: var(--ink-2);
+    }
+
+    .charter-body {
+      padding: 48px 0 80px;
+      background: var(--surface);
+    }
+
+    .charter-grid {
+      display: grid;
+      gap: 20px;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    @media (max-width: 820px) {
+      .charter-grid {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
+
+    .charter-card {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      display: grid;
+      gap: 10px;
+      align-content: start;
+    }
+
+    .charter-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .charter-card h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.3;
+    }
+
+    .charter-card p,
+    .charter-card li {
+      margin: 0;
+      font-size: 15px;
+      line-height: 1.65;
+      color: var(--ink-2);
+    }
+
+    .charter-card ul {
+      margin: 4px 0 0;
+      padding-left: 18px;
+      display: grid;
+      gap: 6px;
+    }
+  </style>
+</head>
+<body>
+  <header class="nav">
+    <div class="wrap">
+      <a class="brand" href="index.html">
+        <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="28" height="28">
+        <span data-zh="摸索台灯" data-en="Moss &amp; Otto">摸索台灯</span>
+      </a>
+      <nav class="nav-links" aria-label="主导航">
+        <a href="index.html" data-zh="首页" data-en="Home">首页</a>
+        <a href="index.html#spectrum-theater" data-zh="全光谱剧场" data-en="Theater">全光谱剧场</a>
+        <a href="card.html" data-zh="长辈摸索卡" data-en="Family Cards">长辈摸索卡</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+      </nav>
+      <div class="nav-actions">
+        <button class="lang-toggle" type="button" id="langBtn" aria-label="切换中英文">EN</button>
+        <a class="nav-cta" href="https://apps.apple.com/app/id6825856138" target="_blank" rel="noopener" data-zh="App Store 下载" data-en="App Store">App Store 下载</a>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="charter-hero">
+      <div class="wrap">
+        <p class="chapter-tag"><span class="chapter-num num">00</span><span data-zh="光源透明宪章 · Light-Source Charter" data-en="Light-Source Transparency Charter">光源透明宪章 · Light-Source Charter</span></p>
+        <h1 data-zh="每一盏灯背后有什么依据、我们绝不做什么" data-en="What stands behind every light, and what we refuse to do">每一盏灯背后有什么依据、我们绝不做什么</h1>
+        <p data-zh="从第一行代码到面向父母与长辈的每一张卡片，摸索台灯遵守五项公开可验证的产品契约。" data-en="From local storage to grandparent web cards, Moss &amp; Otto holds itself to five verifiable commitments.">
+          从第一行代码到面向父母与长辈的每一张卡片，摸索台灯遵守五项公开可验证的产品契约。
+        </p>
+      </div>
+    </section>
+
+    <section class="charter-body">
+      <div class="wrap">
+        <div class="charter-grid">
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="契约 01 · 数据主权" data-en="Charter 01 · Local-Only Data">契约 01 · 数据主权</span>
+            <h2 data-zh="0 KB 云端收集与 URL # 零服务器交接" data-en="0 KB Cloud Telemetry &amp; Zero-Server # Anchors">0 KB 云端收集与 URL # 零服务器交接</h2>
+            <ul>
+              <li data-zh="不集成任何第三方统计、广告、崩溃追踪或行为 SDK。" data-en="Zero third-party analytics, crash-reporting, or ad SDKs.">不集成任何第三方统计、广告、崩溃追踪或行为 SDK。</li>
+              <li data-zh="宝宝日记、测量、纪念照片与童言录音（.m4a）均以系统文件保护存放在本机沙盒中。" data-en="Logs, photos, and baby-voice .m4a clips stay encrypted inside local sandbox storage.">宝宝日记、测量、纪念照片与童言录音（.m4a）均以系统文件保护存放在本机沙盒中。</li>
+              <li data-zh="长辈摸索卡与传灯灯牌数据仅放在 URL # 井号后，HTTP 请求永远看不到正文。" data-en="Family handover and exploration cards travel strictly after URL # fragments—invisible to servers.">长辈摸索卡与传灯灯牌数据仅放在 URL # 井号后，HTTP 请求永远看不到正文。</li>
+            </ul>
+          </article>
+
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="契约 02 · 四级循证体系" data-en="Charter 02 · Four Evidence Tiers">契约 02 · 四级循证体系</span>
+            <h2 data-zh="每张微直觉卡均标明依据层级与边界" data-en="Graded Pediatric Sources &amp; Explicit Boundaries">每张微直觉卡均标明依据层级与边界</h2>
+            <ul>
+              <li data-zh="第 1 级 · 临床指南与常模：WHO MGRS (2006)、WHO (2019/2023)、CDC (2022)、AAP、中国 NHC 规范。" data-en="Tier 1 Clinical Guidelines: WHO MGRS (2006), WHO 2019/2023, CDC 2022, AAP, China NHC.">第 1 级 · 临床指南与常模：WHO MGRS (2006)、WHO (2019/2023)、CDC (2022)、AAP、中国 NHC 规范。</li>
+              <li data-zh="第 2–4 级 · 儿科专家共识、发展心理学实证与 RIE/蒙特梭利照护建议。" data-en="Tiers 2–4: Pediatric consensus, Serve-and-Return developmental studies, and gentle home care.">第 2–4 级 · 儿科专家共识、发展心理学实证与 RIE/蒙特梭利照护建议。</li>
+              <li data-zh="明确拒绝缺乏大样本可复现支持的“神奇飞跃周恐吓论”，并用宽光谱替代单点合格线。" data-en="Explicitly rejects unverified leap-storm alarmism in favor of wide developmental bands.">明确拒绝缺乏大样本可复现支持的“神奇飞跃周恐吓论”，并用宽光谱替代单点合格线。</li>
+            </ul>
+          </article>
+
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="契约 03 · 双轨节律与早产守护" data-en="Charter 03 · Preterm &amp; Gears">契约 03 · 双轨节律与早产守护</span>
+            <h2 data-zh="尊重早产矫正月龄与生病/猛涨日“减负开关”" data-en="Preterm Corrected Age &amp; Care-Mode Circuit Breaker">尊重早产矫正月龄与生病/猛涨日“减负开关”</h2>
+            <ul>
+              <li data-zh="22–36 周早产宝宝 2 岁内同时以矫正月龄匹配生长曲线、玩耍站次、桌面 Widget 与发光卡。" data-en="For 22–36w preterm babies under 24m, WHO curves, widgets, and stages align to corrected age.">22–36 周早产宝宝 2 岁内同时以矫正月龄匹配生长曲线、玩耍站次、桌面 Widget 与发光卡。</li>
+              <li data-zh="随月龄切换 4 挡照护重心：新生儿单手生存 -> 辅食探索 -> 自主表达 -> 毕业留念。" data-en="Four gentle gears naturally fade daily logs back as your toddler grows into autonomy.">随月龄切换 4 挡照护重心：新生儿单手生存 -> 辅食探索 -> 自主表达 -> 毕业留念。</li>
+              <li data-zh="开启“减负照护模式”即可一键隐藏所有成长卡片与打卡提示，只留喂睡记录与夜灯。" data-en="Toggle Care Mode on rough days to keep only essentials and quiet midnight comfort.">开启“减负照护模式”即可一键隐藏所有成长卡片与打卡提示，只留喂睡记录与夜灯。</li>
+            </ul>
+          </article>
+
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="契约 04 · 买断伦理与反成瘾" data-en="Charter 04 · Ethical Buyout">契约 04 · 买断伦理与反成瘾</span>
+            <h2 data-zh="永不收割焦虑，不为留存而制造红点" data-en="Zero Anxiety Dark Patterns &amp; Forever Ownership">永不收割焦虑，不为留存而制造红点</h2>
+            <ul>
+              <li data-zh="不设连续打卡天数、不发催促推送通知、不对妈妈打分评级。" data-en="No streaks, no guilt notifications, no parenting scores or leaderboards.">不设连续打卡天数、不发催促推送通知、不对妈妈打分评级。</li>
+              <li data-zh="00:00–04:59 自动激活 3AM 纯黑 OLED 与静谧防误触静音，绝不半夜亮白。" data-en="Automatic 00:00–04:59 OLED shield silences tactile chimes and eliminates white glare.">00:00–04:59 自动激活 3AM 纯黑 OLED 与静谧防误触静音，绝不半夜亮白。</li>
+              <li data-zh="完整本地数据可随时导出为 JSON / CSV / Markdown / 三岁成长年鉴 PDF 带走。" data-en="Export every note, table, and multi-page 3-Year Yearbook PDF anytime.">完整本地数据可随时导出为 JSON / CSV / Markdown / 三岁成长年鉴 PDF 带走。</li>
+            </ul>
+          </article>
+
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="契约 05 · 语义与 AX3–AX5 无障碍" data-en="Charter 05 · Accessibility">契约 05 · 语义与 AX3–AX5 无障碍</span>
+            <h2 data-zh="屏幕幕帘可用、超大字体不裁切" data-en="Screen Curtain Friendly &amp; Unclipped AX5 Scaling">屏幕幕帘可用、超大字体不裁切</h2>
+            <ul>
+              <li data-zh="全部卡片、观察三态按钮、滑动交接与童言声波条均提供完整 VoiceOver 语义标签与可调节手势。" data-en="Full VoiceOver labels, state values, and adjustable actions across interactive lamps and sliders.">全部卡片、观察三态按钮、滑动交接与童言声波条均提供完整 VoiceOver 语义标签与可调节手势。</li>
+              <li data-zh="AX3–AX5 超大字体下自动从横向并排改组为纵向自然堆叠，零横向滚动条。" data-en="Automatically stacks rows vertically under AX3–AX5 Dynamic Type with zero clipping or horizontal scroll.">AX3–AX5 超大字体下自动从横向并排改组为纵向自然堆叠，零横向滚动条。</li>
+              <li data-zh="长辈网页卡片支持“长辈大字”开关与系统语音朗读。" data-en="Family web cards include one-tap Large Print mode and in-browser speech read-aloud.">长辈网页卡片支持“长辈大字”开关与系统语音朗读。</li>
+            </ul>
+          </article>
+
+          <article class="charter-card">
+            <span class="charter-tag" data-zh="临床安全边界" data-en="Clinical Boundary">临床安全边界</span>
+            <h2 data-zh="日常照护参谋，而非医疗诊断器械" data-en="Everyday Companion, Never a Medical Device">日常照护参谋，而非医疗诊断器械</h2>
+            <p data-zh="“儿保诊室一页摘要 PDF”帮助家长在 3 分钟门急诊时清晰呈现近期喂睡、生长百分位与发热/致敏观察，但任何医学决定必须由持证儿科医生现场评估后作出。发现异常发热、呼吸急促、嗜睡或持续发育迟缓疑虑请立即就医。" data-en="Our Clinic Snapshot PDF helps parents summarize feeding, sleep, percentiles, and observations clearly for pediatricians, but never diagnoses conditions or replaces in-person medical evaluation.">
+              “儿保诊室一页摘要 PDF”帮助家长在 3 分钟门急诊时清晰呈现近期喂睡、生长百分位与发热/致敏观察，但任何医学决定必须由持证儿科医生现场评估后作出。发现异常发热、呼吸急促、嗜睡或持续发育迟缓疑虑请立即就医。
+            </p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="wrap">
+      <span data-zh="© 2026 摸索台灯 Moss &amp; Otto" data-en="© 2026 Moss &amp; Otto">© 2026 摸索台灯 Moss &amp; Otto</span>
+      <div class="footer-links">
+        <a href="index.html" data-zh="返回首页" data-en="Home">返回首页</a>
+        <a href="card.html" data-zh="长辈摸索卡" data-en="Family Cards">长辈摸索卡</a>
+        <a href="licenses.html" data-zh="41 条完整文献" data-en="41 Citations">41 条完整文献</a>
+        <a href="privacy.html" data-zh="隐私政策" data-en="Privacy">隐私政策</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      var html = document.documentElement;
+      var langBtn = document.getElementById("langBtn");
+      var lang = localStorage.getItem("mossling-lang") === "en" ? "en" : "zh";
+      function syncLang() {
+        html.setAttribute("data-lang", lang);
+        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
+        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
+        document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
+          var txt = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          if (txt !== null) el.textContent = txt;
+        });
+      }
+      if (langBtn) {
+        langBtn.addEventListener("click", function () {
+          lang = lang === "zh" ? "en" : "zh";
+          localStorage.setItem("mossling-lang", lang);
+          syncLang();
+        });
+      }
+      syncLang();
+    })();
+  </script>
+</body>
+</html>

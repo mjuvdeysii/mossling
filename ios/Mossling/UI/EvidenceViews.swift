@@ -109,7 +109,8 @@ struct ObservationStateRow: View {
                         }
                         .foregroundStyle(active ? .white : (dark ? tint : Crayon.ink(tint)))
                         .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
+                        .padding(.vertical, 6)
+                        .frame(minHeight: 44)
                         .background(Capsule().fill(active ? tint : tint.opacity(dark ? 0.16 : 0.10)))
                         .overlay(
                             Capsule()
@@ -117,6 +118,7 @@ struct ObservationStateRow: View {
                         )
                     }
                     .buttonStyle(.toy)
+                    .accessibilityLabel("\(text)，\(choice.label)")
                     .accessibilityAddTraits(active ? .isSelected : [])
                 }
             }
@@ -201,22 +203,43 @@ struct WHOMotorSpectrumCard: View {
 
     private func windowRow(_ window: WHOMotorWindow) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 6) {
-                Text(window.title)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.primary)
-                if window.variableOrder {
-                    Text(L10n.t("顺序可变", "Variable"))
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(Crayon.ink(Crayon.caramel))
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.22 : 0.15)))
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 6) {
+                    Text(window.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    if window.variableOrder {
+                        Text(L10n.t("顺序可变", "Variable"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(Crayon.ink(Crayon.caramel))
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 2)
+                            .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.22 : 0.15)))
+                    }
+                    Spacer(minLength: 4)
+                    Text(String(format: "%.1f–%.1fm", window.startMonth, window.endMonth))
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
+                        .foregroundStyle(Palette.secondaryText)
                 }
-                Spacer(minLength: 4)
-                Text(String(format: "%.1f–%.1fm", window.startMonth, window.endMonth))
-                    .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
-                    .foregroundStyle(Palette.secondaryText)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(window.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 6) {
+                        if window.variableOrder {
+                            Text(L10n.t("顺序可变", "Variable"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(Crayon.ink(Crayon.caramel))
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.22 : 0.15)))
+                        }
+                        Text(String(format: "%.1f–%.1fm", window.startMonth, window.endMonth))
+                            .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
+                            .foregroundStyle(Palette.secondaryText)
+                    }
+                }
             }
 
             GeometryReader { geo in
@@ -284,12 +307,14 @@ struct WHOMotorSpectrumCard: View {
 
 /// Presents the current stage's evidence-backed micro-intuition card with voice read-aloud and family sharing.
 struct LampCardSpotlightCard: View {
+    @Environment(AppModel.self) private var app
     let card: LampCard
     let dark: Bool
     @State private var showDetail = false
     @State private var reader = SpeechReader()
 
     var body: some View {
+        let h5URL = CardWebCodec.encodeURL(from: card, babyName: app.nickname, month: app.babyMonth ?? card.minMonth)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 IconTile(symbol: "lightbulb.max.fill", color: Crayon.sunflower, size: 30, round: true)
@@ -354,13 +379,27 @@ struct LampCardSpotlightCard: View {
                 }
                 .buttonStyle(.toy)
 
-                ShareLink(item: card.shareMessage()) {
-                    Label(L10n.t("发给家人", "Share with Family"), systemImage: "square.and.arrow.up")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Crayon.ink(Crayon.caramel))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.18 : 0.12)))
+                if let h5URL {
+                    ShareLink(item: h5URL, message: Text(card.shareMessage())) {
+                        Label(L10n.t("发给家人 H5", "Family Card"), systemImage: "square.and.arrow.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Crayon.ink(Crayon.caramel))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .frame(minHeight: 44)
+                            .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.18 : 0.12)))
+                    }
+                    .accessibilityLabel(L10n.t("生成零流量长辈卡发给家人", "Share grandparent H5 card"))
+                } else {
+                    ShareLink(item: card.shareMessage()) {
+                        Label(L10n.t("发给家人", "Share with Family"), systemImage: "square.and.arrow.up")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Crayon.ink(Crayon.caramel))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .frame(minHeight: 44)
+                            .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.18 : 0.12)))
+                    }
                 }
 
                 Button {
@@ -390,11 +429,13 @@ struct LampCardSpotlightCard: View {
 
 /// Three-layer drill-down sheet: L1 Intuition, L2 Empathy & Grandparent Note, L3 Clinical Evidence & Red Flags.
 struct LampCardDetailSheet: View {
+    @Environment(AppModel.self) private var app
     let card: LampCard
     @Environment(\.dismiss) private var dismiss
     @State private var reader = SpeechReader()
 
     var body: some View {
+        let h5URL = CardWebCodec.encodeURL(from: card, babyName: app.nickname, month: app.babyMonth ?? card.minMonth)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -462,8 +503,15 @@ struct LampCardDetailSheet: View {
                     .accessibilityLabel(L10n.t("朗读解读", "Read explanation aloud"))
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
-                    ShareLink(item: card.shareMessage()) {
-                        Image(systemName: "square.and.arrow.up")
+                    if let h5URL {
+                        ShareLink(item: h5URL, message: Text(card.shareMessage())) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
+                        .accessibilityLabel(L10n.t("分享给家人", "Share H5 Card"))
+                    } else {
+                        ShareLink(item: card.shareMessage()) {
+                            Image(systemName: "square.and.arrow.up")
+                        }
                     }
                     Button(L10n.t("完成", "Done")) { dismiss() }
                 }
@@ -497,6 +545,8 @@ enum ClinicSnapshotPDF {
         logs: [LogEntry],
         measures: [Measure],
         questions: [String] = [],
+        foods: [FoodRecord] = [],
+        region: HealthRegion = HealthRegion.defaultRegion(),
         days: Int = 7
     ) -> [(section: String, lines: [String])] {
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
@@ -519,6 +569,9 @@ enum ClinicSnapshotPDF {
         var totalFeeds = 0
         var totalSleepSec = 0.0
         var totalDiapers = 0
+        var tempRecords: [LogEntry] = []
+        var medRecords: [LogEntry] = []
+        let cutoffDay = app.today.plus(days: -max(1, days) + 1)
         for offset in 0..<max(1, days) {
             let d = app.today.plus(days: -offset)
             let dayLogs = logs.filter { log in
@@ -536,16 +589,28 @@ enum ClinicSnapshotPDF {
                 totalDiapers += dayLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count
             }
         }
+        for log in logs where Day(log.startDate).epochDay >= cutoffDay.epochDay {
+            if log.type == LogType.temp { tempRecords.append(log) }
+            if log.type == LogType.medicine { medRecords.append(log) }
+        }
         let denom = max(1, loggedDays)
         let avgSleepHr = (totalSleepSec / Double(denom)) / 3600.0
         let avgFeeds = Double(totalFeeds) / Double(denom)
         let avgDiapers = Double(totalDiapers) / Double(denom)
-        let careLines = loggedDays == 0
+        var careLines = loggedDays == 0
             ? [L10n.t("近 \(days) 天暂无喂睡与尿布记录", "No feed, sleep, or diaper logs in the past \(days) days.")]
             : [
                 L10n.t("有记录天数：\(loggedDays) / \(days) 天", "Logged days: \(loggedDays) of \(days)"),
                 String(format: L10n.t("日均喂奶：%.1f 次 · 日均睡眠：%.1f 小时 · 日均尿布：%.1f 片", "Daily avg · Feeds: %.1f · Sleep: %.1f h · Diapers: %.1f"), avgFeeds, avgSleepHr, avgDiapers)
             ]
+        if let maxTemp = tempRecords.compactMap(\.amount).max() {
+            careLines.append(L10n.t("近 \(days) 天体温记录（\(tempRecords.count) 次），最高：\(L10n.temperature(tenthsC: maxTemp))", "Temp logs (\(tempRecords.count)) in past \(days)d · peak: \(L10n.temperature(tenthsC: maxTemp))"))
+        }
+        if !medRecords.isEmpty {
+            let meds = medRecords.sorted(by: { $0.start > $1.start }).prefix(3).compactMap(\.detail).filter { !$0.isEmpty }
+            let medDetail = meds.isEmpty ? L10n.t("共 \(medRecords.count) 次用药记录", "\(medRecords.count) medication logs") : meds.joined(separator: "、")
+            careLines.append(L10n.t("近期用药/补充：", "Recent meds/supplements: ") + medDetail)
+        }
 
         // Latest growth measurement + WHO percentiles (using corrected birth when preterm <24m)
         var growthLines: [String] = []
@@ -577,22 +642,65 @@ enum ClinicSnapshotPDF {
             growthLines.append(L10n.t("暂无体重/身长/头围测量记录", "No growth measurements recorded yet."))
         }
 
+        // Solids & common allergen summary (when recorded or >= 5 months)
+        var foodLines: [String] = []
+        if !foods.isEmpty {
+            let allergenNames = foods.compactMap { rec -> String? in
+                guard let item = FoodItem.item(id: rec.foodId), item.isCommonAllergen else { return nil }
+                return item.name
+            }.sorted()
+            let watchSkinNames = foods.compactMap { rec -> String? in
+                guard rec.watchSkin, let item = FoodItem.item(id: rec.foodId) else { return nil }
+                return item.name
+            }.sorted()
+            foodLines.append(
+                L10n.t(
+                    "已解锁食物：\(foods.count) 种（常见致敏物已引入 \(allergenNames.count) 种）",
+                    "Foods introduced: \(foods.count) (\(allergenNames.count) common allergens tried)"
+                )
+            )
+            if !watchSkinNames.isEmpty {
+                foodLines.append(
+                    L10n.t("待观察皮肤/消化反应：", "Skin/reaction watchlist: ")
+                    + watchSkinNames.joined(separator: L10n.t("、", ", "))
+                )
+            }
+        }
+
         let flagged = app.askDoctorObservations()
         let obsLines = flagged.isEmpty
             ? [L10n.t("发育观察中暂无标记“留给医生看看”的条目", "No developmental items flagged to ask doctor.")]
             : flagged.map { L10n.t("\($0.month)月龄：\($0.label)", "\($0.month)m: \($0.label)") }
 
+        var checkupFocusLines: [String] = []
+        if let m = app.babyMonth, let cue = HealthRegion.screeningCue(for: region, month: m) {
+            checkupFocusLines.append(cue)
+        }
+        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today) {
+            let timing = upcoming.daysRemaining <= 0
+                ? L10n.t("满 \(upcoming.month) 月龄儿保窗口就在这几天", "\(upcoming.month)-month checkup window is open now")
+                : L10n.t("距满 \(upcoming.month) 月龄儿保窗口还有 \(upcoming.daysRemaining) 天", "\(upcoming.daysRemaining) days to \(upcoming.month)-month checkup window")
+            checkupFocusLines.append(timing)
+        }
+
         let questionLines = questions.isEmpty
             ? [L10n.t("（家长可手写或打印后补充本页问题）", "(Space below for additional parent questions)")]
             : questions.enumerated().map { "\($0.offset + 1). \($0.element)" }
 
-        return [
+        var result: [(section: String, lines: [String])] = [
             (L10n.t("基本资料", "Child Profile"), identity),
             (L10n.t("近期照护节律（近 \(days) 天）", "Recent Routine (\(days)-Day Summary)"), careLines),
-            (L10n.t("生长测量与 WHO 常模参考", "Growth & WHO (2006) Percentiles"), growthLines),
-            (L10n.t("留给医生看看（发育观察）", "Flagged Observations (Ask Doctor)"), obsLines),
-            (L10n.t("本次就诊想请教的问题", "Parent Questions for Pediatrician"), questionLines)
+            (L10n.t("生长测量与 WHO 常模参考", "Growth & WHO (2006) Percentiles"), growthLines)
         ]
+        if !foodLines.isEmpty {
+            result.append((L10n.t("辅食与致敏物记录", "Solids & Allergen Introduction"), foodLines))
+        }
+        if !checkupFocusLines.isEmpty {
+            result.append((L10n.t("当前月龄儿保筛查重点", "Well-Child Screening Cue"), checkupFocusLines))
+        }
+        result.append((L10n.t("留给医生看看（发育观察）", "Flagged Observations (Ask Doctor)"), obsLines))
+        result.append((L10n.t("本次就诊想请教的问题", "Parent Questions for Pediatrician"), questionLines))
+        return result
     }
 
     @MainActor
@@ -601,11 +709,21 @@ enum ClinicSnapshotPDF {
         logs: [LogEntry],
         measures: [Measure],
         questions: [String] = [],
+        foods: [FoodRecord] = [],
+        region: HealthRegion = HealthRegion.defaultRegion(),
         days: Int = 7
     ) -> Data {
         let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-        let sections = summaryLines(app: app, logs: logs, measures: measures, questions: questions, days: days)
+        let sections = summaryLines(
+            app: app,
+            logs: logs,
+            measures: measures,
+            questions: questions,
+            foods: foods,
+            region: region,
+            days: days
+        )
 
         return renderer.pdfData { ctx in
             ctx.beginPage()
@@ -684,14 +802,32 @@ struct ClinicSnapshotSheet: View {
     @State private var customQuestions: [String] = []
 
     var body: some View {
-        let sections = ClinicSnapshotPDF.summaryLines(app: app, logs: j.logs, measures: j.measures, questions: customQuestions)
+        let foodRecords = Array(FoodAtlasStore.shared.records.values)
+        let region = HealthRegion.defaultRegion()
+        let sections = ClinicSnapshotPDF.summaryLines(
+            app: app,
+            logs: j.logs,
+            measures: j.measures,
+            questions: customQuestions,
+            foods: foodRecords,
+            region: region
+        )
         let appRef = app
         let logs = j.logs
         let measures = j.measures
         let questions = customQuestions
         let transfer = ClinicSnapshotPDFTransfer(
             filename: L10n.t("摸索台灯-儿保诊室摘要.pdf", "moss-otto-clinic-snapshot.pdf"),
-            render: { ClinicSnapshotPDF.render(app: appRef, logs: logs, measures: measures, questions: questions) }
+            render: {
+                ClinicSnapshotPDF.render(
+                    app: appRef,
+                    logs: logs,
+                    measures: measures,
+                    questions: questions,
+                    foods: foodRecords,
+                    region: region
+                )
+            }
         )
 
         NavigationStack {

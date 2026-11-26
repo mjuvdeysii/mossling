@@ -370,7 +370,12 @@ struct PlayActions: View {
         } else if shelf.count < Shelf.max {
             Button(L10n.t("加到这周", "Add to this week"), systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
         }
-        ShareLink(item: L10n.t("\(play.name)（\(play.code)）\n", "\(play.name) (\(play.code))\n") + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label(L10n.t("分享", "Share"), systemImage: "square.and.arrow.up") }
+        if let cardURL = CardWebCodec.encodeURL(from: play, babyName: app.nickname) {
+            ShareLink(item: cardURL, message: Text(L10n.t("\(play.name)（\(play.code)）", "\(play.name) (\(play.code))"))) {
+                Label(L10n.t("发给家人 H5 卡", "Share Family H5 Card"), systemImage: "rectangle.portrait.and.arrow.right")
+            }
+        }
+        ShareLink(item: L10n.t("\(play.name)（\(play.code)）\n", "\(play.name) (\(play.code))\n") + play.steps.enumerated().map { "\($0.offset + 1). \($0.element)" }.joined(separator: "\n")) { Label(L10n.t("分享纯文本", "Share Text"), systemImage: "square.and.arrow.up") }
     }
 }
 
@@ -755,6 +760,7 @@ struct CareView: View {
     let month: Int
     @State private var filter: CareFilterMode = .all
     @State private var region: HealthRegion = HealthRegion.defaultRegion()
+    @State private var showingClinicSnapshot = false
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -826,6 +832,37 @@ struct CareView: View {
                                     earlierCount: earlier.count, monthDone: monthDone, monthTotal: monthTotal, dark: dark)
                 }
 
+                if let cue = HealthRegion.screeningCue(for: region, month: m) {
+                    HStack(alignment: .top, spacing: 10) {
+                        IconTile(symbol: "stethoscope", color: Crayon.teal, size: 30, round: true)
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.t("本次儿保重点筛查", "Screening Focus This Visit"))
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(dark ? Crayon.teal : Crayon.ink(Crayon.teal))
+                            Text(cue)
+                                .font(.footnote)
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Button {
+                                TactileEngine.shared.beadClick()
+                                showingClinicSnapshot = true
+                            } label: {
+                                Label(L10n.t("带进诊室：生成一页摘要", "Generate 1-Page Clinic PDF"), systemImage: "doc.text.magnifyingglass")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.teal))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .frame(minHeight: 44)
+                                    .background(Capsule().fill(Crayon.teal.opacity(dark ? 0.22 : 0.14)))
+                            }
+                            .buttonStyle(.toy)
+                        }
+                    }
+                    .padding(14)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card)
+                }
+
                 if region == .cn && !filteredEarlier.isEmpty {
                     Box(title: L10n.t("之前没勾的", "Earlier unchecked"), detail: L10n.t("\(filteredEarlier.count) 项", "\(filteredEarlier.count)")) {
                         ForEach(Array(filteredEarlier.enumerated()), id: \.offset) { i, d in
@@ -889,6 +926,19 @@ struct CareView: View {
             let moLabel = m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")
             return moLabel + " · " + $0.plus(months: m).md
         } ?? (m == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(m) 个月", m == 1 ? "1 month" : "\(m) months")))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingClinicSnapshot = true
+                } label: {
+                    Label(L10n.t("诊室快照", "Clinic Snapshot"), systemImage: "doc.text.magnifyingglass")
+                }
+            }
+        }
+        .sheet(isPresented: $showingClinicSnapshot) {
+            ClinicSnapshotSheet()
+        }
     }
 
     @ViewBuilder

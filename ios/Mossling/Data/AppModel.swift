@@ -335,10 +335,30 @@ final class AppModel {
             return list.map { PlayRef(code: $0.code, name: $0.name) }
         } ?? []
         let pickedDay = Shelf.pick(pick, today: today) != nil ? today.epochDay : nil
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: birth?.epochDay, nickname: nickname, companion: companion.rawValue, journal: journal, playCode: code, playName: name, consented: consented, weekPlays: pool.isEmpty ? nil : pool, playPickedEpochDay: pickedDay))
+        let graduatedList = graduatedModules.isEmpty ? nil : Array(graduatedModules).sorted()
+        JournalFile.writeSnapshot(
+            Snapshot(
+                birthEpochDay: birth?.epochDay,
+                nickname: nickname,
+                companion: companion.rawValue,
+                journal: journal,
+                playCode: code,
+                playName: name,
+                consented: consented,
+                weekPlays: pool.isEmpty ? nil : pool,
+                playPickedEpochDay: pickedDay,
+                gestationalWeeks: gestationalWeeks,
+                careGearRaw: currentGear.rawValue,
+                careModeActive: careModeActive,
+                graduatedModules: graduatedList
+            )
+        )
         WidgetCenter.shared.reloadAllTimelines()
     }
-    var publishKey: String { "\(birth?.epochDay ?? -1)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)" }
+    var publishKey: String {
+        let grads = graduatedModules.sorted().joined(separator: ",")
+        return "\(birth?.epochDay ?? -1)|\(gestationalWeeks ?? 0)|\(careModeActive)|\(currentGear.rawValue)|\(grads)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)"
+    }
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
@@ -353,6 +373,7 @@ final class AppModel {
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
         FirstPhotoStore.clearAll()
+        FirstVoiceStore.clearAll()
         FoodStickerStore.clearAll()
         Task { @MainActor in
             SoundscapeEngine.shared.stop()
