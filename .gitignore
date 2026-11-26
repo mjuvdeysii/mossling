@@ -9,3 +9,4 @@ ios/shots/
 ios/build.log
 __pycache__/
 tools/stages/
+.DS_Store
