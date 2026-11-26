@@ -3,6 +3,10 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 32（全量共玩插画精修与藏画级壁纸系统 · Collector Wallpaper Atelier Sync）**：
+  - **GPU 边缘融景撕边与绘本微光着色（`StoryTheaterShaders.metal` + `PixarLightingRig`）**：在 `pixarActorRimShade` 加入 8 向外围 Alpha 贴纸白边智能剥离（`whiteHalo` 剥除）与地面暖光回弹；升级 `pixarKeyLightWrap` 增设午后斜射日影焦散与棉浆画纸纹理微粒，彻底消融 Moss 与 Otto 在剧场上的拼贴边缘感。
+  - **五重绘本壁纸生境框架与旗舰精修**：将全部 46 个专属活动舞台归入五套手绘壁纸生境（日光窗边 / 绘本暖阁 / 草地日光 / 木作桌台 / 星夜台灯），并在 `BespokeActivitySceneRegistry.stageView` 加入非遮挡植物轮廓、日影光束与典藏纸框压边；重点深化 `A09` 镜面黄铜珠边与斜光星斑、`A11` 车工桦木哑铃摇铃、`N04` 橡木地板拼缝与双圈棉麻绗缝、`A08` 亚麻包边纽扣织垫、`A19` 倒角榉木刻环积木。
+  - **藏画版插画壁纸画室与官网画廊同步（App + `docs/`）**：生成并经手工角色规范复核后收录 6 张 1600px 无字藏画插画（`A09`、`A11`、`N04`、`A19`、`A06`、`A34`），App 内于共玩页「更多 › 插画壁纸画室」上线 `9:19.5` 锁屏与 `4:3` 框画切换、夜间暖釉及 3× 超清导出；官网 `docs/index.html` 同步开放藏画壁纸交互画廊与高清原图下载，附单测套件 `testWallpaperAtelierIllustrationUpgradeSuite()`。
 - **Batch 31（终极版冲刺 · Edition III 收尾 + Edition IV 桌面小组件/全光谱官网 + Edition V 成长年鉴 PDF 与 AX5 无障碍终检）**：
   - **长辈零流量 H5 摸索卡（`CardWebCodec` + `docs/card.html`）**：支持从今日微直觉发光卡或活动共玩页一键生成 `#d=` 零服务器网址分享给同住老人与微信群，浏览器免下载直开并配备「长辈大字」开关与语音朗读，不传任何宝宝隐私过网。
   - **童言声音贴纸（`FirstVoiceStore` + `Firsts`）**：在「第一次」新增「童言一句」里程碑及纯本地 `.m4a` 录音与 24 柱波形贴纸（最长 30 秒，仅存本机受保护沙盒）；清空全部数据与过期清理同步彻底擦除音频，声明 `NSMicrophoneUsageDescription` 并纳入 CI 合规校验。

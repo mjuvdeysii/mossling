@@ -44,7 +44,8 @@ struct SceneA34_NoticingNature: View {
                         in: &c, w: size.width, h: size.height,
                         dayTop: Color(hex: 0xE2F3EA), dayBottom: Color(hex: 0xF5F6E4),
                         nightTop: Color(hex: 0x0B1528), nightBottom: Color(hex: 0x16293B),
-                        dark: dark
+                        dark: dark,
+                        biome: .gardenMeadowSky
                     )
 
                     // Soft rolling meadow hills

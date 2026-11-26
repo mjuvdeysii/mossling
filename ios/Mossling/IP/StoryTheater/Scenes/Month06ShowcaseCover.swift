@@ -155,7 +155,8 @@ struct Month06ShowcaseCover: View {
             dayBottom: Color(hex: 0xF8F1DA),
             nightTop: Color(hex: 0x091022),
             nightBottom: Color(hex: 0x182544),
-            dark: dark
+            dark: dark,
+            biome: .gardenMeadowSky
         )
 
         if dark {

@@ -4385,3 +4385,297 @@ a {
   }
 }
 
+/* Collector Illustrated Wallpaper Gallery (#wallpaper-gallery) */
+.wallpaper-atelier {
+  margin-top: 56px;
+  padding: 36px;
+  border-radius: var(--radius-xl);
+  background: linear-gradient(155deg, #fbf8ef 0%, #f1ead8 100%);
+  border: 1px solid rgba(11, 18, 32, 0.08);
+  box-shadow: var(--shadow-card);
+  transition: background 0.35s ease, border-color 0.35s ease;
+}
+
+.wallpaper-atelier.is-lamp {
+  background: linear-gradient(155deg, #0b1326 0%, #16223d 100%);
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.wallpaper-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.wallpaper-head h3 {
+  margin: 6px 0 8px;
+  font-size: clamp(22px, 2.6vw, 30px);
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.wallpaper-atelier.is-lamp .wallpaper-head h3 {
+  color: var(--night-ink);
+}
+
+.wallpaper-head p {
+  margin: 0;
+  max-width: 58ch;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.wallpaper-atelier.is-lamp .wallpaper-head p {
+  color: var(--night-ink-2);
+}
+
+.wallpaper-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.wp-ctrl-btn {
+  min-height: 40px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.85);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.16s ease, background 0.2s ease, border-color 0.2s ease;
+}
+
+.wallpaper-atelier.is-lamp .wp-ctrl-btn {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--night-ink);
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.wp-ctrl-btn.active {
+  background: var(--accent);
+  color: #ffffff;
+  border-color: var(--accent);
+}
+
+.wallpaper-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+  gap: 28px;
+  align-items: center;
+}
+
+.wallpaper-stage {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 430px;
+  padding: 18px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(11, 18, 32, 0.06);
+}
+
+.wallpaper-atelier.is-lamp .wallpaper-stage {
+  background: rgba(7, 11, 22, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.wp-frame {
+  position: relative;
+  overflow: hidden;
+  transition: width 0.35s ease, aspect-ratio 0.35s ease, border-radius 0.35s ease;
+  box-shadow: 0 26px 54px -22px rgba(11, 18, 32, 0.35);
+}
+
+.wp-frame.mode-lock {
+  width: 218px;
+  aspect-ratio: 9 / 19.5;
+  border-radius: 34px;
+  border: 6px solid #171d2b;
+}
+
+.wp-frame.mode-print {
+  width: min(100%, 420px);
+  aspect-ratio: 4 / 3;
+  border-radius: 16px;
+  border: 10px solid #fcf8ee;
+}
+
+.wallpaper-atelier.is-lamp .wp-frame.mode-print {
+  border-color: #1c2640;
+}
+
+.wp-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 62%;
+  transition: filter 0.35s ease, transform 0.4s ease;
+}
+
+.wallpaper-atelier.is-lamp .wp-frame img {
+  filter: brightness(0.76) contrast(1.06) sepia(0.14);
+}
+
+.wp-lock-overlay {
+  position: absolute;
+  inset: 0 0 auto;
+  padding: 26px 14px 0;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 2px 14px rgba(11, 18, 32, 0.38);
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.wp-frame.mode-print .wp-lock-overlay {
+  opacity: 0;
+}
+
+.wp-lock-time {
+  display: block;
+  font-size: 40px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.wp-lock-biome {
+  display: block;
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  opacity: 0.9;
+}
+
+.wallpaper-meta-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wp-meta-card {
+  padding: 20px;
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(11, 18, 32, 0.08);
+}
+
+.wallpaper-atelier.is-lamp .wp-meta-card {
+  background: rgba(20, 30, 56, 0.78);
+  border-color: rgba(255, 255, 255, 0.10);
+}
+
+.wp-code-badge {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+}
+
+.wp-meta-card h4 {
+  margin: 6px 0 8px;
+  font-size: 20px;
+  color: var(--ink);
+}
+
+.wallpaper-atelier.is-lamp .wp-meta-card h4 {
+  color: var(--night-ink);
+}
+
+.wp-meta-card p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.wallpaper-atelier.is-lamp .wp-meta-card p {
+  color: var(--night-ink-2);
+}
+
+.wp-thumbs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wp-thumb-btn {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(11, 18, 32, 0.10);
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s ease, transform 0.16s ease;
+}
+
+.wallpaper-atelier.is-lamp .wp-thumb-btn {
+  background: rgba(20, 30, 56, 0.72);
+  border-color: rgba(255, 255, 255, 0.12);
+  color: var(--night-ink);
+}
+
+.wp-thumb-btn.active {
+  border-color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.wp-thumb-btn img {
+  width: 100%;
+  height: 76px;
+  object-fit: cover;
+  border-radius: 9px;
+}
+
+.wp-thumb-btn span {
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-download-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.wp-download-note {
+  font-size: 12.5px;
+  color: var(--ink-3);
+}
+
+.wallpaper-atelier.is-lamp .wp-download-note {
+  color: var(--night-ink-2);
+}
+
+@media (max-width: 860px) {
+  .wallpaper-atelier {
+    padding: 22px 18px;
+  }
+  .wallpaper-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .wallpaper-stage {
+    min-height: 360px;
+  }
+}
+

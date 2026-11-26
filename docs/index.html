@@ -48,6 +48,7 @@
       <a href="https://apps.apple.com/app/id6825856138" target="_blank" rel="noopener" data-zh="前往 App Store 下载" data-en="Download on App Store">前往 App Store 下载</a>
       <a href="#architecture" data-zh="四个板块" data-en="Four Tabs">四个板块</a>
       <a href="#daily-tracking" data-zh="01 摸索 · 白天陪玩" data-en="01 Explore · Daytime play">01 摸索 · 白天陪玩</a>
+      <a href="#wallpaper-gallery" data-zh="01B 藏画壁纸画室" data-en="01B Wallpaper Atelier">01B 藏画壁纸画室</a>
       <a href="#night-lab" data-zh="02 台灯 · 夜里照护" data-en="02 Lamp · Night care">02 台灯 · 夜里照护</a>
       <a href="#keepsakes" data-zh="03 留念 · 成长留念" data-en="03 Keepsakes · Growing up">03 留念 · 成长留念</a>
       <a href="#timeline-lamp" data-zh="0–36m 渐进调光与全光谱" data-en="0–36m Spectrum &amp; Theater">0–36m 渐进调光与全光谱</a>
@@ -266,6 +267,74 @@
               <img class="lang-swap-img" loading="lazy" src="assets/screens/scr-toybox-zh.jpg" data-src-zh="assets/screens/scr-toybox-zh.jpg" data-src-en="assets/screens/scr-toybox-en.jpg" alt="摸索台灯感官玩具盒 5 间护耳玩具屋实机截图">
             </div>
             <span class="phone-subcaption" data-zh="实机界面 · 5 间护耳玩具屋与绿色安全音量表" data-en="Real Screen · 5 Acoustic Playrooms &amp; dB Guard">实机界面 · 5 间护耳玩具屋与绿色安全音量表</span>
+          </div>
+        </div>
+
+        <!-- Collector Illustrated Wallpaper Atelier -->
+        <div class="wallpaper-atelier" id="wallpaper-gallery">
+          <div class="wallpaper-head">
+            <div>
+              <p class="chapter-tag"><span class="chapter-num num">01B</span><span data-zh="摸索 · 藏画壁纸画室" data-en="Explore · Illustrated Wallpapers">摸索 · 藏画壁纸画室</span></p>
+              <h3 data-zh="每一场共玩，都配得上一张挂进日常的插画壁纸" data-en="Picture-book collector plates woven directly from play scenes">每一场共玩，都配得上一张挂进日常的插画壁纸</h3>
+              <p data-zh="iPhone 端内升级至五重绘本生境光影与边缘融景着色；挑选下方任意一张藏画版插画，即时切换 9:19.5 iPhone 锁屏与 4:3 美术框画，并可免费下载原图设作锁屏壁纸。" data-en="Upgraded inside iOS with five nursery atmosphere biomes and seamless edge shaders. Switch frames, test midnight lamplight glaze, or download any high-res artwork directly.">iPhone 端内升级至五重绘本生境光影与边缘融景着色；挑选下方任意一张藏画版插画，即时切换 9:19.5 iPhone 锁屏与 4:3 美术框画，并可免费下载原图设作锁屏壁纸。</p>
+            </div>
+            <div class="wallpaper-toolbar" role="group" aria-label="壁纸画幅与光线切换">
+              <button class="wp-ctrl-btn active" type="button" id="wpModeLockBtn" data-zh="9:19.5 锁屏" data-en="9:19.5 Lock">9:19.5 锁屏</button>
+              <button class="wp-ctrl-btn" type="button" id="wpModePrintBtn" data-zh="4:3 框画" data-en="4:3 Print">4:3 框画</button>
+              <button class="wp-ctrl-btn" type="button" id="wpLampToggleBtn" data-zh="床头暖光釉" data-en="Lamp Glaze">床头暖光釉</button>
+            </div>
+          </div>
+
+          <div class="wallpaper-grid">
+            <div class="wallpaper-stage">
+              <div class="wp-frame mode-lock" id="wpPreviewFrame">
+                <img id="wpMainImg" src="assets/art/wallpapers/wp_a09.jpg" alt="摸索台灯 A09 镜中对望藏画版壁纸">
+                <div class="wp-lock-overlay" aria-hidden="true">
+                  <span class="wp-lock-time num">9:41</span>
+                  <span class="wp-lock-biome" id="wpBiomeBadge">日光窗边 · Sunlit Nursery</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="wallpaper-meta-panel">
+              <div class="wp-meta-card">
+                <span class="wp-code-badge num" id="wpActiveCode">A09 · WALLPAPER PLATE</span>
+                <h4 id="wpActiveTitle">镜中对望 · 午后窗影</h4>
+                <p id="wpActiveDesc">黄铜弧形落地镜与午后橄榄叶日影，定格第一次认出自己。</p>
+              </div>
+
+              <div class="wp-thumbs" role="group" aria-label="精选藏画插画列表">
+                <button class="wp-thumb-btn active" type="button" data-wp="a09">
+                  <img src="assets/art/wallpapers/wp_a09.jpg" alt="A09 镜中对望" loading="lazy">
+                  <span data-zh="A09 镜中对望" data-en="A09 Mirror">A09 镜中对望</span>
+                </button>
+                <button class="wp-thumb-btn" type="button" data-wp="a11">
+                  <img src="assets/art/wallpapers/wp_a11.jpg" alt="A11 过手摇铃" loading="lazy">
+                  <span data-zh="A11 过手摇铃" data-en="A11 Rattle">A11 过手摇铃</span>
+                </button>
+                <button class="wp-thumb-btn" type="button" data-wp="n04">
+                  <img src="assets/art/wallpapers/wp_n04.jpg" alt="N04 光斑趴垫" loading="lazy">
+                  <span data-zh="N04 光斑趴垫" data-en="N04 Tummy">N04 光斑趴垫</span>
+                </button>
+                <button class="wp-thumb-btn" type="button" data-wp="a19">
+                  <img src="assets/art/wallpapers/wp_a19.jpg" alt="A19 积木叠叠" loading="lazy">
+                  <span data-zh="A19 积木叠叠" data-en="A19 Blocks">A19 积木叠叠</span>
+                </button>
+                <button class="wp-thumb-btn" type="button" data-wp="a06">
+                  <img src="assets/art/wallpapers/wp_a06.jpg" alt="A06 听声转头" loading="lazy">
+                  <span data-zh="A06 听声转头" data-en="A06 Chime">A06 听声转头</span>
+                </button>
+                <button class="wp-thumb-btn" type="button" data-wp="a34">
+                  <img src="assets/art/wallpapers/wp_a34.jpg" alt="A34 自然观察" loading="lazy">
+                  <span data-zh="A34 自然观察" data-en="A34 Meadow">A34 自然观察</span>
+                </button>
+              </div>
+
+              <div class="wp-download-row">
+                <a class="btn-small-primary" id="wpDownloadBtn" href="assets/art/wallpapers/wp_a09.jpg" download="moss_otto_wp_a09.jpg" data-zh="下载超清原图壁纸" data-en="Download High-Res Plate">下载超清原图壁纸</a>
+                <span class="wp-download-note" data-zh="1600px 无字画作 · App 内支持更多 3x 装裱出口" data-en="1600px text-free print · 3x Studio export inside iOS app">1600px 无字画作 · App 内支持更多 3x 装裱出口</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -1960,6 +2029,136 @@
         });
       });
 
+      /* Collector Illustrated Wallpaper Gallery */
+      var wpCatalog = {
+        a09: {
+          code: "A09",
+          file: "wp_a09.jpg",
+          titleZh: "镜中对望 · 午后窗影",
+          titleEn: "Mirror Afternoon",
+          descZh: "黄铜弧形落地镜与午后橄榄叶日影，定格第一次认出自己。",
+          descEn: "Arched brass nursery mirror & olive sunlight casting quiet afternoon wonder.",
+          biomeZh: "日光窗边 · Sunlit Nursery",
+          biomeEn: "Sunlit Nursery Window",
+          nightPreferred: false
+        },
+        a11: {
+          code: "A11",
+          file: "wp_a11.jpg",
+          titleZh: "过手摇铃 · 榉木手作台",
+          titleEn: "Timber Transfer",
+          descZh: "双手跨越身体中线交接桦木双色摇铃，暖光落满亚麻地垫。",
+          descEn: "Hand-to-hand beechwood rattle transfer under morning linen sunbeams.",
+          biomeZh: "木作桌边 · Atelier Table",
+          biomeEn: "Atelier Work Table",
+          nightPreferred: false
+        },
+        n04: {
+          code: "N04",
+          file: "wp_n04.jpg",
+          titleZh: "光斑趴垫 · 晨光拼布毯",
+          titleEn: "Sunlit Blanket",
+          descZh: "窗格日光投影落在滚边棉麻圆毯上，风铃在头顶轻轻摇曳。",
+          descEn: "Morning window panes drifting across an oatmeal-sage heirloom play quilt.",
+          biomeZh: "日光窗边 · Sunlit Nursery",
+          biomeEn: "Sunlit Nursery Window",
+          nightPreferred: false
+        },
+        a19: {
+          code: "A19",
+          file: "wp_a19.jpg",
+          titleZh: "积木叠叠 · 暮色橡木塔",
+          titleEn: "Oak Tower",
+          descZh: "鼠尾草绿、蜂蜜黄与赤陶红三块倒角木块，在晚霞余晖中稳稳相叠。",
+          descEn: "Three chamfered matte beech blocks catching golden hour hearth warmth.",
+          biomeZh: "暮色壁炉角 · Dusk Atelier",
+          biomeEn: "Atelier Work Table",
+          nightPreferred: false
+        },
+        a06: {
+          code: "A06",
+          file: "wp_a06.jpg",
+          titleZh: "听声转头 · 星夜小铜铃",
+          titleEn: "Gentle Bell",
+          descZh: "靛蓝夜窗前的一声轻响，金色音波穿过星光流向安睡中的小树苗。",
+          descEn: "Twilight chime arcs drifting across starry indigo curtains and Otto glowing amber.",
+          biomeZh: "星夜台灯角 · Twilight Room",
+          biomeEn: "Twilight Lantern Room",
+          nightPreferred: true
+        },
+        a34: {
+          code: "A34",
+          file: "wp_a34.jpg",
+          titleZh: "自然观察 · 风与蒲公英",
+          titleEn: "Meadow Composure",
+          descZh: "尤加利树荫下铺开赤陶锁边野餐布，和蕨芽与蒲公英安静打招呼。",
+          descEn: "Rolling watercolor clover hills under swaying komorebi eucalyptus shade.",
+          biomeZh: "日光草地 · Meadow Sky",
+          biomeEn: "Garden Meadow Sky",
+          nightPreferred: false
+        }
+      };
+      var activeWpKey = "a09";
+      var wpMode = "lock";
+      var wpLamp = false;
+      var wpContainer = document.getElementById("wallpaper-gallery");
+      var wpMainImg = document.getElementById("wpMainImg");
+      var wpFrame = document.getElementById("wpPreviewFrame");
+      var wpBiomeBadge = document.getElementById("wpBiomeBadge");
+      var wpActiveCode = document.getElementById("wpActiveCode");
+      var wpActiveTitle = document.getElementById("wpActiveTitle");
+      var wpActiveDesc = document.getElementById("wpActiveDesc");
+      var wpDownloadBtn = document.getElementById("wpDownloadBtn");
+      var wpLockBtn = document.getElementById("wpModeLockBtn");
+      var wpPrintBtn = document.getElementById("wpModePrintBtn");
+      var wpLampBtn = document.getElementById("wpLampToggleBtn");
+
+      function renderWallpaperGallery() {
+        var item = wpCatalog[activeWpKey] || wpCatalog.a09;
+        var lang = getLang();
+        if (wpMainImg) {
+          wpMainImg.setAttribute("src", "assets/art/wallpapers/" + item.file);
+          wpMainImg.setAttribute("alt", lang === "en" ? item.titleEn : item.titleZh);
+        }
+        if (wpBiomeBadge) wpBiomeBadge.textContent = lang === "en" ? item.biomeEn : item.biomeZh;
+        if (wpActiveCode) wpActiveCode.textContent = item.code + (lang === "en" ? " · WALLPAPER PLATE" : " · 藏画版壁纸");
+        if (wpActiveTitle) wpActiveTitle.textContent = lang === "en" ? item.titleEn : item.titleZh;
+        if (wpActiveDesc) wpActiveDesc.textContent = lang === "en" ? item.descEn : item.descZh;
+        if (wpDownloadBtn) {
+          wpDownloadBtn.setAttribute("href", "assets/art/wallpapers/" + item.file);
+          wpDownloadBtn.setAttribute("download", "moss_otto_" + item.file);
+        }
+        if (wpFrame) {
+          wpFrame.classList.toggle("mode-lock", wpMode === "lock");
+          wpFrame.classList.toggle("mode-print", wpMode === "print");
+        }
+        if (wpLockBtn) wpLockBtn.classList.toggle("active", wpMode === "lock");
+        if (wpPrintBtn) wpPrintBtn.classList.toggle("active", wpMode === "print");
+        if (wpLampBtn) wpLampBtn.classList.toggle("active", wpLamp);
+        if (wpContainer) wpContainer.classList.toggle("is-lamp", wpLamp);
+        document.querySelectorAll("[data-wp]").forEach(function (btn) {
+          btn.classList.toggle("active", btn.getAttribute("data-wp") === activeWpKey);
+        });
+      }
+
+      document.querySelectorAll("[data-wp]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          activeWpKey = btn.getAttribute("data-wp") || "a09";
+          var item = wpCatalog[activeWpKey];
+          wpLamp = item ? Boolean(item.nightPreferred) : false;
+          renderWallpaperGallery();
+        });
+      });
+      if (wpLockBtn) {
+        wpLockBtn.addEventListener("click", function () { wpMode = "lock"; renderWallpaperGallery(); });
+      }
+      if (wpPrintBtn) {
+        wpPrintBtn.addEventListener("click", function () { wpMode = "print"; renderWallpaperGallery(); });
+      }
+      if (wpLampBtn) {
+        wpLampBtn.addEventListener("click", function () { wpLamp = !wpLamp; renderWallpaperGallery(); });
+      }
+
       /* Edition IV: 0-36m Timeline Dimmer Lamp + Full-Spectrum Theater + 3 Micro-Tools */
       var spectrumStages = [
         {
@@ -2417,6 +2616,7 @@
         else resetHandover();
         renderArchTab();
         renderGalleryScreen();
+        renderWallpaperGallery();
         renderSpectrumTheater();
         renderWhoRuler();
         renderPretermCalc();
@@ -2502,6 +2702,7 @@
         { id: "main", zh: "00 · 摸索台灯", en: "00 · Moss & Otto" },
         { id: "architecture", zh: "00 · 四个板块", en: "00 · Four Tabs" },
         { id: "daily-tracking", zh: "01 · 白天共玩", en: "01 · Daily Play" },
+        { id: "wallpaper-gallery", zh: "01 · 藏画壁纸", en: "01 · Wallpapers" },
         { id: "first-foods", zh: "01 · 60 种食盒", en: "01 · 60 Foods" },
         { id: "night-lab", zh: "02 · 床头夜灯", en: "02 · Bedside Lamp" },
         { id: "ios-ecosystem", zh: "02 · 锁屏与捷径", en: "02 · Lock Screen" },
@@ -2514,7 +2715,7 @@
       var majorBeads = [];
       if (beadRail) {
         var totalBeads = 37;
-        var majorIndices = [0, 4, 8, 12, 16, 20, 24, 28, 32, 34, 36];
+        var majorIndices = [0, 3, 6, 10, 14, 18, 22, 25, 29, 32, 34, 36];
         for (var b = 0; b < totalBeads; b++) {
           var stopIdx = majorIndices.indexOf(b);
           if (stopIdx !== -1) {

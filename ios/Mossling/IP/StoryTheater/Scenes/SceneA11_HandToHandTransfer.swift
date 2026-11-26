@@ -272,25 +272,37 @@ struct SceneA11_HandToHandTransfer: View {
             let rightX = mossX + w * 0.105
             let leftX = mossX - w * 0.105
             let baseY = groundY - s * 0.088
+            let ctrl = CGPoint(x: mossX, y: baseY - s * 0.065)
             trail.move(to: CGPoint(x: rightX, y: baseY))
             trail.addQuadCurve(
                 to: CGPoint(x: leftX, y: baseY),
-                control: CGPoint(x: mossX, y: baseY - s * 0.06)
+                control: ctrl
             )
             ctx.stroke(
                 trail,
-                with: .color(Palette.amber.opacity(dark ? 0.45 : 0.38)),
+                with: .color(Palette.amber.opacity(dark ? 0.48 : 0.42)),
                 style: StrokeStyle(lineWidth: 1.8, dash: [4, 4])
             )
+            // Luminous transfer pearl waypoints along midline crossing arc
+            for t in [CGFloat(0.22), CGFloat(0.50), CGFloat(0.78)] {
+                let u = 1.0 - t
+                let bx = u * u * rightX + 2 * u * t * ctrl.x + t * t * leftX
+                let by = u * u * baseY + 2 * u * t * ctrl.y + t * t * baseY
+                let pulseR: CGFloat = t == 0.50 ? 3.2 : 2.2
+                ctx.fill(
+                    Path(ellipseIn: CGRect(x: bx - pulseR, y: by - pulseR, width: pulseR * 2, height: pulseR * 2)),
+                    with: .color(Palette.amber.opacity(dark ? 0.65 : 0.72))
+                )
+            }
         }
 
-        let len = s * 0.11
+        let len = s * 0.115
         let aoScale = step == 1 ? 0.55 : 0.90
         PixarDrawHelpers.drawContactAO(
             in: &ctx,
             center: CGPoint(x: rattlePos.x, y: groundY + 1),
-            rx: len * 0.44 * aoScale,
-            ry: len * 0.14 * aoScale,
+            rx: len * 0.46 * aoScale,
+            ry: len * 0.15 * aoScale,
             dark: dark
         )
 
@@ -304,21 +316,35 @@ struct SceneA11_HandToHandTransfer: View {
             path: Path(roundedRect: stemRect, cornerRadius: len * 0.10),
             bounds: stemRect,
             dark: dark,
-            warmth: 0.8,
-            grainLines: 2
+            warmth: 0.84,
+            grainLines: 3
         )
+        // Turned wooden lathe grip rings at center stem
+        for gx in [-len * 0.08, len * 0.08] {
+            var ring = Path()
+            ring.move(to: CGPoint(x: gx, y: stemRect.minY + 1))
+            ring.addLine(to: CGPoint(x: gx, y: stemRect.maxY - 1))
+            rCtx.stroke(ring, with: .color(Color(hex: 0x7A512A).opacity(dark ? 0.40 : 0.34)), lineWidth: 1.0)
+        }
 
-        let capR = len * 0.25
+        let capR = len * 0.26
         for (cx, col) in [(-len * 0.44, Color(hex: 0x7EB48B)), (len * 0.44, Palette.amber)] {
             let capRect = CGRect(x: cx - capR, y: -capR, width: capR * 2, height: capR * 2)
             rCtx.fill(
                 Path(ellipseIn: capRect),
                 with: .radialGradient(
-                    Gradient(colors: [col.mix(with: .white, by: flat ? 0.15 : 0.32), col]),
+                    Gradient(colors: [col.mix(with: .white, by: flat ? 0.18 : 0.38), col, col.mix(with: .black, by: 0.14)]),
                     center: CGPoint(x: cx - capR * 0.25, y: -capR * 0.25),
                     startRadius: 0,
-                    endRadius: capR * 1.3
+                    endRadius: capR * 1.35
                 )
+            )
+            // Delicate carved botanical seam ring inside rattle bulb
+            let grooveRect = capRect.insetBy(dx: capR * 0.26, dy: capR * 0.26)
+            rCtx.stroke(
+                Path(ellipseIn: grooveRect),
+                with: .color(Color.white.opacity(dark ? 0.18 : 0.38)),
+                lineWidth: 0.9
             )
             if flat {
                 rCtx.stroke(Path(ellipseIn: capRect), with: .color(Color(hex: 0x4E4234).opacity(0.45)), lineWidth: 0.9)

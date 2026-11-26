@@ -177,7 +177,8 @@ struct SceneA10_OutdoorListening: View {
             dayBottom: dayBot,
             nightTop: Color(hex: 0x0A1328),
             nightBottom: Color(hex: 0x162441),
-            dark: dark
+            dark: dark,
+            biome: .gardenMeadowSky
         )
 
         GhibliDrawHelpers.drawPaintedCloud(

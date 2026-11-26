@@ -144,14 +144,19 @@ struct SceneN04_TummyTime: View {
             dark: dark
         )
 
-        // Warm nursery hardwood floor planks in gentle perspective
-        let plankColor = (dark ? Color(hex: 0x263452) : Color(hex: 0xB8986D)).opacity(dark ? 0.35 : 0.26)
+        // Warm nursery honey-oak floor planks in subtle perspective + soft miter joints
+        let plankColor = (dark ? Color(hex: 0x263452) : Color(hex: 0xB8986D)).opacity(dark ? 0.36 : 0.28)
         for i in 1..<6 {
             let y = h * CGFloat(i) / 6.0
             var line = Path()
             line.move(to: CGPoint(x: 0, y: y))
             line.addLine(to: CGPoint(x: w, y: y + 4))
             ctx.stroke(line, with: .color(plankColor), lineWidth: 1.0)
+            let jointX = w * (i.isMultiple(of: 2) ? 0.34 : 0.68)
+            var joint = Path()
+            joint.move(to: CGPoint(x: jointX, y: y + 1))
+            joint.addLine(to: CGPoint(x: jointX - 6, y: y + h / 6.0))
+            ctx.stroke(joint, with: .color(plankColor.opacity(0.65)), lineWidth: 0.9)
         }
 
         // Large 3/4 bird's-eye circular quilted playmat
@@ -190,11 +195,17 @@ struct SceneN04_TummyTime: View {
             )
         }
 
-        // Inner circular quilting ring & window sun-pane projection
-        let innerRect = matRect.insetBy(dx: matRect.width * 0.10, dy: matRect.height * 0.10)
+        // Dual concentric linen quilting stitch rings & sunlit botanical window projection
+        let outerTrimRect = matRect.insetBy(dx: 4, dy: 4)
+        ctx.stroke(
+            Path(ellipseIn: outerTrimRect),
+            with: .color((dark ? Color(hex: 0x84B699) : Color(hex: 0x95AD86)).opacity(0.42)),
+            lineWidth: 1.5
+        )
+        let innerRect = matRect.insetBy(dx: matRect.width * 0.11, dy: matRect.height * 0.11)
         ctx.stroke(
             Path(ellipseIn: innerRect),
-            with: .color((dark ? Color(hex: 0x8AD5A0) : Color(hex: 0x7DA374)).opacity(step == 1 ? 0.55 : 0.35)),
+            with: .color((dark ? Color(hex: 0x8AD5A0) : Color(hex: 0x7DA374)).opacity(step == 1 ? 0.58 : 0.36)),
             style: StrokeStyle(lineWidth: step == 1 ? 1.8 : 1.1, dash: [6, 5])
         )
 

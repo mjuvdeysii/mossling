@@ -297,22 +297,30 @@ struct SceneA19_StackingChunkyBlocks: View {
             bCtx.fill(
                 path,
                 with: .linearGradient(
-                    Gradient(colors: [color.mix(with: .white, by: 0.28), color, color.mix(with: .black, by: 0.18)]),
+                    Gradient(colors: [color.mix(with: .white, by: 0.30), color, color.mix(with: .black, by: 0.20)]),
                     startPoint: CGPoint(x: rect.minX, y: rect.minY),
                     endPoint: CGPoint(x: rect.maxX, y: rect.maxY)
                 )
             )
+            // Chamfered top sheen & warm amber bounce along lower bevel
             bCtx.stroke(
                 path,
                 with: .linearGradient(
-                    Gradient(colors: [Color.white.opacity(0.55), Color.clear]),
+                    Gradient(colors: [Color.white.opacity(0.58), Color.clear, Palette.amber.opacity(dark ? 0.28 : 0.22)]),
                     startPoint: CGPoint(x: rect.midX, y: rect.minY),
                     endPoint: CGPoint(x: rect.midX, y: rect.maxY)
                 ),
-                lineWidth: 1.1
+                lineWidth: 1.2
             )
         }
         let inner = rect.insetBy(dx: size * 0.18, dy: size * 0.18)
         bCtx.stroke(Path(roundedRect: inner, cornerRadius: size * 0.08), with: .color(Color.white.opacity(dark ? 0.18 : 0.32)), lineWidth: 0.9)
+        // Etched heirloom botanical ring emblem on the block face
+        let emblem = CGRect(x: -size * 0.11, y: -size * 0.11, width: size * 0.22, height: size * 0.22)
+        bCtx.stroke(
+            Path(ellipseIn: emblem),
+            with: .color((dark ? Color.white : color.mix(with: .black, by: 0.42)).opacity(0.32)),
+            lineWidth: 1.0
+        )
     }
 }

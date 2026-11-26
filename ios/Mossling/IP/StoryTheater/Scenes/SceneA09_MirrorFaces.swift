@@ -270,14 +270,40 @@ struct SceneA09_MirrorFaces: View {
             glassCtx.fill(Path(ellipseIn: CGRect(x: rMossX + rmR * 0.16, y: rMossY - rmR * 0.28, width: 5, height: 6)), with: .color(eyeCol))
         }
 
-        // Diagonal subtle mirror glass reflection highlight streak
+        // Heirloom brass inner mirror beading + diagonal reflection highlight streaks + skylight bokeh
+        let innerTrim = mirrorFrame.insetBy(dx: 4, dy: 4)
+        glassCtx.stroke(
+            Path(roundedRect: innerTrim, cornerRadius: 5),
+            with: .color((dark ? Palette.amber : Color(hex: 0xD2A966)).opacity(dark ? 0.26 : 0.34)),
+            lineWidth: 1.0
+        )
+
         var streak = Path()
-        streak.move(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.12, y: mirrorFrame.maxY))
-        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.30, y: mirrorFrame.minY))
-        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.38, y: mirrorFrame.minY))
-        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.20, y: mirrorFrame.maxY))
+        streak.move(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.11, y: mirrorFrame.maxY))
+        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.29, y: mirrorFrame.minY))
+        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.37, y: mirrorFrame.minY))
+        streak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.19, y: mirrorFrame.maxY))
         streak.closeSubpath()
-        glassCtx.fill(streak, with: .color(Color.white.opacity(dark ? 0.08 : 0.26)))
+        glassCtx.fill(streak, with: .color(Color.white.opacity(dark ? 0.08 : 0.28)))
+
+        var narrowStreak = Path()
+        narrowStreak.move(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.42, y: mirrorFrame.maxY))
+        narrowStreak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.56, y: mirrorFrame.minY))
+        narrowStreak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.59, y: mirrorFrame.minY))
+        narrowStreak.addLine(to: CGPoint(x: mirrorFrame.minX + mirrorFrame.width * 0.45, y: mirrorFrame.maxY))
+        narrowStreak.closeSubpath()
+        glassCtx.fill(narrowStreak, with: .color(Color.white.opacity(dark ? 0.05 : 0.16)))
+
+        let bokehCenter = CGPoint(x: mirrorFrame.maxX - mirrorFrame.width * 0.15, y: mirrorFrame.minY + mirrorFrame.height * 0.24)
+        glassCtx.fill(
+            Path(ellipseIn: CGRect(x: bokehCenter.x - 10, y: bokehCenter.y - 10, width: 20, height: 20)),
+            with: .radialGradient(
+                Gradient(colors: [(dark ? Palette.amber : Color.white).opacity(dark ? 0.16 : 0.26), .clear]),
+                center: bokehCenter,
+                startRadius: 1,
+                endRadius: 11
+            )
+        )
 
         // Step highlights
         if step == 1 {

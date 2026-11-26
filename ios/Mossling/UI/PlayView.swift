@@ -70,6 +70,7 @@ struct PlayView: View {
     @State private var during = true
     @State private var matMode = false
     @State private var dimVeil = false
+    @State private var wallpaperOpen = false
     /// The count when the page was opened: a count above it means this visit already recorded a time (by 记一次,
     /// the menu, or the last step) — derived from the records, not kept beside them.
     @State private var base: Int?
@@ -274,12 +275,19 @@ struct PlayView: View {
             }
             ToolbarItem(placement: .topBarTrailing) {
                 Menu {
+                    Button(L10n.t("插画壁纸画室", "Wallpaper Atelier"), systemImage: "photo.artframe") {
+                        wallpaperOpen = true
+                    }
                     PlayActions(play: play, month: month, inPage: true)
                 } label: {
                     Image(systemName: "ellipsis")
                 }
                 .accessibilityLabel(L10n.t("更多", "More"))
             }
+        }
+        .sheet(isPresented: $wallpaperOpen) {
+            ActivityWallpaperSheet(initialCode: play.code)
+                .lampPresented()
         }
         .fullScreenCover(isPresented: $matMode) {
             MatSideCoPlayView(

@@ -29,6 +29,7 @@ enum FirstCharmMotif: String, CaseIterable, Sendable {
     case jumpArc
     case crayonSpiral
     case morningClover
+    case voiceQuote
     // Custom icon motifs
     case starCharm
     case dropletCharm
@@ -85,6 +86,7 @@ enum FirstCharmMotif: String, CaseIterable, Sendable {
         case "kick": return .fabricBall
         case "jump": return .jumpArc
         case "sentence": return .voiceRipple
+        case "quote": return .voiceQuote
         case "draw": return .crayonSpiral
         case "potty": return .morningClover
         default: return .starCharm
@@ -371,6 +373,25 @@ struct FirstCharmBadge: View {
             }
             let coreR = r * 0.20
             ctx.fill(Path(ellipseIn: CGRect(x: cx - coreR, y: cy - coreR, width: coreR * 2, height: coreR * 2)), with: .color(accent))
+
+        case .voiceQuote:
+            let bubble = CGRect(x: cx - r * 0.72, y: cy - r * 0.56, width: r * 1.44, height: r * 1.04)
+            ctx.stroke(
+                Path(roundedRect: bubble, cornerRadius: r * 0.34),
+                with: .color(fg),
+                lineWidth: lw
+            )
+            let bars: [(CGFloat, CGFloat, Color)] = [
+                (-r * 0.30, r * 0.36, accent),
+                (0, r * 0.62, fg),
+                (r * 0.30, r * 0.42, accent)
+            ]
+            for (dx, bh, col) in bars {
+                var bar = Path()
+                bar.move(to: CGPoint(x: cx + dx, y: cy - bh * 0.5 - r * 0.04))
+                bar.addLine(to: CGPoint(x: cx + dx, y: cy + bh * 0.5 - r * 0.04))
+                ctx.stroke(bar, with: .color(col), style: StrokeStyle(lineWidth: lw * 1.05, lineCap: .round))
+            }
 
         case .starCharm:
             let star = starPath(center: CGPoint(x: cx, y: cy), outer: r * 0.84, inner: r * 0.38, points: 5)

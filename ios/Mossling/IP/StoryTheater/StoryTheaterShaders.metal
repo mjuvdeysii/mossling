@@ -56,66 +56,100 @@ inline float fbm3(float2 p) {
 
     half3 rgb = color.rgb / color.a;
 
-    // 1. Directional key-light falloff (warm golden key) & cool bounce shadow fill
+    // 1. Directional key-light falloff (warm golden key) & cool + floor bounce fills
     float distKey = length(uv - keyUV);
-    float keyFalloff = exp(-distKey * distKey * (darkMode > 0.5 ? 2.4 : 1.7));
-    half3 warmKey = darkMode > 0.5 ? half3(1.0h, 0.78h, 0.44h) : half3(1.0h, 0.96h, 0.85h);
-    rgb = mix(rgb, rgb + warmKey * half(0.14 * keyIntensity), half(keyFalloff * 0.65));
+    float keyFalloff = exp(-distKey * distKey * (darkMode > 0.5 ? 2.25 : 1.55));
+    half3 warmKey = darkMode > 0.5 ? half3(1.0h, 0.77h, 0.42h) : half3(1.0h, 0.96h, 0.84h);
+    rgb = mix(rgb, rgb + warmKey * half(0.16 * keyIntensity), half(keyFalloff * 0.68));
 
     float2 shadowCorner = float2(1.0 - clamp(keyUV.x, 0.0, 1.0), 1.0);
     float shadowDist = length(uv - shadowCorner);
-    float coolFill = exp(-shadowDist * shadowDist * 2.2) * 0.06;
-    half3 bounceTint = darkMode > 0.5 ? half3(0.16h, 0.25h, 0.48h) : half3(0.84h, 0.91h, 0.98h);
+    float coolFill = exp(-shadowDist * shadowDist * 2.1) * (darkMode > 0.5 ? 0.08 : 0.065);
+    half3 bounceTint = darkMode > 0.5 ? half3(0.15h, 0.24h, 0.48h) : half3(0.83h, 0.90h, 0.97h);
     rgb = mix(rgb, bounceTint, half(coolFill * rimStrength));
 
-    // 2. Matte soft-vinyl micro-tooth (organic silicone surface tactility, zero glossy plastic sheen)
-    float grain = (hash21(floor(position * 0.85)) - 0.5) * (darkMode > 0.5 ? 0.018 : 0.014);
-    rgb += half3(grain);
+    // Gentle diagonal afternoon caustic bloom in daylight / cozy hearth bounce at night
+    float causticBand = 0.5 + 0.5 * sin(uv.x * 11.5 - uv.y * 6.5 + keyUV.x * 3.1);
+    float midMask = exp(-pow(uv.y - 0.52, 2.0) * 6.5);
+    half3 causticTone = darkMode > 0.5 ? half3(0.95h, 0.68h, 0.36h) : half3(1.0h, 0.97h, 0.88h);
+    rgb += causticTone * half((darkMode > 0.5 ? 0.018 : 0.022) * causticBand * midMask * keyIntensity);
 
-    // 3. Soft theatrical depth vignette
+    // 2. Museum cotton-rag paper / matte silicone micro-tooth
+    float grainFine = (hash21(floor(position * 0.85)) - 0.5) * (darkMode > 0.5 ? 0.020 : 0.016);
+    float grainWeave = (hash21(floor(position * 0.22)) - 0.5) * (darkMode > 0.5 ? 0.008 : 0.007);
+    rgb += half3(grainFine + grainWeave);
+
+    // 3. Soft theatrical depth vignette preserving center stage luminosity
     float2 centered = uv - float2(0.5, 0.48);
-    float vignette = 1.0 - smoothstep(0.32, 0.82, length(centered)) * (darkMode > 0.5 ? 0.22 : 0.07);
+    float vignette = 1.0 - smoothstep(0.34, 0.84, length(centered)) * (darkMode > 0.5 ? 0.24 : 0.085);
     rgb *= half(vignette);
 
     return half4(clamp(rgb, 0.0h, 1.0h) * color.a, color.a);
 }
 
-/// Directional alpha-gradient rim lighting & subsurface wrap on canonical 3D Moss & Otto sprites.
+/// Directional alpha-gradient rim lighting, exterior white-halo peel & subsurface wrap on canonical 3D Moss & Otto sprites.
 [[stitchable]] half4 pixarActorRimShade(
     float2 position,
     SwiftUI::Layer layer,
     float2 lightDir,
     half4 rimColor,
-    float intensity
+    float intensity,
+    float spritePxSize
 ) {
     half4 center = layer.sample(position);
-    if (center.a <= 0.002h) {
-        return center;
+    if (center.a <= 0.003h) {
+        return half4(0.0h);
     }
 
     float lenDir = length(lightDir);
     float2 dir = lenDir > 0.001 ? (lightDir / lenDir) : float2(0.7, -0.7);
-    float stepPx = 2.4;
+    float scale = clamp(spritePxSize / 120.0, 0.75, 2.2);
+    float peelR = 1.75 * scale;
+    float stepPx = 2.6 * scale;
+
+    // 8-direction exterior alpha ring to detect crisp sticker cutout rims cleanly
+    half aN  = layer.sample(position + float2( 0.0, -peelR)).a;
+    half aS  = layer.sample(position + float2( 0.0,  peelR)).a;
+    half aE  = layer.sample(position + float2( peelR,  0.0)).a;
+    half aW  = layer.sample(position + float2(-peelR,  0.0)).a;
+    half aNE = layer.sample(position + float2( peelR * 0.72, -peelR * 0.72)).a;
+    half aNW = layer.sample(position + float2(-peelR * 0.72, -peelR * 0.72)).a;
+    half aSE = layer.sample(position + float2( peelR * 0.72,  peelR * 0.72)).a;
+    half aSW = layer.sample(position + float2(-peelR * 0.72,  peelR * 0.72)).a;
+    half minRingAlpha = min(min(min(aN, aS), min(aE, aW)), min(min(aNE, aNW), min(aSE, aSW)));
 
     half aTowards = layer.sample(position + dir * stepPx).a;
     half aAway = layer.sample(position - dir * stepPx).a;
     half aOrtho1 = layer.sample(position + float2(-dir.y, dir.x) * stepPx).a;
     half aOrtho2 = layer.sample(position + float2(dir.y, -dir.x) * stepPx).a;
-
-    // Lit edge where moving toward the key light steps out of the sprite alpha
-    float edgeLit = clamp(float(center.a - aTowards) * 1.45, 0.0, 1.0);
-    // Subtle opposite edge occlusion
-    float edgeShadow = clamp(float(center.a - aAway) * 0.9, 0.0, 1.0);
-    // Inner crown wrap
-    float softWrap = clamp(float((1.0h - aOrtho1) + (1.0h - aOrtho2)) * 0.22, 0.0, 0.45);
+    half aFloor = layer.sample(position + float2(0.0, 3.1 * scale)).a;
 
     half3 rgb = center.rgb / center.a;
-    half3 rimTone = rimColor.rgb;
-    rgb = mix(rgb, rimTone, half(edgeLit * 0.48 * intensity));
-    rgb += rimTone * half(softWrap * 0.07 * intensity);
-    rgb *= half(1.0 - edgeShadow * 0.10 * intensity);
+    half lum = dot(rgb, half3(0.299h, 0.587h, 0.114h));
+    float maxC = float(max(rgb.r, max(rgb.g, rgb.b)));
+    float minC = float(min(rgb.r, min(rgb.g, rgb.b)));
+    float sat = (maxC - minC) / max(maxC, 0.001);
 
-    return half4(clamp(rgb, 0.0h, 1.0h) * center.a, center.a);
+    // Dissolve bright white paper cutout fringes back into warm atmospheric bounce
+    float isBoundary = clamp(1.0 - float(minRingAlpha) * 1.12, 0.0, 1.0);
+    float whiteHalo = isBoundary * smoothstep(0.75, 0.96, float(lum)) * (1.0 - smoothstep(0.10, 0.34, sat));
+    half3 rimTone = rimColor.rgb;
+    half3 ambientFringeTone = rimTone * half3(0.84h, 0.78h, 0.68h);
+    rgb = mix(rgb, ambientFringeTone, half(whiteHalo * 0.88));
+    half outAlpha = center.a * half(1.0 - whiteHalo * 0.40);
+
+    // Directional key rim wrap + subtle opposite occlusion + warm floor bounce
+    float edgeLit = clamp(float(center.a - aTowards) * 1.45, 0.0, 1.0);
+    float edgeShadow = clamp(float(center.a - aAway) * 0.95, 0.0, 1.0);
+    float edgeBottom = clamp(float(center.a - aFloor) * 1.20, 0.0, 1.0);
+    float softWrap = clamp(float((1.0h - aOrtho1) + (1.0h - aOrtho2)) * 0.22, 0.0, 0.45);
+
+    rgb = mix(rgb, rimTone, half(edgeLit * 0.52 * intensity));
+    rgb += rimTone * half(softWrap * 0.08 * intensity);
+    rgb = mix(rgb, half3(0.89h, 0.76h, 0.58h), half(edgeBottom * 0.16 * intensity));
+    rgb *= half(1.0 - edgeShadow * 0.11 * intensity);
+
+    return half4(clamp(rgb, 0.0h, 1.0h) * outAlpha, outAlpha);
 }
 
 /// Volumetric conical light beam & shimmering golden dust motes emitted from Otto's lamp bead.

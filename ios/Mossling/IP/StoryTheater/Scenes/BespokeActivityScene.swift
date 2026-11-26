@@ -645,13 +645,37 @@ enum BespokeActivitySceneRegistry {
         }
     }
 
+    /// Maps every 0–36m activity into one of 5 cohesive picture-book wallpaper environments.
+    static func wallpaperBiome(for id: BespokeActivityID) -> WallpaperBiome {
+        switch id {
+        case .a10, .a34:
+            return .gardenMeadowSky
+        case .n02, .n03, .n05, .n06, .a14, .a29, .a37:
+            return .twilightLanternRoom
+        case .a01, .a02, .a04, .a07, .a12, .a15, .a21, .a24, .a28, .a33, .a40:
+            return .cozyReadingAlcove
+        case .a05, .a08, .a11, .a13, .a18, .a19, .a20, .a23, .a25, .a26, .a30, .a32, .a35, .a36, .a39:
+            return .atelierWorkTable
+        case .n01, .n04, .a03, .a06, .a09, .a16, .a17, .a22, .a27, .a31, .a38:
+            return .sunlitNurseryWindow
+        }
+    }
+
     @ViewBuilder
     static func stageView(id: BespokeActivityID, context: BespokeSceneContext) -> some View {
         let meta = metadata(for: id)
         let anchors = lightAnchors(for: id, step: context.stepIndex, stageSize: context.stageSize)
+        let biome = wallpaperBiome(for: id)
 
         ZStack {
             rawScene(id: id, context: context)
+
+            AtelierWallpaperFraming(
+                biome: biome,
+                dark: context.dark,
+                compact: context.compact
+            )
+            .allowsHitTesting(false)
 
             if context.tapStrength > 0.01, let tap = context.tapOrigin, !context.isStatic {
                 TapReactionChimeLayer(origin: tap, strength: context.tapStrength, dark: context.dark, size: context.stageSize)
@@ -736,6 +760,110 @@ enum BespokeActivitySceneRegistry {
 
 // MARK: - Bespoke Shared Spatial & Graphic Helpers (Zero IP Violation)
 
+/// Five cohesive Scandinavian × Ghibli nursery wallpaper environments shared across all 46 activities.
+enum WallpaperBiome: String, CaseIterable, Sendable {
+    case sunlitNurseryWindow
+    case cozyReadingAlcove
+    case gardenMeadowSky
+    case atelierWorkTable
+    case twilightLanternRoom
+}
+
+/// Non-intrusive perimeter botanical framing, window light rays & collector mat finish.
+struct AtelierWallpaperFraming: View {
+    let biome: WallpaperBiome
+    let dark: Bool
+    let compact: Bool
+
+    var body: some View {
+        Canvas(rendersAsynchronously: false) { ctx, size in
+            let w = size.width
+            let h = size.height
+            let s = min(w, h)
+            guard w > 12, h > 12 else { return }
+
+            // 1. Diagonal afternoon sunbeams or evening paper-lantern corner glow
+            if !compact {
+                let beamTint: Color = switch biome {
+                case .twilightLanternRoom:
+                    dark ? Color(hex: 0xFFBC68) : Color(hex: 0xFFE3A8)
+                case .gardenMeadowSky:
+                    dark ? Color(hex: 0x89B6E8) : Color(hex: 0xFFF7D6)
+                case .cozyReadingAlcove:
+                    dark ? Color(hex: 0xFFAE5E) : Color(hex: 0xFFEAC2)
+                case .atelierWorkTable:
+                    dark ? Color(hex: 0xDFB678) : Color(hex: 0xFFF5DB)
+                case .sunlitNurseryWindow:
+                    dark ? Color(hex: 0xF5BF74) : Color(hex: 0xFFF8DF)
+                }
+
+                for i in 0..<2 {
+                    let offset = CGFloat(i) * w * 0.14
+                    var shaft = Path()
+                    shaft.move(to: CGPoint(x: w * 0.04 + offset, y: 0))
+                    shaft.addLine(to: CGPoint(x: w * 0.17 + offset, y: 0))
+                    shaft.addLine(to: CGPoint(x: w * 0.42 + offset, y: h * 0.85))
+                    shaft.addLine(to: CGPoint(x: w * 0.25 + offset, y: h * 0.85))
+                    shaft.closeSubpath()
+                    ctx.fill(
+                        shaft,
+                        with: .linearGradient(
+                            Gradient(colors: [
+                                beamTint.opacity(dark ? 0.055 : 0.11),
+                                beamTint.opacity(0.0)
+                            ]),
+                            startPoint: CGPoint(x: w * 0.12 + offset, y: 0),
+                            endPoint: CGPoint(x: w * 0.34 + offset, y: h * 0.82)
+                        )
+                    )
+                }
+
+                // 2. Whisper-soft upper corner botanical foliage or cozy alcove valance
+                if biome == .gardenMeadowSky || biome == .sunlitNurseryWindow {
+                    let leafColor = (dark ? Color(hex: 0x4E746C) : Color(hex: 0x6F8F69)).opacity(dark ? 0.16 : 0.14)
+                    for i in 0..<4 {
+                        let t = CGFloat(i) / 3.0
+                        let lx = w * (0.04 + t * 0.055)
+                        let ly = h * (0.06 + t * 0.045)
+                        let lw = s * (0.075 - t * 0.01)
+                        let lh = lw * 0.42
+                        var leaf = Path(ellipseIn: CGRect(x: lx - lw * 0.5, y: ly - lh * 0.5, width: lw, height: lh))
+                        leaf = leaf.applying(CGAffineTransform(translationX: lx, y: ly).rotated(by: -0.45 + Double(i) * 0.22).translatedBy(x: -lx, y: -ly))
+                        ctx.fill(leaf, with: .color(leafColor))
+                    }
+                } else if biome == .cozyReadingAlcove {
+                    var arch = Path()
+                    arch.move(to: CGPoint(x: 0, y: h * 0.12))
+                    arch.addQuadCurve(to: CGPoint(x: w * 0.22, y: 0), control: CGPoint(x: w * 0.06, y: h * 0.02))
+                    arch.addLine(to: .zero)
+                    arch.closeSubpath()
+                    ctx.fill(arch, with: .color((dark ? Color(hex: 0x2C3F63) : Color(hex: 0xD6B48F)).opacity(0.18)))
+                } else if biome == .twilightLanternRoom {
+                    let starColor = (dark ? Color(hex: 0xFFE5A3) : Color(hex: 0xC9985A)).opacity(dark ? 0.22 : 0.12)
+                    for pt in [CGPoint(x: w * 0.11, y: h * 0.11), CGPoint(x: w * 0.88, y: h * 0.14)] {
+                        ctx.fill(Path(ellipseIn: CGRect(x: pt.x - 2, y: pt.y - 2, width: 4, height: 4)), with: .color(starColor))
+                    }
+                }
+            }
+
+            // 3. Museum archival matte edge bevel & warm deckled vignette
+            let edgeRect = CGRect(x: 1, y: 1, width: w - 2, height: h - 2)
+            ctx.stroke(
+                Path(roundedRect: edgeRect, cornerRadius: max(8, s * 0.03)),
+                with: .linearGradient(
+                    Gradient(colors: [
+                        Color.white.opacity(dark ? 0.10 : 0.28),
+                        (dark ? Color(hex: 0x091122) : Color(hex: 0xB89F79)).opacity(dark ? 0.22 : 0.14)
+                    ]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: w, y: h)
+                ),
+                lineWidth: compact ? 0.8 : 1.15
+            )
+        }
+    }
+}
+
 enum BespokeStageHelpers {
     /// Identical foot baseline positioning for 3D soft-vinyl & 2D Ghibli actors.
     static func actorCenterY(kind: Kind, size: CGFloat, groundY: CGFloat, flat: Bool, lift: CGFloat = 0) -> CGFloat {
@@ -743,7 +871,7 @@ enum BespokeStageHelpers {
         return groundY - size * feetFrac + size * 0.5 - lift
     }
 
-    /// Dual-layer sky + wall atmosphere backing shared cleanly across Day and Lamp.
+    /// Dual-layer sky + wall atmosphere backing shared cleanly across Day and Lamp with subtle 5-biome craft depth.
     static func drawAtmosphereWash(
         in ctx: inout GraphicsContext,
         w: CGFloat,
@@ -752,18 +880,56 @@ enum BespokeStageHelpers {
         dayBottom: Color,
         nightTop: Color,
         nightBottom: Color,
-        dark: Bool
+        dark: Bool,
+        biome: WallpaperBiome = .sunlitNurseryWindow
     ) {
         let top = dark ? nightTop : dayTop
         let bot = dark ? nightBottom : dayBottom
+        let mid = top.mix(with: bot, by: 0.44)
         ctx.fill(
             Path(CGRect(x: 0, y: 0, width: w, height: h)),
             with: .linearGradient(
-                Gradient(colors: [top, bot]),
-                startPoint: CGPoint(x: w * 0.25, y: 0),
-                endPoint: CGPoint(x: w * 0.75, y: h)
+                Gradient(colors: [top, mid, bot]),
+                startPoint: CGPoint(x: w * 0.20, y: 0),
+                endPoint: CGPoint(x: w * 0.80, y: h)
             )
         )
+
+        // Painterly sunlit arch / twilight aureole bloom in upper wall plane
+        let bloomColor: Color = dark ? Color(hex: 0x263E68) : Color(hex: 0xFFFDF4)
+        ctx.fill(
+            Path(CGRect(x: 0, y: 0, width: w, height: h * 0.72)),
+            with: .radialGradient(
+                Gradient(colors: [bloomColor.opacity(dark ? 0.30 : 0.42), .clear]),
+                center: CGPoint(x: w * 0.28, y: h * 0.22),
+                startRadius: 4,
+                endRadius: max(w, h) * 0.65
+            )
+        )
+
+        if biome == .gardenMeadowSky {
+            // Soft atmospheric cloud mist & distant meadow haze band
+            let mistColor = (dark ? Color(hex: 0x1F3554) : Color(hex: 0xF7F9EF)).opacity(dark ? 0.24 : 0.34)
+            ctx.fill(
+                Path(ellipseIn: CGRect(x: -w * 0.1, y: h * 0.42, width: w * 1.2, height: h * 0.26)),
+                with: .color(mistColor)
+            )
+        } else {
+            // Whisper-soft Scandinavian vertical linen wall flutes + gentle dado molding
+            let fluteColor = (dark ? Color(hex: 0x627DAE) : Color(hex: 0xA8926D)).opacity(dark ? 0.045 : 0.055)
+            let count = biome == .cozyReadingAlcove ? 8 : 6
+            for i in 1..<count {
+                let x = w * CGFloat(i) / CGFloat(count)
+                var line = Path()
+                line.move(to: CGPoint(x: x, y: 0))
+                line.addLine(to: CGPoint(x: x, y: h * 0.62))
+                ctx.stroke(line, with: .color(fluteColor), lineWidth: 1.0)
+            }
+            var dado = Path()
+            dado.move(to: CGPoint(x: 0, y: h * 0.62))
+            dado.addLine(to: CGPoint(x: w, y: h * 0.62))
+            ctx.stroke(dado, with: .color(fluteColor.opacity(1.5)), lineWidth: 1.1)
+        }
     }
 
     /// Flowing multi-ribbon voice wave conveying gentle dialogue without speech bubbles or mouth dots.

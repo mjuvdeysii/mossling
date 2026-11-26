@@ -193,9 +193,18 @@ struct SceneA08_TextureDiscovery: View {
                 endPoint: CGPoint(x: w * 0.5, y: h)
             )
         )
+        // Woven bouclé linen carpet border & subtle floorboard warmth
+        var trim = Path()
+        trim.move(to: CGPoint(x: 0, y: horizonY + 2))
+        trim.addLine(to: CGPoint(x: w, y: horizonY + 2))
+        ctx.stroke(
+            trim,
+            with: .color((dark ? Color(hex: 0x5B739E) : Color(hex: 0xB8A482)).opacity(dark ? 0.42 : 0.52)),
+            style: StrokeStyle(lineWidth: 1.2, dash: [5, 4])
+        )
 
-        // Swatch 1: Soft quilted sage muslin puff
-        let puffR = min(w, h) * 0.068
+        // Swatch 1: Soft quilted sage muslin puff with linen piping & central tuft
+        let puffR = min(w, h) * 0.072
         let puffSquash: CGFloat = (step == 1 && p.isContactWindow) ? CGFloat(p.contact * 0.14) : 0
         PixarDrawHelpers.drawContactAO(in: &ctx, center: CGPoint(x: softPos.x, y: groundY + 1), rx: puffR, ry: puffR * 0.25, dark: dark)
         let puffRect = CGRect(
@@ -225,15 +234,26 @@ struct SceneA08_TextureDiscovery: View {
                     endRadius: puffR * 1.4
                 )
             )
+            ctx.stroke(
+                Path(roundedRect: puffRect.insetBy(dx: 1.5, dy: 1.5), cornerRadius: puffR * 0.60),
+                with: .color(Color.white.opacity(dark ? 0.16 : 0.42)),
+                lineWidth: 1.0
+            )
         }
-        // Subtle quilted cross seams on muslin
-        ctx.stroke(
-            Path { path in
-                path.move(to: CGPoint(x: softPos.x - puffR * 0.45, y: softPos.y - puffR * 0.35))
-                path.addLine(to: CGPoint(x: softPos.x + puffR * 0.45, y: softPos.y + puffR * 0.35))
-            },
-            with: .color((dark ? Color(hex: 0x9BD2B4) : Color(hex: 0x5C8569)).opacity(0.42)),
-            style: StrokeStyle(lineWidth: 1.0, dash: [3, 3])
+        // Diamond quilted seams & center linen button tuft
+        for sign in [CGFloat(1.0), CGFloat(-1.0)] {
+            ctx.stroke(
+                Path { path in
+                    path.move(to: CGPoint(x: softPos.x - puffR * 0.45, y: softPos.y - sign * puffR * 0.35))
+                    path.addLine(to: CGPoint(x: softPos.x + puffR * 0.45, y: softPos.y + sign * puffR * 0.35))
+                },
+                with: .color((dark ? Color(hex: 0x9BD2B4) : Color(hex: 0x5C8569)).opacity(0.42)),
+                style: StrokeStyle(lineWidth: 1.0, dash: [3, 3])
+            )
+        }
+        ctx.fill(
+            Path(ellipseIn: CGRect(x: softPos.x - 2.6, y: softPos.y - 2.2, width: 5.2, height: 4.4)),
+            with: .color(dark ? Color(hex: 0xB8DEC6) : Color(hex: 0x568265))
         )
 
         // Swatch 2: Fluted beechwood sensory roller/disc

@@ -3544,4 +3544,54 @@ final class LogicTests: XCTestCase {
         assertAX5Renders(YouView(path: .constant(NavigationPath())))
         assertAX5Renders(DataView())
     }
+
+    @MainActor
+    func testWallpaperAtelierIllustrationUpgradeSuite() {
+        // 1. All 46 bespoke scenes map to a valid biome and cover all 5 biomes
+        let mappedBiomes = Set(BespokeActivityID.allCases.map { BespokeActivitySceneRegistry.wallpaperBiome(for: $0) })
+        XCTAssertEqual(BespokeActivityID.allCases.count, 46)
+        XCTAssertEqual(mappedBiomes.count, WallpaperBiome.allCases.count)
+
+        // 2. All 6 collector wallpaper plates exist in bundle Art/art/ and match code lookup
+        XCTAssertEqual(ActivityWallpaperPlate.all.count, 6)
+        for plate in ActivityWallpaperPlate.all {
+            let loaded = ArtCache.shared.image(plate.filename, maxPixel: 512)
+            XCTAssertNotNil(loaded, "Missing bundled collector wallpaper plate: \(plate.filename)")
+            XCTAssertEqual(ActivityWallpaperPlate.plate(matching: plate.code).id, plate.id)
+        }
+        let fallbackPlate = ActivityWallpaperPlate.plate(matching: "A99")
+        XCTAssertTrue(ActivityWallpaperPlate.all.contains { $0.id == fallbackPlate.id })
+
+        // 3. Daylight Lock Screen, 4:3 Collector Print, Twilight Glaze & Sheet render cleanly
+        let sample = ActivityWallpaperPlate.all[0]
+        let lockImg = renderHostedSnapshot(
+            ActivityWallpaperPoster(
+                plate: sample,
+                format: .lockScreen,
+                eveningWarmth: false,
+                showMuseumPlaque: false,
+                targetSize: ActivityWallpaperFormat.lockScreen.previewSize,
+                maxPixel: 512
+            )
+        )
+        XCTAssertNotNil(lockImg.cgImage)
+
+        let printImg = renderHostedSnapshot(
+            ActivityWallpaperPoster(
+                plate: ActivityWallpaperPlate.all[4],
+                format: .galleryPrint,
+                eveningWarmth: true,
+                showMuseumPlaque: true,
+                targetSize: ActivityWallpaperFormat.galleryPrint.previewSize,
+                maxPixel: 512
+            )
+        )
+        XCTAssertNotNil(printImg.cgImage)
+
+        let sheetImg = renderHostedSnapshot(
+            ActivityWallpaperSheet(initialCode: "A19")
+                .environment(\.dynamicTypeSize, .accessibility3)
+        )
+        XCTAssertNotNil(sheetImg.cgImage)
+    }
 }

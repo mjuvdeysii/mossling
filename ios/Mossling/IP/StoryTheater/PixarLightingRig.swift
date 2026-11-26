@@ -116,9 +116,10 @@ struct PixarActorRenderer: View {
                             ShaderLibrary.pixarActorRimShade(
                                 .float2(lightDirection),
                                 .color(rimTint),
-                                .float(Float(dark ? 1.05 : 0.78))
+                                .float(Float(dark ? 1.08 : 0.84)),
+                                .float(Float(size))
                             ),
-                            maxSampleOffset: CGSize(width: 4, height: 4),
+                            maxSampleOffset: CGSize(width: 9, height: 9),
                             isEnabled: !compact && size >= 36
                         )
                 }
