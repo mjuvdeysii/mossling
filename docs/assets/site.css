@@ -875,9 +875,11 @@ a {
 /* Section II: Midnight OLED Interactive Night Care Lab */
 .night-stage {
   --lamp-rgb: 245, 184, 65;
+  --mx: 32%;
+  --my: 48%;
   padding: 96px 0;
   background:
-    radial-gradient(ellipse 68% 54% at 32% 48%, rgba(var(--lamp-rgb), 0.14), transparent 72%),
+    radial-gradient(ellipse 68% 54% at var(--mx) var(--my), rgba(var(--lamp-rgb), 0.16), transparent 72%),
     var(--night-bg);
   color: var(--night-ink);
   transition: background 0.35s ease;
@@ -3465,53 +3467,6 @@ a {
   text-decoration: underline;
 }
 
-/* Studio schematic (no store screenshot exists for this tab) */
-.studio-mock {
-  aspect-ratio: 440 / 956;
-  border-radius: 25px;
-  background: linear-gradient(180deg, #f7f8fb, #eef1f6);
-  padding: 34px 12px 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 7px;
-}
-
-.studio-mock-title {
-  text-align: center;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--ink);
-  margin-bottom: 6px;
-}
-
-.studio-mock-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  padding: 10px 10px;
-  border-radius: 12px;
-  background: #ffffff;
-  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.05);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--ink);
-}
-
-.studio-mock-row em {
-  font-style: normal;
-  font-weight: 500;
-  color: var(--accent);
-  white-space: nowrap;
-}
-
-.studio-mock-note {
-  margin-top: auto;
-  text-align: center;
-  font-size: 10px;
-  color: var(--ink-3);
-}
-
 @media (max-width: 1060px) {
   .tab-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -3687,3 +3642,464 @@ a {
 
 .tab-role { flex-basis: 100%; margin-top: -2px; }
 .tab-card-top { row-gap: 2px; }
+
+/* ==========================================================================
+   Edition IV · Flagship Craft, Duo Sprites, Toybox Dock, QR & 37-Bead Rail
+   ========================================================================== */
+
+/* Hero Matte 3D Character Duo Stage */
+.hero-duo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  margin-bottom: 18px;
+}
+
+.hero-duo .hero-icon {
+  margin-bottom: 0;
+}
+
+.duo-sprite {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 10px 18px rgba(11, 18, 32, 0.12));
+  transform-origin: center bottom;
+}
+
+.duo-moss {
+  animation: mossBreathe 2.6s ease-in-out infinite;
+}
+
+.duo-otto {
+  animation: ottoBreathe 3.8s ease-in-out infinite;
+}
+
+@keyframes mossBreathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-4px) scale(1.025); }
+}
+
+@keyframes ottoBreathe {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.018); }
+}
+
+/* Hero QR Popover */
+.hero-qr-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.btn-qr-pop {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 46px;
+  padding: 0 18px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--bg);
+  color: var(--ink);
+  font-size: var(--t-body);
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.18s ease, border-color 0.18s ease;
+}
+
+.btn-qr-pop:hover {
+  background: var(--surface);
+  border-color: var(--ink-2);
+}
+
+.hero-qr-pop {
+  position: absolute;
+  top: calc(100% + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: 196px;
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(18px);
+  -webkit-backdrop-filter: blur(18px);
+  border: 1px solid var(--line-strong);
+  box-shadow: 0 24px 48px -12px rgba(11, 18, 32, 0.24);
+  z-index: 300;
+  text-align: center;
+}
+
+.hero-qr-pop[hidden] {
+  display: none;
+}
+
+.qr-box-sm {
+  width: 140px;
+  height: 140px;
+  margin: 0 auto 10px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 14px;
+  border: 1px solid var(--line);
+}
+
+.qr-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.hero-qr-pop p {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  font-weight: 500;
+}
+
+/* Section V-B: Compact 5-Studio Sensory Toybox Dock inside #daily-tracking */
+.toybox-dock {
+  margin-top: 44px;
+  padding: 36px;
+  border-radius: var(--radius-xl);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  box-shadow: var(--card-shadow);
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+  gap: 36px;
+  align-items: center;
+}
+
+.toybox-kicker {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--accent);
+}
+
+.toybox-copy h3 {
+  margin: 0;
+  font-size: clamp(22px, 2.5vw, 28px);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.toybox-copy > p:not(.toybox-kicker) {
+  margin: 12px 0 0;
+  font-size: 15.5px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+
+.toybox-pills {
+  margin-top: 22px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.toybox-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: #ffffff;
+  border: 1px solid var(--line);
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.toy-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.toy-dot.tint-teal { background: var(--accent); }
+.toy-dot.tint-amber { background: var(--amber); }
+.toy-dot.tint-cobalt { background: var(--cobalt); }
+.toy-dot.tint-coral { background: var(--candle); }
+
+.toybox-phone-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.toybox-phone-col .iphone-frame {
+  max-width: 248px;
+}
+
+/* Section VIII-B: Craft Notes Editorial Band */
+.craft-section {
+  padding: 96px 0;
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 18%, rgba(8, 127, 117, 0.14), transparent 68%),
+    linear-gradient(180deg, #0b1220 0%, #0e162a 100%);
+  color: var(--night-ink);
+}
+
+.craft-section .sec-head p:not(.chapter-tag) {
+  color: var(--night-ink-2);
+}
+
+.craft-section .sec-head .craft-tag {
+  background: rgba(245, 184, 65, 0.14);
+  color: #fde6b1;
+}
+
+.craft-section .sec-head .craft-tag .chapter-num {
+  background: var(--amber);
+  color: #0b1220;
+}
+
+.craft-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--card-gap);
+}
+
+.craft-card {
+  background: #141e36;
+  border: 1px solid var(--night-line);
+  border-radius: var(--card-radius);
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.craft-spec {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: rgba(8, 127, 117, 0.22);
+  color: #7be8dd;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.craft-card h3 {
+  margin: 2px 0 0;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--night-ink);
+}
+
+.craft-card p {
+  margin: 0;
+  font-size: 14.5px;
+  line-height: 1.65;
+  color: #c2cde2;
+}
+
+.craft-link {
+  margin-top: auto;
+  padding-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #7be8dd;
+  align-self: flex-start;
+}
+
+.craft-link:hover {
+  color: #ffffff;
+}
+
+/* Closing Section QR Block */
+.closing-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 18px;
+}
+
+.closing-qr-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--night-line);
+}
+
+.closing-qr-box {
+  width: 96px;
+  height: 96px;
+  padding: 5px;
+  border-radius: 10px;
+  background: #ffffff;
+}
+
+.closing-qr-note {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--night-ink-2);
+}
+
+.closing-btn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Desktop 37-Bead Scroll Rail (Hidden <1280px) */
+.bead-rail {
+  display: none;
+}
+
+@media (min-width: 1280px) {
+  .bead-rail {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 160;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    padding: 10px 6px;
+    border-radius: var(--radius-pill);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid var(--line);
+  }
+
+  .bead-dot.minor {
+    width: 3px;
+    height: 3px;
+    border-radius: 50%;
+    background: rgba(11, 18, 32, 0.16);
+  }
+
+  .bead-dot.major {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(11, 18, 32, 0.25);
+    transition: transform 0.2s ease, background-color 0.2s ease;
+  }
+
+  .bead-dot.major.passed {
+    background: rgba(8, 127, 117, 0.55);
+  }
+
+  .bead-dot.major.active {
+    background: var(--accent);
+    transform: scale(1.45);
+    box-shadow: 0 0 0 3px rgba(8, 127, 117, 0.18);
+  }
+}
+
+/* Dynamic-Island Floating Conversion Pill */
+.floating-pill {
+  position: fixed;
+  left: 50%;
+  bottom: max(18px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 16px);
+  z-index: 180;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 6px 6px 16px;
+  border-radius: var(--radius-pill);
+  background: rgba(11, 18, 32, 0.90);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 18px 40px -10px rgba(0, 0, 0, 0.35);
+  color: #f4f7fc;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.floating-pill.visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translate(-50%, 0);
+}
+
+.pill-pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 0 4px rgba(245, 184, 65, 0.20);
+  flex-shrink: 0;
+}
+
+.pill-stage-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #e2e8f0;
+  white-space: nowrap;
+}
+
+.pill-cta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.18s ease;
+}
+
+.pill-cta:hover {
+  background: var(--accent-hover);
+}
+
+@media (max-width: 860px) {
+  .toybox-dock {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 24px;
+    gap: 28px;
+  }
+
+  .craft-section {
+    padding: 68px 0;
+  }
+
+  .craft-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .hero-duo { gap: 12px; }
+  .duo-moss { width: 54px; height: 54px; }
+  .duo-otto { width: 50px; height: 50px; }
+  .hero-qr-pop { left: auto; right: 0; transform: none; }
+  .floating-pill { padding: 5px 5px 5px 12px; gap: 10px; max-width: calc(100vw - 24px); }
+  .pill-stage-text { font-size: 12px; max-width: 145px; overflow: hidden; text-overflow: ellipsis; }
+  .closing-btn-stack { width: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .duo-moss,
+  .duo-otto {
+    animation: none !important;
+  }
+}
