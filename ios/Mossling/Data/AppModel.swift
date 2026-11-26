@@ -140,6 +140,26 @@ final class AppModel {
     }
     var lampWarmthRaw: String { didSet { d.set(lampWarmthRaw, forKey: "lampWarmthRaw") } }
     var lampBreathingGuide: Bool { didSet { d.set(lampBreathingGuide, forKey: "lampBreathingGuide") } }
+    /// Optional gestational age at birth in completed weeks (24–36 triggers corrected age up to 24 months).
+    var gestationalWeeks: Int? {
+        didSet {
+            if let gestationalWeeks {
+                d.set(gestationalWeeks, forKey: "gestationalWeeks")
+            } else {
+                d.removeObject(forKey: "gestationalWeeks")
+            }
+        }
+    }
+    /// Care modules gently tucked away as the child grows out of high-frequency logging.
+    var graduatedModules: Set<String> { didSet { d.set(Array(graduatedModules).sorted(), forKey: "graduatedModules") } }
+    /// Graduation hints explicitly declined by the caregiver so the app stops asking.
+    var dismissedGraduations: Set<String> { didSet { d.set(Array(dismissedGraduations).sorted(), forKey: "dismissedGraduations") } }
+    /// Temporary Care Mode toggle (e.g. fever or illness) temporarily re-surfacing quick care tools.
+    var careModeActive: Bool { didSet { d.set(careModeActive, forKey: "careModeActive") } }
+    /// Gentle three-state observation selections keyed cleanly alongside `ticks`.
+    private(set) var observationStates: [String: ObservationState] {
+        didSet { d.set(try? JSONEncoder().encode(observationStates), forKey: "observationStates") }
+    }
     /// Tracks active BedsideLampView presentations across any tab/timer/deep-link so TactileEngine stays strictly silent.
     var bedsideLampPresentedCount: Int = 0
     var isBedsideLampOpen: Bool { bedsideLampPresentedCount > 0 }
@@ -178,24 +198,95 @@ final class AppModel {
         lampBrightness = max(0.15, min(1.0, storedLampBrightness))
         lampWarmthRaw = d.string(forKey: "lampWarmthRaw") ?? "amber"
         lampBreathingGuide = d.bool(forKey: "lampBreathingGuide")
+        gestationalWeeks = (d.object(forKey: "gestationalWeeks") as? NSNumber)?.intValue
+        graduatedModules = Set(d.stringArray(forKey: "graduatedModules") ?? [])
+        dismissedGraduations = Set(d.stringArray(forKey: "dismissedGraduations") ?? [])
+        careModeActive = d.bool(forKey: "careModeActive")
+        observationStates = (d.data(forKey: "observationStates")).flatMap {
+            try? JSONDecoder().decode([String: ObservationState].self, from: $0)
+        } ?? [:]
         session = d.string(forKey: "session") ?? ""
         let list = (d.data(forKey: "ticks")).flatMap { try? JSONDecoder().decode([Tick].self, from: $0) } ?? []
         ticks = Dictionary(list.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a })
     }
 
-    var age: Age? { birth.map { Age.on(birth: $0, today: today) } }
+    var actualAge: Age? { birth.map { Age.on(birth: $0, today: today) } }
+    var correctedAge: Age? { birth.flatMap { Age.corrected(birth: $0, gestationalWeeks: gestationalWeeks, today: today) } }
+    var isUsingCorrectedAge: Bool { correctedAge != nil }
+    var developmentalBirth: Day? {
+        guard let birth else { return nil }
+        return isUsingCorrectedAge ? Age.correctedBirth(birth: birth, gestationalWeeks: gestationalWeeks) : birth
+    }
+    var age: Age? { isUsingCorrectedAge ? correctedAge : actualAge }
     var babyMonth: Int? { age?.bookMonth }
+    var currentGear: CareGear {
+        CareGearEngine.resolve(developmentalMonth: babyMonth ?? 0, graduatedModules: graduatedModules)
+    }
     var girl: Bool { sex == "girl" }
     /// The child, in a sentence: 她 or 他 when the parent has said, 孩子 until then.
     var ta: String { sex == "girl" ? "她" : sex == "boy" ? "他" : "孩子" }
     var drawsGirl: Bool { (look ?? (sex == "girl" ? "girl" : "boy")) == "girl" }
+
+    func observationState(_ m: Int, _ id: String) -> ObservationState {
+        let k = tickKey(m, TickKind.observed, id)
+        if let state = observationStates[k] {
+            return state
+        }
+        return ticks[k] != nil ? .observed : .notYet
+    }
+
+    func setObservationState(_ m: Int, _ id: String, _ label: String, to state: ObservationState) {
+        let k = tickKey(m, TickKind.observed, id)
+        switch state {
+        case .notYet:
+            ticks[k] = nil
+            observationStates[k] = nil
+        case .observed:
+            guard mayKeep() else { return }
+            if ticks[k] == nil {
+                ticks[k] = Tick(key: k, month: m, kind: TickKind.observed, label: label, at: Date().timeIntervalSince1970 * 1000)
+            }
+            observationStates[k] = .observed
+        case .askDoctor:
+            guard mayKeep() else { return }
+            ticks[k] = nil
+            observationStates[k] = .askDoctor
+        }
+    }
+
+    /// Resolves caregiver-flagged "Ask Doctor" items into human-readable labels for the clinic visit snapshot.
+    func askDoctorObservations() -> [(month: Int, label: String)] {
+        observationStates
+            .filter { $0.value == .askDoctor }
+            .compactMap { key, _ -> (month: Int, label: String)? in
+                let parts = key.split(separator: ":", maxSplits: 2).map(String.init)
+                guard parts.count == 3, parts[1] == TickKind.observed, let mo = Int(parts[0]) else { return nil }
+                let idxParts = parts[2].split(separator: "-").compactMap { Int($0) }
+                let groups = content.month(mo).observe
+                if idxParts.count == 2,
+                   idxParts[0] >= 0, idxParts[0] < groups.count,
+                   idxParts[1] >= 0, idxParts[1] < groups[idxParts[0]].items.count {
+                    return (mo, groups[idxParts[0]].items[idxParts[1]])
+                }
+                return (mo, parts[2])
+            }
+            .sorted { $0.month != $1.month ? $0.month < $1.month : $0.label < $1.label }
+    }
 
     func ticked(_ m: Int, _ kind: String, _ id: String) -> Bool { ticks[tickKey(m, kind, id)] != nil }
     func toggle(_ m: Int, _ kind: String, _ id: String, _ label: String) {
         let k = tickKey(m, kind, id)
         // a tick is the child's own record (a vaccine given, a check-up done, a milestone seen): kept only with consent;
         // taking one off is always allowed
-        if ticks[k] != nil { ticks[k] = nil } else if !mayKeep() { return } else { ticks[k] = Tick(key: k, month: m, kind: kind, label: label, at: Date().timeIntervalSince1970 * 1000) }
+        if ticks[k] != nil {
+            ticks[k] = nil
+            if kind == TickKind.observed { observationStates[k] = nil }
+        } else if !mayKeep() {
+            return
+        } else {
+            ticks[k] = Tick(key: k, month: m, kind: kind, label: label, at: Date().timeIntervalSince1970 * 1000)
+            if kind == TickKind.observed { observationStates[k] = .observed }
+        }
     }
     func count(_ m: Int, _ kind: String) -> Int { ticks.values.filter { $0.month == m && $0.kind == kind }.count }
 
@@ -221,6 +312,7 @@ final class AppModel {
     func finishPlaying() { session = "" }
 
     func replaceTicks(_ l: [Tick]) { ticks = Dictionary(l.map { ($0.key, $0) }, uniquingKeysWith: { a, _ in a }) }
+    func replaceObservationStates(_ map: [String: ObservationState]) { observationStates = map }
 
     /// Adopts a play swapped directly on a Home Screen widget today so opening the app never resets it.
     func syncWidgetPick() {
@@ -250,7 +342,8 @@ final class AppModel {
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
-                  "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "lampBrightness", "lampWarmthRaw", "lampBreathingGuide", "mapSeenMonth"] { d.removeObject(forKey: k) }
+                  "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "lampBrightness", "lampWarmthRaw", "lampBreathingGuide", "mapSeenMonth",
+                  "gestationalWeeks", "graduatedModules", "dismissedGraduations", "careModeActive", "observationStates"] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
         // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
@@ -272,6 +365,7 @@ final class AppModel {
         birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
         theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
         lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
+        gestationalWeeks = nil; graduatedModules = []; dismissedGraduations = []; careModeActive = false; observationStates = [:]
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

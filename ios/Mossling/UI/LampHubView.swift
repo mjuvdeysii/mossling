@@ -30,6 +30,8 @@ struct LampHubView: View {
     @State private var expandAllChapters = false
     @State private var editing: LogEntry?
     @State private var quickNight3AM: Bool
+    @State private var ledgerFilter: String? = nil
+    @State private var lampCardExpanded = false
 
     init(
         path: Binding<NavigationPath>,
@@ -64,6 +66,23 @@ struct LampHubView: View {
             expandedPeriods = []
             touchedPeriods = false
             expandAllChapters = false
+            ledgerFilter = nil
+        }
+    }
+
+    private func toggleLedgerFilter(_ key: String?) {
+        TactileEngine.shared.beadClick()
+        withAnimation(reduce ? nil : .snappy) {
+            if let key {
+                if ledgerFilter == key {
+                    ledgerFilter = nil
+                } else {
+                    ledgerFilter = key
+                    ledgerExpanded = true
+                }
+            } else {
+                ledgerFilter = nil
+            }
         }
     }
 
@@ -96,8 +115,6 @@ struct LampHubView: View {
                 if is3AMOled {
                     midnightOneHandSanctuary(day: activeDay)
                 } else {
-                    ottoLampHeroCard(dark: effectiveDark)
-
                     if app.journal && !j.timers.isEmpty {
                         ForEach(j.timers, id: \.type) { t in
                             RunningRow(timer: t)
@@ -105,6 +122,8 @@ struct LampHubView: View {
                     }
 
                     if app.journal {
+                        quietCareStrip(day: activeDay, isToday: isToday, dark: effectiveDark)
+
                         rhythmCollectionCard(
                             day: activeDay,
                             isToday: isToday,
@@ -115,15 +134,16 @@ struct LampHubView: View {
                             dark: effectiveDark
                         )
 
-                        quietCareStrip(day: activeDay, isToday: isToday, dark: effectiveDark)
-
                         todayLedgerDrawer(
                             day: activeDay,
                             dayLogs: dayLogs,
                             entryCount: entryCount,
                             dark: effectiveDark
                         )
+
+                        ottoLampSection(dark: effectiveDark)
                     } else {
+                        ottoLampSection(dark: effectiveDark)
                         enableJournalInvitation(dark: effectiveDark)
                     }
                 }
@@ -528,7 +548,75 @@ struct LampHubView: View {
         )
     }
 
-    // MARK: - Section 1: Hero Otto Bedside Lamp Stage
+    // MARK: - Section 1: Context-Adaptive Otto Bedside Lamp Stage
+
+    @ViewBuilder
+    private func ottoLampSection(dark: Bool) -> some View {
+        if dark || soundscape.isPlaying || lampCardExpanded {
+            ottoLampHeroCard(dark: dark)
+        } else {
+            ottoCompactLampBar(dark: dark)
+        }
+    }
+
+    private func ottoCompactLampBar(dark: Bool) -> some View {
+        let brightness = max(0.15, min(1.0, app.lampBrightness))
+        return HStack(spacing: 12) {
+            ottoLivingStage(brightness: brightness, playing: false)
+                .frame(width: 44, height: 44)
+                .contentShape(Circle())
+                .onTapGesture { openBedsideLamp() }
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(L10n.t("Otto 床头夜灯 · 按需展开", "Otto's Bedside Lamp"))
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(Palette.lampInk)
+                    .lineLimit(1)
+                Text(L10n.t("\(warmth.label) \(Int(brightness * 100))% · 6 组离线助眠声景", "\(warmth.label) \(Int(brightness * 100))% · 6 offline soundscapes"))
+                    .font(.caption)
+                    .foregroundStyle(Palette.lampInk.opacity(0.75))
+                    .lineLimit(1)
+            }
+            Spacer(minLength: 4)
+
+            Button {
+                openBedsideLamp()
+            } label: {
+                Image(systemName: "lamp.desk.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(warmth.onPrimaryInk)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(warmth.primaryGlow))
+            }
+            .buttonStyle(.toy)
+            .accessibilityLabel(L10n.t("打开全屏夜灯", "Open fullscreen bedside lamp"))
+
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(reduce ? nil : .snappy) { lampCardExpanded = true }
+            } label: {
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.lampInk.opacity(0.85))
+                    .frame(width: 28, height: 28)
+                    .background(Circle().fill(Color.white.opacity(0.14)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t("展开夜灯与声景面板", "Expand bedside lamp controls"))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(LinearGradient(colors: [Color(hex: 0x161E3B), Color(hex: 0x0D1328)], startPoint: .topLeading, endPoint: .bottomTrailing))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .strokeBorder(warmth.primaryGlow.opacity(0.22), lineWidth: 0.8)
+        )
+        .onScrollVisibilityChange(threshold: 0.05) { heroOnScreen = $0 }
+    }
 
     private func ottoLampHeroCard(dark: Bool) -> some View {
         let midnight = app.journal ? MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: Date()) : nil
@@ -609,6 +697,20 @@ struct LampHubView: View {
                     .padding(.top, 2)
                 }
                 Spacer(minLength: 0)
+                if !dark && !soundscape.isPlaying && lampCardExpanded {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) { lampCardExpanded = false }
+                    } label: {
+                        Image(systemName: "chevron.up")
+                            .font(.caption2.weight(.bold))
+                            .foregroundStyle(Palette.lampInk.opacity(0.78))
+                            .frame(width: 26, height: 26)
+                            .background(Circle().fill(Color.white.opacity(0.12)))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.t("收起夜灯面板", "Collapse bedside lamp"))
+                }
             }
 
             // Shared brightness & warmth tint controls synced directly with AppModel & BedsideLampView
@@ -801,10 +903,10 @@ struct LampHubView: View {
                         .font(.headline.weight(.semibold))
                         .tracking(LayoutSpec.titleTracking)
                         .foregroundStyle(.primary)
-                    Text(L10n.t("睡眠 · 喂奶 · 尿布，一眼看清", "Sleep, feeds and diapers in one look"))
+                    Text(L10n.t("睡眠 · 喂奶 · 尿布，一眼看清", "Feeds, sleep & diapers"))
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(type.isAccessibilitySize ? 3 : 1)
+                    .lineLimit(type.isAccessibilitySize ? 3 : 2)
                 }
                 Spacer(minLength: 4)
 
@@ -851,9 +953,18 @@ struct LampHubView: View {
                 }
             }
 
-            DaySummaryTiles(day: day, logs: dayLogs, feedCount: feedCount, sleepSec: sleepSec, diaperCount: diaperCount, dark: dark)
+            DaySummaryTiles(
+                day: day,
+                logs: dayLogs,
+                feedCount: feedCount,
+                sleepSec: sleepSec,
+                diaperCount: diaperCount,
+                dark: dark,
+                selectedFilter: ledgerFilter,
+                onSelectFilter: { toggleLedgerFilter($0) }
+            )
 
-            DaySwimlaneCanvas(day: day, logs: dayLogs, timers: isToday ? j.timers : [], dark: dark)
+            DaySwimlaneCanvas(day: day, logs: dayLogs, timers: isToday ? j.timers : [], only: ledgerFilter, dark: dark)
                 .allowsHitTesting(false)
 
             if type.isAccessibilitySize {
@@ -915,19 +1026,57 @@ struct LampHubView: View {
     // MARK: - Section 3: Low-Priority Quiet Care Strip & Collapsible Ledger
 
     private func quietCareStrip(day: Day, isToday: Bool, dark: Bool) -> some View {
-        let primaryTypes = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
+        let diaperGraduated = app.graduatedModules.contains(CareGearEngine.diaperModule) && !app.careModeActive
+        let primaryTypes = diaperGraduated
+            ? [LogType.nurse, LogType.bottle, LogType.sleep]
+            : [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
         let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) && $0 != LogType.growth }
+        let hint = isToday
+            ? CareGearEngine.suggestedGraduation(
+                developmentalMonth: app.babyMonth ?? 0,
+                logs: j.logs,
+                graduatedModules: app.graduatedModules,
+                dismissedModules: app.dismissedGraduations,
+                today: app.today
+            )
+            : nil
 
         return VStack(alignment: .leading, spacing: 12) {
-            HStack {
+            HStack(spacing: 8) {
                 Text(isToday ? L10n.t("随手轻记", "Quiet Log") : L10n.t("补记 \(day.md)", "Log to \(day.md)"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
+                if !app.graduatedModules.isEmpty || app.careModeActive {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(reduce ? nil : .snappy) { app.careModeActive.toggle() }
+                    } label: {
+                        Label(L10n.t("照护模式", "Care Mode"), systemImage: app.careModeActive ? "cross.case.fill" : "cross.case")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(app.careModeActive ? .white : Palette.secondaryText)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(app.careModeActive ? Crayon.teal : Palette.fill))
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(app.currentGear.title)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(1)
+                }
                 Spacer()
                 Menu {
                     ForEach(extraTypes, id: \.self) { t in
                         Button(LogType.name(t), systemImage: LogType.symbol(t)) {
                             handleTap(t, day: day, isToday: isToday)
+                        }
+                    }
+                    if !app.graduatedModules.isEmpty {
+                        Divider()
+                        Button(L10n.t("恢复全部快捷按钮", "Restore All Quick Buttons"), systemImage: "arrow.uturn.backward") {
+                            app.graduatedModules = []
+                            app.careModeActive = false
                         }
                     }
                 } label: {
@@ -939,7 +1088,7 @@ struct LampHubView: View {
 
             let cols = type.isAccessibilitySize
                 ? [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-                : Array(repeating: GridItem(.flexible(), spacing: 10), count: 4)
+                : Array(repeating: GridItem(.flexible(), spacing: 10), count: primaryTypes.count)
 
             LazyVGrid(columns: cols, spacing: 10) {
                 ForEach(primaryTypes, id: \.self) { t in
@@ -962,6 +1111,38 @@ struct LampHubView: View {
                     .buttonStyle(.toy)
                 }
             }
+
+            if let hint {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(hint.title)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                    Text(hint.message)
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(spacing: 8) {
+                        Button(hint.confirmLabel) {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                _ = app.graduatedModules.insert(hint.moduleKey)
+                            }
+                        }
+                        .buttonStyle(.vinyl(Crayon.teal))
+                        Button(L10n.t("先留着", "Keep")) {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) {
+                                _ = app.dismissedGraduations.insert(hint.moduleKey)
+                            }
+                        }
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(Palette.secondaryText)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.fill.opacity(0.65)))
+            }
         }
         .padding(LayoutSpec.cardPad)
         .printCard(radius: Radius.card)
@@ -969,6 +1150,14 @@ struct LampHubView: View {
 
     private func todayLedgerDrawer(day: Day, dayLogs: [LogEntry], entryCount: Int, dark: Bool) -> some View {
         let isToday = day == app.today
+        let categories = LampHubFilter.availableCategories(in: dayLogs, on: day)
+        let activeFilter: String? = {
+            guard let f = ledgerFilter else { return nil }
+            return LampHubFilter.filter(dayLogs, by: f).isEmpty ? nil : f
+        }()
+        let filteredLogs = LampHubFilter.filter(dayLogs, by: activeFilter)
+        let displayedCount = filteredLogs.rows().count
+
         return VStack(spacing: 0) {
             CalmAccordion(isExpanded: $ledgerExpanded, spacing: 10) { open in
                 HStack(spacing: LayoutSpec.iconTextGap) {
@@ -977,12 +1166,21 @@ struct LampHubView: View {
                         Text(isToday ? L10n.t("今日明细手账", "Today's Entries") : L10n.t("\(day.md) 明细手账", "\(day.md) Entries"))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
-                        Text(entryCount == 0
-                             ? L10n.t("尚无条目，轻点展开或补记", "No entries yet · tap to add")
-                             : L10n.t("共 \(entryCount) 条 · 轻点展开明细", "\(entryCount) entries · tap to expand"))
-                            .font(.footnote)
-                            .foregroundStyle(Palette.secondaryText)
-                            .lineLimit(type.isAccessibilitySize ? nil : 1)
+                        Text(
+                            activeFilter.map {
+                                L10n.t(
+                                    "已单独显示「\(LampHubFilter.categoryTitle(for: $0))」· \(displayedCount) 条",
+                                    "Showing \(LampHubFilter.categoryTitle(for: $0)) · \(displayedCount)"
+                                )
+                            } ?? (
+                                entryCount == 0
+                                    ? L10n.t("尚无条目，轻点展开或补记", "No entries yet · tap to add")
+                                    : L10n.t("共 \(entryCount) 条 · 轻点展开或点上方卡片筛一列", "\(entryCount) entries · tap tile above to filter")
+                            )
+                        )
+                        .font(.footnote)
+                        .foregroundStyle(activeFilter == nil ? Palette.secondaryText : Palette.accent)
+                        .lineLimit(type.isAccessibilitySize ? nil : 1)
                     }
                     Spacer(minLength: 4)
                     Image(systemName: "chevron.down")
@@ -992,12 +1190,52 @@ struct LampHubView: View {
                 }
             } content: {
                 VStack(alignment: .leading, spacing: 10) {
-                    if !dayLogs.isEmpty {
+                    if !categories.isEmpty {
+                        FlowRow(spacing: 6, lineSpacing: 6) {
+                            let allOn = activeFilter == nil
+                            Button {
+                                toggleLedgerFilter(nil)
+                            } label: {
+                                Text(L10n.t("全部 \(entryCount)", "All \(entryCount)"))
+                                    .font(.caption.weight(allOn ? .bold : .medium))
+                                    .foregroundStyle(allOn ? .white : .primary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Capsule().fill(allOn ? Palette.accentFill : Palette.fill))
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityAddTraits(allOn ? .isSelected : [])
+
+                            ForEach(categories) { cat in
+                                let on = (activeFilter == cat.key)
+                                let tint = LogType.color(JournalKinds.type(cat.key))
+                                Button {
+                                    toggleLedgerFilter(cat.key)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Circle()
+                                            .fill(on ? Color.white : tint)
+                                            .frame(width: 6, height: 6)
+                                        Text("\(cat.title) \(cat.count)")
+                                            .font(.caption.weight(on ? .bold : .medium))
+                                    }
+                                    .foregroundStyle(on ? .white : .primary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 5)
+                                    .background(Capsule().fill(on ? tint : tint.opacity(dark ? 0.16 : 0.10)))
+                                }
+                                .buttonStyle(.plain)
+                                .accessibilityAddTraits(on ? .isSelected : [])
+                            }
+                        }
+                    }
+
+                    if !filteredLogs.isEmpty {
                         DayChapterLedger(
                             day: day,
                             today: app.today,
-                            logs: dayLogs,
-                            only: nil,
+                            logs: filteredLogs,
+                            only: activeFilter,
                             expandedPeriods: $expandedPeriods,
                             touchedPeriods: $touchedPeriods,
                             expandAll: $expandAllChapters,
@@ -1096,6 +1334,8 @@ struct DaySummaryTiles: View {
     let sleepSec: Double
     let diaperCount: Int
     let dark: Bool
+    var selectedFilter: String? = nil
+    var onSelectFilter: ((String?) -> Void)? = nil
     @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
@@ -1128,21 +1368,23 @@ struct DaySummaryTiles: View {
             ? AnyLayout(VStackLayout(spacing: 10))
             : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
         layout {
-            tile(color: LogType.color(LogType.nurse), symbol: LogType.symbol(LogType.nurse),
+            tile(filterKey: LampHubFilter.feedKey,
+                 color: LogType.color(LogType.nurse), symbol: LogType.symbol(LogType.nurse),
                  title: L10n.t("喂奶", "Feeds"),
                  value: "\(feedCount)", unit: L10n.t("次", feedCount == 1 ? "feed" : "feeds"),
                  lines: feedLines)
-            tile(color: LogType.color(LogType.sleep), symbol: LogType.symbol(LogType.sleep),
+            tile(filterKey: LogType.sleep,
+                 color: LogType.color(LogType.sleep), symbol: LogType.symbol(LogType.sleep),
                  title: L10n.t("睡眠", "Sleep"),
                  value: hoursValue(sleepSec), unit: "",
                  lines: sleepLines)
-            tile(color: LogType.color(LogType.diaper), symbol: LogType.symbol(LogType.diaper),
+            tile(filterKey: LogType.diaper,
+                 color: LogType.color(LogType.diaper), symbol: LogType.symbol(LogType.diaper),
                  title: L10n.t("尿布", "Diapers"),
                  value: "\(diaperCount)", unit: L10n.t("片", ""),
                  lines: diaperLines)
         }
         .fixedSize(horizontal: false, vertical: true)
-        .accessibilityElement(children: .combine)
     }
 
     /// "12时41分" / "24分" — compact whole hours & minutes so sublines never wrap mid-unit.
@@ -1154,13 +1396,23 @@ struct DaySummaryTiles: View {
         return L10n.t("\(h)时\(r)分", "\(h)h \(r)m")
     }
 
-    private func tile(color c: Color, symbol: String, title: String, value: String, unit: String, lines: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Label(title, systemImage: symbol)
-                .font(.footnote.weight(.semibold))
-                .foregroundStyle(Crayon.ink(c))
-                .labelStyle(.titleAndIcon)
-                .lineLimit(1)
+    @ViewBuilder
+    private func tile(filterKey: String, color c: Color, symbol: String, title: String, value: String, unit: String, lines: [String]) -> some View {
+        let isSelected = (selectedFilter == filterKey)
+        let card = VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 4) {
+                Label(title, systemImage: symbol)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Crayon.ink(c))
+                    .labelStyle(.titleAndIcon)
+                    .lineLimit(1)
+                if isSelected {
+                    Spacer(minLength: 2)
+                    Circle()
+                        .fill(Crayon.ink(c))
+                        .frame(width: 6, height: 6)
+                }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value)
                     .font(.system(.title2, design: .rounded).weight(.bold))
@@ -1187,11 +1439,23 @@ struct DaySummaryTiles: View {
         .frame(maxWidth: .infinity, minHeight: 112, maxHeight: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .fill(c.opacity(dark ? 0.20 : 0.14))
+                .fill(c.opacity(isSelected ? (dark ? 0.30 : 0.24) : (dark ? 0.20 : 0.14)))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .strokeBorder(c.opacity(dark ? 0.30 : 0.22), lineWidth: 0.6)
+                .strokeBorder(isSelected ? Crayon.ink(c) : c.opacity(dark ? 0.30 : 0.22), lineWidth: isSelected ? 1.8 : 0.6)
         )
+
+        if let onSelectFilter {
+            Button {
+                onSelectFilter(filterKey)
+            } label: {
+                card
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(isSelected ? .isSelected : [])
+        } else {
+            card
+        }
     }
 }

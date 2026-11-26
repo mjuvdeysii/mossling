@@ -35,7 +35,7 @@ struct GrowthView: View {
     }
 
     private func value(_ m: Measure, _ i: Indicator) -> Double? { Self.measureValue(m, i) }
-    private func months(_ m: Measure) -> Double? { app.birth.map { Double($0.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375 } }
+    private func months(_ m: Measure) -> Double? { app.developmentalBirth.map { Double($0.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375 } }
     private func pct(_ m: Measure, _ i: Indicator) -> Double? {
         guard app.sex != nil, let mo = months(m), mo >= 0, mo <= 36, let v = value(m, i), v > 0 else { return nil }
         let p = app.growth.percentile(i, girl: app.girl, months: mo, value: v)
@@ -113,7 +113,7 @@ struct GrowthView: View {
                             indicator: currentInd,
                             spanMonths: span,
                             measures: j.measures,
-                            birth: app.birth,
+                            birth: app.developmentalBirth,
                             growth: app.growth
                         )
                         let renderer = ImageRenderer(content: poster)
@@ -158,7 +158,19 @@ struct GrowthView: View {
                 if let l = lastM, let v = value(l, ind) {
                     VStack(alignment: .leading, spacing: 2) {
                         ValueText(parts: [(ind.fmt(v), ind.unit)], size: 34)
-                        if let p = pct(l, ind) { Text(pctText(p)).font(.subheadline).foregroundStyle(Palette.secondaryText) }
+                        if let p = pct(l, ind) {
+                            HStack(spacing: 6) {
+                                Text(pctText(p)).font(.subheadline).foregroundStyle(Palette.secondaryText)
+                                if app.isUsingCorrectedAge {
+                                    Text(L10n.t("已按矫正月龄校正", "Corrected age"))
+                                        .font(.caption2.weight(.semibold))
+                                        .foregroundStyle(Crayon.ink(Crayon.teal))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Capsule().fill(Crayon.teal.opacity(0.14)))
+                                }
+                            }
+                        }
                     }
                 } else {
                     Text(L10n.t("还没有\(ind.short)记录", "No \(ind.short.lowercased()) logged yet")).font(.subheadline).foregroundStyle(Palette.secondaryText)
@@ -284,8 +296,9 @@ struct GrowthView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(verbatim: d.ymd).font(.subheadline.weight(.semibold))
-                if let b = app.birth {
-                    Text(verbatim: Firsts.age(from: b, to: d))
+                if let b = app.developmentalBirth {
+                    let days = b.days(to: d)
+                    Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
                         .font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 4)
@@ -345,8 +358,9 @@ struct GrowthView: View {
                                 Text(verbatim: d.ymd)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
-                                if let b = app.birth {
-                                    Text(verbatim: Firsts.age(from: b, to: d))
+                                if let b = app.developmentalBirth {
+                                    let days = b.days(to: d)
+                                    Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(Palette.secondaryText)
                                         .padding(.horizontal, 7)

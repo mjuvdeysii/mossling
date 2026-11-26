@@ -166,10 +166,10 @@ enum Daylight {
 
 /// Scene duty phase decoupling late-night 3AM one-handed OLED speed logging from daytime cozy studio mode.
 enum CircadianDutyPhase {
-    /// Late-night window (21:00–05:59) when `LampHubView` defaults to true-black zero-glare one-tap care.
+    /// Deep-night window (00:00–04:59) when `LampHubView` defaults to true-black zero-glare one-tap care.
     static func isLateNight3AM(_ d: Date = Date()) -> Bool {
         let h = Day.cal.component(.hour, from: d)
-        return h >= 21 || h < 6
+        return h >= 0 && h < 5
     }
 }
 extension EnvironmentValues {

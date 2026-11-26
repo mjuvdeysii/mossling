@@ -68,10 +68,17 @@ extension LogEntry {
         if L10n.isEnglish { return detail == "breastmilk" ? "Breast milk" : detail == "formula" ? "Formula" : nil }
         return detail == "breastmilk" ? "母乳" : detail == "formula" ? "配方奶" : nil
     }
-    /// Time the timer was paused, as written by both apps in `detail` ("paused:<ms>").
+    /// Time the timer was paused, as written by both apps in `detail` ("paused:<ms>", optionally followed by ";new").
     var pausedSeconds: Double {
-        guard let d = detail, d.hasPrefix("paused:"), let ms = Double(d.dropFirst(7)) else { return 0 }
-        return max(0, ms / 1000)
+        guard let d = detail else { return 0 }
+        for part in d.split(separator: ";") where part.hasPrefix("paused:") {
+            if let ms = Double(part.dropFirst(7)) { return max(0, ms / 1000) }
+        }
+        return 0
+    }
+    /// Explicitly starts a fresh feed rather than auto-joining the previous feed within `Feed.join`.
+    var startsSeparateFeed: Bool {
+        detail?.split(separator: ";").contains("new") == true
     }
     /// How long it really lasted: from start to end, less any pause.
     var activeSeconds: Double {
@@ -116,7 +123,7 @@ extension Array where Element == LogEntry {
     func feeds() -> [Feed] {
         var out: [Feed] = []
         for e in filter({ $0.type == LogType.nurse || $0.type == LogType.bottle }).sorted(by: { $0.start < $1.start }) {
-            if e.type == LogType.nurse, let p = out.last?.entries.last, p.type == LogType.nurse, e.start - (p.end ?? p.start) <= Feed.join {
+            if e.type == LogType.nurse, !e.startsSeparateFeed, let p = out.last?.entries.last, p.type == LogType.nurse, e.start - (p.end ?? p.start) <= Feed.join {
                 out[out.count - 1].entries.append(e)
             } else {
                 out.append(Feed(entries: [e]))
@@ -227,6 +234,10 @@ struct RunningTimer: Codable, Hashable {
     var carried: Double = 0
     /// Pauses already taken on earlier sides of this feed (ms), so the screen can show the whole feed's pauses.
     var carriedPause: Double = 0
+    /// Entry IDs written by earlier `switchingSide` calls within this active timer so `discard` removes them atomically.
+    var sessionEntryIDs: [UUID] = []
+    /// Explicit user boundary set after discarding an accidental timer so the next feed will not stitch onto an earlier feed.
+    var detached: Bool = false
     /// This side so far, in seconds.
     func elapsed(_ now: Double) -> Double { ((pausedAt ?? now) - start - pausedTotal) / 1000 }
     /// The whole feed (or sleep) so far, in seconds.
@@ -236,10 +247,10 @@ struct RunningTimer: Codable, Hashable {
     /// All the pauses of the whole feed (or sleep) so far, in seconds, the one under way included.
     func paused(_ now: Double) -> Double { (carriedPause + pausedTotal + (pausedAt.map { now - $0 } ?? 0)) / 1000 }
 
-    enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried, carriedPause }
-    init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0, carriedPause: Double = 0) {
+    enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried, carriedPause, sessionEntryIDs, detached }
+    init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0, carriedPause: Double = 0, sessionEntryIDs: [UUID] = [], detached: Bool = false) {
         self.type = type; self.start = start; self.side = side; self.pausedAt = pausedAt; self.pausedTotal = pausedTotal; self.carried = carried
-        self.carriedPause = carriedPause
+        self.carriedPause = carriedPause; self.sessionEntryIDs = sessionEntryIDs; self.detached = detached
     }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
@@ -248,6 +259,8 @@ struct RunningTimer: Codable, Hashable {
         pausedTotal = try c.decodeIfPresent(Double.self, forKey: .pausedTotal) ?? 0
         carried = try c.decodeIfPresent(Double.self, forKey: .carried) ?? 0   // files written before this field
         carriedPause = try c.decodeIfPresent(Double.self, forKey: .carriedPause) ?? 0
+        sessionEntryIDs = try c.decodeIfPresent([UUID].self, forKey: .sessionEntryIDs) ?? []
+        detached = try c.decodeIfPresent(Bool.self, forKey: .detached) ?? false
     }
 }
 
@@ -540,6 +553,12 @@ enum JournalFile {
             return true
         }
     }
+    private static func nurseDetail(pausedMs: Double, separate: Bool) -> String? {
+        var tokens: [String] = []
+        if pausedMs > 0 { tokens.append("paused:\(Int(pausedMs))") }
+        if separate { tokens.append("new") }
+        return tokens.isEmpty ? nil : tokens.joined(separator: ";")
+    }
     static func switchingSide(_ b0: Body, _ type: String, now n: Double) -> Body {
         var b = b0
         guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
@@ -552,8 +571,18 @@ enum JournalFile {
             if let p = t.pausedAt { b.timers[i].pausedTotal += n - p; b.timers[i].pausedAt = nil }
             return b
         }
-        b.logs.append(LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: paused > 0 ? "paused:\(Int(paused))" : nil))
-        b.timers[i] = RunningTimer(type: type, start: n, side: other, carried: t.carried + t.elapsed(n) * 1000, carriedPause: t.carriedPause + paused)
+        let detail = nurseDetail(pausedMs: paused, separate: t.detached && t.sessionEntryIDs.isEmpty)
+        let entry = LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: detail)
+        b.logs.append(entry)
+        b.timers[i] = RunningTimer(
+            type: type,
+            start: n,
+            side: other,
+            carried: t.carried + t.elapsed(n) * 1000,
+            carriedPause: t.carriedPause + paused,
+            sessionEntryIDs: t.sessionEntryIDs + [entry.id],
+            detached: t.detached
+        )
         return b
     }
     @discardableResult static func shift(_ type: String, to start: Double) -> Body {
@@ -578,7 +607,10 @@ enum JournalFile {
         // the end is now, or a time chosen afterwards; ended while paused, the entry ends where the pause began
         let paused = t.pausedTotal
         let end = min(t.pausedAt ?? n, n)
-        b.logs.append(LogEntry(type: type, start: t.start, end: max(t.start + 60_000, end), side: t.side, detail: paused > 0 ? "paused:\(Int(paused))" : nil))
+        let detail = t.type == LogType.nurse
+            ? nurseDetail(pausedMs: paused, separate: t.detached && t.sessionEntryIDs.isEmpty)
+            : (paused > 0 ? "paused:\(Int(paused))" : nil)
+        b.logs.append(LogEntry(type: type, start: t.start, end: max(t.start + 60_000, end), side: t.side, detail: detail))
         return b
     }
     /// For a timer: how it stands against the one before — a feed against the start of the previous feed (breast or
@@ -594,10 +626,20 @@ enum JournalFile {
         }
         return nil
     }
+    /// Drops a running timer AND any intermediate side entries already recorded inside that same active session.
+    static func discarding(_ b0: Body, _ type: String) -> Body {
+        var b = b0
+        let ids = Set(b.timers.filter { $0.type == type }.flatMap(\.sessionEntryIDs))
+        if !ids.isEmpty {
+            b.logs.removeAll { ids.contains($0.id) }
+        }
+        b.timers.removeAll { $0.type == type }
+        return b
+    }
     @discardableResult static func discard(_ type: String) -> Body {
         applyMutation { b in
             guard b.timers.contains(where: { $0.type == type }) else { return false }
-            b.timers.removeAll { $0.type == type }
+            b = discarding(b, type)
             return true
         }
     }

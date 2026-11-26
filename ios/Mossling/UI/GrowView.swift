@@ -1102,6 +1102,7 @@ struct ObserveView: View {
     @Environment(\.lamp) private var lamp
     let month: Int
     @State private var selectedGroupIndex: Int? = nil
+    @State private var showingClinicSnapshot = false
 
     private func observeColor(for area: String) -> Color {
         let low = area.lowercased()
@@ -1117,7 +1118,7 @@ struct ObserveView: View {
         let mo = app.content.month(month)
         let obsTotal = mo.observe.reduce(0) { $0 + $1.items.count }
         let obsDone = mo.observe.enumerated().reduce(0) { acc, pair in
-            acc + pair.element.items.indices.filter { app.ticked(month, TickKind.observed, "\(pair.offset)-\($0)") }.count
+            acc + pair.element.items.indices.filter { app.observationState(month, "\(pair.offset)-\($0)") == .observed }.count
         }
         let shownIndices: [Int] = if let s = selectedGroupIndex, mo.observe.indices.contains(s) {
             [s]
@@ -1157,7 +1158,7 @@ struct ObserveView: View {
 
                             ForEach(Array(mo.observe.enumerated()), id: \.offset) { gi, g in
                                 let col = observeColor(for: g.area)
-                                let gDone = g.items.indices.filter { app.ticked(month, TickKind.observed, "\(gi)-\($0)") }.count
+                                let gDone = g.items.indices.filter { app.observationState(month, "\(gi)-\($0)") == .observed }.count
                                 let on = (selectedGroupIndex == gi)
                                 Button {
                                     withAnimation(.snappy) { selectedGroupIndex = (on ? nil : gi) }
@@ -1186,16 +1187,29 @@ struct ObserveView: View {
                     .printCard(radius: Radius.card)
                 }
 
-                // each area a list of ticks, as 接种与儿保: one line each, no tile stretched round a short line
+                WHOMotorSpectrumCard(
+                    currentMonth: app.age.map { Double($0.months) + Double($0.days) / 30.4375 },
+                    dark: dark
+                )
+
+                // each area a list of ticks, as 接种与儿保: three-state gentle observation rows
                 ForEach(shownIndices, id: \.self) { gi in
                     let g = mo.observe[gi]
                     let color = observeColor(for: g.area)
-                    let groupDone = g.items.indices.filter { app.ticked(month, TickKind.observed, "\(gi)-\($0)") }.count
+                    let groupDone = g.items.indices.filter { app.observationState(month, "\(gi)-\($0)") == .observed }.count
                     Box(title: g.area, detail: "\(groupDone) / \(g.items.count)") {
                         ForEach(Array(g.items.enumerated()), id: \.offset) { ii, t in
-                            let on = app.ticked(month, TickKind.observed, "\(gi)-\(ii)")
-                            CheckRow(text: t, on: on, accent: color, last: ii == g.items.count - 1) { app.toggle(month, TickKind.observed, "\(gi)-\(ii)", t) }
-                                .sensoryFeedback(.selection, trigger: on)
+                            let st = app.observationState(month, "\(gi)-\(ii)")
+                            ObservationStateRow(
+                                text: t,
+                                state: st,
+                                accent: color,
+                                dark: dark,
+                                last: ii == g.items.count - 1
+                            ) { nextState in
+                                app.setObservationState(month, "\(gi)-\(ii)", t, to: nextState)
+                            }
+                            .sensoryFeedback(.selection, trigger: st)
                         }
                     }
                 }
@@ -1219,5 +1233,18 @@ struct ObserveView: View {
         .pageBackground()
         .navigationTitle(L10n.t("可以留意", "What to Notice"))
         .navigationSubtitle(month == 0 ? L10n.t("出生", "Newborn") : L10n.t("满 \(month) 个月", month == 1 ? "1 month" : "\(month) months"))
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    showingClinicSnapshot = true
+                } label: {
+                    Label(L10n.t("诊室快照", "Clinic Snapshot"), systemImage: "doc.text.magnifyingglass")
+                }
+            }
+        }
+        .sheet(isPresented: $showingClinicSnapshot) {
+            ClinicSnapshotSheet()
+        }
     }
 }

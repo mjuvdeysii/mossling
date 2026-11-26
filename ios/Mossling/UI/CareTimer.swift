@@ -23,14 +23,31 @@ struct CareSessionRhythm: Equatable, Sendable {
         let dayStartMs = day.date.timeIntervalSince1970 * 1000
         if timer.type == LogType.nurse {
             let side = timer.side ?? "l"
-            let done = logs.feedSides(before: timer.start)
             let active = max(0, timer.elapsed(nowMs))
-            let left = (done["l"] ?? 0) + (side == "l" ? active : 0)
-            let right = (done["r"] ?? 0) + (side == "r" ? active : 0)
+            var left = side == "l" ? active : 0
+            var right = side == "r" ? active : 0
+
+            let sessionIDs = Set(timer.sessionEntryIDs)
+            if !sessionIDs.isEmpty {
+                for entry in logs where sessionIDs.contains(entry.id) {
+                    let s = entry.activeSeconds
+                    if entry.side == "l" { left += s }
+                    else if entry.side == "r" { right += s }
+                }
+            } else if !timer.detached && timer.carried > 0 {
+                let done = logs.feedSides(before: timer.start)
+                left += done["l"] ?? 0
+                right += done["r"] ?? 0
+            }
 
             let completedFeeds = logs.feeds()
             let priorFeeds = completedFeeds.filter { feed in
-                let isPartOfCurrent = !feed.isBottle
+                if !sessionIDs.isEmpty && !feed.entries.isEmpty && feed.entries.allSatisfy({ sessionIDs.contains($0.id) }) {
+                    return false
+                }
+                let isPartOfCurrent = !timer.detached
+                    && timer.carried > 0
+                    && !feed.isBottle
                     && feed.start < timer.start
                     && (feed.end.map { abs($0 - timer.start) <= Feed.join } ?? false)
                 return !isPartOfCurrent && feed.start < timer.start
@@ -429,7 +446,7 @@ struct TimerScreen: View {
                         j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900))
                     }
                     Divider()
-                    Button(L10n.t("不记这一次", "Discard timer"), systemImage: "xmark", role: .destructive) { j.discard(type) }
+                    Button(L10n.t("不记这一次", "Discard timer"), systemImage: "xmark", role: .destructive) { discardTimer() }
                 } label: { Image(systemName: "ellipsis") }.accessibilityLabel(L10n.t("更多", "More"))
             }
         }
@@ -472,6 +489,15 @@ struct TimerScreen: View {
         var tx = Transaction()
         tx.disablesAnimations = true
         withTransaction(tx) { j.stop(type, at: end) }
+        if j.focus == type { j.focus = nil }
+        dismiss()
+    }
+
+    private func discardTimer() {
+        TactileEngine.shared.beadClick()
+        var tx = Transaction()
+        tx.disablesAnimations = true
+        withTransaction(tx) { j.discard(type) }
         if j.focus == type { j.focus = nil }
         dismiss()
     }

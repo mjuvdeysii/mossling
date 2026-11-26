@@ -69,6 +69,7 @@ struct PlayView: View {
     /// What to watch for and when to stop is safety: open from the start, not folded away.
     @State private var during = true
     @State private var matMode = false
+    @State private var dimVeil = false
     /// The count when the page was opened: a count above it means this visit already recorded a time (by 记一次,
     /// the menu, or the last step) — derived from the records, not kept beside them.
     @State private var base: Int?
@@ -199,16 +200,62 @@ struct PlayView: View {
             before = rec.count == 0
             if base == nil { base = j.plays(play.code).count }
             if initialMatMode { matMode = true }
-            keepAwake(open < play.steps.count || matMode)
+            keepAwake(dimVeil || open < play.steps.count || matMode)
         }
         .onDisappear {
             stopAutoPlay()
             keepAwake(false)
         }
-        .onChange(of: open) { _, o in keepAwake(o < play.steps.count || matMode) }
+        .onChange(of: open) { _, o in keepAwake(dimVeil || o < play.steps.count || matMode) }
+        .onChange(of: dimVeil) { _, on in
+            if on { stopAutoPlay() }
+            keepAwake(on || open < play.steps.count || matMode)
+        }
         .onChange(of: matMode) { _, active in
             if active { stopAutoPlay() }
-            keepAwake(active || open < play.steps.count)
+            keepAwake(dimVeil || active || open < play.steps.count)
+        }
+        .safeAreaBar(edge: .bottom) {
+            if !dimVeil {
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(.easeInOut(duration: 0.25)) { dimVeil = true }
+                } label: {
+                    Label(L10n.t("去玩吧 · 熄屏陪伴", "Go Play · Dim Screen"), systemImage: "moon.zzz.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.vinyl(Crayon.teal))
+                .padding(.horizontal, 20)
+                .padding(.top, 6)
+                .padding(.bottom, 6)
+            }
+        }
+        .overlay {
+            if dimVeil {
+                ZStack {
+                    Color(hex: 0x050814).opacity(0.96).ignoresSafeArea()
+                    VStack(spacing: 16) {
+                        Image(systemName: "sparkles")
+                            .font(.system(size: 30, weight: .light))
+                            .foregroundStyle(Palette.bead.opacity(0.85))
+                        Text(L10n.t("放下手机，去陪宝宝摸索吧", "Put down the phone and play together"))
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(Color.white.opacity(0.90))
+                        Text(L10n.t("轻点屏幕任意处恢复卡片", "Tap anywhere to wake"))
+                            .font(.footnote)
+                            .foregroundStyle(Color.white.opacity(0.55))
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(32)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(.easeInOut(duration: 0.2)) { dimVeil = false }
+                }
+                .accessibilityLabel(L10n.t("熄屏陪伴幕帘，轻点恢复", "Dimmed play veil, tap to wake"))
+            }
         }
         .onChange(of: scrubPhase) { _, phase in
             if phase != nil { stopAutoPlay() }

@@ -933,7 +933,28 @@ struct ProfileSheet: View {
                     Picker(L10n.t("性别", "Sex"), selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
                         Text(L10n.t("不填", "Not set")).tag(""); Text(L10n.t("男孩", "Boy")).tag("boy"); Text(L10n.t("女孩", "Girl")).tag("girl")
                     }
-                } footer: { Text(L10n.t("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。", "Used only for WHO growth curves.")) }
+                    Picker(
+                        L10n.t("出生孕周", "Gestational Age"),
+                        selection: Binding(
+                            get: { app.gestationalWeeks ?? 0 },
+                            set: { app.gestationalWeeks = Age.isPreterm($0) ? $0 : nil }
+                        )
+                    ) {
+                        Text(L10n.t("足月（37 周及以上）", "Full term (37+ wks)")).tag(0)
+                        ForEach(Array((24...36).reversed()), id: \.self) { wk in
+                            Text(L10n.t("\(wk) 周（早产）", "\(wk) wks (Preterm)")).tag(wk)
+                        }
+                    }
+                } footer: {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.t("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。", "Used only for WHO growth curves."))
+                        if let gw = app.gestationalWeeks, Age.isPreterm(gw) {
+                            Text(L10n.t("按早产 \(gw) 周自动计算矫正月龄（截至 24 月龄前用于共玩推荐与 WHO 生长曲线评估）。", "Automatically applies AAP corrected age up to 24 months for play pacing and WHO growth curves (\(gw) wks)."))
+                        } else {
+                            Text(L10n.t("若宝宝为 37 周前早产，选择出生孕周后将自动双轨显示「矫正月龄」与「实际月龄」。", "If born before 37 weeks, selecting gestational age enables dual corrected and actual age tracking."))
+                        }
+                    }
+                }
             }
             .scrollContentBackground(.hidden)
             .pageBackground(tone: Crayon.lilac)

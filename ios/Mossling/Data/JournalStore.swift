@@ -37,6 +37,8 @@ final class JournalStore {
     @ObservationIgnored var onExternalChange: (() -> Void)?
     /// Counts the sleeps started, so Otto can answer one with his slow yawn (he knows that tiredness).
     private(set) var sleepsStarted = 0
+    /// Prevents a freshly started nursing timer from stitching onto an earlier feed right after the user discarded a mistaken timer.
+    @ObservationIgnored private var detachNextNurse = false
 
     init(preview: JournalFile.Body? = nil) {
         if preview == nil {
@@ -154,12 +156,14 @@ final class JournalStore {
     }
 
     func start(_ type: String, side: String? = nil, at: Date = Date(), openFocus: Bool = true) {
+        let detach = type == LogType.nurse && detachNextNurse
         switch JournalFile.mutate({ b in
             guard !b.timers.contains(where: { $0.type == type }) else { return false }
-            b.timers.append(RunningTimer(type: type, start: at.timeIntervalSince1970 * 1000, side: side))
+            b.timers.append(RunningTimer(type: type, start: at.timeIntervalSince1970 * 1000, side: side, detached: detach))
             return true
         }) {
         case let .saved(before, after):
+            if detach { detachNextNurse = false }
             changed(after)
             if openFocus { focus = type }
             if type == LogType.sleep { sleepsStarted &+= 1 }
@@ -224,10 +228,12 @@ final class JournalStore {
             failed(L10n.t("这次" + LogType.name(type), LogType.name(type)))
         }
     }
-    /// Drops a running timer; said back with 撤销, like every change that loses something.
+    /// Drops a running timer and any mid-session side logs from it; said back with 撤销.
     func discard(_ type: String) {
         // said only once it is really dropped (a failed save says so, with nothing to take back)
-        guard let before = edit({ $0.timers.removeAll { $0.type == type } }) else { return }
+        guard let before = edit({ $0 = JournalFile.discarding($0, type) }) else { return }
+        if type == LogType.nurse { detachNextNurse = true }
+        if focus == type { focus = nil }
         onEvent?(.timerEnded)
         say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before)
     }

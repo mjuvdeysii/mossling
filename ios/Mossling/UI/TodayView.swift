@@ -40,6 +40,7 @@ struct TodayView: View {
                     arrange: { arranging = true }
                 )
                 sensoryDiscoveryDock(dark: dark)
+                LampCardSpotlightCard(card: LampCardCatalog.spotlight(forMonth: baby, day: app.today), dark: dark)
                 if baby >= 36 { StoryGoesOn(primary: app.companion) }
             }
             .padding(.top, 8)

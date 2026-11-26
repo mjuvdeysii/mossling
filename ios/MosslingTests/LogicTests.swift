@@ -3117,15 +3117,18 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testRound27Edition2P0AndWebHandover() throws {
-        // 1. Circadian 3AM window boundary checks (21:00–05:59)
+        // 1. Circadian 3AM window boundary checks (00:00–04:59 deep night)
         let baseDay = Day(y: 2026, m: 10, d: 19).date
         func at(_ hour: Int, _ minute: Int) -> Date {
             Day.cal.date(bySettingHour: hour, minute: minute, second: 0, of: baseDay)!
         }
         XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(20, 59)))
-        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(21, 0)))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(21, 0)))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(23, 59)))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(0, 0)))
         XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(3, 15)))
-        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(5, 59)))
+        XCTAssertTrue(CircadianDutyPhase.isLateNight3AM(at(4, 59)))
+        XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(5, 0)))
         XCTAssertFalse(CircadianDutyPhase.isLateNight3AM(at(6, 0)))
 
         // 2. Fallback round die-cut sticker & isolated FoodStickerStore lifecycle
@@ -3224,5 +3227,147 @@ final class LogicTests: XCTestCase {
         assertRenders(FoodAtlasView())
         assertRenders(HandoverSheet(day: Day(y: 2026, m: 10, d: 19)))
         assertRenders(TodayView(path: .constant(NavigationPath())))
+    }
+
+    @MainActor
+    func testV40UnifiedP0AndEvidenceSuite() throws {
+        // 1. P0-1: Discard cleanly clears side-switched logs & detaches immediate retry within Feed.join
+        var b = JournalFile.Body()
+        let prevFeedEnd = t(19, 10, 10)
+        b.logs.append(LogEntry(type: LogType.nurse, start: t(19, 10, 0), end: prevFeedEnd, side: "l"))
+        // Start mistaken feed 30s later (within 2-minute Feed.join), switch side to create session entry, then discard
+        let misStart = prevFeedEnd + 30_000
+        b.timers.append(RunningTimer(type: LogType.nurse, start: misStart, side: "l"))
+        b = JournalFile.switchingSide(b, LogType.nurse, now: misStart + 45_000)
+        XCTAssertEqual(b.logs.count, 2)
+        XCTAssertEqual(b.timers[0].sessionEntryIDs.count, 1)
+        b = JournalFile.discarding(b, LogType.nurse)
+        XCTAssertEqual(b.timers.count, 0)
+        XCTAssertEqual(b.logs.count, 1, "Discarding mid-session nurse must remove switched-side drafts")
+
+        // Retry with detached = true within Feed.join and stop; must NOT merge with earlier finished feed
+        let retryStart = prevFeedEnd + 60_000
+        b.timers.append(RunningTimer(type: LogType.nurse, start: retryStart, side: "r", detached: true))
+        let retryRhythm = CareSessionRhythm.build(timer: b.timers[0], logs: b.logs, day: Day(y: 2026, m: 10, d: 19), nowMs: retryStart + 30_000)
+        XCTAssertEqual(retryRhythm.leftSeconds, 0, accuracy: 0.5, "Detached retry must not inherit left side from earlier feed")
+        XCTAssertEqual(retryRhythm.rightSeconds, 30, accuracy: 0.5)
+        b = JournalFile.stopping(b, LogType.nurse, now: retryStart + 120_000)
+        XCTAssertEqual(b.logs.count, 2)
+        XCTAssertEqual(b.logs.feeds().count, 2, "Detached nurse entry stays a standalone feed")
+
+        // JournalStore discard + immediate start flow + detached retry
+        let savedFile = JournalFile.read()
+        defer { _ = JournalFile.write(savedFile) }
+        let store = JournalStore()
+        var initBody = JournalFile.Body()
+        initBody.logs = [LogEntry(type: LogType.nurse, start: t(19, 8, 0), end: t(19, 8, 10), side: "l")]
+        XCTAssertTrue(store.replaceAll(initBody))
+        store.start(LogType.nurse, at: Date(timeIntervalSince1970: t(19, 8, 11) / 1000))
+        XCTAssertEqual(store.timers.count, 1)
+        store.discard(LogType.nurse)
+        XCTAssertEqual(store.timers.count, 0)
+        store.start(LogType.nurse, at: Date(timeIntervalSince1970: (t(19, 8, 11) + 5_000) / 1000))
+        XCTAssertTrue(store.timers.first?.detached == true)
+        store.stop(LogType.nurse, at: Date(timeIntervalSince1970: (t(19, 8, 11) + 65_000) / 1000))
+        XCTAssertEqual(store.logs.feeds().count, 2)
+
+        // 2. P0-3: LampHubFilter standalone column isolation
+        let day19 = Day(y: 2026, m: 10, d: 19)
+        let mixedLogs = [
+            LogEntry(type: LogType.nurse, start: t(19, 7, 0), end: t(19, 7, 10), side: "l"),
+            LogEntry(type: LogType.bottle, start: t(19, 9, 0), amount: 90),
+            LogEntry(type: LogType.sleep, start: t(19, 10, 0), end: t(19, 11, 0)),
+            LogEntry(type: LogType.diaper, start: t(19, 11, 30), detail: "wet")
+        ]
+        XCTAssertEqual(LampHubFilter.filter(mixedLogs, by: LampHubFilter.feedKey).count, 2)
+        XCTAssertEqual(LampHubFilter.filter(mixedLogs, by: LogType.diaper).count, 1)
+        XCTAssertEqual(LampHubFilter.filter(mixedLogs, by: LogType.sleep).count, 1)
+        let cats = LampHubFilter.availableCategories(in: mixedLogs, on: day19)
+        XCTAssertEqual(cats.map(\.key), [LampHubFilter.feedKey, LogType.sleep, LogType.diaper])
+
+        // 3. Preterm corrected age dual-track & AppModel/RecordFile round-trip
+        let app = AppModel(defaults: UserDefaults(suiteName: "v40-app-\(UUID().uuidString)")!)
+        app.today = Day(y: 2026, m: 10, d: 19)
+        app.birth = app.today.plus(days: -16 * 7) // 16 actual weeks (~3.7 months)
+        XCTAssertFalse(app.isUsingCorrectedAge)
+        XCTAssertNil(app.correctedAge)
+        app.gestationalWeeks = 39
+        XCTAssertFalse(app.isUsingCorrectedAge)
+        XCTAssertNil(app.correctedAge)
+        app.gestationalWeeks = 32 // 8 weeks early -> ~8 corrected weeks (~1.8 months)
+        XCTAssertTrue(app.isUsingCorrectedAge)
+        XCTAssertEqual(app.actualAge?.months ?? -1, 3)
+        XCTAssertEqual(app.correctedAge?.months ?? -1, 1)
+        XCTAssertEqual(app.developmentalBirth, Age.correctedBirth(birth: app.birth!, gestationalWeeks: 32))
+
+        // Over 24 months -> corrected age stops applying
+        app.birth = app.today.plus(months: -26)
+        XCTAssertFalse(app.isUsingCorrectedAge)
+
+        app.birth = app.today.plus(months: -4)
+        app.consent = Consent.version
+        app.graduatedModules = [CareGearEngine.diaperModule]
+        app.careModeActive = true
+        app.setObservationState(4, "0-0", "Roll test", to: .askDoctor)
+        let exported = RecordFile.json(app, JournalFile.Body())
+        let reloaded = AppModel(defaults: UserDefaults(suiteName: "v40-reload-\(UUID().uuidString)")!)
+        let emptyStore = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(exported, into: reloaded, journal: emptyStore)
+        XCTAssertEqual(reloaded.gestationalWeeks, 32)
+        XCTAssertEqual(reloaded.graduatedModules, [CareGearEngine.diaperModule])
+        XCTAssertTrue(reloaded.careModeActive)
+        XCTAssertEqual(reloaded.observationState(4, "0-0"), .askDoctor)
+
+        // 4. Four-Gear progression & graduation hint
+        XCTAssertEqual(CareGearEngine.resolve(developmentalMonth: 2, graduatedModules: []), .gear1Survival)
+        XCTAssertEqual(CareGearEngine.resolve(developmentalMonth: 7, graduatedModules: []), .gear2Explore)
+        XCTAssertEqual(CareGearEngine.resolve(developmentalMonth: 15, graduatedModules: []), .gear3Autonomy)
+        XCTAssertEqual(CareGearEngine.resolve(developmentalMonth: 28, graduatedModules: []), .gear4Dialogue)
+        let diaperHint = CareGearEngine.suggestedGraduation(
+            developmentalMonth: 4,
+            logs: [LogEntry(type: LogType.diaper, start: app.today.plus(days: -10).date.timeIntervalSince1970 * 1000, detail: "wet")],
+            graduatedModules: [],
+            dismissedModules: [],
+            today: app.today
+        )
+        XCTAssertEqual(diaperHint?.moduleKey, CareGearEngine.diaperModule)
+
+        // 5. Evidence catalog: WHO 6 motor bands + 9-stage L1/L2/L3 catalog + Clinic PDF
+        XCTAssertEqual(WHOMotorWindow.all.count, 6)
+        XCTAssertTrue(WHOMotorWindow.all.allSatisfy { $0.startMonth < $0.endMonth })
+        XCTAssertEqual(WHOMotorWindow.all.first(where: { $0.id == "crawl" })?.variableOrder, true)
+
+        XCTAssertEqual(Set(LampCardCatalog.all.map(\.stageIndex)), Set(0...8))
+        for card in LampCardCatalog.all {
+            XCTAssertFalse(card.headlineZh.isEmpty)
+            XCTAssertLessThanOrEqual(card.headlineZh.count, 32)
+            XCTAssertFalse(card.headlineEn.isEmpty)
+            XCTAssertFalse(card.translation.isEmpty)
+            XCTAssertFalse(card.grandparentNote.isEmpty)
+            XCTAssertFalse(card.clinicalTerms.isEmpty)
+            XCTAssertFalse(card.redFlag.isEmpty)
+            XCTAssertFalse(card.meta.sources.isEmpty)
+            XCTAssertFalse(card.shareMessage().isEmpty)
+        }
+
+        let pdfData = ClinicSnapshotPDF.render(app: reloaded, logs: store.logs, measures: store.measures, questions: ["Night waking trend?"], days: 7)
+        XCTAssertGreaterThan(pdfData.count, 500)
+        XCTAssertEqual(String(decoding: pdfData.prefix(5), as: UTF8.self), "%PDF-")
+
+        // 6. Smoke renders for updated / new v4.0 views
+        func assertV40Renders<V: View>(_ view: V) {
+            let img = renderHostedSnapshot(
+                view
+                    .environment(reloaded)
+                    .environment(store)
+                    .environment(AppRouter())
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
+        }
+        assertV40Renders(ObserveView(month: 6))
+        assertV40Renders(ClinicSnapshotSheet())
+        assertV40Renders(LampCardDetailSheet(card: LampCardCatalog.spotlight(forMonth: 6, day: app.today)))
+        assertV40Renders(LampHubView(path: .constant(NavigationPath()), initialQuickNight3AM: false))
     }
 }

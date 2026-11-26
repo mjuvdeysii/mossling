@@ -15,6 +15,10 @@ enum RecordFile {
         if let s = app.sex { settings["sex"] = s }
         if let l = app.look { settings["look"] = l }
         if !app.nickname.isEmpty { settings["nickname"] = app.nickname }
+        if let gw = app.gestationalWeeks { settings["gestationalWeeks"] = gw }
+        if !app.graduatedModules.isEmpty { settings["graduatedModules"] = Array(app.graduatedModules).sorted() }
+        if app.careModeActive { settings["careModeActive"] = true }
+        if !app.observationStates.isEmpty { settings["observationStates"] = app.observationStates.mapValues(\.rawValue) }
         let ticks = app.ticks.values.map { ["key": $0.key, "month": $0.month, "kind": $0.kind, "label": $0.label, "at": Int64($0.at)] as [String: Any] }
         let logs = j.logs.map { e -> [String: Any] in
             var o: [String: Any] = ["type": e.type, "start": Int64(e.start)]
@@ -148,6 +152,16 @@ enum RecordFile {
         app.pick = ""
         app.session = ""
         app.replaceTicks(ticks)
+        app.gestationalWeeks = (s["gestationalWeeks"] as? NSNumber).map(\.intValue).flatMap { Age.isPreterm($0) ? $0 : nil }
+        app.graduatedModules = Set(s["graduatedModules"] as? [String] ?? [])
+        app.dismissedGraduations = []
+        app.careModeActive = s["careModeActive"] as? Bool ?? false
+        let obsRaw = s["observationStates"] as? [String: String] ?? [:]
+        var obsMap: [String: ObservationState] = [:]
+        for (k, raw) in obsRaw {
+            if let st = ObservationState(rawValue: raw) { obsMap[k] = st }
+        }
+        app.replaceObservationStates(obsMap)
         if let parsedFoods { foodStore?.replaceAll(parsedFoods) }
         if let parsedCapsules { capsuleStore?.replaceAll(parsedCapsules) }
         let hasRecords = !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty
@@ -166,9 +180,12 @@ enum RecordFile {
         o += L10n.t("- 小名：\(app.nickname.isEmpty ? "未填写" : app.nickname)\n", "- Name: \(app.nickname.isEmpty ? "Not set" : app.nickname)\n")
         let sexText = app.sex == "girl" ? L10n.t("女", "Girl") : app.sex == "boy" ? L10n.t("男", "Boy") : L10n.t("未填写", "Not set")
         o += L10n.t("- 性别：\(sexText)\n", "- Sex: \(sexText)\n")
-        if let b = app.birth, let a = app.age {
+        if let b = app.birth, let actual = app.actualAge {
             o += String(format: L10n.t("- 出生日期：%04d-%02d-%02d\n", "- Date of birth: %04d-%02d-%02d\n"), b.y, b.m, b.d)
-            o += L10n.t("- 今天：满 \(a.months) 个月 \(a.days) 天\n", "- Today: \(a.months) mo \(a.days) d\n")
+            o += L10n.t("- 今天（实际月龄）：满 \(actual.months) 个月 \(actual.days) 天\n", "- Today (actual age): \(actual.months) mo \(actual.days) d\n")
+            if let gw = app.gestationalWeeks, let ca = app.correctedAge {
+                o += L10n.t("- 出生孕周与矫正月龄：\(gw) 周 · 满 \(ca.months) 个月 \(ca.days) 天\n", "- Gestational & corrected age: \(gw) weeks · \(ca.months) mo \(ca.days) d\n")
+            }
         } else { o += L10n.t("- 出生日期：未填写\n", "- Date of birth: Not set\n") }
         o += L10n.t("\n## 说明\n\n记录由家长在摸索台灯中自行录入，应用不做发育评估或医疗判断。可交给儿科医生参考；也可以交给 AI 助手，请它在说明自身局限的前提下帮助整理和提出值得向医生询问的问题。生长百分位按世界卫生组织儿童生长标准（2006）计算。\n", "\n## About this record\n\nEntries were logged by the parent in Moss & Otto. The app does not assess development or offer medical advice. You can share this document with a pediatrician, or with an AI assistant to help organize notes and prepare questions for a doctor (noting its own limitations). Growth percentiles follow the WHO Child Growth Standards (2006).\n")
 
@@ -332,7 +349,13 @@ enum RecordFile {
         for e in j.logs.sorted(by: { $0.start < $1.start }) {
             let (amt, unit): (String, String) = e.type == LogType.bottle ? ("\(e.amount ?? 0)", L10n.t("毫升", "ml")) : e.type == LogType.temp ? (e.amount.map { String(format: "%.1f", Double($0) / 10) } ?? "", "°C") : ("", "")
             let side = e.side == "l" ? L10n.t("左", "Left") : e.side == "r" ? L10n.t("右", "Right") : ""
-            let detail = e.type == LogType.diaper ? (["wet": L10n.t("湿", "Wet"), "dirty": L10n.t("便", "Dirty"), "both": L10n.t("湿和便", "Both")][e.detail ?? ""] ?? "") : (e.detail ?? "")
+            let detail: String = if e.type == LogType.diaper {
+                ["wet": L10n.t("湿", "Wet"), "dirty": L10n.t("便", "Dirty"), "both": L10n.t("湿和便", "Both")][e.detail ?? ""] ?? ""
+            } else if e.type == LogType.nurse {
+                e.pausedSeconds > 0 ? "paused:\(Int(e.pausedSeconds * 1000))" : ""
+            } else {
+                e.detail ?? ""
+            }
             let minutes = e.end != nil ? "\(Int((e.activeSeconds / 60).rounded(.down)))" : ""
             s += [day(e.start), t(e.start), e.end.map(t) ?? "", minutes, LogType.name(e.type), amt, unit, side, q(detail)].joined(separator: ",") + "\n"
         }

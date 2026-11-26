@@ -60,8 +60,12 @@ jobs:
           xcrun simctl spawn "$DEV" log stream --style compact --level debug \
             --predicate '(process BEGINSWITH "Mossling") AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")' > net.log 2>&1 &
           echo $! > net.pid
+          SKIP_FLAGS="-skip-testing:MosslingUITests"
+          if [ "${{ inputs.screens }}" != "true" ]; then
+            SKIP_FLAGS="$SKIP_FLAGS -skip-testing:MosslingTests/ScreenshotTests"
+          fi
           TEST_RUNNER_SNAPSHOT_DIR="$PWD/shots" xcodebuild test -project Mossling.xcodeproj -scheme Mossling -destination "id=$DEV" \
-            -skip-testing:MosslingUITests CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
+            $SKIP_FLAGS CODE_SIGNING_ALLOWED=NO 2>&1 | tee build.log | grep -E "error:|warning: unre|Test Case.*(passed|failed)|\*\* " || true
           grep -q "\*\* TEST SUCCEEDED \*\*" build.log
       - name: Accessibility audit
         # Xcode's accessibility audit on each tab (日光 at the default and largest text, 夜灯 at the default); the findings go out with the screens.
@@ -106,9 +110,8 @@ jobs:
           grep -iE "AppIcon|actool.*warning|\.icon" ios/build.log | head -8 | while IFS= read -r l; do echo "::notice title=actool::$l"; done
           # the icon as the system draws it (Icon Composer's own renderer), light, dark and tinted, with the screens
           mkdir -p ios/shots; cp "$APP/AppIcon60x60@2x.png" ios/shots/icon_compiled_60@2x.png 2>/dev/null || true
-          # Icon Composer's own ictool (the one inside Icon Composer.app; the developer-tools one is actool's alias)
-          find /Applications -name ictool -type f 2>/dev/null > ios/shots/icon_ictool_paths.txt
-          IC=$(grep "Icon Composer.app" ios/shots/icon_ictool_paths.txt | head -1)
+          # Icon Composer's own ictool (bounded direct path lookup instead of scanning all of /Applications)
+          IC=$(find /Applications/Xcode*.app /Applications/Icon*.app -name ictool -type f 2>/dev/null | grep "Icon Composer.app" | head -1 || true)
           if [ -n "$IC" ]; then
             echo "$IC" > ios/shots/icon_ictool.txt
             for r in Light Dark TintedLight TintedDark ClearLight ClearDark; do

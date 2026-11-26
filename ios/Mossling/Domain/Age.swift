@@ -77,4 +77,27 @@ struct Age: Equatable {
         let start = birth.plus(months: m), next = birth.plus(months: m + 1)
         return Age(months: m, days: start.days(to: today), toNext: today.days(to: next), lived: birth.days(to: today) + 1)
     }
+
+    static func isPreterm(_ gestationalWeeks: Int?) -> Bool {
+        guard let w = gestationalWeeks else { return false }
+        return (22...36).contains(w)
+    }
+
+    /// Shifts chronological birth forward to the 40-week expected due date for preterm babies (< 37 weeks).
+    static func correctedBirth(birth: Day, gestationalWeeks: Int?) -> Day {
+        guard let w = gestationalWeeks, isPreterm(w) else { return birth }
+        return birth.plus(days: (40 - w) * 7)
+    }
+
+    /// Dual-track developmental corrected age used until 24 chronological months for preterm babies (< 37 weeks).
+    static func corrected(birth: Day, gestationalWeeks: Int?, today: Day) -> Age? {
+        guard isPreterm(gestationalWeeks) else { return nil }
+        let actual = on(birth: birth, today: today)
+        guard actual.months < 24 else { return nil }
+        let cb = correctedBirth(birth: birth, gestationalWeeks: gestationalWeeks)
+        if today.epochDay < cb.epochDay {
+            return Age(months: 0, days: 0, toNext: max(1, today.days(to: cb)), lived: max(1, birth.days(to: today) + 1))
+        }
+        return on(birth: cb, today: today)
+    }
 }
