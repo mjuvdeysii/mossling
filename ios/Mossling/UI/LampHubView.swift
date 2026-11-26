@@ -537,11 +537,20 @@ struct LampHubView: View {
         let surfaceBottom = Color(hex: 0x0D1328)
         let playing = soundscape.isPlaying
 
-        return VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .center, spacing: 12) {
-                ottoLivingStage(brightness: brightness, playing: playing)
-                    .frame(width: 68, height: 68)
-                    .contentShape(Circle())
+        return VStack(alignment: .leading, spacing: 16) {
+            HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
+                ZStack {
+                    RadialGradient(
+                        colors: [warmth.primaryGlow.opacity(0.24), .clear],
+                        center: .center,
+                        startRadius: 2,
+                        endRadius: 42
+                    )
+                    .frame(width: 78, height: 78)
+                    ottoLivingStage(brightness: brightness, playing: playing)
+                        .frame(width: 68, height: 68)
+                }
+                .contentShape(Circle())
                     .onTapGesture {
                         openBedsideLamp()
                     }
@@ -688,7 +697,7 @@ struct LampHubView: View {
                 }
             }
         }
-        .padding(LayoutSpec.cardPad)
+        .padding(LayoutSpec.cardPadHero)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(LinearGradient(colors: [surfaceTop, surfaceBottom], startPoint: .topLeading, endPoint: .bottomTrailing))
@@ -1096,43 +1105,57 @@ struct DaySummaryTiles: View {
         let wet = logs.filter { $0.type == LogType.diaper && ($0.detail == "wet" || $0.detail == "both") }.count
         let dirty = logs.filter { $0.type == LogType.diaper && ($0.detail == "dirty" || $0.detail == "both") }.count
 
-        let feedDetail: String = {
-            var parts: [String] = []
-            if nurseSec >= 60 { parts.append(L10n.t("亲喂共 \(durationValue(nurseSec))", "Nursed \(durationValue(nurseSec))")) }
-            if bottleMl > 0 { parts.append(L10n.t("瓶喂 \(bottleMl) 毫升", "Bottle \(bottleMl) ml")) }
-            return parts.isEmpty ? L10n.t("还没有记录", "None yet") : parts.joined(separator: " · ")
+        let feedLines: [String] = {
+            var lines: [String] = []
+            if nurseSec >= 60 {
+                lines.append(L10n.t("亲喂 \(hoursValue(nurseSec))", "Nursed \(hoursValue(nurseSec))"))
+            }
+            if bottleMl > 0 {
+                lines.append(L10n.t("瓶喂 \(bottleMl) ml", "Bottle \(bottleMl) ml"))
+            }
+            return lines.isEmpty ? [L10n.t("还没有记录", "None yet")] : lines
         }()
 
+        let sleepLines: [String] = longest >= 60
+            ? [L10n.t("最长 \(hoursValue(longest))", "Best \(hoursValue(longest))")]
+            : [L10n.t("还没有记录", "None yet")]
+
+        let diaperLines: [String] = diaperCount > 0
+            ? [L10n.t("湿 \(wet) · 便 \(dirty)", "Wet \(wet) · Dirty \(dirty)")]
+            : [L10n.t("还没有记录", "None yet")]
+
         let layout = type.isAccessibilitySize
-            ? AnyLayout(VStackLayout(spacing: 8))
-            : AnyLayout(HStackLayout(alignment: .top, spacing: 8))
+            ? AnyLayout(VStackLayout(spacing: 10))
+            : AnyLayout(HStackLayout(alignment: .top, spacing: 10))
         layout {
             tile(color: LogType.color(LogType.nurse), symbol: LogType.symbol(LogType.nurse),
                  title: L10n.t("喂奶", "Feeds"),
                  value: "\(feedCount)", unit: L10n.t("次", feedCount == 1 ? "feed" : "feeds"),
-                 detail: feedDetail)
+                 lines: feedLines)
             tile(color: LogType.color(LogType.sleep), symbol: LogType.symbol(LogType.sleep),
                  title: L10n.t("睡眠", "Sleep"),
                  value: hoursValue(sleepSec), unit: "",
-                 detail: longest >= 60 ? L10n.t("最长一觉 \(durationValue(longest))", "Longest \(durationValue(longest))") : L10n.t("还没有记录", "None yet"))
+                 lines: sleepLines)
             tile(color: LogType.color(LogType.diaper), symbol: LogType.symbol(LogType.diaper),
                  title: L10n.t("尿布", "Diapers"),
                  value: "\(diaperCount)", unit: L10n.t("片", ""),
-                 detail: diaperCount > 0 ? L10n.t("湿 \(wet) · 便 \(dirty)", "Wet \(wet) · Dirty \(dirty)") : L10n.t("还没有记录", "None yet"))
+                 lines: diaperLines)
         }
+        .fixedSize(horizontal: false, vertical: true)
         .accessibilityElement(children: .combine)
     }
 
-    /// "12时41分" — hours and minutes as one bold figure.
+    /// "12时41分" / "24分" — compact whole hours & minutes so sublines never wrap mid-unit.
     private func hoursValue(_ s: Double) -> String {
         let m = Int((max(0, s) / 60).rounded())
         let h = m / 60, r = m % 60
         if h == 0 { return L10n.t("\(r)分", "\(r)m") }
+        if r == 0 { return L10n.t("\(h)小时", "\(h)h") }
         return L10n.t("\(h)时\(r)分", "\(h)h \(r)m")
     }
 
-    private func tile(color c: Color, symbol: String, title: String, value: String, unit: String, detail: String) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func tile(color c: Color, symbol: String, title: String, value: String, unit: String, lines: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 7) {
             Label(title, systemImage: symbol)
                 .font(.footnote.weight(.semibold))
                 .foregroundStyle(Crayon.ink(c))
@@ -1144,22 +1167,31 @@ struct DaySummaryTiles: View {
                     .monospacedDigit()
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.72)
                 if !unit.isEmpty {
                     Text(unit).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
                 }
             }
-            Text(detail)
-                .font(.footnote)
-                .foregroundStyle(Palette.secondaryText)
-                .lineLimit(type.isAccessibilitySize ? nil : 2)
-                .fixedSize(horizontal: false, vertical: true)
+            VStack(alignment: .leading, spacing: 2) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Text(line)
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondaryText)
+                        .lineLimit(type.isAccessibilitySize ? nil : 1)
+                        .minimumScaleFactor(0.84)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
         }
-        .padding(12)
-        .frame(maxWidth: .infinity, minHeight: 104, alignment: .topLeading)
+        .padding(14)
+        .frame(maxWidth: .infinity, minHeight: 112, maxHeight: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .fill(c.opacity(dark ? 0.16 : 0.11))
+                .fill(c.opacity(dark ? 0.20 : 0.14))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                .strokeBorder(c.opacity(dark ? 0.30 : 0.22), lineWidth: 0.6)
         )
     }
 }

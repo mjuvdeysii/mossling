@@ -38,9 +38,9 @@ enum Palette {
     static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
     // dark is the lamp (build 160: one dark appearance, Otto's — deep blue, amber light), wherever it shows
-    static let background = Color.dyn(0xFBF7F0, 0x0E1430)
+    static let background = Color.dyn(0xF6F7F9, 0x0E1430)
     static let card = Color.dyn(0xFFFFFF, 0x19213F)
-    static let fill = Color.dyn(0xF2EBE0, 0x212A4C)
+    static let fill = Color.dyn(0xEDEFF3, 0x212A4C)
     static let text = Color.primary
     /// Secondary text. The system's secondary label is 60 % of the primary, about 3.4:1 on white and under 3:1 on the
     /// tinted cards — below WCAG's 4.5:1 for the small captions that carry it here (the accessibility audit flagged
@@ -263,14 +263,14 @@ enum Radius {
 /// Precision spatial & typographic cadence benchmarked against Headspace, Airbnb, and iOS 26 App Store.
 enum LayoutSpec {
     static let pageH: CGFloat = 20
-    static let sectionGap: CGFloat = 20
-    static let cardGap: CGFloat = 14
-    static let gridGap: CGFloat = 12
-    static let cardPad: CGFloat = 16
-    static let cardPadHero: CGFloat = 18
-    static let titleDescGap: CGFloat = 4
+    static let sectionGap: CGFloat = 24
+    static let cardGap: CGFloat = 18
+    static let gridGap: CGFloat = 14
+    static let cardPad: CGFloat = 18
+    static let cardPadHero: CGFloat = 20
+    static let titleDescGap: CGFloat = 5
     static let iconTextGap: CGFloat = 12
-    static let sectionHeaderGap: CGFloat = 10
+    static let sectionHeaderGap: CGFloat = 12
     static let sectionTracking: CGFloat = -0.4
     static let titleTracking: CGFloat = -0.2
 }
@@ -328,11 +328,7 @@ struct PageBackground: View {
             ZStack {
                 ZStack {
                     Palette.background
-                    if let tone {
-                        LinearGradient(stops: [.init(color: tone.opacity(0.16), location: 0), .init(color: tone.opacity(0.05), location: 0.28), .init(color: tone.opacity(0), location: 0.55)], startPoint: .top, endPoint: .bottom)
-                        RadialGradient(colors: [tone.opacity(0.14), tone.opacity(0)], center: UnitPoint(x: 0.9, y: 0), startRadius: 0, endRadius: 360)
-                    }
-                    // two faint pools of watercolour soaked into the paper, their rims a little deeper where the pigment dried
+                    if !solid { TabCanopyArc(tone: tone) }
                     if !solid { PaperPools(tone: tone ?? Crayon.sunflower) }
                     if !solid { Grain(dark: false) }
                 }
@@ -341,6 +337,60 @@ struct PageBackground: View {
             }
             .ignoresSafeArea().accessibilityHidden(true)
         }
+    }
+}
+
+/// Headspace-inspired painted sky & horizon canopy at the top edge of light pages: dissolves softly into clean
+/// gallery paper (`Palette.background`) so every tab feels airy, editorial, and wallpaper-grade.
+private struct TabCanopyArc: View {
+    var tone: Color?
+    var body: some View {
+        let base = tone ?? Crayon.sunflower
+        let pair: (Color, Color) = {
+            switch tone {
+            case Crayon.caramel:
+                return (Color(hex: 0xD9E2F8), Color(hex: 0xEAEFF9))
+            case Crayon.lilac:
+                return (Color(hex: 0xDCEBE9), Color(hex: 0xECE8F7))
+            case Crayon.sunflower:
+                return (Color(hex: 0xD4EDF6), Color(hex: 0xE7F4EB))
+            default:
+                return (base.opacity(0.24), base.opacity(0.10))
+            }
+        }()
+        Canvas(rendersAsynchronously: false) { ctx, size in
+            let h = min(230.0, size.height * 0.30)
+            ctx.fill(
+                Path(CGRect(x: 0, y: 0, width: size.width, height: h)),
+                with: .linearGradient(
+                    Gradient(colors: [pair.0.opacity(0.75), pair.1.opacity(0.32), .clear]),
+                    startPoint: .zero,
+                    endPoint: CGPoint(x: 0, y: h)
+                )
+            )
+            var backArc = Path()
+            backArc.move(to: .zero)
+            backArc.addLine(to: CGPoint(x: size.width, y: 0))
+            backArc.addLine(to: CGPoint(x: size.width, y: h * 0.56))
+            backArc.addQuadCurve(
+                to: CGPoint(x: 0, y: h * 0.72),
+                control: CGPoint(x: size.width * 0.42, y: h * 0.96)
+            )
+            backArc.closeSubpath()
+            ctx.fill(backArc, with: .color(pair.0.opacity(0.45)))
+
+            var frontArc = Path()
+            frontArc.move(to: CGPoint(x: size.width, y: 0))
+            frontArc.addLine(to: CGPoint(x: size.width, y: h * 0.44))
+            frontArc.addQuadCurve(
+                to: CGPoint(x: 0, y: h * 0.32),
+                control: CGPoint(x: size.width * 0.58, y: h * 0.78)
+            )
+            frontArc.addLine(to: .zero)
+            frontArc.closeSubpath()
+            ctx.fill(frontArc, with: .color(pair.1.opacity(0.55)))
+        }
+        .allowsHitTesting(false)
     }
 }
 
@@ -708,10 +758,10 @@ struct PrintCard: ViewModifier {
                 .background { ZStack { base; Grain(dark: dark, strength: 0.25) }.clipShape(shape) }
                 .clipShape(shape)
                 .overlay {
-                    shape.strokeBorder(dark ? .white.opacity(0.08) : Color.black.opacity(0.06), lineWidth: 0.5)
+                    shape.strokeBorder(dark ? .white.opacity(0.08) : Color.black.opacity(0.055), lineWidth: 0.5)
                         .allowsHitTesting(false)
                 }
-                .shadow(color: dark ? .clear : Color.black.opacity(0.055), radius: 14, y: 5)
+                .shadow(color: dark ? .clear : Color.black.opacity(0.065), radius: 16, y: 6)
         } else {
         content
             .background {
@@ -727,12 +777,12 @@ struct PrintCard: ViewModifier {
             .clipShape(shape)
             .background {
                 shape.fill(base)
-                    .shadow(color: dark ? .black.opacity(0.24) : Color.black.opacity(0.055), radius: 14, y: 5)
+                    .shadow(color: dark ? .black.opacity(0.24) : Color.black.opacity(0.065), radius: 16, y: 6)
             }
             .overlay {
                 shape.strokeBorder(
-                    dark ? Palette.amber.opacity(0.16) : Color.black.opacity(0.06),
-                    lineWidth: 0.6
+                    dark ? Palette.amber.opacity(0.16) : Color.black.opacity(0.055),
+                    lineWidth: 0.5
                 )
                 .allowsHitTesting(false)
             }

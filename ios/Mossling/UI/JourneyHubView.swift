@@ -475,7 +475,7 @@ struct JourneyHubView: View {
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))
             : AnyLayout(HStackLayout(alignment: .center, spacing: 12))
 
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 14) {
             headerLayout {
                 MonthPostcardArt(
                     month: baby,
@@ -539,10 +539,10 @@ struct JourneyHubView: View {
                 night: lamp
             )
         }
-        .padding(LayoutSpec.cardPad)
+        .padding(LayoutSpec.cardPadHero)
         .background(
             LinearGradient(
-                colors: [land.crayon.opacity(dark ? 0.14 : 0.12), Palette.bead.opacity(dark ? 0.06 : 0.06)],
+                colors: [land.crayon.opacity(dark ? 0.16 : 0.14), Palette.bead.opacity(dark ? 0.08 : 0.08)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -654,7 +654,7 @@ struct JourneyHubView: View {
         tint: Color,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 icon()
                 Spacer(minLength: 4)
@@ -663,26 +663,26 @@ struct JourneyHubView: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 4) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                     .minimumScaleFactor(0.84)
             }
         }
-        .padding(14)
-        .frame(maxWidth: .infinity, minHeight: 88, alignment: .topLeading)
+        .padding(16)
+        .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
         .background(
             LinearGradient(
-                colors: [tint.opacity(dark ? 0.14 : 0.10), tint.opacity(0.01)],
+                colors: [tint.opacity(dark ? 0.22 : 0.16), tint.opacity(dark ? 0.05 : 0.04)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )

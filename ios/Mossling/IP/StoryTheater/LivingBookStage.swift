@@ -46,6 +46,7 @@ struct LivingBookStage: View {
     var scrubPhase: Double? = nil
     var interactive: Bool = true
     var compact: Bool = false
+    var edgeToEdge: Bool = false
     var replayTrigger: Int = 0
     var forceFlat: Bool? = nil
 
@@ -118,11 +119,13 @@ struct LivingBookStage: View {
             }
         }
         .aspectRatio(4.0 / 3.0, contentMode: .fit)
-        .clipShape(RoundedRectangle(cornerRadius: compact ? 9 : Radius.tile, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: compact ? 9 : Radius.tile, style: .continuous)
-                .strokeBorder(accent.opacity(dark ? 0.28 : 0.18), lineWidth: compact ? 0.75 : 1.0)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: edgeToEdge ? 0 : (compact ? 9 : Radius.tile), style: .continuous))
+        .overlay {
+            if !edgeToEdge {
+                RoundedRectangle(cornerRadius: compact ? 9 : Radius.tile, style: .continuous)
+                    .strokeBorder(accent.opacity(dark ? 0.28 : 0.18), lineWidth: compact ? 0.75 : 1.0)
+            }
+        }
         .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
         .onChange(of: stepIndex) { _, _ in
             cycleStart = Date()

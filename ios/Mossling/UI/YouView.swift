@@ -155,7 +155,33 @@ private struct FamilyCard: View {
 
             CompanionPicker()
         }
-        .padding(LayoutSpec.cardPad)
+        .padding(LayoutSpec.cardPadHero)
+        .background(alignment: .top) {
+            Canvas(rendersAsynchronously: false) { ctx, size in
+                let h = min(66.0, size.height * 0.34)
+                var arc = Path()
+                arc.move(to: .zero)
+                arc.addLine(to: CGPoint(x: size.width, y: 0))
+                arc.addLine(to: CGPoint(x: size.width, y: h * 0.62))
+                arc.addQuadCurve(
+                    to: CGPoint(x: 0, y: h * 0.62),
+                    control: CGPoint(x: size.width * 0.50, y: h * 1.15)
+                )
+                arc.closeSubpath()
+                ctx.fill(
+                    arc,
+                    with: .linearGradient(
+                        Gradient(colors: [
+                            Crayon.leaf.opacity(dark ? 0.22 : 0.16),
+                            Palette.bead.opacity(dark ? 0.16 : 0.14),
+                        ]),
+                        startPoint: .zero,
+                        endPoint: CGPoint(x: size.width, y: h)
+                    )
+                )
+            }
+            .allowsHitTesting(false)
+        }
         .printCard(radius: Radius.card)
     }
 

@@ -117,7 +117,7 @@ struct TodayView: View {
 
             VStack(alignment: .leading, spacing: LayoutSpec.titleDescGap) {
                 Text(title)
-                    .font(.subheadline.weight(.semibold))
+                    .font(.subheadline.weight(.bold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(1)
@@ -137,10 +137,10 @@ struct TodayView: View {
         }
         .padding(.horizontal, LayoutSpec.cardPad - 2)
         .padding(.vertical, LayoutSpec.cardPad - 2)
-        .frame(maxWidth: .infinity, minHeight: 68, alignment: .leading)
+        .frame(maxWidth: .infinity, minHeight: 84, alignment: .leading)
         .background(
             LinearGradient(
-                colors: [color.opacity(dark ? 0.14 : 0.12), color.opacity(dark ? 0.03 : 0.02)],
+                colors: [color.opacity(dark ? 0.22 : 0.16), color.opacity(dark ? 0.06 : 0.05)],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -661,7 +661,7 @@ struct TodayPlayCard: View {
                                 removal: .opacity.combined(with: .scale(scale: 0.985))
                             ))
                         if !rest.isEmpty {
-                            Divider().padding(.horizontal, LayoutSpec.cardPad)
+                            Divider().padding(.horizontal, LayoutSpec.cardPadHero)
                             HStack {
                                 Text(L10n.t("这周还有", "Also this week")).font(.footnote.weight(.semibold)).foregroundStyle(Palette.secondaryText).accessibilityAddTraits(.isHeader)
                                 Spacer(minLength: 4)
@@ -669,7 +669,7 @@ struct TodayPlayCard: View {
                                     .font(.footnote.weight(.semibold)).padding(.vertical, -14)
                                     .accessibilityHint(L10n.t("换这周的活动", "Adjust this week's plays"))
                             }
-                            .padding(.horizontal, LayoutSpec.cardPad).padding(.top, 12).padding(.bottom, 8)
+                            .padding(.horizontal, LayoutSpec.cardPadHero).padding(.top, 14).padding(.bottom, 8)
 
                             if size.isAccessibilitySize {
                                 ForEach(rest) { other($0) }
@@ -680,8 +680,8 @@ struct TodayPlayCard: View {
                                 ) {
                                     ForEach(rest) { compactOtherTile($0) }
                                 }
-                                .padding(.horizontal, LayoutSpec.cardPad)
-                                .padding(.bottom, LayoutSpec.cardPad)
+                                .padding(.horizontal, LayoutSpec.cardPadHero)
+                                .padding(.bottom, LayoutSpec.cardPadHero)
                             }
                         } else {
                             Button(action: arrange) { Text(L10n.t("调整这周的活动", "Adjust this week's plays")).font(.footnote.weight(.semibold)).frame(maxWidth: .infinity, minHeight: 40) }
@@ -716,11 +716,13 @@ struct TodayPlayCard: View {
         let last: String = lastPlayed(p)
         let label: String = L10n.t("今天一起玩", "Today's Play") + ", " + p.name + ", " + (p.domains.first ?? "") + ", " + L10n.t("\(p.steps.count) 步", "\(p.steps.count) steps") + ", " + last
         return NavigationLink(value: route(p)) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
                 leadArt(p, big: big)
                 leadWords(p, last: last, times: times, big: big)
+                    .padding(.horizontal, LayoutSpec.cardPadHero)
+                    .padding(.top, 16)
+                    .padding(.bottom, 18)
             }
-            .padding(LayoutSpec.cardPad)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
@@ -751,7 +753,8 @@ struct TodayPlayCard: View {
                 accent: Palette.area(key),
                 posterPhase: nil,
                 interactive: false,
-                compact: false
+                compact: false,
+                edgeToEdge: true
             )
             .zoomSource(route(p))
         } else {
@@ -810,11 +813,7 @@ struct TodayPlayCard: View {
             }
             .frame(maxWidth: .infinity)
             .aspectRatio(firstStepArt.map { ArtIndex.shared.ratio($0) } ?? (4.0 / 3.0), contentMode: .fit)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                    .strokeBorder(Palette.area(key).opacity(darkStage ? 0.35 : 0.25), style: StrokeStyle(lineWidth: 1, dash: [6, 4]))
-            )
+            .clipped()
             .zoomSource(route(p))
         }
     }
@@ -831,7 +830,7 @@ struct TodayPlayCard: View {
                 if times > 0 { BeadCount(times: times) }
             }
             Text(p.name)
-                .font(.headline.weight(.bold))
+                .font(.title3.weight(.bold))
                 .tracking(LayoutSpec.titleTracking)
                 .foregroundStyle(.primary)
                 .lineLimit(2)
@@ -841,7 +840,7 @@ struct TodayPlayCard: View {
                 Text(L10n.t("第 1 步 · ", "Step 1 · ") + step)
                     .font(.subheadline)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineSpacing(2)
+                    .lineSpacing(2.5)
                     .lineLimit(big ? 4 : 2)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
