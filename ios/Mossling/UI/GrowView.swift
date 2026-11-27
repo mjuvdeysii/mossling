@@ -15,22 +15,29 @@ enum Land: Int, CaseIterable {
 /// months lived, a larger golden one for the child's month, a pale glass one for months ahead.
 struct Bead: View {
     let month: Int, here: Bool, past: Bool
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     var body: some View {
+        let dark = lamp || scheme == .dark
         let d: CGFloat = here ? 48 : 38
-        let c = here ? Palette.bead : Land.of(month).crayon
+        let rawC = here ? Palette.bead : Land.of(month).crayon
+        let fillC = here ? Palette.bead : Crayon.buttonFill(rawC)
+        let textC = here ? Crayon.glyph(on: Palette.bead) : Color.white
         ZStack {
             if here || past {
-                Circle().fill(RadialGradient(colors: [c.mix(with: .white, by: 0.22), c, c.mix(with: .black, by: 0.14)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
+                Circle().fill(RadialGradient(colors: [fillC.mix(with: .white, by: 0.14), fillC, fillC.mix(with: .black, by: 0.14)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
             } else {
-                Circle().fill(RadialGradient(colors: [.white.opacity(0.95), c.mix(with: .white, by: 0.7).opacity(0.9)], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
-                Circle().strokeBorder(c.opacity(0.45), lineWidth: 1.5)
+                let top = dark ? Palette.lampCard : Color.white.opacity(0.95)
+                let bot = dark ? rawC.mix(with: Palette.lampCard, by: 0.72) : rawC.mix(with: .white, by: 0.7).opacity(0.9)
+                Circle().fill(RadialGradient(colors: [top, bot], center: UnitPoint(x: 0.32, y: 0.28), startRadius: 0, endRadius: d * 0.72))
+                Circle().strokeBorder(rawC.opacity(dark ? 0.55 : 0.45), lineWidth: 1.5)
             }
             Text("\(month)").font(Typeface.numerals(here ? 19 : 15, relativeTo: .footnote, weight: .bold))
-                .foregroundStyle(here || past ? Crayon.glyph(on: c) : Crayon.ink(c))
-                .shadow(color: ((here || past) && Crayon.glyph(on: c) == .white) ? .black.opacity(0.25) : .clear, radius: 0.5, y: 0.6)
+                .foregroundStyle(here || past ? textC : Crayon.ink(rawC))
+                .shadow(color: (past && !here) ? .black.opacity(0.25) : .clear, radius: 0.5, y: 0.6)
         }
         .frame(width: d, height: d)
-        .shadow(color: c.opacity(0.22), radius: here ? 5 : 3, y: here ? 3 : 2)
+        .shadow(color: fillC.opacity(0.22), radius: here ? 5 : 3, y: here ? 3 : 2)
     }
 }
 
@@ -379,12 +386,12 @@ struct PlayActions: View {
         if rec.count > 0 { Button(L10n.t("撤销最近一次", "Undo last play"), systemImage: "arrow.uturn.backward") { app.undoPlay(play, month: month, j) } }
         let m = app.babyMonth ?? month
         if app.todayPlay(m, j)?.code != play.code {
-            Button(L10n.t("今天玩这个", "Play today"), systemImage: "sun.max") { withAnimation(.snappy) { app.playToday(play, m) } }
+            Button(L10n.t("今天玩这个", "Play today"), systemImage: "sun.max") { guard app.mayKeep() else { return }; withAnimation(.snappy) { app.playToday(play, m) } }
         }
         if shelf.contains(play.code) {
-            Button(L10n.t("从这周拿掉", "Remove from this week"), systemImage: "minus.circle") { app.setShelf(shelf.filter { $0 != play.code }) }
+            Button(L10n.t("从这周拿掉", "Remove from this week"), systemImage: "minus.circle") { guard app.mayKeep() else { return }; app.setShelf(shelf.filter { $0 != play.code }) }
         } else if shelf.count < Shelf.max {
-            Button(L10n.t("加到这周", "Add to this week"), systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
+            Button(L10n.t("加到这周", "Add to this week"), systemImage: "plus.circle") { guard app.mayKeep() else { return }; app.setShelf(shelf + [play.code]) }
         }
         if let cardURL = CardWebCodec.encodeURL(from: play, babyName: "") {
             ShareLink(item: cardURL, message: Text(L10n.t("\(play.name)（\(play.code)）· 仅含玩法与适龄月数，数据编码于本地 # 锚点", "\(play.name) (\(play.code)) · Activity guide encoded locally in the URL # fragment"))) {

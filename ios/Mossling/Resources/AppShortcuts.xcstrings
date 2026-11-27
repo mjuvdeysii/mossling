@@ -8,8 +8,7 @@
           "stringSet" : {
             "state" : "translated",
             "values" : [
-              "Log a diaper in ${applicationName}",
-              "Log ${kind} in ${applicationName}"
+              "Log a diaper in ${applicationName}"
             ]
           }
         },
@@ -18,7 +17,27 @@
             "state" : "translated",
             "values" : [
               "用${applicationName}记一次尿布",
-              "在${applicationName}记尿布",
+              "在${applicationName}记尿布"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}记${kind}" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Log ${kind} in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
               "用${applicationName}记${kind}"
             ]
           }
@@ -33,7 +52,8 @@
             "state" : "translated",
             "values" : [
               "Start ${careType} in ${applicationName}",
-              "Toggle ${careType} timer in ${applicationName}"
+              "Toggle ${careType} timer in ${applicationName}",
+              "Stop ${careType} in ${applicationName}"
             ]
           }
         },
@@ -56,7 +76,27 @@
           "stringSet" : {
             "state" : "translated",
             "values" : [
-              "Log a bottle in ${applicationName}",
+              "Log a bottle in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}记瓶喂"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}记${milk}" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
               "Log ${milk} bottle in ${applicationName}"
             ]
           }
@@ -65,7 +105,6 @@
           "stringSet" : {
             "state" : "translated",
             "values" : [
-              "用${applicationName}记瓶喂",
               "用${applicationName}记${milk}",
               "在${applicationName}记一顿${milk}"
             ]

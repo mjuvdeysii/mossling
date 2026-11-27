@@ -210,8 +210,8 @@ enum RecordFile {
         let filteredTicks = ticks.filter { obsMap[$0.key] != .askDoctor }
         app.replaceTicks(filteredTicks)
         app.replaceObservationStates(obsMap)
-        if let parsedFoods { foodStore?.replaceAll(parsedFoods) }
-        if let parsedCapsules { capsuleStore?.replaceAll(parsedCapsules) }
+        if let parsedFoods, let foodStore, !foodStore.replaceAll(parsedFoods) { throw Failure.saveFailed }
+        if let parsedCapsules, let capsuleStore, !capsuleStore.replaceAll(parsedCapsules) { throw Failure.saveFailed }
         let hasRecords = !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty
         app.journal = (s["journal"] as? Bool ?? false) || hasRecords
     }
@@ -403,8 +403,9 @@ enum RecordFile {
         func t(_ ms: Double) -> String { hm(Date(timeIntervalSince1970: ms / 1000)) }
         func q(_ v: String) -> String {
             let clean = v.replacingOccurrences(of: "\r\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+            let trimmedFirst = clean.drop(while: { $0.isWhitespace || $0.isNewline }).first
             let safe: String
-            if let first = clean.first, first == "=" || first == "+" || first == "-" || first == "@" || first == "\t" {
+            if let first = trimmedFirst, first == "=" || first == "+" || first == "-" || first == "@" || first == "\t" {
                 safe = "'" + clean
             } else {
                 safe = clean

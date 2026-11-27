@@ -36,8 +36,8 @@ enum WidgetInk {
     /// Paper by day; the lamp's deep blue at night.
     static let paper = dyn(0xFBF7F0, 0x0E1430)
     static let card = dyn(0xFFFFFF, 0x19213F)
-    /// The brand teal, deep enough for text (4.7:1 on paper; the light value on the lamp).
-    static let accent = dyn(0x0B7D74, 0x4FD8CB)
+    /// The brand teal, deep enough for text (5.09:1 on paper and tinted capsules; the light value on the lamp).
+    static let accent = dyn(0x08675F, 0x4FD8CB)
     static let bead = Color(red: 0xD4 / 255, green: 0xA2 / 255, blue: 0x1C / 255)
     static func numerals(_ s: CGFloat) -> Font { .system(size: s, weight: .semibold, design: .rounded).monospacedDigit() }
 }
@@ -63,6 +63,7 @@ struct TodayFace: View {
     let size: TodaySize
 
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
 
     init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize) { self.date = date; self.snap = snap; self.body_ = body; self.size = size }
@@ -584,6 +585,7 @@ struct QuickCareFace: View {
     let isMedium: Bool
 
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
 
     static let confirmWindowSeconds: Double = 12
@@ -657,6 +659,7 @@ struct QuickCareFace: View {
                                     .background(WidgetInk.accent.opacity(0.14), in: Capsule())
                             }
                             .buttonStyle(.plain)
+                            .privacySensitive()
                             .transition(.scale(scale: 0.85).combined(with: .opacity))
                         }
                     }
@@ -800,6 +803,7 @@ struct BedsideLampFace: View {
     var forceAccentedPreview: Bool = false
 
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
 
     static let lampBase = Color(red: 0x0E / 255, green: 0x14 / 255, blue: 0x30 / 255)
     static let amber = Color(red: 0xF5 / 255, green: 0xC6 / 255, blue: 0x6A / 255)
@@ -821,8 +825,8 @@ struct BedsideLampFace: View {
     private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
     private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
     private var accented: Bool { forceAccentedPreview || renderingMode != .fullColor }
-    private var primaryAccent: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x4D / 255) : Self.amber }
-    private var primaryInk: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x8F / 255, blue: 0x7A / 255) : .white }
+    private var primaryAccent: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x4D / 255) : (renderingMode != .fullColor ? .primary : Self.amber) }
+    private var primaryInk: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x8F / 255, blue: 0x7A / 255) : (renderingMode != .fullColor ? .primary : .white) }
     private var resolvedAge: (age: Age, isCorrected: Bool)? { visible ? snap?.developmentalAge(on: Day(date)) : nil }
     private var age: Age? { resolvedAge?.age }
     private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
@@ -984,7 +988,7 @@ struct BedsideLampFace: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
-        .environment(\.colorScheme, .dark)
+        .environment(\.colorScheme, renderingMode == .fullColor ? .dark : colorScheme)
         .widgetURL(locked ? WidgetLinks.today : (journalOn ? (body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp) : WidgetLinks.lamp))
     }
 
@@ -1109,6 +1113,7 @@ struct StoryWindowFace: View {
     let isMedium: Bool
 
     @Environment(\.widgetRenderingMode) private var renderingMode
+    @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
 
     private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }

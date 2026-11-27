@@ -7,7 +7,13 @@ import QuartzCore
 @MainActor
 final class ScreenshotTests: XCTestCase {
     /// Chinese is the reference language of these tests; a test that wants English says so (the CI simulator is English).
+    override func setUp() {
+        super.setUp()
+        L10n.overrideEnglish = false
+    }
+
     override func tearDown() {
+        L10n.overrideEnglish = nil
         Self.sharedWindow?.rootViewController = nil
         Self.sharedWindow?.isHidden = true
         super.tearDown()

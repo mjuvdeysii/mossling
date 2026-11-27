@@ -56,6 +56,7 @@ struct RootView: View {
 
     /// Turns the week when it has gone by, counting each play's times from the records.
     private func roll(fresh: Bool = false) {
+        guard app.consented else { return }
         app.rollWeek(played: { c in app.content.play(c).map { app.record($0, journal).count } ?? 0 }, fresh: fresh)
     }
     /// What the widget shows changes with the settings and with each play recorded (today's play may follow).
@@ -103,22 +104,26 @@ struct RootView: View {
                 unlockAttemptedForCurrentLock = false
                 lockRecoveryMessage = nil
                 app.appLocked = isLocked
+                app.appSheetLocked = isLocked
             }
             .onChange(of: locked) { _, stillLocked in
                 if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
             }
             .onChange(of: isLocked, initial: true) { _, nowLocked in
                 app.appLocked = nowLocked
+                app.appSheetLocked = nowLocked
                 app.publish(journal)
                 Task { await LiveTimers.sync() }
             }
             .onChange(of: phase) { _, p in
                 if p == .active {
+                    _ = Biometry.refresh()
                     app.today = .today
                     journal.reload()
                     app.syncWidgetPick()
                     roll()
                     app.appLocked = isLocked
+                    app.appSheetLocked = isLocked
                     app.publish(journal)
                     Task { await LiveTimers.sync() }
                     mascot.timing = !journal.timers.isEmpty
@@ -173,7 +178,7 @@ struct RootView: View {
                 }
             }
             .background {
-                let darkShield = app.is3AMSanctuaryActive || (app.theme == .dark) || (app.theme == .system && app.nightLight && night) || scheme == .dark
+                let darkShield = app.theme == .light ? false : (app.is3AMSanctuaryActive || (app.theme == .dark) || (app.theme == .system && app.nightLight && night) || scheme == .dark)
                 LockWindowShield(
                     isLocked: isLocked,
                     isPrivacyShieldActive: app.lock && phase == .inactive && !isLocked,
@@ -268,8 +273,8 @@ struct RootView: View {
             // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
             .onOpenURL { url in open(url) }
             .modifier(LampScope(on: scheme == .dark))
-            // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone; 3AM sanctuary keeps OLED dark across all tabs
-            .preferredColorScheme((app.is3AMSanctuaryActive || (app.theme == .system && app.nightLight && night)) ? .dark : app.theme.scheme)
+            // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone; 3AM sanctuary keeps OLED dark when theme is automatic or dark
+            .preferredColorScheme(app.theme == .light ? .light : ((app.is3AMSanctuaryActive || (app.theme == .system && app.nightLight && night)) ? .dark : app.theme.scheme))
     }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
@@ -467,6 +472,7 @@ struct RootView: View {
         unlockAttemptedForCurrentLock = false
         lockRecoveryMessage = nil
         app.appLocked = false
+        app.appSheetLocked = false
         app.publish(journal)
         Task { await LiveTimers.sync() }
     }
@@ -478,30 +484,37 @@ private struct LockView: View {
     let unlock: () -> Void
     var onDisablePasscodeLock: (() -> Void)? = nil
     var body: some View {
-        VStack(spacing: 16) {
-            Duo(primary: companion, size: 110, mood: .sleep, poke: false)
-            Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked"))
-                .font(.title2.weight(.bold))
-                .multilineTextAlignment(.center)
-            if let lockRecoveryMessage {
-                Text(lockRecoveryMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(Palette.secondaryText)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 12)
-                if let onDisablePasscodeLock {
-                    Button(L10n.t("关闭应用锁并继续", "Turn Off App Lock"), role: .destructive, action: onDisablePasscodeLock)
-                        .buttonStyle(.borderedProminent)
+        GeometryReader { proxy in
+            ScrollView {
+                VStack(spacing: 16) {
+                    Duo(primary: companion, size: 110, mood: .sleep, poke: false)
+                    Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked"))
+                        .font(.title2.weight(.bold))
+                        .multilineTextAlignment(.center)
+                    if let lockRecoveryMessage {
+                        Text(lockRecoveryMessage)
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.secondaryText)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.horizontal, 12)
+                        if let onDisablePasscodeLock {
+                            Button(L10n.t("关闭应用锁并继续", "Turn Off App Lock"), role: .destructive, action: onDisablePasscodeLock)
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+                        }
+                    }
+                    Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock)
+                        .buttonStyle(.glassProminent)
+                        .tint(Palette.accentFill)
                         .controlSize(.large)
                 }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 24)
+                .frame(maxWidth: .infinity, minHeight: proxy.size.height)
             }
-            Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock)
-                .buttonStyle(.glassProminent)
-                .tint(Palette.accentFill)
-                .controlSize(.large)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, 24)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()
     }
 }
@@ -618,11 +631,12 @@ private struct LockWindowShield: UIViewRepresentable {
     ) {
         let shouldShow = isLocked || isPrivacyShieldActive
         if !shouldShow {
+            let wasShowing = coordinator.shieldWindow != nil
             coordinator.shieldWindow?.resignKey()
             coordinator.shieldWindow?.isHidden = true
             coordinator.shieldWindow?.rootViewController = nil
             coordinator.shieldWindow = nil
-            uiView.window?.makeKey()
+            if wasShowing { uiView.window?.makeKey() }
             return
         }
         guard let scene = uiView.window?.windowScene else { return }
@@ -672,7 +686,11 @@ private struct LockWindowShield: UIViewRepresentable {
             host.overrideUserInterfaceStyle = isDark ? .dark : .light
             window.rootViewController = host
         }
-        window.makeKeyAndVisible()
+        if isLocked {
+            window.makeKeyAndVisible()
+        } else {
+            window.isHidden = false
+        }
     }
 }
 

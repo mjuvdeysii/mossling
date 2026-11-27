@@ -38,12 +38,15 @@ struct BookPage {
             let care = logs.filter { [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper].contains($0.type) }
             let days = Set(care.map { Day($0.startDate) }).count
             let feeds = care.feeds().count
-            let sleep = care.filter { $0.type == LogType.sleep }.reduce(0) { $0 + $1.activeSeconds }
+            let completedSleeps = care.filter { $0.type == LogType.sleep && Day($0.startDate) < app.today }
+            let sleepDays = Set(completedSleeps.map { Day($0.startDate) }).count
+            let sleep = completedSleeps.reduce(0) { $0 + $1.activeSeconds }
             let diapers = care.filter { $0.type == LogType.diaper }.count
             let d = Double(max(days, 1))
             return BookPage(month: m, from: from, to: to, plays: plays, observed: app.count(m, TickKind.observed),
                             measure: j.measures.last { $0.at >= a && $0.at < b }, days: days,
-                            sleepHours: sleep > 0 ? sleep / 3600 / d : nil, feeds: feeds > 0 ? Double(feeds) / d : nil,
+                            sleepHours: (sleepDays > 0 && sleep > 0) ? sleep / 3600 / Double(sleepDays) : nil,
+                            feeds: feeds > 0 ? Double(feeds) / d : nil,
                             diapers: diapers > 0 ? Double(diapers) / d : nil,
                             notes: Array(logs.filter { $0.type == LogType.note && !($0.detail ?? "").isEmpty }.prefix(3)),
                             firsts: j.firsts.filter { $0.at >= a && $0.at < b }.sorted { $0.at < $1.at })

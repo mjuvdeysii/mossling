@@ -34,7 +34,15 @@ struct TodayProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
         let now = Date()
         let snap = JournalFile.snapshot()
-        let body = WidgetPrivacy.canShowRecords(snap: snap) ? JournalFile.read() : JournalFile.Body()
+        let canShow = WidgetPrivacy.canShowRecords(snap: snap)
+        let journalEnabled = canShow && (snap?.journal == true)
+        let loadedBody: JournalFile.Body? = journalEnabled ? (try? JournalFile.load()) : JournalFile.Body()
+        let body = loadedBody ?? JournalFile.Body()
+        if snap == nil || (journalEnabled && loadedBody == nil) {
+            let retry = now.addingTimeInterval(15 * 60)
+            completion(Timeline(entries: [TodayEntry(date: now, snap: snap, body: body)], policy: .after(retry)))
+            return
+        }
         var dates: [Date] = [now]
         // If a diaper was just logged on the widget, schedule a clean transition back to normal right after the 12s confirm window
         if let recent = QuickCareFace.recentDiaper(in: body.logs, now: now) {
@@ -57,7 +65,8 @@ struct TodayProvider: TimelineProvider {
     }
     private func entry(_ d: Date) -> TodayEntry {
         let snap = JournalFile.snapshot()
-        let body = WidgetPrivacy.canShowRecords(snap: snap) ? JournalFile.read() : JournalFile.Body()
+        let journalEnabled = WidgetPrivacy.canShowRecords(snap: snap) && (snap?.journal == true)
+        let body = journalEnabled ? JournalFile.read() : JournalFile.Body()
         return TodayEntry(date: d, snap: snap, body: body)
     }
 }
@@ -179,7 +188,7 @@ struct SleepControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
-        return JournalFile.read().timers.contains { $0.type == LogType.sleep }
+        return try JournalFile.load().timers.contains { $0.type == LogType.sleep }
     }
 }
 
@@ -187,7 +196,7 @@ struct NurseControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
-        return JournalFile.read().timers.contains { $0.type == LogType.nurse }
+        return try JournalFile.load().timers.contains { $0.type == LogType.nurse }
     }
 }
 
@@ -202,6 +211,7 @@ struct SleepControl: ControlWidget {
                 Label(running ? L10n.t("睡觉中", "Sleeping") : L10n.t("睡觉", "Sleep"), systemImage: "moon.zzz.fill")
             }
             .tint(LogType.color(LogType.sleep))
+            .privacySensitive()
         }
         .displayName("睡觉计时")
         .description("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。")
@@ -219,6 +229,7 @@ struct NurseControl: ControlWidget {
                 Label(running ? L10n.t("亲喂中", "Nursing") : L10n.t("亲喂", "Nurse"), systemImage: "heart.circle.fill")
             }
             .tint(LogType.color(LogType.nurse))
+            .privacySensitive()
         }
         .displayName("亲喂计时")
         .description("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。")
@@ -232,6 +243,7 @@ struct WetDiaperControl: ControlWidget {
                 Label(L10n.t("记湿尿布", "Wet Diaper"), systemImage: "drop.fill")
             }
             .tint(LogType.color(LogType.diaper))
+            .privacySensitive()
         }
         .displayName("记湿尿布")
         .description("在控制中心或锁屏一键记下一次湿尿布。")

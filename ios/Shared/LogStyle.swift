@@ -31,7 +31,7 @@ enum Crayon {
         Color(UIColor { traits in
             let rgba = rgbComponents(of: c, traits: traits)
             return relativeLuminance(rgba.r, rgba.g, rgba.b) > 0.36
-                ? UIColor(red: 0.36, green: 0.22, blue: 0, alpha: 1)
+                ? UIColor(red: 0.29, green: 0.20, blue: 0, alpha: 1)
                 : .white
         })
     }
@@ -112,8 +112,8 @@ enum Crayon {
         Color(UIColor { traits in
             let rgba = rgbComponents(of: c, traits: traits)
             if traits.userInterfaceStyle == .dark {
-                // Target luminance >= 0.36 achieves >= 4.5:1 on both #19213F cards and 24% tinted dark pills.
-                let targetLum = 0.36
+                // Target luminance >= 0.41 achieves >= 4.5:1 on both #19213F cards and 24% tinted dark pills.
+                let targetLum = 0.41
                 if relativeLuminance(rgba.r, rgba.g, rgba.b) >= targetLum {
                     return UIColor(red: rgba.r, green: rgba.g, blue: rgba.b, alpha: rgba.a)
                 }

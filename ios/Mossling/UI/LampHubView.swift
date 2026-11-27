@@ -1242,9 +1242,10 @@ struct LampHubView: View {
                 )
             }
 
+            let normalCols = primaryTypes.count > 4 ? 3 : max(1, primaryTypes.count)
             let cols = type.isAccessibilitySize
                 ? [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-                : Array(repeating: GridItem(.flexible(), spacing: 10), count: max(1, primaryTypes.count))
+                : Array(repeating: GridItem(.flexible(), spacing: 10), count: normalCols)
 
             LazyVGrid(columns: cols, spacing: 10) {
                 ForEach(primaryTypes, id: \.self) { t in

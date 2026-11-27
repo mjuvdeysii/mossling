@@ -85,6 +85,11 @@
       cursor: pointer;
     }
 
+    .card-ctrl-btn:disabled {
+      opacity: 0.42;
+      cursor: not-allowed;
+    }
+
     .card-ctrl-btn.active {
       background: var(--accent);
       border-color: var(--accent);
@@ -453,7 +458,7 @@
           <h1 id="cardHeadline">4 个月还没翻身很正常，CDC 已把基准放到 6 个月</h1>
 
           <section class="say-box">
-            <span class="say-label" data-zh="现在可以这样对宝宝说" data-en="Say Aloud Right Now">现在可以这样对宝宝说</span>
+            <span class="say-label" id="lblSay" data-zh="现在可以这样对宝宝说" data-en="Say Aloud Right Now">现在可以这样对宝宝说</span>
             <p class="say-quote" id="cardSayAloud">“手手伸到侧面够那个大木勺，身体自己扭一扭哦。”</p>
           </section>
 
@@ -624,7 +629,9 @@
       var decoded = decodeFragment();
       var livePayload = decoded.payload;
       var activeSample = "roll";
-      var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
+      var activeLang = livePayload && (livePayload.l === "en" || livePayload.l === "zh")
+        ? livePayload.l
+        : (storageGet("mossling-lang") === "en" ? "en" : "zh");
 
       function stopSpeech() {
         try {
@@ -701,9 +708,25 @@
         }
 
         document.getElementById("cardHeadline").textContent = data.ti || "";
-        document.getElementById("cardSayAloud").textContent = activeLang === "en"
-          ? '"' + (data.sa || "") + '"'
-          : "“" + (data.sa || "") + "”";
+        var lblSay = document.getElementById("lblSay");
+        var lblAction = document.getElementById("lblAction");
+        var lblTranslation = document.getElementById("lblTranslation");
+        var lblGrandparent = document.getElementById("lblGrandparent");
+        if (data.k === "play") {
+          if (lblSay) lblSay.textContent = activeLang === "en" ? "Notice While Playing" : "可以这样观察宝宝";
+          if (lblAction) lblAction.textContent = activeLang === "en" ? "Materials & Step-by-Step" : "准备材料与游玩步骤";
+          if (lblTranslation) lblTranslation.textContent = activeLang === "en" ? "Pause Gently When..." : "何时温和收手";
+          if (lblGrandparent) lblGrandparent.textContent = activeLang === "en" ? "Safety & Setup Cue" : "安全与桌面布置提示";
+          document.getElementById("cardSayAloud").textContent = data.sa || "";
+        } else {
+          if (lblSay) lblSay.textContent = activeLang === "en" ? "Say Aloud Right Now" : "现在可以这样对宝宝说";
+          if (lblAction) lblAction.textContent = activeLang === "en" ? "Handy Micro-Action" : "手边微动作 / 怎么陪他试一试";
+          if (lblTranslation) lblTranslation.textContent = activeLang === "en" ? "Developmental Translation" : "宝宝视角与儿科翻译";
+          if (lblGrandparent) lblGrandparent.textContent = activeLang === "en" ? "Note for Grandparents & Family" : "写给爷爷奶奶、外公外婆与同住家人";
+          document.getElementById("cardSayAloud").textContent = activeLang === "en"
+            ? '"' + (data.sa || "") + '"'
+            : "“" + (data.sa || "") + "”";
+        }
         document.getElementById("cardAction").textContent = data.ac || "";
 
         var stepsList = document.getElementById("cardStepsList");
@@ -765,7 +788,7 @@
       if (speakBtn) {
         speakBtn.addEventListener("click", function () {
           if (decoded.status === "invalid") return;
-          if (!("speechSynthesis" in window)) {
+          if (!window.speechSynthesis || typeof SpeechSynthesisUtterance !== "function") {
             speakBtn.textContent = activeLang === "en" ? "Speech unavailable" : "当前浏览器不支持朗读";
             return;
           }

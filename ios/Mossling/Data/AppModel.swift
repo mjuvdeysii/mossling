@@ -177,6 +177,8 @@ final class AppModel {
     var isBedsideLampOpen: Bool { bedsideLampPresentedCount > 0 }
     /// Live lock-screen state synced from `RootView` into shared `Snapshot` so Siri/Shortcuts never leak data while locked.
     var appLocked: Bool = false
+    /// Tracks actual lock UI state (excluding transient `.inactive` privacy shield) so modal-hosted Consent sheets do not dismiss on app-switcher peeks.
+    var appSheetLocked: Bool = false
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }

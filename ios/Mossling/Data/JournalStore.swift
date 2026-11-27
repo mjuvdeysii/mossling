@@ -281,7 +281,6 @@ final class JournalStore {
         if let op = t.deltaUndo {
             switch JournalFile.mutate({ b in
                 Self.applyUndoOp(op, to: &b)
-                return true
             }) {
             case let .saved(_, after):
                 switch op {
@@ -293,7 +292,10 @@ final class JournalStore {
                 }
                 changed(after)
                 toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
-            case .unchanged, .failed:
+            case .unchanged:
+                reload()
+                toast = Toast(type: t.type, text: L10n.t("当前已有进行中的同类计时，暂无法撤销", "Cannot undo while another timer of this type is running."), restore: nil, failed: true)
+            case .failed:
                 reload()
                 toast = Toast(type: t.type, text: L10n.t("没有撤销成功，点「撤销」再试一次", "Couldn't undo. Tap \"Undo\" to try again."), restore: t.restore, deltaUndo: op, failed: true)
                 onEvent?(.recordPersistFailure)
@@ -310,11 +312,13 @@ final class JournalStore {
         changed(b)
         toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
     }
-    private static func applyUndoOp(_ op: UndoOp, to b: inout JournalFile.Body) {
+    @discardableResult
+    private static func applyUndoOp(_ op: UndoOp, to b: inout JournalFile.Body) -> Bool {
         switch op {
         case let .removeLogs(ids):
             let set = Set(ids)
             b.logs.removeAll { set.contains($0.id) }
+            return true
         case let .restoreLogs(prev):
             for entry in prev {
                 if let idx = b.logs.firstIndex(where: { $0.id == entry.id }) {
@@ -324,14 +328,16 @@ final class JournalStore {
                 }
             }
             b.logs.sort { $0.start < $1.start }
+            return true
         case let .removeTimer(type, startedAt):
             b.timers.removeAll { $0.type == type && abs($0.start - startedAt) < 1 }
+            return true
         case let .restoreTimer(timer):
-            if !b.timers.contains(where: { $0.type == timer.type }) {
-                b.timers.append(timer)
-            }
+            guard !b.timers.contains(where: { $0.type == timer.type }) else { return false }
+            b.timers.append(timer)
+            return true
         case let .restoreDiscardedTimer(timer, removedLogs):
-            guard !b.timers.contains(where: { $0.type == timer.type }) else { return }
+            guard !b.timers.contains(where: { $0.type == timer.type }) else { return false }
             for entry in removedLogs {
                 if let idx = b.logs.firstIndex(where: { $0.id == entry.id }) {
                     b.logs[idx] = entry
@@ -341,22 +347,29 @@ final class JournalStore {
             }
             b.logs.sort { $0.start < $1.start }
             b.timers.append(timer)
+            return true
         case let .restoreStoppedTimer(timer, addedLogID):
+            if let timer, b.timers.contains(where: { $0.type == timer.type }) {
+                return false
+            }
             b.logs.removeAll { $0.id == addedLogID }
-            if let timer, !b.timers.contains(where: { $0.type == timer.type }) {
+            if let timer {
                 b.timers.append(timer)
             }
+            return true
         case let .restoreMeasure(prev, currentID):
             b.measures.removeAll { $0.id == currentID }
             if let prev {
                 b.measures.append(prev)
                 b.measures.sort { $0.at < $1.at }
             }
+            return true
         case let .restoreFirst(prev, currentID):
             b.firsts.removeAll { $0.id == currentID }
             if let prev {
                 b.firsts.append(prev)
             }
+            return true
         }
     }
     private func say(_ type: String, _ text: String, undo: JournalFile.Body?, op: UndoOp? = nil) {

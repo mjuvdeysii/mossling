@@ -27,12 +27,22 @@ struct TimeCapsuleListView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
                 if store.loadFailed {
-                    Label(
-                        L10n.t("信笺数据暂时未能读取，已暂停保存，避免覆盖原有信件。", "Time Capsule file could not be read. Saving is paused to protect existing letters."),
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.danger)
+                    HStack(alignment: .center, spacing: 10) {
+                        Label(
+                            L10n.t("信笺数据暂时未能读取，已暂停保存，避免覆盖原有信件。", "Time Capsule file could not be read. Saving is paused to protect existing letters."),
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.danger)
+                        Spacer(minLength: 4)
+                        Button(L10n.t("重试", "Retry")) {
+                            TactileEngine.shared.beadClick()
+                            store.reload()
+                        }
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .pillHitTarget()
+                    }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .printCard(radius: Radius.inner)
@@ -109,6 +119,7 @@ struct TimeCapsuleListView: View {
                     Image(systemName: "square.and.pencil")
                 }
                 .accessibilityLabel(L10n.t("写一封新信", "Write a new letter"))
+                .disabled(store.loadFailed)
             }
         }
         .sheet(isPresented: $composing) {
@@ -289,6 +300,7 @@ struct TimeCapsuleListView: View {
                     .padding(.vertical, 11)
             }
             .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+            .disabled(store.loadFailed)
         }
         .padding(14)
         .background(

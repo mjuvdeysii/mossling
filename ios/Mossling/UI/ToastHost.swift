@@ -21,7 +21,7 @@ private struct ToastSlot: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         ZStack {
-            if let t = j.toast, !suppressed, bottom || j.focus == nil {
+            if let t = j.toast, !suppressed, bottom ? (j.focus != nil) : (j.focus == nil) {
                 ToastBar(toast: t)
                     .transition(reduce ? AnyTransition.opacity : AnyTransition.move(edge: bottom ? .bottom : .top).combined(with: .opacity))
                     .id(t.id)
@@ -51,7 +51,7 @@ private struct ToastBar: View {
                 .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
                 .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
-            if toast.restore != nil {
+            if toast.restore != nil || toast.deltaUndo != nil {
                 Button(L10n.t("撤销", "Undo")) { j.undo(toast) }
                     .font(.subheadline.weight(.bold))
                     .buttonStyle(.borderless)
@@ -75,7 +75,12 @@ private struct ToastBar: View {
             UIAccessibility.post(notification: .announcement, argument: toast.text)
             let baseSeconds: Double = toast.failed ? 6 : (toast.restore == nil ? 3.5 : 5)
             let seconds: Double = UIAccessibility.isVoiceOverRunning ? max(15, baseSeconds) : baseSeconds
-            try? await Task.sleep(for: .seconds(seconds))
+            do {
+                try await Task.sleep(for: .seconds(seconds))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             if j.toast?.id == toast.id { j.toast = nil }
         }
         .accessibilityElement(children: .contain)

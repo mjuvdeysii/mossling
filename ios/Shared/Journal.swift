@@ -298,26 +298,43 @@ struct RunningTimer: Codable, Hashable {
     /// Explicit user boundary set after discarding an accidental timer so the next feed will not stitch onto an earlier feed.
     var detached: Bool = false
     /// This side so far, in seconds.
-    func elapsed(_ now: Double) -> Double { ((pausedAt ?? now) - start - pausedTotal) / 1000 }
+    func elapsed(_ now: Double) -> Double { max(0, ((pausedAt ?? now) - start - pausedTotal) / 1000) }
     /// The whole feed (or sleep) so far, in seconds.
     func total(_ now: Double) -> Double { elapsed(now) + carried / 1000 }
     /// The moment a clock counting the whole feed would have started at (for timers that count up from a date).
     var countsFrom: Date { Date(timeIntervalSince1970: (start + pausedTotal - carried) / 1000) }
     /// All the pauses of the whole feed (or sleep) so far, in seconds, the one under way included.
-    func paused(_ now: Double) -> Double { (carriedPause + pausedTotal + (pausedAt.map { now - $0 } ?? 0)) / 1000 }
+    func paused(_ now: Double) -> Double { (carriedPause + pausedTotal + (pausedAt.map { max(0, now - $0) } ?? 0)) / 1000 }
 
     enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried, carriedPause, sessionEntryIDs, detached }
     init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0, carriedPause: Double = 0, sessionEntryIDs: [UUID] = [], detached: Bool = false) {
-        self.type = type; self.start = start; self.side = side; self.pausedAt = pausedAt; self.pausedTotal = pausedTotal; self.carried = carried
-        self.carriedPause = carriedPause; self.sessionEntryIDs = sessionEntryIDs; self.detached = detached
+        self.type = type
+        self.start = start.isFinite ? start : 0
+        self.side = side
+        self.pausedAt = pausedAt.flatMap { $0.isFinite && $0 >= self.start ? $0 : nil }
+        let maxSpan: Double = 7 * 86_400_000
+        self.pausedTotal = pausedTotal.isFinite ? max(0, min(maxSpan, pausedTotal)) : 0
+        self.carried = carried.isFinite ? max(0, min(maxSpan, carried)) : 0
+        self.carriedPause = carriedPause.isFinite ? max(0, min(maxSpan, carriedPause)) : 0
+        self.sessionEntryIDs = sessionEntryIDs
+        self.detached = detached
     }
     init(from d: Decoder) throws {
         let c = try d.container(keyedBy: CodingKeys.self)
-        type = try c.decode(String.self, forKey: .type); start = try c.decode(Double.self, forKey: .start)
-        side = try c.decodeIfPresent(String.self, forKey: .side); pausedAt = try c.decodeIfPresent(Double.self, forKey: .pausedAt)
-        pausedTotal = try c.decodeIfPresent(Double.self, forKey: .pausedTotal) ?? 0
-        carried = try c.decodeIfPresent(Double.self, forKey: .carried) ?? 0   // files written before this field
-        carriedPause = try c.decodeIfPresent(Double.self, forKey: .carriedPause) ?? 0
+        type = try c.decode(String.self, forKey: .type)
+        let rawStart = try c.decode(Double.self, forKey: .start)
+        let clampedStart = rawStart.isFinite ? max(-2_208_988_800_000, min(4_102_444_800_000, rawStart)) : 0
+        start = clampedStart
+        side = try c.decodeIfPresent(String.self, forKey: .side)
+        let rawPausedAt = try c.decodeIfPresent(Double.self, forKey: .pausedAt)
+        pausedAt = rawPausedAt.flatMap { $0.isFinite && $0 >= clampedStart && $0 <= 4_102_444_800_000 ? $0 : nil }
+        let maxSpan: Double = 7 * 86_400_000
+        let rawPausedTotal = try c.decodeIfPresent(Double.self, forKey: .pausedTotal) ?? 0
+        pausedTotal = rawPausedTotal.isFinite ? max(0, min(maxSpan, rawPausedTotal)) : 0
+        let rawCarried = try c.decodeIfPresent(Double.self, forKey: .carried) ?? 0
+        carried = rawCarried.isFinite ? max(0, min(maxSpan, rawCarried)) : 0
+        let rawCarriedPause = try c.decodeIfPresent(Double.self, forKey: .carriedPause) ?? 0
+        carriedPause = rawCarriedPause.isFinite ? max(0, min(maxSpan, rawCarriedPause)) : 0
         sessionEntryIDs = try c.decodeIfPresent([UUID].self, forKey: .sessionEntryIDs) ?? []
         detached = try c.decodeIfPresent(Bool.self, forKey: .detached) ?? false
     }
@@ -446,6 +463,26 @@ enum JournalFile {
         CFNotificationCenterPostNotification(CFNotificationCenterGetDarwinNotifyCenter(), CFNotificationName(darwinNotificationName), nil, nil, true)
     }
 
+    private struct AnyDecodableSkip: Decodable {
+        init(from decoder: Decoder) throws {}
+    }
+
+    private struct LossyArray<Element: Decodable>: Decodable {
+        let elements: [Element]
+        init(from decoder: Decoder) throws {
+            var container = try decoder.unkeyedContainer()
+            var items: [Element] = []
+            while !container.isAtEnd {
+                if let item = try? container.decode(Element.self) {
+                    items.append(item)
+                } else {
+                    _ = try? container.decode(AnyDecodableSkip.self)
+                }
+            }
+            elements = items
+        }
+    }
+
     struct Body: Codable {
         var logs: [LogEntry] = []; var timers: [RunningTimer] = []; var measures: [Measure] = []
         /// The child's firsts (第一次), a line of their own that is never cut by dates.
@@ -455,10 +492,10 @@ enum JournalFile {
         // file (a failed read would show an empty journal)
         init(from d: Decoder) throws {
             let c = try d.container(keyedBy: CodingKeys.self)
-            logs = try c.decodeIfPresent([LogEntry].self, forKey: .logs) ?? []
-            timers = try c.decodeIfPresent([RunningTimer].self, forKey: .timers) ?? []
-            measures = try c.decodeIfPresent([Measure].self, forKey: .measures) ?? []
-            firsts = try c.decodeIfPresent([First].self, forKey: .firsts) ?? []
+            logs = (try? c.decodeIfPresent(LossyArray<LogEntry>.self, forKey: .logs))?.elements ?? []
+            timers = (try? c.decodeIfPresent(LossyArray<RunningTimer>.self, forKey: .timers))?.elements ?? []
+            measures = (try? c.decodeIfPresent(LossyArray<Measure>.self, forKey: .measures))?.elements ?? []
+            firsts = (try? c.decodeIfPresent(LossyArray<First>.self, forKey: .firsts))?.elements ?? []
         }
     }
 
@@ -741,14 +778,15 @@ enum JournalFile {
             if let p = t.pausedAt { b.timers[i].pausedTotal += max(0, n - p); b.timers[i].pausedAt = nil }
             return b
         }
+        let endMs = max(t.start, n)
         let detail = nurseDetail(pausedMs: paused, separate: t.detached && t.sessionEntryIDs.isEmpty)
-        let entry = LogEntry(type: type, start: t.start, end: n, side: t.side ?? "l", detail: detail)
+        let entry = LogEntry(type: type, start: t.start, end: endMs, side: t.side ?? "l", detail: detail)
         b.logs.append(entry)
         b.timers[i] = RunningTimer(
             type: type,
-            start: n,
+            start: endMs,
             side: other,
-            carried: t.carried + t.elapsed(n) * 1000,
+            carried: t.carried + t.elapsed(endMs) * 1000,
             carriedPause: t.carriedPause + paused,
             sessionEntryIDs: t.sessionEntryIDs + [entry.id],
             detached: t.detached

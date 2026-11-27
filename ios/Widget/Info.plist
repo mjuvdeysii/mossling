@@ -4,6 +4,7 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key><string>zh-Hans</string>
 	<key>CFBundleLocalizations</key><array><string>zh-Hans</string><string>en</string></array>
+	<key>LSHasLocalizedDisplayName</key><true/>
 	<key>CFBundleDisplayName</key><string>摸索台灯</string>
 	<key>CFBundleExecutable</key><string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key><string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>

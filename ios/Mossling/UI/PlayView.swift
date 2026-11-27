@@ -129,7 +129,8 @@ struct PlayView: View {
                             inline: open < play.steps.count,
                             dark: dark,
                             onReplay: open < play.steps.count ? {
-                                TactileEngine.shared.beadClick()
+                                stopAutoPlay()
+                                scrubPhase = nil
                                 replayTrigger += 1
                             } : nil
                         ) { manualJump($0, proxy, scroll: false) }
@@ -205,7 +206,6 @@ struct PlayView: View {
         .calmWhileScrolling()
         .pageBackground(tone: Palette.area(Palette.areaKey(of: play)))
         .sensoryFeedback(.success, trigger: cheer)
-        .sensoryFeedback(.selection, trigger: open)
         .onAppear {
             isVisible = true
             if let p = app.playing, p.play.code == play.code { open = p.step }
@@ -220,6 +220,7 @@ struct PlayView: View {
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 scrubPhase = nil
+                stopAutoPlay()
             }
             keepAwake(isVisible && phase == .active && !dimVeil && (open < play.steps.count || matMode))
         }
@@ -332,7 +333,7 @@ struct PlayView: View {
                     } else {
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : .snappy) { open = step }
-                        app.play(play, month: month, at: step)
+                        if app.consented { app.play(play, month: month, at: step) }
                     }
                 }
             )
@@ -378,21 +379,10 @@ struct PlayView: View {
             TactileEngine.shared.goldChime()
             cheer += 1
         } else {
-            guard app.consented else {
-                matMode = false
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(350))
-                    _ = app.mayKeep()
-                }
-                return
-            }
-            if app.mayKeep(), app.didPlay(play, month: month, j) {
-                app.finishPlaying()
-                TactileEngine.shared.goldChime()
-                cheer += 1
-            } else {
-                return
-            }
+            guard app.mayKeep(), app.didPlay(play, month: month, j) else { return }
+            app.finishPlaying()
+            TactileEngine.shared.goldChime()
+            cheer += 1
         }
         withAnimation(reduce ? nil : .snappy) {
             open = play.steps.count
@@ -437,7 +427,7 @@ struct PlayView: View {
         scrubPhase = nil
         if open >= play.steps.count {
             open = 0
-            app.play(play, month: month, at: 0)
+            if app.consented { app.play(play, month: month, at: 0) }
         }
         isAutoPlaying = true
         autoPlayTask = Task { @MainActor in
@@ -448,7 +438,7 @@ struct PlayView: View {
                 let next = min(play.steps.count - 1, open + 1)
                 TactileEngine.shared.pageTurn()
                 withAnimation(.snappy) { open = next }
-                app.play(play, month: month, at: next)
+                if app.consented { app.play(play, month: month, at: next) }
             }
             if isAutoPlaying && !Task.isCancelled && open == play.steps.count - 1 {
                 let lastDur = stepDuration(at: open)
@@ -471,7 +461,7 @@ struct PlayView: View {
         }
         TactileEngine.shared.beadClick()
         withAnimation(reduce ? nil : .snappy) { open = i }
-        app.play(play, month: month, at: i)
+        if app.consented { app.play(play, month: month, at: i) }
         if scroll {
             withAnimation(.smooth.delay(0.12)) {
                 proxy.scrollTo("stage", anchor: .top)
@@ -679,6 +669,7 @@ struct MatSideCoPlayView: View {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var showSafetySheet = false
     @State private var scrubPhase: Double? = nil
@@ -736,6 +727,7 @@ struct MatSideCoPlayView: View {
                             .background(Circle().fill(dark ? Palette.lampCard : Palette.card))
                             .overlay(Circle().strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
                     }
+                    .hitTarget(LayoutSpec.hitMin)
                     .buttonStyle(.toy)
                     .accessibilityLabel(isAutoPlaying ? L10n.t("暂停连播", "Pause story") : L10n.t("连播全步", "Play story"))
                 }
@@ -903,6 +895,24 @@ struct MatSideCoPlayView: View {
             }
             .presentationDetents([.medium, .large])
             .lampPresented(sheet: true)
+        }
+        .onAppear {
+            UIApplication.shared.isIdleTimerDisabled = (scenePhase == .active && !showSafetySheet)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                scrubPhase = nil
+                stopMatAutoPlay()
+            }
+            UIApplication.shared.isIdleTimerDisabled = (phase == .active && !showSafetySheet)
+        }
+        .onChange(of: showSafetySheet) { _, hidden in
+            UIApplication.shared.isIdleTimerDisabled = (scenePhase == .active && !hidden)
+        }
+        .onDisappear {
+            scrubPhase = nil
+            stopMatAutoPlay()
+            UIApplication.shared.isIdleTimerDisabled = false
         }
     }
 
@@ -1187,15 +1197,19 @@ private struct StorybookSpineScrubber: View {
         .padding(.horizontal, inline ? 4 : 14)
         .padding(.vertical, inline ? 2 : 6)
 
-        Group {
-            if inline {
-                container
-            } else {
-                container.printCard(radius: Radius.inner)
-            }
-        }
-        .animation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.80), value: isScrubbing)
-        .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
+        container
+            .padding(.horizontal, inline ? 0 : 12)
+            .padding(.vertical, inline ? 0 : 10)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(inline ? Color.clear : Palette.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(inline ? Color.clear : Palette.outline.opacity(0.18), lineWidth: 0.8)
+            )
+            .animation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.80), value: isScrubbing)
+            .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
     }
 }
 
@@ -1205,6 +1219,7 @@ struct DoneCount: View {
     var cheer = 0
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -1227,7 +1242,7 @@ struct DoneCount: View {
                     }
                 }
             }
-            .phaseAnimator([1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
+            .phaseAnimator(reduce ? [1.0] : [1.0, 1.25, 1.0], trigger: cheer) { v, s in v.scaleEffect(s) }
             VStack(alignment: .leading, spacing: 1) {
                 if record.count == 0 {
                     Text(L10n.t("还没玩过", "Not played yet")).font(.subheadline.weight(.semibold)).foregroundStyle(Palette.secondaryText)

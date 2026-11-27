@@ -657,7 +657,7 @@ private struct StorybookMonthSpread: View {
                                     if entry.loved {
                                         Image(systemName: "heart.fill")
                                             .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
-                                            .foregroundStyle(Crayon.pink)
+                                            .foregroundStyle(dark ? Crayon.pink : Crayon.ink(Crayon.pink))
                                     }
                                 }
                                 .padding(.horizontal, 9)

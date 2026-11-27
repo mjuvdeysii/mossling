@@ -278,6 +278,10 @@ struct DataView: View {
     }
 
     private func export(_ k: Export) {
+        if (k == .backup || k == .yearbook), (CapsuleStore.shared.loadFailed || FoodAtlasStore.shared.loadFailed) {
+            message = L10n.t("辅食或时光胶囊读取失败，为避免导出空备份覆盖原有数据，请先在对应页面点击重试后再导出。", "Foods or Time Capsule storage failed to load. Retry loading before exporting so existing data isn't replaced by empty records.")
+            return
+        }
         let body: JournalFile.Body
         do {
             body = try JournalFile.load()
@@ -289,7 +293,7 @@ struct DataView: View {
         let capsules = CapsuleStore.shared.items
         let data: Data = switch k {
         case .summary: RecordFile.summary(app, body, foods: foods)
-        case .yearbook: GrowthYearbookPDF.render(app: app, j: j, foods: foods, capsules: capsules)
+        case .yearbook: GrowthYearbookPDF.render(app: app, j: JournalStore(preview: body), foods: foods, capsules: capsules)
         case .backup: RecordFile.json(app, body, foods: foods, capsules: capsules)
         case .table: RecordFile.csv(body)
         }

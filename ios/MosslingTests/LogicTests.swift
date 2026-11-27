@@ -1437,6 +1437,8 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testBedsideLampPreferencesPersistAndClear() {
+        JournalFile.beginTest()
+        defer { JournalFile.endTest() }
         let suiteName = "app.mossling.tests.lamp.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -1551,7 +1553,7 @@ final class LogicTests: XCTestCase {
     }
 
     @MainActor
-    func testFoodAtlasQuickStampIncrementAndSuggestions() {
+    func testFoodAtlasQuickStampIncrementAndSuggestions() throws {
         let day = Day(y: 2026, m: 10, d: 20)
         let store = FoodAtlasStore(preview: [
             FoodRecord(foodId: "pumpkin", firstTastedEpochDay: day.plus(days: -5).epochDay, reaction: .loved, times: 1),
@@ -1568,14 +1570,14 @@ final class LogicTests: XCTestCase {
         XCTAssertTrue(candidates.dropFirst().contains { $0.id == "ricecereal" })
 
         // Quick stamping an untried allergen records first taste and updates allergen count
-        let egg = store.quickStamp(foodId: "eggyolk", reaction: .tasted, today: day)
+        let egg = try XCTUnwrap(store.quickStamp(foodId: "eggyolk", reaction: .tasted, today: day))
         XCTAssertEqual(egg.firstTastedEpochDay, day.epochDay)
         XCTAssertEqual(egg.reaction, .tasted)
         XCTAssertEqual(egg.times, 1)
         XCTAssertEqual(store.allergenIntroducedCount, 1)
 
         // Updating reaction via quickStamp preserves original first taste day and times
-        let updated = store.quickStamp(foodId: "broccoli", reaction: .loved, today: day.plus(days: 4))
+        let updated = try XCTUnwrap(store.quickStamp(foodId: "broccoli", reaction: .loved, today: day.plus(days: 4)))
         XCTAssertEqual(updated.firstTastedEpochDay, day.plus(days: -3).epochDay)
         XCTAssertEqual(updated.times, 2)
         XCTAssertEqual(updated.reaction, .loved)
@@ -3284,8 +3286,8 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(b.logs.feeds().count, 2, "Detached nurse entry stays a standalone feed")
 
         // JournalStore discard + immediate start flow + detached retry
-        let savedFile = JournalFile.read()
-        defer { _ = JournalFile.write(savedFile) }
+        JournalFile.beginTest()
+        defer { JournalFile.endTest() }
         let store = JournalStore()
         var initBody = JournalFile.Body()
         initBody.logs = [LogEntry(type: LogType.nurse, start: t(19, 8, 0), end: t(19, 8, 10), side: "l")]
@@ -3404,6 +3406,7 @@ final class LogicTests: XCTestCase {
         let suite = "edition3to5-\(UUID().uuidString)"
         let app = AppModel(defaults: UserDefaults(suiteName: suite)!)
         app.consent = Consent.version
+        app.today = Day(y: 2026, m: 10, d: 15)
         app.nickname = "小满"
         app.sex = "girl"
         app.birth = app.today.plus(months: -9)
@@ -4534,5 +4537,112 @@ final class LogicTests: XCTestCase {
         XCTAssertNil(day1Dial.summary.avgSleepHours)
         let day1Comp = DailyRhythmComparison.build(logs: [todayOnlySleep], today: dOne, journalEnabled: true)
         XCTAssertNil(day1Comp.avgSleepHours)
+    }
+
+    @MainActor
+    func testAuditWave6ZeroHBZeroP0s() throws {
+        // 1. HandoverWebCodec CJK / unit redaction + EN false-positive protection
+        let makeSnap = { (note: String) in
+            HandoverSnapshot(
+                babyName: "Momo",
+                ageText: "6m",
+                dateLabel: "11月27日",
+                timeLabel: "19:30",
+                activeTimerLine: nil,
+                lastFeedHeadline: "1 小时前",
+                lastFeedDetail: "120 ml",
+                lastSleepHeadline: "2 小时前",
+                lastSleepDetail: "45 min",
+                lastDiaperHeadline: "30 分前",
+                lastDiaperDetail: "Wet",
+                todayHeadline: "平稳",
+                todayDetail: "5 次喂奶",
+                extraNote: note
+            )
+        }
+        defer { L10n.overrideEnglish = nil }
+        L10n.overrideEnglish = false
+        for sensitive in ["刚测38.5度", "38.5度了", "晚上喂了5ml", "刚吃125mg", "38°"] {
+            let url = try XCTUnwrap(HandoverWebCodec.encodeURL(from: makeSnap(sensitive), isEnglish: false))
+            let decoded = try XCTUnwrap(HandoverWebCodec.decode(from: url))
+            XCTAssertFalse((decoded.no ?? "").contains(sensitive), "Expected '\(sensitive)' to be redacted")
+            XCTAssertEqual(decoded.no, "体征与用药详情请见当面交接卡")
+        }
+        for safeZH in ["辅食 · 山药泥", "下一顿喂 120ml 配方奶"] {
+            let url = try XCTUnwrap(HandoverWebCodec.encodeURL(from: makeSnap(safeZH), isEnglish: false))
+            let decoded = try XCTUnwrap(HandoverWebCodec.decode(from: url))
+            XCTAssertEqual(decoded.no, safeZH, "Expected '\(safeZH)' to be preserved")
+        }
+        L10n.overrideEnglish = true
+        let enURL = try XCTUnwrap(HandoverWebCodec.encodeURL(from: makeSnap("attempted nap"), isEnglish: true))
+        let enDecoded = try XCTUnwrap(HandoverWebCodec.decode(from: enURL))
+        XCTAssertEqual(enDecoded.no, "attempted nap")
+
+        // 2. JournalStore stop -> concurrent timer start -> undo must preserve addedLogID
+        JournalFile.beginTest()
+        defer { JournalFile.endTest() }
+        let undoStore = JournalStore()
+        undoStore.start(LogType.sleep, at: Date().addingTimeInterval(-600), openFocus: false)
+        undoStore.stop(LogType.sleep)
+        let stopToast = try XCTUnwrap(undoStore.toast)
+        let loggedID = try XCTUnwrap(undoStore.logs.last(where: { $0.type == LogType.sleep })?.id)
+        undoStore.start(LogType.sleep, openFocus: false)
+        XCTAssertEqual(undoStore.timers.filter { $0.type == LogType.sleep }.count, 1)
+        undoStore.undo(stopToast)
+        XCTAssertTrue(undoStore.logs.contains(where: { $0.id == loggedID }), "Blocked stop-undo must preserve addedLogID")
+        XCTAssertFalse((undoStore.toast?.text ?? "").contains("Undone"))
+        XCTAssertFalse((undoStore.toast?.text ?? "").contains("已撤销"))
+
+        // 3. RunningTimer overflow clamping & LossyArray decoding on corrupt sibling log
+        let timerJSON = Data(#"{"type":"sleep","start":1700000000000,"pausedTotal":1e25}"#.utf8)
+        let decodedTimer = try JSONDecoder().decode(RunningTimer.self, from: timerJSON)
+        XCTAssertTrue(decodedTimer.pausedTotal.isFinite)
+        XCTAssertLessThanOrEqual(decodedTimer.pausedTotal, 7 * 86_400_000)
+
+        let validSibling = LogEntry(type: LogType.diaper, start: 1_700_000_000_000, detail: "wet")
+        var siblingBody = JournalFile.Body()
+        siblingBody.logs = [validSibling]
+        let siblingData = try JSONEncoder().encode(siblingBody)
+        var siblingObj = try XCTUnwrap(JSONSerialization.jsonObject(with: siblingData) as? [String: Any])
+        let encodedLogs = try XCTUnwrap(siblingObj["logs"] as? [Any])
+        siblingObj["logs"] = ["bad"] + encodedLogs
+        let corruptSiblingData = try JSONSerialization.data(withJSONObject: siblingObj)
+        let recoveredBody = try JSONDecoder().decode(JournalFile.Body.self, from: corruptSiblingData)
+        XCTAssertEqual(recoveredBody.logs.map(\.id), [validSibling.id])
+
+        // 4. RecordFile.csv formula injection defense with leading control/whitespace characters
+        var csvInjBody = JournalFile.Body()
+        csvInjBody.logs = [
+            LogEntry(type: LogType.note, start: 1_700_000_000_000, detail: "\r=CMD"),
+            LogEntry(type: LogType.note, start: 1_700_000_060_000, detail: "\n=1+1"),
+            LogEntry(type: LogType.note, start: 1_700_000_120_000, detail: " =SUM(A1)")
+        ]
+        let csvStr = try XCTUnwrap(String(data: RecordFile.csv(csvInjBody), encoding: .utf8))
+        XCTAssertTrue(csvStr.contains("' =CMD"))
+        XCTAssertTrue(csvStr.contains("'\n=1+1"))
+        XCTAssertTrue(csvStr.contains("' =SUM(A1)"))
+
+        // 5. GrowthBook excludes incomplete app.today partial sleep
+        let gbSuite = "wave6-gb-\(UUID().uuidString)"
+        let gbDefaults = UserDefaults(suiteName: gbSuite)!
+        defer { gbDefaults.removePersistentDomain(forName: gbSuite) }
+        let gbApp = AppModel(defaults: gbDefaults)
+        gbApp.consent = Consent.version
+        gbApp.birth = Day(y: 2026, m: 10, d: 1)
+        gbApp.today = Day(y: 2026, m: 10, d: 19)
+        let todaySleepMs = try XCTUnwrap(Day.cal.date(bySettingHour: 13, minute: 0, second: 0, of: gbApp.today.date)).timeIntervalSince1970 * 1000
+        var gbBody = JournalFile.Body()
+        gbBody.logs = [LogEntry(type: LogType.sleep, start: todaySleepMs, end: todaySleepMs + 3_600_000)]
+        let gbPages = BookPage.all(gbApp, JournalStore(preview: gbBody))
+        XCTAssertEqual(gbPages.count, 1)
+        XCTAssertNil(gbPages.first?.sleepHours)
+
+        // 6. FoodAtlasStore quickStamp refuses mutation when loadFailed == true
+        let corruptAtlasURL = FileManager.default.temporaryDirectory.appendingPathComponent("corrupt-atlas-\(UUID().uuidString).json")
+        try Data("{corrupt".utf8).write(to: corruptAtlasURL)
+        defer { try? FileManager.default.removeItem(at: corruptAtlasURL) }
+        let failedAtlas = FoodAtlasStore(fileURL: corruptAtlasURL)
+        XCTAssertTrue(failedAtlas.loadFailed)
+        XCTAssertNil(failedAtlas.quickStamp(foodId: "avocado", reaction: .loved, today: Day(y: 2026, m: 10, d: 19)))
     }
 }

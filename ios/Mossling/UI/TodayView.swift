@@ -42,7 +42,7 @@ struct TodayView: View {
                 if app.age != nil { TipView(shelfTip) }
                 TodayPlayCard(
                     month: baby,
-                    arrange: { arranging = true }
+                    arrange: { guard app.mayKeep() else { return }; arranging = true }
                 )
                 sensoryDiscoveryDock(dark: dark)
                 LampCardSpotlightCard(card: LampCardCatalog.spotlight(forMonth: baby, day: app.today), dark: dark)
@@ -752,6 +752,7 @@ struct TodayPlayCard: View {
                         Spacer(minLength: 4)
                         if week.count > 1 {
                             Button {
+                                guard app.mayKeep() else { return }
                                 withAnimation(reduce ? nil : .spring(response: 0.38, dampingFraction: 0.84)) {
                                     app.anotherToday(month, j)
                                 }
@@ -1106,7 +1107,7 @@ struct ShelfEditor: View {
 struct BirthSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
-    @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
+    @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
     /// Asked the first time only: whether to keep the day's records too (under 台灯), so a parent of a newborn has
     /// the feeds, sleeps and nappies from the start rather than finding them later behind a switch.
     @State private var first = false
@@ -1130,7 +1131,9 @@ struct BirthSheet: View {
                     .listRowBackground(Color.clear)
                 }
                 Section {
-                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
+                    let defaultMin = Calendar.current.date(byAdding: .year, value: -4, to: Date()) ?? Date(timeIntervalSinceNow: -4 * 365 * 86_400)
+                    let minDate = min(app.birth?.date ?? defaultMin, defaultMin)
+                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: minDate...Date(), displayedComponents: .date)
                         .datePickerStyle(.graphical)
                 }
                 if first {

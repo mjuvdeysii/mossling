@@ -42,7 +42,7 @@ final class EarSafeVolumeMonitor {
     private let defaults: UserDefaults
     private let previewMode: Bool
     private let previewForceShow: Bool
-    private var observation: NSKeyValueObservation?
+    @ObservationIgnored nonisolated(unsafe) private var observation: NSKeyValueObservation?
     private var previousLevel: EarSafeVolumeLevel
 
     private static var isTestHost: Bool {
@@ -119,6 +119,9 @@ final class EarSafeVolumeMonitor {
         }
     }
 
+    private var hasObservedLevel = false
+    private var activatedAmbientSession = false
+
     /// Starts passive KVO on `AVAudioSession.sharedInstance().outputVolume` without disrupting active audio categories.
     func start() {
         guard !previewMode, !Self.isTestHost else { return }
@@ -131,23 +134,32 @@ final class EarSafeVolumeMonitor {
         if !activePlaybackOrRecord {
             try? session.setCategory(.ambient, options: .mixWithOthers)
             try? session.setActive(true, options: [])
+            activatedAmbientSession = true
         }
-        volume = session.outputVolume
-        previousLevel = EarSafeVolumeLevel.of(volume)
+        let current = session.outputVolume
+        let nextLevel = EarSafeVolumeLevel.of(current)
+        if hasObservedLevel && previousLevel != .loud && nextLevel == .loud {
+            dismissedThisSession = false
+        }
+        volume = current
+        previousLevel = nextLevel
+        hasObservedLevel = true
         foregroundObserver = NotificationCenter.default.addObserver(
             forName: UIApplication.didBecomeActiveNotification,
             object: nil,
             queue: .main
         ) { [weak self] _ in
-            let current = AVAudioSession.sharedInstance().outputVolume
             Task { @MainActor [weak self] in
-                guard let self else { return }
-                let nextLevel = EarSafeVolumeLevel.of(current)
-                if self.previousLevel != .loud && nextLevel == .loud {
-                    self.dismissedThisSession = false
-                }
-                self.volume = current
-                self.previousLevel = nextLevel
+                self?.refreshSessionAndLevel(reactivateIfIdle: true)
+            }
+        }
+        routeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.refreshSessionAndLevel(reactivateIfIdle: false)
             }
         }
         observation = session.observe(\.outputVolume, options: [.new]) { [weak self] session, _ in
@@ -164,11 +176,42 @@ final class EarSafeVolumeMonitor {
                     TactileEngine.shared.beadClick()
                 }
                 self.previousLevel = nextLevel
+                self.hasObservedLevel = true
             }
         }
     }
 
-    private var foregroundObserver: NSObjectProtocol?
+    private func refreshSessionAndLevel(reactivateIfIdle: Bool) {
+        let session = AVAudioSession.sharedInstance()
+        if reactivateIfIdle {
+            let busy = SoundscapeEngine.shared.hasActiveEngine
+                || ToyboxAudioEngine.shared.isPlaying
+                || FirstVoiceController.shared.isRecording
+                || FirstVoiceController.shared.playingID != nil
+            if !busy {
+                try? session.setCategory(.ambient, options: .mixWithOthers)
+                try? session.setActive(true, options: [])
+                activatedAmbientSession = true
+            }
+        }
+        let current = session.outputVolume
+        let nextLevel = EarSafeVolumeLevel.of(current)
+        if hasObservedLevel && previousLevel != .loud && nextLevel == .loud {
+            dismissedThisSession = false
+        }
+        volume = current
+        previousLevel = nextLevel
+        hasObservedLevel = true
+    }
+
+    @ObservationIgnored nonisolated(unsafe) private var foregroundObserver: NSObjectProtocol?
+    @ObservationIgnored nonisolated(unsafe) private var routeObserver: NSObjectProtocol?
+
+    deinit {
+        observation?.invalidate()
+        if let foregroundObserver { NotificationCenter.default.removeObserver(foregroundObserver) }
+        if let routeObserver { NotificationCenter.default.removeObserver(routeObserver) }
+    }
 
     func stop() {
         observation?.invalidate()
@@ -176,6 +219,20 @@ final class EarSafeVolumeMonitor {
         if let foregroundObserver {
             NotificationCenter.default.removeObserver(foregroundObserver)
             self.foregroundObserver = nil
+        }
+        if let routeObserver {
+            NotificationCenter.default.removeObserver(routeObserver)
+            self.routeObserver = nil
+        }
+        if activatedAmbientSession {
+            activatedAmbientSession = false
+            let busy = SoundscapeEngine.shared.hasActiveEngine
+                || ToyboxAudioEngine.shared.isPlaying
+                || FirstVoiceController.shared.isRecording
+                || FirstVoiceController.shared.playingID != nil
+            if !busy {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
         }
     }
 }

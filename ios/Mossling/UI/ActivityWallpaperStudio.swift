@@ -193,7 +193,7 @@ struct ActivityWallpaperPoster: View {
                     HStack(spacing: 8) {
                         Text(plate.code)
                             .font(.system(.caption2, design: .rounded).weight(.bold))
-                            .foregroundStyle(Color(hex: plate.accentHex))
+                            .foregroundStyle(Crayon.ink(Color(hex: plate.accentHex)))
                         Text(plate.title)
                             .font(.system(.footnote, design: .serif).weight(.semibold))
                             .foregroundStyle(Color(hex: 0x1F2A38))
@@ -234,6 +234,7 @@ struct ActivityWallpaperSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var typeSize
     @State private var selected: ActivityWallpaperPlate
     @State private var format: ActivityWallpaperFormat = .lockScreen
     @State private var eveningWarmth: Bool
@@ -258,7 +259,7 @@ struct ActivityWallpaperSheet: View {
                             .multilineTextAlignment(.center)
                         Text(selected.subtitle)
                             .font(.footnote)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Palette.secondaryText)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 12)
                     }
@@ -302,24 +303,38 @@ struct ActivityWallpaperSheet: View {
                     )
                     .padding(.horizontal, 4)
 
-                    HStack(spacing: 12) {
-                        Toggle(isOn: $eveningWarmth) {
+                    FlowRow(spacing: 10, lineSpacing: 10) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(nil) { eveningWarmth.toggle() }
+                        } label: {
                             Label(L10n.t("夜间暖釉", "Night Glaze"), systemImage: "moon.stars")
                                 .font(.footnote.weight(.semibold))
-                                .foregroundStyle(eveningWarmth ? .white : .primary)
+                                .foregroundStyle(eveningWarmth ? .white : Palette.text)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Capsule().fill(eveningWarmth ? Crayon.buttonFill(Crayon.tangerine) : Palette.card))
+                                .overlay(Capsule().strokeBorder(eveningWarmth ? Color.clear : Palette.outline.opacity(0.35), lineWidth: 0.9))
                                 .pillHitTarget()
                         }
-                        .toggleStyle(.button)
-                        .tint(Crayon.buttonFill(Crayon.tangerine))
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(eveningWarmth ? .isSelected : [])
 
-                        Toggle(isOn: $showPlaque) {
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(nil) { showPlaque.toggle() }
+                        } label: {
                             Label(L10n.t("底部画签", "Mat Plaque"), systemImage: "text.below.photo")
                                 .font(.footnote.weight(.semibold))
-                                .foregroundStyle(showPlaque ? .white : .primary)
+                                .foregroundStyle(showPlaque ? .white : Palette.text)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Capsule().fill(showPlaque ? Crayon.buttonFill(accentColor) : Palette.card))
+                                .overlay(Capsule().strokeBorder(showPlaque ? Color.clear : Palette.outline.opacity(0.35), lineWidth: 0.9))
                                 .pillHitTarget()
                         }
-                        .toggleStyle(.button)
-                        .tint(Crayon.buttonFill(accentColor))
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(showPlaque ? .isSelected : [])
                     }
 
                     // 6-Plate Wrapped Collector Switcher (Zero Horizontal Scroll)
@@ -354,8 +369,8 @@ struct ActivityWallpaperSheet: View {
 
                                     Text("\(item.code) · \(L10n.t(String(item.titleZH.prefix(4)), item.titleEN))")
                                         .font(.caption2.weight(selected.id == item.id ? .bold : .medium))
-                                        .foregroundStyle(selected.id == item.id ? Color.primary : Color.secondary)
-                                        .lineLimit(1)
+                                        .foregroundStyle(selected.id == item.id ? Color.primary : Palette.secondaryText)
+                                        .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                                 }
                             }
                             .buttonStyle(.plain)

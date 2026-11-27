@@ -38,6 +38,7 @@ actor LiveTimers {
             return
         }
         #if canImport(ActivityKit)
+        defer { ControlCenter.shared.reloadAllControls() }
         guard let body = try? JournalFile.load() else { return }
         let timers = body.timers
         let running = Activity<TimerAttributes>.activities
@@ -60,8 +61,9 @@ actor LiveTimers {
                 _ = try? Activity.request(attributes: TimerAttributes(type: t.type), content: ActivityContent(state: state, staleDate: nil))
             }
         }
-        #endif
+        #else
         ControlCenter.shared.reloadAllControls()
+        #endif
     }
 }
 
@@ -90,6 +92,9 @@ struct TimerIntent: LiveActivityIntent {
 
     static var saveFailedDialog: String {
         L10n.t("没有保存成功，请稍后再试。", "Couldn't save right now. Please try again.")
+    }
+    static var readFailedDialog: String {
+        L10n.t("暂时无法读取记录，请稍后再试。", "Couldn't read saved records right now. Please try again.")
     }
     func perform() async throws -> some IntentResult {
         guard Self.canRecord(snapshot: JournalFile.snapshot()) else {
@@ -146,6 +151,8 @@ struct QuickLogDiaperIntent: AppIntent {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
             WidgetCenter.shared.reloadAllTimelines()
+            ControlCenter.shared.reloadAllControls()
+            await LiveTimers.sync()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         guard JournalFile.tryQuickLog(type: LogType.diaper, detail: kind.rawValue) else {
@@ -288,6 +295,8 @@ struct QuickLogBottleIntent: AppIntent {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
             WidgetCenter.shared.reloadAllTimelines()
+            ControlCenter.shared.reloadAllControls()
+            await LiveTimers.sync()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let clamped = max(10, min(360, amountMl))
@@ -314,6 +323,8 @@ struct QuickLogSolidIntent: AppIntent {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
             WidgetCenter.shared.reloadAllTimelines()
+            ControlCenter.shared.reloadAllControls()
+            await LiveTimers.sync()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let trimmed = foodName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -479,6 +490,9 @@ struct BabyCareStatusIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
+            WidgetCenter.shared.reloadAllTimelines()
+            ControlCenter.shared.reloadAllControls()
+            await LiveTimers.sync()
             let locked = snap?.appLocked == true
             let dialog = TimerIntent.blockedDialog(snapshot: snap)
             let hidden = locked ? L10n.t("已锁定", "Locked") : L10n.t("已隐藏", "Hidden")
@@ -500,14 +514,14 @@ struct BabyCareStatusIntent: AppIntent {
             }
         }
         guard let body = try? JournalFile.load() else {
-            let dialog = TimerIntent.saveFailedDialog
+            let dialog = TimerIntent.readFailedDialog
             let unavailable = BabyCareStatusSummary(
                 babyName: L10n.appName,
                 activeTimerLabel: nil,
                 activeTimerDuration: nil,
                 lastFeedPhrase: dialog,
                 lastFeedNote: nil,
-                lastWakePhrase: dialog,
+                lastWakePhrase: "—",
                 lastWakeNote: nil,
                 todayWetDiapers: 0,
                 todayDirtyDiapers: 0,

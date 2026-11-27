@@ -580,8 +580,14 @@ enum ClinicSnapshotPDF {
             if let actual = app.actualAge {
                 identity.append(L10n.t("出生日期：\(birthStr) · 实际月龄：\(actual.months) 个月 \(actual.days) 天", "DOB: \(birthStr) · Actual age: \(actual.months)m \(actual.days)d"))
             }
-            if let gw = app.gestationalWeeks, let ca = app.correctedAge {
-                identity.append(L10n.t("早产 \(gw) 周 · 矫正月龄：\(ca.months) 个月 \(ca.days) 天", "Preterm \(gw) wks · Corrected age: \(ca.months)m \(ca.days)d"))
+            if let gw = app.gestationalWeeks, Age.isPreterm(gw) {
+                let cb = Age.correctedBirth(birth: birth, gestationalWeeks: gw)
+                if app.today < cb {
+                    let toEDD = max(0, app.today.days(to: cb))
+                    identity.append(L10n.t("早产 \(gw) 周 · 预产期前（距预产期 \(toEDD) 天）", "Preterm \(gw) wks · Pre-EDD (\(toEDD) days to due date)"))
+                } else if let ca = app.correctedAge {
+                    identity.append(L10n.t("早产 \(gw) 周 · 矫正月龄：\(ca.months) 个月 \(ca.days) 天", "Preterm \(gw) wks · Corrected age: \(ca.months)m \(ca.days)d"))
+                }
             }
         }
 
@@ -960,8 +966,12 @@ struct ClinicSnapshotSheet: View {
                                         } label: {
                                             Image(systemName: "xmark.circle.fill")
                                                 .foregroundStyle(Palette.secondaryText)
+                                                .frame(width: 28, height: 28)
+                                                .contentShape(Rectangle())
                                         }
+                                        .hitTarget(LayoutSpec.hitMin)
                                         .buttonStyle(.plain)
+                                        .accessibilityLabel(L10n.t("删除问题", "Remove question"))
                                     }
                                 }
                             }

@@ -483,7 +483,9 @@
 
       var decoded = decodeFragment();
       var livePayload = decoded.payload;
-      var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
+      var activeLang = livePayload && (livePayload.l === "en" || livePayload.l === "zh")
+        ? livePayload.l
+        : (storageGet("mossling-lang") === "en" ? "en" : "zh");
 
       function formatRelativeAgo(epochSec, lang) {
         var sec = Number(epochSec);
@@ -592,11 +594,11 @@
         }
       }
 
-      function applyLang(lang) {
+      function applyLang(lang, persist) {
         activeLang = lang;
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        storageSet("mossling-lang", lang);
+        if (persist) storageSet("mossling-lang", lang);
         if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
           var t = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
@@ -620,7 +622,7 @@
 
       if (langBtn) {
         langBtn.addEventListener("click", function () {
-          applyLang(activeLang === "zh" ? "en" : "zh");
+          applyLang(activeLang === "zh" ? "en" : "zh", true);
         });
       }
 
@@ -628,14 +630,14 @@
         decoded = decodeFragment();
         livePayload = decoded.payload;
         if (livePayload && (livePayload.l === "en" || livePayload.l === "zh")) {
-          applyLang(livePayload.l);
+          applyLang(livePayload.l, false);
           return;
         }
         renderPayload();
       });
 
       setInterval(renderPayload, 30000);
-      applyLang(activeLang);
+      applyLang(activeLang, false);
     })();
   </script>
 </body>

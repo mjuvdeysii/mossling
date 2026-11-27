@@ -183,6 +183,7 @@ final class DataTests: XCTestCase {
         let srcApp = model()
         srcApp.tactileSounds = false
         srcApp.artStyle = .flat
+        defer { ArtStyle.current = .vinyl }
         let data = RecordFile.json(srcApp, body(), foods: foods, capsules: capsules)
 
         let dstApp = AppModel(defaults: UserDefaults(suiteName: "dst-\(UUID().uuidString)")!)

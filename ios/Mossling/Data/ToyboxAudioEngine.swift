@@ -151,7 +151,10 @@ final class ToyboxAudioEngine {
     private var lastRainChimeAt: TimeInterval = 0
     private var lastChimeSoundAt: TimeInterval = 0
     private var arpeggioTask: Task<Void, Never>?
+    private var idleStopTask: Task<Void, Never>?
     private var observersRegistered = false
+    private var isInterrupted = false
+    private var sessionActivated = false
 
     var isPlaying: Bool { engine?.isRunning == true }
 
@@ -335,22 +338,34 @@ final class ToyboxAudioEngine {
 
     /// Stops and releases the toybox audio engine when leaving the studio.
     func stop() {
-        let hadEngine = (engine != nil)
+        let shouldDeactivate = (engine != nil) || sessionActivated
+        idleStopTask?.cancel()
+        idleStopTask = nil
         arpeggioTask?.cancel()
         arpeggioTask = nil
         for p in players { p.stop() }
         engine?.stop()
         engine = nil
         players = []
-        if hadEngine && !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+        sessionActivated = false
+        if shouldDeactivate && !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
+    }
+
+    private func scheduleIdleStop() {
+        idleStopTask?.cancel()
+        idleStopTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(4.5))
+            guard !Task.isCancelled, let self, self.arpeggioTask == nil else { return }
+            self.stop()
         }
     }
 
     // MARK: - Audio Engine Pool
 
     private func ensureEngine() -> Bool {
-        guard !FirstVoiceController.shared.isRecording else { return false }
+        guard !isInterrupted, !FirstVoiceController.shared.isRecording else { return false }
         if SoundscapeEngine.shared.hasActiveEngine {
             SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
         }
@@ -364,6 +379,7 @@ final class ToyboxAudioEngine {
                 let session = AVAudioSession.sharedInstance()
                 try session.setCategory(.playback, mode: .default, options: [])
                 try session.setActive(true, options: [])
+                sessionActivated = true
                 try e.start()
                 if e.isRunning { return true }
             } catch {
@@ -377,6 +393,7 @@ final class ToyboxAudioEngine {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true, options: [])
+            sessionActivated = true
             let e = AVAudioEngine()
             guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return false }
             var pool: [AVAudioPlayerNode] = []
@@ -392,6 +409,10 @@ final class ToyboxAudioEngine {
             players = pool
             return true
         } catch {
+            if sessionActivated && !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            }
+            sessionActivated = false
             return false
         }
     }
@@ -407,17 +428,29 @@ final class ToyboxAudioEngine {
                 guard let self, let typeVal, let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
                 switch type {
                 case .began:
+                    self.isInterrupted = true
+                    self.routeStopGeneration &+= 1
+                    self.idleStopTask?.cancel()
+                    self.idleStopTask = nil
                     self.arpeggioTask?.cancel()
                     self.arpeggioTask = nil
                     for p in self.players { p.stop() }
                     self.engine?.pause()
                 case .ended:
+                    self.isInterrupted = false
                     let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
-                    if opts.contains(.shouldResume), let e = self.engine, !FirstVoiceController.shared.isRecording, !SoundscapeEngine.shared.hasActiveEngine {
+                    if opts.contains(.shouldResume), let e = self.engine,
+                       !FirstVoiceController.shared.isRecording,
+                       FirstVoiceController.shared.playingID == nil,
+                       !SoundscapeEngine.shared.hasActiveEngine {
                         let session = AVAudioSession.sharedInstance()
-                        try? session.setCategory(.playback, mode: .default, options: [])
-                        try? session.setActive(true)
-                        try? e.start()
+                        do {
+                            try session.setCategory(.playback, mode: .default, options: [])
+                            try session.setActive(true)
+                            try e.start()
+                        } catch {
+                            self.stop()
+                        }
                     }
                 @unknown default:
                     break
@@ -438,6 +471,10 @@ final class ToyboxAudioEngine {
             let senderID = note.object.map { ObjectIdentifier($0 as AnyObject) }
             Task { @MainActor [weak self] in
                 guard let self, let eng = self.engine, senderID == ObjectIdentifier(eng) else { return }
+                self.idleStopTask?.cancel()
+                self.idleStopTask = nil
+                self.arpeggioTask?.cancel()
+                self.arpeggioTask = nil
                 for p in self.players { p.stop() }
                 eng.stop()
                 self.engine = nil
@@ -448,6 +485,7 @@ final class ToyboxAudioEngine {
 
     private func nextPlayer() -> AVAudioPlayerNode? {
         guard ensureEngine(), !players.isEmpty else { return nil }
+        scheduleIdleStop()
         let node = players[nextPlayerIndex % players.count]
         nextPlayerIndex = (nextPlayerIndex + 1) % players.count
         node.volume = 1.0

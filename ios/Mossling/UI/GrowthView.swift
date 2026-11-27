@@ -226,6 +226,7 @@ struct GrowthView: View {
                 .foregroundStyle(on ? .white : Palette.secondaryText)
                 .padding(.horizontal, 10).padding(.vertical, 6)
                 .vinylSurface(on ? Crayon.fill(ind.tint, lamp) : Palette.stone, radius: Radius.chip, strong: on)
+                .pillHitTarget()
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(on ? .isSelected : [])
@@ -249,7 +250,7 @@ struct GrowthView: View {
             }
             if let now, now <= span {
                 RuleMark(x: .value(L10n.t("今天", "Today"), now)).foregroundStyle(ind.tint.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
-                    .annotation(position: .top, alignment: .center) { Text(L10n.t("今天", "Today")).font(.caption2).foregroundStyle(ind.tint) }
+                    .annotation(position: .top, alignment: .center) { Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(Crayon.ink(ind.tint)) }
             }
             ForEach(Array(pts.filter { $0.1 >= 0 && $0.1 <= 36 }.enumerated()), id: \.offset) { _, p in
                 LineMark(x: .value(L10n.t("月龄", "Age"), p.1), y: .value(L10n.t("值", "Value"), p.2), series: .value(L10n.t("百分位", "Percentile"), "child"))
@@ -420,6 +421,7 @@ struct GrowthView: View {
                                 .frame(width: 30, height: 30)
                                 .background(Circle().fill(Palette.accent.opacity(lamp ? 0.18 : 0.10)))
                         }
+                        .hitTarget(LayoutSpec.hitMin)
                         .buttonStyle(.toy)
                         .accessibilityLabel(L10n.t("编辑这次测量", "Edit measurement"))
                     }

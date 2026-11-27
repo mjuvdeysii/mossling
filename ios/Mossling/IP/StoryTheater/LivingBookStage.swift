@@ -111,16 +111,11 @@ struct LivingBookStage: View {
         let isFlat = forceFlat ?? (ArtStyle.current == .flat)
         let step = activeStep
 
-        Group {
-            if permanentlyStatic {
-                stageFrame(now: Date(), step: step, staticProgress: effectivePosterPhase, isFlat: isFlat)
-            } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: isStatic)) { tl in
-                    let elapsed = max(0, tl.date.timeIntervalSince(cycleStart))
-                    let u = LivingMotionClock.cyclicProgress(elapsed: elapsed, duration: effectiveDuration)
-                    stageFrame(now: tl.date, step: step, staticProgress: u, isFlat: isFlat)
-                }
-            }
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: isStatic)) { tl in
+            let elapsed = max(0, tl.date.timeIntervalSince(cycleStart))
+            let cyclicU = LivingMotionClock.cyclicProgress(elapsed: elapsed, duration: effectiveDuration)
+            let progress = permanentlyStatic ? effectivePosterPhase : cyclicU
+            stageFrame(now: tl.date, step: step, staticProgress: progress, isFlat: isFlat)
         }
         .aspectRatio(4.0 / 3.0, contentMode: .fit)
         .clipShape(RoundedRectangle(cornerRadius: edgeToEdge ? 0 : (compact ? 9 : Radius.tile), style: .continuous))
@@ -131,6 +126,11 @@ struct LivingBookStage: View {
             }
         }
         .onScrollVisibilityChange(threshold: 0.01) { onScreen = $0 }
+        .onChange(of: scrubPhase) { old, new in
+            if let old, new == nil {
+                cycleStart = Date().addingTimeInterval(-min(1.0, max(0.0, old)) * effectiveDuration)
+            }
+        }
         .onChange(of: stepIndex) { _, _ in
             cycleStart = Date()
             audioTask?.cancel()

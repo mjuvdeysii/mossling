@@ -73,7 +73,9 @@ struct FoodAtlasView: View {
     private func performQuickStamp(food: FoodItem, reaction: FoodReaction) {
         guard app.mayKeep() else { return }
         let wasUntasted = store.record(for: food.id) == nil
-        _ = store.quickStamp(foodId: food.id, reaction: reaction, today: app.today)
+        guard store.quickStamp(foodId: food.id, reaction: reaction, today: app.today) != nil else {
+            return
+        }
         if wasUntasted && app.journal {
             _ = j.record(LogEntry(type: LogType.solid, start: JournalFile.now(), detail: food.name))
         }
@@ -130,12 +132,22 @@ struct FoodAtlasView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
                 if store.loadFailed {
-                    Label(
-                        L10n.t("辅食记录暂时未能读取，已暂停保存，避免覆盖原有数据。", "First-food records could not be read. Saving is paused to protect existing data."),
-                        systemImage: "exclamationmark.triangle.fill"
-                    )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.danger)
+                    HStack(alignment: .center, spacing: 10) {
+                        Label(
+                            L10n.t("辅食记录暂时未能读取，已暂停保存，避免覆盖原有数据。", "First-food records could not be read. Saving is paused to protect existing data."),
+                            systemImage: "exclamationmark.triangle.fill"
+                        )
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.danger)
+                        Spacer(minLength: 4)
+                        Button(L10n.t("重试", "Retry")) {
+                            TactileEngine.shared.beadClick()
+                            store.reload()
+                        }
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(Palette.accent)
+                        .pillHitTarget()
+                    }
                     .padding(12)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .printCard(radius: Radius.inner)
@@ -600,8 +612,8 @@ struct FoodAtlasView: View {
                 if rec != nil {
                     Button {
                         guard app.mayKeep() else { return }
+                        guard store.incrementTimes(foodId: item.id) != nil else { return }
                         TactileEngine.shared.beadClick()
-                        _ = store.incrementTimes(foodId: item.id)
                         triggerStampBounce(for: item.id)
                     } label: {
                         Text("+1")
@@ -1224,12 +1236,20 @@ private struct FoodTasteSheet: View {
                     Button(L10n.t("盖章保存", "Save")) {
                         guard !cuttingSticker else { return }
                         guard app.mayKeep() else { return }
+                        guard !store.loadFailed else {
+                            saveError = L10n.t("原有辅食记录尚未成功读取，为避免覆盖已暂停保存。", "Existing first-food records could not be read. Saving is paused to protect your data.")
+                            return
+                        }
                         saveError = nil
+                        let prevStickerURL = FoodStickerStore.url(for: item.id)
+                        let prevStickerData = prevStickerURL.flatMap { try? Data(contentsOf: $0) }
+                        var wroteSticker = false
                         if stickerDirty, let sticker = customSticker {
                             guard FoodStickerStore.save(sticker, for: item.id) else {
                                 saveError = L10n.t("未能保存辅食贴纸，请检查储存空间后再试。", "Could not save food sticker. Please try again.")
                                 return
                             }
+                            wroteSticker = true
                         }
                         let rec = FoodRecord(
                             foodId: item.id,
@@ -1240,6 +1260,14 @@ private struct FoodTasteSheet: View {
                             times: max(1, times)
                         )
                         guard store.save(rec) else {
+                            if wroteSticker, let url = prevStickerURL {
+                                if let prevStickerData {
+                                    try? prevStickerData.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                                    Task { @MainActor in FoodStickerVersion.shared.bump() }
+                                } else {
+                                    FoodStickerStore.delete(for: item.id)
+                                }
+                            }
                             saveError = L10n.t("未能保存辅食记录，请稍后再试。", "Could not save first-food record. Please try again.")
                             return
                         }

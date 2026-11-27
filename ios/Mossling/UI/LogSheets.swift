@@ -152,7 +152,7 @@ struct AskSheet: View {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(status.label)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(status.tint)
+                        .foregroundStyle(Crayon.ink(status.tint))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 5)
                         .background(Capsule().fill(status.tint.opacity(dark ? 0.20 : 0.13)))

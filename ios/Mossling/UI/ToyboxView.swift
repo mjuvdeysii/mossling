@@ -766,7 +766,8 @@ private struct XylophoneStudio: View {
                 .frame(width: barW, height: height)
 
             HStack {
-                let barInk = Crayon.glyph(on: note.color)
+                let keyInk = Crayon.ink(note.color)
+                let keyFill = dark ? Color(hex: 0x151D3B).opacity(0.92) : Color(hex: 0xFBF7F0).opacity(0.95)
                 brassRivet
                 Spacer()
                 HStack(spacing: 6) {
@@ -777,11 +778,13 @@ private struct XylophoneStudio: View {
                     if isTarget {
                         Image(systemName: "sparkle")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(barInk)
                     }
                 }
-                .foregroundStyle(barInk)
-                .shadow(color: barInk == .white ? .black.opacity(0.24) : .clear, radius: 1, y: 1)
+                .foregroundStyle(keyInk)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 3)
+                .background(Capsule().fill(keyFill))
+                .overlay(Capsule().strokeBorder(note.color.opacity(dark ? 0.55 : 0.40), lineWidth: 0.9))
                 Spacer()
                 brassRivet
             }
@@ -1246,6 +1249,10 @@ private struct RainstickStudio: View {
         }
         .onAppear {
             if !reduce && scenePhase == .active { sim.startMotion() }
+        }
+        .onChange(of: ToyboxAudioEngine.shared.routeStopGeneration) { _, _ in
+            sim.touchPoint = nil
+            sim.stopMotion()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && !reduce {
@@ -1890,7 +1897,7 @@ private struct ContrastCardStudio: View {
                     ContrastCardArtwork(
                         kind: card,
                         inverted: inverted,
-                        motionMode: motionMode && !reduce
+                        motionMode: motionMode && !reduce && card.rawValue == index
                     )
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)

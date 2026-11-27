@@ -238,23 +238,20 @@ final class FoodAtlasStore {
     }
 
     @discardableResult
-    func quickStamp(foodId: String, reaction: FoodReaction, today: Day) -> FoodRecord {
+    func quickStamp(foodId: String, reaction: FoodReaction, today: Day) -> FoodRecord? {
         if var existing = records[foodId] {
             existing.reaction = reaction
-            save(existing)
-            return existing
+            return save(existing) ? existing : nil
         }
         let created = FoodRecord(foodId: foodId, firstTastedEpochDay: today.epochDay, reaction: reaction, times: 1)
-        save(created)
-        return created
+        return save(created) ? created : nil
     }
 
     @discardableResult
     func incrementTimes(foodId: String) -> FoodRecord? {
         guard var existing = records[foodId] else { return nil }
         existing.times = max(1, existing.times) + 1
-        save(existing)
-        return existing
+        return save(existing) ? existing : nil
     }
 
     func record(for foodId: String) -> FoodRecord? {

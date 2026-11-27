@@ -63,6 +63,23 @@ enum FirstPhotoStore {
         }
     }
 
+    static func restoreRaw(_ data: Data?, for id: UUID, in dir: URL = folder) {
+        if let data {
+            try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            try? data.write(to: url(for: id, in: dir), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            if dir == folder {
+                if let img = UIImage(data: data) {
+                    cache.setObject(img, forKey: id.uuidString as NSString)
+                } else {
+                    cache.removeObject(forKey: id.uuidString as NSString)
+                }
+                Task { @MainActor in FirstPhotoVersion.shared.bump() }
+            }
+        } else {
+            delete(for: id, in: dir)
+        }
+    }
+
     /// Removes orphaned photo files whose corresponding `First` entry was permanently deleted.
     static func prune(keeping validIDs: Set<UUID>, in dir: URL = folder) {
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }

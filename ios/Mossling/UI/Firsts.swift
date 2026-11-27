@@ -609,8 +609,32 @@ struct FirstSheet: View {
            FileManager.default.fileExists(atPath: draftURL.path) {
             voiceToSave = draftURL
         }
+        let voiceAudioURL = FirstVoiceStore.audioURL(for: f.id)
+        let voiceMetaURL = FirstVoiceStore.metaURL(for: f.id)
+        let photoURL = FirstPhotoStore.url(for: f.id)
+        let prevAudioData = (voiceToSave != nil && !isNew) ? (try? Data(contentsOf: voiceAudioURL)) : nil
+        let prevMetaData = (voiceToSave != nil && !isNew) ? (try? Data(contentsOf: voiceMetaURL)) : nil
+        let prevPhotoData = (photoDirty && !isNew) ? (try? Data(contentsOf: photoURL)) : nil
         var savedNewVoice = false
         var savedNewPhoto = false
+        func rollbackMedia() {
+            if savedNewVoice {
+                if let prevAudioData, let prevMetaData {
+                    try? prevAudioData.write(to: voiceAudioURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    try? prevMetaData.write(to: voiceMetaURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    Task { @MainActor in FirstVoiceVersion.shared.bump() }
+                } else if isNew {
+                    FirstVoiceStore.delete(for: f.id)
+                }
+            }
+            if savedNewPhoto {
+                if let prevPhotoData {
+                    FirstPhotoStore.restoreRaw(prevPhotoData, for: f.id)
+                } else if isNew {
+                    FirstPhotoStore.delete(for: f.id)
+                }
+            }
+        }
         if let draftURL = voiceToSave {
             guard FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil else {
                 isSaving = false
@@ -621,9 +645,7 @@ struct FirstSheet: View {
         }
         if photoDirty, let img = photoImage {
             guard FirstPhotoStore.save(img, for: f.id) else {
-                if isNew && savedNewVoice {
-                    FirstVoiceStore.delete(for: f.id)
-                }
+                rollbackMedia()
                 isSaving = false
                 failed = true
                 return
@@ -631,10 +653,7 @@ struct FirstSheet: View {
             savedNewPhoto = true
         }
         guard j.saveFirst(f) else {
-            if isNew {
-                if savedNewVoice { FirstVoiceStore.delete(for: f.id) }
-                if savedNewPhoto { FirstPhotoStore.delete(for: f.id) }
-            }
+            rollbackMedia()
             isSaving = false
             failed = true
             return

@@ -225,7 +225,8 @@ final class SoundscapeDSPState: @unchecked Sendable {
         var combined = primary
         if activeLayerKind >= 0 && activeLayerKind != controls.kindRaw && layerCurrentMix > 0.0005 {
             let secondary = synthesizeLayer(kind: activeLayerKind, t: t, sr: sr, useSecondaryFilter: true)
-            combined = primary * 0.80 + secondary * (0.58 * layerCurrentMix)
+            let duck = 1.0 - 0.20 * min(1.0, max(0.0, layerCurrentMix))
+            combined = primary * duck + secondary * (0.58 * layerCurrentMix)
         }
         return tanh(combined * currentGain * 1.42)
     }
@@ -421,6 +422,7 @@ final class SoundscapeEngine {
     private var teardownTask: Task<Void, Never>?
     private var observersRegistered = false
     private var remoteCommandsConfigured = false
+    private var isInterrupted = false
     private var isTestHost: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
@@ -494,6 +496,7 @@ final class SoundscapeEngine {
         if !isTestHost && FirstVoiceController.shared.isRecording {
             return
         }
+        isInterrupted = false
         ToyboxAudioEngine.shared.stop()
         if FirstVoiceController.shared.playingID != nil {
             FirstVoiceController.shared.stopPlayback()
@@ -516,7 +519,7 @@ final class SoundscapeEngine {
         lastUsedKind = kind
         pausedSecondary = nil
         if !preserveTimer || (duration != .continuous && countdownTask == nil) {
-            scheduleTimer()
+            scheduleTimer(from: preserveTimer ? remainingSeconds : nil)
         }
         guard !isTestHost else { return }
         guard startAudioGraph() else {
@@ -715,7 +718,7 @@ final class SoundscapeEngine {
     }
 
     private func handleEngineConfigurationChange(senderID: ObjectIdentifier?) {
-        guard active != nil, !isTestHost,
+        guard active != nil, !isInterrupted, !isTestHost,
               let eng = engine, senderID == ObjectIdentifier(eng),
               !eng.isRunning else { return }
         teardownAudioGraph(deactivateSession: false)
@@ -730,11 +733,13 @@ final class SoundscapeEngine {
         guard let typeVal, let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
         switch type {
         case .began:
+            isInterrupted = true
             dsp.targetGain = 0
             countdownTask?.cancel()
             countdownTask = nil
             updateNowPlaying(rate: 0.0)
         case .ended:
+            isInterrupted = false
             guard active != nil else { return }
             let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
             if opts.contains(.shouldResume) {
@@ -766,13 +771,16 @@ final class SoundscapeEngine {
     }
 
     private func handleRouteChange(reasonVal: UInt?) {
-        guard active != nil, let reasonVal,
+        guard let reasonVal,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
         if reason == .oldDeviceUnavailable {
-            // Unplugging headphones immediately stops playback instead of startling a sleeping baby over speaker
-            stopImmediately(deactivateSession: true)
+            if active != nil || hasActiveEngine {
+                // Unplugging headphones immediately stops playback instead of startling a sleeping baby over speaker
+                stopImmediately(deactivateSession: true)
+            }
             return
         }
+        guard active != nil, !isInterrupted else { return }
         if engine?.isRunning != true {
             teardownAudioGraph(deactivateSession: false)
             guard startAudioGraph() else {

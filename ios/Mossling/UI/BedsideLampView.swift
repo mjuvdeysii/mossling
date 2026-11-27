@@ -17,7 +17,7 @@ enum LampWarmth: String, CaseIterable, Identifiable {
     var primaryGlow: Color {
         switch self {
         case .amber: Palette.amber
-        case .candle: Color(hex: 0xE56547)
+        case .candle: Color(hex: 0xFF8C73)
         case .peach: Color(hex: 0xFFD1A3)
         }
     }
@@ -828,27 +828,34 @@ struct BedsideLampView: View {
         let resting = emberResting || isSleeping
         return VStack(spacing: 8) {
             ZStack {
-                Color.clear
-                    .contentShape(Circle())
-                    .onTapGesture(count: 2) {
-                        guard !palmPatActive else { return }
-                        TactileEngine.shared.dimmerTick()
-                        showingDimmerHint = false
-                        rekindleFromEmber()
-                        withAnimation(reduce ? nil : .easeInOut(duration: 0.28)) {
-                            brightness = brightness <= 0.35 ? 0.78 : 0.22
-                        }
-                        applyScreenDimmerIfAllowed()
-                        commitLampPreferences()
+                Group {
+                    if palmPatActive && !emberResting {
+                        Color.clear
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                recordPalmPatTap()
+                            }
+                    } else {
+                        Color.clear
+                            .contentShape(Circle())
+                            .onTapGesture(count: 2) {
+                                TactileEngine.shared.dimmerTick()
+                                showingDimmerHint = false
+                                rekindleFromEmber()
+                                withAnimation(reduce ? nil : .easeInOut(duration: 0.28)) {
+                                    brightness = brightness <= 0.35 ? 0.78 : 0.22
+                                }
+                                applyScreenDimmerIfAllowed()
+                                commitLampPreferences()
+                            }
+                            .onTapGesture {
+                                if emberResting {
+                                    TactileEngine.shared.beadClick()
+                                    rekindleFromEmber()
+                                }
+                            }
                     }
-                    .onTapGesture {
-                        if emberResting {
-                            TactileEngine.shared.beadClick()
-                            rekindleFromEmber()
-                        } else if palmPatActive {
-                            recordPalmPatTap()
-                        }
-                    }
+                }
 
                 if palmPatActive && !emberResting {
                     TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
@@ -1324,18 +1331,18 @@ struct BedsideLampView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                 Spacer(minLength: 4)
-                if let rem = soundscape.remainingSeconds {
+                if soundscape.isPlaying, let rem = soundscape.remainingSeconds {
                     Text(L10n.t("渐弱 ", "Fades ") + clock(Double(rem)))
                         .font(Typeface.numerals(12, relativeTo: .caption, weight: .semibold))
                         .foregroundStyle(warmth.primaryGlow.opacity(0.90))
                 } else if soundscape.isPlaying {
                     Text(L10n.t("持续轻播", "Continuous"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(warmth.primaryGlow.opacity(0.78))
+                        .foregroundStyle(warmth.primaryGlow.opacity(0.84))
                 } else {
                     Text(L10n.t("离线实时合成", "Offline DSP"))
                         .font(.caption2.weight(.medium))
-                        .foregroundStyle(Palette.lampInk.opacity(0.45))
+                        .foregroundStyle(Palette.lampInk.opacity(0.68))
                 }
             }
 
@@ -1516,6 +1523,7 @@ struct BedsideLampView: View {
                 .background(
                     Circle().fill(toast.failed ? Crayon.tangerine.opacity(0.22) : warmth.primaryGlow)
                 )
+                .accessibilityHidden(true)
 
             Text(toast.text)
                 .font(.caption.weight(.semibold))
@@ -1525,7 +1533,7 @@ struct BedsideLampView: View {
 
             Spacer(minLength: 4)
 
-            if toast.restore != nil {
+            if toast.restore != nil || toast.deltaUndo != nil {
                 Button(L10n.t("撤销", "Undo")) {
                     TactileEngine.shared.beadClick()
                     rekindleFromEmber()
@@ -1538,7 +1546,8 @@ struct BedsideLampView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
                 .background(Capsule().fill(warmth.primaryGlow))
-                .pillHitTarget()
+                .frame(minWidth: 44, minHeight: 44)
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
             }
         }
@@ -1559,13 +1568,24 @@ struct BedsideLampView: View {
         }
         .task(id: toast.id) {
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            let wait: Double = UIAccessibility.isVoiceOverRunning ? 15 : (toast.failed ? 6 : (toast.restore == nil ? 2.5 : 5))
-            try? await Task.sleep(for: .seconds(wait))
+            let wait: Double = UIAccessibility.isVoiceOverRunning ? 15 : (toast.failed ? 6 : ((toast.restore == nil && toast.deltaUndo == nil) ? 2.5 : 5))
+            do {
+                try await Task.sleep(for: .seconds(wait))
+            } catch {
+                return
+            }
+            guard !Task.isCancelled else { return }
             if j.toast?.id == toast.id {
                 withAnimation(reduce ? nil : .snappy) { j.toast = nil }
             }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityAction(.escape) {
+            withAnimation(reduce ? nil : .snappy) { j.toast = nil }
+        }
+        .accessibilityAction(named: L10n.t("关闭提示", "Dismiss")) {
+            withAnimation(reduce ? nil : .snappy) { j.toast = nil }
+        }
     }
 
     @ViewBuilder

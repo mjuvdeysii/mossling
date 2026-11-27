@@ -467,7 +467,7 @@ private struct HandoverCardContent: View {
                             : L10n.t("向右滑金珠 · 把暖灯递给下一位家人", "Slide gold bead right to pass light")
                     )
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(lanternPassed ? Crayon.ink(Palette.bead) : (dark ? Palette.lampInk : Palette.text))
+                    .foregroundStyle(lanternPassed ? Color(hex: 0x4A3300) : (dark ? Palette.lampInk : Palette.text))
                     .lineLimit(1)
                     .minimumScaleFactor(0.76)
                 }

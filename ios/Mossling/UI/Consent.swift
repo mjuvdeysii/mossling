@@ -97,14 +97,11 @@ struct ConsentSheet: View {
     }
 
     private func answer(_ yes: Bool) {
-        let wasDeclined = (app.consent == "declined")
         app.consent = yes ? Consent.version : "declined"
         app.askConsent = false
         // declined: nothing more about the child is kept — the records (and the widgets' quick logging) are turned off
         if !yes {
             app.journal = false
-        } else if wasDeclined {
-            app.journal = true
         }
         let store = j ?? JournalStore(preview: JournalFile.read())
         app.publish(store)
@@ -152,7 +149,7 @@ private struct LocalConsentSheetModifier: ViewModifier {
 
     func body(content: Self.Content) -> some View {
         let presented = Binding(
-            get: { !app.appLocked && app.askConsent && app.consentHostStack.last == hostID },
+            get: { !app.appSheetLocked && app.askConsent && app.consentHostStack.last == hostID },
             set: { if !$0 { app.askConsent = false } }
         )
         content

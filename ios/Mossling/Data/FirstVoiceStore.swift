@@ -152,13 +152,23 @@ enum FirstVoiceStore {
     }
 
     private static func saveData(audioData: Data, meta: FirstVoiceMeta, for id: UUID, in dir: URL) -> FirstVoiceMeta? {
+        let audioTarget = audioURL(for: id, in: dir)
+        let metaTarget = metaURL(for: id, in: dir)
+        let prevAudio = try? Data(contentsOf: audioTarget)
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let audioTarget = audioURL(for: id, in: dir)
-            let metaTarget = metaURL(for: id, in: dir)
             try audioData.write(to: audioTarget, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-            let encoded = try JSONEncoder().encode(meta)
-            try encoded.write(to: metaTarget, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            do {
+                let encoded = try JSONEncoder().encode(meta)
+                try encoded.write(to: metaTarget, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            } catch {
+                if let prevAudio {
+                    try? prevAudio.write(to: audioTarget, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                } else {
+                    try? FileManager.default.removeItem(at: audioTarget)
+                }
+                return nil
+            }
             if dir == folder {
                 Task { @MainActor in FirstVoiceVersion.shared.bump() }
             }

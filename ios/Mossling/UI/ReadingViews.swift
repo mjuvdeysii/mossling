@@ -733,6 +733,7 @@ struct PlanView: View {
                 Spacer(minLength: 4)
 
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.goldChime()
                     withAnimation(.snappy) {
                         let picks = Shelf.suggest(
@@ -888,6 +889,7 @@ struct PlanView: View {
                         .frame(width: 48, height: 36)
                     Spacer(minLength: 2)
                     Button {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.beadClick()
                         withAnimation(.snappy) {
                             if expandedCode == play.code { expandedCode = nil }
@@ -900,6 +902,7 @@ struct PlanView: View {
                             .frame(width: 28, height: 28)
                             .contentShape(Rectangle())
                     }
+                    .hitTarget(LayoutSpec.hitMin)
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("从这周拿掉", "Remove from this week"))
                 }
@@ -1085,6 +1088,7 @@ struct PlanView: View {
                         .accessibilityLabel(L10n.t("架上已满 4 个，可先从上方拿掉一个", "Shelf full (4/4), remove one above first"))
                 } else {
                     Button {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                             app.setShelf(codes + [p.code])

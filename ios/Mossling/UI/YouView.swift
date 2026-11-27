@@ -925,7 +925,7 @@ struct StudioLegalSheet: View {
                         if let site = Owner.websiteURL {
                             Divider().padding(.leading, 52).opacity(0.45)
                             Link(destination: site) {
-                                DataRow(title: L10n.t("官方网站", "Official Website"), symbol: "globe", color: Crayon.teal)
+                                DataRow(title: L10n.t("官方网站", "Official Website"), symbol: "globe", color: Crayon.teal, external: true)
                             }
                             .buttonStyle(.toy)
                         }
@@ -933,7 +933,7 @@ struct StudioLegalSheet: View {
                         if let support = Owner.supportURL {
                             Divider().padding(.leading, 52).opacity(0.45)
                             Link(destination: support) {
-                                DataRow(title: L10n.t("在线支持与帮助", "Online Support & FAQ"), symbol: "questionmark.circle.fill", color: Crayon.sky)
+                                DataRow(title: L10n.t("在线支持与帮助", "Online Support & FAQ"), symbol: "questionmark.circle.fill", color: Crayon.sky, external: true)
                             }
                             .buttonStyle(.toy)
                         }
@@ -941,7 +941,7 @@ struct StudioLegalSheet: View {
                         if let url = Owner.contactURL {
                             Divider().padding(.leading, 52).opacity(0.45)
                             Link(destination: url) {
-                                DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf)
+                                DataRow(title: L10n.t("反馈问题", "Send Feedback"), symbol: "envelope.fill", color: Crayon.leaf, external: true)
                             }
                             .buttonStyle(.toy)
                         }
@@ -973,6 +973,9 @@ struct StudioLegalSheet: View {
             .navigationTitle(L10n.t("条款、工艺与帮助", "Legal, Craft & Help"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("完成", "Done"), systemImage: "checkmark") { dismiss() }
                 }
@@ -988,6 +991,7 @@ private struct DataRow: View {
     var detail: String? = nil
     let symbol: String
     let color: Color
+    var external: Bool = false
     var body: some View {
         HStack(spacing: 10) {
             IconTile(symbol: symbol, color: color, size: 28, round: true)
@@ -1006,7 +1010,7 @@ private struct DataRow: View {
                 }
             }
             Spacer(minLength: 0)
-            Image(systemName: "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
+            Image(systemName: external ? "arrow.up.right" : "chevron.right").font(.footnote.weight(.semibold)).foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 14).padding(.vertical, 10).contentShape(Rectangle())
     }
@@ -1019,7 +1023,7 @@ struct ProfileSheet: View {
     @State private var nickname = ""
     @State private var sex: String? = nil
     @State private var gestationalWeeks: Int? = nil
-    @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
+    @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date()) ?? Date()
     @State private var hasBirth = false
     var body: some View {
         NavigationStack {
@@ -1033,8 +1037,16 @@ struct ProfileSheet: View {
                     LabeledContent(L10n.t("小名", "Nickname")) {
                         TextField(L10n.t("小名", "Nickname"), text: Binding(get: { nickname }, set: { nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
                     }
-                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
-                        .onChange(of: date) { _, _ in hasBirth = true }
+                    let defaultMin = Calendar.current.date(byAdding: .year, value: -4, to: Date()) ?? Date(timeIntervalSinceNow: -4 * 365 * 86_400)
+                    let minDate = min(app.birth?.date ?? defaultMin, defaultMin)
+                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: minDate...Date(), displayedComponents: .date)
+                        .onChange(of: date) { _, newValue in
+                            if let existing = app.birth {
+                                if Day(newValue) != existing { hasBirth = true }
+                            } else {
+                                hasBirth = true
+                            }
+                        }
                     Picker(L10n.t("性别", "Sex"), selection: Binding(get: { sex ?? "" }, set: { sex = $0.isEmpty ? nil : $0 })) {
                         Text(L10n.t("不填", "Not set")).tag(""); Text(L10n.t("男孩", "Boy")).tag("boy"); Text(L10n.t("女孩", "Girl")).tag("girl")
                     }
@@ -1065,6 +1077,9 @@ struct ProfileSheet: View {
             .pageBackground(tone: Crayon.lilac)
             .navigationTitle(L10n.t("宝宝", "Baby")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() }
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("完成", "Done"), systemImage: "checkmark") {
                         guard app.mayKeep() else { return }
@@ -1861,14 +1876,20 @@ enum Biometry {
         default: L10n.t("密码", "Passcode")
         }
     }
-    /// Both enabling and disabling App Lock require owner authentication so an unlocked phone cannot be quietly unlocked permanently.
+    /// Both enabling and disabling App Lock require owner authentication unless the device passcode has been removed.
     static func turn(_ on: Bool, _ set: @escaping @MainActor (Bool) -> Void) {
         guard !evaluating else { return }
+        let ctx = LAContext()
+        var err: NSError?
+        if !on && !ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &err) {
+            set(false)
+            return
+        }
         evaluating = true
         let reason = on ? L10n.t("打开应用锁", "Enable App Lock") : L10n.t("关闭应用锁", "Disable App Lock")
         Task { @MainActor in
             defer { evaluating = false }
-            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
+            let ok = (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
             if ok {
                 set(on)
             }
