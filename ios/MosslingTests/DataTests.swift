@@ -199,10 +199,21 @@ final class DataTests: XCTestCase {
         XCTAssertEqual(capStore.items.first?.seal, .lilac)
 
         // Legacy backup without foods/capsules keys preserves existing iOS First Foods & Time Capsules
-        let legacyData = RecordFile.json(srcApp, body())
+        var legacyRoot = try XCTUnwrap(JSONSerialization.jsonObject(with: RecordFile.json(srcApp, body())) as? [String: Any])
+        var legacyMoss = try XCTUnwrap(legacyRoot["mossling"] as? [String: Any])
+        legacyMoss.removeValue(forKey: "foods")
+        legacyMoss.removeValue(forKey: "capsules")
+        legacyRoot["mossling"] = legacyMoss
+        let legacyData = try JSONSerialization.data(withJSONObject: legacyRoot)
         try RecordFile.load(legacyData, into: dstApp, journal: dstJournal, foodStore: foodStore, capsuleStore: capStore)
         XCTAssertEqual(foodStore.tastedCount, 2)
         XCTAssertEqual(capStore.items.count, 1)
+
+        // Modern backup explicitly containing empty foods/capsules arrays clears prior device data
+        let emptyModernData = RecordFile.json(srcApp, body(), foods: [], capsules: [])
+        try RecordFile.load(emptyModernData, into: dstApp, journal: dstJournal, foodStore: foodStore, capsuleStore: capStore)
+        XCTAssertEqual(foodStore.tastedCount, 0)
+        XCTAssertEqual(capStore.items.count, 0)
     }
 
     func testSummaryIncludesFirstFoodsAndWatchFlags() throws {

@@ -3182,7 +3182,7 @@ final class LogicTests: XCTestCase {
             lastDiaperDetail: "今日湿 5 · 便 1",
             todayHeadline: "今日陪玩 2 项",
             todayDetail: "双手物品传递机会",
-            extraNote: "睡前已吃维生素 D"
+            extraNote: "今晚刚洗过温水澡，睡前喜欢听雨声"
         )
         let zhURL = try XCTUnwrap(
             HandoverWebCodec.encodeURL(from: snap, now: at(21, 30), isEnglish: false, baseURLString: "https://mossotto.pages.dev/")
@@ -3194,7 +3194,28 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(decodedZH.l, "zh")
         XCTAssertEqual(decodedZH.n, "小满")
         XCTAssertEqual(decodedZH.ac, "睡着中 · 已睡 42 分")
-        XCTAssertEqual(decodedZH.no, "睡前已吃维生素 D")
+        XCTAssertEqual(decodedZH.no, "今晚刚洗过温水澡，睡前喜欢听雨声")
+
+        let medSnap = HandoverSnapshot(
+            babyName: snap.babyName,
+            ageText: snap.ageText,
+            dateLabel: snap.dateLabel,
+            timeLabel: snap.timeLabel,
+            activeTimerLine: snap.activeTimerLine,
+            lastFeedHeadline: snap.lastFeedHeadline,
+            lastFeedDetail: snap.lastFeedDetail,
+            lastSleepHeadline: snap.lastSleepHeadline,
+            lastSleepDetail: snap.lastSleepDetail,
+            lastDiaperHeadline: snap.lastDiaperHeadline,
+            lastDiaperDetail: snap.lastDiaperDetail,
+            todayHeadline: snap.todayHeadline,
+            todayDetail: snap.todayDetail,
+            extraNote: "睡前已吃维生素 D"
+        )
+        let medURL = try XCTUnwrap(
+            HandoverWebCodec.encodeURL(from: medSnap, now: at(21, 30), isEnglish: false, baseURLString: "https://mossotto.pages.dev/")
+        )
+        XCTAssertEqual(HandoverWebCodec.decode(from: medURL)?.no, "体征与用药详情请见当面交接卡")
 
         let enURL = try XCTUnwrap(
             HandoverWebCodec.encodeURL(from: snap, now: at(21, 30), isEnglish: true, baseURLString: "https://mossotto.pages.dev/")
@@ -3512,7 +3533,7 @@ final class LogicTests: XCTestCase {
             writtenAt: nowMs,
             writtenAgeLabel: "9个月",
             unlockEpochDay: nil,
-            openedAt: nil,
+            openedAt: nowMs,
             seal: .teal
         )
         let yearbookSections = GrowthYearbookPDF.buildSections(app: app, j: store, foods: foods, capsules: [lockedCap, unlockedCap])
@@ -4345,8 +4366,11 @@ final class LogicTests: XCTestCase {
         let hostA = UUID(), hostB = UUID()
         srcApp.consentHostStack = [hostA, hostB]
         XCTAssertEqual(srcApp.consentHostStack.last, hostB)
+        srcApp.journal = false
         srcApp.isLateNightWindow = true
         srcApp.manual3AMOverride = nil
+        XCTAssertFalse(srcApp.is3AMSanctuaryActive)
+        srcApp.journal = true
         XCTAssertTrue(srcApp.is3AMSanctuaryActive)
         srcApp.manual3AMOverride = false
         XCTAssertFalse(srcApp.is3AMSanctuaryActive)
