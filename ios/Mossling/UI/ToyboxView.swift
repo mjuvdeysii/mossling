@@ -546,7 +546,7 @@ private struct XylophoneStudio: View {
             }
             .frame(minHeight: 290)
 
-            // Footer Dual Controls: Secondary Listen + Primary Follow-the-Glow Play Along
+            // Footer Dual Controls: Warm Interactive Teal Listen + Glowing Caramel Play Along
             HStack(spacing: 10) {
                 Button {
                     if isPlayingLullaby {
@@ -562,7 +562,7 @@ private struct XylophoneStudio: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                 }
-                .buttonStyle(.ds(isPlayingLullaby ? .tinted(Crayon.pink) : .secondary, fullWidth: true, height: 50))
+                .buttonStyle(.ds(isPlayingLullaby ? .warm(Crayon.pink) : .primary, fullWidth: true, height: 50))
 
                 Button {
                     TactileEngine.shared.beadClick()
@@ -579,7 +579,7 @@ private struct XylophoneStudio: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
                 }
-                .buttonStyle(.ds(.primary, fullWidth: true, height: 50))
+                .buttonStyle(.ds(.warm(playAlong ? Palette.bead : Crayon.caramel), fullWidth: true, height: 50))
             }
         }
         .onDisappear {

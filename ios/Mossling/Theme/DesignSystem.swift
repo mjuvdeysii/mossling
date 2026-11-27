@@ -1,9 +1,8 @@
 import SwiftUI
 
 /// Codified Apple-HIG Design System tokens & primitives for Moss & Otto:
-/// enforces disciplined opaque card surfaces, restrained semantic color accents,
-/// clear 5-role typographic hierarchy, paired Primary/Secondary button weights,
-/// unified segmented tracks, uniform tabular metric tiles, and 44pt+ ergonomics.
+/// pairs warm storybook craft (sunlit paper, botanical washes, golden beads) with strict
+/// proportional typography, zero-truncation pills, balanced CTA hierarchy, and 44pt+ touch zones.
 enum DS {
     enum Surface {
         static func page(dark: Bool) -> Color {
@@ -16,6 +15,10 @@ enum DS {
 
         static func inset(dark: Bool) -> Color {
             dark ? Color.white.opacity(0.08) : Palette.fill.opacity(0.75)
+        }
+
+        static func warmInset(dark: Bool) -> Color {
+            dark ? Color.white.opacity(0.09) : Color(hex: 0xF3EDE2)
         }
 
         static func hairline(dark: Bool) -> Color {
@@ -44,15 +47,16 @@ enum DS {
     }
 }
 
-/// Visual/semantic button role enforcing one clear primary CTA per card or stage.
+/// Visual/semantic button role enforcing clear hierarchy and warm storybook color.
 enum DSButtonRole {
     case primary
     case secondary
     case tinted(Color)
+    case warm(Color)
 }
 
-/// Unified Apple-HIG pill button style with strict Primary / Secondary / Tinted hierarchy
-/// and guaranteed 44pt+ tap ergonomics.
+/// Unified Apple-HIG pill button style with proportional typography (16pt/15pt/13pt scaled to height),
+/// zero forced wrapping, warm storybook fills, and invisible 44pt+ tap region expansion.
 struct DSButtonStyle: ButtonStyle {
     let role: DSButtonRole
     var fullWidth: Bool = false
@@ -66,36 +70,44 @@ struct DSButtonStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
         let pressed = configuration.isPressed
-        let hitH = max(LayoutSpec.hitMin, height)
-        let visualH = max(34, height)
+        let visualH = max(32, height)
+        let hitExpand = max(0, (LayoutSpec.hitMin - visualH) / 2)
+        let labelFont: Font = visualH >= 48
+            ? .callout.weight(.semibold)
+            : (visualH >= 36 ? .subheadline.weight(.semibold) : .footnote.weight(.semibold))
 
         let bg: Color = switch role {
         case .primary: Palette.accentFill
-        case .secondary: DS.Surface.inset(dark: dark)
-        case .tinted(let c): c.opacity(dark ? 0.22 : 0.13)
+        case .secondary: DS.Surface.warmInset(dark: dark)
+        case .tinted(let c): c.opacity(dark ? 0.24 : 0.14)
+        case .warm(let c): dark ? c.mix(with: Palette.lampCard, by: 0.22) : Crayon.buttonFill(c)
         }
 
         let fg: Color = switch role {
-        case .primary: .white
+        case .primary, .warm: .white
         case .secondary: .primary
-        case .tinted(let c): dark ? c.mix(with: .white, by: 0.25) : Crayon.ink(c)
+        case .tinted(let c): dark ? c.mix(with: .white, by: 0.28) : Crayon.ink(c)
         }
 
         let border: Color = switch role {
-        case .primary: .clear
-        case .secondary: DS.Surface.hairline(dark: dark)
-        case .tinted(let c): c.opacity(dark ? 0.34 : 0.22)
+        case .primary, .warm: .clear
+        case .secondary: Color(hex: 0xCBB799).opacity(dark ? 0.18 : 0.28)
+        case .tinted(let c): c.opacity(dark ? 0.36 : 0.24)
         }
 
         let shadowColor: Color = switch role {
         case .primary: dark ? Color.black.opacity(0.32) : Palette.accentFill.opacity(0.24)
+        case .warm(let c): dark ? Color.black.opacity(0.30) : c.opacity(0.26)
         case .secondary, .tinted: .clear
         }
 
         return configuration.label
-            .font(.subheadline.weight(.semibold))
+            .font(labelFont)
+            .lineLimit(1)
+            .minimumScaleFactor(fullWidth ? 0.88 : 1.0)
+            .fixedSize(horizontal: !fullWidth, vertical: false)
             .foregroundStyle(fg)
-            .padding(.horizontal, 16)
+            .padding(.horizontal, visualH >= 46 ? 18 : 14)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: visualH)
             .background {
                 Capsule(style: .continuous)
@@ -108,9 +120,8 @@ struct DSButtonStyle: ButtonStyle {
                         .strokeBorder(border, lineWidth: 0.6)
                 }
             }
-            .frame(minHeight: hitH)
-            .contentShape(Rectangle())
-            .opacity(enabled ? (pressed ? 0.82 : 1.0) : 0.45)
+            .contentShape(Capsule(style: .continuous).inset(by: -hitExpand))
+            .opacity(enabled ? (pressed ? 0.84 : 1.0) : 0.45)
             .scaleEffect(!reduce && pressed ? 0.975 : 1.0)
             .animation(reduce ? nil : .spring(response: 0.22, dampingFraction: 0.65), value: pressed)
             .sensoryFeedback(.impact(weight: .light, intensity: 0.65), trigger: pressed) { _, new in new }
@@ -123,37 +134,44 @@ extension ButtonStyle where Self == DSButtonStyle {
     }
 }
 
-/// Shared visual pill chrome for `NavigationLink`, `Menu`, or `ShareLink` labels matching `DSButtonStyle`.
+/// Shared visual pill chrome for `NavigationLink`, `Menu`, or `ShareLink` labels:
+/// enforces single-line non-wrapping text, tailored height, and invisible touch expansion.
 struct DSPillLabel: ViewModifier {
     let role: DSButtonRole
-    var height: CGFloat = 36
+    var height: CGFloat = 32
     var horizontalPadding: CGFloat = 12
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
 
     func body(content: Self.Content) -> some View {
         let dark = lamp || scheme == .dark
+        let visualH = max(30, height)
+        let labelFont: Font = visualH >= 36 ? .subheadline.weight(.semibold) : .footnote.weight(.semibold)
+
         let bg: Color = switch role {
         case .primary: Palette.accentFill
-        case .secondary: DS.Surface.inset(dark: dark)
-        case .tinted(let c): c.opacity(dark ? 0.22 : 0.13)
+        case .secondary: DS.Surface.warmInset(dark: dark)
+        case .tinted(let c): c.opacity(dark ? 0.24 : 0.14)
+        case .warm(let c): dark ? c.mix(with: Palette.lampCard, by: 0.22) : Crayon.buttonFill(c)
         }
         let fg: Color = switch role {
-        case .primary: .white
+        case .primary, .warm: .white
         case .secondary: .primary
-        case .tinted(let c): dark ? c.mix(with: .white, by: 0.25) : Crayon.ink(c)
+        case .tinted(let c): dark ? c.mix(with: .white, by: 0.28) : Crayon.ink(c)
         }
         let border: Color = switch role {
-        case .primary: .clear
-        case .secondary: DS.Surface.hairline(dark: dark)
-        case .tinted(let c): c.opacity(dark ? 0.34 : 0.22)
+        case .primary, .warm: .clear
+        case .secondary: Color(hex: 0xCBB799).opacity(dark ? 0.18 : 0.28)
+        case .tinted(let c): c.opacity(dark ? 0.36 : 0.24)
         }
 
         return content
-            .font(.footnote.weight(.semibold))
+            .font(labelFont)
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
             .foregroundStyle(fg)
             .padding(.horizontal, horizontalPadding)
-            .frame(minHeight: height)
+            .frame(minHeight: visualH)
             .background(Capsule(style: .continuous).fill(bg))
             .overlay {
                 if border != .clear {
@@ -165,13 +183,13 @@ struct DSPillLabel: ViewModifier {
 }
 
 extension View {
-    func dsPill(_ role: DSButtonRole, height: CGFloat = 36, horizontalPadding: CGFloat = 12) -> some View {
+    func dsPill(_ role: DSButtonRole, height: CGFloat = 32, horizontalPadding: CGFloat = 12) -> some View {
         modifier(DSPillLabel(role: role, height: height, horizontalPadding: horizontalPadding))
     }
 }
 
-/// Apple-HIG segmented control with sliding opaque thumb on a neutral inset track,
-/// automatically reflowing cleanly with `FlowRow` at Accessibility text sizes.
+/// Brand-tinted segmented control with crisp sliding pill thumb over a warm tray track,
+/// tailored `36–40pt` height, proportional `13–15pt` text, zero truncation on compact labels, and AX `FlowRow` reflow.
 struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
     let items: [Item]
     @Binding var selection: Item
@@ -188,13 +206,12 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
-        let visualTrackH: CGFloat = compact ? 36 : 42
-        let thumbH: CGFloat = visualTrackH - 6
+        let thumbH: CGFloat = compact ? 30 : 34
         let corner: CGFloat = compact ? 999 : Radius.tile
-        let trackFill: Color = darkSurface ? Color.white.opacity(0.09) : DS.Surface.inset(dark: dark)
-        let activeFill: Color = darkSurface ? Palette.amber : (dark ? Palette.lampCard : .white)
-        let activeInk: Color = darkSurface ? Color(hex: 0x261700) : .primary
-        let inactiveInk: Color = darkSurface ? Palette.lampInk.opacity(0.76) : Palette.secondaryText
+        let trackFill: Color = darkSurface ? Color.white.opacity(0.09) : DS.Surface.warmInset(dark: dark)
+        let activeFill: Color = darkSurface ? Palette.amber : Palette.accentFill
+        let activeInk: Color = darkSurface ? Color(hex: 0x261700) : .white
+        let inactiveInk: Color = darkSurface ? Palette.lampInk.opacity(0.80) : .primary
 
         if type.isAccessibilitySize {
             FlowRow(spacing: 6, lineSpacing: 6) {
@@ -203,10 +220,10 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
                     Button {
                         selectItem(item)
                     } label: {
-                        segmentLabel(item, on: on, activeInk: on ? .white : activeInk, inactiveInk: inactiveInk)
+                        segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: true)
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(Capsule(style: .continuous).fill(on ? Palette.accentFill : trackFill))
+                            .padding(.vertical, 7)
+                            .background(Capsule(style: .continuous).fill(on ? activeFill : trackFill))
                             .pillHitTarget(LayoutSpec.hitMin)
                     }
                     .buttonStyle(.plain)
@@ -220,33 +237,33 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
                     Button {
                         selectItem(item)
                     } label: {
-                        segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk)
-                            .padding(.horizontal, compact ? 10 : 6)
+                        segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: compact)
+                            .padding(.horizontal, compact ? 11 : 8)
                             .frame(maxWidth: compact ? nil : .infinity, minHeight: thumbH)
                             .background {
                                 if on {
-                                    RoundedRectangle(cornerRadius: compact ? 999 : max(8, corner - 3), style: .continuous)
+                                    RoundedRectangle(cornerRadius: compact ? 999 : max(9, corner - 3), style: .continuous)
                                         .fill(activeFill)
-                                        .shadow(color: .black.opacity(dark || darkSurface ? 0.28 : 0.08), radius: 3, y: 1)
+                                        .shadow(color: (darkSurface ? Color.black : Palette.accentFill).opacity(0.22), radius: 3, y: 1)
                                         .matchedGeometryEffect(id: "dsSegThumb", in: segNS)
                                 }
                             }
-                            .frame(minHeight: LayoutSpec.hitMin)
                             .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
-            .padding(.horizontal, 3)
+            .padding(3)
             .background {
                 RoundedRectangle(cornerRadius: corner, style: .continuous)
                     .fill(trackFill)
                     .overlay(
                         RoundedRectangle(cornerRadius: corner, style: .continuous)
-                            .strokeBorder(darkSurface ? Color.white.opacity(0.08) : DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                            .strokeBorder(darkSurface ? Color.white.opacity(0.08) : Color(hex: 0xCBB799).opacity(dark ? 0.16 : 0.24), lineWidth: 0.5)
                     )
             }
+            .contentShape(RoundedRectangle(cornerRadius: corner, style: .continuous).inset(by: -4))
         }
     }
 
@@ -258,27 +275,28 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
         onSelect?(item)
     }
 
-    private func segmentLabel(_ item: Item, on: Bool, activeInk: Color, inactiveInk: Color) -> some View {
+    private func segmentLabel(_ item: Item, on: Bool, activeInk: Color, inactiveInk: Color, fixedHoriz: Bool) -> some View {
         HStack(spacing: 4) {
             if let dot = dotColor?(item) {
                 Circle()
-                    .fill(dot)
+                    .fill(on && !darkSurface ? .white.opacity(0.92) : dot)
                     .frame(width: 6, height: 6)
             }
             if let sym = symbol?(item) {
                 Image(systemName: sym)
-                    .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
+                    .font(Typeface.label(compact ? 11 : 12, relativeTo: .caption, weight: .semibold))
             }
             Text(title(item))
-                .font((compact ? Font.caption : Font.footnote).weight(on ? .semibold : .medium))
+                .font((compact ? Font.footnote : Font.subheadline).weight(on ? .semibold : .medium))
                 .lineLimit(1)
-                .minimumScaleFactor(0.76)
+                .minimumScaleFactor(fixedHoriz ? 1.0 : 0.86)
+                .fixedSize(horizontal: fixedHoriz, vertical: false)
         }
         .foregroundStyle(on ? activeInk : inactiveInk)
     }
 }
 
-/// Uniform Apple Health style editorial metric cell replacing wrapped multi-color stat capsules.
+/// Uniform warm-tinted metric cell replacing wrapped multi-color pill soup across summary views.
 struct DSMetricCell: View {
     let label: String
     let value: String
@@ -287,28 +305,32 @@ struct DSMetricCell: View {
     var dark: Bool = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        let fillColor = accent.map { $0.opacity(dark ? 0.18 : 0.10) } ?? DS.Surface.warmInset(dark: dark)
+        let strokeColor = accent.map { $0.opacity(dark ? 0.30 : 0.22) } ?? DS.Surface.hairline(dark: dark)
+        let labelInk: Color = accent.map { dark ? $0.mix(with: .white, by: 0.24) : Crayon.ink($0) } ?? Palette.secondaryText
+
+        return VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 5) {
                 if let accent {
                     Circle()
                         .fill(accent)
-                        .frame(width: 6, height: 6)
+                        .frame(width: 7, height: 7)
                 }
                 Text(label)
-                    .font(.caption)
-                    .foregroundStyle(Palette.secondaryText)
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(labelInk)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.84)
+                    .minimumScaleFactor(0.86)
             }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text(value)
-                    .font(Typeface.numerals(18, relativeTo: .headline, weight: .bold))
+                    .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.82)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.caption.weight(.medium))
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(1)
                 }
@@ -319,41 +341,42 @@ struct DSMetricCell: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .fill(DS.Surface.inset(dark: dark))
+                .fill(fillColor)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                .strokeBorder(strokeColor, lineWidth: 0.6)
         )
         .accessibilityElement(children: .combine)
     }
 }
 
-/// Circular compact icon button visually sized to `visualSize` while strictly maintaining a `44x44pt` Apple HIG tap region.
+/// Circular compact icon button visually sized to `visualSize` with warm optional tint and invisible 44pt tap expansion.
 struct DSIconButton: View {
     let symbol: String
     let accessibilityLabel: String
     var visualSize: CGFloat = 34
     var dark: Bool = false
     var tint: Color = Palette.secondaryText
+    var tintBg: Color? = nil
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.caption.weight(.semibold))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(tint)
                 .frame(width: visualSize, height: visualSize)
-                .background(Circle().fill(DS.Surface.inset(dark: dark)))
+                .background(Circle().fill(tintBg ?? DS.Surface.warmInset(dark: dark)))
                 .overlay(Circle().strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5))
-                .hitTarget(LayoutSpec.hitMin)
+                .contentShape(Circle().inset(by: -6))
         }
         .buttonStyle(.toy)
         .accessibilityLabel(accessibilityLabel)
     }
 }
 
-/// Uniform single-style filter pill with calm neutral inactive state, accent active state, and 44pt tap height.
+/// Uniform filter pill with warm neutral inactive state, vibrant accent active state, and zero wrapping/truncation.
 struct DSFilterChip: View {
     let title: String
     let selected: Bool
@@ -369,17 +392,17 @@ struct DSFilterChip: View {
                         .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                 }
                 Text(title)
-                    .font(.footnote.weight(selected ? .semibold : .medium))
+                    .font(.footnote.weight(.semibold))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.82)
+                    .fixedSize(horizontal: true, vertical: false)
             }
             .foregroundStyle(selected ? .white : .primary)
             .padding(.horizontal, 12)
-            .padding(.vertical, 7)
-            .background(Capsule(style: .continuous).fill(selected ? Palette.accentFill : DS.Surface.inset(dark: dark)))
+            .padding(.vertical, 6)
+            .background(Capsule(style: .continuous).fill(selected ? Palette.accentFill : DS.Surface.warmInset(dark: dark)))
             .overlay(
                 Capsule(style: .continuous)
-                    .strokeBorder(selected ? .clear : DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                    .strokeBorder(selected ? .clear : Color(hex: 0xCBB799).opacity(dark ? 0.16 : 0.24), lineWidth: 0.5)
             )
             .pillHitTarget(LayoutSpec.hitMin)
         }

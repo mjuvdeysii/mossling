@@ -741,13 +741,13 @@ struct BedsideLampView: View {
                         Image(systemName: palmPatActive ? "hand.tap.fill" : "hand.tap")
                             .font(.footnote.weight(.semibold))
                         Text(L10n.t("轻拍", "Pat"))
-                            .font(.caption.weight(.bold))
+                            .font(.footnote.weight(.semibold))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .foregroundStyle(palmPatActive ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
                     .padding(.horizontal, 11)
-                    .frame(height: 36)
+                    .frame(height: 34)
                     .background(Capsule().fill(palmPatActive ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
                     .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(palmPatActive ? 0.85 : 0.28), lineWidth: 1))
                     .pillHitTarget()
@@ -770,13 +770,13 @@ struct BedsideLampView: View {
                         Image(systemName: breathingGuide ? "circle.circle.fill" : "circle.circle")
                             .font(.footnote.weight(.semibold))
                         Text(L10n.t("4–6 呼吸", "4–6"))
-                            .font(.caption.weight(.bold))
+                            .font(.footnote.weight(.semibold))
                             .lineLimit(1)
-                            .minimumScaleFactor(0.85)
+                            .fixedSize(horizontal: true, vertical: false)
                     }
                     .foregroundStyle(breathingGuide ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.92))
                     .padding(.horizontal, 11)
-                    .frame(height: 36)
+                    .frame(height: 34)
                     .frame(minWidth: 44)
                     .background(Capsule().fill(breathingGuide ? warmth.primaryGlow : Color(hex: 0x1A2346).opacity(0.75)))
                     .overlay(Capsule().strokeBorder(warmth.primaryGlow.opacity(breathingGuide ? 0.85 : 0.28), lineWidth: 1))
@@ -1329,8 +1329,8 @@ struct BedsideLampView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .strokeBorder(
-                                isPrimary ? warmth.primaryGlow.opacity(0.65) : (isSecondary ? warmth.secondaryBadgeFill.opacity(0.45) : Color.white.opacity(0.08)),
-                                lineWidth: on ? 1.2 : 0.75
+                                isPrimary ? warmth.primaryGlow.opacity(0.72) : (isSecondary ? warmth.secondaryBadgeFill.opacity(0.55) : warmth.primaryGlow.opacity(0.14)),
+                                lineWidth: on ? 1.3 : 0.9
                             )
                     )
                     .accessibilityElement(children: .contain)
@@ -1348,12 +1348,14 @@ struct BedsideLampView: View {
                                 withAnimation(.snappy) { soundscape.duration = d }
                             } label: {
                                 Text(d.label)
-                                    .font(.caption.weight(sel ? .bold : .medium))
-                                    .foregroundStyle(sel ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.75))
+                                    .font(.footnote.weight(sel ? .semibold : .medium))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.82)
+                                    .foregroundStyle(sel ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.80))
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 8)
+                                    .padding(.vertical, 7)
                                     .background(
-                                        Capsule().fill(sel ? warmth.primaryGlow : Color(hex: 0x1B2547).opacity(0.8))
+                                        Capsule().fill(sel ? warmth.primaryGlow : Color(hex: 0x1B2547).opacity(0.82))
                                     )
                                     .pillHitTarget()
                             }
@@ -1420,7 +1422,7 @@ struct BedsideLampView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.75)
+                .strokeBorder(warmth.primaryGlow.opacity(0.16), lineWidth: 0.9)
         )
     }
 
@@ -1544,7 +1546,7 @@ struct BedsideLampView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: summary.nightStatusLine != nil && !summary.facts.isEmpty ? 14 : 999, style: .continuous)
-                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.75)
+                .strokeBorder(warmth.primaryGlow.opacity(0.16), lineWidth: 0.75)
         )
         .accessibilityElement(children: .combine)
     }
@@ -1635,11 +1637,13 @@ struct BedsideLampView: View {
                     t.type == LogType.sleep ? L10n.t("醒了，记下这次睡眠", "Awake — Save Sleep") : L10n.t("喂完了，记下这次亲喂", "Done — Save Feed"),
                     systemImage: "checkmark"
                 )
-                .font(.subheadline.weight(.bold))
+                .font(.callout.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.88)
                 .foregroundStyle(warmth.actionInk)
-                .frame(maxWidth: .infinity, minHeight: 44)
+                .frame(maxWidth: .infinity, minHeight: 46)
                 .background(
-                    Capsule().fill(warmth.actionFill.opacity(0.90))
+                    Capsule().fill(warmth.actionFill.opacity(0.92))
                 )
             }
             .buttonStyle(.toy)
@@ -1651,7 +1655,7 @@ struct BedsideLampView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(warmth.primaryGlow.opacity(0.12), lineWidth: 0.75)
+                .strokeBorder(warmth.primaryGlow.opacity(0.20), lineWidth: 0.9)
         )
     }
 

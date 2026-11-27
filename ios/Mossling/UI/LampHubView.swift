@@ -669,14 +669,17 @@ struct LampHubView: View {
                         } label: {
                             HStack(spacing: 5) {
                                 Image(systemName: "lamp.desk.fill")
-                                    .font(.caption2.weight(.bold))
-                                Text(L10n.t("全屏夜灯", "Open Lamp"))
                                     .font(.caption.weight(.bold))
+                                Text(L10n.t("全屏夜灯", "Open Lamp"))
+                                    .font(.footnote.weight(.semibold))
+                                    .lineLimit(1)
+                                    .fixedSize()
                             }
                             .foregroundStyle(warmth.onPrimaryInk)
                             .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
+                            .frame(minHeight: 32)
                             .background(Capsule().fill(warmth.primaryGlow))
+                            .pillHitTarget()
                         }
                         .buttonStyle(.toy)
 
@@ -686,11 +689,14 @@ struct LampHubView: View {
                                 soundscape.stop()
                             } label: {
                                 Label(L10n.t("暂停", "Pause"), systemImage: "pause.fill")
-                                    .font(.caption.weight(.semibold))
+                                    .font(.footnote.weight(.semibold))
+                                    .lineLimit(1)
+                                    .fixedSize()
                                     .foregroundStyle(Palette.lampInk)
-                                    .padding(.horizontal, 10)
-                                    .padding(.vertical, 6)
+                                    .padding(.horizontal, 11)
+                                    .frame(minHeight: 32)
                                     .background(Capsule().fill(Color.white.opacity(0.14)))
+                                    .pillHitTarget()
                             }
                             .buttonStyle(.plain)
                         }
@@ -768,16 +774,16 @@ struct LampHubView: View {
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: kind.symbol)
-                                .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
+                                .font(Typeface.label(12, relativeTo: .caption, weight: .semibold))
                                 .foregroundStyle(active ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.90))
                             Text(kind.title)
-                                .font(.caption.weight(active ? .semibold : .medium))
-                                .foregroundStyle(active ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.88))
+                                .font(.footnote.weight(active ? .semibold : .medium))
+                                .foregroundStyle(active ? warmth.onPrimaryInk : Palette.lampInk.opacity(0.90))
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.76)
                         }
                         .padding(.horizontal, 8)
-                        .frame(maxWidth: .infinity, minHeight: 40)
+                        .frame(maxWidth: .infinity, minHeight: 38)
                         .background(
                             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                                 .fill(active ? warmth.primaryGlow : Color.white.opacity(0.08))
@@ -786,8 +792,7 @@ struct LampHubView: View {
                             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                                 .strokeBorder(active ? warmth.primaryGlow : Color.white.opacity(0.10), lineWidth: 0.75)
                         )
-                        .frame(minHeight: LayoutSpec.hitMin)
-                        .contentShape(Rectangle())
+                        .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).inset(by: -3))
                     }
                     .buttonStyle(.plain)
                     .accessibilityAddTraits(active ? .isSelected : [])
@@ -1009,29 +1014,29 @@ struct LampHubView: View {
     private func compactNavPill(symbol: String, text: String, color: Color, dark: Bool) -> some View {
         HStack(spacing: 6) {
             Image(systemName: symbol)
-                .font(Typeface.label(12, relativeTo: .caption, weight: .semibold))
+                .font(.caption.weight(.bold))
                 .foregroundStyle(dark ? color : Crayon.ink(color))
             Text(text)
-                .font(.footnote.weight(.medium))
+                .font(.footnote.weight(.semibold))
                 .foregroundStyle(.primary)
                 .lineLimit(type.isAccessibilitySize ? 2 : 1)
-                .minimumScaleFactor(0.76)
+                .minimumScaleFactor(0.84)
                 .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
             if type.isAccessibilitySize {
                 Spacer(minLength: 0)
             }
         }
-        .frame(maxWidth: .infinity, minHeight: LayoutSpec.hitMin)
+        .frame(maxWidth: .infinity, minHeight: 36)
         .padding(.horizontal, type.isAccessibilitySize ? 12 : 8)
         .background(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .fill(DS.Surface.inset(dark: dark))
+                .fill(color.opacity(dark ? 0.18 : 0.12))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                .strokeBorder(color.opacity(dark ? 0.28 : 0.22), lineWidth: 0.6)
         )
-        .contentShape(Rectangle())
+        .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).inset(by: -4))
     }
 
     // MARK: - Section 3: Low-Priority Quiet Care Strip & Collapsible Ledger
@@ -1108,22 +1113,22 @@ struct LampHubView: View {
                         TactileEngine.shared.beadClick()
                         handleTap(t, day: day, isToday: isToday)
                     } label: {
-                        VStack(spacing: 6) {
+                        VStack(spacing: 5) {
                             IconTile(symbol: LogType.symbol(t), color: col, size: 28, round: true)
                             Text(LogType.name(t))
-                                .font(.caption.weight(.medium))
+                                .font(.footnote.weight(.medium))
                                 .foregroundStyle(.primary)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.8)
+                                .minimumScaleFactor(0.84)
                         }
-                        .frame(maxWidth: .infinity, minHeight: 64)
+                        .frame(maxWidth: .infinity, minHeight: 62)
                         .background(
                             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                                .fill(DS.Surface.inset(dark: dark))
+                                .fill(col.opacity(dark ? 0.16 : 0.10))
                         )
                         .overlay(
                             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                                .strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                                .strokeBorder(col.opacity(dark ? 0.24 : 0.18), lineWidth: 0.6)
                         )
                     }
                     .buttonStyle(.toy)
@@ -1416,30 +1421,33 @@ struct DaySummaryTiles: View {
 
     @ViewBuilder
     private func tile(filterKey: String, color c: Color, symbol: String, title: String, value: String, unit: String, lines: [String]) -> some View {
-        let _ = symbol
         let isSelected = (selectedFilter == filterKey)
         let tintInk = dark ? c.mix(with: .white, by: 0.25) : Crayon.ink(c)
         let card = VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 5) {
-                Circle()
-                    .fill(c)
-                    .frame(width: 7, height: 7)
-                Text(title)
+            HStack(spacing: 4) {
+                Label(title, systemImage: symbol)
                     .font(.footnote.weight(.semibold))
-                    .foregroundStyle(isSelected ? tintInk : Palette.secondaryText)
+                    .foregroundStyle(tintInk)
+                    .labelStyle(.titleAndIcon)
                     .lineLimit(1)
-                Spacer(minLength: 2)
+                    .minimumScaleFactor(0.86)
+                if isSelected {
+                    Spacer(minLength: 2)
+                    Circle()
+                        .fill(tintInk)
+                        .frame(width: 6, height: 6)
+                }
             }
             HStack(alignment: .firstTextBaseline, spacing: 2) {
                 Text(value)
                     .font(Typeface.numerals(20, relativeTo: .title3, weight: .bold))
                     .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.72)
+                    .minimumScaleFactor(0.75)
                 if !unit.isEmpty {
                     Text(unit)
-                        .font(.caption.weight(.medium))
-                        .foregroundStyle(Palette.secondaryText)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.primary)
                 }
             }
             Spacer(minLength: 2)
@@ -1449,7 +1457,7 @@ struct DaySummaryTiles: View {
                         .font(.caption)
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(type.isAccessibilitySize ? nil : 1)
-                        .minimumScaleFactor(0.84)
+                        .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -1458,11 +1466,11 @@ struct DaySummaryTiles: View {
         .frame(maxWidth: .infinity, minHeight: 108, maxHeight: .infinity, alignment: .topLeading)
         .background(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .fill(isSelected ? c.opacity(dark ? 0.18 : 0.11) : DS.Surface.inset(dark: dark))
+                .fill(c.opacity(isSelected ? (dark ? 0.28 : 0.22) : (dark ? 0.18 : 0.13)))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                .strokeBorder(isSelected ? tintInk : DS.Surface.hairline(dark: dark), lineWidth: isSelected ? 1.5 : 0.5)
+                .strokeBorder(isSelected ? tintInk : c.opacity(dark ? 0.30 : 0.22), lineWidth: isSelected ? 1.6 : 0.6)
         )
 
         if let onSelectFilter {

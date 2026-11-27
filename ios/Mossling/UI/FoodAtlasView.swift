@@ -284,6 +284,13 @@ struct FoodAtlasView: View {
             }
         }
         .padding(16)
+        .background(
+            LinearGradient(
+                colors: [Crayon.leaf.opacity(dark ? 0.14 : 0.13), Crayon.sunflower.opacity(dark ? 0.05 : 0.06)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .printCard(radius: Radius.card)
     }
 
@@ -350,10 +357,14 @@ struct FoodAtlasView: View {
             } label: {
                 Text(isRetry ? L10n.t("再尝一次", "Retried") : L10n.t("尝到了", "Stamped"))
             }
-            .buttonStyle(.ds(.tinted(Palette.accent), height: 36))
+            .buttonStyle(.ds(.primary, height: 34))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 12)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
+                .fill(color.opacity(dark ? 0.12 : 0.08))
+        )
         .printCard(radius: Radius.card)
     }
 
@@ -846,15 +857,15 @@ private struct FoodSpecimenChip: View {
                 RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                     .fill(
                         isSelected
-                            ? catColor.opacity(dark ? 0.20 : 0.12)
-                            : (tasted ? catColor.opacity(dark ? 0.10 : 0.06) : DS.Surface.inset(dark: dark).opacity(0.65))
+                            ? catColor.opacity(dark ? 0.22 : 0.14)
+                            : (tasted ? catColor.opacity(dark ? 0.14 : 0.09) : DS.Surface.warmInset(dark: dark).opacity(0.65))
                     )
             )
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                     .strokeBorder(
-                        isSelected ? Palette.accent : DS.Surface.hairline(dark: dark),
-                        lineWidth: isSelected ? 1.5 : 0.5
+                        isSelected ? Palette.accent : (tasted ? catColor.opacity(dark ? 0.48 : 0.40) : DS.Surface.hairline(dark: dark)),
+                        lineWidth: isSelected ? 1.8 : (tasted ? 1.1 : 0.5)
                     )
             )
             .scaleEffect(isSelected && !reduce ? 1.03 : 1.0)

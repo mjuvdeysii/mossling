@@ -233,12 +233,13 @@ struct EarSafeVolumeCard: View {
                             : L10n.t("合适 · 开玩", "Safe · Play"),
                         systemImage: "checkmark"
                     )
-                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
+                    .font(.footnote.weight(.semibold))
+                    .lineLimit(1)
+                    .fixedSize(horizontal: true, vertical: false)
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
-                    .padding(.vertical, 7)
+                    .padding(.vertical, 6)
                     .background(Capsule().fill(monitor.level == .loud ? Crayon.tangerine : Palette.accentFill))
-                    .fixedSize(horizontal: true, vertical: false)
                     .pillHitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
@@ -303,10 +304,7 @@ struct EarSafeVolumeCard: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(
-                    monitor.level == .loud ? tone.opacity(dark ? 0.50 : 0.36) : DS.Surface.hairline(dark: dark),
-                    lineWidth: monitor.level == .loud ? 1.2 : 0.5
-                )
+                .strokeBorder(tone.opacity(dark ? 0.45 : 0.34), lineWidth: 1.0)
         )
         .accessibilityElement(children: .contain)
     }

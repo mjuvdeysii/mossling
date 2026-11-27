@@ -267,9 +267,12 @@ struct RhythmDialCard: View {
         VStack(alignment: .leading, spacing: 14) {
             // Card Header + Segmented 7d/14d Toggle + Share Button
             HStack(alignment: .center, spacing: 8) {
-                Text(L10n.t("昼夜节律盘", "24h Rhythm Dial"))
-                    .font(DS.TypeScale.cardTitle)
-                    .foregroundStyle(.primary)
+                HStack(spacing: 6) {
+                    GoldBead(size: 9)
+                    Text(L10n.t("昼夜节律盘", "24h Rhythm Dial"))
+                        .font(DS.TypeScale.cardTitle)
+                        .foregroundStyle(.primary)
+                }
                 Spacer(minLength: 4)
                 spanPicker(dark: dark)
                 ShareLink(
@@ -277,12 +280,12 @@ struct RhythmDialCard: View {
                     preview: SharePreview(L10n.t("摸索台灯 · 昼夜节律印画", "Moss & Otto · Rhythm Print"))
                 ) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.caption.weight(.semibold))
+                        .font(.footnote.weight(.semibold))
                         .foregroundStyle(Palette.accent)
                         .frame(width: 32, height: 32)
-                        .background(Circle().fill(DS.Surface.inset(dark: dark)))
-                        .overlay(Circle().strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5))
-                        .hitTarget(LayoutSpec.hitMin)
+                        .background(Circle().fill(Palette.accent.opacity(dark ? 0.22 : 0.12)))
+                        .overlay(Circle().strokeBorder(Palette.accent.opacity(dark ? 0.34 : 0.20), lineWidth: 0.5))
+                        .contentShape(Circle().inset(by: -6))
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("分享昼夜节律印画", "Share Rhythm Print"))

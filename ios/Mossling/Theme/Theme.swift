@@ -38,7 +38,7 @@ enum Palette {
     static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
     // dark is the lamp (build 160: one dark appearance, Otto's — deep blue, amber light), wherever it shows
-    static let background = Color.dyn(0xF5F4F0, 0x0E1430)
+    static let background = Color.dyn(0xF7F5EE, 0x0E1430)
     static let card = Color.dyn(0xFFFFFF, 0x19213F)
     static let fill = Color.dyn(0xEDEFF3, 0x212A4C)
     static let text = Color.primary
@@ -299,9 +299,10 @@ extension View {
         frame(minWidth: minSize, minHeight: minSize).contentShape(Rectangle())
     }
 
-    /// Expands compact capsule/chip labels to 44pt minimum tap height while keeping visual pill proportions refined.
+    /// Expands compact capsule/chip tap regions invisibly via hit-test insets while keeping visual proportions tailored.
     func pillHitTarget(_ minHeight: CGFloat = LayoutSpec.hitMin) -> some View {
-        frame(minHeight: minHeight).contentShape(Rectangle())
+        let expand = max(0, min(8, (minHeight - 32) / 2))
+        return contentShape(Capsule().inset(by: -expand))
     }
 }
 
@@ -393,7 +394,7 @@ private struct TabCanopyArc: View {
             ctx.fill(
                 Path(CGRect(x: 0, y: 0, width: size.width, height: h)),
                 with: .linearGradient(
-                    Gradient(colors: [pair.0.opacity(0.26), pair.1.opacity(0.12), .clear]),
+                    Gradient(colors: [pair.0.opacity(0.62), pair.1.opacity(0.28), .clear]),
                     startPoint: .zero,
                     endPoint: CGPoint(x: 0, y: h)
                 )
@@ -407,7 +408,7 @@ private struct TabCanopyArc: View {
                 control: CGPoint(x: size.width * 0.42, y: h * 0.96)
             )
             backArc.closeSubpath()
-            ctx.fill(backArc, with: .color(pair.0.opacity(0.16)))
+            ctx.fill(backArc, with: .color(pair.0.opacity(0.38)))
 
             var frontArc = Path()
             frontArc.move(to: CGPoint(x: size.width, y: 0))
@@ -418,7 +419,7 @@ private struct TabCanopyArc: View {
             )
             frontArc.addLine(to: .zero)
             frontArc.closeSubpath()
-            ctx.fill(frontArc, with: .color(pair.1.opacity(0.18)))
+            ctx.fill(frontArc, with: .color(pair.1.opacity(0.45)))
         }
         .allowsHitTesting(false)
     }
@@ -437,8 +438,8 @@ struct PaperPools: View {
             ]
             for (c, r, col, seed) in pools {
                 let blob = Wash.blob(c, r, seed: seed, wobble: 0.09)
-                ctx.fill(blob, with: .radialGradient(Gradient(colors: [col.opacity(0.015), col.opacity(0.035)]), center: c, startRadius: 0, endRadius: r))
-                ctx.stroke(blob, with: .color(col.opacity(0.045)), lineWidth: 1.0)
+                ctx.fill(blob, with: .radialGradient(Gradient(colors: [col.opacity(0.028), col.opacity(0.062)]), center: c, startRadius: 0, endRadius: r))
+                ctx.stroke(blob, with: .color(col.opacity(0.09)), lineWidth: 1.1)
             }
         }
         .allowsHitTesting(false)
@@ -462,9 +463,9 @@ struct DayAir: View {
             // the sun, its hill and flowers: drawn once and flattened into one cached Metal texture
             ZStack {
                 Canvas { ctx, size in sunDisc(&ctx, size) }
-                // the meadow at the foot of the page: whisper-quiet so cards and text above stay crisp and legible
+                // the meadow at the foot of the page: warm and soft so the garden atmosphere stays inviting without fighting text
                 Canvas { ctx, size in meadow(&ctx, size, 0) }
-                    .opacity(0.15).offset(y: 36 * scale)
+                    .opacity(0.34).offset(y: 28 * scale)
             }
             .drawingGroup()
             // the beams breathe as one slow change of opacity, run by the system compositor, not redrawn
@@ -709,7 +710,7 @@ struct ValueText: View {
     }
 }
 
-/// A flush-left Apple-HIG section heading between cards on a scrolling page.
+/// A warm storybook section heading aligned neatly with the page's leading grid.
 struct SectionTitle: View {
     @Environment(\.dynamicTypeSize) private var type
     let title: String
@@ -718,20 +719,25 @@ struct SectionTitle: View {
         Group {
             if type.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 3) {
-                    Text(title)
-                        .font(.title3.weight(.bold))
-                        .tracking(LayoutSpec.sectionTracking)
-                        .fixedSize(horizontal: false, vertical: true)
+                    HStack(alignment: .firstTextBaseline, spacing: 7) {
+                        GoldBead(size: 9).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
+                        Text(title)
+                            .font(.title3.weight(.bold))
+                            .tracking(LayoutSpec.sectionTracking)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     if let detail {
                         Text(detail)
                             .font(.footnote)
                             .foregroundStyle(Palette.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 16)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    GoldBead(size: 9).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 4.5 }
                     Text(title)
                         .font(.title3.weight(.bold))
                         .tracking(LayoutSpec.sectionTracking)
@@ -787,33 +793,33 @@ struct PrintCard: ViewModifier {
         let base = lamp ? Palette.lampCard : fill
         if ArtStyle.current == .flat || Perf.plainCards {
             content
-                .background { ZStack { base; Grain(dark: dark, strength: 0.05) }.clipShape(shape) }
+                .background { ZStack { base; Grain(dark: dark, strength: 0.14) }.clipShape(shape) }
                 .clipShape(shape)
                 .overlay {
                     shape.strokeBorder(dark ? .white.opacity(0.08) : Color.black.opacity(0.055), lineWidth: 0.5)
                         .allowsHitTesting(false)
                 }
-                .shadow(color: dark ? .clear : Color.black.opacity(0.045), radius: 10, y: 3)
+                .shadow(color: dark ? .clear : Color.black.opacity(0.055), radius: 12, y: 4)
         } else {
         content
             .background {
                 ZStack {
                     base
                     LinearGradient(
-                        colors: [.white.opacity(dark ? 0.025 : 0.06), .clear],
+                        colors: [.white.opacity(dark ? 0.03 : 0.09), .clear],
                         startPoint: .top, endPoint: .bottom
                     )
-                    Grain(dark: dark, strength: 0.05)
+                    Grain(dark: dark, strength: 0.14)
                 }
             }
             .clipShape(shape)
             .background {
                 shape.fill(base)
-                    .shadow(color: dark ? .black.opacity(0.22) : Color.black.opacity(0.045), radius: 10, y: 3)
+                    .shadow(color: dark ? .black.opacity(0.24) : Color.black.opacity(0.055), radius: 12, y: 4)
             }
             .overlay {
                 shape.strokeBorder(
-                    dark ? .white.opacity(0.08) : Color.black.opacity(0.055),
+                    dark ? Palette.amber.opacity(0.14) : Color.black.opacity(0.055),
                     lineWidth: 0.5
                 )
                 .allowsHitTesting(false)
@@ -902,12 +908,13 @@ struct VinylButton: ButtonStyle {
         if ArtStyle.current == .flat {
             // build 196: the system's tinted capsule
             configuration.label
-                .font((large ? Font.body : Font.subheadline).weight(.semibold))
+                .font((large ? Font.callout : Font.subheadline).weight(.semibold))
+                .lineLimit(1)
                 .foregroundStyle(ink)
-                .padding(.horizontal, large ? 22 : LayoutSpec.pillPadH).padding(.vertical, large ? 15 : LayoutSpec.pillPadV)
-                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : LayoutSpec.hitMin)
+                .padding(.horizontal, large ? 20 : LayoutSpec.pillPadH).padding(.vertical, large ? 13 : 9)
+                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : 38)
                 .background(shape.fill(prominent ? tint : tint.opacity(dark ? 0.22 : 0.14)))
-                .contentShape(shape)
+                .contentShape(shape.inset(by: large ? 0 : -4))
                 .opacity(enabled ? (pressed ? 0.6 : 1) : 0.45)
         } else {
             let rimTop: Color = dark ? Palette.amber.opacity(prominent ? 0.22 : 0.15) : .white.opacity(0.85)
@@ -917,10 +924,11 @@ struct VinylButton: ButtonStyle {
             let shadowR: CGFloat = pressed ? 1.5 : (prominent ? 6 : 3)
             let shadowY: CGFloat = pressed ? 0.8 : (prominent ? 3 : 2)
             configuration.label
-                .font((large ? Font.body : Font.subheadline).weight(.semibold))
+                .font((large ? Font.callout : Font.subheadline).weight(.semibold))
+                .lineLimit(1)
                 .foregroundStyle(ink)
-                .padding(.horizontal, large ? 22 : 16).padding(.vertical, large ? 15 : LayoutSpec.pillPadV)
-                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : LayoutSpec.hitMin)
+                .padding(.horizontal, large ? 20 : 16).padding(.vertical, large ? 13 : 9)
+                .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : 38)
                 .background {
                     // Direct shadowPath on base capsule avoids an off-screen alpha render pass on every 3D button
                     ZStack {
@@ -930,7 +938,7 @@ struct VinylButton: ButtonStyle {
                         shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1)
                     }
                 }
-                .contentShape(shape)
+                .contentShape(shape.inset(by: large ? 0 : -4))
                 .opacity(enabled ? (pressed && reduce ? 0.78 : 1) : 0.45)
                 .offset(y: !reduce && pressed ? 1.5 : 0)
                 .scaleEffect(x: !reduce && pressed ? 1.025 : 1, y: !reduce && pressed ? 0.94 : 1, anchor: .bottom)

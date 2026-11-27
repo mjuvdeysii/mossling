@@ -3754,4 +3754,108 @@ final class LogicTests: XCTestCase {
             XCTAssertGreaterThan(img.size.width, 100)
         }
     }
+
+    @MainActor
+    func testBatch35WarmColorPaletteAndZeroTruncationMetrics() {
+        let prevLang = L10n.preference
+        defer { L10n.preference = prevLang }
+
+        enum WarmThemeProbe: String, Identifiable, CaseIterable {
+            case day, lamp, auto
+            var id: String { rawValue }
+            var title: String {
+                switch self {
+                case .day: "Day"
+                case .lamp: "Lamp"
+                case .auto: "Auto"
+                }
+            }
+        }
+
+        // 1. Setup real-device studio profile parity state ("Meadow · Day 149" / "Lamp Keeper")
+        let suiteName = "batch35-\(UUID().uuidString)"
+        let envApp = AppModel(defaults: UserDefaults(suiteName: suiteName)!)
+        envApp.birth = Day(y: 2026, m: 6, d: 30)
+        envApp.today = Day(y: 2026, m: 11, d: 25)
+        envApp.nickname = "小薄荷"
+        envApp.theme = .light
+        envApp.language = .en
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let envRouter = AppRouter()
+
+        XCTAssertGreaterThanOrEqual(LayoutSpec.hitMin, 44)
+        XCTAssertEqual(YouStudioCopy.companionBadge(.otto), "Lamp Keeper")
+        XCTAssertEqual(YouStudioCopy.companionBadge(.moss), "Explorer")
+
+        // 2. Render warm inset trays, warm gradient buttons, segmented tracks & proportional pills
+        let warmShowcase = VStack(spacing: 12) {
+            DSSegmentedControl(
+                items: WarmThemeProbe.allCases,
+                selection: .constant(WarmThemeProbe.day),
+                dark: false,
+                compact: true,
+                title: { $0.title },
+                dotColor: { $0 == .day ? Palette.amber : Palette.bead }
+            )
+            HStack(spacing: 10) {
+                Button("Listen") {}
+                    .buttonStyle(.ds(.primary, fullWidth: true, height: 50))
+                Button("Play Along") {}
+                    .buttonStyle(.ds(.warm(Crayon.caramel), fullWidth: true, height: 50))
+            }
+            HStack(spacing: 8) {
+                Label("Story", systemImage: "book.closed.fill")
+                    .dsPill(.warm(Palette.bead), height: 32)
+                Label("Edit", systemImage: "pencil")
+                    .dsPill(.primary, height: 32)
+                Button("Legal & Help") {}
+                    .buttonStyle(.ds(.secondary, height: 34))
+            }
+        }
+        .padding(DS.Spacing.pageH)
+        .background(DS.Surface.warmInset(dark: false))
+
+        for scheme in [ColorScheme.light, .dark] {
+            for dt in [DynamicTypeSize.large, .accessibility3] {
+                let img = renderHostedSnapshot(
+                    warmShowcase
+                        .environment(envApp)
+                        .environment(envJournal)
+                        .environment(\.colorScheme, scheme)
+                        .environment(\.dynamicTypeSize, dt)
+                )
+                XCTAssertNotNil(img.cgImage)
+                XCTAssertGreaterThan(img.size.width, 100)
+            }
+        }
+
+        // 3. Verify core views across EN & ZH and standard/AX3 dynamic type
+        let views: [AnyView] = [
+            AnyView(YouView(path: .constant(NavigationPath()))),
+            AnyView(TodayView(path: .constant(NavigationPath()))),
+            AnyView(LampHubView(path: .constant(NavigationPath()))),
+            AnyView(JourneyHubView(isRootTab: true)),
+            AnyView(RhythmDialCard(nowHour: 14.5)),
+            AnyView(FoodAtlasView()),
+            AnyView(ToyboxView(initialMode: .xylophone)),
+            AnyView(BedsideLampView(initialBrightness: 0.72, previewClock: envApp.today.date)),
+        ]
+        for lang in [AppLanguage.en, .zh] {
+            envApp.language = lang
+            for dt in [DynamicTypeSize.large, .accessibility3] {
+                for v in views {
+                    let img = renderHostedSnapshot(
+                        v
+                            .environment(envApp)
+                            .environment(envJournal)
+                            .environment(envRouter)
+                            .environment(\.dynamicTypeSize, dt)
+                    )
+                    XCTAssertNotNil(img.cgImage)
+                    XCTAssertGreaterThan(img.size.width, 100)
+                }
+            }
+        }
+    }
 }

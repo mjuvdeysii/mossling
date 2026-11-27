@@ -84,6 +84,27 @@ struct YouView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("工坊", "Studio"))
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink(value: StudioRoute.story) {
+                    HStack(spacing: 5) {
+                        GoldBead(size: 8)
+                        Text(L10n.t("故事", "Story"))
+                            .font(.footnote.weight(.semibold))
+                            .lineLimit(1)
+                            .fixedSize()
+                    }
+                    .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
+                    .padding(.horizontal, 11)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Palette.bead.opacity(dark ? 0.24 : 0.16)))
+                    .overlay(Capsule().strokeBorder(Palette.bead.opacity(0.36), lineWidth: 0.75))
+                    .pillHitTarget()
+                }
+                .buttonStyle(.toy)
+                .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
+            }
+        }
         .sheet(isPresented: $editing) { ProfileSheet() }
         .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark) }
     }
@@ -110,21 +131,21 @@ private struct FamilyCard: View {
                     .onTapGesture { giggles += 1 }
                     .sensoryFeedback(.impact(weight: .light), trigger: giggles)
 
-                VStack(alignment: .leading, spacing: 3) {
+                VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname)
                             .font(.headline.weight(.bold))
                             .tracking(LayoutSpec.titleTracking)
                             .lineLimit(1)
-                            .minimumScaleFactor(0.8)
+                            .minimumScaleFactor(0.84)
 
                         if let a = app.age {
                             Text(L10n.ageText(a))
-                                .font(.caption.weight(.semibold))
+                                .font(.footnote.weight(.semibold))
                                 .foregroundStyle(Palette.accent)
                                 .monospacedDigit()
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.78)
+                                .fixedSize(horizontal: true, vertical: false)
                         }
                     }
 
@@ -132,23 +153,18 @@ private struct FamilyCard: View {
                         metaLine(baby: baby, land: land)
                     }
                 }
+                .layoutPriority(1)
 
                 Spacer(minLength: 4)
 
                 if !ax {
-                    HStack(spacing: 6) {
-                        storyPill
-                        editPill
-                    }
+                    editPill
                 }
             }
 
             if ax {
                 metaLine(baby: baby, land: land)
-                FlowRow(spacing: 8, lineSpacing: 8) {
-                    storyPill
-                    editPill
-                }
+                editPill
             }
 
             Divider().opacity(0.42)
@@ -156,6 +172,32 @@ private struct FamilyCard: View {
             CompanionPicker()
         }
         .padding(LayoutSpec.cardPadHero)
+        .background(alignment: .top) {
+            Canvas(rendersAsynchronously: false) { ctx, size in
+                let h = min(66.0, size.height * 0.34)
+                var arc = Path()
+                arc.move(to: .zero)
+                arc.addLine(to: CGPoint(x: size.width, y: 0))
+                arc.addLine(to: CGPoint(x: size.width, y: h * 0.62))
+                arc.addQuadCurve(
+                    to: CGPoint(x: 0, y: h * 0.62),
+                    control: CGPoint(x: size.width * 0.50, y: h * 1.15)
+                )
+                arc.closeSubpath()
+                ctx.fill(
+                    arc,
+                    with: .linearGradient(
+                        Gradient(colors: [
+                            Crayon.leaf.opacity(dark ? 0.22 : 0.16),
+                            Palette.bead.opacity(dark ? 0.16 : 0.14),
+                        ]),
+                        startPoint: .zero,
+                        endPoint: CGPoint(x: size.width, y: h)
+                    )
+                )
+            }
+            .allowsHitTesting(false)
+        }
         .printCard(radius: Radius.card)
     }
 
@@ -170,6 +212,7 @@ private struct FamilyCard: View {
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .minimumScaleFactor(0.9)
                     .fixedSize(horizontal: false, vertical: true)
             }
         } else {
@@ -182,23 +225,10 @@ private struct FamilyCard: View {
         }
     }
 
-    private var storyPill: some View {
-        NavigationLink(value: StudioRoute.story) {
-            HStack(spacing: 5) {
-                GoldBead(size: 7)
-                Text(L10n.t("故事", "Story"))
-                    .lineLimit(1)
-            }
-            .dsPill(.secondary, height: 34, horizontalPadding: 11)
-        }
-        .buttonStyle(.toy)
-        .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
-    }
-
     private var editPill: some View {
         Button(action: edit) {
             Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
-                .dsPill(.tinted(Palette.accent), height: 34, horizontalPadding: 11)
+                .dsPill(.primary, height: 32, horizontalPadding: 12)
         }
         .buttonStyle(.toy)
         .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
@@ -249,40 +279,44 @@ private struct CompanionPicker: View {
                 Button {
                     if on { cheer += 1 } else { withAnimation(.spring(response: 0.42, dampingFraction: 0.62)) { app.companion = k }; cheer += 1 }
                 } label: {
-                    HStack(alignment: .center, spacing: 9) {
+                    HStack(alignment: .center, spacing: 8) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
                                  alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
-                            .frame(width: (on ? 32 : 28) * k.scale, height: (on ? 32 : 28) * k.scale)
-                            .frame(width: 34, height: 34, alignment: .bottom)
+                            .frame(width: (on ? 30 : 27) * k.scale, height: (on ? 30 : 27) * k.scale)
+                            .frame(width: 30, height: 34, alignment: .bottom)
 
                         VStack(alignment: .leading, spacing: 2) {
                             Text(k.rawValue)
-                                .font(.subheadline.weight(.semibold))
+                                .font(.subheadline.weight(.bold))
                                 .foregroundStyle(on ? .primary : Palette.secondaryText)
                                 .lineLimit(1)
                             Text(YouStudioCopy.companionBadge(k))
-                                .font(.caption)
+                                .font(.caption.weight(.medium))
                                 .foregroundStyle(on ? Palette.accent : Palette.secondaryText)
                                 .lineLimit(1)
-                                .minimumScaleFactor(0.85)
+                                .minimumScaleFactor(0.90)
                         }
 
-                        Spacer(minLength: 2)
-
-                        Image(systemName: on ? "checkmark.circle.fill" : "circle")
-                            .font(.footnote.weight(.semibold))
-                            .foregroundStyle(on ? Palette.accent : Palette.outline.opacity(0.35))
+                        Spacer(minLength: 0)
                     }
-                    .padding(.horizontal, 12)
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 10)
                     .frame(minHeight: 54)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                            .fill(on ? Palette.accent.opacity(dark ? 0.20 : 0.10) : (dark ? Color.white.opacity(0.03) : Palette.fill.opacity(0.45)))
+                            .fill(on ? Palette.accent.opacity(dark ? 0.20 : 0.11) : DS.Surface.warmInset(dark: dark).opacity(0.65))
                     )
+                    .overlay(alignment: .topTrailing) {
+                        if on {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Palette.accent)
+                                .padding(7)
+                        }
+                    }
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                            .strokeBorder(on ? Palette.accent.opacity(dark ? 0.50 : 0.30) : Palette.outline.opacity(0.14), lineWidth: on ? 1.2 : 0.75)
+                            .strokeBorder(on ? Palette.accent.opacity(dark ? 0.50 : 0.34) : Palette.outline.opacity(0.14), lineWidth: on ? 1.2 : 0.6)
                     )
                     .contentShape(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
                 }
@@ -343,21 +377,63 @@ private struct ThemeLanguageCard: View {
             StudioBadge(symbol: "paintpalette.fill", color: Crayon.lilac, active: true, dark: dark)
             Text(L10n.t("外观", "Theme"))
                 .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 
     private var themePills: some View {
-        let options = [ThemeMode.light, .dark, .system].map { StudioSegmentOption(id: $0, title: $0.label) }
-        return DSSegmentedControl(
-            items: options,
-            selection: Binding(
-                get: { StudioSegmentOption(id: app.theme, title: app.theme.label) },
-                set: { app.theme = $0.id }
-            ),
-            dark: dark,
-            compact: true,
-            title: { $0.title }
-        )
+        let items = [ThemeMode.light, .dark, .system]
+        let pillRow = ForEach(items, id: \.self) { mode in
+            let on = app.theme == mode
+            Button {
+                TactileEngine.shared.beadClick()
+                withAnimation(.snappy) { app.theme = mode }
+            } label: {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(themeSwatchGradient(mode))
+                        .overlay(Circle().strokeBorder(Color.white.opacity(0.55), lineWidth: 0.6))
+                        .frame(width: 11, height: 11)
+                    Text(mode.label)
+                        .font(.footnote.weight(on ? .semibold : .medium))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                .foregroundStyle(on ? .white : .primary)
+                .padding(.horizontal, 10)
+                .frame(minHeight: 30)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(on ? Palette.accentFill : .clear)
+                )
+                .pillHitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(mode.label)
+            .accessibilityAddTraits(on ? .isSelected : [])
+        }
+
+        return Group {
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 6, lineSpacing: 6) { pillRow }
+            } else {
+                HStack(spacing: 2) { pillRow }
+                    .padding(3)
+                    .background(Capsule(style: .continuous).fill(DS.Surface.warmInset(dark: dark)))
+                    .overlay(Capsule(style: .continuous).strokeBorder(Color(hex: 0xCBB799).opacity(dark ? 0.16 : 0.24), lineWidth: 0.5))
+            }
+        }
+    }
+
+    private func themeSwatchGradient(_ mode: ThemeMode) -> LinearGradient {
+        switch mode {
+        case .light:
+            LinearGradient(colors: [Color(hex: 0xFFF3D4), Crayon.sunflower], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .dark:
+            LinearGradient(colors: [Color(hex: 0x222B4F), Palette.amber], startPoint: .topLeading, endPoint: .bottomTrailing)
+        case .system:
+            LinearGradient(colors: [Color(hex: 0xFFF0C8), Color(hex: 0x222B4F)], startPoint: .leading, endPoint: .trailing)
+        }
     }
 
     private var langLabel: some View {
@@ -365,6 +441,7 @@ private struct ThemeLanguageCard: View {
             StudioBadge(symbol: "globe", color: Crayon.sky, active: true, dark: dark)
             Text(L10n.t("语言", "Language"))
                 .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -492,17 +569,28 @@ private struct PreferenceStudioCard: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     Text(status)
-                        .font(.caption)
+                        .font(.footnote.weight(.medium))
                         .foregroundStyle(active ? ink : Palette.secondaryText)
                         .monospacedDigit()
                         .lineLimit(ax ? nil : 1)
-                        .minimumScaleFactor(0.82)
+                        .minimumScaleFactor(0.86)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: ax ? 78 : 74, alignment: .topLeading)
+            .background(
+                LinearGradient(
+                    colors: [color.opacity(active ? (dark ? 0.16 : 0.09) : 0.01), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .printCard(radius: Radius.inner)
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(active ? ink.opacity(dark ? 0.48 : 0.34) : .clear, lineWidth: 1.0)
+            )
             .opacity(resting ? 0.60 : 1.0)
         }
         .buttonStyle(.toy)
@@ -648,19 +736,8 @@ private struct StudioColophonBar: View {
                 TactileEngine.shared.beadClick()
                 openLegal()
             }) {
-                HStack(spacing: 5) {
-                    Image(systemName: "doc.text.magnifyingglass")
-                        .font(.caption2.weight(.bold))
-                    Text(L10n.t("条款与帮助", "Legal & Help"))
-                        .font(.caption.weight(.semibold))
-                        .lineLimit(type.isAccessibilitySize ? nil : 1)
-                }
-                .foregroundStyle(.primary)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .frame(minHeight: 44)
-                .background(Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.card))
-                .overlay(Capsule().strokeBorder(Palette.outline.opacity(0.24), lineWidth: 0.75))
+                Label(L10n.t("条款与帮助", "Legal & Help"), systemImage: "doc.text.magnifyingglass")
+                    .dsPill(.secondary, height: 34, horizontalPadding: 13)
             }
             .buttonStyle(.toy)
         }

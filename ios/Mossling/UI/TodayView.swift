@@ -113,25 +113,24 @@ struct TodayView: View {
         dark: Bool,
         @ViewBuilder art: () -> Art
     ) -> some View {
-        let _ = color
-        return HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
+        HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
             ZStack {
                 RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(DS.Surface.inset(dark: dark))
+                    .fill(color.opacity(dark ? 0.20 : 0.11))
                 art()
             }
             .frame(width: 46, height: 46)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(DS.TypeScale.rowTitle)
+                    .font(.subheadline.weight(.bold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.88)
                     .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
                 Text(subtitle)
-                    .font(DS.TypeScale.meta)
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.88)
@@ -146,6 +145,13 @@ struct TodayView: View {
         .padding(.horizontal, 14)
         .padding(.vertical, 15)
         .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+        .background(
+            LinearGradient(
+                colors: [color.opacity(dark ? 0.20 : 0.14), color.opacity(dark ? 0.05 : 0.04)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+        )
         .printCard(radius: Radius.card)
     }
 }
@@ -230,30 +236,28 @@ struct ExploreGreetingStrip: View {
                     width: type.isAccessibilitySize ? 58 : 48
                 )
 
-                VStack(alignment: .leading, spacing: 4) {
+                VStack(alignment: .leading, spacing: 5) {
                     FlowRow(spacing: 6, lineSpacing: 4) {
-                        HStack(spacing: 5) {
-                            Circle()
-                                .fill(land.crayon)
-                                .frame(width: 6, height: 6)
-                            Text(land.name)
-                                .font(.footnote.weight(.semibold))
-                                .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                        }
-
-                        Text("·")
-                            .font(.footnote)
-                            .foregroundStyle(Palette.secondaryText)
+                        Label(land.name, systemImage: land.symbol)
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 3)
+                            .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
+                            .fixedSize(horizontal: true, vertical: false)
 
                         if let a = app.age {
                             Text(L10n.ageText(a))
                                 .font(.footnote.weight(.semibold))
                                 .foregroundStyle(.primary)
                                 .monospacedDigit()
+                                .lineLimit(1)
+                                .fixedSize(horizontal: true, vertical: false)
                         } else {
                             Text(L10n.t("0–3 岁旅程", "0–3y Journey"))
                                 .font(.footnote)
                                 .foregroundStyle(Palette.secondaryText)
+                                .lineLimit(1)
                         }
 
                         if !todayFoods.isEmpty || hasPlayToday {
@@ -289,14 +293,20 @@ struct ExploreGreetingStrip: View {
 
                 HStack(spacing: 3) {
                     Text(L10n.t("旅程", "Journey"))
-                        .font(.footnote.weight(.medium))
                     Image(systemName: "chevron.right")
                         .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                 }
-                .foregroundStyle(Palette.accent)
+                .dsPill(.tinted(Palette.accent), height: 30, horizontalPadding: 10)
             }
             .padding(.horizontal, LayoutSpec.cardPad)
             .padding(.vertical, 14)
+            .background(
+                LinearGradient(
+                    colors: [land.crayon.opacity(dark ? 0.14 : 0.10), .clear],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
             .printCard(radius: Radius.card)
         }
         .buttonStyle(.toy)
@@ -634,11 +644,11 @@ struct TodayPlayCard: View {
         let today = app.todayPlay(month, j)
         let rest = week.filter { $0.code != today?.code }
         let asleep = j.timers.contains { $0.type == LogType.sleep }
-        let dark = night || envLamp || scheme == .dark
         if let p = today {
             TimelineView(.periodic(from: .now, by: 60)) { tl in
                 VStack(alignment: .leading, spacing: LayoutSpec.sectionHeaderGap) {
                     HStack(alignment: .center, spacing: 8) {
+                        GoldBead(size: 9)
                         Text(title(asleep: asleep, now: tl.date))
                             .font(DS.TypeScale.sectionHeader)
                             .tracking(LayoutSpec.sectionTracking)
@@ -652,12 +662,7 @@ struct TodayPlayCard: View {
                                 }
                             } label: {
                                 Text(L10n.t("换一个", "Swap"))
-                                    .font(.footnote.weight(.semibold))
-                                    .foregroundStyle(Palette.accent)
-                                    .padding(.horizontal, 12)
-                                    .padding(.vertical, 6)
-                                    .background(Capsule().fill(DS.Surface.inset(dark: dark)))
-                                    .pillHitTarget(LayoutSpec.hitMin)
+                                    .dsPill(.tinted(Palette.accent), height: 30, horizontalPadding: 11)
                             }
                             .buttonStyle(.plain)
                             .accessibilityHint(L10n.t("在这周的几个活动里换一个", "Swap to another play this week"))
@@ -681,16 +686,20 @@ struct TodayPlayCard: View {
                                 Spacer(minLength: 4)
                                 Button(action: arrange) {
                                     Text(L10n.t("调整", "Edit"))
-                                        .font(.footnote.weight(.medium))
+                                        .font(.footnote.weight(.semibold))
                                         .foregroundStyle(Palette.accent)
-                                        .padding(.horizontal, 8)
-                                        .pillHitTarget(LayoutSpec.hitMin)
+                                        .lineLimit(1)
+                                        .fixedSize()
+                                        .padding(.horizontal, 10)
+                                        .frame(minHeight: 30)
+                                        .pillHitTarget()
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityHint(L10n.t("换这周的活动", "Adjust this week's plays"))
                             }
                             .padding(.horizontal, LayoutSpec.cardPadHero)
-                            .padding(.top, 6)
+                            .padding(.top, 10)
+                            .padding(.bottom, 2)
 
                             VStack(spacing: 0) {
                                 ForEach(Array(rest.enumerated()), id: \.element.id) { idx, item in

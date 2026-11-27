@@ -337,12 +337,12 @@ struct LampCardSpotlightCard: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(L10n.t("此时可以对宝宝说", "You can say aloud"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.secondaryText)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(Crayon.ink(Crayon.sunflower))
                     Text("“\(card.sayAloud)”")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.primary)
-                        .lineSpacing(2)
+                        .lineSpacing(2.5)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -350,7 +350,7 @@ struct LampCardSpotlightCard: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .fill(DS.Surface.inset(dark: dark))
+                    .fill(Crayon.sunflower.opacity(dark ? 0.16 : 0.10))
             )
 
             HStack(alignment: .top, spacing: 8) {
@@ -379,20 +379,20 @@ struct LampCardSpotlightCard: View {
                         reader.isSpeaking ? L10n.t("停止朗读", "Stop Voice") : L10n.t("读给我听", "Read Aloud"),
                         systemImage: reader.isSpeaking ? "stop.circle.fill" : "speaker.wave.2.fill"
                     )
-                    .dsPill(.secondary)
+                    .dsPill(.tinted(Crayon.sky), height: 34)
                 }
                 .buttonStyle(.toy)
 
                 if let h5URL {
                     ShareLink(item: h5URL, message: Text(card.shareMessage())) {
                         Label(L10n.t("发给家人 H5", "Family Card"), systemImage: "square.and.arrow.up")
-                            .dsPill(.secondary)
+                            .dsPill(.tinted(Crayon.caramel), height: 34)
                     }
                     .accessibilityLabel(L10n.t("生成零流量长辈卡发给家人", "Share grandparent H5 card"))
                 } else {
                     ShareLink(item: card.shareMessage()) {
                         Label(L10n.t("发给家人", "Share with Family"), systemImage: "square.and.arrow.up")
-                            .dsPill(.secondary)
+                            .dsPill(.tinted(Crayon.caramel), height: 34)
                     }
                 }
 
@@ -401,7 +401,7 @@ struct LampCardSpotlightCard: View {
                     showDetail = true
                 } label: {
                     Label(L10n.t("L2/L3 共情与循证", "Why & Sources"), systemImage: "book.pages.fill")
-                        .dsPill(.tinted(Palette.accent))
+                        .dsPill(.primary, height: 34)
                 }
                 .buttonStyle(.toy)
             }

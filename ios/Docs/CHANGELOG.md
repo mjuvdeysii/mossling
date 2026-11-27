@@ -3,6 +3,9 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 35（重燃绘本暖意色调 × 彻底根治大按钮小文本与强制换行截断）**：
+  - **Root-Cause 修复「大按钮小文本」与胶囊截断（`Theme.swift` + `DesignSystem.swift`）**：将 `.pillHitTarget()` 与 `DSSegmentedControl` 从撑大可见视觉框体改为隐式 `.contentShape(Capsule().inset(by: -expand))` 触控扩展；锁定全站控件「高配大字」黄金比例（`48–50pt` CTA = `16pt` `.callout`、`36–40pt` 分段轨道 = `15pt` `.subheadline`、`30–34pt` 胶囊 = `13pt` `.footnote`），全面施加 `.lineLimit(1)` + `.fixedSize(horizontal: true, vertical: false)` 根绝 `Edit` 拆行与 `Story` / `Meadow · Day...` / `Lamp Kee...` 省略号截断。
+  - **重燃绘本暖意色彩与手工质感**：恢复 `Palette.background` 日间柔暖宣纸（`0xF7F5EE`）、天光顶拱渐变、柔暖水彩底池、`PrintCard` 棉浆微粒与琥珀暖边、`DS.Surface.warmInset` 柔米灰内槽（`0xF3EDE2`）、`.warm(Color)` 柔辉渐层按钮角色、多色高亮 `DSMetricCell` 及工坊「日光 / 夜灯 / 自动」活体太阳月亮圆点与草地日光顶拱，保留 `CompactStepOutlineRow` 不透明白卡、三列等高汇总砖及 `3×2` 齐整声景网等结构进化，新增单测 `testBatch35WarmColorPaletteAndZeroTruncationMetrics()`。
 - **Batch 34（Codified Apple HIG 设计系统 `DS` 与全站可见视觉重构）**：
   - **建立唯一设计系统规范（`DesignSystem.swift` + `Theme.swift`）**：沉淀 `DS` 色彩材质（全不透明洁白卡片 + 克制暖米灰画布 + 弱化底部草地与顶拱洗色、克制 0.5pt 发丝线与柔和阴影）、5 级字体层级、`DSButtonStyle`（Primary / Secondary / Tinted 三层权重）、`DSSegmentedControl` 原生分段轨道、`DSMetricCell` 等高数据格、`DSIconButton`（34pt 视觉配 44pt+ 点击热区）与 `DSFilterChip`；`Typeface.numerals` 同步兜底 `11pt` 可读底线，`SectionTitle` 左对齐卡片网格线。
   - **全站界面可见级去噪与对齐重塑**：

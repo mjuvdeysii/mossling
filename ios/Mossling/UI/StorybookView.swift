@@ -685,7 +685,7 @@ private struct StorybookMonthSpread: View {
                         spacing: 8
                     ) {
                         ForEach(Array(metrics.enumerated()), id: \.offset) { _, m in
-                            DSMetricCell(label: m.label, value: m.value, unit: m.unit, dark: dark)
+                            DSMetricCell(label: m.label, value: m.value, unit: m.unit, accent: m.color, dark: dark)
                         }
                     }
                 }
@@ -738,12 +738,12 @@ private struct StorybookMonthSpread: View {
         return a.y == b.y ? "\(a.md) – \(b.md)" : "\(a.ymd) – \(b.ymd)"
     }
 
-    private var snapshotMetrics: [(label: String, value: String, unit: String)] {
-        var out: [(String, String, String)] = []
-        if let w = page.measure?.weightG { out.append((L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), "kg")) }
-        if let l = page.measure?.lengthMm { out.append((L10n.t("身长", "Length"), String(format: "%.1f", Double(l) / 10), "cm")) }
-        if let s = page.sleepHours { out.append((L10n.t("日均睡眠", "Avg Sleep"), String(format: "%.1f", s), "h")) }
-        if let f = page.feeds { out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.0f", f.rounded()), L10n.t("次", "/d"))) }
+    private var snapshotMetrics: [(label: String, value: String, unit: String, color: Color)] {
+        var out: [(String, String, String, Color)] = []
+        if let w = page.measure?.weightG { out.append((L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), "kg", Crayon.caramel)) }
+        if let l = page.measure?.lengthMm { out.append((L10n.t("身长", "Length"), String(format: "%.1f", Double(l) / 10), "cm", Crayon.teal)) }
+        if let s = page.sleepHours { out.append((L10n.t("日均睡眠", "Avg Sleep"), String(format: "%.1f", s), "h", LogType.color(LogType.sleep))) }
+        if let f = page.feeds { out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.0f", f.rounded()), L10n.t("次", "/d"), LogType.color(LogType.nurse))) }
         return out
     }
 }

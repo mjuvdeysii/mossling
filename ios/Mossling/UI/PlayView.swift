@@ -541,7 +541,7 @@ private struct PlayLivingHeroCard: View {
             .lineLimit(1)
             .minimumScaleFactor(0.84)
         }
-        .buttonStyle(.ds(isAutoPlaying ? .tinted(Crayon.caramel) : .secondary, fullWidth: fullWidth, height: 48))
+        .buttonStyle(.ds(isAutoPlaying ? .warm(Crayon.caramel) : .tinted(Crayon.caramel), fullWidth: fullWidth, height: 48))
         .accessibilityLabel(isAutoPlaying ? L10n.t("暂停连播全步动画", "Pause story playback") : L10n.t("连播全部步骤动画", "Play all steps continuously"))
     }
 
@@ -601,7 +601,7 @@ private struct CompactStepOutlineRow: View {
                     .fill(dark ? Palette.lampCard : Palette.card)
                 if active {
                     RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .fill(Palette.accent.opacity(dark ? 0.14 : 0.06))
+                        .fill(Palette.accent.opacity(dark ? 0.16 : 0.08))
                 }
             }
         }
@@ -1121,7 +1121,8 @@ private struct StorybookSpineScrubber: View {
                         accessibilityLabel: L10n.t("重播这一步示范动画", "Replay this step animation"),
                         visualSize: 32,
                         dark: dark,
-                        tint: Palette.accent,
+                        tint: dark ? Palette.amber : Crayon.ink(Crayon.caramel),
+                        tintBg: Crayon.caramel.opacity(dark ? 0.24 : 0.14),
                         action: onReplay
                     )
                 }
@@ -1265,7 +1266,7 @@ private struct PlayHeader: View {
                 Spacer(minLength: 4)
                 Button(action: onMatMode) {
                     Label(L10n.t("垫旁共玩", "Mat Mode"), systemImage: "rectangle.inset.filled.and.person.filled")
-                        .dsPill(.secondary, height: 34)
+                        .dsPill(.tinted(Palette.area(key)), height: 32, horizontalPadding: 11)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("进入垫旁共玩全屏卡片", "Enter distraction-free Mat Mode"))
@@ -1281,9 +1282,8 @@ private struct PlayHeader: View {
                 Spacer(minLength: 8)
                 Button(action: onLog) {
                     Label(L10n.t("记一次", "Log Play"), systemImage: "plus")
-                        .font(.footnote.weight(.semibold))
                 }
-                .buttonStyle(.ds(.tinted(Palette.accent), height: 36))
+                .buttonStyle(.ds(.tinted(Palette.accent), height: 34))
                 .overlay { BeadBurst(trigger: cheer) }
                 .accessibilityLabel(L10n.t("玩过了，记一次", "Log one play session"))
             }
