@@ -405,7 +405,7 @@
   </style>
 </head>
 <body>
-  <header class="nav">
+  <header class="nav nav-subpage">
     <div class="wrap">
       <a class="brand" href="index.html">
         <img src="assets/app-icon.png" alt="摸索台灯应用图标" width="28" height="28">
@@ -598,10 +598,13 @@
 
       function decodeFragment() {
         var h = window.location.hash || "";
-        if (!h || h.indexOf("d=") === -1) return { status: "none", payload: null };
+        var clean = h.replace(/^#/, "");
+        if (!clean) return { status: "none", payload: null };
+        var parts = clean.split("&");
+        var raw = parts.find(function (p) { return p === "d" || p.indexOf("d=") === 0; });
+        if (!raw) return { status: "none", payload: null };
+        if (raw === "d" || raw.length <= 2) return { status: "invalid", payload: null };
         try {
-          var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
-          if (!raw || raw.length <= 2) return { status: "invalid", payload: null };
           var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
           while (b64.length % 4) b64 += "=";
           var bin = atob(b64);
@@ -663,9 +666,11 @@
           if (statusLabel) {
             statusLabel.textContent = activeLang === "en" ? "Incomplete Shared Link" : "分享链接不完整";
           }
+          if (speakBtn) speakBtn.disabled = true;
           stopSpeech();
           return;
         }
+        if (speakBtn) speakBtn.disabled = false;
         if (errBanner) errBanner.hidden = true;
         if (cardPaper) cardPaper.hidden = false;
 
@@ -759,6 +764,7 @@
 
       if (speakBtn) {
         speakBtn.addEventListener("click", function () {
+          if (decoded.status === "invalid") return;
           if (!("speechSynthesis" in window)) {
             speakBtn.textContent = activeLang === "en" ? "Speech unavailable" : "当前浏览器不支持朗读";
             return;

@@ -11,6 +11,7 @@ enum Consent {
 
 struct ConsentSheet: View {
     @Environment(AppModel.self) private var app
+    @Environment(JournalStore.self) private var j: JournalStore?
     @Environment(\.dynamicTypeSize) private var type
     @State private var doc: String?
 
@@ -105,6 +106,9 @@ struct ConsentSheet: View {
         } else if wasDeclined {
             app.journal = true
         }
+        let store = j ?? JournalStore(preview: JournalFile.read())
+        app.publish(store)
+        Task { await LiveTimers.sync() }
     }
 
     private func docLink(_ title: String, _ name: String, symbol: String, color: Color) -> some View {
@@ -148,7 +152,7 @@ private struct LocalConsentSheetModifier: ViewModifier {
 
     func body(content: Self.Content) -> some View {
         let presented = Binding(
-            get: { app.askConsent && app.consentHostStack.last == hostID },
+            get: { !app.appLocked && app.askConsent && app.consentHostStack.last == hostID },
             set: { if !$0 { app.askConsent = false } }
         )
         content

@@ -200,7 +200,9 @@ final class AppModel {
         sex = d.string(forKey: "sex")
         look = d.string(forKey: "look")
         nickname = d.string(forKey: "nickname") ?? ""
-        lock = d.bool(forKey: "lock")
+        let initialLock = d.bool(forKey: "lock")
+        lock = initialLock
+        appLocked = initialLock
         shelf = d.string(forKey: "shelf") ?? ""
         consent = d.string(forKey: "consent") ?? ""
         journal = d.bool(forKey: "journal")
@@ -341,7 +343,7 @@ final class AppModel {
 
     /// What the widget shows, written whenever it changes.
     func publish(_ j: JournalStore) {
-        guard consented else {
+        guard consented && !appLocked else {
             JournalFile.writeSnapshot(
                 Snapshot(
                     birthEpochDay: nil,
@@ -350,7 +352,7 @@ final class AppModel {
                     journal: false,
                     playCode: nil,
                     playName: nil,
-                    consented: false,
+                    consented: consented,
                     weekPlays: nil,
                     playPickedEpochDay: nil,
                     gestationalWeeks: nil,
@@ -362,6 +364,7 @@ final class AppModel {
                 )
             )
             WidgetCenter.shared.reloadAllTimelines()
+            ControlCenter.shared.reloadAllControls()
             return
         }
         // the widget says the play the home page says, plus this week's shelf so the widget can swap plays inline
@@ -394,6 +397,7 @@ final class AppModel {
             )
         )
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
     }
     var publishKey: String {
         let grads = graduatedModules.sorted().joined(separator: ",")
@@ -419,6 +423,7 @@ final class AppModel {
         // files kept aside from older builds; and a timer on the Lock Screen ends at once
         JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil, consented: false, appLocked: false, consentVersion: ""))
         WidgetCenter.shared.reloadAllTimelines()
+        ControlCenter.shared.reloadAllControls()
         let fm = FileManager.default
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: DataView.legacyDocumentsExportFolder)

@@ -371,6 +371,8 @@ struct RhythmView: View {
             GeometryReader { geo in
                 let side = min(geo.size.width, geo.size.height)
                 let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+                let centerRadius = side * 0.22
+                let rimOuterRadius = side * 0.48
 
                 ZStack {
                     CircadianLoomCanvas(
@@ -394,7 +396,7 @@ struct RhythmView: View {
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             let dist = hypot(dx, dy)
-                            if dist < side * 0.18 {
+                            if dist < centerRadius {
                                 if inspectedHour != nil {
                                     withAnimation(reduce ? nil : .snappy) { inspectedHour = nil }
                                 }
@@ -414,10 +416,12 @@ struct RhythmView: View {
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            let outerR = side * 0.36
-                            let rNorm = startDist / max(1, outerR)
-                            guard rNorm >= 0.45, rNorm <= 1.32 else { return }
-                            if abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
+                            guard startDist >= centerRadius, startDist <= rimOuterRadius else { return }
+                            let tx = -sy / max(1, startDist)
+                            let ty = sx / max(1, startDist)
+                            let tangential = abs(value.translation.width * tx + value.translation.height * ty)
+                            let radial = abs(value.translation.width * (sx / max(1, startDist)) + value.translation.height * (sy / max(1, startDist)))
+                            if tangential >= radial * 0.75 || abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
                                 state = true
                             }
                         }
@@ -425,13 +429,15 @@ struct RhythmView: View {
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            let outerR = side * 0.36
-                            let rNorm = startDist / max(1, outerR)
-                            guard rNorm >= 0.45, rNorm <= 1.32 else { return }
-                            guard scrubbingRing || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
+                            guard startDist >= centerRadius, startDist <= rimOuterRadius else { return }
+                            let tx = -sy / max(1, startDist)
+                            let ty = sx / max(1, startDist)
+                            let tangential = abs(value.translation.width * tx + value.translation.height * ty)
+                            let radial = abs(value.translation.width * (sx / max(1, startDist)) + value.translation.height * (sy / max(1, startDist)))
+                            guard scrubbingRing || tangential >= radial * 0.75 || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
-                            guard hypot(dx, dy) >= side * 0.16 else { return }
+                            guard hypot(dx, dy) >= centerRadius else { return }
                             let h = RhythmDialModel.hour(forVector: dx, dy: dy)
                             if inspectedHour != h {
                                 inspectedHour = h
@@ -499,7 +505,7 @@ struct RhythmView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
                 Text(
-                    avgSleep.map { L10n.t("实记 \(String(format: "%.1f", $0))h / 天", "Avg \(String(format: "%.1f", $0))h / day") }
+                    avgSleep.map { L10n.t("实记 \(String(format: "%.1f", $0)) 小时 / 天", "Avg \(String(format: "%.1f", $0)) hr / day") }
                         ?? L10n.t("睡眠 · 含小睡", "Sleep w/ naps")
                 )
                 .font(.caption2.weight(.semibold))

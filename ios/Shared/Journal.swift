@@ -58,6 +58,43 @@ struct LogEntry: Codable, Identifiable, Hashable {
     var startDate: Date { Date(timeIntervalSince1970: start / 1000) }
     var endDate: Date? { end.map { Date(timeIntervalSince1970: $0 / 1000) } }
 
+    enum CodingKeys: String, CodingKey { case id, type, start, end, amount, side, detail }
+
+    init(id: UUID = UUID(), type: String, start: Double, end: Double? = nil, amount: Int? = nil, side: String? = nil, detail: String? = nil) {
+        self.id = id
+        self.type = type
+        self.start = start.isFinite ? start : 0
+        self.end = end.flatMap { $0.isFinite ? $0 : nil }
+        self.amount = amount
+        self.side = side
+        self.detail = Self.sanitizedDetail(detail)
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        type = try c.decode(String.self, forKey: .type)
+        let rawStart = try c.decode(Double.self, forKey: .start)
+        start = rawStart.isFinite ? rawStart : 0
+        let rawEnd = try c.decodeIfPresent(Double.self, forKey: .end)
+        end = rawEnd.flatMap { $0.isFinite ? $0 : nil }
+        amount = try c.decodeIfPresent(Int.self, forKey: .amount)
+        side = try c.decodeIfPresent(String.self, forKey: .side)
+        detail = Self.sanitizedDetail(try c.decodeIfPresent(String.self, forKey: .detail))
+    }
+
+    private static func sanitizedDetail(_ raw: String?) -> String? {
+        guard let raw, !raw.isEmpty else { return raw }
+        let parts = raw.split(separator: ";", omittingEmptySubsequences: false).map { part -> String in
+            guard part.hasPrefix("paused:") else { return String(part) }
+            let valStr = String(part.dropFirst(7))
+            guard let ms = Double(valStr), ms.isFinite, ms > 0 else { return "paused:0" }
+            let clamped = min(7.0 * 86_400_000.0, ms)
+            return "paused:\(Int64(clamped.rounded()))"
+        }
+        return parts.joined(separator: ";")
+    }
+
     var summary: String {
         if L10n.isEnglish {
             switch type {
@@ -92,7 +129,9 @@ extension LogEntry {
     var pausedSeconds: Double {
         guard let d = detail else { return 0 }
         for part in d.split(separator: ";") where part.hasPrefix("paused:") {
-            if let ms = Double(part.dropFirst(7)) { return max(0, ms / 1000) }
+            if let ms = Double(part.dropFirst(7)), ms.isFinite, ms > 0 {
+                return min(7 * 86_400, ms / 1000)
+            }
         }
         return 0
     }
@@ -657,7 +696,7 @@ enum JournalFile {
     static func pausing(_ b0: Body, _ type: String, now n: Double) -> Body {
         var b = b0
         if let i = b.timers.firstIndex(where: { $0.type == type }) {
-            if let p = b.timers[i].pausedAt { b.timers[i].pausedTotal += n - p; b.timers[i].pausedAt = nil } else { b.timers[i].pausedAt = n }
+            if let p = b.timers[i].pausedAt { b.timers[i].pausedTotal += max(0, n - p); b.timers[i].pausedAt = nil } else { b.timers[i].pausedAt = n }
         }
         return b
     }
@@ -695,11 +734,11 @@ enum JournalFile {
         guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return b }
         let t = b.timers[i]
         let other = t.side == "r" ? "l" : "r"
-        let paused = t.pausedTotal + (t.pausedAt.map { n - $0 } ?? 0)
+        let paused = t.pausedTotal + (t.pausedAt.map { max(0, n - $0) } ?? 0)
         if t.elapsed(n) < 30 {
             // too short for an entry: just the other side, and running
             b.timers[i].side = other
-            if let p = t.pausedAt { b.timers[i].pausedTotal += n - p; b.timers[i].pausedAt = nil }
+            if let p = t.pausedAt { b.timers[i].pausedTotal += max(0, n - p); b.timers[i].pausedAt = nil }
             return b
         }
         let detail = nurseDetail(pausedMs: paused, separate: t.detached && t.sessionEntryIDs.isEmpty)

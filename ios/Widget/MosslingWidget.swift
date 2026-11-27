@@ -78,8 +78,8 @@ struct TodayWidget: Widget {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in
             TodayWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
-        .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Moss & Otto · Today"))
-        .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；点击各区块直达活动绘本与手帐。", "Age, today's play, 24h bead rhythm, and direct links into play & journal."))
+        .configurationDisplayName("摸索台灯 · 今日")
+        .description("月龄、今日活动与 24 小时串珠节奏；点击各区块直达活动与手帐。")
         .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .accessoryCircular, .accessoryRectangular, .accessoryInline])
     }
 }
@@ -100,14 +100,14 @@ private struct TodayWidgetView: View {
     }
 }
 
-/// Story Window (成长故事窗): 37-bead Montessori growth chapter keepsake linking directly into Growth Book & Month view.
+/// Story Window (成长故事窗): 37-bead growth chapter keepsake linking directly into Growth Book & Month view.
 struct StoryWindowWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "story-window", provider: TodayProvider()) { e in
             StoryWindowWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
-        .configurationDisplayName(L10n.t("成长故事窗", "Story Window"))
-        .description(L10n.t("37 颗蒙氏成长珠进度与当下成长章节，轻点直达成长册与本月主页。", "Your baby's 37-bead Montessori chapter & keepsake window into Growth Book."))
+        .configurationDisplayName("成长故事窗")
+        .description("37 颗成长珠进度与当下成长章节，轻点直达成长册与本月主页。")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -126,8 +126,8 @@ struct QuickCareWidget: Widget {
         StaticConfiguration(kind: "quick-care", provider: TodayProvider()) { e in
             QuickCareWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
-        .configurationDisplayName(L10n.t("一键记录", "Quick Log"))
-        .description(L10n.t("无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。", "Start or stop timers and log wet or dirty diapers right from your Home Screen."))
+        .configurationDisplayName("一键记录")
+        .description("无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -148,8 +148,8 @@ struct BedsideLampWidget: Widget {
                 BedsideLampContainerBackground()
             }
         }
-        .configurationDisplayName(L10n.t("床头台灯", "Bedside Lamp"))
-        .description(L10n.t("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。", "Warm amber StandBy lamp with live timer and direct tap to timer or night log."))
+        .configurationDisplayName("床头台灯")
+        .description("专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
@@ -203,8 +203,8 @@ struct SleepControl: ControlWidget {
             }
             .tint(LogType.color(LogType.sleep))
         }
-        .displayName(L10n.res("睡觉计时", "Sleep Timer"))
-        .description(L10n.res("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。", "Toggle baby's sleep timer with live on/off state in Control Center or Lock Screen."))
+        .displayName("睡觉计时")
+        .description("在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。")
     }
 }
 
@@ -220,8 +220,8 @@ struct NurseControl: ControlWidget {
             }
             .tint(LogType.color(LogType.nurse))
         }
-        .displayName(L10n.res("亲喂计时", "Nursing Timer"))
-        .description(L10n.res("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。", "Toggle nursing timer with live on/off state in Control Center or Lock Screen."))
+        .displayName("亲喂计时")
+        .description("在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。")
     }
 }
 
@@ -233,8 +233,8 @@ struct WetDiaperControl: ControlWidget {
             }
             .tint(LogType.color(LogType.diaper))
         }
-        .displayName(L10n.res("记湿尿布", "Log Wet Diaper"))
-        .description(L10n.res("在控制中心或锁屏一键记下一次湿尿布。", "Log a wet diaper in one tap from Control Center or Lock Screen."))
+        .displayName("记湿尿布")
+        .description("在控制中心或锁屏一键记下一次湿尿布。")
     }
 }
 
@@ -246,8 +246,8 @@ struct BedsideLampControl: ControlWidget {
             }
             .tint(BedsideLampFace.amber)
         }
-        .displayName(L10n.res("床头夜灯", "Bedside Lamp"))
-        .description(L10n.res("在控制中心或锁屏一键点亮暖琥珀床头夜灯与助眠声景。", "Open Otto's warm low-glare Bedside Lamp & soundscapes in one tap."))
+        .displayName("床头夜灯")
+        .description("在控制中心或锁屏一键点亮暖琥珀床头夜灯与助眠声景。")
     }
 }
 
@@ -275,7 +275,9 @@ struct TimerLiveActivity: Widget {
                     TimerControls(type: ctx.attributes.type, s: ctx.state, light: true).privacySensitive()
                 }
             } compactLeading: {
-                ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
+                ArtImage(name: WidgetArt.sticker(ctx.attributes.type))
+                    .frame(width: 22, height: 22)
+                    .privacySensitive()
             } compactTrailing: {
                 TimerFace.elapsed(ctx.state)
                     .lineLimit(1)
@@ -284,7 +286,9 @@ struct TimerLiveActivity: Widget {
                     .foregroundStyle(c)
                     .privacySensitive()
             } minimal: {
-                ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
+                ArtImage(name: WidgetArt.sticker(ctx.attributes.type))
+                    .frame(width: 22, height: 22)
+                    .privacySensitive()
             }
             .widgetURL(WidgetLinks.care(ctx.attributes.type))
         }

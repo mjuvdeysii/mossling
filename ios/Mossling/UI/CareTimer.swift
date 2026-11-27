@@ -240,7 +240,10 @@ struct TimerScreen: View {
                 if let o = j.timers.first(where: { $0.type == other }) {
                     TimelineView(.periodic(from: .now, by: 30)) { tl in
                         Notice(type: other, text: L10n.t(LogType.name(other) + "还在计时", L10n.logName(other) + " is still running"), detail: L10n.t("已经 " + durationValue(o.total(ms(tl.date))), L10n.duration(o.total(ms(tl.date))) + " elapsed"),
-                               action: other == LogType.sleep ? L10n.t("先记醒了", "Mark Awake") : L10n.t("先记喂完", "End Feed")) { withAnimation(.snappy) { j.stop(other) } }
+                               action: other == LogType.sleep ? L10n.t("先记醒了", "Mark Awake") : L10n.t("先记喂完", "End Feed")) {
+                            guard app.mayKeep() else { return }
+                            withAnimation(.snappy) { j.stop(other) }
+                        }
                     }
                 }
 
@@ -361,6 +364,7 @@ struct TimerScreen: View {
                                 let sec = k == "l" ? rhythm.leftSeconds : rhythm.rightSeconds
                                 SidePad(side: k, seconds: sec,
                                         state: k != side ? .other : paused ? .paused : .running, color: c) {
+                                    guard app.mayKeep() else { return }
                                     if k == side {
                                         TactileEngine.shared.dimmerTick()
                                     } else {
@@ -373,6 +377,7 @@ struct TimerScreen: View {
                         }
                     } else {
                         SleepPad(seconds: t.total(now), paused: paused, color: c) {
+                            guard app.mayKeep() else { return }
                             TactileEngine.shared.dimmerTick()
                             withAnimation(.snappy) { j.togglePause(type) }
                         }
@@ -438,12 +443,17 @@ struct TimerScreen: View {
                 .accessibilityLabel(L10n.t("打开床头夜灯与助眠声景", "Open Bedside Lamp & Soundscapes"))
 
                 Menu {
-                    Button(L10n.t("已经结束了，选结束时间", "Already finished — pick end time"), systemImage: "clock.badge.checkmark") { ending = true }
+                    Button(L10n.t("已经结束了，选结束时间", "Already finished — pick end time"), systemImage: "clock.badge.checkmark") {
+                        guard app.mayKeep() else { return }
+                        ending = true
+                    }
                     Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.dimmerTick()
                         j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300))
                     }
                     Button(L10n.t("提前 15 分钟开始", "Start 15 min earlier"), systemImage: "gobackward.15") {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.dimmerTick()
                         j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900))
                     }
@@ -467,6 +477,7 @@ struct TimerScreen: View {
         .sensoryFeedback(.selection, trigger: side)
         .sheet(isPresented: $picking) {
             TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: t.start / 1000)) {
+                guard app.mayKeep() else { return }
                 TactileEngine.shared.dimmerTick()
                 j.shift(type, to: $0)
             }.lampPresented()
@@ -485,7 +496,7 @@ struct TimerScreen: View {
     /// Ends the timer and closes the page in one calm motion: the running page is frozen first, the record is saved
     /// without animating the page swap, then the cover is dismissed (the 「已记下」 toast shows on the page beneath).
     private func finish(_ t: RunningTimer, at end: Date? = nil) {
-        guard closingTimer == nil else { return }
+        guard app.mayKeep(), closingTimer == nil else { return }
         TactileEngine.shared.goldChime()
         closingTimer = t
         var tx = Transaction()
@@ -640,6 +651,7 @@ struct TimerScreen: View {
         ForEach(["wet", "dirty", "both"], id: \.self) { kind in
             let label = kind == "wet" ? L10n.t("湿", "Wet") : kind == "dirty" ? L10n.t("便", "Dirty") : L10n.t("都有", "Both")
             Button(label) {
+                guard app.mayKeep() else { return }
                 TactileEngine.shared.beadClick()
                 _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
             }
@@ -775,7 +787,7 @@ private struct SidePad: View {
             Image(systemName: symbol)
             Text(hint).lineLimit(1).minimumScaleFactor(0.7)
         }
-        .font(.caption2.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
+        .font(.caption2.weight(.bold))
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(Capsule().fill(on ? (lamp ? Palette.lampInk : Color.white).opacity(0.18) : color.opacity(0.16)))
         .padding(.top, 4)
@@ -876,7 +888,7 @@ private struct SleepPad: View {
                             Image(systemName: paused ? "play.fill" : "pause.fill")
                             Text(paused ? L10n.t("继续", "Resume") : L10n.t("暂停", "Pause")).lineLimit(1)
                         }
-                        .font(.subheadline.weight(.bold)).dynamicTypeSize(...DynamicTypeSize.xxLarge)
+                        .font(.subheadline.weight(.bold))
                         .padding(.horizontal, 16)
                         .frame(minHeight: 44)
                         .background(Capsule().fill(paused ? color.opacity(0.16) : light.opacity(0.18)))

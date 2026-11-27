@@ -577,6 +577,7 @@ struct LampHubView: View {
                 }
                 Spacer(minLength: 4)
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     j.togglePause(t.type)
                 } label: {
@@ -590,6 +591,7 @@ struct LampHubView: View {
                 .accessibilityLabel(paused ? L10n.t("继续计时", "Resume timer") : L10n.t("暂停计时", "Pause timer"))
 
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.goldChime()
                     j.stop(t.type)
                 } label: {

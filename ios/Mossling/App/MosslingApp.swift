@@ -35,7 +35,8 @@ struct RootView: View {
     @Environment(JournalStore.self) private var journal
     @Environment(MascotDirector.self) private var mascot
     @Environment(\.colorScheme) private var scheme
-    @State private var locked = true
+    @State private var locked = UserDefaults.standard.bool(forKey: "lock")
+    @State private var lockRecoveryMessage: String? = nil
     @State private var unlocking = false
     @State private var unlockAttemptedForCurrentLock = false
     @State private var pendingURL: URL?
@@ -82,9 +83,14 @@ struct RootView: View {
             .accessibilityHidden(isLocked)
 
             if isLocked {
-                LockView { unlock() }
-                    .transition(.opacity)
-                    .zIndex(100)
+                LockView(
+                    companion: app.companion,
+                    lockRecoveryMessage: lockRecoveryMessage,
+                    unlock: { unlock() },
+                    onDisablePasscodeLock: lockRecoveryMessage == nil ? nil : { disablePasscodeLock() }
+                )
+                .transition(.opacity)
+                .zIndex(100)
             }
         }
     }
@@ -92,15 +98,19 @@ struct RootView: View {
     private var observedContent: some View {
         rootContent
             // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
-            .onChange(of: app.lock) { _, on in
+            .onChange(of: app.lock) { _, _ in
                 locked = false
                 unlockAttemptedForCurrentLock = false
+                lockRecoveryMessage = nil
+                app.appLocked = isLocked
             }
             .onChange(of: locked) { _, stillLocked in
                 if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
             }
             .onChange(of: isLocked, initial: true) { _, nowLocked in
                 app.appLocked = nowLocked
+                app.publish(journal)
+                Task { await LiveTimers.sync() }
             }
             .onChange(of: phase) { _, p in
                 if p == .active {
@@ -108,26 +118,71 @@ struct RootView: View {
                     journal.reload()
                     app.syncWidgetPick()
                     roll()
+                    app.appLocked = isLocked
+                    app.publish(journal)
                     Task { await LiveTimers.sync() }
                     mascot.timing = !journal.timers.isEmpty
                     mascot.send(.appActive)
                     if isLocked && !unlockAttemptedForCurrentLock { unlock() }
-                }
-                if p == .background {
-                    if app.lock { locked = true }
+                } else if p == .inactive {
+                    if app.lock {
+                        app.appLocked = true
+                        app.publish(journal)
+                        final class BgTaskBox: @unchecked Sendable { var id: UIBackgroundTaskIdentifier = .invalid }
+                        let box = BgTaskBox()
+                        box.id = UIApplication.shared.beginBackgroundTask(withName: "SyncInactivePrivacy") {
+                            let stale = box.id
+                            box.id = .invalid
+                            if stale != .invalid { UIApplication.shared.endBackgroundTask(stale) }
+                        }
+                        Task { @MainActor in
+                            await LiveTimers.sync()
+                            let done = box.id
+                            box.id = .invalid
+                            if done != .invalid { UIApplication.shared.endBackgroundTask(done) }
+                        }
+                    }
+                } else if p == .background {
+                    if app.lock {
+                        locked = true
+                        app.appLocked = true
+                    }
+                    app.publish(journal)
                     unlockAttemptedForCurrentLock = false
                     mascot.send(.appBackground)
+                    final class BgTaskBox: @unchecked Sendable { var id: UIBackgroundTaskIdentifier = .invalid }
+                    let box = BgTaskBox()
+                    box.id = UIApplication.shared.beginBackgroundTask(withName: "SyncBackgroundLock") {
+                        let stale = box.id
+                        box.id = .invalid
+                        if stale != .invalid { UIApplication.shared.endBackgroundTask(stale) }
+                    }
+                    Task { @MainActor in
+                        await LiveTimers.sync()
+                        let done = box.id
+                        box.id = .invalid
+                        if done != .invalid { UIApplication.shared.endBackgroundTask(done) }
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.willTerminateNotification)) { _ in
+                if app.lock {
+                    locked = true
+                    app.appLocked = true
+                    app.publish(journal)
                 }
             }
             .background {
-                let darkShield = (app.theme == .dark) || (app.theme == .system && app.nightLight && night) || scheme == .dark
+                let darkShield = app.is3AMSanctuaryActive || (app.theme == .dark) || (app.theme == .system && app.nightLight && night) || scheme == .dark
                 LockWindowShield(
                     isLocked: isLocked,
                     isPrivacyShieldActive: app.lock && phase == .inactive && !isLocked,
                     isDark: darkShield,
                     locale: Locale(identifier: L10n.isEnglish ? "en" : "zh-Hans"),
                     companion: app.companion,
-                    unlock: unlock
+                    lockRecoveryMessage: lockRecoveryMessage,
+                    unlock: unlock,
+                    onDisablePasscodeLock: lockRecoveryMessage == nil ? nil : { disablePasscodeLock() }
                 )
             }
             .task {
@@ -219,13 +274,14 @@ struct RootView: View {
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
     @ViewBuilder private var tabs: some View {
+        let timerAccessoryActive = app.consented && app.journal && !journal.timers.isEmpty
         if #available(iOS 26.1, *) {
-            tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
+            tabView.tabViewBottomAccessory(isEnabled: timerAccessoryActive) {
                 if let t = journal.timers.first { TimerAccessory(timer: t, also: journal.timers.dropFirst().first) }
             }
         } else {
             tabView.safeAreaInset(edge: .bottom, spacing: 0) {
-                if !journal.timers.isEmpty, let t = journal.timers.first {
+                if timerAccessoryActive, let t = journal.timers.first {
                     TimerAccessory(timer: t, also: journal.timers.dropFirst().first)
                         .padding(.horizontal, 14)
                         .padding(.vertical, 8)
@@ -382,23 +438,63 @@ struct RootView: View {
         Task { @MainActor in
             defer { unlocking = false }
             let ctx = LAContext()
+            var evalError: NSError?
+            guard ctx.canEvaluatePolicy(.deviceOwnerAuthentication, error: &evalError) else {
+                let code = (evalError as? LAError)?.code
+                if code == .passcodeNotSet || code == .biometryNotEnrolled || code == .biometryNotAvailable || evalError != nil {
+                    lockRecoveryMessage = L10n.t(
+                        "系统当前未设置锁屏密码，无法进行面容或密码解锁。请前往系统设置开启密码，或先关闭应用锁以继续使用。",
+                        "Device authentication is unavailable because the system passcode is turned off. Enable a device passcode in Settings or turn off App Lock to continue."
+                    )
+                }
+                return
+            }
+            lockRecoveryMessage = nil
             if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("确认是你本人", "Confirm it's you"))) == true {
                 locked = false
                 unlockAttemptedForCurrentLock = false
+                lockRecoveryMessage = nil
+                app.appLocked = false
+                app.publish(journal)
+                await LiveTimers.sync()
             }
         }
+    }
+
+    private func disablePasscodeLock() {
+        app.lock = false
+        locked = false
+        unlockAttemptedForCurrentLock = false
+        lockRecoveryMessage = nil
+        app.appLocked = false
+        app.publish(journal)
+        Task { await LiveTimers.sync() }
     }
 }
 
 private struct LockView: View {
     var companion: Kind = .moss
+    var lockRecoveryMessage: String? = nil
     let unlock: () -> Void
+    var onDisablePasscodeLock: (() -> Void)? = nil
     var body: some View {
         VStack(spacing: 16) {
             Duo(primary: companion, size: 110, mood: .sleep, poke: false)
             Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked"))
                 .font(.title2.weight(.bold))
                 .multilineTextAlignment(.center)
+            if let lockRecoveryMessage {
+                Text(lockRecoveryMessage)
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                if let onDisablePasscodeLock {
+                    Button(L10n.t("关闭应用锁并继续", "Turn Off App Lock"), role: .destructive, action: onDisablePasscodeLock)
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.large)
+                }
+            }
             Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock)
                 .buttonStyle(.glassProminent)
                 .tint(Palette.accentFill)
@@ -426,7 +522,9 @@ private struct LockWindowShield: UIViewRepresentable {
     let isDark: Bool
     let locale: Locale
     let companion: Kind
+    let lockRecoveryMessage: String?
     let unlock: () -> Void
+    let onDisablePasscodeLock: (() -> Void)?
 
     final class Coordinator {
         var shieldWindow: UIWindow?
@@ -436,6 +534,7 @@ private struct LockWindowShield: UIViewRepresentable {
             shieldWindow = nil
             if let win {
                 DispatchQueue.main.async {
+                    win.resignKey()
                     win.isHidden = true
                     win.rootViewController = nil
                 }
@@ -457,18 +556,73 @@ private struct LockWindowShield: UIViewRepresentable {
 
     func updateUIView(_ uiView: UIView, context: Context) {
         let coordinator = context.coordinator
-        coordinator.syncBlock = {
-            syncShield(uiView: uiView, coordinator: coordinator)
+        let locked = isLocked
+        let privacy = isPrivacyShieldActive
+        let dark = isDark
+        let loc = locale
+        let comp = companion
+        let recMsg = lockRecoveryMessage
+        let unlockFn = unlock
+        let disableFn = onDisablePasscodeLock
+        coordinator.syncBlock = { [weak coordinator, weak uiView] in
+            guard let coordinator, let uiView else { return }
+            Self.syncShield(
+                uiView: uiView,
+                coordinator: coordinator,
+                isLocked: locked,
+                isPrivacyShieldActive: privacy,
+                isDark: dark,
+                locale: loc,
+                companion: comp,
+                lockRecoveryMessage: recMsg,
+                unlock: unlockFn,
+                onDisablePasscodeLock: disableFn
+            )
         }
-        syncShield(uiView: uiView, coordinator: coordinator)
+        Self.syncShield(
+            uiView: uiView,
+            coordinator: coordinator,
+            isLocked: locked,
+            isPrivacyShieldActive: privacy,
+            isDark: dark,
+            locale: loc,
+            companion: comp,
+            lockRecoveryMessage: recMsg,
+            unlock: unlockFn,
+            onDisablePasscodeLock: disableFn
+        )
     }
 
-    private func syncShield(uiView: UIView, coordinator: Coordinator) {
+    static func dismantleUIView(_ uiView: UIView, coordinator: Coordinator) {
+        coordinator.syncBlock = nil
+        if let anchor = uiView as? ShieldAnchorView {
+            anchor.onMoveToWindow = nil
+        }
+        coordinator.shieldWindow?.resignKey()
+        coordinator.shieldWindow?.isHidden = true
+        coordinator.shieldWindow?.rootViewController = nil
+        coordinator.shieldWindow = nil
+    }
+
+    private static func syncShield(
+        uiView: UIView,
+        coordinator: Coordinator,
+        isLocked: Bool,
+        isPrivacyShieldActive: Bool,
+        isDark: Bool,
+        locale: Locale,
+        companion: Kind,
+        lockRecoveryMessage: String?,
+        unlock: @escaping () -> Void,
+        onDisablePasscodeLock: (() -> Void)?
+    ) {
         let shouldShow = isLocked || isPrivacyShieldActive
         if !shouldShow {
+            coordinator.shieldWindow?.resignKey()
             coordinator.shieldWindow?.isHidden = true
             coordinator.shieldWindow?.rootViewController = nil
             coordinator.shieldWindow = nil
+            uiView.window?.makeKey()
             return
         }
         guard let scene = uiView.window?.windowScene else { return }
@@ -486,7 +640,14 @@ private struct LockWindowShield: UIViewRepresentable {
         window.accessibilityViewIsModal = true
 
         let baseView: AnyView = isLocked
-            ? AnyView(LockView(companion: companion, unlock: unlock))
+            ? AnyView(
+                LockView(
+                    companion: companion,
+                    lockRecoveryMessage: lockRecoveryMessage,
+                    unlock: unlock,
+                    onDisablePasscodeLock: onDisablePasscodeLock
+                )
+            )
             : AnyView(
                 ZStack {
                     Palette.background
@@ -500,6 +661,7 @@ private struct LockWindowShield: UIViewRepresentable {
                 .lamp(isDark)
                 .preferredColorScheme(isDark ? .dark : .light)
                 .environment(\.locale, locale)
+                .fontDesign(.rounded)
         )
         if let host = window.rootViewController as? UIHostingController<AnyView> {
             host.rootView = themed
@@ -510,7 +672,7 @@ private struct LockWindowShield: UIViewRepresentable {
             host.overrideUserInterfaceStyle = isDark ? .dark : .light
             window.rootViewController = host
         }
-        window.isHidden = false
+        window.makeKeyAndVisible()
     }
 }
 
@@ -707,10 +869,20 @@ struct OnboardingView: View {
         }
         .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
         .onChange(of: app.consent) { _, next in
-            if pendingBirthAfterConsent && next == Consent.version {
+            guard pendingBirthAfterConsent else { return }
+            if next == Consent.version {
                 pendingBirthAfterConsent = false
-                askBirth = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    guard app.consented else { return }
+                    askBirth = true
+                }
             } else if !next.isEmpty {
+                pendingBirthAfterConsent = false
+            }
+        }
+        .onChange(of: app.askConsent) { _, shown in
+            if !shown && pendingBirthAfterConsent && !app.consented {
                 pendingBirthAfterConsent = false
             }
         }

@@ -307,7 +307,12 @@ struct ShadowWallStudio: View {
                 settleTask = nil
                 flapPhase = 0.0
                 mossExcited = false
+                ToyboxAudioEngine.shared.stop()
             }
+        }
+        .onChange(of: ToyboxAudioEngine.shared.routeStopGeneration) { _, _ in
+            chordTask?.cancel()
+            chordTask = nil
         }
         .onDisappear {
             chordTask?.cancel()

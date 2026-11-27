@@ -188,10 +188,10 @@ struct RhythmDialModel: Sendable {
             }
         }
 
-        let effSleepDays = (excludeIncompleteToday && count > 1 && completedSleepDaysCount > 0) ? completedSleepDaysCount : sleepDaysCount
-        let effSleepHours = (excludeIncompleteToday && count > 1 && completedSleepDaysCount > 0) ? completedSleepHours : totalSleepHours
-        let effFeedDays = (excludeIncompleteToday && count > 1 && completedFeedDaysCount > 0) ? completedFeedDaysCount : feedDaysCount
-        let effFeedsCount = (excludeIncompleteToday && count > 1 && completedFeedDaysCount > 0) ? completedFeedsCount : totalFeedsCount
+        let effSleepDays = (excludeIncompleteToday && count > 1) ? completedSleepDaysCount : sleepDaysCount
+        let effSleepHours = (excludeIncompleteToday && count > 1) ? completedSleepHours : totalSleepHours
+        let effFeedDays = (excludeIncompleteToday && count > 1) ? completedFeedDaysCount : feedDaysCount
+        let effFeedsCount = (excludeIncompleteToday && count > 1) ? completedFeedsCount : totalFeedsCount
         let avgSleep = effSleepDays > 0 ? effSleepHours / Double(effSleepDays) : nil
         let avgFeeds = effFeedDays > 0 ? Double(effFeedsCount) / Double(effFeedDays) : nil
         let typicalBedtime: Int? = if bedtimeHours.count >= 2 {
@@ -339,6 +339,8 @@ struct RhythmDialCard: View {
             GeometryReader { geo in
                 let side = min(geo.size.width, geo.size.height)
                 let center = CGPoint(x: geo.size.width / 2, y: geo.size.height / 2)
+                let centerRadius = side * 0.2025
+                let rimOuterRadius = side * 0.50
                 ZStack {
                     RhythmDialCanvas(
                         model: model,
@@ -358,7 +360,7 @@ struct RhythmDialCard: View {
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             let dist = hypot(dx, dy)
-                            if dist < side * 0.16 {
+                            if dist < centerRadius {
                                 if inspectedHour != nil {
                                     withAnimation(reduce ? nil : .snappy) { inspectedHour = nil }
                                 }
@@ -378,10 +380,12 @@ struct RhythmDialCard: View {
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            let outerR = side * 0.395
-                            let rNorm = startDist / max(1, outerR)
-                            guard rNorm >= 0.45, rNorm <= 1.28 else { return }
-                            if abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
+                            guard startDist >= centerRadius, startDist <= rimOuterRadius else { return }
+                            let tx = -sy / max(1, startDist)
+                            let ty = sx / max(1, startDist)
+                            let tangential = abs(value.translation.width * tx + value.translation.height * ty)
+                            let radial = abs(value.translation.width * (sx / max(1, startDist)) + value.translation.height * (sy / max(1, startDist)))
+                            if tangential >= radial * 0.75 || abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
                                 state = true
                             }
                         }
@@ -389,13 +393,15 @@ struct RhythmDialCard: View {
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            let outerR = side * 0.395
-                            let rNorm = startDist / max(1, outerR)
-                            guard rNorm >= 0.45, rNorm <= 1.28 else { return }
-                            guard scrubbingRing || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
+                            guard startDist >= centerRadius, startDist <= rimOuterRadius else { return }
+                            let tx = -sy / max(1, startDist)
+                            let ty = sx / max(1, startDist)
+                            let tangential = abs(value.translation.width * tx + value.translation.height * ty)
+                            let radial = abs(value.translation.width * (sx / max(1, startDist)) + value.translation.height * (sy / max(1, startDist)))
+                            guard scrubbingRing || tangential >= radial * 0.75 || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
-                            guard hypot(dx, dy) >= side * 0.16 else { return }
+                            guard hypot(dx, dy) >= centerRadius else { return }
                             let h = RhythmDialModel.hour(forVector: dx, dy: dy)
                             if inspectedHour != h {
                                 inspectedHour = h
@@ -570,15 +576,23 @@ struct RhythmDialCard: View {
                 VStack(spacing: 3) {
                     Image(systemName: currentHour >= 19 || currentHour < 6 ? "moon.stars.fill" : "sun.max.fill")
                         .font(.callout.weight(.semibold))
-                        .foregroundStyle(Palette.bead)
+                        .foregroundStyle(dark ? Palette.bead : Crayon.ink(Palette.bead))
                     Text(L10n.t("近 \(spanDays) 天", "Last \(spanDays)d"))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
-                    Text(L10n.t("滑动盘面查看", "Drag to inspect"))
-                        .font(.caption2)
-                        .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
+                    if let hrs = model.summary.avgSleepHours {
+                        Text(L10n.t("日均 \(String(format: "%.1f", hrs))h", "\(String(format: "%.1f", hrs)) hr / d"))
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amberDeep))
+                            .monospacedDigit()
+                            .lineLimit(1)
+                    } else {
+                        Text(L10n.t("滑动盘面查看", "Drag to inspect"))
+                            .font(.caption2)
+                            .foregroundStyle(Palette.secondaryText)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
                 }
                 .padding(8)
                 .multilineTextAlignment(.center)

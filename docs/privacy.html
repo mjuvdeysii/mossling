@@ -85,13 +85,18 @@
           <li data-zh="面容 ID / 触控 ID：仅当您打开应用锁时由系统本地校验，本应用读取不到任何生物特征。" data-en="Face ID / Touch ID: Verified by iOS only if you turn on App Lock; no biometric data is readable.">面容 ID / 触控 ID：仅当您打开应用锁时由系统本地校验，本应用读取不到任何生物特征。</li>
           <li data-zh="照片与存储：通过系统单选选择器读取您指定的单张照片用于「第一次」或端侧食盒贴纸，绝不扫描整个相册；仅当您点击保存海报或壁纸时申请仅添加写入权限。" data-en="Photos: Uses the out-of-process system picker to read only the single photo you choose for Firsts or food stickers (never scans your library), plus add-only permission when saving posters.">照片与存储：通过系统单选选择器读取您指定的单张照片用于「第一次」或端侧食盒贴纸，绝不扫描整个相册；仅当您点击保存海报或壁纸时申请仅添加写入权限。</li>
           <li data-zh="麦克风（可选）：仅当您在「第一次」主动按下录音按钮时启用，在本地录制最长 30 秒童声 .m4a 片段并只存放在手机沙盒内，绝不上传或监听。" data-en="Microphone (Optional): Only used when you press record inside Firsts (up to 30s .m4a clip stored strictly in your device sandbox, never uploaded).">麦克风（可选）：仅当您在「第一次」主动按下录音按钮时启用，在本地录制最长 30 秒童声 .m4a 片段并只存放在手机沙盒内，绝不上传或监听。</li>
-          <li data-zh="运动方向与后台音频：用于雨声棒倾斜反馈与熄屏播放舒缓摇篮曲、白噪音。" data-en="Motion &amp; Background Audio: Powers subtle rainstick tilt physics and uninterrupted offline lullabies and soundscapes.">运动方向与后台音频：用于雨声棒倾斜反馈与熄屏播放舒缓摇篮曲、白噪音。</li>
+          <li data-zh="动作方向与后台音频：仅在打开「床头夜灯」或「金珠雨声棒」页面期间于内存响应手机微倾与滚珠物理，所有传感器数据实时丢弃不留存；后台音频仅用于纯离线白噪音与摇篮曲。" data-en="Motion &amp; Background Audio: Used purely in memory while Bedside Lamp or Rainstick is open for subtle tilt light and bead physics (immediately discarded, never stored), plus uninterrupted offline nursery soundscapes.">动作方向与后台音频：仅在打开「床头夜灯」或「金珠雨声棒」页面期间于内存响应手机微倾与滚珠物理，所有传感器数据实时丢弃不留存；后台音频仅用于纯离线白噪音与摇篮曲。</li>
           <li data-zh="零申请清单：从不申请定位、通讯录、相机、健康数据或营销通知推送。" data-en="Never Requested: Location, Contacts, Camera, Health data, or push notifications.">零申请清单：从不申请定位、通讯录、相机、健康数据或营销通知推送。</li>
         </ul>
 
-        <h2 data-zh="四、监护人控制与联系" data-en="4. Guardian Control &amp; Contact">四、监护人控制与联系</h2>
-        <p data-zh="随时可在应用内「工坊 › 离线备份」按需生成便携 JSON / Markdown / CSV / 年鉴 PDF 档案并通过系统共享菜单保存或转发（不暴露公开文件夹）；分享交接灯牌与长辈摸索卡时，内容仅编码在本地网址 # 锚点后，无需上传服务器。如需一键彻底清除记录、撤回同意，或有任何疑问与投诉，请写信至 lbuiuiysdeyzxl@yeah.net，我们将在 15 个工作日内答复。" data-en="Generate portable JSON, Markdown, CSV, or Yearbook PDF archives on demand via Studio › Local Data and save or forward via the system Share sheet (no public exposed folder). Shared Handover Beacons and Family Cards encode data strictly inside the local # URL fragment with zero server uploads. Wipe all data or withdraw consent anytime inside Studio › Local Data. For inquiries, email lbuiuiysdeyzxl@yeah.net (replied within 15 working days).">
-          随时可在应用内「工坊 › 离线备份」按需生成便携 JSON / Markdown / CSV / 年鉴 PDF 档案并通过系统共享菜单保存或转发（不暴露公开文件夹）；分享交接灯牌与长辈摸索卡时，内容仅编码在本地网址 # 锚点后，无需上传服务器。如需一键彻底清除记录、撤回同意，或有任何疑问与投诉，请写信至 lbuiuiysdeyzxl@yeah.net，我们将在 15 个工作日内答复。
+        <h2 data-zh="四、儿童个人信息保护规则与系统备份" data-en="4. Children's Data Protection &amp; System Backups">四、儿童个人信息保护规则与系统备份</h2>
+        <p data-zh="本应用面向成年父母与照护者，不面向儿童自行使用。宝宝资料与体重/身高/头围/体温/用药/喂睡记录均属敏感儿童信息（必要用途仅为本机月龄阶段、WHO 生长曲线与照护汇总；若拒绝同意，仍可完整浏览 0–36 个月内容与玩具盒）。开启 iCloud 设备云备份时，数据将由 iOS 随整机加密备份至您本人 iCloud 账户，可在系统设置 › Apple 账户 › iCloud 中管理；点按外链（法务、来源）会在系统浏览器打开对应第三方页面。若政策或儿童保护规则发生实质变更，新版本首次打开将弹窗重申并再次征得同意。" data-en="This app is for adult parents and caregivers, not children. Child profiles, growth, fever, medication, and care logs are processed solely on-device for age stages, WHO curves, and daily summaries (declining consent still unlocks full browsing and toybox play). If iCloud Device Backup is enabled, iOS encrypts app data inside your personal Apple Account backup. External links in Sources or Legal open in the system browser under each site's policy. Material policy updates prompt fresh guardian re-consent on first launch.">
+          本应用面向成年父母与照护者，不面向儿童自行使用。宝宝资料与体重/身高/头围/体温/用药/喂睡记录均属敏感儿童信息（必要用途仅为本机月龄阶段、WHO 生长曲线与照护汇总；若拒绝同意，仍可完整浏览 0–36 个月内容与玩具盒）。开启 iCloud 设备云备份时，数据将由 iOS 随整机加密备份至您本人 iCloud 账户，可在系统设置 › Apple 账户 › iCloud 中管理；点按外链（法务、来源）会在系统浏览器打开对应第三方页面。若政策或儿童保护规则发生实质变更，新版本首次打开将弹窗重申并再次征得同意。
+        </p>
+
+        <h2 data-zh="五、导出、分享与监护人控制" data-en="5. Exports, Sharing &amp; Guardian Contact">五、导出、分享与监护人控制</h2>
+        <p data-zh="随时可在「工坊 › 离线备份」生成 JSON / Markdown / CSV / 诊所速览 PDF / 三岁成长年鉴 PDF（前四者仅含文字与数值；主动导出成长年鉴 PDF 时会嵌入至多 4 张用户自选「第一次」缩略图，未拆封时光胶囊正文始终保密隐藏），均通过系统分享保存，不暴露公开文件夹。分享交接灯牌或长辈卡时，内容以未加密 base64url 编码在本地 # 锚点后，不上传服务器，但收件人打开链接或聊天预览时会访问静态网页且持链接者可读，请仅分享给可信家人。随时可清除全部数据或撤回同意；疑问或依据《个人信息保护法》投诉请写信至 lbuiuiysdeyzxl@yeah.net（15 个工作日内答复），或依法向网信/工信主管部门反映。" data-en="Generate JSON, Markdown, CSV, Clinic Snapshot PDF, or 3-Year Yearbook PDF on demand in Studio › Local Data (only the Yearbook PDF embeds up to 4 selected Firsts photo thumbnails while keeping unopened Time Capsules masked; shared strictly via system sheet with no public folder). Web Beacons and Family Cards encode data as unencrypted base64url in the # URL fragment with zero server upload (opening or link previews fetch this static page, and link holders can decode fields — share only with trusted family). Erase data or withdraw consent anytime in Studio › Local Data. For PIPL children's data inquiries or complaints, email lbuiuiysdeyzxl@yeah.net (15 business days) or contact relevant cyberspace regulators.">
+          随时可在「工坊 › 离线备份」生成 JSON / Markdown / CSV / 诊所速览 PDF / 三岁成长年鉴 PDF（前四者仅含文字与数值；主动导出成长年鉴 PDF 时会嵌入至多 4 张用户自选「第一次」缩略图，未拆封时光胶囊正文始终保密隐藏），均通过系统分享保存，不暴露公开文件夹。分享交接灯牌或长辈卡时，内容以未加密 base64url 编码在本地 # 锚点后，不上传服务器，但收件人打开链接或聊天预览时会访问静态网页且持链接者可读，请仅分享给可信家人。随时可清除全部数据或撤回同意；疑问或依据《个人信息保护法》投诉请写信至 lbuiuiysdeyzxl@yeah.net（15 个工作日内答复），或依法向网信/工信主管部门反映。
         </p>
       </article>
     </div>
@@ -115,17 +120,19 @@
       var langBtn = document.getElementById("langBtn");
       function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
       function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+      var activeLang = storageGet("mossling-lang") === "en" ? "en" : "zh";
       function applyLang(lang) {
-        html.setAttribute("data-lang", lang);
-        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        storageSet("mossling-lang", lang);
-        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
+        activeLang = lang === "en" ? "en" : "zh";
+        html.setAttribute("data-lang", activeLang);
+        html.setAttribute("lang", activeLang === "en" ? "en" : "zh-Hans");
+        storageSet("mossling-lang", activeLang);
+        if (langBtn) langBtn.textContent = activeLang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
-          el.textContent = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          el.textContent = el.getAttribute(activeLang === "en" ? "data-en" : "data-zh");
         });
       }
-      if (langBtn) langBtn.addEventListener("click", function () { applyLang((storageGet("mossling-lang") || "zh") === "zh" ? "en" : "zh"); });
-      applyLang(storageGet("mossling-lang") || "zh");
+      if (langBtn) langBtn.addEventListener("click", function () { applyLang(activeLang === "zh" ? "en" : "zh"); });
+      applyLang(activeLang);
     })();
   </script>
 </body>

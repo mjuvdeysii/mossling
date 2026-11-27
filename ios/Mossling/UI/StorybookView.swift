@@ -763,51 +763,55 @@ private struct StorybookEpilogueSpread: View {
             filename: L10n.t("\(who)-三岁成长年鉴.pdf", "\(who)-growth-yearbook.pdf"),
             render: { GrowthYearbookPDF.render(app: app, j: j) }
         )
-        VStack {
-            Spacer(minLength: 16)
-            VStack(spacing: 16) {
-                Duo(primary: app.companion, size: 108, mood: .happy, poke: true, night: lamp)
-                Text(L10n.t("故事仍在继续", "The Story Goes On"))
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.primary)
-                Text(L10n.t(
-                    "这本绘本已经收录了 \(totalMonths) 个月份。以后每一个新玩的托盘、每一次小发现，都会自己长成下一页。",
-                    "This keepsake holds \(totalMonths) \(totalMonths == 1 ? "month" : "months") so far. Every new play tray and tiny discovery will gently become the next page."
-                ))
-                .font(.subheadline)
-                .foregroundStyle(Palette.secondaryText)
-                .multilineTextAlignment(.center)
-                .fixedSize(horizontal: false, vertical: true)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack {
+                Spacer(minLength: 16)
+                VStack(spacing: 16) {
+                    Duo(primary: app.companion, size: 108, mood: .happy, poke: true, night: lamp)
+                    Text(L10n.t("故事仍在继续", "The Story Goes On"))
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.primary)
+                    Text(L10n.t(
+                        "这本绘本已经收录了 \(totalMonths) 个月份。以后每一个新玩的托盘、每一次小发现，都会自己长成下一页。",
+                        "This keepsake holds \(totalMonths) \(totalMonths == 1 ? "month" : "months") so far. Every new play tray and tiny discovery will gently become the next page."
+                    ))
+                    .font(.subheadline)
+                    .foregroundStyle(Palette.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
 
-                ShareLink(
-                    item: yearbookTransfer,
-                    preview: SharePreview(L10n.t("\(who) · 三岁成长年鉴 PDF", "\(who) · 3-Year Yearbook PDF"))
-                ) {
-                    Label(L10n.t("导出完整《成长年鉴》多页 PDF", "Export Full 3-Year Yearbook PDF"), systemImage: "book.closed.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 10)
-                        .frame(minHeight: 44)
-                        .background(Capsule().fill(Palette.accentFill))
-                }
-                .buttonStyle(.toy)
+                    ShareLink(
+                        item: yearbookTransfer,
+                        preview: SharePreview(L10n.t("\(who) · 三岁成长年鉴 PDF", "\(who) · 3-Year Yearbook PDF"))
+                    ) {
+                        Label(L10n.t("导出完整《成长年鉴》多页 PDF", "Export Full 3-Year Yearbook PDF"), systemImage: "book.closed.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
+                            .frame(minHeight: 44)
+                            .background(Capsule().fill(Palette.accentFill))
+                    }
+                    .buttonStyle(.toy)
 
-                HStack(spacing: 6) {
-                    GoldBead(size: 7)
-                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(Palette.accent)
-                    GoldBead(size: 7)
+                    HStack(spacing: 6) {
+                        GoldBead(size: 7)
+                        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light."))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Palette.accent)
+                        GoldBead(size: 7)
+                    }
+                    .padding(.top, 4)
                 }
-                .padding(.top, 4)
+                .padding(28)
+                .frame(maxWidth: .infinity)
+                .printCard(radius: Radius.stage)
+                .padding(.horizontal, 20)
+                Spacer(minLength: 16)
             }
-            .padding(28)
-            .frame(maxWidth: .infinity)
-            .printCard(radius: Radius.stage)
-            .padding(.horizontal, 20)
-            Spacer(minLength: 16)
+            .frame(maxWidth: .infinity, minHeight: 420)
         }
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
 

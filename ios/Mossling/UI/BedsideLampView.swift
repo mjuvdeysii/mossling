@@ -48,15 +48,15 @@ enum LampWarmth: String, CaseIterable, Identifiable {
 
     var actionFill: Color {
         switch self {
-        case .amber: Palette.lampTint
+        case .amber: Color(hex: 0x8A5000)
         case .candle: Color(hex: 0x9E2F1B)
-        case .peach: Color(hex: 0xB86438)
+        case .peach: Color(hex: 0x94421C)
         }
     }
 
     var actionInk: Color {
         switch self {
-        case .amber: Palette.lampInk
+        case .amber: Color(hex: 0xFFF2D6)
         case .candle: Color(hex: 0xFFE8DF)
         case .peach: Color(hex: 0xFFF2E6)
         }
@@ -316,7 +316,7 @@ struct BedsideLampView: View {
     /// Initial brightness (0.15...1.0), configurable for previews and deterministic screenshots.
     @State private var brightness: Double
     @State private var warmth: LampWarmth
-    @State private var dragStartBrightness: Double? = nil
+    @GestureState private var dragStartBrightness: Double? = nil
     @State private var lastDetentStep: Int = -1
     @State private var showingDimmerHint = true
     @State private var breathingGuide: Bool
@@ -452,7 +452,7 @@ struct BedsideLampView: View {
     private func recordPalmPatTap() {
         rekindleFromEmber()
         let now = Date().timeIntervalSinceReferenceDate
-        palmPatTapLog = palmPatTapLog.filter { now - $0 <= 3.0 } + [now]
+        palmPatTapLog = palmPatTapLog.filter { now - $0 <= 6.0 } + [now]
         if let detected = PalmPatRhythm.bpmFromTapTimestamps(palmPatTapLog) {
             palmPatBPM = detected
             palmPatStartedAt = Date()
@@ -830,14 +830,6 @@ struct BedsideLampView: View {
             ZStack {
                 Color.clear
                     .contentShape(Circle())
-                    .onTapGesture {
-                        if emberResting {
-                            TactileEngine.shared.beadClick()
-                            rekindleFromEmber()
-                        } else if palmPatActive {
-                            recordPalmPatTap()
-                        }
-                    }
                     .onTapGesture(count: 2) {
                         guard !palmPatActive else { return }
                         TactileEngine.shared.dimmerTick()
@@ -848,6 +840,14 @@ struct BedsideLampView: View {
                         }
                         applyScreenDimmerIfAllowed()
                         commitLampPreferences()
+                    }
+                    .onTapGesture {
+                        if emberResting {
+                            TactileEngine.shared.beadClick()
+                            rekindleFromEmber()
+                        } else if palmPatActive {
+                            recordPalmPatTap()
+                        }
                     }
 
                 if palmPatActive && !emberResting {
@@ -1226,11 +1226,15 @@ struct BedsideLampView: View {
 
     private var dimmerGesture: some Gesture {
         DragGesture(minimumDistance: 12)
+            .updating($dragStartBrightness) { value, state, _ in
+                if abs(value.translation.height) > abs(value.translation.width) * 1.15 && state == nil {
+                    state = brightness
+                }
+            }
             .onChanged { value in
                 guard abs(value.translation.height) > abs(value.translation.width) * 1.15 else { return }
-                if dragStartBrightness == nil {
-                    rekindleFromEmber()
-                    dragStartBrightness = brightness
+                rekindleFromEmber()
+                if showingDimmerHint {
                     showingDimmerHint = false
                 }
                 let start = dragStartBrightness ?? brightness
@@ -1247,9 +1251,6 @@ struct BedsideLampView: View {
             }
             .onEnded { _ in
                 commitLampPreferences()
-                withAnimation(.easeOut(duration: 0.25)) {
-                    dragStartBrightness = nil
-                }
             }
     }
 
@@ -1558,12 +1559,13 @@ struct BedsideLampView: View {
         }
         .task(id: toast.id) {
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 2.5 : 5))
+            let wait: Double = UIAccessibility.isVoiceOverRunning ? 15 : (toast.failed ? 6 : (toast.restore == nil ? 2.5 : 5))
+            try? await Task.sleep(for: .seconds(wait))
             if j.toast?.id == toast.id {
                 withAnimation(reduce ? nil : .snappy) { j.toast = nil }
             }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
     }
 
     @ViewBuilder
@@ -1698,6 +1700,7 @@ struct BedsideLampView: View {
 
                 if t.type == LogType.nurse {
                     Button {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.beadClick()
                         rekindleFromEmber()
                         withAnimation(.snappy) { j.switchSide(t.type) }
@@ -1714,6 +1717,7 @@ struct BedsideLampView: View {
                 }
 
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     rekindleFromEmber()
                     withAnimation(.snappy) { j.togglePause(t.type) }
@@ -1738,6 +1742,7 @@ struct BedsideLampView: View {
             }
 
             Button {
+                guard app.mayKeep() else { return }
                 TactileEngine.shared.goldChime()
                 rekindleFromEmber()
                 withAnimation(.snappy) { j.stop(t.type) }

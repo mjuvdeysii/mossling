@@ -563,9 +563,7 @@ struct DocView: View {
                     .foregroundStyle(isChildProtect ? Palette.accent : .primary)
             }
             ForEach(Array(sec.lines.enumerated()), id: \.offset) { idx, line in
-                if !heads.contains(idx) {
-                    docLine(line, dark: dark)
-                }
+                docLine(line, dark: dark, isHeader: heads.contains(idx))
             }
         }
         .padding(14)
@@ -575,7 +573,7 @@ struct DocView: View {
     }
 
     @ViewBuilder
-    private func docLine(_ l: String, dark: Bool) -> some View {
+    private func docLine(_ l: String, dark: Bool, isHeader: Bool = false) -> some View {
         if l.hasPrefix("- ") {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Circle().fill(Palette.accent).frame(width: 5, height: 5).offset(y: -2)
@@ -597,21 +595,24 @@ struct DocView: View {
             let cells = l.trimmingCharacters(in: CharacterSet(charactersIn: "|"))
                 .components(separatedBy: "|")
                 .map { $0.trimmingCharacters(in: .whitespaces) }
-            if !cells.allSatisfy({ $0.hasPrefix("---") }) {
+            if !cells.allSatisfy({ $0.hasPrefix("---") || $0.isEmpty }) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(rich(cells.first ?? ""))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
+                        .font((isHeader ? Font.footnote : Font.subheadline).weight(.bold))
+                        .foregroundStyle(isHeader ? Palette.accent : .primary)
                     ForEach(Array(cells.dropFirst().enumerated()), id: \.offset) { _, c in
                         Text(rich(c))
-                            .font(.caption)
-                            .foregroundStyle(Palette.secondaryText)
+                            .font(isHeader ? .caption.weight(.semibold) : .caption)
+                            .foregroundStyle(isHeader ? .primary : Palette.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.fill.opacity(dark ? 0.25 : 0.65)))
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(isHeader ? Palette.accent.opacity(dark ? 0.16 : 0.10) : Palette.fill.opacity(dark ? 0.25 : 0.65))
+                )
             }
         } else if l.trimmingCharacters(in: .whitespaces).isEmpty {
             EmptyView()

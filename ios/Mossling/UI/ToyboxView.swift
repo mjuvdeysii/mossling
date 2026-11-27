@@ -75,6 +75,7 @@ struct ToyboxView: View {
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.scenePhase) private var scenePhase
     @State private var mode: ToyboxMode
     @State private var recordedSession = false
     @State private var volumeMonitor: EarSafeVolumeMonitor
@@ -196,17 +197,31 @@ struct ToyboxView: View {
             }
         }
         .onAppear {
-            if mode.hasSound {
+            if scenePhase == .active && mode.hasSound {
                 volumeMonitor.start()
             }
         }
         .onChange(of: mode) { _, next in
             ToyboxAudioEngine.shared.stop()
-            if next.hasSound {
+            if next.hasSound && scenePhase == .active {
                 volumeMonitor.start()
             } else {
                 volumeMonitor.stop()
                 manualShowVolumeCard = false
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                ToyboxAudioEngine.shared.stop()
+                volumeMonitor.stop()
+            } else if mode.hasSound {
+                volumeMonitor.start()
+            }
+        }
+        .onChange(of: ToyboxAudioEngine.shared.routeStopGeneration) { _, _ in
+            if scenePhase == .active && mode.hasSound {
+                volumeMonitor.stop()
+                volumeMonitor.start()
             }
         }
         .onDisappear {
@@ -375,6 +390,7 @@ private struct XylophoneStudio: View {
     @State private var fx = XylophoneFX()
     @State private var fxActive = false
     @State private var fxIdleTask: Task<Void, Never>? = nil
+    @GestureState private var draggingBars = false
 
     init(dark: Bool, initialPlayAlong: Bool = false, onInteract: @escaping () -> Void) {
         self.dark = dark
@@ -418,7 +434,7 @@ private struct XylophoneStudio: View {
                                         Text("· \(completedCount)")
                                         Image(systemName: "star.fill").font(.caption2)
                                     }
-                                    .foregroundStyle(Palette.bead)
+                                    .foregroundStyle(dark ? Palette.bead : Crayon.ink(Palette.bead))
                                 }
                             }
                             .font(.subheadline.weight(.bold))
@@ -608,6 +624,9 @@ private struct XylophoneStudio: View {
                 .contentShape(Rectangle())
                 .gesture(
                     DragGesture(minimumDistance: 0)
+                        .updating($draggingBars) { _, state, _ in
+                            state = true
+                        }
                         .onChanged { value in
                             let y = value.location.y - verticalInset
                             let stride = barH + spacing
@@ -621,12 +640,14 @@ private struct XylophoneStudio: View {
                                 strike(hit, normalizedX: nx, normalizedY: ny)
                             }
                         }
-                        .onEnded { _ in
-                            withAnimation(reduce ? nil : .spring(response: 0.26, dampingFraction: 0.72)) {
-                                activeBar = nil
-                            }
-                        }
                 )
+                .onChange(of: draggingBars) { _, active in
+                    if !active {
+                        withAnimation(reduce ? nil : .spring(response: 0.26, dampingFraction: 0.72)) {
+                            activeBar = nil
+                        }
+                    }
+                }
             }
             .frame(minHeight: 290)
 
@@ -665,6 +686,18 @@ private struct XylophoneStudio: View {
                 }
                 .buttonStyle(.ds(.warm(playAlong ? Palette.bead : Crayon.caramel), fullWidth: true, height: 50))
             }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                stopLullaby()
+                fxIdleTask?.cancel()
+                fxIdleTask = nil
+                fxActive = false
+                ToyboxAudioEngine.shared.stop()
+            }
+        }
+        .onChange(of: ToyboxAudioEngine.shared.routeStopGeneration) { _, _ in
+            stopLullaby()
         }
         .onDisappear {
             fxIdleTask?.cancel()
@@ -733,6 +766,7 @@ private struct XylophoneStudio: View {
                 .frame(width: barW, height: height)
 
             HStack {
+                let barInk = Crayon.glyph(on: note.color)
                 brassRivet
                 Spacer()
                 HStack(spacing: 6) {
@@ -743,11 +777,11 @@ private struct XylophoneStudio: View {
                     if isTarget {
                         Image(systemName: "sparkle")
                             .font(.caption.weight(.bold))
-                            .foregroundStyle(Color(hex: 0xFFF7D6))
+                            .foregroundStyle(barInk)
                     }
                 }
-                .foregroundStyle(.white)
-                .shadow(color: .black.opacity(0.24), radius: 1, y: 1)
+                .foregroundStyle(barInk)
+                .shadow(color: barInk == .white ? .black.opacity(0.24) : .clear, radius: 1, y: 1)
                 Spacer()
                 brassRivet
             }
@@ -996,6 +1030,7 @@ private struct RainstickStudio: View {
     @State private var layout: RainstickLayout
     @State private var chimeMode = false
     @State private var flipCount = 0
+    @GestureState private var isDraggingRainstick = false
 
     init(dark: Bool, initialLayout: RainstickLayout = .cascade, onInteract: @escaping () -> Void) {
         self.dark = dark
@@ -1114,6 +1149,9 @@ private struct RainstickStudio: View {
                     .contentShape(Rectangle())
                     .gesture(
                         DragGesture(minimumDistance: 0)
+                            .updating($isDraggingRainstick) { _, state, _ in
+                                state = true
+                            }
                             .onChanged { value in
                                 onInteract()
                                 let w = max(1, geo.size.width - 30)
@@ -1128,10 +1166,12 @@ private struct RainstickStudio: View {
                                     TactileEngine.shared.dimmerTick()
                                 }
                             }
-                            .onEnded { _ in
-                                sim.touchPoint = nil
-                            }
                     )
+                    .onChange(of: isDraggingRainstick) { _, active in
+                        if !active {
+                            sim.touchPoint = nil
+                        }
+                    }
 
                     // Tempered acrylic cover sheen across shaker window
                     innerShape
@@ -1211,10 +1251,12 @@ private struct RainstickStudio: View {
             if phase == .active && !reduce {
                 sim.startMotion()
             } else {
+                sim.touchPoint = nil
                 sim.stopMotion()
             }
         }
         .onDisappear {
+            sim.touchPoint = nil
             sim.stopMotion()
         }
     }
@@ -1406,6 +1448,7 @@ private struct FireflyJarStudio: View {
     @State private var sim: FireflySimulation
     @State private var formation: FireflyFormation
     @State private var swirlCount = 0
+    @GestureState private var isTouchingJar = false
 
     init(initialFormation: FireflyFormation = .drift, onInteract: @escaping () -> Void) {
         self.onInteract = onInteract
@@ -1425,6 +1468,10 @@ private struct FireflyJarStudio: View {
                         TactileEngine.shared.beadClick()
                         formation = f
                         sim.setFormation(f)
+                        if reduce || Perf.still || scenePhase != .active {
+                            sim.advanceStep(dt: 1.0 / 24.0)
+                            swirlCount &+= 1
+                        }
                         ToyboxAudioEngine.shared.playFireflyArpeggio(ascending: true)
                     } label: {
                         HStack(spacing: 4) {
@@ -1538,6 +1585,9 @@ private struct FireflyJarStudio: View {
                         .contentShape(jarShape)
                         .gesture(
                             DragGesture(minimumDistance: 0)
+                                .updating($isTouchingJar) { _, state, _ in
+                                    state = true
+                                }
                                 .onChanged { value in
                                     onInteract()
                                     let w = max(1, geo.size.width)
@@ -1554,10 +1604,12 @@ private struct FireflyJarStudio: View {
                                         TactileEngine.shared.dimmerTick()
                                     }
                                 }
-                                .onEnded { _ in
-                                    sim.touchPoint = nil
-                                }
                         )
+                        .onChange(of: isTouchingJar) { _, active in
+                            if !active {
+                                sim.touchPoint = nil
+                            }
+                        }
 
                         // Curved blown-glass reflections on left, top shoulder & right rims
                         HStack {
@@ -1649,6 +1701,14 @@ private struct FireflyJarStudio: View {
             }
             .padding(12)
             .printCard(radius: Radius.card)
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                sim.touchPoint = nil
+            }
+        }
+        .onDisappear {
+            sim.touchPoint = nil
         }
     }
 

@@ -131,29 +131,42 @@ final class CapsuleStore {
         }
     }
 
-    func save(_ capsule: TimeCapsule) {
-        loadFailed = false
+    @discardableResult
+    func save(_ capsule: TimeCapsule) -> Bool {
+        guard !loadFailed else { return false }
+        let prevItems = items
         if let idx = items.firstIndex(where: { $0.id == capsule.id }) {
             items[idx] = capsule
         } else {
             items.append(capsule)
         }
         items.sort { $0.writtenAt > $1.writtenAt }
-        persist()
+        if persist() { return true }
+        items = prevItems
+        return false
     }
 
-    func open(id: UUID, now: Double = Date().timeIntervalSince1970 * 1000) {
-        guard !loadFailed, let idx = items.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    func open(id: UUID, now: Double = Date().timeIntervalSince1970 * 1000) -> Bool {
+        guard !loadFailed, let idx = items.firstIndex(where: { $0.id == id }) else { return false }
         if items[idx].openedAt == nil {
+            let prev = items[idx]
             items[idx].openedAt = now
-            persist()
+            if persist() { return true }
+            items[idx] = prev
+            return false
         }
+        return true
     }
 
-    func delete(id: UUID) {
-        guard !loadFailed else { return }
+    @discardableResult
+    func delete(id: UUID) -> Bool {
+        guard !loadFailed else { return false }
+        let prev = items
         items.removeAll { $0.id == id }
-        persist()
+        if persist() { return true }
+        items = prev
+        return false
     }
 
     func clearAll() {
@@ -164,24 +177,32 @@ final class CapsuleStore {
         }
     }
 
-    func replaceAll(_ list: [TimeCapsule]) {
+    @discardableResult
+    func replaceAll(_ list: [TimeCapsule]) -> Bool {
+        let prevItems = items
+        let prevFailed = loadFailed
         loadFailed = false
         items = list.sorted { $0.writtenAt > $1.writtenAt }
-        persist()
+        if persist() { return true }
+        items = prevItems
+        loadFailed = prevFailed
+        return false
     }
 
     func readyCount(on today: Day) -> Int {
         items.filter { $0.isReadyToOpen(on: today) }.count
     }
 
-    private func persist() {
-        guard !loadFailed, let url = fileURL else { return }
+    @discardableResult
+    private func persist() -> Bool {
+        guard !loadFailed, let url = fileURL else { return false }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try JSONEncoder().encode(items)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            return true
         } catch {
-            // Silent resilience: never crash on transient I/O errors
+            return false
         }
     }
 }

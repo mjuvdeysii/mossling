@@ -160,9 +160,10 @@ final class JournalStore {
 
     func start(_ type: String, side: String? = nil, at: Date = Date(), openFocus: Bool = true) {
         let detach = type == LogType.nurse && detachNextNurse
+        let startedAt = at.timeIntervalSince1970 * 1000
         switch JournalFile.mutate({ b in
             guard !b.timers.contains(where: { $0.type == type }) else { return false }
-            b.timers.append(RunningTimer(type: type, start: at.timeIntervalSince1970 * 1000, side: side, detached: detach))
+            b.timers.append(RunningTimer(type: type, start: startedAt, side: side, detached: detach))
             return true
         }) {
         case let .saved(before, after):
@@ -174,7 +175,7 @@ final class JournalStore {
             let ago = Int(Date().timeIntervalSince(at) / 60)
             let sidePart = side == "l" ? L10n.t(" · 左侧", " · Left") : side == "r" ? L10n.t(" · 右侧", " · Right") : ""
             let agoPart = ago >= 1 ? L10n.t(" · 从 \(ago) 分钟前算起", " · from \(ago) min ago") : ""
-            say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before, op: .removeTimer(type: type))
+            say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before, op: .removeTimer(type: type, startedAt: startedAt))
         case let .unchanged(b):
             apply(b)
             if openFocus { focus = type }
@@ -234,24 +235,32 @@ final class JournalStore {
     }
     /// Drops a running timer and any mid-session side logs from it; said back with 撤销.
     func discard(_ type: String) {
-        // said only once it is really dropped (a failed save says so, with nothing to take back)
         var removedTimer: RunningTimer?
         var removedSideLogs: [LogEntry] = []
-        guard let before = edit({ b in
-            removedTimer = b.timers.first { $0.type == type }
-            if let t = removedTimer, !t.sessionEntryIDs.isEmpty {
+        switch JournalFile.mutate({ b in
+            guard let t = b.timers.first(where: { $0.type == type }) else { return false }
+            removedTimer = t
+            if !t.sessionEntryIDs.isEmpty {
                 let ids = Set(t.sessionEntryIDs)
                 removedSideLogs = b.logs.filter { ids.contains($0.id) }
             }
             b = JournalFile.discarding(b, type)
-        }) else { return }
-        if type == LogType.nurse { detachNextNurse = true }
-        if focus == type { focus = nil }
-        onEvent?(.timerEnded)
-        let op: UndoOp? = removedTimer.map {
-            removedSideLogs.isEmpty ? .restoreTimer($0) : .restoreDiscardedTimer(timer: $0, removedLogs: removedSideLogs)
+            return true
+        }) {
+        case let .saved(before, after):
+            changed(after)
+            if type == LogType.nurse { detachNextNurse = true }
+            if focus == type { focus = nil }
+            onEvent?(.timerEnded)
+            if let removedTimer {
+                let op: UndoOp = removedSideLogs.isEmpty ? .restoreTimer(removedTimer) : .restoreDiscardedTimer(timer: removedTimer, removedLogs: removedSideLogs)
+                say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before, op: op)
+            }
+        case .unchanged:
+            reload()
+        case .failed:
+            failed(L10n.t("计时", "the timer"))
         }
-        say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before, op: op)
     }
 
     @discardableResult func add(_ e: LogEntry) -> Bool { edit { $0.logs.append(e) } != nil }
@@ -315,13 +324,14 @@ final class JournalStore {
                 }
             }
             b.logs.sort { $0.start < $1.start }
-        case let .removeTimer(type):
-            b.timers.removeAll { $0.type == type }
+        case let .removeTimer(type, startedAt):
+            b.timers.removeAll { $0.type == type && abs($0.start - startedAt) < 1 }
         case let .restoreTimer(timer):
             if !b.timers.contains(where: { $0.type == timer.type }) {
                 b.timers.append(timer)
             }
         case let .restoreDiscardedTimer(timer, removedLogs):
+            guard !b.timers.contains(where: { $0.type == timer.type }) else { return }
             for entry in removedLogs {
                 if let idx = b.logs.firstIndex(where: { $0.id == entry.id }) {
                     b.logs[idx] = entry
@@ -330,9 +340,7 @@ final class JournalStore {
                 }
             }
             b.logs.sort { $0.start < $1.start }
-            if !b.timers.contains(where: { $0.type == timer.type }) {
-                b.timers.append(timer)
-            }
+            b.timers.append(timer)
         case let .restoreStoppedTimer(timer, addedLogID):
             b.logs.removeAll { $0.id == addedLogID }
             if let timer, !b.timers.contains(where: { $0.type == timer.type }) {
@@ -514,7 +522,7 @@ private final class ExternalJournalObserver: @unchecked Sendable {
 enum UndoOp: Sendable {
     case removeLogs([UUID])
     case restoreLogs([LogEntry])
-    case removeTimer(type: String)
+    case removeTimer(type: String, startedAt: Double)
     case restoreTimer(RunningTimer)
     case restoreDiscardedTimer(timer: RunningTimer, removedLogs: [LogEntry])
     case restoreStoppedTimer(timer: RunningTimer?, addedLogID: UUID)

@@ -4395,4 +4395,144 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testAuditWave5ZeroHBAndP0s() throws {
+        L10n.overrideEnglish = false
+        defer { L10n.overrideEnglish = nil }
+        JournalFile.beginTest()
+        defer { JournalFile.endTest() }
+
+        // 1. App Lock snapshot redaction & Intent gate (HB-1)
+        let lockSuite = "wave5-lock-\(UUID().uuidString)"
+        let lockDefaults = try XCTUnwrap(UserDefaults(suiteName: lockSuite))
+        defer { lockDefaults.removePersistentDomain(forName: lockSuite) }
+        let lockApp = AppModel(defaults: lockDefaults)
+        lockApp.consent = Consent.version
+        lockApp.nickname = "小满"
+        lockApp.birth = Day.today.plus(days: -120)
+        lockApp.lock = true
+        lockApp.appLocked = true
+        lockApp.publish(JournalStore(preview: JournalFile.Body()))
+        let lockedSnap = try XCTUnwrap(JournalFile.snapshot())
+        XCTAssertEqual(lockedSnap.appLocked, true)
+        XCTAssertNil(lockedSnap.birthEpochDay)
+        XCTAssertEqual(lockedSnap.nickname, "")
+        XCTAssertNil(lockedSnap.playCode)
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: lockedSnap))
+
+        // 2. Sticker ID path-traversal guard (HB-2)
+        XCTAssertNil(FoodStickerStore.url(for: "../escape"))
+        XCTAssertNil(FoodStickerStore.url(for: ""))
+        XCTAssertNil(FoodStickerStore.url(for: String(repeating: "a", count: 65)))
+        XCTAssertNotNil(FoodStickerStore.url(for: "avocado"))
+
+        // 3. Non-destructive malformed JSON load guards (HB-4)
+        let tmpDir = FileManager.default.temporaryDirectory
+        let badAtlasURL = tmpDir.appendingPathComponent("wave5-bad-atlas-\(UUID().uuidString).json")
+        let badCapsuleURL = tmpDir.appendingPathComponent("wave5-bad-capsules-\(UUID().uuidString).json")
+        try Data("{broken".utf8).write(to: badAtlasURL)
+        try Data("{broken".utf8).write(to: badCapsuleURL)
+        defer {
+            try? FileManager.default.removeItem(at: badAtlasURL)
+            try? FileManager.default.removeItem(at: badCapsuleURL)
+        }
+        let atlas = FoodAtlasStore(fileURL: badAtlasURL)
+        XCTAssertTrue(atlas.loadFailed)
+        XCTAssertFalse(atlas.save(FoodRecord(foodId: "avocado", firstTastedEpochDay: Day.today.epochDay, reaction: .loved)))
+        XCTAssertTrue(atlas.loadFailed)
+
+        let capsules = CapsuleStore(fileURL: badCapsuleURL)
+        XCTAssertTrue(capsules.loadFailed)
+        XCTAssertFalse(capsules.save(TimeCapsule(title: "t", body: "b", writtenAt: Date().timeIntervalSince1970 * 1000, writtenAgeLabel: "6m", unlockEpochDay: nil, openedAt: nil, seal: .gold)))
+        XCTAssertTrue(capsules.loadFailed)
+
+        // 4. Malformed LogEntry, CSV formula neutralization, RecordFile partial array survival, backward-clock pause clamp
+        let infPausedData = Data(#"{"type":"sleep","start":1700000000000,"detail":"paused:1e309"}"#.utf8)
+        let infEntry = try JSONDecoder().decode(LogEntry.self, from: infPausedData)
+        XCTAssertEqual(infEntry.pausedSeconds, 0)
+
+        var csvBody = JournalFile.Body()
+        csvBody.logs = [
+            LogEntry(type: LogType.play, start: 1_700_000_000_000, end: 4_102_444_800_000, detail: "=SUM(A1)"),
+            LogEntry(type: LogType.nurse, start: 1_700_000_000_000, end: 1_700_001_800_000, side: "l", detail: "paused:999999999999")
+        ]
+        let csvData = RecordFile.csv(csvBody)
+        let csvText = try XCTUnwrap(String(data: csvData, encoding: .utf8))
+        XCTAssertTrue(csvText.contains("'=SUM(A1)"))
+        XCTAssertFalse(csvText.contains(",=SUM(A1)"))
+
+        let partialSuite = "wave5-partial-\(UUID().uuidString)"
+        let partialDefaults = try XCTUnwrap(UserDefaults(suiteName: partialSuite))
+        defer { partialDefaults.removePersistentDomain(forName: partialSuite) }
+        let partialPayload: [String: Any] = [
+            "app": "mossling",
+            "v": 1,
+            "mossling": [
+                "settings": ["consent": Consent.version],
+                "logs": [
+                    "bad",
+                    ["type": LogType.diaper, "start": 1_700_000_000_000.0, "detail": "wet"]
+                ]
+            ]
+        ]
+        let partialData = try JSONSerialization.data(withJSONObject: partialPayload)
+        let partialApp = AppModel(defaults: partialDefaults)
+        let partialJournal = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(partialData, into: partialApp, journal: partialJournal)
+        XCTAssertEqual(partialJournal.logs.count, 1)
+
+        var pauseBody = JournalFile.Body()
+        pauseBody.timers = [RunningTimer(type: LogType.nurse, start: 1_000_000, side: "l", pausedAt: 2_000_000, pausedTotal: 5_000)]
+        let resumedBackward = JournalFile.pausing(pauseBody, LogType.nurse, now: 1_500_000)
+        XCTAssertEqual(resumedBackward.timers.first?.pausedTotal, 5_000)
+        XCTAssertNil(resumedBackward.timers.first?.pausedAt)
+
+        // 5. HandoverWebCodec clinical redaction without false positives
+        func handoverNoteURL(_ note: String) throws -> URL {
+            let snap = HandoverSnapshot(
+                babyName: "",
+                ageText: "6m",
+                dateLabel: "10月19日",
+                timeLabel: "09:00",
+                activeTimerLine: nil,
+                lastFeedHeadline: "1h ago",
+                lastFeedDetail: "Bottle",
+                lastSleepHeadline: "2h ago",
+                lastSleepDetail: "Total 10h",
+                lastDiaperHeadline: "30m ago",
+                lastDiaperDetail: "Wet 2",
+                todayHeadline: "3 feeds · 2 diapers",
+                todayDetail: "Play A11",
+                extraNote: note
+            )
+            return try XCTUnwrap(HandoverWebCodec.encodeURL(from: snap, isEnglish: false))
+        }
+        for sensitiveNote in ["38.6C", "Calpol 5ml", "阿莫西林", "生理盐水", "101.5F"] {
+            let decoded = try XCTUnwrap(HandoverWebCodec.decode(from: try handoverNoteURL(sensitiveNote)))
+            XCTAssertFalse((decoded.no ?? "").contains(sensitiveNote), "Expected '\(sensitiveNote)' to be redacted")
+            XCTAssertEqual(decoded.no, "体征与用药详情请见当面交接卡")
+        }
+        for safeNote in ["attempted nap", "下一顿喂 120ml 配方奶"] {
+            let decoded = try XCTUnwrap(HandoverWebCodec.decode(from: try handoverNoteURL(safeNote)))
+            XCTAssertEqual(decoded.no, safeNote, "Expected '\(safeNote)' to be preserved")
+        }
+
+        // 6. HealthRegion clinical accuracy
+        XCTAssertNotNil(HealthRegion.screeningCue(for: .uk, month: 27))
+        XCTAssertNil(HealthRegion.screeningCue(for: .uk, month: 24))
+        L10n.overrideEnglish = true
+        let au2 = HealthRegion.schedule(for: .au, month: 2).map(\.title).joined(separator: " ")
+        XCTAssertTrue(au2.contains("DTPa-HepB-IPV-Hib"))
+        XCTAssertFalse(au2.localizedCaseInsensitiveContains("Infanrix"))
+
+        // 7. Day-1 partial sleep average guard
+        let dOne = Day(y: 2026, m: 10, d: 19)
+        let napMs = try XCTUnwrap(Day.cal.date(bySettingHour: 13, minute: 0, second: 0, of: dOne.date)).timeIntervalSince1970 * 1000
+        let todayOnlySleep = LogEntry(type: LogType.sleep, start: napMs, end: napMs + 3_600_000)
+        let day1Dial = RhythmDialModel.build(logs: [todayOnlySleep], today: dOne, days: 7, excludeIncompleteToday: true)
+        XCTAssertNil(day1Dial.summary.avgSleepHours)
+        let day1Comp = DailyRhythmComparison.build(logs: [todayOnlySleep], today: dOne, journalEnabled: true)
+        XCTAssertNil(day1Comp.avgSleepHours)
+    }
 }

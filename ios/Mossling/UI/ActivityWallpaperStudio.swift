@@ -232,6 +232,8 @@ struct ActivityWallpaperSheet: View {
     let initialCode: String?
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
     @State private var selected: ActivityWallpaperPlate
     @State private var format: ActivityWallpaperFormat = .lockScreen
     @State private var eveningWarmth: Bool
@@ -245,6 +247,8 @@ struct ActivityWallpaperSheet: View {
     }
 
     var body: some View {
+        let dark = lamp || scheme == .dark
+        let accentColor = Color(hex: selected.accentHex)
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
@@ -290,30 +294,32 @@ struct ActivityWallpaperSheet: View {
                     .animation(.easeInOut(duration: 0.25), value: selected.id)
 
                     // Format & Toning Controls
-                    Picker(L10n.t("画幅比例", "Frame Ratio"), selection: $format) {
-                        ForEach(ActivityWallpaperFormat.allCases) { item in
-                            Text(item.label).tag(item)
-                        }
-                    }
-                    .pickerStyle(.segmented)
+                    DSSegmentedControl(
+                        items: ActivityWallpaperFormat.allCases,
+                        selection: $format,
+                        dark: dark,
+                        title: { $0.label }
+                    )
                     .padding(.horizontal, 4)
 
                     HStack(spacing: 12) {
                         Toggle(isOn: $eveningWarmth) {
                             Label(L10n.t("夜间暖釉", "Night Glaze"), systemImage: "moon.stars")
-                                .font(.footnote.weight(.medium))
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(eveningWarmth ? .white : .primary)
                                 .pillHitTarget()
                         }
                         .toggleStyle(.button)
-                        .tint(Palette.amber)
+                        .tint(Crayon.buttonFill(Crayon.tangerine))
 
                         Toggle(isOn: $showPlaque) {
                             Label(L10n.t("底部画签", "Mat Plaque"), systemImage: "text.below.photo")
-                                .font(.footnote.weight(.medium))
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(showPlaque ? .white : .primary)
                                 .pillHitTarget()
                         }
                         .toggleStyle(.button)
-                        .tint(Color(hex: selected.accentHex))
+                        .tint(Crayon.buttonFill(accentColor))
                     }
 
                     // 6-Plate Wrapped Collector Switcher (Zero Horizontal Scroll)
@@ -389,6 +395,7 @@ struct ActivityWallpaperSheet: View {
                 .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.bottom, 24)
             }
+            .pageBackground(tone: accentColor)
             .navigationTitle(L10n.t("藏画壁纸画室", "Wallpaper Atelier"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

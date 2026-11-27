@@ -1,0 +1,146 @@
+{
+  "sourceLanguage" : "zh-Hans",
+  "strings" : {
+    "用${applicationName}记一次尿布" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Log a diaper in ${applicationName}",
+              "Log ${kind} in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}记一次尿布",
+              "在${applicationName}记尿布",
+              "用${applicationName}记${kind}"
+            ]
+          }
+        }
+      }
+    },
+    "在${applicationName}开始${careType}" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Start ${careType} in ${applicationName}",
+              "Toggle ${careType} timer in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "在${applicationName}开始${careType}",
+              "用${applicationName}记${careType}",
+              "在${applicationName}切换${careType}计时"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}记瓶喂" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Log a bottle in ${applicationName}",
+              "Log ${milk} bottle in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}记瓶喂",
+              "用${applicationName}记${milk}",
+              "在${applicationName}记一顿${milk}"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}看宝宝近况" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Check baby status in ${applicationName}",
+              "How long since last feed in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}看宝宝近况",
+              "问${applicationName}宝宝上次喂奶"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}打开床头夜灯" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Open bedside lamp in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}打开床头夜灯",
+              "打开${applicationName}夜灯"
+            ]
+          }
+        }
+      }
+    },
+    "用${applicationName}记辅食" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Log first food in ${applicationName}"
+            ]
+          }
+        },
+        "zh-Hans" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "用${applicationName}记辅食",
+              "在${applicationName}记宝宝吃辅食",
+              "用${applicationName}记一顿辅食"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

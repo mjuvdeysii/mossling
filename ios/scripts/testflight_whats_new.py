@@ -118,7 +118,8 @@ def extract_changelog(changelog_path: str, version: str | None = None, build: st
         s = raw.strip()
         if not s:
             continue
-        # Strip markdown bold/code formatting and ASC-disallowed Unicode symbols (category So, e.g. checkmarks/emoji)
+        # Strip markdown headings/bold/code formatting and ASC-disallowed Unicode symbols (category So, e.g. checkmarks/emoji)
+        s = re.sub(r"^#{1,6}\s+", "", s)
         s = re.sub(r"\*\*(.+?)\*\*", r"\1", s)
         s = re.sub(r"`([^`]+)`", r"\1", s)
         s = "".join(ch for ch in s if unicodedata.category(ch) != "So")
@@ -271,24 +272,6 @@ def update_whats_new(
     app_name = exact_app.get("attributes", {}).get("name", "?")
     print(f"[ASC] Matched exact bundleId={bundle_id} -> app_id={app_id} ({app_name})", flush=True)
 
-    # Also backfill the most recent already-VALID build (e.g. build 463) if its What-to-Test is still blank
-    try:
-        rq = urllib.parse.urlencode({"filter[app]": app_id, "sort": "-uploadedDate", "limit": "3"})
-        recent_builds = client.request("GET", f"/builds?{rq}").get("data", [])
-        for rb in recent_builds:
-            r_ver = str(rb.get("attributes", {}).get("version", ""))
-            r_state = rb.get("attributes", {}).get("processingState", "")
-            if r_state == "VALID" and r_ver and r_ver != build_number:
-                locs = client.request("GET", f"/builds/{rb['id']}/betaBuildLocalizations").get("data", [])
-                zh_loc = next((x for x in locs if x.get("attributes", {}).get("locale") == "zh-Hans"), None)
-                if not zh_loc or not (zh_loc.get("attributes", {}).get("whatsNew") or "").strip():
-                    for loc, notes in localized_notes:
-                        msg = upsert_beta_localization(client, rb["id"], r_ver, r_state, loc, notes)
-                        print(f"[ASC] Backfilled recent build #{r_ver}: {msg}", flush=True)
-                break
-    except Exception as exc:
-        print(f"[ASC] Note: recent build backfill skipped: {exc}", flush=True)
-
     deadline = time.time() + timeout_seconds
     build_id: str | None = None
     state = ""
@@ -299,8 +282,11 @@ def update_whats_new(
         params = {
             "filter[app]": app_id,
             "filter[version]": build_number,
+            "sort": "-uploadedDate",
             "limit": "5",
         }
+        if version:
+            params["filter[preReleaseVersion.version]"] = version
         builds = client.request("GET", f"/builds?{urllib.parse.urlencode(params)}").get("data", [])
         if builds:
             b = builds[0]

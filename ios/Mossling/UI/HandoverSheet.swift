@@ -275,7 +275,7 @@ struct HandoverSheet: View {
                                 }
                             }
 
-                            TextField(L10n.t("例如：半小时前刚吃过维生素 D", "e.g. Vitamin D given 30m ago"), text: $note)
+                            TextField(L10n.t("例如：今晚刚洗过温水澡，睡前喜欢听雨声", "e.g. Warm bath done; settles well to rain sound"), text: $note)
                                 .font(.subheadline)
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
@@ -328,9 +328,9 @@ struct HandoverSheet: View {
                                 ShareLink(
                                     item: webURL,
                                     subject: Text(L10n.t("\(snap.babyName)的照护交接灯牌", "\(snap.babyName)'s Care Handover Beacon")),
-                                    message: Text(L10n.t("不用下载 App，手机浏览器点开即看最新喂睡与尿布交接：", "View the latest handover right in your browser (no download needed):"))
+                                    message: Text(L10n.t("不用下载 App，手机浏览器点开即看最新喂睡与尿布交接：", "View the latest handover right in any browser (no download needed):"))
                                 ) {
-                                    Label(L10n.t("发给安卓家人（免下载灯牌）", "Send Web Beacon (Android)"), systemImage: "safari.fill")
+                                    Label(L10n.t("发给网页端家人（免下载灯牌）", "Send Web Beacon (Any Browser)"), systemImage: "safari.fill")
                                         .font(.subheadline.weight(.bold))
                                         .frame(maxWidth: .infinity)
                                         .dsPill(.secondary, height: LayoutSpec.ctaSecondaryHeight)
@@ -348,20 +348,20 @@ struct HandoverSheet: View {
                                 } label: {
                                     Image(systemName: copiedWebLink ? "checkmark.circle.fill" : "link")
                                         .font(.subheadline.weight(.bold))
-                                        .frame(width: 46, height: 42)
+                                        .frame(width: 46, height: 44)
                                 }
                                 .buttonStyle(.vinyl(copiedWebLink ? Crayon.leaf : Crayon.sky))
                                 .accessibilityLabel(L10n.t("复制免下载网页交接链接", "Copy browser handover link"))
                             }
                         }
 
-                        Text(L10n.t("图片、文字与网页灯牌链接均在本机即时生成，数据仅编码在网址 # 之后，不经过云端服务器；安卓手机点开即看。", "Generated on-device with zero server uploads — browser beacon data stays strictly inside the # URL anchor for Android & WeChat."))
+                        Text(L10n.t("图片与文字在本机生成；网页灯牌数据以未加密 base64url 编码在网址 # 锚点内，不经服务器上传，但收件人打开网页或聊天软件预读链接时会向静态托管页发起请求，持链接者可读，请仅发给可信赖的家人。", "Images and text stay on-device. Web beacons encode care data as unencrypted base64url in the # URL anchor with zero server upload (opening or messaging previews fetch the static web page, and anyone with the link can read it)."))
                             .font(.caption2)
                             .foregroundStyle(Palette.secondaryText)
                             .frame(maxWidth: .infinity, alignment: .center)
                             .multilineTextAlignment(.center)
                     }
-                    .padding(.horizontal, 16)
+                    .padding(.horizontal, LayoutSpec.sheetH)
                     .padding(.top, 8)
                     .padding(.bottom, 16)
                 }
@@ -377,6 +377,7 @@ struct HandoverSheet: View {
                 }
             }
         }
+        .localConsentSheet()
     }
 }
 
@@ -399,8 +400,9 @@ private struct HandoverCardContent: View {
                         .frame(width: g.size.width, height: g.size.height)
                         .contentShape(Rectangle())
                         .gesture(
-                            DragGesture(minimumDistance: 2)
+                            DragGesture(minimumDistance: 8)
                                 .onChanged { value in
+                                    guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                                     let normX = (value.location.x - w * 0.28) / (w * 0.44)
                                     let clamped = LanternPassMath.clampedProgress(Double(normX))
                                     passProgress = clamped

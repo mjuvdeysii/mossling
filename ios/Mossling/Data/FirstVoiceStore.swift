@@ -237,6 +237,7 @@ final class FirstVoiceController {
     private var startingRecording = false
     private var recordingGeneration = 0
     private var interruptionObserver: NSObjectProtocol?
+    private var routeChangeObserver: NSObjectProtocol?
     private let delegateProxy = FirstVoiceAudioDelegate()
 
     private init() {
@@ -261,6 +262,20 @@ final class FirstVoiceController {
                     self.stopPlayback()
                     self.errorMessage = L10n.t("声音播放被系统中断。", "Audio playback was interrupted.")
                 }
+            }
+        }
+        routeChangeObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.routeChangeNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            let reasonVal = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            Task { @MainActor [weak self] in
+                guard let self, let reasonVal,
+                      let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal),
+                      reason == .oldDeviceUnavailable,
+                      self.playingID != nil else { return }
+                self.stopPlayback()
             }
         }
     }
@@ -390,6 +405,7 @@ final class FirstVoiceController {
     }
 
     func stopPlayback() {
+        let hadPlayer = (player != nil || playingID != nil)
         player?.delegate = nil
         player?.stop()
         player = nil
@@ -397,12 +413,15 @@ final class FirstVoiceController {
         playProgress = 0
         if !isRecording {
             stopTimer()
-            deactivateSessionIfIdle()
+            if hadPlayer {
+                deactivateSessionIfIdle()
+            }
         }
     }
 
     func stopAll() {
         recordingGeneration &+= 1
+        let hadAudio = isRecording || recorder != nil || player != nil || playingID != nil
         recorder?.delegate = nil
         if isRecording {
             recorder?.stop()
@@ -415,7 +434,9 @@ final class FirstVoiceController {
         playingID = nil
         playProgress = 0
         stopTimer()
-        deactivateSessionIfIdle()
+        if hadAudio {
+            deactivateSessionIfIdle()
+        }
     }
 
     func discardTemp(_ url: URL?) {
@@ -451,6 +472,10 @@ final class FirstVoiceController {
     private func handleRecordingStopped(successfully ok: Bool) {
         guard isRecording || recorder != nil else { return }
         isRecording = false
+        recorder?.delegate = nil
+        if !ok {
+            recorder?.stop()
+        }
         recorder = nil
         stopTimer()
         if ok {

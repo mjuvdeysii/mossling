@@ -194,7 +194,7 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 2:
             return [
-                ReferenceEntry(id: "au-2-v", kind: "vaccine", title: L10n.t("2 月龄（6–8 周起）：DTPa-HepB-IPV-Hib、肺炎球菌、轮状病毒第 1 剂", "2 months (from 6 wks): Infanrix hexa, Pneumococcal, Rotavirus (1st)"))
+                ReferenceEntry(id: "au-2-v", kind: "vaccine", title: L10n.t("2 月龄（6–8 周起）：六联疫苗（DTPa-HepB-IPV-Hib）、肺炎球菌、轮状病毒第 1 剂", "2 months (from 6 wks): DTPa-HepB-IPV-Hib (6-in-1), Pneumococcal, Rotavirus (1st)"))
             ]
         case 4:
             return [
@@ -280,8 +280,12 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             )
         case 24:
             return region == .uk
-                ? L10n.t("2 岁重点：NHS 2–2.5 岁全面发展回顾（语言双词短语、听力视力与行为观察）。", "2-year focus: NHS 2–2.5 yr developmental review covering words, vision/hearing, and play.")
+                ? nil
                 : L10n.t("2 周岁体检焦点：语言词汇组合与社交筛查、视力复筛、口腔涂氟。", "24-month focus: two-word language & social screening, repeat vision check, and dental varnish.")
+        case 27:
+            return region == .uk
+                ? L10n.t("2 岁 3 个月（27 月龄）重点：NHS 2–2.5 岁全面发展评估（语言双词短语、听力视力与行为观察）。", "27-month focus: NHS 2–2.5 yr developmental review covering words, vision/hearing, and play.")
+                : nil
         case 30:
             return L10n.t(
                 "30 月龄发育复核：动词短语、两步指令理解与双脚跳大运动能力。",

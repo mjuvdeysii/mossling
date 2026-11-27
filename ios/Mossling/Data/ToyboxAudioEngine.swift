@@ -1,4 +1,5 @@
 import Foundation
+import Observation
 import SwiftUI
 import AVFoundation
 
@@ -133,10 +134,12 @@ struct ToyboxNote: Identifiable, Sendable {
 
 /// Zero-asset polyphonic wooden marimba, music-box, kalimba & rainstick bead synthesizer for the Sensory Toybox.
 /// Synthesizes warm acoustic voices and soft beechwood bead clicks in real time via `AVAudioEngine`.
+@Observable
 @MainActor
 final class ToyboxAudioEngine {
     static let shared = ToyboxAudioEngine()
 
+    private(set) var routeStopGeneration: Int = 0
     private let sampleRate: Double = 44_100
     private var engine: AVAudioEngine?
     private var players: [AVAudioPlayerNode] = []
@@ -332,13 +335,14 @@ final class ToyboxAudioEngine {
 
     /// Stops and releases the toybox audio engine when leaving the studio.
     func stop() {
+        let hadEngine = (engine != nil)
         arpeggioTask?.cancel()
         arpeggioTask = nil
         for p in players { p.stop() }
         engine?.stop()
         engine = nil
         players = []
-        if !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+        if hadEngine && !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
@@ -355,8 +359,19 @@ final class ToyboxAudioEngine {
         }
         registerObserversIfNeeded()
         if let e = engine {
-            if !e.isRunning { try? e.start() }
-            return e.isRunning
+            if e.isRunning { return true }
+            do {
+                let session = AVAudioSession.sharedInstance()
+                try session.setCategory(.playback, mode: .default, options: [])
+                try session.setActive(true, options: [])
+                try e.start()
+                if e.isRunning { return true }
+            } catch {
+                for p in players { p.stop() }
+                e.stop()
+                engine = nil
+                players = []
+            }
         }
         do {
             let session = AVAudioSession.sharedInstance()
@@ -399,7 +414,9 @@ final class ToyboxAudioEngine {
                 case .ended:
                     let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
                     if opts.contains(.shouldResume), let e = self.engine, !FirstVoiceController.shared.isRecording, !SoundscapeEngine.shared.hasActiveEngine {
-                        try? AVAudioSession.sharedInstance().setActive(true)
+                        let session = AVAudioSession.sharedInstance()
+                        try? session.setCategory(.playback, mode: .default, options: [])
+                        try? session.setActive(true)
                         try? e.start()
                     }
                 @unknown default:
@@ -412,15 +429,17 @@ final class ToyboxAudioEngine {
             Task { @MainActor [weak self] in
                 guard let self, let reasonVal, let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
                 if reason == .oldDeviceUnavailable {
+                    self.routeStopGeneration &+= 1
                     self.stop()
                 }
             }
         }
-        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
+        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] note in
+            let senderID = note.object.map { ObjectIdentifier($0 as AnyObject) }
             Task { @MainActor [weak self] in
-                guard let self, self.engine != nil else { return }
+                guard let self, let eng = self.engine, senderID == ObjectIdentifier(eng) else { return }
                 for p in self.players { p.stop() }
-                self.engine?.stop()
+                eng.stop()
                 self.engine = nil
                 self.players = []
             }

@@ -83,17 +83,19 @@
       var langBtn = document.getElementById("langBtn");
       function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
       function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+      var activeLang = storageGet("mossling-lang") === "en" ? "en" : "zh";
       function applyLang(lang) {
-        html.setAttribute("data-lang", lang);
-        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        storageSet("mossling-lang", lang);
-        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
+        activeLang = lang === "en" ? "en" : "zh";
+        html.setAttribute("data-lang", activeLang);
+        html.setAttribute("lang", activeLang === "en" ? "en" : "zh-Hans");
+        storageSet("mossling-lang", activeLang);
+        if (langBtn) langBtn.textContent = activeLang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
-          el.textContent = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          el.textContent = el.getAttribute(activeLang === "en" ? "data-en" : "data-zh");
         });
       }
-      if (langBtn) langBtn.addEventListener("click", function () { applyLang((storageGet("mossling-lang") || "zh") === "zh" ? "en" : "zh"); });
-      applyLang(storageGet("mossling-lang") || "zh");
+      if (langBtn) langBtn.addEventListener("click", function () { applyLang(activeLang === "zh" ? "en" : "zh"); });
+      applyLang(activeLang);
     })();
   </script>
 </body>

@@ -55,11 +55,11 @@ enum Crayon {
         case teal, aqua, mint: dyn(0x08675F, 0x4FD8CB)
         case pink, rose: dyn(0xB82D52, 0xFF8FAA)
         case sunflower: dyn(0x7D5100, 0xFFD36B)
-        case cherry: dyn(0xB52820, 0xFF7A70)
+        case cherry: dyn(0xB52820, 0xFF8C84)
         case leaf: dyn(0x1B6E33, 0x6ACF85)
         case sky: dyn(0x195FA3, 0x7DB8F2)
         case tangerine, peach, caramel: dyn(0xA34806, 0xFFA066)
-        case lilac: dyn(0x5E3EB8, 0xB39CF4)
+        case lilac: dyn(0x5E3EB8, 0xC2AEFF)
         case pebble: dyn(0x59524A, 0xD2CAC0)
         default: contrastSafeInk(c)
         }

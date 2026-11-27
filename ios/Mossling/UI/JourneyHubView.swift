@@ -1090,7 +1090,7 @@ struct JourneyHubView: View {
             if !quietBeads || here {
                 Text("\(m)")
                     .font(Typeface.numerals(here ? 14 : 11, relativeTo: .caption2, weight: .bold))
-                    .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? .white : futureNumeralInk)
+                    .foregroundStyle(here || past ? Crayon.glyph(on: c) : futureNumeralInk)
             }
         }
         .shadow(color: here ? Palette.amber.opacity(0.35) : .clear, radius: 5, y: 2)

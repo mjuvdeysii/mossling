@@ -173,6 +173,25 @@ struct FoodRecord: Identifiable, Codable, Equatable, Sendable {
 
     var id: String { foodId }
     var firstTastedDay: Day { Day(epochDay: firstTastedEpochDay) }
+
+    init(foodId: String, firstTastedEpochDay: Int, reaction: FoodReaction, note: String = "", watchSkin: Bool = false, times: Int = 1) {
+        self.foodId = foodId
+        self.firstTastedEpochDay = firstTastedEpochDay
+        self.reaction = reaction
+        self.note = note
+        self.watchSkin = watchSkin
+        self.times = times
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        foodId = try c.decode(String.self, forKey: .foodId)
+        firstTastedEpochDay = try c.decode(Int.self, forKey: .firstTastedEpochDay)
+        reaction = try c.decode(FoodReaction.self, forKey: .reaction)
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        watchSkin = try c.decodeIfPresent(Bool.self, forKey: .watchSkin) ?? false
+        times = max(1, try c.decodeIfPresent(Int.self, forKey: .times) ?? 1)
+    }
 }
 
 /// Strictly local JSON storage for 「百味食盒 / First Foods Tasting Box」 under `Application Support/food_atlas.json`.
@@ -267,17 +286,29 @@ final class FoodAtlasStore {
         }
     }
 
-    func save(_ record: FoodRecord) {
-        loadFailed = false
+    @discardableResult
+    func save(_ record: FoodRecord) -> Bool {
+        guard !loadFailed else { return false }
+        let prev = records[record.foodId]
         records[record.foodId] = record
-        persist()
+        if persist() { return true }
+        if let prev { records[record.foodId] = prev } else { records.removeValue(forKey: record.foodId) }
+        return false
     }
 
-    func remove(foodId: String) {
-        guard !loadFailed else { return }
+    @discardableResult
+    func remove(foodId: String) -> Bool {
+        guard !loadFailed else { return false }
+        let prev = records[foodId]
         records.removeValue(forKey: foodId)
-        FoodStickerStore.delete(for: foodId)
-        persist()
+        if persist() {
+            if fileURL == FoodAtlasStore.defaultURL {
+                FoodStickerStore.delete(for: foodId)
+            }
+            return true
+        }
+        if let prev { records[foodId] = prev }
+        return false
     }
 
     func clearAll() {
@@ -291,24 +322,34 @@ final class FoodAtlasStore {
         }
     }
 
-    func replaceAll(_ list: [FoodRecord]) {
+    @discardableResult
+    func replaceAll(_ list: [FoodRecord]) -> Bool {
+        let prevRecords = records
+        let prevFailed = loadFailed
         loadFailed = false
         records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
-        persist()
+        guard persist() else {
+            records = prevRecords
+            loadFailed = prevFailed
+            return false
+        }
         if fileURL == FoodAtlasStore.defaultURL {
             FoodStickerStore.prune(keeping: Set(records.keys))
         }
+        return true
     }
 
-    private func persist() {
-        guard !loadFailed, let url = fileURL else { return }
+    @discardableResult
+    private func persist() -> Bool {
+        guard !loadFailed, let url = fileURL else { return false }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let sorted = records.values.sorted { $0.foodId < $1.foodId }
             let data = try JSONEncoder().encode(sorted)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            return true
         } catch {
-            // Silent resilience on transient I/O errors
+            return false
         }
     }
 }

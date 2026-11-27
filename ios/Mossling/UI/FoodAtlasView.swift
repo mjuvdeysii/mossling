@@ -129,6 +129,18 @@ struct FoodAtlasView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 14) {
+                if store.loadFailed {
+                    Label(
+                        L10n.t("辅食记录暂时未能读取，已暂停保存，避免覆盖原有数据。", "First-food records could not be read. Saving is paused to protect existing data."),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.danger)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.inner)
+                }
+
                 wreathHeroCard(dark: dark)
 
                 if trimmedQuery.isEmpty, let candidate = nextCandidate {
@@ -431,7 +443,7 @@ struct FoodAtlasView: View {
         HStack(alignment: .top, spacing: 8) {
             Image(systemName: "info.circle.fill")
                 .font(.caption.weight(.bold))
-                .foregroundStyle(Palette.lampTint)
+                .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.amber))
                 .padding(.top, 2)
             VStack(alignment: .leading, spacing: 2) {
                 Text(L10n.t("已尝 \(store.allergenIntroducedCount) / \(store.allergenTotalCount) 种常见致敏食材", "\(store.allergenIntroducedCount) of \(store.allergenTotalCount) common allergens introduced"))
@@ -637,16 +649,17 @@ struct FoodAtlasView: View {
                     let on = rec?.reaction == r
                     let fillColor = Crayon.fill(r.color, dark)
                     let inkColor = dark ? r.color : Crayon.ink(r.color)
+                    let glyphInk = Crayon.glyph(on: fillColor)
                     Button {
                         performQuickStamp(food: item, reaction: r)
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: r.symbol)
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(on ? .white : inkColor)
+                                .foregroundStyle(on ? glyphInk : inkColor)
                             Text(r.title)
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(on ? .white : .primary)
+                                .foregroundStyle(on ? glyphInk : .primary)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
@@ -808,11 +821,12 @@ private struct FoodSpecimenChip: View {
                     }
 
                     if let rec = record {
+                        let badgeFill = Crayon.fill(rec.reaction.color, dark)
                         Image(systemName: rec.reaction.symbol)
                             .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Crayon.glyph(on: badgeFill))
                             .frame(width: 16, height: 16)
-                            .background(Circle().fill(rec.reaction.color))
+                            .background(Circle().fill(badgeFill))
                             .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.5))
                             .offset(x: 1, y: -1)
                     } else if item.isCommonAllergen {
@@ -900,12 +914,13 @@ struct FoodEmblemArt: View {
     var size: CGFloat = 32
     var flat: Bool = (ArtStyle.current == .flat)
     var overrideSticker: UIImage? = nil
+    var allowSavedFallback: Bool = true
 
     private var stickerVersion: FoodStickerVersion { FoodStickerVersion.shared }
 
     var body: some View {
         let _ = stickerVersion.tick
-        if let sticker = overrideSticker ?? FoodStickerStore.load(for: food.id) {
+        if let sticker = overrideSticker ?? (allowSavedFallback ? FoodStickerStore.load(for: food.id) : nil) {
             Image(uiImage: sticker)
                 .resizable()
                 .scaledToFit()
@@ -943,6 +958,7 @@ private struct FoodTasteSheet: View {
     @State private var customSticker: UIImage? = nil
     @State private var stickerDirty = false
     @State private var stickerRemoved = false
+    @State private var saveError: String? = nil
 
     init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore, onSaved: @escaping (String) -> Void = { _ in }) {
         self.item = item
@@ -968,6 +984,15 @@ private struct FoodTasteSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if let saveError {
+                        Label(saveError, systemImage: "exclamationmark.triangle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Palette.danger)
+                            .padding(12)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .printCard(radius: Radius.inner)
+                    }
+
                     // Dish emblem header with offline Vision subject cutout sticker picker
                     HStack(spacing: 12) {
                         ZStack {
@@ -979,7 +1004,7 @@ private struct FoodTasteSheet: View {
                                     .strokeBorder(Palette.amber.opacity(0.85), lineWidth: 2.2)
                                     .frame(width: 62, height: 62)
                             }
-                            FoodEmblemArt(food: item, size: 42, overrideSticker: customSticker)
+                            FoodEmblemArt(food: item, size: 42, overrideSticker: customSticker, allowSavedFallback: !stickerRemoved)
                         }
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.name)
@@ -1014,7 +1039,7 @@ private struct FoodTasteSheet: View {
                             HStack(spacing: 4) {
                                 Image(systemName: customSticker == nil ? "sparkles" : "arrow.trianglehead.2.clockwise")
                                     .font(.caption2.weight(.bold))
-                                Text(customSticker == nil ? L10n.t("拍成贴纸", "Sticker") : L10n.t("换贴纸", "Replace"))
+                                Text(customSticker == nil ? L10n.t("选图做贴纸", "Photo Sticker") : L10n.t("换贴纸", "Replace"))
                                     .font(.caption.weight(.bold))
                             }
                             .foregroundStyle(.white)
@@ -1039,6 +1064,7 @@ private struct FoodTasteSheet: View {
                                 let on = reaction == r
                                 let fillColor = Crayon.fill(r.color, dark)
                                 let inkColor = dark ? r.color : Crayon.ink(r.color)
+                                let glyphInk = Crayon.glyph(on: fillColor)
                                 Button {
                                     TactileEngine.shared.beadClick()
                                     reaction = r
@@ -1046,10 +1072,10 @@ private struct FoodTasteSheet: View {
                                     VStack(spacing: 6) {
                                         Image(systemName: r.symbol)
                                             .font(.title3.weight(.bold))
-                                            .foregroundStyle(on ? .white : inkColor)
+                                            .foregroundStyle(on ? glyphInk : inkColor)
                                         Text(r.title)
                                             .font(.footnote.weight(.bold))
-                                            .foregroundStyle(on ? .white : .primary)
+                                            .foregroundStyle(on ? glyphInk : .primary)
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
@@ -1171,7 +1197,11 @@ private struct FoodTasteSheet: View {
 
                     if existing != nil {
                         Button(role: .destructive) {
-                            store.remove(foodId: item.id)
+                            saveError = nil
+                            guard store.remove(foodId: item.id) else {
+                                saveError = L10n.t("未能清除这项记录，请稍后再试。", "Could not remove this entry. Please try again.")
+                                return
+                            }
                             dismiss()
                         } label: {
                             Text(L10n.t("清除这项初尝印章", "Remove Tasting Stamp"))
@@ -1192,11 +1222,14 @@ private struct FoodTasteSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("盖章保存", "Save")) {
+                        guard !cuttingSticker else { return }
                         guard app.mayKeep() else { return }
-                        if stickerRemoved {
-                            FoodStickerStore.delete(for: item.id)
-                        } else if stickerDirty, let sticker = customSticker {
-                            _ = FoodStickerStore.save(sticker, for: item.id)
+                        saveError = nil
+                        if stickerDirty, let sticker = customSticker {
+                            guard FoodStickerStore.save(sticker, for: item.id) else {
+                                saveError = L10n.t("未能保存辅食贴纸，请检查储存空间后再试。", "Could not save food sticker. Please try again.")
+                                return
+                            }
                         }
                         let rec = FoodRecord(
                             foodId: item.id,
@@ -1206,7 +1239,13 @@ private struct FoodTasteSheet: View {
                             watchSkin: watchSkin,
                             times: max(1, times)
                         )
-                        store.save(rec)
+                        guard store.save(rec) else {
+                            saveError = L10n.t("未能保存辅食记录，请稍后再试。", "Could not save first-food record. Please try again.")
+                            return
+                        }
+                        if stickerRemoved {
+                            FoodStickerStore.delete(for: item.id)
+                        }
                         if app.journal && existing == nil && alsoLogJournal {
                             let detail = rec.note.isEmpty ? item.name : "\(item.name) · \(rec.note)"
                             _ = j.record(LogEntry(type: LogType.solid, start: JournalFile.now(), detail: detail))
@@ -1223,15 +1262,18 @@ private struct FoodTasteSheet: View {
                         dismiss()
                     }
                     .fontWeight(.bold)
+                    .disabled(cuttingSticker)
                 }
             }
             .onAppear {
+                saveError = nil
                 customSticker = FoodStickerStore.load(for: item.id)
                 stickerDirty = false
                 stickerRemoved = false
             }
             .onChange(of: pickedPhotoItem) { _, newItem in
                 guard let newItem else { return }
+                saveError = nil
                 cuttingSticker = true
                 Task { @MainActor in
                     defer {
@@ -1240,6 +1282,7 @@ private struct FoodTasteSheet: View {
                     }
                     guard let data = try? await newItem.loadTransferable(type: Data.self),
                           let rawImage = UIImage(data: data) else {
+                        saveError = L10n.t("无法读取这张照片，请换一张试试。", "Could not load this photo. Please choose another.")
                         return
                     }
                     let sticker = await VisionSubjectCutout.extractDieCutSticker(from: rawImage)
@@ -1252,6 +1295,7 @@ private struct FoodTasteSheet: View {
                 }
             }
         }
+        .localConsentSheet()
     }
 }
 

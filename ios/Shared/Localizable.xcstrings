@@ -663,6 +663,111 @@
           }
         }
       }
+    },
+    "睡觉计时": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Sleep Timer" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "睡觉计时" } }
+      }
+    },
+    "亲喂计时": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Nursing Timer" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "亲喂计时" } }
+      }
+    },
+    "记湿尿布": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Log Wet Diaper" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "记湿尿布" } }
+      }
+    },
+    "在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Toggle baby's sleep timer with live on/off state in Control Center or Lock Screen." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在控制中心、锁屏或操作按钮一键切换宝宝睡眠计时，实时显示开关状态。" } }
+      }
+    },
+    "在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Toggle nursing timer with live on/off state in Control Center or Lock Screen." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在控制中心、锁屏或操作按钮一键切换亲喂计时，实时显示开关状态。" } }
+      }
+    },
+    "在控制中心或锁屏一键记下一次湿尿布。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Log a wet diaper in one tap from Control Center or Lock Screen." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在控制中心或锁屏一键记下一次湿尿布。" } }
+      }
+    },
+    "在控制中心或锁屏一键点亮暖琥珀床头夜灯与助眠声景。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Open Otto's warm low-glare Bedside Lamp & soundscapes in one tap." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "在控制中心或锁屏一键点亮暖琥珀床头夜灯与助眠声景。" } }
+      }
+    },
+    "摸索台灯 · 今日": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Moss & Otto · Today" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "摸索台灯 · 今日" } }
+      }
+    },
+    "月龄、今日活动与 24 小时串珠节奏；点击各区块直达活动与手帐。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Age, today's play, 24h bead rhythm, and direct links into play & journal." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "月龄、今日活动与 24 小时串珠节奏；点击各区块直达活动与手帐。" } }
+      }
+    },
+    "成长故事窗": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Story Window" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "成长故事窗" } }
+      }
+    },
+    "37 颗成长珠进度与当下成长章节，轻点直达成长册与本月主页。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Your baby's 37-bead chapter & keepsake window into Growth Book." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "37 颗成长珠进度与当下成长章节，轻点直达成长册与本月主页。" } }
+      }
+    },
+    "一键记录": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Quick Log" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "一键记录" } }
+      }
+    },
+    "无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Start or stop timers and log wet or dirty diapers right from your Home Screen." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。" } }
+      }
+    },
+    "床头台灯": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Bedside Lamp" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "床头台灯" } }
+      }
+    },
+    "专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "Warm amber StandBy lamp with live timer and direct tap to timer or night log." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "专为床头待机（StandBy）与夜间照护设计：暖琥珀微光，轻点直达计时或夜间手帐。" } }
+      }
     }
   },
   "version": "1.0"

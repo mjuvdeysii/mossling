@@ -232,7 +232,8 @@ struct GrowthView: View {
     }
 
     private func growthChart(span: Double, bands: [Band], outer: [Band], lines: [Line], pts: [(Measure, Double, Double)], now: Double?) -> some View {
-        let activeID = (picked ?? pts.last?.0)?.id
+        let visiblePts = pts.filter { $0.1 >= 0 && $0.1 <= 36.5 }
+        let activeID = (picked ?? visiblePts.last?.0 ?? pts.last?.0)?.id
         return Chart {
             // smooth vector percentile bands (Catmull-Rom interpolation)
             ForEach(bands) { b in
@@ -270,7 +271,7 @@ struct GrowthView: View {
         .chartForegroundStyleScale(["3–97": ind.tint.opacity(0.09), "15–85": ind.tint.opacity(0.15)])
         .chartLegend(.hidden)
         .chartXScale(domain: 0...span)
-        .chartYScale(domain: yDomain(outer.map(\.lo) + pts.map(\.2), outer.map(\.hi) + pts.map(\.2)))
+        .chartYScale(domain: yDomain(outer.map(\.lo) + visiblePts.map(\.2), outer.map(\.hi) + visiblePts.map(\.2)))
         .chartXAxis { AxisMarks(values: .stride(by: span <= 12 ? 2 : 6)) { v in AxisGridLine(); AxisValueLabel { if let d = v.as(Double.self) { Text(L10n.t("\(Int(d)) 个月", "\(Int(d))m")) } } } }
         .chartYAxis { AxisMarks(position: .leading) }
         .chartOverlay { proxy in
@@ -325,7 +326,10 @@ struct GrowthView: View {
                 if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                     let days = b.days(to: d)
                     let ageStr = days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d)
-                    Text(verbatim: b != app.birth ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : ageStr)
+                    let badgeText = b != app.birth
+                        ? (days >= 0 ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : "\(ageStr) · \(L10n.t("预产期前 · 实际", "Pre-EDD · Actual"))")
+                        : ageStr
+                    Text(verbatim: badgeText)
                         .font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 4)
@@ -388,7 +392,10 @@ struct GrowthView: View {
                                 if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                                     let days = b.days(to: d)
                                     let ageStr = days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d)
-                                    Text(verbatim: b != app.birth ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : ageStr)
+                                    let badgeText = b != app.birth
+                                        ? (days >= 0 ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : "\(ageStr) · \(L10n.t("预产期前 · 实际", "Pre-EDD · Actual"))")
+                                        : ageStr
+                                    Text(verbatim: badgeText)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(Palette.secondaryText)
                                         .padding(.horizontal, 7)

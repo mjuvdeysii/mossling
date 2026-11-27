@@ -97,19 +97,23 @@ enum RecordFile {
                 parsedBirth = Day(y: p[0], m: p[1], d: p[2])
             }
         }
-        let ticks = (m["ticks"] as? [[String: Any]] ?? []).compactMap { t -> Tick? in
+        func dictArray(_ raw: Any?) -> [[String: Any]]? {
+            guard let arr = raw as? [Any] else { return nil }
+            return arr.compactMap { $0 as? [String: Any] }
+        }
+        let ticks = (dictArray(m["ticks"]) ?? []).compactMap { t -> Tick? in
             guard let key = t["key"] as? String, let mo = safeInt(t["month"]), (0...60).contains(mo),
                   let kind = t["kind"] as? String else { return nil }
             return Tick(key: key, month: mo, kind: kind, label: t["label"] as? String ?? "", at: validMs(t["at"]) ?? 0)
         }
         var body = JournalFile.Body()
-        body.logs = (m["logs"] as? [[String: Any]] ?? []).compactMap { o in
+        body.logs = (dictArray(m["logs"]) ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = validMs(o["start"]) else { return nil }
             let rawEnd = validMs(o["end"])
             let clampedEnd = rawEnd.flatMap { $0 >= start ? $0 : nil }
             return LogEntry(type: type, start: start, end: clampedEnd, amount: safeInt(o["amount"]), side: o["side"] as? String, detail: o["detail"] as? String)
         }
-        body.measures = (m["measures"] as? [[String: Any]] ?? []).compactMap { o in
+        body.measures = (dictArray(m["measures"]) ?? []).compactMap { o in
             guard let at = validMs(o["at"]) else { return nil }
             let w = posInt(o["weightG"]).flatMap { (200...45_000).contains($0) ? $0 : nil }
             let l = posInt(o["lengthMm"]).flatMap { (200...1_500).contains($0) ? $0 : nil }
@@ -117,14 +121,14 @@ enum RecordFile {
             guard w != nil || l != nil || h != nil else { return nil }
             return Measure(at: at, weightG: w, lengthMm: l, headMm: h)
         }
-        let rawFirsts: [First] = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
+        let rawFirsts: [First] = (dictArray(m["firsts"]) ?? []).compactMap { o in
             guard let at = validMs(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
             let fid = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
             return First(id: fid, at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
         }
         var seenFirstIDs: Set<UUID> = []
         body.firsts = rawFirsts.filter { seenFirstIDs.insert($0.id).inserted }
-        let rawTimers: [RunningTimer] = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
+        let rawTimers: [RunningTimer] = (dictArray(m["timers"]) ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = validMs(o["start"]) else { return nil }
             let pausedAt = validMs(o["pausedAt"]).flatMap { $0 >= start ? $0 : nil }
             return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: pausedAt, pausedTotal: max(0, min(7 * 86_400_000, num(o["pausedTotal"]) ?? 0)),
@@ -137,7 +141,7 @@ enum RecordFile {
                 ("a"..."z").contains(scalar) || ("A"..."Z").contains(scalar) || ("0"..."9").contains(scalar) || scalar == "_" || scalar == "-"
             }
         }
-        let rawFoods = m["foods"] as? [[String: Any]]
+        let rawFoods = dictArray(m["foods"])
         let parsedFoods: [FoodRecord]? = rawFoods?.compactMap { o in
             guard let foodId = o["foodId"] as? String, isValidFoodID(foodId),
                   let epochDay = validEpochDay(o["firstTastedEpochDay"]),
@@ -152,7 +156,7 @@ enum RecordFile {
                 times: max(1, safeInt(o["times"]) ?? 1)
             )
         }
-        let rawCapsules = m["capsules"] as? [[String: Any]]
+        let rawCapsules = dictArray(m["capsules"])
         let decodedCapsules: [TimeCapsule]? = rawCapsules?.compactMap { o in
             guard let title = o["title"] as? String, !title.isEmpty,
                   let capBody = o["body"] as? String, !capBody.isEmpty,
@@ -397,7 +401,16 @@ enum RecordFile {
     static func csv(_ j: JournalFile.Body) -> Data {
         func day(_ ms: Double) -> String { let d = Day(Date(timeIntervalSince1970: ms / 1000)); return String(format: "%04d-%02d-%02d", d.y, d.m, d.d) }
         func t(_ ms: Double) -> String { hm(Date(timeIntervalSince1970: ms / 1000)) }
-        func q(_ v: String) -> String { v.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" }) ? "\"" + v.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : v }
+        func q(_ v: String) -> String {
+            let clean = v.replacingOccurrences(of: "\r\n", with: " ").replacingOccurrences(of: "\r", with: " ")
+            let safe: String
+            if let first = clean.first, first == "=" || first == "+" || first == "-" || first == "@" || first == "\t" {
+                safe = "'" + clean
+            } else {
+                safe = clean
+            }
+            return safe.contains(where: { $0 == "," || $0 == "\"" || $0 == "\n" }) ? "\"" + safe.replacingOccurrences(of: "\"", with: "\"\"") + "\"" : safe
+        }
         var s = L10n.t("\u{FEFF}日期,开始,结束,时长（分钟）,类型,数量,单位,侧,详情\n", "\u{FEFF}Date,Start,End,Duration (min),Type,Amount,Unit,Side,Details\n")
         for e in j.logs.sorted(by: { $0.start < $1.start }) {
             let (amt, unit): (String, String) = e.type == LogType.bottle ? ("\(e.amount ?? 0)", L10n.t("毫升", "ml")) : e.type == LogType.temp ? (e.amount.map { String(format: "%.1f", Double($0) / 10) } ?? "", "°C") : ("", "")
@@ -405,12 +418,12 @@ enum RecordFile {
             let detail: String = if e.type == LogType.diaper {
                 ["wet": L10n.t("湿", "Wet"), "dirty": L10n.t("便", "Dirty"), "both": L10n.t("湿和便", "Both")][e.detail ?? ""] ?? ""
             } else if e.type == LogType.nurse {
-                e.pausedSeconds > 0 ? "paused:\(Int(e.pausedSeconds * 1000))" : ""
+                e.pausedSeconds > 0 ? "paused:\(safeInt64(e.pausedSeconds * 1000))" : ""
             } else {
                 e.detail ?? ""
             }
-            let minutes = e.end != nil ? "\(Int((e.activeSeconds / 60).rounded(.down)))" : ""
-            s += [day(e.start), t(e.start), e.end.map(t) ?? "", minutes, LogType.name(e.type), amt, unit, side, q(detail)].joined(separator: ",") + "\n"
+            let minutes = e.end != nil ? "\(safeInt64(max(0, e.activeSeconds / 60).rounded(.down)))" : ""
+            s += [day(e.start), t(e.start), e.end.map(t) ?? "", minutes, q(LogType.name(e.type)), q(amt), q(unit), q(side), q(detail)].joined(separator: ",") + "\n"
         }
         for m in j.measures {
             if let w = m.weightG { s += [day(m.at), t(m.at), "", "", L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), L10n.t("千克", "kg"), "", ""].joined(separator: ",") + "\n" }

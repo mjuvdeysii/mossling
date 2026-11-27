@@ -116,8 +116,11 @@ struct TodayView: View {
                 Button {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
-                    j.ask = LogType.temp
                     router?.openLamp(nil)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(110))
+                        j.ask = LogType.temp
+                    }
                 } label: {
                     Label(L10n.t("记体温", "Log Temp"), systemImage: LogType.symbol(LogType.temp))
                         .dsPill(.tinted(watch.hasFever ? Crayon.cherry : Crayon.tangerine), height: 34)
@@ -127,8 +130,11 @@ struct TodayView: View {
                 Button {
                     guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
-                    j.ask = LogType.medicine
                     router?.openLamp(nil)
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(110))
+                        j.ask = LogType.medicine
+                    }
                 } label: {
                     Label(L10n.t("记用药", "Log Med"), systemImage: LogType.symbol(LogType.medicine))
                         .dsPill(.tinted(Crayon.teal), height: 34)
@@ -1064,7 +1070,7 @@ private struct BeadCount: View {
                     Circle().fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 6))
                         .frame(width: 9, height: 9)
                 }
-                Text(L10n.t("\(times) 次", "\(times)x")).font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Palette.lampTint).padding(.leading, 2)
+                Text(L10n.t("\(times) 次", "\(times)x")).font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold)).foregroundStyle(Crayon.ink(Palette.bead)).padding(.leading, 2)
             }
         }
         .accessibilityHidden(true)
@@ -1092,6 +1098,7 @@ struct ShelfEditor: View {
                 .navigationBarTitleDisplayMode(.inline)
         }
         .presentationDetents([.medium, .large])
+        .localConsentSheet()
     }
 }
 

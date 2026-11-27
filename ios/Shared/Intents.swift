@@ -27,6 +27,16 @@ actor LiveTimers {
     }
 
     private func syncNow() async {
+        let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            #if canImport(ActivityKit)
+            for a in Activity<TimerAttributes>.activities {
+                await a.end(nil, dismissalPolicy: .immediate)
+            }
+            #endif
+            ControlCenter.shared.reloadAllControls()
+            return
+        }
         #if canImport(ActivityKit)
         guard let body = try? JournalFile.load() else { return }
         let timers = body.timers
@@ -88,12 +98,13 @@ struct TimerIntent: LiveActivityIntent {
             return .result()
         }
         switch action {
-        case "start": JournalFile.startSmart(type)
+        case "start": _ = JournalFile.tryStartSmart(type)
         case "pause": JournalFile.togglePause(type)
         case "side": JournalFile.switchSide(type)
         case "tap-l": JournalFile.tapSide(type, "l")
         case "tap-r": JournalFile.tapSide(type, "r")
-        default: JournalFile.stop(type)
+        case "stop": _ = JournalFile.tryStop(type)
+        default: break
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
@@ -134,6 +145,7 @@ struct QuickLogDiaperIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
+            WidgetCenter.shared.reloadAllTimelines()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         guard JournalFile.tryQuickLog(type: LogType.diaper, detail: kind.rawValue) else {
@@ -153,7 +165,10 @@ struct UndoLastDiaperIntent: AppIntent {
     init() {}
 
     func perform() async throws -> some IntentResult {
-        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return .result() }
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return .result()
+        }
         _ = JournalFile.undoRecent(type: LogType.diaper, withinSeconds: 30)
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -190,18 +205,31 @@ struct ToggleCareTimerIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
+            await LiveTimers.sync()
+            WidgetCenter.shared.reloadAllTimelines()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
-        let running = (try? JournalFile.load())?.timers.contains(where: { $0.type == type }) ?? false
-        let ok = running ? JournalFile.tryStop(type) : JournalFile.tryStartSmart(type)
-        guard ok else {
+        var didStart = false
+        let res = JournalFile.mutate { b in
+            if b.timers.contains(where: { $0.type == type }) {
+                b = JournalFile.stopping(b, type, now: JournalFile.now())
+                didStart = false
+                return true
+            } else {
+                let chosenSide = type == LogType.nurse ? JournalFile.suggestedNurseSide(in: b.logs) : nil
+                b.timers.append(RunningTimer(type: type, start: JournalFile.now(), side: chosenSide))
+                didStart = true
+                return true
+            }
+        }
+        guard case .saved = res else {
             return .result(dialog: "\(TimerIntent.saveFailedDialog)")
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
         let name = L10n.logName(type)
-        return .result(dialog: "\(running ? L10n.t("已结束\(name)计时。", "Ended \(name.lowercased()) timer.") : L10n.t("已开始\(name)计时。", "Started \(name.lowercased()) timer."))")
+        return .result(dialog: "\(didStart ? L10n.t("已开始\(name)计时。", "Started \(name.lowercased()) timer.") : L10n.t("已结束\(name)计时。", "Ended \(name.lowercased()) timer."))")
     }
 }
 
@@ -217,7 +245,8 @@ struct SetCareTimerIntent: SetValueIntent {
 
     func perform() async throws -> some IntentResult {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            ControlCenter.shared.reloadAllControls()
+            await LiveTimers.sync()
+            WidgetCenter.shared.reloadAllTimelines()
             return .result()
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
@@ -258,6 +287,7 @@ struct QuickLogBottleIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
+            WidgetCenter.shared.reloadAllTimelines()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let clamped = max(10, min(360, amountMl))
@@ -283,6 +313,7 @@ struct QuickLogSolidIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
+            WidgetCenter.shared.reloadAllTimelines()
             return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let trimmed = foodName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -468,7 +499,25 @@ struct BabyCareStatusIntent: AppIntent {
                 BabyCareStatusSnippetView(summary: redacted)
             }
         }
-        let body = JournalFile.read()
+        guard let body = try? JournalFile.load() else {
+            let dialog = TimerIntent.saveFailedDialog
+            let unavailable = BabyCareStatusSummary(
+                babyName: L10n.appName,
+                activeTimerLabel: nil,
+                activeTimerDuration: nil,
+                lastFeedPhrase: dialog,
+                lastFeedNote: nil,
+                lastWakePhrase: dialog,
+                lastWakeNote: nil,
+                todayWetDiapers: 0,
+                todayDirtyDiapers: 0,
+                dialogText: dialog,
+                redacted: true
+            )
+            return .result(dialog: "\(dialog)") {
+                BabyCareStatusSnippetView(summary: unavailable)
+            }
+        }
         let summary = BabyCareStatusSummary.build(body: body, snap: snap, now: Date())
         return .result(dialog: "\(summary.dialogText)") {
             BabyCareStatusSnippetView(summary: summary)

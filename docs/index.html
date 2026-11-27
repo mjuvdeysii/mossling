@@ -266,7 +266,7 @@
             <div class="iphone-frame">
               <img class="lang-swap-img" loading="lazy" src="assets/screens/scr-toybox-zh.jpg" data-src-zh="assets/screens/scr-toybox-zh.jpg" data-src-en="assets/screens/scr-toybox-en.jpg" alt="摸索台灯感官玩具盒 5 间护耳玩具屋实机截图">
             </div>
-            <span class="phone-subcaption" data-zh="实机界面 · 5 间护耳玩具屋与绿色安全音量表" data-en="Real Screen · 5 Acoustic Playrooms &amp; dB Guard">实机界面 · 5 间护耳玩具屋与绿色安全音量表</span>
+            <span class="phone-subcaption" data-zh="实机界面 · 5 间护耳玩具屋与绿色安全音量表" data-en="Real Screen · 5 Acoustic Playrooms &amp; Volume Guard">实机界面 · 5 间护耳玩具屋与绿色安全音量表</span>
           </div>
         </div>
 
@@ -927,7 +927,7 @@
           <div class="tools-grid">
             <article class="tool-card">
               <h3 data-zh="WHO 6 项大运动宽光谱尺" data-en="WHO 6-Band Gross Motor Ruler">WHO 6 项大运动宽光谱尺</h3>
-              <p data-zh="拖动宝宝当前月龄（4–18 个月），看看健康的发育窗口其实比焦虑短视频宽得多。" data-en="Slide between 4 and 18 months to view true WHO MGRS healthy variability bands (5th–95th percentile).">
+              <p data-zh="拖动宝宝当前月龄（4–18 个月），看看健康的发育窗口其实比焦虑短视频宽得多。" data-en="Slide between 4 and 18 months to view true WHO MGRS healthy variability bands (1st–99th percentile).">
                 拖动宝宝当前月龄（4–18 个月），看看健康的发育窗口其实比焦虑短视频宽得多。
               </p>
               <div class="tool-field">
@@ -1361,9 +1361,10 @@
 
       function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
       function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+      var activeLang = storageGet("mossling-lang") === "en" ? "en" : "zh";
 
       function getLang() {
-        return storageGet("mossling-lang") === "en" ? "en" : "zh";
+        return activeLang;
       }
 
       /* Web Audio helper (strictly created on explicit user click) */
@@ -1878,7 +1879,7 @@
           f1dZh: "使用家里的丝巾、杯子或手电即可开玩，含分步绘本动图与单手可拉动的木珠步骤条。",
           f1dEn: "Everyday household props with animated storybook stages and an interactive wooden bead scrubber.",
           f2tZh: "感官玩具盒与护耳安全音量",
-          f2tEn: "Sensory Toybox & Ear-Safe Guard",
+          f2tEn: "Sensory Toybox & Volume Guard",
           f2dZh: "内置八音木琴、光学手影墙、木珠雨棒、萤火虫与视觉卡五种工具，实时提示柔和护耳音量区间。",
           f2dEn: "Xylophone, optical shadow wall, rainstick, fireflies & contrast cards with live ear-safe volume guidance.",
           f3tZh: "60 种植物学百味食盒与端侧抠图贴纸",
@@ -2470,13 +2471,21 @@
       }
       if (whoSlider) whoSlider.addEventListener("input", renderWhoRuler);
 
+      function formatLocalYMD(dt) {
+        var y = dt.getFullYear();
+        var m = String(dt.getMonth() + 1).padStart(2, "0");
+        var d = String(dt.getDate()).padStart(2, "0");
+        return y + "-" + m + "-" + d;
+      }
+
       /* Micro-Tool 2: Preterm Corrected Age Calculator */
       var ptBirthInput = document.getElementById("ptBirthInput");
       var ptWeeksInput = document.getElementById("ptWeeksInput");
       var ptResultBox = document.getElementById("ptResultBox");
       if (ptBirthInput && !ptBirthInput.value) {
-        var defaultB = new Date(Date.now() - 150 * 86400000);
-        ptBirthInput.value = defaultB.toISOString().slice(0, 10);
+        var nowDefault = new Date();
+        var defaultB = new Date(nowDefault.getFullYear(), nowDefault.getMonth(), nowDefault.getDate() - 150);
+        ptBirthInput.value = formatLocalYMD(defaultB);
       }
 
       function renderPretermCalc() {
@@ -2506,7 +2515,7 @@
           return;
         }
         var shiftDays = (40 - weeks) * 7;
-        var dueDate = new Date(birth.getTime() + shiftDays * 86400000);
+        var dueDate = new Date(birth.getFullYear(), birth.getMonth(), birth.getDate() + shiftDays);
         var corrDays = Math.floor((todayMidnight - dueDate) / 86400000);
         if (actualMo >= 24) {
           ptResultBox.textContent = lang === "en"
@@ -2514,7 +2523,7 @@
             : ("早产 " + weeks + " 周（现已满 24 月龄以上，儿保与生长曲已平滑衔接实际月龄 " + actualMo + " 个月）。");
           return;
         }
-        var dueStr = dueDate.toISOString().slice(0, 10);
+        var dueStr = formatLocalYMD(dueDate);
         if (corrDays < 0) {
           ptResultBox.textContent = lang === "en"
             ? ("Preterm " + weeks + "w · Expected due date " + dueStr + " (" + (-corrDays) + " days away). Compare floor play against Month 0.")
@@ -2596,13 +2605,14 @@
 
       /* Global Bilingual Sync */
       function applyLang(lang) {
-        html.setAttribute("data-lang", lang);
-        html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        storageSet("mossling-lang", lang);
-        if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
+        activeLang = lang === "en" ? "en" : "zh";
+        html.setAttribute("data-lang", activeLang);
+        html.setAttribute("lang", activeLang === "en" ? "en" : "zh-Hans");
+        storageSet("mossling-lang", activeLang);
+        if (langBtn) langBtn.textContent = activeLang === "en" ? "中文" : "EN";
 
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
-          var txt = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
+          var txt = el.getAttribute(activeLang === "en" ? "data-en" : "data-zh");
           if (txt !== null) el.textContent = txt;
         });
 

@@ -182,9 +182,12 @@ jobs:
           set -o pipefail
           X=$(ls -d /Applications/Xcode_*.app /Applications/Xcode.app 2>/dev/null | sort -V | tail -1); sudo xcode-select -s "$X"
           xcodebuild -showComponent MetalToolchain 2>/dev/null | grep -q "Status: installed" || xcodebuild -downloadComponent MetalToolchain
-          # The app group (shared journal for the widget) is used only once it is set up on the developer account:
-          # repository variable APP_GROUP=1. Until then the app and widget are signed without it.
+          # Require App Group entitlement on push / TestFlight Release builds so widgets, Control Center & Live Activities stay intact.
           if [ "${{ vars.APP_GROUP }}" != "1" ]; then
+            if [ "${{ github.event_name }}" = "push" ] || [ "${{ inputs.upload_testflight }}" = "true" ]; then
+              echo "::error::Repository variable APP_GROUP must be '1' for push/TestFlight builds."
+              exit 1
+            fi
             for f in Mossling/Resources/Mossling.entitlements Widget/Widget.entitlements; do
               printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0"><dict/></plist>\n' > "$f"
             done

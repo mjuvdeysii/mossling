@@ -116,7 +116,7 @@ struct TodayFace: View {
                             Text(L10n.logName(t.type))
                             if let p = t.pausedAt { Text(L10n.duration(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
                         }.font(.caption).lineLimit(1).minimumScaleFactor(0.72).privacySensitive()
-                    } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1).minimumScaleFactor(0.8) }
+                    } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1).minimumScaleFactor(0.8).privacySensitive() }
                     if journal, let f = lastFeed { Text("\(L10n.t("喂奶", "Fed")) \(agoText(f))").font(.caption).lineLimit(1).minimumScaleFactor(0.75).privacySensitive() }
                 }
             }
@@ -133,7 +133,7 @@ struct TodayFace: View {
                 Image(systemName: locked ? "lock.fill" : "lamp.desk.fill").font(.title3)
             } else if let t = body_.timers.first {
                 VStack(spacing: 1) {
-                    Image(systemName: t.type == LogType.sleep ? "moon.zzz.fill" : "drop.fill").font(.caption2)
+                    Image(systemName: LogType.symbol(t.type)).font(.caption2).privacySensitive()
                     if let p = t.pausedAt {
                         Text(L10n.duration(t.total(p)))
                             .font(.system(size: 11, weight: .bold, design: .rounded))
@@ -155,7 +155,7 @@ struct TodayFace: View {
                 .padding(4)
             } else if journal, let f = lastFeed {
                 VStack(spacing: 1) {
-                    Image(systemName: "drop.fill").font(.caption2)
+                    Image(systemName: LogType.symbol(LogType.nurse)).font(.caption2)
                     Text(agoCard(f)).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
                 }
                 .padding(4)
@@ -242,6 +242,7 @@ struct TodayFace: View {
                 ArtImage(name: WidgetArt.tray(code)).frame(width: 60, height: 45)
                 Text(name).font(.footnote.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.7)
             }
+            .privacySensitive()
             if linked {
                 Link(destination: WidgetLinks.play(code)) { content }
             } else {
@@ -431,7 +432,6 @@ struct TodayFace: View {
                                         Circle().fill(isSleeping ? Crayon.lilac : WidgetInk.bead).frame(width: 6, height: 6)
                                         Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent).lineLimit(1).minimumScaleFactor(0.8)
                                     }
-                                    .privacySensitive()
                                     Text(name)
                                         .font(.system(size: 15, weight: .bold, design: .rounded))
                                         .foregroundStyle(.primary)
@@ -443,6 +443,7 @@ struct TodayFace: View {
                                 }
                                 Spacer(minLength: 4)
                             }
+                            .privacySensitive()
                             .contentShape(Rectangle())
                         }
                         if canShuffle {
@@ -490,6 +491,7 @@ struct TodayFace: View {
                                         .background(WidgetInk.accent.opacity(0.14), in: Capsule())
                                 }
                                 .buttonStyle(.plain)
+                                .privacySensitive()
                                 .transition(.scale(scale: 0.85).combined(with: .opacity))
                             }
                         }
@@ -715,6 +717,7 @@ struct QuickCareFace: View {
                     .frame(width: stickerSize, height: stickerSize)
                     .padding(2)
                     .overlay(Circle().stroke(c.opacity(running ? 0.65 : 0), lineWidth: 2.5))
+                    .privacySensitive()
                 if let t {
                     if let p = t.pausedAt {
                         Text(L10n.duration(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).lineLimit(1).minimumScaleFactor(0.75).privacySensitive()
@@ -753,12 +756,14 @@ struct QuickCareFace: View {
                                 .overlay(Circle().stroke(isFullColor ? WidgetInk.card : Color.clear, lineWidth: 1.5))
                         }
                     }
+                    .privacySensitive()
                 Text(justLogged ? (tapToUndo ? L10n.t("已记·撤销", "Undo") : L10n.t("已记", "Logged")) : title)
                     .font(.caption2.weight(justLogged ? .bold : .semibold))
                     .foregroundStyle(justLogged ? WidgetInk.accent : .primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .contentTransition(.opacity)
+                    .privacySensitive(justLogged)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
 
@@ -926,6 +931,7 @@ struct BedsideLampFace: View {
                 HStack(alignment: .center, spacing: 10) {
                     ArtImage(name: WidgetArt.sticker(t.type))
                         .frame(width: isMedium ? 36 : 26, height: isMedium ? 36 : 26)
+                        .privacySensitive()
                         .widgetAccentable()
                     VStack(alignment: .leading, spacing: 1) {
                         Text(L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil))
@@ -1262,7 +1268,9 @@ struct TimerFace: View {
         let c = LogType.color(type)
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                ArtImage(name: WidgetArt.sticker(type)).frame(width: 38, height: 38)
+                ArtImage(name: WidgetArt.sticker(type))
+                    .frame(width: 38, height: 38)
+                    .privacySensitive()
                 VStack(alignment: .leading, spacing: 0) {
                     Text(L10n.timerStatus(type, side: s.side, paused: s.pausedAt != nil))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))

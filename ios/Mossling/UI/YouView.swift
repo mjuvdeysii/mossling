@@ -1016,6 +1016,9 @@ private struct DataRow: View {
 struct ProfileSheet: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
+    @State private var nickname = ""
+    @State private var sex: String? = nil
+    @State private var gestationalWeeks: Int? = nil
     @State private var date = Calendar.current.date(byAdding: .month, value: -3, to: Date())!
     @State private var hasBirth = false
     var body: some View {
@@ -1023,23 +1026,23 @@ struct ProfileSheet: View {
             Form {
                 // the child's own portrait at the head of the sheet, as on 我的
                 Section {
-                    HStack { Spacer(); BabyPortrait(month: app.babyMonth ?? 0, sex: app.sex, giggle: 0).frame(width: 92, height: 92); Spacer() }
+                    HStack { Spacer(); BabyPortrait(month: app.babyMonth ?? 0, sex: sex ?? app.sex, giggle: 0).frame(width: 92, height: 92); Spacer() }
                         .listRowBackground(Color.clear)
                 }
                 Section {
                     LabeledContent(L10n.t("小名", "Nickname")) {
-                        TextField(L10n.t("小名", "Nickname"), text: Binding(get: { app.nickname }, set: { app.nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
+                        TextField(L10n.t("小名", "Nickname"), text: Binding(get: { nickname }, set: { nickname = String($0.prefix(12)) })).multilineTextAlignment(.trailing)
                     }
                     DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: Calendar.current.date(byAdding: .year, value: -4, to: Date())!...Date(), displayedComponents: .date)
                         .onChange(of: date) { _, _ in hasBirth = true }
-                    Picker(L10n.t("性别", "Sex"), selection: Binding(get: { app.sex ?? "" }, set: { app.sex = $0.isEmpty ? nil : $0 })) {
+                    Picker(L10n.t("性别", "Sex"), selection: Binding(get: { sex ?? "" }, set: { sex = $0.isEmpty ? nil : $0 })) {
                         Text(L10n.t("不填", "Not set")).tag(""); Text(L10n.t("男孩", "Boy")).tag("boy"); Text(L10n.t("女孩", "Girl")).tag("girl")
                     }
                     Picker(
                         L10n.t("出生孕周", "Gestational Age"),
                         selection: Binding(
-                            get: { app.gestationalWeeks ?? 0 },
-                            set: { app.gestationalWeeks = Age.isPreterm($0) ? $0 : nil }
+                            get: { gestationalWeeks ?? 0 },
+                            set: { gestationalWeeks = Age.isPreterm($0) ? $0 : nil }
                         )
                     ) {
                         Text(L10n.t("足月（37 周及以上）", "Full term (37+ wks)")).tag(0)
@@ -1050,7 +1053,7 @@ struct ProfileSheet: View {
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(L10n.t("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。", "Used only for WHO growth curves."))
-                        if let gw = app.gestationalWeeks, Age.isPreterm(gw) {
+                        if let gw = gestationalWeeks, Age.isPreterm(gw) {
                             Text(L10n.t("按早产 \(gw) 周自动计算矫正月龄（截至 24 月龄前用于共玩推荐与 WHO 生长曲线评估）。", "Automatically applies AAP corrected age up to 24 months for play pacing and WHO growth curves (\(gw) wks)."))
                         } else {
                             Text(L10n.t("若宝宝为 37 周前早产，选择出生孕周后将自动双轨显示「矫正月龄」与「实际月龄」。", "If born before 37 weeks, selecting gestational age enables dual corrected and actual age tracking."))
@@ -1061,10 +1064,27 @@ struct ProfileSheet: View {
             .scrollContentBackground(.hidden)
             .pageBackground(tone: Crayon.lilac)
             .navigationTitle(L10n.t("宝宝", "Baby")).navigationBarTitleDisplayMode(.inline)
-            .toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if hasBirth { app.birth = Day(date) }; dismiss() } } }
-            .onAppear { if let b = app.birth { date = b.date } }
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.t("完成", "Done"), systemImage: "checkmark") {
+                        guard app.mayKeep() else { return }
+                        app.nickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
+                        app.sex = sex
+                        app.gestationalWeeks = gestationalWeeks
+                        if hasBirth { app.birth = Day(date) }
+                        dismiss()
+                    }
+                }
+            }
+            .onAppear {
+                nickname = app.nickname
+                sex = app.sex
+                gestationalWeeks = app.gestationalWeeks
+                if let b = app.birth { date = b.date }
+            }
         }
         .presentationDetents([.large])
+        .localConsentSheet()
     }
 }
 

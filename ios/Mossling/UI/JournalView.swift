@@ -13,11 +13,15 @@ enum JournalKinds {
 
 /// A feed or sleep still running, at the top of today's line: its start, how long so far; a tap opens its timer.
 struct RunningRow: View {
+    @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     let timer: RunningTimer
     var body: some View {
         let c = LogType.color(timer.type)
-        Button { j.focus = timer.type } label: {
+        Button {
+            guard app.mayKeep() else { return }
+            j.focus = timer.type
+        } label: {
             TimelineView(.periodic(from: .now, by: 30)) { tl in
                 let state = (timer.pausedAt != nil ? L10n.t("已暂停 ", "Paused ") : L10n.t("进行中 ", "Active ")) + durationValue(timer.total(tl.date.timeIntervalSince1970 * 1000))
                 ViewThatFits(in: .horizontal) {
@@ -479,6 +483,7 @@ private struct CompactEntryRow: View {
 /// The running timer, small, above the tab bar on every tab; tap to open it. Only pause sits here: ending is done on
 /// the timer screen, in its own band, never a few points from pause (a mis-tap would end a feed).
 struct TimerAccessory: View {
+    @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
     let timer: RunningTimer
@@ -491,6 +496,7 @@ struct TimerAccessory: View {
         let isPaused = timer.pausedAt != nil
         HStack(spacing: 12) {
             Button {
+                guard app.mayKeep() else { return }
                 TactileEngine.shared.beadClick()
                 j.focus = timer.type
             } label: {
@@ -528,6 +534,7 @@ struct TimerAccessory: View {
             .accessibilityLabel(L10n.t("打开\(LogType.name(timer.type))计时", "Open \(LogType.name(timer.type)) timer"))
             if let o = also {
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     j.focus = o.type
                 } label: {
@@ -542,6 +549,7 @@ struct TimerAccessory: View {
                 .accessibilityLabel(L10n.t("打开\(LogType.name(o.type))计时", "Open \(LogType.name(o.type)) timer"))
             }
             Button {
+                guard app.mayKeep() else { return }
                 TactileEngine.shared.dimmerTick()
                 j.togglePause(timer.type)
             } label: {

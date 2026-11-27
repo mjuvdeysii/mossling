@@ -399,6 +399,8 @@ final class SoundscapeEngine {
     private(set) var remainingSeconds: Int? = nil
     /// Becomes `true` only when a finite auto-fade timer reaches zero naturally (used to dim the Bedside Lamp into ember rest).
     private(set) var didFinishAutoFade: Bool = false
+    /// Remembers layer 2 when paused via lock-screen / Control Center remote commands so resume restores both layers.
+    private var pausedSecondary: SoundscapeKind? = nil
 
     var isPlaying: Bool { active != nil }
     var hasActiveEngine: Bool { engine != nil || active != nil }
@@ -512,6 +514,7 @@ final class SoundscapeEngine {
         }
         active = kind
         lastUsedKind = kind
+        pausedSecondary = nil
         if !preserveTimer || (duration != .continuous && countdownTask == nil) {
             scheduleTimer()
         }
@@ -536,21 +539,36 @@ final class SoundscapeEngine {
     }
 
     func stop() {
+        stop(preservingRemoteResume: false)
+    }
+
+    private func stop(preservingRemoteResume: Bool) {
         didFinishAutoFade = false
         countdownTask?.cancel()
         countdownTask = nil
-        remainingSeconds = nil
+        let savedRem = preservingRemoteResume ? remainingSeconds : nil
+        let pausedTitle = preservingRemoteResume ? (activeSummary ?? lastUsedKind.title) : nil
+        if preservingRemoteResume {
+            pausedSecondary = secondary
+        } else {
+            pausedSecondary = nil
+        }
+        remainingSeconds = savedRem
         active = nil
         secondary = nil
         dsp.targetGain = 0.0
         dsp.layerTargetMix = 0.0
-        dsp.layerKindRaw = -1
         guard !isTestHost else {
+            dsp.layerKindRaw = -1
             dsp.layerCurrentMix = 0.0
             dsp.currentGain = 0.0
             return
         }
-        clearNowPlaying()
+        if preservingRemoteResume {
+            updateNowPlaying(rate: 0.0, titleOverride: pausedTitle)
+        } else {
+            clearNowPlaying()
+        }
         teardownTask?.cancel()
         teardownTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
@@ -559,7 +577,7 @@ final class SoundscapeEngine {
         }
     }
 
-    /// Synchronously halts audio graph without delayed session deactivation (used when handing off to voice recording).
+    /// Synchronously halts audio graph without delayed session deactivation (used when handing off to voice recording or unplugging headphones).
     func stopImmediately(deactivateSession: Bool = false) {
         teardownTask?.cancel()
         teardownTask = nil
@@ -567,16 +585,18 @@ final class SoundscapeEngine {
         countdownTask?.cancel()
         countdownTask = nil
         remainingSeconds = nil
+        pausedSecondary = nil
         active = nil
         secondary = nil
         dsp.targetGain = 0.0
         dsp.layerTargetMix = 0.0
-        dsp.layerKindRaw = -1
-        dsp.layerCurrentMix = 0.0
         if !isTestHost {
             clearNowPlaying()
             teardownAudioGraph(deactivateSession: deactivateSession)
+        } else {
+            dsp.layerKindRaw = -1
         }
+        dsp.layerCurrentMix = 0.0
         dsp.currentGain = 0.0
     }
 
@@ -610,9 +630,22 @@ final class SoundscapeEngine {
         }
     }
 
+    private func syncDSPSecondaryLayer() {
+        if let sec = secondary, let idx = SoundscapeKind.allCases.firstIndex(of: sec) {
+            dsp.layerKindRaw = idx
+            dsp.layerTargetMix = 1.0
+        } else {
+            dsp.layerKindRaw = -1
+            dsp.layerTargetMix = 0.0
+        }
+    }
+
     @discardableResult
     private func startAudioGraph() -> Bool {
-        if let e = engine, e.isRunning { return true }
+        if let e = engine, e.isRunning {
+            syncDSPSecondaryLayer()
+            return true
+        }
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [])
@@ -632,6 +665,7 @@ final class SoundscapeEngine {
             try eng.start()
             engine = eng
             sourceNode = node
+            syncDSPSecondaryLayer()
             return true
         } catch {
             teardownAudioGraph(deactivateSession: false)
@@ -672,17 +706,23 @@ final class SoundscapeEngine {
                 self?.handleRouteChange(reasonVal: reasonVal)
             }
         }
-        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
+        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] note in
+            let senderID = note.object.map { ObjectIdentifier($0 as AnyObject) }
             Task { @MainActor [weak self] in
-                self?.handleEngineConfigurationChange()
+                self?.handleEngineConfigurationChange(senderID: senderID)
             }
         }
     }
 
-    private func handleEngineConfigurationChange() {
-        guard active != nil, !isTestHost, engine?.isRunning != true else { return }
+    private func handleEngineConfigurationChange(senderID: ObjectIdentifier?) {
+        guard active != nil, !isTestHost,
+              let eng = engine, senderID == ObjectIdentifier(eng),
+              !eng.isRunning else { return }
         teardownAudioGraph(deactivateSession: false)
-        startAudioGraph()
+        guard startAudioGraph() else {
+            stopImmediately(deactivateSession: false)
+            return
+        }
         updateNowPlaying()
     }
 
@@ -701,7 +741,12 @@ final class SoundscapeEngine {
                 try? AVAudioSession.sharedInstance().setActive(true)
                 if engine?.isRunning != true {
                     teardownAudioGraph(deactivateSession: false)
-                    startAudioGraph()
+                    guard startAudioGraph() else {
+                        stopImmediately(deactivateSession: false)
+                        return
+                    }
+                } else {
+                    syncDSPSecondaryLayer()
                 }
                 if duration != .continuous, countdownTask == nil, let rem = remainingSeconds {
                     scheduleTimer(from: rem)
@@ -724,13 +769,16 @@ final class SoundscapeEngine {
         guard active != nil, let reasonVal,
               let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
         if reason == .oldDeviceUnavailable {
-            // Unplugging headphones gently stops playback instead of startling a sleeping baby over speaker
-            stop()
+            // Unplugging headphones immediately stops playback instead of startling a sleeping baby over speaker
+            stopImmediately(deactivateSession: true)
             return
         }
         if engine?.isRunning != true {
             teardownAudioGraph(deactivateSession: false)
-            startAudioGraph()
+            guard startAudioGraph() else {
+                stopImmediately(deactivateSession: false)
+                return
+            }
             updateNowPlaying()
         }
     }
@@ -746,12 +794,12 @@ final class SoundscapeEngine {
         }
         cc.pauseCommand.isEnabled = true
         cc.pauseCommand.addTarget { [weak self] _ in
-            Task { @MainActor [weak self] in self?.stop() }
+            Task { @MainActor [weak self] in self?.stop(preservingRemoteResume: true) }
             return .success
         }
         cc.stopCommand.isEnabled = true
         cc.stopCommand.addTarget { [weak self] _ in
-            Task { @MainActor [weak self] in self?.stop() }
+            Task { @MainActor [weak self] in self?.stop(preservingRemoteResume: false) }
             return .success
         }
         cc.togglePlayPauseCommand.isEnabled = true
@@ -759,7 +807,7 @@ final class SoundscapeEngine {
             Task { @MainActor [weak self] in
                 guard let self else { return }
                 if self.isPlaying {
-                    self.stop()
+                    self.stop(preservingRemoteResume: true)
                 } else {
                     self.resumeFromRemoteCommand()
                 }
@@ -770,11 +818,15 @@ final class SoundscapeEngine {
 
     private func resumeFromRemoteCommand() {
         guard active == nil else { return }
+        let restoreSecondary = pausedSecondary
         start(lastUsedKind, preserveTimer: remainingSeconds != nil)
+        if let sec = restoreSecondary, sec != lastUsedKind, active != nil {
+            toggleLayer(sec)
+        }
     }
 
-    private func updateNowPlaying(rate: Double = 1.0) {
-        guard !isTestHost, let title = activeSummary else { return }
+    private func updateNowPlaying(rate: Double = 1.0, titleOverride: String? = nil) {
+        guard !isTestHost, let title = titleOverride ?? activeSummary else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPMediaItemPropertyArtist: L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"),

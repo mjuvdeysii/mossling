@@ -457,10 +457,13 @@
 
       function decodeFragment() {
         var h = window.location.hash || "";
-        if (!h || h.indexOf("d=") === -1) return { status: "none", payload: null };
+        var clean = h.replace(/^#/, "");
+        if (!clean) return { status: "none", payload: null };
+        var parts = clean.split("&");
+        var raw = parts.find(function (p) { return p === "d" || p.indexOf("d=") === 0; });
+        if (!raw) return { status: "none", payload: null };
+        if (raw === "d" || raw.length <= 2) return { status: "invalid", payload: null };
         try {
-          var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
-          if (!raw || raw.length <= 2) return { status: "invalid", payload: null };
           var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
           while (b64.length % 4) b64 += "=";
           var bin = atob(b64);
@@ -569,15 +572,22 @@
         }
 
         var elapsedEl = document.getElementById("beaconElapsed");
-        if (elapsedEl && data.ts) {
-          var mins = Math.max(0, Math.floor((Date.now() - Number(data.ts)) / 60000));
-          if (mins < 1) {
-            elapsedEl.textContent = activeLang === "en" ? "Shared just now" : "刚刚生成于发起方 iPhone";
-          } else if (mins < 60) {
-            elapsedEl.textContent = activeLang === "en" ? ("Shared " + mins + "m ago") : ("生成于 " + mins + " 分钟前");
+        if (elapsedEl) {
+          var tsNum = Number(data.ts);
+          if (data.ts !== undefined && data.ts !== null && isFinite(tsNum) && tsNum > 0) {
+            var mins = Math.max(0, Math.floor((Date.now() - tsNum) / 60000));
+            if (mins < 1) {
+              elapsedEl.textContent = activeLang === "en" ? "Shared just now" : "刚刚生成于发起方 iPhone";
+            } else if (mins < 60) {
+              elapsedEl.textContent = activeLang === "en" ? ("Shared " + mins + "m ago") : ("生成于 " + mins + " 分钟前");
+            } else {
+              var hrs = Math.floor(mins / 60);
+              elapsedEl.textContent = activeLang === "en" ? ("Shared " + hrs + "h ago") : ("生成于 " + hrs + " 小时前");
+            }
           } else {
-            var hrs = Math.floor(mins / 60);
-            elapsedEl.textContent = activeLang === "en" ? ("Shared " + hrs + "h ago") : ("生成于 " + hrs + " 小时前");
+            elapsedEl.textContent = isLive
+              ? (activeLang === "en" ? "From family iPhone" : "来自家庭 iPhone")
+              : (activeLang === "en" ? "Sample handover card" : "示例传灯交接卡");
           }
         }
       }

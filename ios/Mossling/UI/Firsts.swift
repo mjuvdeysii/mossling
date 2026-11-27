@@ -143,6 +143,7 @@ struct FirstSheet: View {
     @State private var failed = false
     @State private var pickedPhoto: PhotosPickerItem? = nil
     @State private var photoImage: UIImage? = nil
+    @State private var photoDirty = false
     @State private var removeExistingPhoto = false
     @State private var voiceController = FirstVoiceController.shared
     @State private var draftVoiceURL: URL? = nil
@@ -186,6 +187,9 @@ struct FirstSheet: View {
                         .disabled(isSaving || first.title.trimmingCharacters(in: .whitespaces).isEmpty)
                     if !isNew {
                         Button(L10n.t("删除这个第一次", "Delete this first"), role: .destructive) {
+                            if voiceController.playingID == first.id {
+                                voiceController.stopPlayback()
+                            }
                             j.deleteFirst(first)
                             dismiss()
                         }
@@ -212,6 +216,8 @@ struct FirstSheet: View {
         .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: cheers)
         .onAppear {
+            failed = false
+            voiceController.clearError()
             voiceController.refreshPermission()
             guard !didInit else { return }
             didInit = true
@@ -260,6 +266,7 @@ struct FirstSheet: View {
                     await MainActor.run {
                         withAnimation(.snappy) {
                             photoImage = img
+                            photoDirty = true
                             removeExistingPhoto = false
                         }
                         TactileEngine.shared.beadClick()
@@ -280,6 +287,7 @@ struct FirstSheet: View {
                     Button(L10n.t("移除", "Remove"), role: .destructive) {
                         withAnimation(.snappy) {
                             photoImage = nil
+                            photoDirty = false
                             pickedPhoto = nil
                             removeExistingPhoto = true
                         }
@@ -601,29 +609,46 @@ struct FirstSheet: View {
            FileManager.default.fileExists(atPath: draftURL.path) {
             voiceToSave = draftURL
         }
+        var savedNewVoice = false
+        var savedNewPhoto = false
+        if let draftURL = voiceToSave {
+            guard FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil else {
+                isSaving = false
+                failed = true
+                return
+            }
+            savedNewVoice = true
+        }
+        if photoDirty, let img = photoImage {
+            guard FirstPhotoStore.save(img, for: f.id) else {
+                if isNew && savedNewVoice {
+                    FirstVoiceStore.delete(for: f.id)
+                }
+                isSaving = false
+                failed = true
+                return
+            }
+            savedNewPhoto = true
+        }
         guard j.saveFirst(f) else {
+            if isNew {
+                if savedNewVoice { FirstVoiceStore.delete(for: f.id) }
+                if savedNewPhoto { FirstPhotoStore.delete(for: f.id) }
+            }
             isSaving = false
             failed = true
             return
         }
         if let draftURL = voiceToSave {
-            if FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil {
-                voiceController.discardTemp(draftURL)
-                draftVoiceURL = nil
-            } else {
-                isSaving = false
-                failed = true
-                return
-            }
+            voiceController.discardTemp(draftURL)
+            draftVoiceURL = nil
         } else if removeExistingVoice {
             FirstVoiceStore.delete(for: f.id)
         }
-        didSave = true
-        if let img = photoImage {
-            FirstPhotoStore.save(img, for: f.id)
-        } else if removeExistingPhoto {
+        if removeExistingPhoto {
             FirstPhotoStore.delete(for: f.id)
         }
+        didSave = true
         TactileEngine.shared.goldChime()
         cheers += 1
         Task { @MainActor in try? await Task.sleep(for: .milliseconds(650)); dismiss() }
@@ -645,6 +670,7 @@ struct FirstsView: View {
     @State private var viewingPhoto: First?
     @State private var photoVersion = FirstPhotoVersion.shared
     @State private var voiceVersion = FirstVoiceVersion.shared
+    @State private var voiceController = FirstVoiceController.shared
     @State private var celebCheers = 0
     /// The first just kept: its bead on the thread blooms like a drop of colour on wet paper, once.
     @State private var fresh: First.ID?
@@ -676,6 +702,15 @@ struct FirstsView: View {
             VStack(alignment: .leading, spacing: 18) {
                 summary(photoCount: photoEntries.count, voiceCount: voiceCount, dark: dark)
 
+                if let err = voiceController.errorMessage {
+                    Label(err, systemImage: "exclamationmark.triangle.fill")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.danger)
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .printCard(radius: Radius.inner, fill: dark ? Palette.lampCard : Palette.card)
+                }
+
                 if !photoEntries.isEmpty {
                     polaroidGarland(entries: photoEntries, dark: dark)
                 }
@@ -694,6 +729,9 @@ struct FirstsView: View {
                             onViewPhoto: { viewingPhoto = f },
                             onDelete: {
                                 TactileEngine.shared.beadClick()
+                                if voiceController.playingID == f.id {
+                                    voiceController.stopPlayback()
+                                }
                                 j.deleteFirst(f)
                             }
                         )
@@ -729,6 +767,9 @@ struct FirstsView: View {
             fresh = n
             celebCheers += 1
             Task { @MainActor in try? await Task.sleep(for: .milliseconds(2200)); if fresh == n { fresh = nil } }
+        }
+        .onAppear {
+            voiceController.clearError()
         }
         .onDisappear {
             FirstVoiceController.shared.stopPlayback()
@@ -1070,10 +1111,10 @@ private struct FirstRow: View {
                                         .font(.caption.weight(.bold))
                                         .monospacedDigit()
                                         .fixedSize(horizontal: true, vertical: false)
-                                        .foregroundStyle(Color(hex: 0x4A3300))
+                                        .foregroundStyle(Crayon.glyph(on: Palette.bead))
                                         .padding(.horizontal, 8)
                                         .padding(.vertical, 3)
-                                        .background(Capsule().fill(Palette.bead.opacity(0.88)))
+                                        .background(Capsule().fill(Palette.bead))
                                 }
                                 Text(whenLabelDay(first.date))
                                     .font(.caption)
@@ -1324,7 +1365,7 @@ struct FirstStamps: View {
         let _ = photoVersion.tick
         let _ = voiceVersion.tick
         VStack(alignment: .leading, spacing: 8) {
-            Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Color(hex: 0x8A6400))
+            Label(L10n.t("第一次", "Firsts"), systemImage: "star.fill").font(.caption.weight(.bold)).foregroundStyle(Crayon.ink(Palette.bead))
             WrapLayout(spacing: 6) {
                 ForEach(firsts) { f in
                     NavigationLink(value: KeepsakesRoute.firsts) {

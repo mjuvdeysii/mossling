@@ -15,21 +15,33 @@ enum FoodStickerStore {
         return c
     }()
 
-    static func url(for foodId: String, in dir: URL = folder) -> URL {
-        dir.appendingPathComponent("\(foodId).png")
+    private static func isSafeFoodID(_ raw: String) -> Bool {
+        !raw.isEmpty && raw.count <= 64 && raw.unicodeScalars.allSatisfy { s in
+            ("a"..."z").contains(s) || ("A"..."Z").contains(s) || ("0"..."9").contains(s) || s == "_" || s == "-"
+        }
+    }
+
+    static func url(for foodId: String, in dir: URL = folder) -> URL? {
+        guard isSafeFoodID(foodId) else { return nil }
+        let base = dir.standardizedFileURL
+        let candidate = base.appendingPathComponent("\(foodId).png").standardizedFileURL
+        let basePath = base.path.hasSuffix("/") ? base.path : base.path + "/"
+        guard candidate.path.hasPrefix(basePath) else { return nil }
+        return candidate
     }
 
     static func exists(for foodId: String, in dir: URL = folder) -> Bool {
-        FileManager.default.fileExists(atPath: url(for: foodId, in: dir).path)
+        guard let target = url(for: foodId, in: dir) else { return false }
+        return FileManager.default.fileExists(atPath: target.path)
     }
 
     @discardableResult
     static func save(_ image: UIImage, for foodId: String, maxDimension: CGFloat = 512, in dir: URL = folder) -> Bool {
+        guard let target = url(for: foodId, in: dir) else { return false }
         let resized = downscalePreservingAlpha(image, maxDimension: maxDimension)
         guard let data = resized.pngData() else { return false }
         do {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
-            let target = url(for: foodId, in: dir)
             try data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             if dir == folder {
                 cache.setObject(resized, forKey: foodId as NSString)
@@ -42,10 +54,10 @@ enum FoodStickerStore {
     }
 
     static func load(for foodId: String, in dir: URL = folder) -> UIImage? {
+        guard let target = url(for: foodId, in: dir) else { return nil }
         if dir == folder, let hit = cache.object(forKey: foodId as NSString) {
             return hit
         }
-        let target = url(for: foodId, in: dir)
         guard let data = try? Data(contentsOf: target), let img = UIImage(data: data) else { return nil }
         if dir == folder {
             cache.setObject(img, forKey: foodId as NSString)
@@ -54,7 +66,8 @@ enum FoodStickerStore {
     }
 
     static func delete(for foodId: String, in dir: URL = folder) {
-        try? FileManager.default.removeItem(at: url(for: foodId, in: dir))
+        guard let target = url(for: foodId, in: dir) else { return }
+        try? FileManager.default.removeItem(at: target)
         if dir == folder {
             cache.removeObject(forKey: foodId as NSString)
             Task { @MainActor in FoodStickerVersion.shared.bump() }

@@ -55,7 +55,9 @@ struct PlayView: View {
     @State private var cheer = 0
     @State private var open: Int
     @State private var scrubPhase: Double? = nil
+    @State private var replayTrigger = 0
     @State private var isAutoPlaying = false
+    @State private var isVisible = false
     @State private var autoPlayTask: Task<Void, Never>? = nil
 
     init(play: Play, month: Int, initialMatMode: Bool = false, initialStep: Int = 0) {
@@ -97,13 +99,13 @@ struct PlayView: View {
                             stepText: play.steps[open],
                             companion: app.companion,
                             dark: dark,
+                            replayTrigger: replayTrigger,
                             scrubPhase: $scrubPhase,
                             isAutoPlaying: isAutoPlaying,
                             onToggleAutoPlay: { toggleAutoPlay(proxy) },
                             onComplete: { completeAndScroll(proxy) },
                             onPrev: open > 0 ? { manualJump(open - 1, proxy) } : nil,
-                            onNext: { manualJump(open + 1, proxy) },
-                            onJump: { manualJump($0, proxy, scroll: false) }
+                            onNext: { manualJump(open + 1, proxy) }
                         )
                         .id("stage")
                     } else {
@@ -117,15 +119,21 @@ struct PlayView: View {
                         )
                         .transition(reduce ? .opacity : .scale(scale: 0.94).combined(with: .opacity))
                         .id("finished")
+                    }
 
-                        if play.steps.count > 1 {
-                            StorybookSpineScrubber(
-                                total: play.steps.count,
-                                current: open,
-                                scrubPhase: $scrubPhase,
-                                dark: dark
-                            ) { manualJump($0, proxy) }
-                        }
+                    if play.steps.count > 1 {
+                        StorybookSpineScrubber(
+                            total: play.steps.count,
+                            current: open,
+                            scrubPhase: $scrubPhase,
+                            inline: open < play.steps.count,
+                            dark: dark,
+                            onReplay: open < play.steps.count ? {
+                                TactileEngine.shared.beadClick()
+                                replayTrigger += 1
+                            } : nil
+                        ) { manualJump($0, proxy, scroll: false) }
+                        .id("scrubber")
                     }
 
                     // 3. Prep & Safety Drawer (folded only after first play unless opened)
@@ -199,6 +207,7 @@ struct PlayView: View {
         .sensoryFeedback(.success, trigger: cheer)
         .sensoryFeedback(.selection, trigger: open)
         .onAppear {
+            isVisible = true
             if let p = app.playing, p.play.code == play.code { open = p.step }
             before = rec.count == 0
             if base == nil { base = j.plays(play.code).count }
@@ -209,20 +218,30 @@ struct PlayView: View {
             keepAwake(scenePhase == .active && !dimVeil && (open < play.steps.count || matMode))
         }
         .onChange(of: scenePhase) { _, phase in
-            keepAwake(phase == .active && !dimVeil && (open < play.steps.count || matMode))
+            if phase != .active {
+                scrubPhase = nil
+            }
+            keepAwake(isVisible && phase == .active && !dimVeil && (open < play.steps.count || matMode))
         }
         .onDisappear {
+            isVisible = false
+            scrubPhase = nil
             stopAutoPlay()
-            if !matMode { keepAwake(false) }
+            keepAwake(false)
         }
-        .onChange(of: open) { _, o in keepAwake(scenePhase == .active && !dimVeil && (o < play.steps.count || matMode)) }
+        .onChange(of: open) { _, o in
+            if o >= play.steps.count {
+                scrubPhase = nil
+            }
+            keepAwake(isVisible && scenePhase == .active && !dimVeil && (o < play.steps.count || matMode))
+        }
         .onChange(of: dimVeil) { _, on in
             if on { stopAutoPlay() }
-            keepAwake(scenePhase == .active && !on && (open < play.steps.count || matMode))
+            keepAwake(isVisible && scenePhase == .active && !on && (open < play.steps.count || matMode))
         }
         .onChange(of: matMode) { _, active in
             if active { stopAutoPlay() }
-            keepAwake(scenePhase == .active && !dimVeil && (active || open < play.steps.count))
+            keepAwake(isVisible && scenePhase == .active && !dimVeil && (active || open < play.steps.count))
         }
         .safeAreaBar(edge: .bottom) {
             if !dimVeil {
@@ -319,8 +338,6 @@ struct PlayView: View {
             )
             .lampPresented()
             .localConsentSheet()
-            .onAppear { keepAwake(true) }
-            .onDisappear { keepAwake(!dimVeil && open < play.steps.count) }
         }
     }
 
@@ -471,15 +488,14 @@ private struct PlayLivingHeroCard: View {
     let stepText: String
     let companion: Kind
     let dark: Bool
+    let replayTrigger: Int
     @Binding var scrubPhase: Double?
     let isAutoPlaying: Bool
     let onToggleAutoPlay: () -> Void
     let onComplete: () -> Void
     let onPrev: (() -> Void)?
     let onNext: () -> Void
-    let onJump: (Int) -> Void
 
-    @State private var replayTrigger = 0
     @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
@@ -511,21 +527,6 @@ private struct PlayLivingHeroCard: View {
                         }
                     }
             )
-
-            StorybookSpineScrubber(
-                total: play.steps.count,
-                current: stepIndex,
-                scrubPhase: $scrubPhase,
-                inline: true,
-                dark: dark,
-                onReplay: {
-                    TactileEngine.shared.beadClick()
-                    replayTrigger += 1
-                },
-                pick: onJump
-            )
-            .padding(.horizontal, 12)
-            .padding(.top, 8)
 
             VStack(alignment: .leading, spacing: 14) {
                 HStack(alignment: .firstTextBaseline, spacing: 11) {

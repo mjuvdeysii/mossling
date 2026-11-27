@@ -26,8 +26,8 @@ struct Bead: View {
                 Circle().strokeBorder(c.opacity(0.45), lineWidth: 1.5)
             }
             Text("\(month)").font(Typeface.numerals(here ? 19 : 15, relativeTo: .footnote, weight: .bold))
-                .foregroundStyle(here ? Color(hex: 0x4A3300) : past ? Color.white : c.mix(with: .black, by: 0.35))
-                .shadow(color: .black.opacity(past ? 0.25 : 0), radius: 0.5, y: 0.6)
+                .foregroundStyle(here || past ? Crayon.glyph(on: c) : Crayon.ink(c))
+                .shadow(color: ((here || past) && Crayon.glyph(on: c) == .white) ? .black.opacity(0.25) : .clear, radius: 0.5, y: 0.6)
         }
         .frame(width: d, height: d)
         .shadow(color: c.opacity(0.22), radius: here ? 5 : 3, y: here ? 3 : 2)
@@ -386,8 +386,8 @@ struct PlayActions: View {
         } else if shelf.count < Shelf.max {
             Button(L10n.t("加到这周", "Add to this week"), systemImage: "plus.circle") { app.setShelf(shelf + [play.code]) }
         }
-        if let cardURL = CardWebCodec.encodeURL(from: play, babyName: app.nickname) {
-            ShareLink(item: cardURL, message: Text(L10n.t("\(play.name)（\(play.code)）", "\(play.name) (\(play.code))"))) {
+        if let cardURL = CardWebCodec.encodeURL(from: play, babyName: "") {
+            ShareLink(item: cardURL, message: Text(L10n.t("\(play.name)（\(play.code)）· 仅含玩法与适龄月数，数据编码于本地 # 锚点", "\(play.name) (\(play.code)) · Activity guide encoded locally in the URL # fragment"))) {
                 Label(L10n.t("发给家人 H5 卡", "Share Family H5 Card"), systemImage: "rectangle.portrait.and.arrow.right")
             }
         }
@@ -512,7 +512,7 @@ struct AreasView: View {
                                                 if key == focusKey {
                                                     Text(L10n.t("本月重点", "Focus"))
                                                         .font(.caption2.weight(.bold))
-                                                        .foregroundStyle(Color(hex: 0x4A3300))
+                                                        .foregroundStyle(Crayon.glyph(on: Palette.bead))
                                                         .padding(.horizontal, 6).padding(.vertical, 1)
                                                         .background(Capsule().fill(Palette.bead))
                                                 }
@@ -624,16 +624,18 @@ struct AreasView: View {
                 let key = AreasConstellationMetrics.normalizedKey(d.key)
                 let col = Palette.area(d.key)
                 let isSelected = (key == activeKey)
+                let selFill = Crayon.fill(col, dark)
+                let selInk = Crayon.glyph(on: selFill)
                 Button {
                     withAnimation(.snappy) { selectedKey = key }
                 } label: {
                     HStack(spacing: 5) {
                         Image(systemName: Palette.areaSymbol(d.key))
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(isSelected ? .white : (dark ? col : Crayon.ink(col)))
+                            .foregroundStyle(isSelected ? selInk : (dark ? col : Crayon.ink(col)))
                         Text(Palette.areaShortName(d.key))
                             .font(.caption.weight(isSelected ? .bold : .semibold))
-                            .foregroundStyle(isSelected ? .white : .primary)
+                            .foregroundStyle(isSelected ? selInk : .primary)
                             .lineLimit(1)
                             .minimumScaleFactor(0.75)
                         Spacer(minLength: 0)
@@ -642,7 +644,7 @@ struct AreasView: View {
                     .padding(.vertical, 7)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
-                            .fill(isSelected ? col : (dark ? Color.white.opacity(0.06) : col.opacity(0.11)))
+                            .fill(isSelected ? selFill : (dark ? Color.white.opacity(0.06) : col.opacity(0.11)))
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
@@ -683,7 +685,7 @@ struct AreasView: View {
                     if isFocus {
                         Text(L10n.t("本月重点领域", "Focus this month"))
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(Color(hex: 0x4A3300))
+                            .foregroundStyle(Crayon.glyph(on: Palette.bead))
                             .padding(.horizontal, 7).padding(.vertical, 2)
                             .background(Capsule().fill(Palette.bead))
                     }

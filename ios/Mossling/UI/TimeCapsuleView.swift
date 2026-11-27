@@ -26,6 +26,18 @@ struct TimeCapsuleListView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
+                if store.loadFailed {
+                    Label(
+                        L10n.t("信笺数据暂时未能读取，已暂停保存，避免覆盖原有信件。", "Time Capsule file could not be read. Saving is paused to protect existing letters."),
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.danger)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.inner)
+                }
+
                 heroCard(dark: dark, readyCount: readyCount)
 
                 if store.items.isEmpty {
@@ -544,6 +556,7 @@ struct CapsuleComposeSheet: View {
     @State private var seal: CapsuleSeal = .gold
     @State private var unlockOption: UnlockChoice = .firstBirthday
     @State private var customDate: Date = Calendar.current.date(byAdding: .year, value: 1, to: Date()) ?? Date()
+    @State private var saveFailed = false
 
     enum UnlockChoice: String, CaseIterable, Identifiable {
         case firstBirthday, secondBirthday, thirdBirthday, fifthBirthday, anytime, custom
@@ -609,6 +622,7 @@ struct CapsuleComposeSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
+                    if saveFailed { SaveFailed() }
                     // Seal color picker
                     VStack(alignment: .leading, spacing: 8) {
                         Text(L10n.t("选一枚火漆印章", "Choose a Wax Seal"))
@@ -735,6 +749,7 @@ struct CapsuleComposeSheet: View {
                 }
             }
             .onAppear {
+                saveFailed = false
                 if !availableChoices.contains(unlockOption) {
                     unlockOption = availableChoices.first ?? .anytime
                 }
@@ -747,6 +762,7 @@ struct CapsuleComposeSheet: View {
         let trimmedBody = letterBody.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBody.isEmpty else { return }
         guard app.mayKeep() else { return }
+        saveFailed = false
         let fallbackTitle = L10n.t("写给未来的信", "A Letter for Later")
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let ageLabel = app.birth.map { Firsts.age(from: $0, to: app.today) } ?? ""
@@ -759,7 +775,10 @@ struct CapsuleComposeSheet: View {
             openedAt: nil,
             seal: seal
         )
-        store.save(cap)
+        guard store.save(cap) else {
+            saveFailed = true
+            return
+        }
         TactileEngine.shared.goldChime()
         let keepsakes = store.items.count + FoodAtlasStore.shared.tastedCount
         ReviewPromptGate.tryTrigger(
@@ -793,6 +812,8 @@ struct CapsuleReadSheet: View {
     @State private var showHoldHint = false
     @State private var sealHoldTask: Task<Void, Never>? = nil
     @State private var lastDetentStep = 0
+    @State private var actionFailed = false
+    @GestureState private var sealGestureActive = false
 
     init(capsule: TimeCapsule, store: CapsuleStore) {
         self.capsule = capsule
@@ -825,6 +846,7 @@ struct CapsuleReadSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 18) {
+                    if actionFailed { SaveFailed() }
                     if isOpened {
                         stationeryPage(capsule: liveCapsule, dark: dark)
                             .transition(reduce ? .opacity : .scale(scale: 0.96).combined(with: .opacity))
@@ -871,7 +893,11 @@ struct CapsuleReadSheet: View {
             .alert(L10n.t("删除这封信？", "Delete This Letter?"), isPresented: $confirmDelete) {
                 Button(L10n.t("取消", "Cancel"), role: .cancel) {}
                 Button(L10n.t("删除", "Delete"), role: .destructive) {
-                    store.delete(id: liveCapsule.id)
+                    actionFailed = false
+                    guard store.delete(id: liveCapsule.id) else {
+                        actionFailed = true
+                        return
+                    }
                     dismiss()
                 }
             } message: {
@@ -896,20 +922,28 @@ struct CapsuleReadSheet: View {
                     .buttonStyle(.toy)
                     .accessibilityLabel(L10n.t("火漆印章，约定在 \(capsule.unlockDay?.ymd ?? "") 拆封", "Wax seal, scheduled for \(capsule.unlockDay?.ymd ?? "")"))
                     .accessibilityHint(L10n.t("轻点可提前揭开", "Tap to break seal early"))
+                } else if reduce {
+                    Button {
+                        unsealNow()
+                    } label: {
+                        WaxSealBadge(seal: capsule.seal, size: 88)
+                            .frame(width: 120, height: 120)
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("轻点火漆印章揭开信封", "Tap wax seal to unseal"))
                 } else {
                     ZStack {
-                        if !reduce {
-                            Circle()
-                                .fill(
-                                    RadialGradient(
-                                        colors: [capsule.seal.color.opacity(0.45 * sealPressProgress), .clear],
-                                        center: .center,
-                                        startRadius: 24,
-                                        endRadius: 68
-                                    )
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    colors: [capsule.seal.color.opacity(0.45 * sealPressProgress), .clear],
+                                    center: .center,
+                                    startRadius: 24,
+                                    endRadius: 68
                                 )
-                                .frame(width: 136, height: 136)
-                        }
+                            )
+                            .frame(width: 136, height: 136)
 
                         Circle()
                             .stroke(capsule.seal.color.opacity(0.18), lineWidth: 4)
@@ -929,21 +963,26 @@ struct CapsuleReadSheet: View {
                             .frame(width: 106, height: 106)
 
                         WaxSealBadge(seal: capsule.seal, size: 88)
-                            .scaleEffect(reduce ? 1.0 : (1.0 - 0.08 * sealPressProgress))
+                            .scaleEffect(1.0 - 0.08 * sealPressProgress)
                     }
                     .frame(width: 120, height: 120)
                     .contentShape(Circle())
                     .gesture(
-                        DragGesture(minimumDistance: 0)
-                            .onChanged { _ in
-                                if !isPressingSeal {
-                                    beginSealHold()
-                                }
+                        LongPressGesture(minimumDuration: 0.65, maximumDistance: 20)
+                            .updating($sealGestureActive) { current, state, _ in
+                                state = current
                             }
                             .onEnded { _ in
-                                endSealHold()
+                                unsealNow()
                             }
                     )
+                    .onChange(of: sealGestureActive) { _, active in
+                        if active {
+                            beginSealHold()
+                        } else if !isOpened {
+                            endSealHold()
+                        }
+                    }
                     .accessibilityElement(children: .ignore)
                     .accessibilityAddTraits(.isButton)
                     .accessibilityLabel(L10n.t("按住火漆印章揭开信封", "Press and hold wax seal to unseal"))
@@ -1113,10 +1152,10 @@ struct CapsuleReadSheet: View {
         TactileEngine.shared.dimmerTick()
         sealHoldTask?.cancel()
         sealHoldTask = Task { @MainActor in
-            let steps = 26
+            let steps = 25
             for step in 1...steps {
                 try? await Task.sleep(for: .milliseconds(25))
-                guard !Task.isCancelled, isPressingSeal else { return }
+                guard !Task.isCancelled, isPressingSeal, !isOpened else { return }
                 let next = Double(step) / Double(steps)
                 sealPressProgress = next
                 let detent = Int(next * 4)
@@ -1125,17 +1164,13 @@ struct CapsuleReadSheet: View {
                     TactileEngine.shared.dimmerTick()
                 }
             }
-            guard !Task.isCancelled, isPressingSeal else { return }
-            isPressingSeal = false
-            unsealNow()
         }
     }
 
     private func endSealHold() {
         guard isPressingSeal else { return }
-        let completed = sealPressProgress >= 0.98
         cancelSealHold()
-        if !completed {
+        if !isOpened {
             withAnimation(reduce ? nil : .spring(response: 0.30, dampingFraction: 0.78)) {
                 sealPressProgress = 0
                 showHoldHint = true
@@ -1151,9 +1186,16 @@ struct CapsuleReadSheet: View {
 
     private func unsealNow() {
         cancelSealHold()
+        actionFailed = false
         let nowMs = Date().timeIntervalSince1970 * 1000
+        guard store.open(id: capsule.id, now: nowMs) else {
+            actionFailed = true
+            withAnimation(reduce ? nil : .spring(response: 0.30, dampingFraction: 0.78)) {
+                sealPressProgress = 0
+            }
+            return
+        }
         openedTimestamp = nowMs
-        store.open(id: capsule.id, now: nowMs)
         TactileEngine.shared.goldChime()
         withAnimation(reduce ? nil : .spring(response: 0.44, dampingFraction: 0.80)) {
             sealPressProgress = 1

@@ -333,7 +333,7 @@ struct LampCardSpotlightCard: View {
     @State private var reader = SpeechReader()
 
     var body: some View {
-        let h5URL = CardWebCodec.encodeURL(from: card, babyName: app.nickname, month: app.babyMonth ?? card.minMonth)
+        let h5URL = CardWebCodec.encodeURL(from: card, babyName: "", month: app.babyMonth ?? card.minMonth)
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 10) {
                 IconTile(symbol: "lightbulb.max.fill", color: Crayon.sunflower, size: 30, round: true)
@@ -425,6 +425,13 @@ struct LampCardSpotlightCard: View {
                 }
                 .buttonStyle(.toy)
             }
+
+            if h5URL != nil {
+                Text(L10n.t("长辈卡仅将本卡片要点编码于本地 # 锚点（不含宝宝姓名），收件人打开将访问静态网页", "Family cards encode highlights locally in the # URL anchor (no child name); opening visits the static web page"))
+                    .font(.caption2)
+                    .foregroundStyle(Palette.secondaryText)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(LayoutSpec.cardPad)
         .printCard(radius: Radius.card)
@@ -446,7 +453,7 @@ struct LampCardDetailSheet: View {
     @State private var reader = SpeechReader()
 
     var body: some View {
-        let h5URL = CardWebCodec.encodeURL(from: card, babyName: app.nickname, month: app.babyMonth ?? card.minMonth)
+        let h5URL = CardWebCodec.encodeURL(from: card, babyName: "", month: app.babyMonth ?? card.minMonth)
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
@@ -515,7 +522,10 @@ struct LampCardDetailSheet: View {
                 }
                 ToolbarItemGroup(placement: .topBarTrailing) {
                     if let h5URL {
-                        ShareLink(item: h5URL, message: Text(card.shareMessage())) {
+                        ShareLink(
+                            item: h5URL,
+                            message: Text(card.shareMessage() + "\n" + L10n.t("（仅含卡片要点，编码于本地 # 锚点）", "(Card highlights encoded in local # anchor)"))
+                        ) {
                             Image(systemName: "square.and.arrow.up")
                         }
                         .accessibilityLabel(L10n.t("分享给家人", "Share family card"))
@@ -575,17 +585,19 @@ enum ClinicSnapshotPDF {
             }
         }
 
-        // Compute recent `days`-day averages ending on `app.today`
+        // Compute recent `days` completed prior days averages (excluding partial today and non-care play logs)
         var loggedDays = 0
         var totalFeeds = 0
         var totalSleepSec = 0.0
         var totalDiapers = 0
         var tempRecords: [LogEntry] = []
         var medRecords: [LogEntry] = []
-        let cutoffDay = app.today.plus(days: -max(1, days) + 1)
-        for offset in 0..<max(1, days) {
+        let careTypes: Set<String> = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
+        let cutoffDay = app.today.plus(days: -max(1, days))
+        for offset in 1...max(1, days) {
             let d = app.today.plus(days: -offset)
-            let dayLogs = logs.filter { log in
+            let dayCareLogs = logs.filter { log in
+                guard careTypes.contains(log.type) else { return false }
                 let sd = Day(log.startDate)
                 if sd == d { return true }
                 if let end = log.end, end > d.date.timeIntervalSince1970 * 1000, sd.epochDay < d.epochDay {
@@ -593,11 +605,16 @@ enum ClinicSnapshotPDF {
                 }
                 return false
             }
-            if !dayLogs.isEmpty {
-                loggedDays += 1
-                totalFeeds += dayLogs.feedCount(from: d.date.timeIntervalSince1970 * 1000)
-                totalSleepSec += dayLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) }
-                totalDiapers += dayLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count
+            if !dayCareLogs.isEmpty {
+                let dayFeeds = dayCareLogs.feedCount(from: d.date.timeIntervalSince1970 * 1000)
+                let daySleep = dayCareLogs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) }
+                let dayDiapers = dayCareLogs.filter { $0.type == LogType.diaper && !$0.carriedOver(into: d) }.count
+                if dayFeeds > 0 || daySleep > 0 || dayDiapers > 0 {
+                    loggedDays += 1
+                    totalFeeds += dayFeeds
+                    totalSleepSec += daySleep
+                    totalDiapers += dayDiapers
+                }
             }
         }
         for log in logs where Day(log.startDate).epochDay >= cutoffDay.epochDay {
@@ -609,9 +626,9 @@ enum ClinicSnapshotPDF {
         let avgFeeds = Double(totalFeeds) / Double(denom)
         let avgDiapers = Double(totalDiapers) / Double(denom)
         var careLines = loggedDays == 0
-            ? [L10n.t("近 \(days) 天暂无喂睡与尿布记录", "No feed, sleep, or diaper logs in the past \(days) days.")]
+            ? [L10n.t("近 \(days) 天暂无完整整日喂睡与尿布均值（仅当日临时记录不计入日均）", "No completed prior days for \(days)-day averages yet (partial today excluded).")]
             : [
-                L10n.t("有记录天数：\(loggedDays) / \(days) 天", "Logged days: \(loggedDays) of \(days)"),
+                L10n.t("完整记录天数：\(loggedDays) / \(days) 天", "Completed days: \(loggedDays) of \(days)"),
                 String(format: L10n.t("日均喂奶：%.1f 次 · 日均睡眠：%.1f 小时 · 日均尿布：%.1f 片", "Daily avg · Feeds: %.1f · Sleep: %.1f h · Diapers: %.1f"), avgFeeds, avgSleepHr, avgDiapers)
             ]
         if let maxTemp = tempRecords.compactMap(\.amount).max() {
@@ -623,32 +640,59 @@ enum ClinicSnapshotPDF {
             careLines.append(L10n.t("近期用药/补充：", "Recent meds/supplements: ") + medDetail)
         }
 
-        // Latest growth measurement + WHO percentiles (per-measurement preterm adjustment under 24m)
+        // Latest growth measurements per metric + WHO percentiles (per-measurement preterm adjustment under 24m)
         var growthLines: [String] = []
-        if let latest = measures.sorted(by: { $0.at < $1.at }).last {
+        let sortedMeasuresDesc = measures.sorted { $0.at > $1.at }
+        func formatLatestMetric(_ raw: Int?, in measure: Measure, ind: Indicator, div: Double) -> String? {
+            guard let raw, raw > 0 else { return nil }
+            let d = Day(Date(timeIntervalSince1970: measure.at / 1000))
+            let measBirth = GrowthView.developmentalBirth(for: measure, birth: app.birth, gestationalWeeks: app.gestationalWeeks)
+            let mo = measBirth.map { Double($0.days(to: d)) / 30.4375 }
+            let val = Double(raw) / div
+            let base = "\(ind.short) \(ind.fmt(val)) \(ind.unitShort)"
+            if let mo, app.sex != nil, mo >= 0, mo <= 36 {
+                let p = app.growth.percentile(ind, girl: app.girl, months: mo, value: val)
+                if p.isFinite {
+                    return "\(base) (\(pctText(p)))"
+                }
+            }
+            return base
+        }
+        let latestWeightM = sortedMeasuresDesc.first { ($0.weightG ?? 0) > 0 }
+        let latestLengthM = sortedMeasuresDesc.first { ($0.lengthMm ?? 0) > 0 }
+        let latestHeadM = sortedMeasuresDesc.first { ($0.headMm ?? 0) > 0 }
+        let distinctIDs = Set([latestWeightM?.id, latestLengthM?.id, latestHeadM?.id].compactMap { $0 })
+        if distinctIDs.count == 1, let latest = latestWeightM ?? latestLengthM ?? latestHeadM {
             let d = Day(Date(timeIntervalSince1970: latest.at / 1000))
             let measBirth = GrowthView.developmentalBirth(for: latest, birth: app.birth, gestationalWeeks: app.gestationalWeeks)
-            let mo = measBirth.map { Double($0.days(to: d)) / 30.4375 }
-            let ageSuffix = measBirth != nil && measBirth != app.birth ? L10n.t(" · 矫正月龄", " · Corrected") : ""
-            func formatMetric(_ raw: Int?, _ ind: Indicator, _ div: Double) -> String? {
-                guard let raw, raw > 0 else { return nil }
-                let val = Double(raw) / div
-                let base = "\(ind.short) \(ind.fmt(val)) \(ind.unitShort)"
-                if let mo, app.sex != nil, mo >= 0, mo <= 36 {
-                    let p = app.growth.percentile(ind, girl: app.girl, months: mo, value: val)
-                    if p.isFinite {
-                        return "\(base) (\(pctText(p)))"
-                    }
-                }
-                return base
-            }
+            let daysSinceMeasBirth = measBirth.map { $0.days(to: d) } ?? 0
+            let ageSuffix: String = if let measBirth, measBirth != app.birth {
+                daysSinceMeasBirth >= 0 ? L10n.t(" · 矫正月龄", " · Corrected") : L10n.t(" · 预产期前（实际）", " · Pre-EDD (Actual)")
+            } else { "" }
             let items = [
-                formatMetric(latest.weightG, .weight, 1000),
-                formatMetric(latest.lengthMm, .length, 10),
-                formatMetric(latest.headMm, .head, 10)
+                formatLatestMetric(latest.weightG, in: latest, ind: .weight, div: 1000),
+                formatLatestMetric(latest.lengthMm, in: latest, ind: .length, div: 10),
+                formatLatestMetric(latest.headMm, in: latest, ind: .head, div: 10)
             ].compactMap { $0 }
             if !items.isEmpty {
                 growthLines.append(L10n.t("最近测量（\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))\(ageSuffix)）：", "Latest (\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))\(ageSuffix)): ") + items.joined(separator: " · "))
+            }
+        } else {
+            let entries: [(Measure?, Int?, Indicator, Double)] = [
+                (latestWeightM, latestWeightM?.weightG, .weight, 1000),
+                (latestLengthM, latestLengthM?.lengthMm, .length, 10),
+                (latestHeadM, latestHeadM?.headMm, .head, 10)
+            ]
+            for (mOpt, rawVal, ind, div) in entries {
+                if let m = mOpt, let metricText = formatLatestMetric(rawVal, in: m, ind: ind, div: div) {
+                    let d = Day(Date(timeIntervalSince1970: m.at / 1000))
+                    let measBirth = GrowthView.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks)
+                    let daysSinceMeasBirth = measBirth.map { $0.days(to: d) } ?? 0
+                    let ageSuffix: String = if let measBirth, measBirth != app.birth {
+                        daysSinceMeasBirth >= 0 ? L10n.t(" · 矫正", " · Corrected") : L10n.t(" · 预产期前", " · Pre-EDD")
+                    } else { "" }
+                    growthLines.append("\(metricText)（\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))\(ageSuffix)）")
+                }
             }
         }
         if growthLines.isEmpty {
