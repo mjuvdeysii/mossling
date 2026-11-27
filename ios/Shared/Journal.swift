@@ -407,8 +407,16 @@ enum JournalFile {
         for name in ["journal.json", "snapshot.json"] {
             let old = docs.appendingPathComponent(name), new = g.appendingPathComponent(name)
             guard FileManager.default.fileExists(atPath: old.path) else { continue }
-            if !FileManager.default.fileExists(atPath: new.path) { try? FileManager.default.copyItem(at: old, to: new) }
-            try? FileManager.default.moveItem(at: old, to: docs.appendingPathComponent(name + ".moved"))
+            if !FileManager.default.fileExists(atPath: new.path) {
+                do {
+                    try FileManager.default.copyItem(at: old, to: new)
+                    try? FileManager.default.moveItem(at: old, to: docs.appendingPathComponent(name + ".moved"))
+                } catch {
+                    // Preserve original file in Documents if copying into App Group fails
+                }
+            } else {
+                try? FileManager.default.moveItem(at: old, to: docs.appendingPathComponent(name + ".moved"))
+            }
         }
     }
 

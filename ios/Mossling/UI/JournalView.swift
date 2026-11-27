@@ -198,8 +198,8 @@ struct DayChapterLedger: View {
     @Environment(\.lamp) private var lamp
 
     private func isExpanded(_ chapter: DayChapter, index: Int, chapters: [DayChapter], totalRows: Int) -> Bool {
-        if expandAll || only != nil || chapters.count <= 1 || totalRows <= 8 { return true }
-        if !touchedPeriods { return index == 0 }
+        if expandAll || only != nil || chapters.count <= 1 { return true }
+        if !touchedPeriods { return totalRows <= 8 || index == 0 }
         return expandedPeriods.contains(chapter.period)
     }
 

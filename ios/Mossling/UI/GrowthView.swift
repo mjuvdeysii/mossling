@@ -128,7 +128,9 @@ struct GrowthView: View {
                     }
                     .accessibilityLabel(L10n.t("分享生长曲线纪念印画", "Share growth curve print"))
                 }
-                Button(L10n.t("记一次测量", "Log measurement"), systemImage: "plus") { editing = Measure(at: ms(Date())) }
+                Button(L10n.t("记一次测量", "Log measurement"), systemImage: "plus") {
+                    if app.mayKeep() { editing = Measure(at: ms(Date())) }
+                }
             }
         }
         .sheet(item: $editing) { m in MeasureSheet(measure: m, isNew: !j.measures.contains { $0.id == m.id }).lampPresented() }

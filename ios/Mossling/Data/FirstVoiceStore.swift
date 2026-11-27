@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import Observation
+import UIKit
 
 /// Normalized peak envelope and recording duration for a saved baby-voice keepsake.
 struct FirstVoiceMeta: Codable, Equatable, Sendable {
@@ -227,11 +228,13 @@ final class FirstVoiceController {
     private(set) var playProgress: Double = 0
     private(set) var permissionDenied = false
     private(set) var errorMessage: String?
+    private(set) var lastAutoStoppedURL: URL?
 
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
     private var timer: Timer?
     private var activeTempURL: URL?
+    private var startingRecording = false
     private let delegateProxy = FirstVoiceAudioDelegate()
 
     private init() {
@@ -243,12 +246,21 @@ final class FirstVoiceController {
         }
     }
 
+    func refreshPermission() {
+        if #available(iOS 17.0, *) {
+            permissionDenied = (AVAudioApplication.shared.recordPermission == .denied)
+        }
+    }
+
     func togglePlay(id: UUID, url: URL) {
         if playingID == id {
             stopPlayback()
             return
         }
         stopAll()
+        SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
+        ToyboxAudioEngine.shared.stop()
+        errorMessage = nil
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
@@ -271,9 +283,14 @@ final class FirstVoiceController {
     }
 
     func startDraftRecording() async -> URL? {
+        guard !startingRecording else { return nil }
+        startingRecording = true
+        defer { startingRecording = false }
+
         stopPlayback()
         errorMessage = nil
         permissionDenied = false
+        lastAutoStoppedURL = nil
 
         let granted = await requestMicPermission()
         guard granted else {
@@ -281,8 +298,9 @@ final class FirstVoiceController {
             return nil
         }
 
-        SoundscapeEngine.shared.stop()
+        SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
         ToyboxAudioEngine.shared.stop()
+        discardTemp(activeTempURL)
 
         let tempURL = FileManager.default.temporaryDirectory
             .appendingPathComponent("voice_draft_\(UUID().uuidString).m4a")
@@ -311,7 +329,9 @@ final class FirstVoiceController {
             isRecording = true
             recordingSeconds = 0
             livePeaks = []
-            TactileEngine.shared.beadClick()
+            if !TactileEngine.shared.quietNight {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            }
             startRecordTimer()
             return tempURL
         } catch {
@@ -387,7 +407,10 @@ final class FirstVoiceController {
 
     private func handleRecordingStopped() {
         isRecording = false
+        recorder = nil
         stopTimer()
+        lastAutoStoppedURL = activeTempURL
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 
     private func startRecordTimer() {

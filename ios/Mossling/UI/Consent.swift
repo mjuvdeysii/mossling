@@ -6,11 +6,12 @@ import SwiftUI
 /// comes back only when the parent asks for one of those.
 enum Consent {
     /// Raised when the privacy policy or the children's rules change in substance: everyone is asked again.
-    static let version = "2026-10-31b"   // b: 撤回同意, the widget copy and data protection added to the policy
+    static let version = "2026-11-27"   // disclose voice recordings, food sticker photos & H5 fragment sharing
 }
 
 struct ConsentSheet: View {
     @Environment(AppModel.self) private var app
+    @Environment(\.dynamicTypeSize) private var type
     @State private var doc: String?
 
     var body: some View {
@@ -67,17 +68,29 @@ struct ConsentSheet: View {
         }
         .interactiveDismissDisabled()
         .sheet(item: Binding(get: { doc.map { ConsentDoc(id: $0) } }, set: { doc = $0?.id })) { d in
-            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { doc = nil } } } }
+            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("关闭", "Close"), systemImage: "xmark") { doc = nil } } } }
+                .lampPresented()
         }
     }
 
     private var buttons: some View {
         // equal weight: neither choice is the easy one
-        HStack(spacing: 12) {
-            Button { answer(false) } label: { Text(L10n.t("不同意", "Not Now")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.glass).controlSize(.large)
-            Button { answer(true) } label: { Text(L10n.t("同意", "Agree")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                .buttonStyle(.glass).controlSize(.large)
+        Group {
+            if type.isAccessibilitySize {
+                VStack(spacing: 10) {
+                    Button { answer(false) } label: { Text(L10n.t("不同意", "Not Now")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glass).controlSize(.large)
+                    Button { answer(true) } label: { Text(L10n.t("同意", "Agree")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glass).controlSize(.large)
+                }
+            } else {
+                HStack(spacing: 12) {
+                    Button { answer(false) } label: { Text(L10n.t("不同意", "Not Now")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glass).controlSize(.large)
+                    Button { answer(true) } label: { Text(L10n.t("同意", "Agree")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        .buttonStyle(.glass).controlSize(.large)
+                }
+            }
         }
         .padding(.horizontal, 20).padding(.vertical, 10)
     }

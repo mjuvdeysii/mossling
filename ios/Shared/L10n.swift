@@ -14,9 +14,7 @@ enum L10n {
     nonisolated(unsafe) static var overrideEnglish: Bool? = nil
     #endif
 
-    private static var sharedDefaults: UserDefaults {
-        UserDefaults(suiteName: JournalFile.group) ?? .standard
-    }
+    private static let sharedDefaults: UserDefaults = UserDefaults(suiteName: JournalFile.group) ?? .standard
 
     static var preference: AppLanguage {
         get {
@@ -37,8 +35,8 @@ enum L10n {
         case .en: return true
         case .zh: return false
         case .system:
-            let lang = Locale.preferredLanguages.first ?? Locale.current.identifier
-            return lang.hasPrefix("en")
+            let lang = (Locale.preferredLanguages.first ?? Locale.current.identifier).lowercased()
+            return !lang.hasPrefix("zh")
         }
     }
 

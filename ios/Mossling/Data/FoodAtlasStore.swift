@@ -196,7 +196,7 @@ final class FoodAtlasStore {
 
     init(preview list: [FoodRecord]) {
         self.fileURL = nil
-        self.records = Dictionary(uniqueKeysWithValues: list.map { ($0.foodId, $0) })
+        self.records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
     }
 
     var tastedCount: Int { records.count }
@@ -255,7 +255,7 @@ final class FoodAtlasStore {
               let list = try? JSONDecoder().decode([FoodRecord].self, from: data) else {
             return
         }
-        records = Dictionary(uniqueKeysWithValues: list.map { ($0.foodId, $0) })
+        records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
     }
 
     func save(_ record: FoodRecord) {

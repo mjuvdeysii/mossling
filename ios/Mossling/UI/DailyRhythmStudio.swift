@@ -387,9 +387,9 @@ struct RhythmView: View {
                     .frame(width: side * 0.44, height: side * 0.44)
                 }
                 .contentShape(Circle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
+                .simultaneousGesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             let dist = hypot(dx, dy)

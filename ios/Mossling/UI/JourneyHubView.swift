@@ -349,7 +349,7 @@ struct JourneyHubView: View {
                     keepsakeShelf
 
                     if app.age != nil {
-                        DueCard(month: baby)
+                        DueCard(month: app.actualAge?.bookMonth ?? baby)
                         upcomingCheckupPrepBanner
                     }
 
@@ -409,8 +409,11 @@ struct JourneyHubView: View {
                         withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                             expandedLandsOverride = next
                         }
-                        withAnimation(reduce ? nil : .spring(response: 0.48, dampingFraction: 0.82)) {
-                            proxy.scrollTo("station-\(baby)", anchor: .center)
+                        Task { @MainActor in
+                            await Task.yield()
+                            withAnimation(reduce ? nil : .spring(response: 0.48, dampingFraction: 0.82)) {
+                                proxy.scrollTo("station-\(baby)", anchor: .center)
+                            }
                         }
                     } label: {
                         Label(L10n.t("回到现在", "Now"), systemImage: "scope")

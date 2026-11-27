@@ -91,8 +91,8 @@ struct HandoverSnapshot: Sendable {
         let latestSpecial = own.filter { $0.type == LogType.solid || $0.type == LogType.medicine || $0.type == LogType.temp }.max { $0.start < $1.start }
         let todaySub: String
         if let sp = latestSpecial {
-            let detail = sp.detail?.isEmpty == false ? " · \(sp.detail!)" : ""
-            todaySub = "\(LogType.name(sp.type))\(detail)"
+            let summary = sp.summary
+            todaySub = summary.isEmpty ? LogType.name(sp.type) : "\(LogType.name(sp.type)) · \(summary)"
         } else if let mo = app.babyMonth, let play = app.todayPlay(mo, journal) {
             todaySub = L10n.t("今日玩：\(play.name)", "Play: \(play.name)")
         } else {
@@ -289,7 +289,7 @@ struct HandoverSheet: View {
                                         .frame(maxWidth: .infinity)
                                         .padding(.vertical, 10)
                                 }
-                                .buttonStyle(.vinyl(Palette.rod))
+                                .buttonStyle(.vinyl(Crayon.sky))
 
                                 Button {
                                     UIPasteboard.general.url = webURL
@@ -304,7 +304,7 @@ struct HandoverSheet: View {
                                         .font(.subheadline.weight(.bold))
                                         .frame(width: 46, height: 42)
                                 }
-                                .buttonStyle(.vinyl(copiedWebLink ? Crayon.leaf : Palette.rod))
+                                .buttonStyle(.vinyl(copiedWebLink ? Crayon.leaf : Crayon.sky))
                                 .accessibilityLabel(L10n.t("复制免下载网页交接链接", "Copy browser handover link"))
                             }
                         }
@@ -415,7 +415,7 @@ private struct HandoverCardContent: View {
                     Text(
                         lanternPassed
                             ? L10n.t("暖灯已递给下一位点灯人", "Lantern passed to next keeper")
-                            : L10n.t("向右滑金珠 · 把暖灯递给 Mochi", "Slide gold bead right to pass light")
+                            : L10n.t("向右滑金珠 · 把暖灯递给下一位家人", "Slide gold bead right to pass light")
                     )
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(lanternPassed ? Crayon.ink(Palette.bead) : (dark ? Palette.lampInk : Palette.text))

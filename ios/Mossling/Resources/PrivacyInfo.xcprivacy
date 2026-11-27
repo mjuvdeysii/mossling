@@ -12,12 +12,13 @@
 	<key>NSPrivacyAccessedAPITypes</key>
 	<array>
 		<dict>
-			<!-- settings and month records kept in the app's own UserDefaults (Data/AppModel.swift) -->
+			<!-- settings, language and month records kept in the app's own UserDefaults and App Group defaults -->
 			<key>NSPrivacyAccessedAPIType</key>
 			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>CA92.1</string>
+				<string>1C8F.1</string>
 			</array>
 		</dict>
 		<dict>

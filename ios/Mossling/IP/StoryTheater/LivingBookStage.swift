@@ -99,8 +99,12 @@ struct LivingBookStage: View {
         return activeStep.audioAnchor
     }
 
+    private var permanentlyStatic: Bool {
+        scrubPhase != nil || posterPhase != nil || !interactive || reduce || Perf.still
+    }
+
     private var isStatic: Bool {
-        scrubPhase != nil || posterPhase != nil || reduce || Perf.still || !onScreen || scrolling.moving || scenePhase != .active
+        permanentlyStatic || !onScreen || scrolling.moving || scenePhase != .active
     }
 
     var body: some View {
@@ -108,10 +112,10 @@ struct LivingBookStage: View {
         let step = activeStep
 
         Group {
-            if isStatic {
+            if permanentlyStatic {
                 stageFrame(now: Date(), step: step, staticProgress: effectivePosterPhase, isFlat: isFlat)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: false)) { tl in
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: isStatic)) { tl in
                     let elapsed = max(0, tl.date.timeIntervalSince(cycleStart))
                     let u = LivingMotionClock.cyclicProgress(elapsed: elapsed, duration: effectiveDuration)
                     stageFrame(now: tl.date, step: step, staticProgress: u, isFlat: isFlat)
@@ -150,7 +154,7 @@ struct LivingBookStage: View {
         return GeometryReader { g in
             let w = g.size.width
             let h = g.size.height
-            let breathTime = isStatic ? 0 : now.timeIntervalSinceReferenceDate
+            let breathTime = isStatic ? 0 : now.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3600.0)
 
             Group {
                 if let bespokeID {

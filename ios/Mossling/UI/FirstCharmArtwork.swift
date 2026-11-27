@@ -59,6 +59,7 @@ enum FirstCharmMotif: String, CaseIterable, Sendable {
             case "pawprint.fill": return .pawPrint
             case "water.waves": return .waterWaves
             case "birthday.cake.fill": return .birthdayCake
+            case "waveform": return .voiceQuote
             default: return .starCharm
             }
         }

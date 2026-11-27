@@ -125,12 +125,27 @@ final class EarSafeVolumeMonitor {
         guard observation == nil else { return }
         let session = AVAudioSession.sharedInstance()
         do {
+            if !SoundscapeEngine.shared.isPlaying {
+                try session.setCategory(.ambient, options: .mixWithOthers)
+            }
             try session.setActive(true, options: [])
         } catch {
             // Best-effort read; fall through to current outputVolume value
         }
         volume = session.outputVolume
         previousLevel = EarSafeVolumeLevel.of(volume)
+        foregroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didBecomeActiveNotification,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            let current = AVAudioSession.sharedInstance().outputVolume
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.volume = current
+                self.previousLevel = EarSafeVolumeLevel.of(current)
+            }
+        }
         observation = session.observe(\.outputVolume, options: [.new]) { [weak self] session, _ in
             let next = session.outputVolume
             Task { @MainActor [weak self] in
@@ -149,9 +164,15 @@ final class EarSafeVolumeMonitor {
         }
     }
 
+    private var foregroundObserver: NSObjectProtocol?
+
     func stop() {
         observation?.invalidate()
         observation = nil
+        if let foregroundObserver {
+            NotificationCenter.default.removeObserver(foregroundObserver)
+            self.foregroundObserver = nil
+        }
     }
 }
 
@@ -218,8 +239,9 @@ struct EarSafeVolumeCard: View {
                 Text(headline)
                     .font(.caption.weight(.bold))
                     .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.76)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.80)
+                    .fixedSize(horizontal: false, vertical: true)
 
                 Spacer(minLength: 4)
 
@@ -279,7 +301,7 @@ struct EarSafeVolumeCard: View {
                             .frame(width: 13, height: 13)
                             .overlay(Circle().strokeBorder(tone, lineWidth: 2.2))
                             .shadow(color: .black.opacity(0.18), radius: 1.5, y: 1)
-                            .position(x: markerX, y: 4)
+                            .position(x: markerX, y: g.size.height / 2)
                     }
                     .animation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.8), value: v)
                 }
@@ -338,6 +360,7 @@ struct LampHighVolumePill: View {
                     .padding(.horizontal, 10)
                     .padding(.vertical, 5)
                     .background(Capsule().fill(Palette.amber))
+                    .pillHitTarget(LayoutSpec.hitMin)
             }
             .buttonStyle(.toy)
         }

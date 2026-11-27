@@ -3864,4 +3864,145 @@ final class LogicTests: XCTestCase {
             }
         }
     }
+
+    @MainActor
+    func testThirdPartyAuditWave1Remediations() throws {
+        let prevLang = L10n.overrideEnglish
+        defer { L10n.overrideEnglish = prevLang }
+
+        // 1. WCAG contrast tokens: forest-green leaf fill, deep cherry danger, and warm accent/bead normalization
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+        XCTAssertTrue(UIColor(Crayon.buttonFill(Crayon.leaf)).getRed(&r, green: &g, blue: &b, alpha: &a))
+        let leafRelLum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        XCTAssertLessThan(leafRelLum, 0.28)
+        XCTAssertTrue(UIColor(Crayon.fill(Palette.accent, false)).getRed(&r, green: &g, blue: &b, alpha: &a))
+        XCTAssertTrue(UIColor(Crayon.fill(Palette.bead, false)).getRed(&r, green: &g, blue: &b, alpha: &a))
+        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
+        let darkTraits = UITraitCollection(userInterfaceStyle: .dark)
+        XCTAssertEqual(
+            UIColor(Palette.danger).resolvedColor(with: lightTraits),
+            UIColor(Crayon.ink(Crayon.cherry)).resolvedColor(with: lightTraits)
+        )
+        XCTAssertEqual(
+            UIColor(Palette.danger).resolvedColor(with: darkTraits),
+            UIColor(Crayon.ink(Crayon.cherry)).resolvedColor(with: darkTraits)
+        )
+
+        // 2. Preterm Age.corrected preserves chronological lived days monotonically across due date & Euclidean month math
+        let pretermBirth = Day(y: 2026, m: 8, d: 1)
+        let preDue = pretermBirth.plus(days: 20)
+        let preDueAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: preDue))
+        XCTAssertEqual(preDueAge.months, 0)
+        XCTAssertEqual(preDueAge.days, 0)
+        XCTAssertEqual(preDueAge.lived, 20)
+
+        let postDue = pretermBirth.plus(days: 60)
+        let postDueAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: postDue))
+        XCTAssertEqual(postDueAge.lived, 60)
+        XCTAssertEqual(postDueAge.lived, Age.on(birth: pretermBirth, today: postDue).lived)
+
+        let futureAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: pretermBirth.plus(days: -2)))
+        XCTAssertEqual(futureAge.lived, 0)
+        XCTAssertEqual(Day(y: 2026, m: 1, d: 15).plus(months: -13), Day(y: 2024, m: 12, d: 15))
+
+        // 3. RecordFile preserves First.id UUID across export -> reload
+        let suiteApp = AppModel(defaults: UserDefaults(suiteName: "wave1-rec-\(UUID().uuidString)")!)
+        suiteApp.consent = Consent.version
+        suiteApp.today = Day(y: 2026, m: 10, d: 20)
+        suiteApp.birth = Day(y: 2026, m: 6, d: 1)
+        let fid = UUID()
+        var srcBody = JournalFile.Body()
+        srcBody.firsts = [First(id: fid, at: suiteApp.today.date.timeIntervalSince1970 * 1000, key: "smile", title: "First Smile")]
+        let exportedData = RecordFile.json(suiteApp, srcBody)
+        let jsonObj = try XCTUnwrap(JSONSerialization.jsonObject(with: exportedData) as? [String: Any])
+        let jsonFirsts = try XCTUnwrap(jsonObj["firsts"] as? [[String: Any]])
+        XCTAssertEqual(jsonFirsts.first?["id"] as? String, fid.uuidString)
+
+        let reloadedApp = AppModel(defaults: UserDefaults(suiteName: "wave1-rec2-\(UUID().uuidString)")!)
+        let reloadedStore = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(exportedData, into: reloadedApp, journal: reloadedStore)
+        XCTAssertEqual(reloadedStore.firsts.first?.id, fid)
+
+        // 4. LampCard.shareMessage() is cleanly localized in English
+        L10n.overrideEnglish = true
+        let sampleCard = try XCTUnwrap(LampCardCatalog.all.first)
+        let enShare = sampleCard.shareMessage()
+        XCTAssertTrue(enShare.contains("[Moss & Otto"))
+        XCTAssertTrue(enShare.contains("Sources:"))
+        XCTAssertFalse(enShare.contains("【摸索台灯"))
+
+        // 5. MidnightCareSummary pairs multi-side L/R nursing segments into 1 feed session
+        let nightNow = try XCTUnwrap(Day.cal.date(bySettingHour: 3, minute: 0, second: 0, of: Day(y: 2026, m: 10, d: 20).date))
+        let nightNowMs = nightNow.timeIntervalSince1970 * 1000
+        let nightLogs = [
+            LogEntry(type: LogType.nurse, start: nightNowMs - 150 * 60_000, end: nightNowMs - 140 * 60_000, side: "l"),
+            LogEntry(type: LogType.nurse, start: nightNowMs - 137 * 60_000, end: nightNowMs - 127 * 60_000, side: "r")
+        ]
+        let nightSleepTimer = RunningTimer(type: LogType.sleep, start: nightNowMs - 45 * 60_000, side: nil, pausedAt: nil, pausedTotal: 0)
+        let midSummary = MidnightCareSummary.build(logs: nightLogs, timers: [nightSleepTimer], now: nightNow)
+        XCTAssertTrue(midSummary.nightStatusLine?.contains("1 night feed") == true)
+        XCTAssertFalse(midSummary.nightStatusLine?.contains("2 night feeds") == true)
+
+        // 6. BookPage.all expands to actual chronological month for preterm infants
+        let pretermApp = AppModel(defaults: UserDefaults(suiteName: "wave1-book-\(UUID().uuidString)")!)
+        pretermApp.today = Day(y: 2026, m: 10, d: 20)
+        pretermApp.birth = pretermApp.today.plus(days: -16 * 7) // 3 actual months, 1 corrected month
+        pretermApp.gestationalWeeks = 32
+        XCTAssertEqual(pretermApp.actualAge?.bookMonth, 3)
+        XCTAssertEqual(pretermApp.correctedAge?.bookMonth, 1)
+        let bookPages = BookPage.all(pretermApp, JournalStore(preview: JournalFile.Body()))
+        XCTAssertEqual(bookPages.count, 4)
+
+        // 7. FoodAtlasStore handles duplicate foodId records without Dictionary key collisions
+        let tempFoodURL = FileManager.default.temporaryDirectory.appendingPathComponent("food-dup-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: tempFoodURL) }
+        let r1 = FoodRecord(foodId: "avocado", firstTastedEpochDay: 20000, reaction: .tasted, times: 1)
+        let r2 = FoodRecord(foodId: "avocado", firstTastedEpochDay: 20002, reaction: .tryAgain, times: 4)
+        let encodedDup = try JSONEncoder().encode([r1, r2])
+        try encodedDup.write(to: tempFoodURL, options: .atomic)
+        let foodStore = FoodAtlasStore(fileURL: tempFoodURL)
+        XCTAssertEqual(foodStore.record(for: "avocado")?.times, 4)
+        foodStore.replaceAll([r1, r2])
+        XCTAssertEqual(foodStore.record(for: "avocado")?.times, 4)
+
+        // 8. ClinicSnapshotPDF paginates multi-page output cleanly when questions overflow page 1
+        let pdfData = ClinicSnapshotPDF.render(
+            app: suiteApp,
+            logs: [],
+            measures: [],
+            questions: (1...35).map { "Clinic follow-up question #\($0) with extra notes for pagination verification" }
+        )
+        let pdfProvider = try XCTUnwrap(CGDataProvider(data: pdfData as CFData))
+        let pdfDoc = try XCTUnwrap(CGPDFDocument(pdfProvider))
+        XCTAssertGreaterThanOrEqual(pdfDoc.numberOfPages, 2)
+
+        // 9. ActivityWallpaperPoster(isExport: true) renders full-bleed unclipped snapshot
+        let wallpaperImg = renderHostedSnapshot(
+            ActivityWallpaperPoster(
+                plate: ActivityWallpaperPlate.all[0],
+                format: .lockScreen,
+                eveningWarmth: false,
+                showMuseumPlaque: false,
+                targetSize: CGSize(width: 240, height: 520),
+                maxPixel: 600,
+                isExport: true
+            ),
+            width: 240,
+            height: 520
+        )
+        XCTAssertNotNil(wallpaperImg.cgImage)
+        XCTAssertGreaterThan(wallpaperImg.size.width, 100)
+
+        // 10. App and Widget privacy manifests both declare CA92.1 & 1C8F.1 UserDefaults reasons
+        let iosDir = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let appManifest = iosDir.appendingPathComponent("Mossling/Resources/PrivacyInfo.xcprivacy")
+        let widgetManifest = iosDir.appendingPathComponent("Widget/PrivacyInfo.xcprivacy")
+        for manifestURL in [appManifest, widgetManifest] where FileManager.default.fileExists(atPath: manifestURL.path) {
+            let text = try String(contentsOf: manifestURL, encoding: .utf8)
+            XCTAssertTrue(text.contains("CA92.1"), "Missing CA92.1 in \(manifestURL.lastPathComponent)")
+            XCTAssertTrue(text.contains("1C8F.1"), "Missing 1C8F.1 in \(manifestURL.lastPathComponent)")
+        }
+    }
 }

@@ -107,7 +107,7 @@ enum VisionSubjectCutout {
         var outlineCG: CGImage?
         if let dilated = morph.outputImage {
             let whiteConst = CIImage(color: CIColor(red: 1.0, green: 0.992, blue: 0.973, alpha: 1.0)).cropped(to: extent)
-            let matte = CIFilter.blendWithMask()
+            let matte = CIFilter.blendWithAlphaMask()
             matte.inputImage = whiteConst
             matte.backgroundImage = CIImage(color: .clear).cropped(to: extent)
             matte.maskImage = dilated
@@ -170,7 +170,7 @@ enum VisionSubjectCutout {
         let rawW = image.size.width * image.scale
         let rawH = image.size.height * image.scale
         let longest = max(rawW, rawH)
-        let ratio = (longest > maxSide && longest > 0) ? (maxSide / longest) : (1.0 / max(1.0, image.scale))
+        let ratio = (longest > maxSide && longest > 0) ? (maxSide / longest) : 1.0
         let targetSize = CGSize(width: max(1, floor(rawW * ratio)), height: max(1, floor(rawH * ratio)))
         let format = UIGraphicsImageRendererFormat()
         format.scale = 1

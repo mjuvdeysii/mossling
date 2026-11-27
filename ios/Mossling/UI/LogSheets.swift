@@ -236,7 +236,7 @@ struct AskSheet: View {
     @ViewBuilder private var saveBar: some View {
         if let s = submit {
             Button { if s.run() { saved += 1; dismiss() } else { failed = true } } label: { Text(L10n.t("记下", "Save")).frame(maxWidth: .infinity) }
-                .buttonStyle(.vinyl(Crayon.fill(LogType.color(type), lamp), prominent: true, large: true)).disabled(!s.enabled)
+                .buttonStyle(.vinyl(LogType.color(type), prominent: true, large: true)).disabled(!s.enabled)
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
         }
     }
@@ -255,7 +255,7 @@ struct FlowChips<T: Hashable>: View {
             ForEach(items, id: \.0) { v, t in
                 let on = selected == v
                 Button { pick(v) } label: { Text(t).monospacedDigit() }
-                    .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
+                    .buttonStyle(.vinyl(on ? tint : Crayon.pebble))
                     .fontWeight(on ? .semibold : .regular)
                     .accessibilityAddTraits(on ? .isSelected : [])
             }
@@ -344,7 +344,8 @@ struct EntrySheet: View {
                                 Text(cur.map { ($0.side == "r" ? L10n.t("右侧 ", "Right ") : L10n.t("左侧 ", "Left ")) + durationValue($0.activeSeconds) }.joined(separator: " · "))
                                     .font(.footnote).foregroundStyle(Palette.secondaryText).monospacedDigit()
                             } else {
-                                Text(entry.value(on: Day(entry.startDate)).isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + entry.value(on: Day(entry.startDate)))
+                                let valueText = entry.value(on: Day(entry.startDate))
+                                Text(valueText.isEmpty ? hm(entry.startDate) : hm(entry.startDate) + " · " + valueText)
                                     .font(.subheadline).foregroundStyle(Palette.secondaryText).monospacedDigit()
                             }
                         }
@@ -360,14 +361,7 @@ struct EntrySheet: View {
                                 .foregroundStyle(Palette.secondaryText)
                             let kinds = LogType.buttons.filter { $0 != LogType.growth }
                             FlowChips(items: kinds.map { ($0, LogType.name($0)) }, selected: entry.type, tint: c) { t in
-                                TactileEngine.shared.beadClick()
-                                withAnimation(.snappy) {
-                                    entry.type = t
-                                    if LogType.timed.contains(t) && entry.end == nil {
-                                        entry.end = min(JournalFile.now(), entry.start + 20 * 60_000)
-                                    }
-                                    if !LogType.timed.contains(t) { entry.end = nil }
-                                }
+                                switchKind(to: t)
                             }
                         }
                         .padding(16)
@@ -441,7 +435,7 @@ struct EntrySheet: View {
                 } label: {
                     Text(L10n.t("保存", "Save")).frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.vinyl(Crayon.fill(c, lamp), prominent: true, large: true))
+                .buttonStyle(.vinyl(c, prominent: true, large: true))
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
             }
             .pageBackground(tone: c)
@@ -463,7 +457,7 @@ struct EntrySheet: View {
                 if entry.end != nil {
                     Text(minutesOf(entry.activeSeconds))
                         .font(.caption.weight(.bold).monospacedDigit())
-                        .foregroundStyle(color)
+                        .foregroundStyle(Crayon.ink(color))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(color.opacity(dark ? 0.22 : 0.14)))
@@ -497,7 +491,7 @@ struct EntrySheet: View {
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
                     }
-                    .buttonStyle(.vinyl(color.opacity(0.85)))
+                    .buttonStyle(.vinyl(color))
                 }
             }
         }
@@ -591,6 +585,35 @@ struct EntrySheet: View {
             .padding(16)
             .printCard(radius: Radius.card, fill: cardFill)
         default: EmptyView()
+        }
+    }
+
+    private func switchKind(to t: String) {
+        guard t != entry.type else { return }
+        TactileEngine.shared.beadClick()
+        withAnimation(.snappy) {
+            entry.type = t
+            entry.amount = nil
+            entry.detail = nil
+            entry.side = nil
+            if LogType.timed.contains(t) {
+                if entry.end == nil {
+                    entry.end = min(JournalFile.now(), entry.start + 20 * 60_000)
+                }
+                if t == LogType.nurse {
+                    entry.side = "l"
+                }
+            } else {
+                entry.end = nil
+                if t == LogType.bottle {
+                    entry.amount = 120
+                    entry.detail = "formula"
+                } else if t == LogType.diaper {
+                    entry.detail = "wet"
+                } else if t == LogType.temp {
+                    entry.amount = 368
+                }
+            }
         }
     }
 }
@@ -727,7 +750,8 @@ struct MeasureSheet: View {
         let wg = weightParsed.grams
         let lm = lengthParsed.mm
         let hm = headParsed.mm
-        let canSave = wg != nil || lm != nil || hm != nil
+        let hasInvalid = weightParsed.invalid || lengthParsed.invalid || headParsed.invalid
+        let canSave = (wg != nil || lm != nil || hm != nil) && !hasInvalid
 
         NavigationStack {
             ScrollView {
@@ -752,8 +776,8 @@ struct MeasureSheet: View {
                                 : L10n.t("拖动标尺粗调，或点数字精确输入（如 7.85）", "Drag the wooden ruler or tap numerals for exact input (e.g. 7.85)")),
                         isError: weightParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .weight, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .weight, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
-                        percentileText: wg.flatMap { MeasureParser.percentileLabel(for: .weight, value: Double($0) / 1000.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .weight, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
+                        percentileText: wg.flatMap { MeasureParser.percentileLabel(for: .weight, value: Double($0) / 1000.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -772,8 +796,8 @@ struct MeasureSheet: View {
                             : L10n.t("精确到 0.1 厘米；2 岁前躺着量身长", "To 0.1 cm; measure lying down under age 2"),
                         isError: lengthParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .length, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .length, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
-                        percentileText: lm.flatMap { MeasureParser.percentileLabel(for: .length, value: Double($0) / 10.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .length, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
+                        percentileText: lm.flatMap { MeasureParser.percentileLabel(for: .length, value: Double($0) / 10.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -792,8 +816,8 @@ struct MeasureSheet: View {
                             : L10n.t("经眉上缘与后脑最突出处绕量", "Above eyebrows around the widest back of head"),
                         isError: headParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .head, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .head, date: day, birth: app.birth, sex: app.sex, growth: app.growth),
-                        percentileText: hm.flatMap { MeasureParser.percentileLabel(for: .head, value: Double($0) / 10.0, date: day, birth: app.birth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .head, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
+                        percentileText: hm.flatMap { MeasureParser.percentileLabel(for: .head, value: Double($0) / 10.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -840,7 +864,7 @@ struct MeasureSheet: View {
                         .font(.headline)
                         .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(.vinyl(Crayon.fill(Crayon.tangerine, lamp), prominent: true, large: true))
+                .buttonStyle(.vinyl(Crayon.tangerine, prominent: true, large: true))
                 .disabled(!canSave)
                 .padding(.horizontal, 20)
                 .padding(.top, 8)
@@ -881,7 +905,9 @@ struct MeasureSheet: View {
                 }
             }
             Spacer(minLength: 8)
-            DatePicker(L10n.t("日期", "Date"), selection: $day, in: ...Date(), displayedComponents: .date)
+            let now = Date()
+            let lower = min(app.birth?.date ?? .distantPast, now)
+            DatePicker(L10n.t("日期", "Date"), selection: $day, in: lower...now, displayedComponents: .date)
                 .labelsHidden()
         }
         .padding(.horizontal, 14)

@@ -53,7 +53,7 @@ struct LampScene: View {
             }
         }
         .clipped()
-        .task { await run() }
+        .task(id: play) { await run() }
         .onChange(of: lookDown) { _, _ in settleLooks() }
         .onChange(of: chosen) { _, _ in settleLooks() }
     }
@@ -158,7 +158,11 @@ struct LampScene: View {
     // MARK: the four seconds
 
     private func run() async {
-        guard play, !reduce, !played else { finalFrame(); return }
+        guard play else {
+            if reduce { finalFrame() }
+            return
+        }
+        guard !reduce, !played else { finalFrame(); return }
         played = true
         func wait(_ ms: Int) async { try? await Task.sleep(for: .milliseconds(ms)) }
         await wait(450)

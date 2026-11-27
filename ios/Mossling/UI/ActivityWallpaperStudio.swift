@@ -155,6 +155,7 @@ struct ActivityWallpaperPoster: View {
     let showMuseumPlaque: Bool
     let targetSize: CGSize
     let maxPixel: Int
+    var isExport: Bool = false
 
     var body: some View {
         let image = ArtCache.shared.image(plate.filename, maxPixel: maxPixel)
@@ -217,12 +218,12 @@ struct ActivityWallpaperPoster: View {
             }
         }
         .frame(width: targetSize.width, height: targetSize.height)
-        .clipShape(RoundedRectangle(cornerRadius: format == .lockScreen ? 28 : 14, style: .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: isExport ? 0 : (format == .lockScreen ? 28 : 14), style: .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: format == .lockScreen ? 28 : 14, style: .continuous)
-                .stroke(Color.white.opacity(eveningWarmth ? 0.14 : 0.45), lineWidth: 1)
+            RoundedRectangle(cornerRadius: isExport ? 0 : (format == .lockScreen ? 28 : 14), style: .continuous)
+                .stroke(Color.white.opacity(isExport ? 0 : (eveningWarmth ? 0.14 : 0.45)), lineWidth: isExport ? 0 : 1)
         )
-        .shadow(color: .black.opacity(0.18), radius: 18, y: 10)
+        .shadow(color: isExport ? .clear : .black.opacity(0.18), radius: isExport ? 0 : 18, y: isExport ? 0 : 10)
     }
 }
 
@@ -363,7 +364,8 @@ struct ActivityWallpaperSheet: View {
                             eveningWarmth: eveningWarmth,
                             showMuseumPlaque: showPlaque,
                             targetSize: format.exportSize,
-                            maxPixel: 2400
+                            maxPixel: 2400,
+                            isExport: true
                         )
                         let renderer = ImageRenderer(content: poster)
                         renderer.scale = 3.0
@@ -381,10 +383,8 @@ struct ActivityWallpaperSheet: View {
                             systemImage: "square.and.arrow.down"
                         )
                         .font(.callout.weight(.semibold))
-                        .frame(maxWidth: .infinity, minHeight: LayoutSpec.ctaPrimaryHeight)
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(Color(hex: selected.accentHex))
+                    .buttonStyle(.ds(.primary, fullWidth: true, height: LayoutSpec.ctaPrimaryHeight))
                 }
                 .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.bottom, 24)

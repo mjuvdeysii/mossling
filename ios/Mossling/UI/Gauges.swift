@@ -214,9 +214,11 @@ private struct FluidGaugeCanvas: View, Animatable {
         for m in marks {
             let my: CGFloat = y(of: m, size)
             let isAlarmMark = vessel == .thermometer && m == 38
+            let overMilk = vessel == .bottle && dark && my >= level
+            let markInk: Color = isAlarmMark ? Palette.danger : (overMilk ? Color(hex: 0x36281A) : labelColor)
             let t = Text(label(m))
                 .font(.system(size: 10, weight: isAlarmMark ? .bold : .semibold, design: .rounded))
-                .foregroundStyle(isAlarmMark ? Palette.danger : labelColor)
+                .foregroundStyle(markInk)
             if vessel == .bottle {
                 ctx.draw(t, at: CGPoint(x: w * 0.5 + w * 0.33 - 18, y: my), anchor: .trailing)
             } else {
@@ -267,7 +269,7 @@ struct WhenChips: View {
                 ForEach([0, 5, 10, 15, 30, 60], id: \.self) { m in
                     let on = ago == m
                     Button(m == 0 ? L10n.t("现在", "Now") : m == 60 ? L10n.t("1 小时前", "1 hr ago") : L10n.t("\(m) 分钟前", "\(m) min ago")) { withAnimation(.snappy) { ago = m } }
-                        .buttonStyle(.vinyl(on ? tint : Color(hex: 0x8A8279)))
+                        .buttonStyle(.vinyl(on ? tint : Crayon.pebble))
                         .fontWeight(on ? .semibold : .regular).accessibilityAddTraits(on ? .isSelected : [])
                 }
                 Button { picking = true } label: {
@@ -277,7 +279,7 @@ struct WhenChips: View {
                         Text(L10n.t("其他时间…", "Other…"))
                     }
                 }
-                .buttonStyle(.vinyl(ago == nil ? tint : Color(hex: 0x8A8279)))
+                .buttonStyle(.vinyl(ago == nil ? tint : Crayon.pebble))
                 .fontWeight(ago == nil ? .semibold : .regular)
             }
         }

@@ -190,7 +190,18 @@ struct ToyboxView: View {
             }
         }
         .onAppear {
-            volumeMonitor.start()
+            if mode.hasSound {
+                volumeMonitor.start()
+            }
+        }
+        .onChange(of: mode) { _, next in
+            ToyboxAudioEngine.shared.stop()
+            if next.hasSound {
+                volumeMonitor.start()
+            } else {
+                volumeMonitor.stop()
+                manualShowVolumeCard = false
+            }
         }
         .onDisappear {
             ToyboxAudioEngine.shared.stop()
@@ -205,14 +216,80 @@ struct ToyboxView: View {
     }
 
     private func modePicker(dark: Bool) -> some View {
-        DSSegmentedControl(
-            items: ToyboxMode.allCases,
-            selection: $mode,
-            dark: dark,
-            compact: false,
-            title: { $0.title },
-            symbol: { $0.symbol }
-        )
+        let items = ToyboxMode.allCases
+        return Group {
+            if type.isAccessibilitySize {
+                FlowRow(spacing: 6, lineSpacing: 6) {
+                    ForEach(items) { item in
+                        let selected = mode == item
+                        Button {
+                            guard mode != item else { return }
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .spring(response: 0.30, dampingFraction: 0.80)) {
+                                mode = item
+                            }
+                        } label: {
+                            HStack(spacing: 5) {
+                                Image(systemName: item.symbol)
+                                    .font(.caption.weight(.bold))
+                                Text(item.title)
+                                    .font(.caption.weight(selected ? .bold : .semibold))
+                            }
+                            .foregroundStyle(selected ? .white : .primary)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .frame(minHeight: 44)
+                            .background(Capsule().fill(selected ? Crayon.fill(item.tone, dark) : (dark ? Palette.lampCard : Palette.card)))
+                            .overlay(Capsule().strokeBorder(selected ? .clear : DS.Surface.hairline(dark: dark), lineWidth: 0.75))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
+                }
+            } else {
+                HStack(spacing: 4) {
+                    ForEach(items) { item in
+                        let selected = mode == item
+                        Button {
+                            guard mode != item else { return }
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .spring(response: 0.30, dampingFraction: 0.80)) {
+                                mode = item
+                            }
+                        } label: {
+                            VStack(spacing: 3) {
+                                Image(systemName: item.symbol)
+                                    .font(.system(size: 13, weight: .bold))
+                                Text(item.title)
+                                    .font(Typeface.label(11, relativeTo: .caption2, weight: selected ? .bold : .semibold))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.76)
+                            }
+                            .foregroundStyle(selected ? .white : .primary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 6)
+                            .frame(maxWidth: .infinity, minHeight: 46)
+                            .background(
+                                RoundedRectangle(cornerRadius: 11, style: .continuous)
+                                    .fill(selected ? Crayon.fill(item.tone, dark) : Color.clear)
+                            )
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityAddTraits(selected ? .isSelected : [])
+                    }
+                }
+                .padding(4)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(dark ? Palette.lampCard : Palette.card)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.75)
+                )
+            }
+        }
     }
 }
 

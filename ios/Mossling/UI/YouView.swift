@@ -53,11 +53,13 @@ struct YouView: View {
     @Binding var path: NavigationPath
     @State private var editing = false
     @State private var showingLegalSheet = false
+    @State private var faceAvailable = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         @Bindable var app = app
         let dark = lamp || scheme == .dark
-        let face = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) || app.lock
+        let face = faceAvailable || app.lock
 
         ScrollView {
             VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
@@ -84,6 +86,14 @@ struct YouView: View {
         .pageBackground(tone: Crayon.lilac)
         .navigationTitle(L10n.t("工坊", "Studio"))
         .navigationBarTitleDisplayMode(.inline)
+        .task {
+            faceAvailable = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        }
+        .onChange(of: scenePhase) { _, p in
+            if p == .active {
+                faceAvailable = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+            }
+        }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 NavigationLink(value: StudioRoute.story) {
@@ -105,8 +115,8 @@ struct YouView: View {
                 .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
             }
         }
-        .sheet(isPresented: $editing) { ProfileSheet() }
-        .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark) }
+        .sheet(isPresented: $editing) { ProfileSheet().lampPresented() }
+        .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark).lampPresented() }
     }
 }
 
@@ -354,16 +364,28 @@ private struct ThemeLanguageCard: View {
                     langPills
                 }
             } else {
-                HStack(spacing: 8) {
-                    themeLabel
-                    Spacer(minLength: 4)
-                    themePills
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        themeLabel
+                        Spacer(minLength: 4)
+                        themePills
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        themeLabel
+                        themePills
+                    }
                 }
                 Divider().opacity(0.42)
-                HStack(spacing: 8) {
-                    langLabel
-                    Spacer(minLength: 4)
-                    langPills
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        langLabel
+                        Spacer(minLength: 4)
+                        langPills
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        langLabel
+                        langPills
+                    }
                 }
             }
         }
@@ -470,16 +492,14 @@ private struct PreferenceStudioCard: View {
 
     var body: some View {
         let nightResting = app.theme != .system
-        let nightStatus = nightResting ? L10n.t("需选自动", "Auto only") : "19:00–06:00"
+        let nightStatus = nightResting ? L10n.t("需选自动", "Auto only") : (app.nightLight ? "19:00–06:00" : L10n.t("已关闭", "Off"))
         let soundStatus = app.tactileSounds ? L10n.t("已开启", "On") : L10n.t("静音", "Muted")
         let logStatus = app.journal ? L10n.t("已显示", "Shown") : L10n.t("已隐藏", "Hidden")
         let lockStatus = app.lock ? L10n.t("已锁定", "Locked") : L10n.t("未开启", "Off")
         let ax = type.isAccessibilitySize
         let cols = ax
             ? [GridItem(.flexible())]
-            : (face
-                ? [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)]
-                : [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)])
+            : [GridItem(.flexible(), spacing: LayoutSpec.gridGap), GridItem(.flexible(), spacing: LayoutSpec.gridGap)]
 
         LazyVGrid(columns: cols, spacing: LayoutSpec.gridGap) {
             preferenceTile(
@@ -1341,11 +1361,12 @@ struct StoryView: View {
 
     private func pair(_ word: String, _ who: String, _ line: String, _ text: String, _ c: Color, _ k: Kind) -> some View {
         TurnCard(label: L10n.t("\(word)，属于\(who)。\(text)", "\(word), for \(who). \(text)")) {
+            let dark = envLamp || scheme == .dark
             VStack(spacing: 6) {
                 Creature(kind: k, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.2), alive: true)
                     .frame(width: 56 * k.scale, height: 56 * k.scale).frame(height: 60, alignment: .bottom)
                 HStack(alignment: .firstTextBaseline, spacing: 5) {
-                    Text(word).font(.title3.weight(.bold)).foregroundStyle(c)
+                    Text(word).font(.title3.weight(.bold)).foregroundStyle(dark ? c.mix(with: .white, by: 0.35) : Crayon.ink(c))
                     Text(L10n.t("属于" + who, "for " + who)).font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Text(line).font(.footnote).foregroundStyle(.primary).multilineTextAlignment(.center).fixedSize(horizontal: false, vertical: true)
@@ -1668,6 +1689,7 @@ struct LicensesView: View {
 
 /// What the phone unlocks with, named as the phone names it: 面容 ID, 触控 ID, or the passcode.
 enum Biometry {
+    nonisolated(unsafe) private static var evaluating = false
     private static var type: LABiometryType {
         let c = LAContext()
         _ = c.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
@@ -1681,13 +1703,17 @@ enum Biometry {
         default: L10n.t("密码", "Passcode")
         }
     }
-    /// The lock is turned on only after the owner of the phone confirms once (Face ID is asked when it is first used,
-    /// with its purpose in NSFaceIDUsageDescription); turning it off needs nothing.
+    /// Both enabling and disabling App Lock require owner authentication so an unlocked phone cannot be quietly unlocked permanently.
     static func turn(_ on: Bool, _ set: @escaping @MainActor (Bool) -> Void) {
-        guard on else { Task { @MainActor in set(false) }; return }
+        guard !evaluating else { return }
+        evaluating = true
+        let reason = on ? L10n.t("打开应用锁", "Enable App Lock") : L10n.t("关闭应用锁", "Disable App Lock")
         Task { @MainActor in
-            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("打开应用锁", "Enable App Lock"))) ?? false
-            set(ok)
+            defer { evaluating = false }
+            let ok = (try? await LAContext().evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) ?? false
+            if ok {
+                set(on)
+            }
         }
     }
     static var symbol: String {

@@ -47,7 +47,7 @@ enum Palette {
     /// them). A solid grey instead: 8.3:1 on white, 7.8:1 on the paper; by lamplight ≥ 6.8:1.
     static let secondaryText = Color.dyn(0x4D4E55, 0xB8BED4)
     static let outline = Color(uiColor: .separator)
-    static let danger = Crayon.cherry
+    static let danger = Crayon.ink(Crayon.cherry)
     /// An area's colour deep enough for text.
     static func areaInk(_ key: String) -> Color { Crayon.ink(area(key)) }
     static let caution = Crayon.tangerine
@@ -95,7 +95,8 @@ enum Typeface {
     private static func scaled(_ size: CGFloat, _ style: Font.TextStyle) -> CGFloat {
         let ui: UIFont.TextStyle = switch style {
         case .largeTitle: .largeTitle; case .title: .title1; case .title2: .title2; case .title3: .title3
-        case .headline: .headline; case .subheadline: .subheadline; case .caption: .caption1; case .footnote: .footnote
+        case .headline: .headline; case .callout: .callout; case .subheadline: .subheadline
+        case .caption: .caption1; case .caption2: .caption2; case .footnote: .footnote
         default: .body }
         return UIFontMetrics(forTextStyle: ui).scaledValue(for: size)
     }
@@ -216,11 +217,13 @@ extension View { func calmWhileScrolling() -> some View { modifier(CalmScroll())
 /// Lights a part of the app with Otto's lamp when `on`: dark appearance, amber tint, the lamp page and cards.
 struct LampScope: ViewModifier {
     let on: Bool
+    @Environment(\.colorScheme) private var scheme
     func body(content: Self.Content) -> some View {
-        if on {
-            content.environment(\.lamp, true).environment(\.colorScheme, .dark)
-                .toolbarColorScheme(.dark, for: .navigationBar, .tabBar).tint(Palette.lampTint)
-        } else { content }
+        content
+            .environment(\.lamp, on)
+            .environment(\.colorScheme, on ? .dark : scheme)
+            .toolbarColorScheme(on ? .dark : nil, for: .navigationBar, .tabBar)
+            .tint(on ? Palette.lampTint : Palette.accent)
     }
 }
 extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)) } }
@@ -232,9 +235,11 @@ extension View { func lamp(_ on: Bool) -> some View { modifier(LampScope(on: on)
 /// which UIKit-backed controls follow — and changes nothing by day.
 struct LampPresented: ViewModifier {
     var sheet: Bool = true
+    var forceLamp: Bool = false
     @Environment(\.lamp) private var lamp
     @ViewBuilder func body(content: Self.Content) -> some View {
-        let base = content.fontDesign(.rounded).modifier(LampScope(on: lamp)).preferredColorScheme(lamp ? .dark : nil)
+        let activeLamp = forceLamp || lamp
+        let base = content.fontDesign(.rounded).modifier(LampScope(on: activeLamp)).preferredColorScheme(activeLamp ? .dark : nil)
         let styled = Group {
             if sheet {
                 base.presentationCornerRadius(28).presentationDragIndicator(.visible)
@@ -242,20 +247,30 @@ struct LampPresented: ViewModifier {
                 base
             }
         }
-        if lamp && ArtStyle.current == .flat {
+        if activeLamp && ArtStyle.current == .flat {
             // in 2D, every sheet at night has the page's night behind it (the fireflies), lists and forms included
             styled.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
         } else { styled }
     }
 }
-extension View { func lampPresented(sheet: Bool = true) -> some View { modifier(LampPresented(sheet: sheet)) } }
+extension View { func lampPresented(sheet: Bool = true, forceLamp: Bool = false) -> some View { modifier(LampPresented(sheet: sheet, forceLamp: forceLamp)) } }
 
 extension Crayon {
     /// A fill under white text. Under the lamp the bright kind colours would be the brightest things in a dark room —
     /// the light shone at a waking baby — so there they sink into the lamp's blue (still ≥ 4.5:1 under white, and
     /// darker, so higher) and leave the colour to rings and text.
     static func fill(_ c: Color, _ lamp: Bool) -> Color {
-        lamp ? buttonFill(c).mix(with: Palette.lampCard, by: 0.5) : buttonFill(c)
+        let base: Color = switch c {
+        case Palette.accent, Palette.accentFill: Palette.accentFill
+        case Palette.bead, Palette.amber, Palette.lampTint: buttonFill(Crayon.sunflower)
+        case Palette.rod: buttonFill(Crayon.sky)
+        case buttonFill(Crayon.teal), buttonFill(Crayon.pink), buttonFill(Crayon.sunflower),
+             buttonFill(Crayon.cherry), buttonFill(Crayon.leaf), buttonFill(Crayon.sky),
+             buttonFill(Crayon.tangerine), buttonFill(Crayon.lilac):
+            c
+        default: buttonFill(c)
+        }
+        return lamp ? base.mix(with: Palette.lampCard, by: 0.5) : base
     }
 }
 
@@ -846,7 +861,7 @@ struct ToyPress: ButtonStyle {
             .scaleEffect(!reduce && configuration.isPressed ? 0.975 : 1)
             .opacity(configuration.isPressed ? 0.96 : 1)
             .animation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.62), value: configuration.isPressed)
-            .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, new in new }
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.6), trigger: configuration.isPressed) { _, new in new && !TactileEngine.shared.quietNight }
     }
 }
 extension ButtonStyle where Self == ToyPress { static var toy: ToyPress { ToyPress() } }
@@ -902,7 +917,7 @@ struct VinylButton: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
         let pressed = configuration.isPressed
-        let body = prominent ? tint : tint.opacity(dark ? 0.26 : 0.16)
+        let body = prominent ? Crayon.fill(tint, dark) : tint.opacity(dark ? 0.26 : 0.16)
         let ink: Color = prominent ? .white : Crayon.ink(tint)
         let shape = Capsule(style: .continuous)
         if ArtStyle.current == .flat {
@@ -910,10 +925,11 @@ struct VinylButton: ButtonStyle {
             configuration.label
                 .font((large ? Font.callout : Font.subheadline).weight(.semibold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.84)
                 .foregroundStyle(ink)
                 .padding(.horizontal, large ? 20 : LayoutSpec.pillPadH).padding(.vertical, large ? 13 : 9)
                 .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : 38)
-                .background(shape.fill(prominent ? tint : tint.opacity(dark ? 0.22 : 0.14)))
+                .background(shape.fill(body))
                 .contentShape(shape.inset(by: large ? 0 : -4))
                 .opacity(enabled ? (pressed ? 0.6 : 1) : 0.45)
         } else {
@@ -926,6 +942,7 @@ struct VinylButton: ButtonStyle {
             configuration.label
                 .font((large ? Font.callout : Font.subheadline).weight(.semibold))
                 .lineLimit(1)
+                .minimumScaleFactor(0.84)
                 .foregroundStyle(ink)
                 .padding(.horizontal, large ? 20 : 16).padding(.vertical, large ? 13 : 9)
                 .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : 38)
@@ -943,7 +960,7 @@ struct VinylButton: ButtonStyle {
                 .offset(y: !reduce && pressed ? 1.5 : 0)
                 .scaleEffect(x: !reduce && pressed ? 1.025 : 1, y: !reduce && pressed ? 0.94 : 1, anchor: .bottom)
                 .animation(reduce ? nil : .spring(response: 0.22, dampingFraction: 0.55), value: pressed)
-                .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: pressed) { _, new in new }
+                .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: pressed) { _, new in new && !TactileEngine.shared.quietNight }
         }
     }
 }

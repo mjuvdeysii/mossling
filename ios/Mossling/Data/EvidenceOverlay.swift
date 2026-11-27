@@ -179,13 +179,23 @@ struct LampCard: Identifiable, Sendable {
 
     /// Plain-text shareable summary for WeChat / Messages without needing an app install.
     func shareMessage() -> String {
-        """
-        【摸索台灯 · \(stageTitle)】\(headline)
-        可以这样说：“\(sayAloud)”
-        手边微动作：\(microAction)
-        写给家人：\(grandparentNote)
-        依据：\(meta.sources.map(\.title).joined(separator: "；"))
-        """
+        let sources = meta.sources.map(\.title).joined(separator: L10n.t("；", "; "))
+        return L10n.t(
+            """
+            【摸索台灯 · \(stageTitle)】\(headline)
+            可以这样说：“\(sayAloud)”
+            手边微动作：\(microAction)
+            写给家人：\(grandparentNote)
+            依据：\(sources)
+            """,
+            """
+            [Moss & Otto · \(stageTitle)] \(headline)
+            Say: "\(sayAloud)"
+            Micro-action: \(microAction)
+            For family: \(grandparentNote)
+            Sources: \(sources)
+            """
+        )
     }
 }
 

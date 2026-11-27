@@ -142,22 +142,23 @@ struct MidnightCareSummary: Equatable {
         let milkKind = lastBottle.flatMap { ["breastmilk", "formula"].contains($0.detail ?? "") ? $0.detail : nil } ?? "formula"
 
         let nightStartMs = nightWindowStartMs(for: now)
-        let nightFeeds = logs.filter {
-            ($0.type == LogType.nurse || $0.type == LogType.bottle)
-                && $0.start >= nightStartMs
-                && $0.start <= nowMs
-        }.count
+        let nightFeeds = logs.filter { $0.start <= nowMs }.feedCount(from: nightStartMs)
         var nightSleepSec = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { acc, entry in
+            let entryEnd = min(entry.end ?? nowMs, nowMs)
             let s = max(entry.start, nightStartMs)
-            let e = min(entry.end ?? nowMs, nowMs)
-            return e > s ? acc + (e - s) / 1000.0 : acc
+            guard entryEnd > s else { return acc }
+            let rawSpan = max(1.0, (entryEnd - entry.start) / 1000.0)
+            let ratio = entry.start < nightStartMs ? min(1.0, ((entryEnd - s) / 1000.0) / rawSpan) : 1.0
+            return acc + min(entry.activeSeconds, rawSpan) * ratio
         }
         if let activeSleep = timers.first(where: { $0.type == LogType.sleep }) {
             let activeEnd = min(activeSleep.pausedAt ?? nowMs, nowMs)
             let activeStart = max(activeSleep.start, nightStartMs)
             if activeEnd > activeStart {
                 let rawElapsed = activeSleep.total(nowMs)
-                nightSleepSec += min(rawElapsed, (activeEnd - activeStart) / 1000.0)
+                let fullSpan = max(1.0, (activeEnd - activeSleep.start) / 1000.0)
+                let ratio = activeSleep.start < nightStartMs ? min(1.0, ((activeEnd - activeStart) / 1000.0) / fullSpan) : 1.0
+                nightSleepSec += rawElapsed * ratio
             }
         }
 
@@ -541,8 +542,10 @@ struct BedsideLampView: View {
             if phase == .active {
                 applyScreenDimmerIfAllowed()
                 if !reduce { motion.start() }
-            } else {
+            } else if phase == .background {
                 restoreScreenBrightness()
+                motion.stop()
+            } else {
                 motion.stop()
             }
         }
@@ -552,6 +555,7 @@ struct BedsideLampView: View {
                 app.bedsideLampPresentedCount = max(0, app.bedsideLampPresentedCount - 1)
             }
             restoreScreenBrightness()
+            soundscape.clearAutoFadeNotice()
             UIApplication.shared.isIdleTimerDisabled = false
             volumeMonitor.stop()
             motion.stop()
@@ -807,6 +811,7 @@ struct BedsideLampView: View {
                         }
                     }
                     .onTapGesture(count: 2) {
+                        guard !palmPatActive else { return }
                         TactileEngine.shared.dimmerTick()
                         showingDimmerHint = false
                         rekindleFromEmber()
@@ -943,7 +948,7 @@ struct BedsideLampView: View {
                     lid: emberResting ? 0.92 : (isSleeping ? 0.9 : 0.52),
                     lean: reduce ? 0 : motion.roll * 5.0,
                     alive: !emberResting,
-                    poke: true,
+                    poke: false,
                     label: L10n.t("Otto 提着床头夜灯陪着你们", "Otto holding the warm bedside lamp"),
                     glow: true
                 )
@@ -1498,7 +1503,13 @@ struct BedsideLampView: View {
                 }
 
                 if let t = activeTimer {
-                    activeTimerCard(t, now: (previewClock ?? tl.date).timeIntervalSince1970 * 1000)
+                    if let previewClock {
+                        activeTimerCard(t, now: previewClock.timeIntervalSince1970 * 1000)
+                    } else {
+                        TimelineView(.periodic(from: .now, by: 1)) { liveTl in
+                            activeTimerCard(t, now: liveTl.date.timeIntervalSince1970 * 1000)
+                        }
+                    }
                 } else {
                     idleCarePanel(summary: summary)
                 }
@@ -1963,14 +1974,17 @@ private final class LampTiltObserver {
               ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil,
               manager.isDeviceMotionAvailable else { return }
         isRunning = true
-        manager.deviceMotionUpdateInterval = 1.0 / 30.0
+        manager.deviceMotionUpdateInterval = 1.0 / 15.0
         manager.startDeviceMotionUpdates(to: .main) { [weak self] data, _ in
             guard let self, let g = data?.gravity else { return }
-            // Low-pass smooth gravity tilt in [-1, 1]
+            // Low-pass smooth gravity tilt in [-1, 1] with deadband to avoid unnecessary SwiftUI invalidations on a nightstand
             let targetRoll = max(-0.8, min(0.8, g.x))
             let targetPitch = max(-0.8, min(0.8, g.y + 0.55))
-            self.roll += (targetRoll - self.roll) * 0.14
-            self.pitch += (targetPitch - self.pitch) * 0.14
+            let nextRoll = self.roll + (targetRoll - self.roll) * 0.14
+            let nextPitch = self.pitch + (targetPitch - self.pitch) * 0.14
+            guard abs(nextRoll - self.roll) > 0.008 || abs(nextPitch - self.pitch) > 0.008 else { return }
+            self.roll = nextRoll
+            self.pitch = nextPitch
         }
     }
 

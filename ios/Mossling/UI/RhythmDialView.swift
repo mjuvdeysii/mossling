@@ -307,9 +307,9 @@ struct RhythmDialCard: View {
                         .frame(width: side * 0.405, height: side * 0.405)
                 }
                 .contentShape(Circle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { value in
+                .simultaneousGesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             let dist = hypot(dx, dy)

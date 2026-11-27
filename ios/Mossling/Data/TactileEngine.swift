@@ -41,7 +41,13 @@ final class TactileEngine {
     func play(_ cue: Cue) {
         guard !isTestHost else { return }
         fireHaptic(cue)
-        guard soundEnabled, !quietNight, !SoundscapeEngine.shared.isPlaying else { return }
+        switch cue {
+        case .breathInhale, .breathExhale, .palmPat:
+            return
+        default:
+            break
+        }
+        guard soundEnabled, !quietNight, !SoundscapeEngine.shared.isPlaying, !FirstVoiceController.shared.isRecording else { return }
         fireSound(cue)
     }
 
@@ -224,9 +230,20 @@ final class TactileEngine {
 
     // MARK: - Procedural Micro-Acoustics (0 KB bundled audio)
 
+    private func teardownAudio() {
+        player?.stop()
+        audioEngine?.stop()
+        player = nil
+        audioEngine = nil
+    }
+
     private func ensureAudio() -> AVAudioPlayerNode? {
+        guard !FirstVoiceController.shared.isRecording, !SoundscapeEngine.shared.isPlaying else { return nil }
         if let p = player, let e = audioEngine {
-            if !e.isRunning { try? e.start() }
+            if !e.isRunning {
+                do { try e.start() } catch { teardownAudio(); return nil }
+            }
+            guard e.isRunning else { teardownAudio(); return nil }
             if !p.isPlaying { p.play() }
             return p
         }
@@ -241,11 +258,13 @@ final class TactileEngine {
             engine.connect(node, to: engine.mainMixerNode, format: format)
             engine.mainMixerNode.outputVolume = 0.55
             try engine.start()
+            guard engine.isRunning else { teardownAudio(); return nil }
             node.play()
             audioEngine = engine
             player = node
             return node
         } catch {
+            teardownAudio()
             return nil
         }
     }

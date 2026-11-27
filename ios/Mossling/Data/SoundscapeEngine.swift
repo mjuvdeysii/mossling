@@ -122,6 +122,7 @@ final class SoundscapeDSPState: @unchecked Sendable {
     var layerKindRaw: Int = -1
     var layerTargetMix: Float = 0.0
     var layerCurrentMix: Float = 0.0
+    private var lastRenderLayerKind: Int = -1
     // Independent low-pass state for secondary layer so filters never cross-contaminate
     var sLp1: Float = 0, sLp2: Float = 0
 
@@ -130,21 +131,30 @@ final class SoundscapeDSPState: @unchecked Sendable {
         let t = Double(sampleIndex) / sr
         sampleIndex &+= 1
 
+        let activeLayerKind = layerKindRaw
+        if activeLayerKind != lastRenderLayerKind {
+            lastRenderLayerKind = activeLayerKind
+            sLp1 = 0
+            sLp2 = 0
+            layerCurrentMix = 0
+        }
+
         // Smooth gain ramps (~250ms glide so start/stop/volume/layer transitions never click)
         let desired = targetGain * userVolume
         currentGain += (desired - currentGain) * 0.00018
         layerCurrentMix += (layerTargetMix - layerCurrentMix) * 0.00018
-        if layerTargetMix <= 0.0001 && layerCurrentMix <= 0.0005 && layerKindRaw >= 0 {
+        if layerTargetMix <= 0.0001 && layerCurrentMix <= 0.0005 && activeLayerKind >= 0 {
             layerCurrentMix = 0
             layerKindRaw = -1
+            lastRenderLayerKind = -1
             sLp1 = 0
             sLp2 = 0
         }
 
         let primary = synthesizeLayer(kind: kindRaw, t: t, sr: sr, useSecondaryFilter: false)
         var combined = primary
-        if layerKindRaw >= 0 && layerKindRaw != kindRaw && layerCurrentMix > 0.0005 {
-            let secondary = synthesizeLayer(kind: layerKindRaw, t: t, sr: sr, useSecondaryFilter: true)
+        if activeLayerKind >= 0 && activeLayerKind != kindRaw && layerCurrentMix > 0.0005 {
+            let secondary = synthesizeLayer(kind: activeLayerKind, t: t, sr: sr, useSecondaryFilter: true)
             combined = primary * 0.80 + secondary * (0.58 * layerCurrentMix)
         }
         return tanh(combined * currentGain * 1.42)
@@ -335,6 +345,7 @@ final class SoundscapeEngine {
     private var engine: AVAudioEngine?
     private var sourceNode: AVAudioSourceNode?
     private var countdownTask: Task<Void, Never>?
+    private var teardownTask: Task<Void, Never>?
     private var observersRegistered = false
     private var remoteCommandsConfigured = false
     private var isTestHost: Bool {
@@ -399,19 +410,16 @@ final class SoundscapeEngine {
             dsp.layerTargetMix = 0
         } else {
             let nextIdx = SoundscapeKind.allCases.firstIndex(of: kind) ?? -1
-            if dsp.layerKindRaw != nextIdx {
-                dsp.sLp1 = 0
-                dsp.sLp2 = 0
-                dsp.layerCurrentMix = 0
-                dsp.layerKindRaw = nextIdx
-            }
-            secondary = kind
             dsp.layerTargetMix = 1.0
+            dsp.layerKindRaw = nextIdx
+            secondary = kind
         }
         updateNowPlaying()
     }
 
     func start(_ kind: SoundscapeKind, preserveTimer: Bool = false) {
+        teardownTask?.cancel()
+        teardownTask = nil
         didFinishAutoFade = false
         if secondary == kind {
             secondary = nil
@@ -447,11 +455,30 @@ final class SoundscapeEngine {
         dsp.layerTargetMix = 0.0
         guard !isTestHost else { return }
         clearNowPlaying()
-        Task { @MainActor [weak self] in
+        teardownTask?.cancel()
+        teardownTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(320))
-            guard let self, self.active == nil else { return }
+            guard !Task.isCancelled, let self, self.active == nil else { return }
             self.teardownAudioGraph()
         }
+    }
+
+    /// Synchronously halts audio graph without delayed session deactivation (used when handing off to voice recording).
+    func stopImmediately(deactivateSession: Bool = false) {
+        teardownTask?.cancel()
+        teardownTask = nil
+        didFinishAutoFade = false
+        countdownTask?.cancel()
+        countdownTask = nil
+        remainingSeconds = nil
+        active = nil
+        secondary = nil
+        dsp.targetGain = 0.0
+        dsp.layerTargetMix = 0.0
+        dsp.currentGain = 0.0
+        guard !isTestHost else { return }
+        clearNowPlaying()
+        teardownAudioGraph(deactivateSession: deactivateSession)
     }
 
     private func completeAutoFade() {
@@ -517,12 +544,14 @@ final class SoundscapeEngine {
         }
     }
 
-    private func teardownAudioGraph() {
+    private func teardownAudioGraph(deactivateSession: Bool = true) {
         engine?.stop()
         if let n = sourceNode { engine?.detach(n) }
         sourceNode = nil
         engine = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        if deactivateSession {
+            try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        }
     }
 
     private func registerSessionObserversIfNeeded() {
@@ -552,10 +581,10 @@ final class SoundscapeEngine {
         case .ended:
             guard active != nil else { return }
             let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
-            if opts.contains(.shouldResume) || engine?.isRunning == false {
+            if opts.contains(.shouldResume) {
                 try? AVAudioSession.sharedInstance().setActive(true)
                 if engine?.isRunning != true {
-                    teardownAudioGraph()
+                    teardownAudioGraph(deactivateSession: false)
                     startAudioGraph()
                 }
                 if let rem = remainingSeconds {
@@ -564,6 +593,8 @@ final class SoundscapeEngine {
                     dsp.targetGain = 1.0
                 }
                 updateNowPlaying()
+            } else {
+                stop()
             }
         @unknown default:
             break

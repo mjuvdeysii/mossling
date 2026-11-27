@@ -34,7 +34,8 @@ struct Day: Hashable, Comparable, Codable {
     /// The same day of the month n months on (the last day of a shorter month), as java.time plusMonths.
     func plus(months n: Int) -> Day {
         let total = (y * 12 + (m - 1)) + n
-        let ny = total / 12, nm = total % 12 + 1
+        let ny = Int(floor(Double(total) / 12.0))
+        let nm = total - ny * 12 + 1
         let last = Day.daysIn(ny, nm)
         return Day(y: ny, m: nm, d: min(d, last))
     }
@@ -49,9 +50,15 @@ struct Day: Hashable, Comparable, Codable {
     var monday: Day { let wd = (epochDay + 3) % 7; return plus(days: -((wd + 7) % 7)) } // 1970-01-01 was a Thursday
     var weekdayIndex: Int { ((epochDay + 3) % 7 + 7) % 7 } // 0 = Monday
     /// "11月19日" / "Nov 19".
-    var md: String { L10n.isEnglish ? "\(Day.enMonths[m - 1]) \(d)" : "\(m)月\(d)日" }
+    var md: String {
+        let idx = max(0, min(11, m - 1))
+        return L10n.isEnglish ? "\(Day.enMonths[idx]) \(d)" : "\(m)月\(d)日"
+    }
     /// "2026年11月19日" / "Nov 19, 2026".
-    var ymd: String { L10n.isEnglish ? "\(Day.enMonths[m - 1]) \(d), \(y)" : "\(y)年\(m)月\(d)日" }
+    var ymd: String {
+        let idx = max(0, min(11, m - 1))
+        return L10n.isEnglish ? "\(Day.enMonths[idx]) \(d), \(y)" : "\(y)年\(m)月\(d)日"
+    }
     /// The date, with the year only when it is not this year.
     var mdOrYmd: String { y == Day.today.y ? md : ymd }
     /// "周一" / "Mon".
@@ -95,9 +102,13 @@ struct Age: Equatable {
         let actual = on(birth: birth, today: today)
         guard actual.months < 24 else { return nil }
         let cb = correctedBirth(birth: birth, gestationalWeeks: gestationalWeeks)
-        if today.epochDay < cb.epochDay {
-            return Age(months: 0, days: 0, toNext: max(1, today.days(to: cb)), lived: max(1, birth.days(to: today) + 1))
+        if today < birth {
+            return Age(months: 0, days: 0, toNext: max(1, today.days(to: cb)), lived: 0)
         }
-        return on(birth: cb, today: today)
+        if today.epochDay < cb.epochDay {
+            return Age(months: 0, days: 0, toNext: max(1, today.days(to: cb)), lived: actual.lived)
+        }
+        let dev = on(birth: cb, today: today)
+        return Age(months: dev.months, days: dev.days, toNext: dev.toNext, lived: actual.lived)
     }
 }

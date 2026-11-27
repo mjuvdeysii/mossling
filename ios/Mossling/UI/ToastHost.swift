@@ -17,13 +17,13 @@ private struct ToastSlot: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         ZStack {
-            if let t = j.toast {
+            if let t = j.toast, bottom || j.focus == nil {
                 ToastBar(toast: t)
                     .transition(reduce ? AnyTransition.opacity : AnyTransition.move(edge: bottom ? .bottom : .top).combined(with: .opacity))
                     .id(t.id)
             }
         }
-        .animation(.snappy, value: j.toast?.id)
+        .animation(reduce ? nil : .snappy, value: j.toast?.id)
     }
 }
 
@@ -39,20 +39,31 @@ private struct ToastBar: View {
             Spacer(minLength: 4)
             if toast.restore != nil {
                 Button(L10n.t("撤销", "Undo")) { j.undo(toast) }
-                    .font(.subheadline.weight(.bold)).buttonStyle(.borderless)
+                    .font(.subheadline.weight(.bold))
+                    .buttonStyle(.borderless)
+                    .padding(.horizontal, 10)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
             }
         }
-        .padding(.leading, 10).padding(.trailing, 16).padding(.vertical, 10)
+        .padding(.leading, 10).padding(.trailing, 10).padding(.vertical, 6)
         .glassEffect(.regular, in: Capsule())
         .padding(.horizontal, 16).padding(.vertical, 6)
-        .onTapGesture { j.toast = nil }
+        .gesture(
+            DragGesture(minimumDistance: 16).onEnded { value in
+                if abs(value.translation.height) > 12 { j.toast = nil }
+            }
+        )
         .task(id: toast.id) {
-            UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
+            if !TactileEngine.shared.quietNight {
+                UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
+            }
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 2 : 5))
+            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 3.5 : 5))
             if j.toast?.id == toast.id { j.toast = nil }
         }
-        .accessibilityElement(children: .combine)
+        .accessibilityElement(children: .contain)
+        .accessibilityAction(named: L10n.t("关闭提示", "Dismiss")) { j.toast = nil }
     }
 }
 

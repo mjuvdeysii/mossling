@@ -212,7 +212,7 @@ struct LampHubView: View {
         }
         .fullScreenCover(isPresented: $showingBedsideLamp) { BedsideLampView() }
         .sheet(isPresented: $showingHandover) {
-            HandoverSheet(day: activeDay).lampPresented(sheet: true)
+            HandoverSheet(day: activeDay).lampPresented(sheet: true, forceLamp: is3AMOled || lamp)
         }
         .sheet(isPresented: $pickingDay) {
             NavigationStack {
@@ -238,13 +238,13 @@ struct LampHubView: View {
                 }
             }
             .presentationDetents([.medium])
-            .lampPresented()
+            .lampPresented(forceLamp: is3AMOled || lamp)
         }
         .sheet(item: Binding(get: { j.ask.map { LampAskWrap(id: $0) } }, set: { j.ask = $0?.id })) { w in
-            AskSheet(type: w.id, on: isToday ? nil : pastNoon).lampPresented()
+            AskSheet(type: w.id, on: isToday ? nil : pastNoon).lampPresented(forceLamp: is3AMOled || lamp)
         }
         .sheet(item: $editing) { e in
-            EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }, feed: j.feedEntries(containing: e.id)).lampPresented()
+            EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }, feed: j.feedEntries(containing: e.id)).lampPresented(forceLamp: is3AMOled || lamp)
         }
         .onChange(of: app.today) { _, t in selectedDay = t }
         .onChange(of: j.jumpToToday) { _, _ in selectedDay = app.today }
@@ -337,9 +337,10 @@ struct LampHubView: View {
                 oledActiveTimerBar(t)
             }
 
-            // 3. Thumb-zone 2x2 zero-glare <1s care pads
+            // 3. Thumb-zone 2x1 primary pads + stacked full-width bottle & diaper quick rows
             LazyVGrid(columns: cols, spacing: 10) {
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     if activeSleep != nil {
                         TactileEngine.shared.goldChime()
@@ -359,6 +360,7 @@ struct LampHubView: View {
                 .buttonStyle(.toy)
 
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     if activeNurse != nil {
                         j.switchSide(LogType.nurse)
@@ -379,7 +381,9 @@ struct LampHubView: View {
                     )
                 }
                 .buttonStyle(.toy)
+            }
 
+            VStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: LogType.symbol(LogType.bottle))
@@ -393,17 +397,18 @@ struct LampHubView: View {
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(Palette.lampInk.opacity(0.62))
                     }
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         ForEach(summary.bottleSuggestions, id: \.self) { ml in
                             Button {
+                                guard app.mayKeep() else { return }
                                 TactileEngine.shared.beadClick()
                                 _ = j.record(LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: summary.defaultMilkKind))
                             } label: {
-                                Text("\(ml)ml")
-                                    .font(Typeface.numerals(12, relativeTo: .caption, weight: .bold))
+                                Text(L10n.volume(ml: ml))
+                                    .font(Typeface.numerals(13, relativeTo: .caption, weight: .bold))
                                     .foregroundStyle(warmth.onPrimaryInk)
                                     .lineLimit(1)
-                                    .minimumScaleFactor(0.75)
+                                    .minimumScaleFactor(0.78)
                                     .frame(maxWidth: .infinity, minHeight: 44)
                                     .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
                             }
@@ -412,7 +417,7 @@ struct LampHubView: View {
                     }
                 }
                 .padding(12)
-                .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
                 .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
 
@@ -425,9 +430,10 @@ struct LampHubView: View {
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(Palette.lampInk)
                     }
-                    HStack(spacing: 6) {
+                    HStack(spacing: 8) {
                         ForEach([("wet", L10n.t("湿", "Wet")), ("dirty", L10n.t("便", "Dirty")), ("both", L10n.t("都有", "Both"))], id: \.0) { kind, label in
                             Button {
+                                guard app.mayKeep() else { return }
                                 TactileEngine.shared.beadClick()
                                 _ = j.record(LogEntry(type: LogType.diaper, start: JournalFile.now(), detail: kind))
                             } label: {
@@ -443,7 +449,7 @@ struct LampHubView: View {
                     }
                 }
                 .padding(12)
-                .frame(maxWidth: .infinity, minHeight: 90, alignment: .topLeading)
+                .frame(maxWidth: .infinity, alignment: .topLeading)
                 .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
                 .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             }
@@ -939,26 +945,27 @@ struct LampHubView: View {
                         } label: {
                             Text(L10n.t("回今天", "Today"))
                                 .font(.caption2.weight(.bold))
+                                .lineLimit(1)
                                 .foregroundStyle(.white)
                                 .padding(.horizontal, 10)
                                 .frame(minHeight: 44)
                                 .background(Capsule().fill(Palette.accentFill))
                         }
                         .buttonStyle(.plain)
-                    } else {
-                        Button {
-                            if canStepForward { moveDay(to: nextDay) }
-                        } label: {
-                            Image(systemName: "chevron.right")
-                                .font(.caption2.weight(.bold))
-                                .frame(minWidth: 44, minHeight: 44)
-                                .background(Circle().fill(Palette.fill))
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(!canStepForward)
-                        .opacity(canStepForward ? 1 : 0.35)
-                        .accessibilityLabel(L10n.t("后一天", "Next day"))
                     }
+
+                    Button {
+                        if canStepForward { moveDay(to: nextDay) }
+                    } label: {
+                        Image(systemName: "chevron.right")
+                            .font(.caption2.weight(.bold))
+                            .frame(minWidth: 44, minHeight: 44)
+                            .background(Circle().fill(Palette.fill))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canStepForward)
+                    .opacity(canStepForward ? 1 : 0.35)
+                    .accessibilityLabel(L10n.t("后一天", "Next day"))
                 }
             }
 
@@ -1333,8 +1340,18 @@ struct LampHubView: View {
     }
 
     private func handleTap(_ t: String, day: Day, isToday: Bool) {
+        guard app.mayKeep() else { return }
         if isToday && LogType.timed.contains(t) {
             j.focus = t
+            return
+        }
+        if !isToday && LogType.timed.contains(t) {
+            let endMs = defaultTimeForSelectedDay()
+            let startMs = endMs - 20 * 60_000
+            let nextSide: String? = t == LogType.nurse
+                ? (j.logs.last(where: { $0.type == LogType.nurse })?.side == "l" ? "r" : "l")
+                : nil
+            editing = LogEntry(type: t, start: startMs, end: endMs, side: nextSide)
             return
         }
         if t == LogType.bath {

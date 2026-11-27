@@ -67,8 +67,21 @@ enum GrowthYearbookPDF {
                 ? L10n.t("第 0 站 · 出生与新生儿 · \(mo.title)", "Month 0 · Arrival · \(mo.title)")
                 : L10n.t("第 \(page.month) 个月 · \(mo.title)", "Month \(page.month) · \(mo.title)")
             var lines: [String] = []
-            if let f = page.feeds, let s = page.sleepHours, let d = page.diapers {
-                lines.append(String(format: L10n.t("本月照护节律（有记录 %d 天）：日均喂奶 %.1f 次 · 日均睡眠 %.1f h · 尿布 %.1f 片", "Routine (%dd logged): %.1f feeds/d · %.1fh sleep/d · %.1f diapers/d"), page.days, f, s, d))
+            var routineParts: [String] = []
+            if let f = page.feeds {
+                routineParts.append(String(format: L10n.t("日均喂奶 %.1f 次", "%.1f feeds/d"), f))
+            }
+            if let s = page.sleepHours {
+                routineParts.append(String(format: L10n.t("日均睡眠 %.1f h", "%.1fh sleep/d"), s))
+            }
+            if let d = page.diapers {
+                routineParts.append(String(format: L10n.t("尿布 %.1f 片", "%.1f diapers/d"), d))
+            }
+            if !routineParts.isEmpty {
+                lines.append(
+                    L10n.t("本月照护节律（有记录 \(page.days) 天）：", "Routine (\(page.days)d logged): ")
+                        + routineParts.joined(separator: " · ")
+                )
             } else if page.days > 0 {
                 lines.append(L10n.t("本月记录天数：\(page.days) 天", "Logged care days: \(page.days)"))
             }
@@ -82,7 +95,7 @@ enum GrowthYearbookPDF {
                 }
             }
             if !page.plays.isEmpty {
-                let names = page.plays.prefix(6).map { "\($0.play.name) (×\($0.times))" }.joined(separator: "、")
+                let names = page.plays.prefix(6).map { "\($0.play.name) (×\($0.times))" }.joined(separator: L10n.t("、", ", "))
                 lines.append(L10n.t("玩过的游戏：", "Plays explored: ") + names)
             }
             for f in page.firsts {
@@ -120,20 +133,26 @@ enum GrowthYearbookPDF {
         if !capsuleItems.isEmpty {
             var capLines: [String] = []
             for cap in capsuleItems.sorted(by: { $0.writtenAt < $1.writtenAt }) {
+                let ageTrim = cap.writtenAgeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
                 if cap.isLocked(on: app.today) {
                     let unlockLabel = cap.unlockDay?.ymd ?? L10n.t("未来约定日", "Future date")
+                    let agePartZh = ageTrim.isEmpty ? "" : "\(ageTrim)"
+                    let agePartEn = ageTrim.isEmpty ? "" : " \(ageTrim)"
                     capLines.append(
                         L10n.t(
-                            "[\(cap.seal.title)]《\(cap.title)》· \(cap.writtenAgeLabel)封缄（\(unlockLabel)启封，正文封存保密中）",
-                            "[\(cap.seal.title)] \"\(cap.title)\" · sealed \(cap.writtenAgeLabel) (locked until \(unlockLabel))"
+                            "[\(cap.seal.title)]《\(cap.title)》· \(agePartZh)封缄（\(unlockLabel)启封，正文封存保密中）",
+                            "[\(cap.seal.title)] \"\(cap.title)\" · sealed\(agePartEn) (locked until \(unlockLabel))"
                         )
                     )
                 } else {
-                    let snippet = String(cap.body.trimmingCharacters(in: .whitespacesAndNewlines).prefix(220))
+                    let trimmed = cap.body.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let snippet = trimmed.count > 220 ? String(trimmed.prefix(220)) + "…" : trimmed
+                    let ageParenZh = ageTrim.isEmpty ? "" : "（\(ageTrim)）"
+                    let ageParenEn = ageTrim.isEmpty ? "" : " (\(ageTrim))"
                     capLines.append(
                         L10n.t(
-                            "[\(cap.seal.title)]《\(cap.title)》（\(cap.writtenAgeLabel)）：\(snippet)",
-                            "[\(cap.seal.title)] \"\(cap.title)\" (\(cap.writtenAgeLabel)): \(snippet)"
+                            "[\(cap.seal.title)]《\(cap.title)》\(ageParenZh)：\(snippet)",
+                            "[\(cap.seal.title)] \"\(cap.title)\"\(ageParenEn): \(snippet)"
                         )
                     )
                 }
@@ -154,7 +173,7 @@ enum GrowthYearbookPDF {
         let sections = buildSections(app: app, j: j, foods: foods, capsules: capsules)
         let pageRect = CGRect(x: 0, y: 0, width: 612, height: 792)
         let renderer = UIGraphicsPDFRenderer(bounds: pageRect)
-        let photoThumbs: [UIImage] = j.firsts.prefix(4).compactMap { FirstPhotoStore.load(for: $0.id) }
+        let photoThumbs: [UIImage] = Array(j.firsts.lazy.compactMap { FirstPhotoStore.load(for: $0.id) }.prefix(4))
 
         return renderer.pdfData { ctx in
             let margin: CGFloat = 44
@@ -243,7 +262,15 @@ enum GrowthYearbookPDF {
                         cg.setStrokeColor(UIColor(red: 0.85, green: 0.82, blue: 0.77, alpha: 1).cgColor)
                         cg.setLineWidth(0.75)
                         cg.stroke(rect.insetBy(dx: -4, dy: -4))
-                        img.draw(in: rect)
+                        cg.saveGState()
+                        cg.clip(to: rect)
+                        let iw = max(1, img.size.width)
+                        let ih = max(1, img.size.height)
+                        let fillScale = max(rect.width / iw, rect.height / ih)
+                        let drawW = iw * fillScale
+                        let drawH = ih * fillScale
+                        img.draw(in: CGRect(x: rect.midX - drawW * 0.5, y: rect.midY - drawH * 0.5, width: drawW, height: drawH))
+                        cg.restoreGState()
                     }
                     y += thumbSize + 20
                 }

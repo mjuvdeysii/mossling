@@ -86,8 +86,22 @@ struct RootView: View {
                 if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
             }
             .onChange(of: phase) { _, p in
-                if p == .active { app.today = .today; journal.reload(); app.syncWidgetPick(); roll(); Task { await LiveTimers.sync() }; mascot.timing = !journal.timers.isEmpty; mascot.send(.appActive) }
+                if p == .active {
+                    app.today = .today
+                    journal.reload()
+                    app.syncWidgetPick()
+                    roll()
+                    Task { await LiveTimers.sync() }
+                    mascot.timing = !journal.timers.isEmpty
+                    mascot.send(.appActive)
+                    if isLocked { unlock() }
+                }
                 if p == .background { locked = true; mascot.send(.appBackground) }
+            }
+            .overlay {
+                if app.lock && phase == .inactive && !isLocked {
+                    Rectangle().fill(.ultraThinMaterial).ignoresSafeArea().accessibilityHidden(true)
+                }
             }
             .task {
                 router.selectedTab = savedTab
@@ -131,17 +145,24 @@ struct RootView: View {
                     journal.refreshIfChanged()
                 }
             }
-            // track day/night boundary once a minute while foregrounded
+            // track day/night boundary and midnight date rollover once a minute while foregrounded
             .task(id: phase == .active) {
                 guard phase == .active else { return }
                 while !Task.isCancelled {
+                    let nowDay = Day.today
+                    if nowDay != app.today {
+                        app.today = nowDay
+                        roll()
+                    }
                     night = Daylight.isNight()
+                    syncQuietNight()
                     try? await Task.sleep(for: .seconds(60))
                 }
             }
             // a play recorded changes today's play (the least played comes next), so its count is part of the key
-            // a birth date just given: this week is written at once (not at the next time the app comes forward)
+            // a birth date or gestational weeks just given: this week is written at once (not at the next time the app comes forward)
             .onChange(of: app.birth) { _, _ in roll(fresh: true) }
+            .onChange(of: app.gestationalWeeks) { _, _ in roll(fresh: true) }
             .onChange(of: widgetKey) { _, _ in app.publish(journal) }
             // The appearance of the window. Under the lamp (night, 夜灯 on, on the records or the timer) the whole window
             // turns dark, not just the views: the navigation bar's title, the tab bar, date pickers and every sheet are
@@ -151,7 +172,7 @@ struct RootView: View {
             // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
             // system's own bars, pickers and sheets follow
             .toasts()
-            .sheet(isPresented: consentShown) { ConsentSheet() }
+            .sheet(isPresented: consentShown) { ConsentSheet().lampPresented() }
             // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
             .onOpenURL { url in open(url) }
             .modifier(LampScope(on: scheme == .dark))
@@ -183,7 +204,6 @@ struct RootView: View {
                     TodayView(path: $r.explorePath).exploreRoutes(path: $r.explorePath)
                 }
                 .environment(\.zoomNS, zoomToday)
-                .environment(\.night, night || scheme == .dark)
             } label: { tabLabel(L10n.t("摸索", "Explore"), symbol: "leaf", selectedSymbol: "leaf.fill", value: AppTab.explore.rawValue) }
 
             Tab(value: AppTab.lamp.rawValue) {
@@ -207,6 +227,7 @@ struct RootView: View {
                 .environment(\.zoomNS, zoomYou)
             } label: { tabLabel(L10n.t("工坊", "Studio"), symbol: "square.grid.2x2", selectedSymbol: "square.grid.2x2.fill", value: AppTab.studio.rawValue) }
         }
+        .environment(\.night, night || scheme == .dark)
         // a light tick as the chosen tab changes, like turning to a tabbed page
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         // a change of drawing style or language redraws every view immediately
@@ -234,6 +255,8 @@ struct RootView: View {
         journal.reload()
         app.syncWidgetPick()
         let arg = url.pathComponents.dropFirst().first
+        if url.host() != "lamp" { router.showingBedsideLamp = false }
+        if url.host() != "book" { router.showingStorybook = false }
         switch url.host() {
         case "lamp":
             journal.focus = nil
@@ -376,6 +399,8 @@ private struct ExploreRouteDestinationView: View {
         case let .play(code, month):
             if let play = app.content.play(code) {
                 PlayView(play: play, month: month).zoomDestination(route)
+            } else {
+                ContentUnavailableView(L10n.t("找不到这个玩法", "Activity Not Found"), systemImage: "leaf")
             }
         case .plan:
             PlanView(path: $path)
@@ -408,6 +433,8 @@ private struct KeepsakesRouteDestinationView: View {
         case let .topic(id):
             if let topic = app.content.topics.first(where: { $0.id == id }) {
                 TopicView(topic: topic)
+            } else {
+                ContentUnavailableView(L10n.t("找不到这篇内容", "Guide Not Found"), systemImage: "book.closed")
             }
         case .firsts:
             FirstsView()
@@ -433,73 +460,83 @@ struct OnboardingView: View {
     @State private var chose = false
     @State private var lookDown = false
     var body: some View {
-        VStack(spacing: 0) {
-            // tap either of them: they answer (Moss is the child, Otto the grown-up — nothing to choose)
-            LampScene(play: true, chosen: nil, lookDown: lookDown) { _ in
-                withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.8)) { chose = true }
-                lookDown = true
-            }
-            .frame(maxHeight: .infinity)
-            .ignoresSafeArea(edges: .top)
-            .sensoryFeedback(.selection, trigger: chose)
-
+        ScrollView {
             VStack(spacing: 0) {
-                VStack(spacing: 6) {
-                    Text(L10n.appName).font(.largeTitle.weight(.bold))
-                    Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
-                    Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
-                        .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
-                    // who the two are, in one line (their parts as child and grown-up are for the pictures only)
-                    Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「工坊」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Studio."))
-                        .font(.footnote).foregroundStyle(Palette.secondaryText)
-                        .padding(.top, 4)
+                // tap either of them: they answer (Moss is the child, Otto the grown-up — nothing to choose)
+                LampScene(play: !app.consent.isEmpty, chosen: nil, lookDown: lookDown) { _ in
+                    withAnimation(reduce ? nil : .spring(response: 0.4, dampingFraction: 0.8)) { chose = true }
+                    lookDown = true
                 }
-                .multilineTextAlignment(.center)
-                .padding(.top, 20).padding(.horizontal, 24)
+                .frame(minHeight: 220, idealHeight: 330, maxHeight: 420)
+                .ignoresSafeArea(edges: .top)
+                .sensoryFeedback(.selection, trigger: chose)
 
-                VStack(spacing: 10) {
-                    Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                        .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
-                    Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
-                        .buttonStyle(.glass).controlSize(.large)
-                    // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
+                VStack(spacing: 0) {
                     VStack(spacing: 6) {
-                        Text(L10n.t("本应用陪伴家庭养育，不能替代医生的诊断和建议。", "A quiet companion for home parenting — not a substitute for medical advice."))
-                            .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
-                        HStack(spacing: 16) {
-                            ForEach([(L10n.t("使用条款", "Terms"), "TERMS"), (L10n.t("隐私政策", "Privacy"), "PRIVACY"), (L10n.t("免责声明", "Disclaimer"), "DISCLAIMER")], id: \.1) { t, f in
-                                Button(t) { doc = f }.font(.caption.weight(.semibold))
+                        Text(L10n.appName).font(.largeTitle.weight(.bold))
+                        Text(L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.title3.weight(.semibold)).foregroundStyle(Palette.accent)
+                        Text(L10n.t("陪 0–3 岁的孩子一起玩，看着一个月一个月长大，把每一天记下来。", "Play alongside your 0–3 year old, watch them grow month by month, and keep each day's quiet notes."))
+                            .font(.subheadline).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
+                        // who the two are, in one line (their parts as child and grown-up are for the pictures only)
+                        Text(L10n.t("Moss 和 Otto 会一直陪在旁边，在「工坊」里选一个做伙伴", "Moss and Otto are always nearby — choose your companion in Studio."))
+                            .font(.footnote).foregroundStyle(Palette.secondaryText)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.top, 4)
+                    }
+                    .multilineTextAlignment(.center)
+                    .padding(.top, 20).padding(.horizontal, 24)
+
+                    VStack(spacing: 10) {
+                        Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                            .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+                        Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                            .buttonStyle(.glass).controlSize(.large)
+                        // the small print on its own piece of paper, so the meadow at the foot of the page never runs behind it
+                        VStack(spacing: 6) {
+                            Text(L10n.t("本应用陪伴家庭养育，不能替代医生的诊断和建议。", "A quiet companion for home parenting — not a substitute for medical advice."))
+                                .font(.caption).foregroundStyle(Palette.secondaryText).multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                            FlowRow(spacing: 16, lineSpacing: 4) {
+                                ForEach([(L10n.t("使用条款", "Terms"), "TERMS"), (L10n.t("隐私政策", "Privacy"), "PRIVACY"), (L10n.t("免责声明", "Disclaimer"), "DISCLAIMER")], id: \.1) { t, f in
+                                    Button(t) { doc = f }
+                                        .font(.caption.weight(.semibold))
+                                        .frame(minHeight: 44)
+                                        .contentShape(Rectangle())
+                                }
                             }
                         }
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
+                        .padding(.top, 4)
                     }
-                    .padding(.horizontal, 12).padding(.vertical, 8)
-                    .background(Palette.background.opacity(0.92), in: RoundedRectangle(cornerRadius: Radius.tile, style: .continuous))
-                    .padding(.top, 4)
+                    .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 16)
                 }
-                .padding(.horizontal, 24).padding(.top, 18).padding(.bottom, 12)
+                .frame(maxWidth: .infinity)
+                .background(
+                    UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
+                        .fill(LinearGradient(colors: [Palette.background, Palette.background.opacity(0.96), .clear], startPoint: .top, endPoint: .bottom))
+                        .shadow(color: .black.opacity(0.16), radius: 12, y: -4)
+                )
+                .overlay(alignment: .top) {
+                    UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
+                        .strokeBorder(Color(hex: 0xEADAC2).opacity(0.55), lineWidth: 0.75)
+                        .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.14)))
+                }
+                .padding(.top, -22)
             }
-            .frame(maxWidth: .infinity)
-            .background(
-                UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
-                    .fill(LinearGradient(colors: [Palette.background, Palette.background.opacity(0.96), .clear], startPoint: .top, endPoint: .bottom))
-                    .shadow(color: .black.opacity(0.16), radius: 12, y: -4)
-            )
-            .overlay(alignment: .top) {
-                UnevenRoundedRectangle(topLeadingRadius: 28, bottomLeadingRadius: 0, bottomTrailingRadius: 0, topTrailingRadius: 28, style: .continuous)
-                    .strokeBorder(Color(hex: 0xEADAC2).opacity(0.55), lineWidth: 0.75)
-                    .mask(LinearGradient(colors: [.white, .clear], startPoint: .top, endPoint: UnitPoint(x: 0.5, y: 0.14)))
-            }
-            .padding(.top, -22)
         }
+        .scrollBounceBehavior(.basedOnSize)
         .pageBackground()
-        .task {
+        .task(id: !app.consent.isEmpty) {
+            guard !app.consent.isEmpty else { return }
             // shot C after the opening: the main one looks at the way in
             if !reduce { try? await Task.sleep(for: .milliseconds(5200)) }
             lookDown = true
         }
-        .sheet(isPresented: $askBirth) { BirthSheet() }
+        .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
-            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { doc = nil } } } }
+            NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("关闭", "Close"), systemImage: "xmark") { doc = nil } } } }
+                .lampPresented()
         }
     }
 }

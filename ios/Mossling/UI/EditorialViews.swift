@@ -656,7 +656,7 @@ struct ReleaseNotesView: View {
                 id: "story-theater",
                 symbol: "sparkles",
                 color: Palette.amber,
-                title: L10n.t("Pixar 3D × Ghibli 2D 活态绘本与独立动画", "Living Picture-Book Stage (3D & 2D)"),
+                title: L10n.t("双画风活态绘本与独立动画", "Living Picture-Book Stage (3D & 2D)"),
                 detail: L10n.t(
                     "加入柔光棚拍与手绘水彩双风格画面，推出 30 部覆盖 0–24 个月的完全独立手工编排活动小动画与第 6 月旗舰草原野餐封面。",
                     "Paired soft-vinyl warm studio lighting with hand-tinted watercolor textures, featuring 30 bespoke step animations across 0–24 months and the Month 6 flagship picnic cover."
@@ -676,10 +676,10 @@ struct ReleaseNotesView: View {
                 id: "smooth",
                 symbol: "hand.draw.fill",
                 color: Crayon.leaf,
-                title: L10n.t("只读节奏总览与顺滑展开手势", "Read-Only Swimlane & Fluid Accordions"),
+                title: L10n.t("舒心展开与全览卡片", "Calm Cards & Smooth Expanding Sections"),
                 detail: L10n.t(
-                    "移除日总览条易误触拖拽手势，全站展开收起改用一致的柔和物理弹簧，零横向滑条遮挡。",
-                    "Removed accidental drag-scrubbing on the daily swimlane, standardized smooth accordion springs site-wide, and replaced horizontal strips with wrapping flow rows."
+                    "今日时间轴专注清晰阅读，所有展开收起顺滑自然，在任意字号下都完整排布不裁切。",
+                    "Refined the daily overview for effortless reading with calm expanding sections and clean layout across text sizes."
                 )
             )
         ]
@@ -748,8 +748,8 @@ struct ReleaseNotesView: View {
                         }
                     } content: {
                         VStack(alignment: .leading, spacing: 8) {
-                            historyRow("2.0 Foundations", L10n.t(
-                                "推出床头六声景交互暖灯、护耳音量监测、灵动岛实时计时、StandBy 夜间床头牌、Siri 与控制中心捷径、60 种辅食图鉴、四工坊感官玩具盒与火漆时光胶囊。",
+                            historyRow("2.0", L10n.t(
+                                "推出床头六声景交互暖灯、护耳音量监测、灵动岛实时计时、StandBy 夜间床头牌、Siri 与控制中心捷径、60 种辅食图鉴、五工坊感官玩具盒与火漆时光胶囊。",
                                 "Introduced Otto's 6-soundscape Bedside Lamp, Ear-Safe Monitor, Live Activities, StandBy Night Beacon, Control Center & Siri shortcuts, 60 First Foods Atlas, Sensory Toybox, and Wax-Sealed Time Capsules."
                             ))
                             Divider().opacity(0.45)

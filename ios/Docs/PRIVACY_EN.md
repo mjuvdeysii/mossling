@@ -6,8 +6,8 @@ Developer: {{DEVELOPER}}
 Contact: {{CONTACT}} (also the contact for the person responsible for children's personal information protection)
 Official Website: {{WEBSITE}}
 
-Effective date: November 24, 2026
-Last updated: November 24, 2026 (v2.0 alignment)
+Effective date: November 27, 2026
+Last updated: November 27, 2026 (v2.0 compliance alignment)
 
 ## 1. Overview
 
@@ -24,8 +24,8 @@ Last updated: November 24, 2026 (v2.0 alignment)
 | Monthly checklists | Observed milestones, vaccinations, and well-child visits | Track monthly progress |
 | This week's play | Weekly recommended activities and the activity chosen for today | Display "Today's Play" on the Home screen |
 | Play history | Activities completed and timestamps | Play counts, Growth Book, and exports |
-| Firsts (optional) | Milestone title, date, notes, and any photo you choose from Photos | Kept strictly on-device for Keepsakes › Firsts & Storybook |
-| First Foods & Capsules (optional) | Solid-food tasting entries and offline Time Capsule letters | Explore › First Foods and Keepsakes › Time Capsules |
+| Firsts (optional) | Milestone title, date, notes, any photo you choose from Photos, and short on-device `.m4a` baby voice stickers you explicitly record | Kept strictly on-device for Keepsakes › Firsts & Storybook |
+| First Foods & Capsules (optional) | Solid-food tasting entries, optional food sticker photos you pick, and offline Time Capsule letters | Explore › First Foods and Keepsakes › Time Capsules |
 | Care logs (optional) | Feeds, sleep, diapers, solids, baths, temperature, medication, notes, and active timers | Shown under Lamp › Rhythm & Entries and widgets |
 | Growth measurements (optional) | Weight, length / height, and head circumference | WHO growth curves |
 | App settings | Appearance, 3D/2D style, chosen companion (Moss or Otto), lamp brightness/warmth preset, App Lock, and tips state | Display and tactile features |
@@ -38,12 +38,13 @@ The information above is stored in this app's private storage (care logs, growth
 | Permission | Purpose |
 | --- | --- |
 | Face ID / Touch ID | Verified when enabling App Lock and on app launch afterward; authentication is handled by iOS with zero biometric access by the app |
-| Photo Library | Accessed solely when you manually pick a keepsake photo inside Firsts; copied into local app storage only and never uploaded |
+| Photo Library (Read & Save) | Read solely when you manually pick a keepsake or food sticker photo inside Firsts or First Foods (copied into local app storage only); add-only write access is used only when you explicitly save an exported wallpaper, growth print, or handover card. Never scans your library or uploads images |
+| Microphone (optional) | Used solely when you explicitly tap Record inside Firsts to capture up to 30 seconds of local `.m4a` audio; stored strictly in this device's sandbox with zero network transmission or background listening |
 | Motion & Fitness | Used purely in memory during Bedside Lamp and Rainstick toybox sessions for subtle tilt lighting and bead physics; never logged or stored |
-| Background Audio | Used only to softly sustain synthesized offline nursery soundscapes under the Bedside Lamp; zero network streaming or microphone recording |
+| Background Audio | Used only to softly sustain synthesized offline nursery soundscapes under the Bedside Lamp; zero network streaming and no background recording |
 | Live Activities & Widgets | Displays active timers, age station, and today's play on Lock Screen, Dynamic Island, StandBy, and Control Center without exposing temperature or medication |
 
-This app does not request Location, Contacts, Camera, Microphone, Apple Health, or Push Notification permissions.
+This app does not request Location, Contacts, Camera, Apple Health, or Push Notification permissions.
 
 ## 4. Children's Personal Information Protection Rules
 
@@ -70,7 +71,7 @@ If iCloud Backup is turned on for your device, iOS automatically encrypts and ba
 
 - **Exporting records (summary for a doctor or AI assistant, full backup, spreadsheet)**: files are saved in the Files app under "On My iPhone › Moss & Otto › Exports." When you tap "Send," the file is handed to the app you choose and managed by you. Exported files contain sensitive personal information about your child; once shared with another person or app (including an AI assistant), that recipient handles the data under its own rules.
 - **Importing a backup file**: the app reads only the single backup file you select in the system file picker (previously exported by this app), writes it locally, and keeps no extra copy of the file.
-- **Sharing an activity**: only when you tap "Share" is the text of that activity passed to the app you select.
+- **Sharing an activity or web handover/family card**: only when you tap "Share" or generate a no-download web beacon/family card is the activity text or `#d=` URL-fragment link (carrying nickname, age, or care summary) handed to the app you select. Encoding and decoding occur strictly in local browser scripts without server upload, though opening the link visits the static site host and messaging apps may fetch link previews.
 - **Home Screen widgets & Live Activities**: display your child's age, active timers, and recent logs using data stored locally on your device, without passing through any server.
 - **Clearing all data**: in "Studio › Local Data & Backup," tapping "Clear All Data" and confirming deletes your child's profile, all care logs, settings, the widget copy, and files inside the app's export folder on this device, and immediately ends any active timer on the Lock Screen. Files already sent elsewhere are not affected.
 

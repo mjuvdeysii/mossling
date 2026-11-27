@@ -458,7 +458,7 @@ struct TimerScreen: View {
                 Label(type == LogType.sleep ? L10n.t("醒了，记下", "Awake — Save") : L10n.t("喂完了，记下", "Done — Save"), systemImage: "checkmark")
                     .font(.headline).frame(maxWidth: .infinity)
             }
-            .buttonStyle(.vinyl(Crayon.fill(c, lamp), prominent: true, large: true))
+            .buttonStyle(.vinyl(c, prominent: true, large: true))
             .padding(.horizontal, 20).padding(.top, 10).padding(.bottom, 6)
         }
         .sensoryFeedback(.impact(weight: .medium), trigger: paused)

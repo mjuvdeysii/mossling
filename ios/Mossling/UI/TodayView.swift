@@ -59,8 +59,8 @@ struct TodayView: View {
                     .accessibilityLabel(L10n.t("搜索", "Search"))
             }
         }
-        .sheet(isPresented: $askBirth) { BirthSheet() }
-        .sheet(isPresented: $arranging) { ShelfEditor() }
+        .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
+        .sheet(isPresented: $arranging) { ShelfEditor().lampPresented() }
     }
 
     @ViewBuilder
@@ -113,38 +113,42 @@ struct TodayView: View {
         dark: Bool,
         @ViewBuilder art: () -> Art
     ) -> some View {
-        HStack(alignment: .center, spacing: LayoutSpec.iconTextGap) {
-            ZStack {
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(color.opacity(dark ? 0.20 : 0.11))
-                art()
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .center) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                        .fill(color.opacity(dark ? 0.22 : 0.12))
+                    art()
+                }
+                .frame(width: 44, height: 44)
+
+                Spacer(minLength: 4)
+
+                Image(systemName: "chevron.right")
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
-            .frame(width: 46, height: 46)
 
             VStack(alignment: .leading, spacing: 3) {
                 Text(title)
                     .font(.subheadline.weight(.bold))
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
-                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .lineLimit(type.isAccessibilitySize ? nil : 2)
                     .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.88)
-                    .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
+                    .fixedSize(horizontal: false, vertical: true)
                 Text(subtitle)
                     .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
-                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    .lineLimit(type.isAccessibilitySize ? nil : 2)
                     .minimumScaleFactor(type.isAccessibilitySize ? 1.0 : 0.88)
-                    .fixedSize(horizontal: false, vertical: type.isAccessibilitySize)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Image(systemName: "chevron.right")
-                .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
-                .foregroundStyle(.tertiary)
         }
         .padding(.horizontal, 14)
-        .padding(.vertical, 15)
-        .frame(maxWidth: .infinity, minHeight: 80, alignment: .leading)
+        .padding(.vertical, 14)
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
         .background(
             LinearGradient(
                 colors: [color.opacity(dark ? 0.20 : 0.14), color.opacity(dark ? 0.05 : 0.04)],

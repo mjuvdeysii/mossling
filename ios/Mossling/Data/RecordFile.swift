@@ -31,7 +31,7 @@ enum RecordFile {
             return o
         }
         let firsts = j.firsts.map { f -> [String: Any] in
-            var o: [String: Any] = ["at": Int64(f.at), "title": f.title]
+            var o: [String: Any] = ["id": f.id.uuidString, "at": Int64(f.at), "title": f.title]
             if let v = f.key { o["key"] = v }; if let v = f.note, !v.isEmpty { o["note"] = v }
             return o
         }
@@ -71,7 +71,11 @@ enum RecordFile {
             guard let x = (v as? NSNumber)?.doubleValue, x.isFinite else { return nil }
             return x
         }
-        func posInt(_ v: Any?) -> Int? { num(v).flatMap { $0 > 0 ? Int($0) : nil } }
+        func safeInt(_ v: Any?) -> Int? {
+            guard let x = num(v), x >= -9e15, x <= 9e15 else { return nil }
+            return Int(x)
+        }
+        func posInt(_ v: Any?) -> Int? { safeInt(v).flatMap { $0 > 0 ? $0 : nil } }
         let s = m["settings"] as? [String: Any] ?? [:]
         var parsedBirth: Day? = nil
         if let b = s["birth"] as? String {
@@ -81,13 +85,13 @@ enum RecordFile {
             }
         }
         let ticks = (m["ticks"] as? [[String: Any]] ?? []).compactMap { t -> Tick? in
-            guard let key = t["key"] as? String, let mo = num(t["month"]), let kind = t["kind"] as? String else { return nil }
-            return Tick(key: key, month: Int(mo), kind: kind, label: t["label"] as? String ?? "", at: num(t["at"]) ?? 0)
+            guard let key = t["key"] as? String, let mo = safeInt(t["month"]), let kind = t["kind"] as? String else { return nil }
+            return Tick(key: key, month: mo, kind: kind, label: t["label"] as? String ?? "", at: num(t["at"]) ?? 0)
         }
         var body = JournalFile.Body()
         body.logs = (m["logs"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
-            return LogEntry(type: type, start: start, end: num(o["end"]), amount: num(o["amount"]).map { Int($0) }, side: o["side"] as? String, detail: o["detail"] as? String)
+            return LogEntry(type: type, start: start, end: num(o["end"]), amount: safeInt(o["amount"]), side: o["side"] as? String, detail: o["detail"] as? String)
         }
         body.measures = (m["measures"] as? [[String: Any]] ?? []).compactMap { o in
             guard let at = num(o["at"]) else { return nil }
@@ -97,7 +101,8 @@ enum RecordFile {
         }
         body.firsts = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
             guard let at = num(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
-            return First(at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
+            let fid = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
+            return First(id: fid, at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
         }
         body.timers = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
@@ -107,16 +112,16 @@ enum RecordFile {
         let rawFoods = m["foods"] as? [[String: Any]]
         let parsedFoods: [FoodRecord]? = rawFoods?.compactMap { o in
             guard let foodId = o["foodId"] as? String, !foodId.isEmpty,
-                  let epochDay = num(o["firstTastedEpochDay"]),
+                  let epochDay = safeInt(o["firstTastedEpochDay"]),
                   let reactionRaw = o["reaction"] as? String,
                   let reaction = FoodReaction(rawValue: reactionRaw) else { return nil }
             return FoodRecord(
                 foodId: foodId,
-                firstTastedEpochDay: Int(epochDay),
+                firstTastedEpochDay: epochDay,
                 reaction: reaction,
                 note: o["note"] as? String ?? "",
                 watchSkin: o["watchSkin"] as? Bool ?? false,
-                times: max(1, num(o["times"]).map { Int($0) } ?? 1)
+                times: max(1, safeInt(o["times"]) ?? 1)
             )
         }
         let rawCapsules = m["capsules"] as? [[String: Any]]
@@ -132,7 +137,7 @@ enum RecordFile {
                 body: capBody,
                 writtenAt: writtenAt,
                 writtenAgeLabel: o["writtenAgeLabel"] as? String ?? "",
-                unlockEpochDay: num(o["unlockEpochDay"]).map { Int($0) },
+                unlockEpochDay: safeInt(o["unlockEpochDay"]),
                 openedAt: num(o["openedAt"]),
                 seal: seal
             )

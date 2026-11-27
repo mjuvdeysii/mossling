@@ -843,7 +843,8 @@ private struct StorybookCoverPrintCard: View {
                 festive: clampedMonth == 12 || clampedMonth == 24 || clampedMonth == 36,
                 posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
                 interactive: false,
-                compact: false
+                compact: false,
+                exportSafe: true
             )
             .frame(width: 312, height: 224)
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -930,7 +931,8 @@ private struct StorybookMonthPrintCard: View {
                     festive: clampedMonth == 12 || clampedMonth == 24 || clampedMonth == 36,
                     posterPhase: LivingMonthCoverCatalog.script(for: clampedMonth).posterPhase,
                     interactive: false,
-                    compact: false
+                    compact: false,
+                    exportSafe: true
                 )
                 .frame(width: 312, height: 210)
                 .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))

@@ -107,11 +107,11 @@ struct ObservationStateRow: View {
                             Text(choice.label)
                                 .font(.caption.weight(active ? .bold : .medium))
                         }
-                        .foregroundStyle(active ? .white : (dark ? tint : Crayon.ink(tint)))
+                        .foregroundStyle(active ? .white : (dark ? tint.mix(with: .white, by: 0.28) : Crayon.ink(tint)))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
                         .frame(minHeight: 44)
-                        .background(Capsule().fill(active ? tint : tint.opacity(dark ? 0.16 : 0.10)))
+                        .background(Capsule().fill(active ? Crayon.fill(tint, dark) : tint.opacity(dark ? 0.16 : 0.10)))
                         .overlay(
                             Capsule()
                                 .strokeBorder(tint.opacity(active ? 0 : 0.25), lineWidth: 0.7)
@@ -373,7 +373,7 @@ struct LampCardSpotlightCard: View {
             WrapLayout(spacing: 8) {
                 Button {
                     TactileEngine.shared.beadClick()
-                    reader.toggle(text: "\(card.headline)。\(card.sayAloud)。\(card.microAction)")
+                    reader.toggle(text: L10n.t("\(card.headline)。\(card.sayAloud)。\(card.microAction)", "\(card.headline). \(card.sayAloud). \(card.microAction)"))
                 } label: {
                     Label(
                         reader.isSpeaking ? L10n.t("停止朗读", "Stop Voice") : L10n.t("读给我听", "Read Aloud"),
@@ -385,10 +385,10 @@ struct LampCardSpotlightCard: View {
 
                 if let h5URL {
                     ShareLink(item: h5URL, message: Text(card.shareMessage())) {
-                        Label(L10n.t("发给家人 H5", "Family Card"), systemImage: "square.and.arrow.up")
+                        Label(L10n.t("发给家人", "Family Card"), systemImage: "square.and.arrow.up")
                             .dsPill(.tinted(Crayon.caramel), height: 34)
                     }
-                    .accessibilityLabel(L10n.t("生成零流量长辈卡发给家人", "Share grandparent H5 card"))
+                    .accessibilityLabel(L10n.t("生成长辈卡发给家人", "Share grandparent card with family"))
                 } else {
                     ShareLink(item: card.shareMessage()) {
                         Label(L10n.t("发给家人", "Share with Family"), systemImage: "square.and.arrow.up")
@@ -398,10 +398,11 @@ struct LampCardSpotlightCard: View {
 
                 Button {
                     TactileEngine.shared.beadClick()
+                    reader.stop()
                     showDetail = true
                 } label: {
-                    Label(L10n.t("L2/L3 共情与循证", "Why & Sources"), systemImage: "book.pages.fill")
-                        .dsPill(.primary, height: 34)
+                    Label(L10n.t("解读与循证", "Why & Sources"), systemImage: "book.pages.fill")
+                        .dsPill(.tinted(Palette.accent), height: 34)
                 }
                 .buttonStyle(.toy)
             }
@@ -410,6 +411,7 @@ struct LampCardSpotlightCard: View {
         .printCard(radius: Radius.card)
         .sheet(isPresented: $showDetail) {
             LampCardDetailSheet(card: card)
+                .lampPresented()
         }
         .onDisappear {
             reader.stop()
@@ -486,7 +488,7 @@ struct LampCardDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        reader.toggle(text: "\(card.translation)。\(card.grandparentNote)")
+                        reader.toggle(text: L10n.t("\(card.translation)。\(card.grandparentNote)", "\(card.translation). \(card.grandparentNote)"))
                     } label: {
                         Image(systemName: reader.isSpeaking ? "stop.circle.fill" : "speaker.wave.2.fill")
                     }
@@ -497,7 +499,7 @@ struct LampCardDetailSheet: View {
                         ShareLink(item: h5URL, message: Text(card.shareMessage())) {
                             Image(systemName: "square.and.arrow.up")
                         }
-                        .accessibilityLabel(L10n.t("分享给家人", "Share H5 Card"))
+                        .accessibilityLabel(L10n.t("分享给家人", "Share family card"))
                     } else {
                         ShareLink(item: card.shareMessage()) {
                             Image(systemName: "square.and.arrow.up")
@@ -742,16 +744,39 @@ enum ClinicSnapshotPDF {
                 .foregroundColor: UIColor(red: 0.16, green: 0.15, blue: 0.14, alpha: 1)
             ]
 
-            func drawText(_ string: String, attrs: [NSAttributedString.Key: Any], spacingAfter: CGFloat = 6) {
-                guard y < pageRect.height - 64 else { return }
+            let footer = L10n.t(
+                "摸索台灯 Moss & Otto · 生长常模参考 WHO (2006) 儿童生长标准 · 医学判断请以儿保医生现场评估为准。",
+                "Moss & Otto · Reference: WHO Child Growth Standards (2006) · Does not replace professional pediatric care."
+            )
+            let footerNs = NSAttributedString(string: footer, attributes: subAttr)
+
+            func drawFooter() {
+                footerNs.draw(in: CGRect(x: margin, y: pageRect.height - 42, width: contentWidth, height: 24))
+            }
+
+            func ensureSpace(_ needed: CGFloat) {
+                if y + needed > pageRect.height - 54 {
+                    drawFooter()
+                    ctx.beginPage()
+                    y = 38
+                }
+            }
+
+            func measureHeight(_ string: String, attrs: [NSAttributedString.Key: Any]) -> (NSAttributedString, CGFloat) {
                 let ns = NSAttributedString(string: string, attributes: attrs)
                 let box = ns.boundingRect(
-                    with: CGSize(width: contentWidth, height: pageRect.height - y - 50),
+                    with: CGSize(width: contentWidth, height: pageRect.height - 96),
                     options: [.usesLineFragmentOrigin, .usesFontLeading],
                     context: nil
                 )
-                ns.draw(with: CGRect(x: margin, y: y, width: contentWidth, height: ceil(box.height) + 2), options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
-                y += ceil(box.height) + spacingAfter
+                return (ns, ceil(box.height) + 2)
+            }
+
+            func drawText(_ string: String, attrs: [NSAttributedString.Key: Any], spacingAfter: CGFloat = 6) {
+                let (ns, h) = measureHeight(string, attrs: attrs)
+                ensureSpace(h)
+                ns.draw(with: CGRect(x: margin, y: y, width: contentWidth, height: h), options: [.usesLineFragmentOrigin, .usesFontLeading], context: nil)
+                y += h + spacingAfter
             }
 
             drawText(L10n.t("摸索台灯 · 儿保诊室一页摘要", "Moss & Otto · Pediatric Clinic Snapshot"), attrs: titleAttr, spacingAfter: 4)
@@ -759,6 +784,10 @@ enum ClinicSnapshotPDF {
             drawText(L10n.t("生成日期：\(genDate) · 所有数据来自家长本地记录，仅供就诊沟通参考", "Generated \(genDate) · Parent-entered offline care record · Non-diagnostic summary"), attrs: subAttr, spacingAfter: 14)
 
             for sec in sections {
+                let firstLineH = sec.lines.first.map { measureHeight("• " + $0, attrs: bodyAttr).1 } ?? 18
+                let secHeaderH = measureHeight(sec.section, attrs: secTitleAttr).1
+                ensureSpace(secHeaderH + firstLineH + 18)
+
                 cg.setStrokeColor(UIColor(red: 0.85, green: 0.82, blue: 0.77, alpha: 1).cgColor)
                 cg.setLineWidth(0.75)
                 cg.move(to: CGPoint(x: margin, y: y))
@@ -773,12 +802,7 @@ enum ClinicSnapshotPDF {
                 y += 8
             }
 
-            let footer = L10n.t(
-                "摸索台灯 Moss & Otto · 生长常模参考 WHO (2006) 儿童生长标准 · 医学判断请以儿保医生现场评估为准。",
-                "Moss & Otto · Reference: WHO Child Growth Standards (2006) · Does not replace professional pediatric care."
-            )
-            let footerNs = NSAttributedString(string: footer, attributes: subAttr)
-            footerNs.draw(in: CGRect(x: margin, y: pageRect.height - 42, width: contentWidth, height: 24))
+            drawFooter()
         }
     }
 }

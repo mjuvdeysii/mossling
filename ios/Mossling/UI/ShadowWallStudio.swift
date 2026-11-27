@@ -104,6 +104,8 @@ struct ShadowWallStudio: View {
     @State private var flapPhase: Double = 0.0
     @State private var leafBurst: Int = 0
     @State private var mossExcited = false
+    @State private var chordTask: Task<Void, Never>?
+    @State private var settleTask: Task<Void, Never>?
 
     private let lampNorm = CGPoint(x: 0.50, y: 0.84)
 
@@ -296,6 +298,12 @@ struct ShadowWallStudio: View {
 
             puppetSelectorDock
         }
+        .onDisappear {
+            chordTask?.cancel()
+            chordTask = nil
+            settleTask?.cancel()
+            settleTask = nil
+        }
     }
 
     private func wallBackdrop(w: CGFloat, h: CGFloat, lampPt: CGPoint) -> some View {
@@ -398,18 +406,22 @@ struct ShadowWallStudio: View {
     }
 
     private func animatePuppet() {
+        chordTask?.cancel()
+        settleTask?.cancel()
         onInteract()
         TactileEngine.shared.vinylPop()
         leafBurst += 1
         // Play gentle music-box chord matching this puppet
-        for (offset, scaleIdx) in puppet.chordNotes.enumerated() where ToyboxNote.scale.indices.contains(scaleIdx) {
-            let note = ToyboxNote.scale[scaleIdx]
-            if offset == 0 {
-                ToyboxAudioEngine.shared.playNote(note, timbre: .musicBox)
-            } else {
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(offset * 75))
-                    ToyboxAudioEngine.shared.playNote(note, timbre: .musicBox)
+        let notes = puppet.chordNotes
+        if let firstIdx = notes.first, ToyboxNote.scale.indices.contains(firstIdx) {
+            ToyboxAudioEngine.shared.playNote(ToyboxNote.scale[firstIdx], timbre: .musicBox)
+        }
+        if notes.count > 1 {
+            chordTask = Task { @MainActor in
+                for (offset, scaleIdx) in notes.enumerated() where offset > 0 && ToyboxNote.scale.indices.contains(scaleIdx) {
+                    try? await Task.sleep(for: .milliseconds(75))
+                    guard !Task.isCancelled else { return }
+                    ToyboxAudioEngine.shared.playNote(ToyboxNote.scale[scaleIdx], timbre: .musicBox)
                 }
             }
         }
@@ -418,8 +430,9 @@ struct ShadowWallStudio: View {
             flapPhase = 1.0
             mossExcited = true
         }
-        Task { @MainActor in
+        settleTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(420))
+            guard !Task.isCancelled else { return }
             withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.72)) {
                 flapPhase = 0.0
                 mossExcited = false

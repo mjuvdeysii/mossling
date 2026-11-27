@@ -42,19 +42,37 @@ struct TodayProvider: TimelineProvider {
             if settle > now { dates.append(settle) }
         }
         // Dense 5-minute ticks for the first hour so "X min ago" and Otto's golden bead feel alive,
-        // then 15-minute ticks for hours 1–4, then 30-minute ticks for hours 4–8.
+        // then 15-minute ticks for hours 1–4, then 30-minute ticks for hours 4–8, plus exact next midnight for day-age rollover.
         dates.append(contentsOf: (1...12).map { now.addingTimeInterval(Double($0) * 300) })
         dates.append(contentsOf: (5...16).map { now.addingTimeInterval(Double($0) * 900) })
         dates.append(contentsOf: (9...16).map { now.addingTimeInterval(Double($0) * 1800) })
+        if let tomorrow = Calendar.current.date(byAdding: .day, value: 1, to: now) {
+            let nextMidnight = Calendar.current.startOfDay(for: tomorrow)
+            if nextMidnight > now && !dates.contains(where: { abs($0.timeIntervalSince(nextMidnight)) < 1 }) {
+                dates.append(nextMidnight)
+            }
+        }
+        dates.sort()
         completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body) }, policy: .atEnd))
     }
     private func entry(_ d: Date) -> TodayEntry { TodayEntry(date: d, snap: JournalFile.snapshot(), body: JournalFile.read()) }
 }
 
+private struct WidgetPaperBackground: View {
+    @Environment(\.widgetRenderingMode) private var renderingMode
+    var body: some View {
+        if renderingMode == .fullColor {
+            WidgetInk.paper
+        } else {
+            Color.clear
+        }
+    }
+}
+
 struct TodayWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "today", provider: TodayProvider()) { e in
-            TodayWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
+            TodayWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
         .configurationDisplayName(L10n.t("摸索台灯 · 今日", "Moss & Otto · Today"))
         .description(L10n.t("月龄、今日活动与蒙氏 24 小时串珠节奏；点击各区块直达活动绘本与手帐。", "Age, today's play, 24h bead rhythm, and direct links into play & journal."))
@@ -82,7 +100,7 @@ private struct TodayWidgetView: View {
 struct StoryWindowWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "story-window", provider: TodayProvider()) { e in
-            StoryWindowWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
+            StoryWindowWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
         .configurationDisplayName(L10n.t("成长故事窗", "Story Window"))
         .description(L10n.t("37 颗蒙氏成长珠进度与当下成长章节，轻点直达成长册与本月主页。", "Your baby's 37-bead Montessori chapter & keepsake window into Growth Book."))
@@ -102,7 +120,7 @@ private struct StoryWindowWidgetView: View {
 struct QuickCareWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: "quick-care", provider: TodayProvider()) { e in
-            QuickCareWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetInk.paper }
+            QuickCareWidgetView(e: e).fontDesign(.rounded).containerBackground(for: .widget) { WidgetPaperBackground() }
         }
         .configurationDisplayName(L10n.t("一键记录", "Quick Log"))
         .description(L10n.t("无需打开应用，轻点即可启停亲喂与睡眠计时，或记下湿/便尿布并即时确认。", "Start or stop timers and log wet or dirty diapers right from your Home Screen."))
@@ -248,7 +266,11 @@ struct TimerLiveActivity: Widget {
             } compactLeading: {
                 ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
             } compactTrailing: {
-                TimerFace.elapsed(ctx.state).frame(maxWidth: 52).foregroundStyle(c)
+                TimerFace.elapsed(ctx.state)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .frame(maxWidth: 52)
+                    .foregroundStyle(c)
             } minimal: {
                 ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
             }

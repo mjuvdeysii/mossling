@@ -132,6 +132,7 @@ struct FirstSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
     @Environment(\.colorScheme) private var scheme
+    @Environment(\.scenePhase) private var scenePhase
     @State var first: First
     let isNew: Bool
     @State private var day = Date()
@@ -147,6 +148,9 @@ struct FirstSheet: View {
     @State private var draftVoiceURL: URL? = nil
     @State private var voiceMeta: FirstVoiceMeta? = nil
     @State private var removeExistingVoice = false
+    @State private var didInit = false
+    @State private var isSaving = false
+    @State private var didSave = false
     @FocusState private var typing: Bool
 
     init(first: First, isNew: Bool) { _first = State(initialValue: first); self.isNew = isNew }
@@ -178,12 +182,10 @@ struct FirstSheet: View {
                             .lineLimit(2...6).padding(14).printCard(radius: Radius.inner, fill: lamp ? Palette.lampCard : Palette.card)
                     }
                     Button { save() } label: { Text(isNew ? L10n.t("记下这个第一次", "Save This First") : L10n.t("保存", "Save")).frame(maxWidth: .infinity) }
-                        .buttonStyle(.vinyl(Crayon.fill(Palette.bead, lamp), prominent: true, large: true))
-                        .disabled(first.title.trimmingCharacters(in: .whitespaces).isEmpty)
+                        .buttonStyle(.vinyl(Palette.bead, prominent: true, large: true))
+                        .disabled(isSaving || first.title.trimmingCharacters(in: .whitespaces).isEmpty)
                     if !isNew {
                         Button(L10n.t("删除这个第一次", "Delete this first"), role: .destructive) {
-                            FirstPhotoStore.delete(for: first.id)
-                            FirstVoiceStore.delete(for: first.id)
                             j.deleteFirst(first)
                             dismiss()
                         }
@@ -210,6 +212,9 @@ struct FirstSheet: View {
         .presentationDetents([.large])
         .sensoryFeedback(.success, trigger: cheers)
         .onAppear {
+            voiceController.refreshPermission()
+            guard !didInit else { return }
+            didInit = true
             day = isNew ? Date() : first.date; named = !isNew && Firsts.kind(first.key) == nil
             if let i = Firsts.customIcon(first.key) { mark = i }
             if !isNew && photoImage == nil && !removeExistingPhoto {
@@ -219,8 +224,27 @@ struct FirstSheet: View {
                 voiceMeta = FirstVoiceStore.loadMeta(for: first.id)
             }
         }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                voiceController.refreshPermission()
+            }
+        }
+        .onChange(of: voiceController.lastAutoStoppedURL) { _, url in
+            guard let temp = url, draftVoiceURL == temp, !voiceController.isRecording else { return }
+            let extracted = FirstVoiceWaveform.extractPeaks(from: temp)
+            voiceMeta = FirstVoiceMeta(
+                duration: max(0.3, extracted.duration),
+                peaks: extracted.peaks,
+                createdAt: Date().timeIntervalSince1970
+            )
+            removeExistingVoice = false
+        }
         .onDisappear {
             voiceController.stopAll()
+            if !didSave {
+                voiceController.discardTemp(draftVoiceURL)
+                draftVoiceURL = nil
+            }
         }
         .onChange(of: pickedPhoto) { _, item in
             guard let item else { return }
@@ -371,14 +395,16 @@ struct FirstSheet: View {
                 }
             }
 
-            if voiceController.permissionDenied {
-                Text(L10n.t("未获得麦克风权限：可在 iOS「设置 > 摸索台灯」中开启，声音始终只存本机。", "Microphone access denied. Enable it in iOS Settings to keep local voice clips on this iPhone."))
-                    .font(.caption)
-                    .foregroundStyle(Palette.secondaryText)
-                    .padding(12)
+            if let err = voiceController.errorMessage {
+                Text(err)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Palette.danger)
+                    .padding(10)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
-            } else if voiceController.isRecording {
+                    .printCard(radius: Radius.tile, fill: dark ? Palette.lampCard : Palette.card)
+            }
+
+            if voiceController.isRecording {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 10) {
                         Circle().fill(Crayon.cherry).frame(width: 10, height: 10)
@@ -433,9 +459,33 @@ struct FirstSheet: View {
                 }
                 .padding(12)
                 .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
+            } else if voiceController.permissionDenied {
+                VStack(alignment: .leading, spacing: 10) {
+                    Text(L10n.t("未获得麦克风权限：可在 iOS「设置 > 摸索台灯」中开启，声音始终只存本机。", "Microphone access denied. Enable it in iOS Settings to keep local voice clips on this iPhone."))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                    HStack(spacing: 10) {
+                        if let settingsURL = URL(string: UIApplication.openSettingsURLString) {
+                            Link(L10n.t("前往设置", "Open Settings"), destination: settingsURL)
+                                .dsPill(.primary, height: 34)
+                        }
+                        Button(L10n.t("重试", "Try Again")) {
+                            Task {
+                                guard app.mayKeep() else { return }
+                                voiceController.discardTemp(draftVoiceURL)
+                                draftVoiceURL = await voiceController.startDraftRecording()
+                            }
+                        }
+                        .buttonStyle(.ds(.secondary, height: 34))
+                    }
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .printCard(radius: Radius.card, fill: dark ? Palette.lampCard : Palette.card)
             } else {
                 Button {
                     Task {
+                        guard app.mayKeep() else { return }
                         voiceController.discardTemp(draftVoiceURL)
                         draftVoiceURL = await voiceController.startDraftRecording()
                     }
@@ -528,8 +578,10 @@ struct FirstSheet: View {
     }
 
     private func save() {
+        guard !isSaving else { return }
         typing = false
         guard app.mayKeep() else { return }
+        isSaving = true
         if voiceController.isRecording, let temp = voiceController.finishDraftRecording() {
             draftVoiceURL = temp
         }
@@ -537,7 +589,12 @@ struct FirstSheet: View {
         var f = first
         f.title = f.title.trimmingCharacters(in: .whitespacesAndNewlines)
         f.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)
-        guard j.saveFirst(f) else { failed = true; return }
+        guard j.saveFirst(f) else {
+            isSaving = false
+            failed = true
+            return
+        }
+        didSave = true
         if removeExistingPhoto {
             FirstPhotoStore.delete(for: f.id)
         } else if let img = photoImage {
@@ -620,8 +677,6 @@ struct FirstsView: View {
                             onViewPhoto: { viewingPhoto = f },
                             onDelete: {
                                 TactileEngine.shared.beadClick()
-                                FirstPhotoStore.delete(for: f.id)
-                                FirstVoiceStore.delete(for: f.id)
                                 j.deleteFirst(f)
                             }
                         )
@@ -657,6 +712,9 @@ struct FirstsView: View {
             fresh = n
             celebCheers += 1
             Task { @MainActor in try? await Task.sleep(for: .milliseconds(2200)); if fresh == n { fresh = nil } }
+        }
+        .onDisappear {
+            FirstVoiceController.shared.stopPlayback()
         }
         .sheet(item: $editing) { f in FirstSheet(first: f, isNew: false).lampPresented() }
         .sheet(item: $draftNew) { f in FirstSheet(first: f, isNew: true).lampPresented() }

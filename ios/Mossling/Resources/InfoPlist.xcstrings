@@ -86,19 +86,36 @@
         }
       }
     },
+    "NSPhotoLibraryAddUsageDescription" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save collector wallpapers, growth prints, and handover cards to your Photo Library."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存藏画壁纸、成长印画与照护交接卡片到系统相册。"
+          }
+        }
+      }
+    },
     "NSPhotoLibraryUsageDescription" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Choose keepsake photos for your baby's Firsts. Photos stay strictly on this iPhone and are never uploaded."
+            "value" : "Choose keepsake photos for Firsts and food stickers for First Foods. Photos stay strictly on this iPhone and are never uploaded."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为「第一次」挑选纪念照片，照片仅保存在这台手机上，不会上传。"
+            "value" : "为「第一次」与「百味食盒」挑选纪念照片与辅食贴纸，照片仅保存在这台手机上，不会上传。"
           }
         }
       }

@@ -15,6 +15,7 @@ struct LivingMonthCoverStage: View {
     var interactive: Bool = false
     var compact: Bool = false
     var forceFlat: Bool? = nil
+    var exportSafe: Bool = false
 
     @Environment(\.accessibilityReduceMotion) private var reduce
     @Environment(\.scenePhase) private var scenePhase
@@ -28,8 +29,12 @@ struct LivingMonthCoverStage: View {
         LivingMonthCoverCatalog.script(for: month)
     }
 
+    private var permanentlyStatic: Bool {
+        posterPhase != nil || !interactive || reduce || Perf.still || exportSafe
+    }
+
     private var isStatic: Bool {
-        posterPhase != nil || !interactive || reduce || Perf.still || !onScreen || scrolling.moving || scenePhase != .active
+        permanentlyStatic || !onScreen || scrolling.moving || scenePhase != .active
     }
 
     var body: some View {
@@ -37,13 +42,13 @@ struct LivingMonthCoverStage: View {
         let isFlat = forceFlat ?? (ArtStyle.current == .flat)
 
         Group {
-            if isStatic {
+            if permanentlyStatic {
                 stageCanvas(script: s, now: Date.distantPast, u: posterPhase ?? s.posterPhase, isFlat: isFlat)
             } else {
-                TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: false)) { tl in
+                TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: isStatic)) { tl in
                     let t = tl.date.timeIntervalSinceReferenceDate
-                    let u = LivingMotionClock.cyclicProgress(elapsed: t, duration: 5.2)
-                    stageCanvas(script: s, now: tl.date, u: u, isFlat: isFlat)
+                    let u = isStatic ? (posterPhase ?? s.posterPhase) : LivingMotionClock.cyclicProgress(elapsed: t, duration: 5.2)
+                    stageCanvas(script: s, now: isStatic ? Date.distantPast : tl.date, u: u, isFlat: isFlat)
                 }
             }
         }
@@ -60,7 +65,7 @@ struct LivingMonthCoverStage: View {
             ? CGFloat(sin(tapAge / 0.65 * .pi)) * 0.95
             : 0
         let sway = isStatic ? 0 : sin(u * .pi * 2.0) * 1.8
-        let breathTime = isStatic ? 0 : now.timeIntervalSinceReferenceDate
+        let breathTime = isStatic ? 0 : now.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3600.0)
 
         Group {
             if s.month == 6 {
@@ -70,7 +75,7 @@ struct LivingMonthCoverStage: View {
                     phase: phase,
                     breathTime: breathTime,
                     isStatic: isStatic,
-                    compact: compact,
+                    compact: compact || exportSafe,
                     giggles: giggles,
                     tapBurst: tapBurst
                 )
@@ -108,7 +113,7 @@ struct LivingMonthCoverStage: View {
                         flat: isFlat
                     )
                     let targetWorld = CGPoint(x: w * 0.46, y: floorY + 2)
-                    let shaderOn = !compact && w >= 80 && h >= 60
+                    let shaderOn = !exportSafe && !compact && w >= 80 && h >= 60
 
                     ZStack {
                         MonthCoverBackdropCanvas(

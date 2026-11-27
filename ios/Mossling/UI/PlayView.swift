@@ -201,26 +201,26 @@ struct PlayView: View {
             before = rec.count == 0
             if base == nil { base = j.plays(play.code).count }
             if initialMatMode { matMode = true }
-            keepAwake(dimVeil || open < play.steps.count || matMode)
+            keepAwake(!dimVeil && (open < play.steps.count || matMode))
         }
         .onDisappear {
             stopAutoPlay()
             keepAwake(false)
         }
-        .onChange(of: open) { _, o in keepAwake(dimVeil || o < play.steps.count || matMode) }
+        .onChange(of: open) { _, o in keepAwake(!dimVeil && (o < play.steps.count || matMode)) }
         .onChange(of: dimVeil) { _, on in
             if on { stopAutoPlay() }
-            keepAwake(on || open < play.steps.count || matMode)
+            keepAwake(!on && (open < play.steps.count || matMode))
         }
         .onChange(of: matMode) { _, active in
             if active { stopAutoPlay() }
-            keepAwake(dimVeil || active || open < play.steps.count)
+            keepAwake(!dimVeil && (active || open < play.steps.count))
         }
         .safeAreaBar(edge: .bottom) {
             if !dimVeil {
                 Button {
                     TactileEngine.shared.beadClick()
-                    withAnimation(.easeInOut(duration: 0.25)) { dimVeil = true }
+                    dimVeil = true
                 } label: {
                     Label(L10n.t("去玩吧 · 熄屏陪伴", "Go Play · Dim Screen"), systemImage: "moon.zzz.fill")
                         .font(.subheadline.weight(.semibold))
@@ -232,31 +232,33 @@ struct PlayView: View {
                 .padding(.bottom, 6)
             }
         }
-        .overlay {
-            if dimVeil {
+        .fullScreenCover(isPresented: $dimVeil) {
+            Button {
+                TactileEngine.shared.beadClick()
+                dimVeil = false
+            } label: {
                 ZStack {
-                    Color(hex: 0x050814).opacity(0.96).ignoresSafeArea()
+                    Color.black.ignoresSafeArea()
                     VStack(spacing: 16) {
                         Image(systemName: "sparkles")
                             .font(.title.weight(.light))
-                            .foregroundStyle(Palette.bead.opacity(0.85))
+                            .foregroundStyle(Palette.amber.opacity(0.65))
                         Text(L10n.t("放下手机，去陪宝宝摸索吧", "Put down the phone and play together"))
                             .font(.headline.weight(.semibold))
-                            .foregroundStyle(Color.white.opacity(0.90))
+                            .foregroundStyle(Palette.lampInk.opacity(0.88))
                         Text(L10n.t("轻点屏幕任意处恢复卡片", "Tap anywhere to wake"))
                             .font(.footnote)
-                            .foregroundStyle(Color.white.opacity(0.55))
+                            .foregroundStyle(Palette.lampInk.opacity(0.55))
                     }
                     .multilineTextAlignment(.center)
                     .padding(32)
                 }
                 .contentShape(Rectangle())
-                .onTapGesture {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(.easeInOut(duration: 0.2)) { dimVeil = false }
-                }
-                .accessibilityLabel(L10n.t("熄屏陪伴幕帘，轻点恢复", "Dimmed play veil, tap to wake"))
             }
+            .buttonStyle(.plain)
+            .statusBarHidden(true)
+            .accessibilityLabel(L10n.t("熄屏陪伴幕帘，轻点恢复", "Dimmed play veil, tap to wake"))
+            .accessibilityAddTraits(.isButton)
         }
         .onChange(of: scrubPhase) { _, phase in
             if phase != nil { stopAutoPlay() }
@@ -475,7 +477,7 @@ private struct PlayLivingHeroCard: View {
             )
             .padding(.horizontal, 12)
             .padding(.top, 12)
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 42)
                     .onEnded { value in
                         guard abs(value.translation.width) > abs(value.translation.height) * 1.25 else { return }
@@ -592,23 +594,23 @@ private struct CompactStepOutlineRow: View {
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
             .frame(minHeight: 56)
+            .background {
+                ZStack {
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(dark ? Palette.lampCard : Palette.card)
+                    if active {
+                        RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                            .fill(Palette.accent.opacity(dark ? 0.16 : 0.08))
+                    }
+                }
+            }
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .strokeBorder(active ? Palette.accent.opacity(0.45) : DS.Surface.hairline(dark: dark), lineWidth: active ? 1.2 : 0.5)
+            )
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
-        .background {
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .fill(dark ? Palette.lampCard : Palette.card)
-                if active {
-                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                        .fill(Palette.accent.opacity(dark ? 0.16 : 0.08))
-                }
-            }
-        }
-        .overlay(
-            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .strokeBorder(active ? Palette.accent.opacity(0.45) : DS.Surface.hairline(dark: dark), lineWidth: active ? 1.2 : 0.5)
-        )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.t("第 \(n) 步，\(text)", "Step \(n), \(text)"))
         .accessibilityAddTraits(active ? [.isButton, .isSelected] : .isButton)
@@ -798,7 +800,7 @@ struct MatSideCoPlayView: View {
                 .padding(.horizontal, 16)
                 .padding(.vertical, 4)
             }
-            .gesture(
+            .simultaneousGesture(
                 DragGesture(minimumDistance: 36)
                     .onEnded { value in
                         guard abs(value.translation.width) > abs(value.translation.height) * 1.2 else { return }
@@ -1093,6 +1095,20 @@ private struct StorybookSpineScrubber: View {
                 )
             }
             .frame(height: 44)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L10n.t("绘本步骤控制轨", "Storybook step scrubber"))
+            .accessibilityValue(label)
+            .accessibilityAdjustableAction { direction in
+                switch direction {
+                case .increment:
+                    let next = min(count - 1, activeStep + 1)
+                    if next != current { pick(next) }
+                case .decrement:
+                    let prev = max(0, activeStep - 1)
+                    if prev != current { pick(prev) }
+                @unknown default: break
+                }
+            }
 
             HStack(spacing: 8) {
                 Text(isFinished ? L10n.t("全部完成", "All Done") : L10n.t("第 \(activeStep + 1) / \(count) 步", "Step \(activeStep + 1) / \(count)"))
@@ -1140,20 +1156,6 @@ private struct StorybookSpineScrubber: View {
         }
         .animation(reduce ? nil : .spring(response: 0.28, dampingFraction: 0.80), value: isScrubbing)
         .animation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.78), value: current)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(L10n.t("绘本步骤控制轨", "Storybook step scrubber"))
-        .accessibilityValue(label)
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment:
-                let next = min(count - 1, activeStep + 1)
-                if next != current { pick(next) }
-            case .decrement:
-                let prev = max(0, activeStep - 1)
-                if prev != current { pick(prev) }
-            @unknown default: break
-            }
-        }
     }
 }
 

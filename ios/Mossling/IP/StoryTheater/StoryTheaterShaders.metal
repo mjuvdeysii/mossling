@@ -133,7 +133,7 @@ inline float fbm3(float2 p) {
     // Dissolve bright white paper cutout fringes back into warm atmospheric bounce
     float isBoundary = clamp(1.0 - float(minRingAlpha) * 1.12, 0.0, 1.0);
     float whiteHalo = isBoundary * smoothstep(0.75, 0.96, float(lum)) * (1.0 - smoothstep(0.10, 0.34, sat));
-    half3 rimTone = rimColor.rgb;
+    half3 rimTone = rimColor.a > 0.001h ? (rimColor.rgb / rimColor.a) : rimColor.rgb;
     half3 ambientFringeTone = rimTone * half3(0.84h, 0.78h, 0.68h);
     rgb = mix(rgb, ambientFringeTone, half(whiteHalo * 0.88));
     half outAlpha = center.a * half(1.0 - whiteHalo * 0.40);
@@ -219,11 +219,16 @@ inline float fbm3(float2 p) {
 
     // 2. Watercolor edge darkening (detect pigment transitions across neighbors and pool pigment along wet edge)
     float d = 1.6;
-    half3 cN = layer.sample(position + float2(0.0, -d)).rgb;
-    half3 cS = layer.sample(position + float2(0.0, d)).rgb;
-    half3 cE = layer.sample(position + float2(d, 0.0)).rgb;
-    half3 cW = layer.sample(position + float2(-d, 0.0)).rgb;
+    float2 maxUV = max(float2(0.5), safeSize - float2(0.5));
     half3 centerRgb = center.rgb / center.a;
+    half4 sN = layer.sample(clamp(position + float2(0.0, -d), float2(0.5), maxUV));
+    half4 sS = layer.sample(clamp(position + float2(0.0, d), float2(0.5), maxUV));
+    half4 sE = layer.sample(clamp(position + float2(d, 0.0), float2(0.5), maxUV));
+    half4 sW = layer.sample(clamp(position + float2(-d, 0.0), float2(0.5), maxUV));
+    half3 cN = sN.a > 0.001h ? (sN.rgb / sN.a) : centerRgb;
+    half3 cS = sS.a > 0.001h ? (sS.rgb / sS.a) : centerRgb;
+    half3 cE = sE.a > 0.001h ? (sE.rgb / sE.a) : centerRgb;
+    half3 cW = sW.a > 0.001h ? (sW.rgb / sW.a) : centerRgb;
     float grad = length(float3(cN - cS)) + length(float3(cE - cW));
     float wetEdge = smoothstep(0.04, 0.24, grad) * 0.14;
 

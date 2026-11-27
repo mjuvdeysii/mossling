@@ -66,6 +66,7 @@ struct DSButtonStyle: ButtonStyle {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.dynamicTypeSize) private var type
 
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
@@ -80,7 +81,7 @@ struct DSButtonStyle: ButtonStyle {
         case .primary: Palette.accentFill
         case .secondary: DS.Surface.warmInset(dark: dark)
         case .tinted(let c): c.opacity(dark ? 0.24 : 0.14)
-        case .warm(let c): dark ? c.mix(with: Palette.lampCard, by: 0.22) : Crayon.buttonFill(c)
+        case .warm(let c): Crayon.fill(c, dark)
         }
 
         let fg: Color = switch role {
@@ -103,9 +104,9 @@ struct DSButtonStyle: ButtonStyle {
 
         return configuration.label
             .font(labelFont)
-            .lineLimit(1)
-            .minimumScaleFactor(fullWidth ? 0.88 : 1.0)
-            .fixedSize(horizontal: !fullWidth, vertical: false)
+            .lineLimit(type.isAccessibilitySize ? 2 : 1)
+            .minimumScaleFactor(0.86)
+            .fixedSize(horizontal: !fullWidth && !type.isAccessibilitySize, vertical: type.isAccessibilitySize)
             .foregroundStyle(fg)
             .padding(.horizontal, visualH >= 46 ? 18 : 14)
             .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: visualH)
@@ -124,7 +125,7 @@ struct DSButtonStyle: ButtonStyle {
             .opacity(enabled ? (pressed ? 0.84 : 1.0) : 0.45)
             .scaleEffect(!reduce && pressed ? 0.975 : 1.0)
             .animation(reduce ? nil : .spring(response: 0.22, dampingFraction: 0.65), value: pressed)
-            .sensoryFeedback(.impact(weight: .light, intensity: 0.65), trigger: pressed) { _, new in new }
+            .sensoryFeedback(.impact(weight: .light, intensity: 0.65), trigger: pressed) { _, new in new && !TactileEngine.shared.quietNight }
     }
 }
 
@@ -142,6 +143,7 @@ struct DSPillLabel: ViewModifier {
     var horizontalPadding: CGFloat = 12
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var type
 
     func body(content: Self.Content) -> some View {
         let dark = lamp || scheme == .dark
@@ -152,7 +154,7 @@ struct DSPillLabel: ViewModifier {
         case .primary: Palette.accentFill
         case .secondary: DS.Surface.warmInset(dark: dark)
         case .tinted(let c): c.opacity(dark ? 0.24 : 0.14)
-        case .warm(let c): dark ? c.mix(with: Palette.lampCard, by: 0.22) : Crayon.buttonFill(c)
+        case .warm(let c): Crayon.fill(c, dark)
         }
         let fg: Color = switch role {
         case .primary, .warm: .white
@@ -167,8 +169,9 @@ struct DSPillLabel: ViewModifier {
 
         return content
             .font(labelFont)
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
+            .lineLimit(type.isAccessibilitySize ? 2 : 1)
+            .minimumScaleFactor(0.86)
+            .fixedSize(horizontal: !type.isAccessibilitySize, vertical: type.isAccessibilitySize)
             .foregroundStyle(fg)
             .padding(.horizontal, horizontalPadding)
             .frame(minHeight: visualH)
@@ -206,7 +209,7 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
     @Environment(\.accessibilityReduceMotion) private var reduce
 
     var body: some View {
-        let thumbH: CGFloat = compact ? 30 : 34
+        let thumbH: CGFloat = compact ? 34 : 36
         let corner: CGFloat = compact ? 999 : Radius.tile
         let trackFill: Color = darkSurface ? Color.white.opacity(0.09) : DS.Surface.warmInset(dark: dark)
         let activeFill: Color = darkSurface ? Palette.amber : Palette.accentFill
@@ -214,57 +217,70 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
         let inactiveInk: Color = darkSurface ? Palette.lampInk.opacity(0.80) : .primary
 
         if type.isAccessibilitySize {
-            FlowRow(spacing: 6, lineSpacing: 6) {
-                ForEach(items) { item in
-                    let on = selection == item
-                    Button {
-                        selectItem(item)
-                    } label: {
-                        segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: true)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 7)
-                            .background(Capsule(style: .continuous).fill(on ? activeFill : trackFill))
-                            .pillHitTarget(LayoutSpec.hitMin)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
+            pillsFlow(activeFill: activeFill, trackFill: trackFill, activeInk: activeInk, inactiveInk: inactiveInk)
+        } else if compact {
+            ViewThatFits(in: .horizontal) {
+                horizontalTrack(thumbH: thumbH, corner: corner, trackFill: trackFill, activeFill: activeFill, activeInk: activeInk, inactiveInk: inactiveInk)
+                pillsFlow(activeFill: activeFill, trackFill: trackFill, activeInk: activeInk, inactiveInk: inactiveInk)
             }
         } else {
-            HStack(spacing: 2) {
-                ForEach(items) { item in
-                    let on = selection == item
-                    Button {
-                        selectItem(item)
-                    } label: {
-                        segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: compact)
-                            .padding(.horizontal, compact ? 11 : 8)
-                            .frame(maxWidth: compact ? nil : .infinity, minHeight: thumbH)
-                            .background {
-                                if on {
-                                    RoundedRectangle(cornerRadius: compact ? 999 : max(9, corner - 3), style: .continuous)
-                                        .fill(activeFill)
-                                        .shadow(color: (darkSurface ? Color.black : Palette.accentFill).opacity(0.22), radius: 3, y: 1)
-                                        .matchedGeometryEffect(id: "dsSegThumb", in: segNS)
-                                }
-                            }
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            .padding(3)
-            .background {
-                RoundedRectangle(cornerRadius: corner, style: .continuous)
-                    .fill(trackFill)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: corner, style: .continuous)
-                            .strokeBorder(darkSurface ? Color.white.opacity(0.08) : Color(hex: 0xCBB799).opacity(dark ? 0.16 : 0.24), lineWidth: 0.5)
-                    )
-            }
-            .contentShape(RoundedRectangle(cornerRadius: corner, style: .continuous).inset(by: -4))
+            horizontalTrack(thumbH: thumbH, corner: corner, trackFill: trackFill, activeFill: activeFill, activeInk: activeInk, inactiveInk: inactiveInk)
         }
+    }
+
+    private func pillsFlow(activeFill: Color, trackFill: Color, activeInk: Color, inactiveInk: Color) -> some View {
+        FlowRow(spacing: 6, lineSpacing: 6) {
+            ForEach(items) { item in
+                let on = selection == item
+                Button {
+                    selectItem(item)
+                } label: {
+                    segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: true)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 7)
+                        .background(Capsule(style: .continuous).fill(on ? activeFill : trackFill))
+                        .pillHitTarget(LayoutSpec.hitMin)
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+    }
+
+    private func horizontalTrack(thumbH: CGFloat, corner: CGFloat, trackFill: Color, activeFill: Color, activeInk: Color, inactiveInk: Color) -> some View {
+        HStack(spacing: 2) {
+            ForEach(items) { item in
+                let on = selection == item
+                Button {
+                    selectItem(item)
+                } label: {
+                    segmentLabel(item, on: on, activeInk: activeInk, inactiveInk: inactiveInk, fixedHoriz: compact)
+                        .padding(.horizontal, compact ? 11 : 8)
+                        .frame(maxWidth: compact ? nil : .infinity, minHeight: thumbH)
+                        .background {
+                            if on {
+                                RoundedRectangle(cornerRadius: compact ? 999 : max(9, corner - 3), style: .continuous)
+                                    .fill(activeFill)
+                                    .shadow(color: (darkSurface ? Color.black : Palette.accentFill).opacity(0.22), radius: 3, y: 1)
+                                    .matchedGeometryEffect(id: "dsSegThumb", in: segNS)
+                            }
+                        }
+                        .contentShape(Rectangle().inset(by: -4))
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(3)
+        .background {
+            RoundedRectangle(cornerRadius: corner, style: .continuous)
+                .fill(trackFill)
+                .overlay(
+                    RoundedRectangle(cornerRadius: corner, style: .continuous)
+                        .strokeBorder(darkSurface ? Color.white.opacity(0.08) : Color(hex: 0xCBB799).opacity(dark ? 0.16 : 0.24), lineWidth: 0.5)
+                )
+        }
+        .contentShape(RoundedRectangle(cornerRadius: corner, style: .continuous).inset(by: -4))
     }
 
     private func selectItem(_ item: Item) {
@@ -279,7 +295,7 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
         HStack(spacing: 4) {
             if let dot = dotColor?(item) {
                 Circle()
-                    .fill(on && !darkSurface ? .white.opacity(0.92) : dot)
+                    .fill(on ? activeInk.opacity(0.92) : dot)
                     .frame(width: 6, height: 6)
             }
             if let sym = symbol?(item) {
@@ -362,6 +378,7 @@ struct DSIconButton: View {
     let action: () -> Void
 
     var body: some View {
+        let expand = max(0, (LayoutSpec.hitMin - visualSize) / 2)
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.footnote.weight(.semibold))
@@ -369,7 +386,7 @@ struct DSIconButton: View {
                 .frame(width: visualSize, height: visualSize)
                 .background(Circle().fill(tintBg ?? DS.Surface.warmInset(dark: dark)))
                 .overlay(Circle().strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5))
-                .contentShape(Circle().inset(by: -6))
+                .contentShape(Circle().inset(by: -expand))
         }
         .buttonStyle(.toy)
         .accessibilityLabel(accessibilityLabel)
@@ -383,6 +400,7 @@ struct DSFilterChip: View {
     var dark: Bool = false
     var symbol: String? = nil
     let action: () -> Void
+    @Environment(\.dynamicTypeSize) private var type
 
     var body: some View {
         Button(action: action) {
@@ -393,8 +411,9 @@ struct DSFilterChip: View {
                 }
                 Text(title)
                     .font(.footnote.weight(.semibold))
-                    .lineLimit(1)
-                    .fixedSize(horizontal: true, vertical: false)
+                    .lineLimit(type.isAccessibilitySize ? 2 : 1)
+                    .minimumScaleFactor(0.86)
+                    .fixedSize(horizontal: !type.isAccessibilitySize, vertical: type.isAccessibilitySize)
             }
             .foregroundStyle(selected ? .white : .primary)
             .padding(.horizontal, 12)
