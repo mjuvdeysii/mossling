@@ -57,6 +57,7 @@ jobs:
           # network probe: every network event the app's own processes make while the tests run (the app should make none;
           # in China a first network use shows the system's 无线数据 prompt)
           xcrun simctl boot "$DEV" 2>/dev/null || true
+          xcrun simctl bootstatus "$DEV" -b >/dev/null 2>&1 || true
           xcrun simctl spawn "$DEV" log stream --style compact --level debug \
             --predicate '(process BEGINSWITH "Mossling") AND (subsystem == "com.apple.network" OR subsystem == "com.apple.CFNetwork" OR subsystem == "com.apple.nsurlsessiond")' > net.log 2>&1 &
           echo $! > net.pid

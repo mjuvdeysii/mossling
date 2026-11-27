@@ -3943,7 +3943,7 @@ final class LogicTests: XCTestCase {
         let nightNowMs = nightNow.timeIntervalSince1970 * 1000
         let nightLogs = [
             LogEntry(type: LogType.nurse, start: nightNowMs - 150 * 60_000, end: nightNowMs - 140 * 60_000, side: "l"),
-            LogEntry(type: LogType.nurse, start: nightNowMs - 137 * 60_000, end: nightNowMs - 127 * 60_000, side: "r")
+            LogEntry(type: LogType.nurse, start: nightNowMs - 139 * 60_000, end: nightNowMs - 129 * 60_000, side: "r")
         ]
         let nightSleepTimer = RunningTimer(type: LogType.sleep, start: nightNowMs - 45 * 60_000, side: nil, pausedAt: nil, pausedTotal: 0)
         let midSummary = MidnightCareSummary.build(logs: nightLogs, timers: [nightSleepTimer], now: nightNow)
