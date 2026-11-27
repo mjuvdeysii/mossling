@@ -25,7 +25,7 @@ enum LampWarmth: String, CaseIterable, Identifiable {
     var secondaryTint: Color {
         switch self {
         case .amber: Palette.lampTint
-        case .candle: Color(hex: 0x9E2F1B)
+        case .candle: Color(hex: 0xE86A50)
         case .peach: Color(hex: 0xE89B6C)
         }
     }
@@ -478,11 +478,12 @@ struct BedsideLampView: View {
                                 .frame(maxWidth: .infinity)
                                 .overlay(alignment: .trailing) {
                                     dimmerRail
-                                        .padding(.trailing, 10)
+                                        .frame(width: 48)
+                                        .contentShape(Rectangle())
+                                        .highPriorityGesture(dimmerGesture)
+                                        .padding(.trailing, 4)
                                 }
                         }
-                        .contentShape(Rectangle())
-                        .highPriorityGesture(dimmerGesture)
 
                         Spacer(minLength: 6)
 
@@ -533,11 +534,10 @@ struct BedsideLampView: View {
                 breathingGuide = app.lampBreathingGuide
             }
             if soundscape.didFinishAutoFade && !soundscape.isPlaying && persistsToAppModel {
-                emberResting = true
-                UIApplication.shared.isIdleTimerDisabled = false
-            } else {
-                UIApplication.shared.isIdleTimerDisabled = true
+                soundscape.clearAutoFadeNotice()
             }
+            emberResting = false
+            UIApplication.shared.isIdleTimerDisabled = true
             volumeMonitor.start()
             if scenePhase == .active {
                 applyScreenDimmerIfAllowed()
@@ -560,6 +560,8 @@ struct BedsideLampView: View {
         .onChange(of: soundscape.isPlaying) { _, playing in
             if playing {
                 rekindleFromEmber()
+            } else if scenePhase == .active {
+                applyScreenDimmerIfAllowed()
             }
         }
         .onChange(of: soundscape.remainingSeconds) { _, rem in
@@ -582,9 +584,11 @@ struct BedsideLampView: View {
                 countedPresentation = false
                 app.bedsideLampPresentedCount = max(0, app.bedsideLampPresentedCount - 1)
             }
-            restoreScreenBrightness()
+            if app.bedsideLampPresentedCount == 0 {
+                restoreScreenBrightness()
+                UIApplication.shared.isIdleTimerDisabled = false
+            }
             soundscape.clearAutoFadeNotice()
-            UIApplication.shared.isIdleTimerDisabled = false
             volumeMonitor.stop()
             motion.stop()
         }
@@ -1219,12 +1223,12 @@ struct BedsideLampView: View {
             HStack(spacing: 5) {
                 Image(systemName: "arrow.up.and.down")
                     .font(.caption2.weight(.bold))
-                Text(L10n.t("上下滑动调光 · 双击轻暗", "Slide to dim · 2× tap low"))
+                Text(L10n.t("沿右侧滑轨上下调光 · 双击轻暗", "Slide right rail to dim · 2× tap low"))
                     .font(.caption.weight(.medium))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.32))
+            .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.72 : 0.62))
             .accessibilityHidden(true)
         }
     }
@@ -1346,7 +1350,10 @@ struct BedsideLampView: View {
                 }
             }
 
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)], spacing: 7) {
+            let soundCols = typeSize.isAccessibilitySize
+                ? [GridItem(.flexible(), spacing: 7)]
+                : [GridItem(.flexible(), spacing: 7), GridItem(.flexible(), spacing: 7)]
+            LazyVGrid(columns: soundCols, spacing: 7) {
                 ForEach(SoundscapeKind.allCases) { kind in
                     let isPrimary = soundscape.active == kind
                     let isSecondary = soundscape.secondary == kind
@@ -1381,7 +1388,7 @@ struct BedsideLampView: View {
                                 }
                                 Spacer(minLength: 0)
                             }
-                            .frame(minHeight: 40)
+                            .frame(minHeight: 44)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)

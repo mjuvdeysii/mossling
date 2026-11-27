@@ -450,12 +450,14 @@ struct TimerScreen: View {
                     Button(L10n.t("提前 5 分钟开始", "Start 5 min earlier"), systemImage: "gobackward.5") {
                         guard app.mayKeep() else { return }
                         TactileEngine.shared.dimmerTick()
-                        j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 300))
+                        let overallStart = t.start - t.carried - t.carriedPause
+                        j.shift(type, to: Date(timeIntervalSince1970: overallStart / 1000 - 300))
                     }
                     Button(L10n.t("提前 15 分钟开始", "Start 15 min earlier"), systemImage: "gobackward.15") {
                         guard app.mayKeep() else { return }
                         TactileEngine.shared.dimmerTick()
-                        j.shift(type, to: Date(timeIntervalSince1970: t.start / 1000 - 900))
+                        let overallStart = t.start - t.carried - t.carriedPause
+                        j.shift(type, to: Date(timeIntervalSince1970: overallStart / 1000 - 900))
                     }
                     Divider()
                     Button(L10n.t("不记这一次", "Discard timer"), systemImage: "xmark", role: .destructive) { discardTimer() }
@@ -476,7 +478,8 @@ struct TimerScreen: View {
         .sensoryFeedback(.impact(weight: .medium), trigger: paused)
         .sensoryFeedback(.selection, trigger: side)
         .sheet(isPresented: $picking) {
-            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: t.start / 1000)) {
+            let overallStart = t.start - t.carried - t.carriedPause
+            TimeSheet(title: L10n.t("开始时间", "Start Time"), initial: Date(timeIntervalSince1970: overallStart / 1000)) {
                 guard app.mayKeep() else { return }
                 TactileEngine.shared.dimmerTick()
                 j.shift(type, to: $0)

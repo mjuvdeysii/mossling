@@ -24,6 +24,7 @@ struct TodayEntry: TimelineEntry {
     let date: Date
     let snap: Snapshot?
     let body: JournalFile.Body
+    var journalLoadFailed: Bool = false
 }
 
 struct TodayProvider: TimelineProvider {
@@ -37,10 +38,11 @@ struct TodayProvider: TimelineProvider {
         let canShow = WidgetPrivacy.canShowRecords(snap: snap)
         let journalEnabled = canShow && (snap?.journal == true)
         let loadedBody: JournalFile.Body? = journalEnabled ? (try? JournalFile.load()) : JournalFile.Body()
+        let loadFailed = journalEnabled && loadedBody == nil
         let body = loadedBody ?? JournalFile.Body()
-        if snap == nil || (journalEnabled && loadedBody == nil) {
+        if snap == nil || loadFailed {
             let retry = now.addingTimeInterval(15 * 60)
-            completion(Timeline(entries: [TodayEntry(date: now, snap: snap, body: body)], policy: .after(retry)))
+            completion(Timeline(entries: [TodayEntry(date: now, snap: snap, body: body, journalLoadFailed: loadFailed)], policy: .after(retry)))
             return
         }
         var dates: [Date] = [now]
@@ -61,13 +63,18 @@ struct TodayProvider: TimelineProvider {
             }
         }
         dates.sort()
-        completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body) }, policy: .atEnd))
+        completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body, journalLoadFailed: false) }, policy: .atEnd))
     }
     private func entry(_ d: Date) -> TodayEntry {
         let snap = JournalFile.snapshot()
         let journalEnabled = WidgetPrivacy.canShowRecords(snap: snap) && (snap?.journal == true)
-        let body = journalEnabled ? JournalFile.read() : JournalFile.Body()
-        return TodayEntry(date: d, snap: snap, body: body)
+        if journalEnabled {
+            if let loaded = try? JournalFile.load() {
+                return TodayEntry(date: d, snap: snap, body: loaded, journalLoadFailed: false)
+            }
+            return TodayEntry(date: d, snap: snap, body: .init(), journalLoadFailed: true)
+        }
+        return TodayEntry(date: d, snap: snap, body: .init(), journalLoadFailed: false)
     }
 }
 
@@ -105,7 +112,7 @@ private struct TodayWidgetView: View {
         case .systemMedium: .medium
         default: .small
         }
-        TodayFace(date: e.date, snap: e.snap, body: e.body, size: size)
+        TodayFace(date: e.date, snap: e.snap, body: e.body, size: size, journalLoadFailed: e.journalLoadFailed)
     }
 }
 
@@ -145,7 +152,7 @@ private struct QuickCareWidgetView: View {
     let e: TodayEntry
     @Environment(\.widgetFamily) private var family
     var body: some View {
-        QuickCareFace(date: e.date, snap: e.snap, body_: e.body, isMedium: family == .systemMedium)
+        QuickCareFace(date: e.date, snap: e.snap, body_: e.body, isMedium: family == .systemMedium, journalLoadFailed: e.journalLoadFailed)
     }
 }
 
@@ -178,7 +185,7 @@ private struct BedsideLampWidgetView: View {
     let e: TodayEntry
     @Environment(\.widgetFamily) private var family
     var body: some View {
-        BedsideLampFace(date: e.date, snap: e.snap, body_: e.body, isMedium: family == .systemMedium)
+        BedsideLampFace(date: e.date, snap: e.snap, body_: e.body, isMedium: family == .systemMedium, journalLoadFailed: e.journalLoadFailed)
     }
 }
 
@@ -188,7 +195,7 @@ struct SleepControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
-        return try JournalFile.load().timers.contains { $0.type == LogType.sleep }
+        return (try? JournalFile.load().timers.contains { $0.type == LogType.sleep }) ?? false
     }
 }
 
@@ -196,7 +203,7 @@ struct NurseControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
         guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
-        return try JournalFile.load().timers.contains { $0.type == LogType.nurse }
+        return (try? JournalFile.load().timers.contains { $0.type == LogType.nurse }) ?? false
     }
 }
 

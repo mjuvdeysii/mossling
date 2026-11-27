@@ -178,12 +178,41 @@ enum RecordFile {
             var seenCapIDs: Set<UUID> = []
             return list.filter { seenCapIDs.insert($0.id).inserted }
         }
-        // write the journal first so a failed disk save never leaves settings half-imported
-        guard journal.replaceAll(body) else { throw Failure.saveFailed }
+        // Persist all data stores transactionally with rollback before mutating AppModel or pruning media.
+        let prevFoods = foodStore.map { Array($0.records.values) }
+        let prevCapsules = capsuleStore?.items
+        var wroteFoods = false
+        var wroteCapsules = false
+        func rollbackStores() {
+            if wroteCapsules, let prevCapsules {
+                _ = capsuleStore?.replaceAll(prevCapsules)
+            }
+            if wroteFoods, let prevFoods {
+                _ = foodStore?.replaceAll(prevFoods, pruneStickers: false)
+            }
+        }
+        if let parsedFoods, let foodStore {
+            guard foodStore.replaceAll(parsedFoods, pruneStickers: false) else { throw Failure.saveFailed }
+            wroteFoods = true
+        }
+        if let parsedCapsules, let capsuleStore {
+            guard capsuleStore.replaceAll(parsedCapsules) else {
+                rollbackStores()
+                throw Failure.saveFailed
+            }
+            wroteCapsules = true
+        }
+        guard journal.replaceAll(body) else {
+            rollbackStores()
+            throw Failure.saveFailed
+        }
         if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
             let validFirsts = Set(body.firsts.map(\.id))
             FirstPhotoStore.prune(keeping: validFirsts)
             FirstVoiceStore.prune(keeping: validFirsts)
+            if let parsedFoods, let foodStore, foodStore.isDefaultStore {
+                FoodStickerStore.prune(keeping: Set(parsedFoods.map(\.foodId)))
+            }
         }
         app.birth = parsedBirth
         app.sex = s["sex"] as? String
@@ -210,8 +239,6 @@ enum RecordFile {
         let filteredTicks = ticks.filter { obsMap[$0.key] != .askDoctor }
         app.replaceTicks(filteredTicks)
         app.replaceObservationStates(obsMap)
-        if let parsedFoods, let foodStore, !foodStore.replaceAll(parsedFoods) { throw Failure.saveFailed }
-        if let parsedCapsules, let capsuleStore, !capsuleStore.replaceAll(parsedCapsules) { throw Failure.saveFailed }
         let hasRecords = !body.logs.isEmpty || !body.measures.isEmpty || !body.firsts.isEmpty
         app.journal = (s["journal"] as? Bool ?? false) || hasRecords
     }
@@ -232,7 +259,11 @@ enum RecordFile {
             o += String(format: L10n.t("- 出生日期：%04d-%02d-%02d\n", "- Date of birth: %04d-%02d-%02d\n"), b.y, b.m, b.d)
             o += L10n.t("- 今天（实际月龄）：满 \(actual.months) 个月 \(actual.days) 天\n", "- Today (actual age): \(actual.months) mo \(actual.days) d\n")
             if let gw = app.gestationalWeeks, let ca = app.correctedAge {
-                o += L10n.t("- 出生孕周与矫正月龄：\(gw) 周 · 满 \(ca.months) 个月 \(ca.days) 天\n", "- Gestational & corrected age: \(gw) weeks · \(ca.months) mo \(ca.days) d\n")
+                if app.isPreEDD {
+                    o += L10n.t("- 出生孕周与矫正月龄：\(gw) 周 · 待产矫正期（距预产期 \(ca.toNext) 天）\n", "- Gestational & corrected age: \(gw) weeks · Pre-EDD (\(ca.toNext)d to 40w due date)\n")
+                } else {
+                    o += L10n.t("- 出生孕周与矫正月龄：\(gw) 周 · 满 \(ca.months) 个月 \(ca.days) 天\n", "- Gestational & corrected age: \(gw) weeks · \(ca.months) mo \(ca.days) d\n")
+                }
             }
         } else { o += L10n.t("- 出生日期：未填写\n", "- Date of birth: Not set\n") }
         o += L10n.t("\n## 说明\n\n记录由家长在摸索台灯中自行录入，应用不做发育评估或医疗判断。可交给儿科医生参考；也可以交给 AI 助手，请它在说明自身局限的前提下帮助整理和提出值得向医生询问的问题。生长百分位按世界卫生组织儿童生长标准（2006）计算。\n", "\n## About this record\n\nEntries were logged by the parent in Moss & Otto. The app does not assess development or offer medical advice. You can share this document with a pediatrician, or with an AI assistant to help organize notes and prepare questions for a doctor (noting its own limitations). Growth percentiles follow the WHO Child Growth Standards (2006).\n")

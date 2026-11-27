@@ -46,7 +46,7 @@ final class SpeechReader {
             return
         }
         guard !FirstVoiceController.shared.isRecording else { return }
-        if !SoundscapeEngine.shared.isPlaying {
+        if !SoundscapeEngine.shared.ownsPlaybackSession && !ToyboxAudioEngine.shared.isPlaying {
             let session = AVAudioSession.sharedInstance()
             try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
             try? session.setActive(true)
@@ -59,7 +59,7 @@ final class SpeechReader {
                 guard let owner = box.owner, owner.activeUtteranceID == finishedID else { return }
                 owner.activeUtteranceID = nil
                 owner.isSpeaking = false
-                if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+                if !SoundscapeEngine.shared.ownsPlaybackSession && !ToyboxAudioEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
                     try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 }
             }
@@ -82,7 +82,7 @@ final class SpeechReader {
             synthesizer?.stopSpeaking(at: .immediate)
         }
         isSpeaking = false
-        if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+        if !SoundscapeEngine.shared.ownsPlaybackSession && !ToyboxAudioEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
     }

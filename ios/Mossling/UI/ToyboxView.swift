@@ -517,7 +517,7 @@ private struct XylophoneStudio: View {
                 let verticalInset: CGFloat = 12
                 let spacing: CGFloat = 8
                 let usableH = max(160, geo.size.height - verticalInset * 2)
-                let barH = max(28, (usableH - spacing * CGFloat(bars.count - 1)) / CGFloat(bars.count))
+                let barH = max(24, (usableH - spacing * CGFloat(bars.count - 1)) / CGFloat(bars.count))
 
                 ZStack {
                     // Subtle warm horizontal beechwood grain across acoustic soundboard
@@ -649,7 +649,7 @@ private struct XylophoneStudio: View {
                     }
                 }
             }
-            .frame(minHeight: 290)
+            .frame(minHeight: 312)
 
             // Footer Dual Controls: Warm Interactive Teal Listen + Glowing Caramel Play Along
             HStack(spacing: 10) {
@@ -926,6 +926,7 @@ private final class RainstickSimulation {
     var motionGX: Double = 0
     var motionGY: Double = 1.0
     var chimeMode: Bool = false
+    var audioSilencedByRouteChange: Bool = false
     private var motionManager: CMMotionManager?
     private let haptic = UIImpactFeedbackGenerator(style: .soft)
 
@@ -965,6 +966,15 @@ private final class RainstickSimulation {
     func stopMotion() {
         motionManager?.stopDeviceMotionUpdates()
         motionManager = nil
+    }
+
+    func silenceAfterRouteChange() {
+        audioSilencedByRouteChange = true
+        touchPoint = nil
+        for i in physics.beads.indices {
+            physics.beads[i].vx = 0
+            physics.beads[i].vy = 0
+        }
     }
 
     func flip() {
@@ -1010,7 +1020,7 @@ private final class RainstickSimulation {
 
     func advanceStep(dt: Double) {
         let impacts = physics.step(dt: dt, gx: motionGX, gy: motionGY, touch: touchPoint)
-        if impacts > 0 && !isTestHost {
+        if impacts > 0 && !isTestHost && !audioSilencedByRouteChange {
             let intensity = min(0.85, 0.35 + Double(impacts) * 0.12)
             if chimeMode {
                 ToyboxAudioEngine.shared.playRainstickChime(normalizedY: physics.lastHitPegY ?? 0.5, intensity: intensity)
@@ -1056,6 +1066,7 @@ private struct RainstickStudio: View {
                         guard layout != item else { return }
                         onInteract()
                         TactileEngine.shared.beadClick()
+                        sim.audioSilencedByRouteChange = false
                         layout = item
                         sim.setLayout(item)
                     } label: {
@@ -1068,12 +1079,14 @@ private struct RainstickStudio: View {
                             .overlay(Capsule().strokeBorder(Palette.outline.opacity(on ? 0 : 0.26), lineWidth: 0.75))
                     }
                     .buttonStyle(.plain)
+                    .pillHitTarget()
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
 
                 Button {
                     onInteract()
                     TactileEngine.shared.beadClick()
+                    sim.audioSilencedByRouteChange = false
                     chimeMode.toggle()
                     sim.chimeMode = chimeMode
                 } label: {
@@ -1090,6 +1103,7 @@ private struct RainstickStudio: View {
                     .background(Capsule().fill(chimeMode ? Palette.beadLight : Palette.accent.opacity(dark ? 0.22 : 0.12)))
                 }
                 .buttonStyle(.plain)
+                .pillHitTarget()
                 .accessibilityLabel(chimeMode ? L10n.t("音色：风铃，点击切换木珠", "Sound: Chime, tap for Wood") : L10n.t("音色：木珠，点击切换风铃", "Sound: Wood, tap for Chime"))
             }
 
@@ -1157,6 +1171,7 @@ private struct RainstickStudio: View {
                             }
                             .onChanged { value in
                                 onInteract()
+                                sim.audioSilencedByRouteChange = false
                                 let w = max(1, geo.size.width - 30)
                                 let h = max(1, geo.size.height - 30)
                                 sim.touchPoint = CGPoint(
@@ -1231,6 +1246,7 @@ private struct RainstickStudio: View {
                 Button {
                     onInteract()
                     TactileEngine.shared.beadClick()
+                    sim.audioSilencedByRouteChange = false
                     sim.flip()
                     if reduce || Perf.still {
                         sim.advanceStep(dt: 1.0 / 24.0)
@@ -1248,11 +1264,11 @@ private struct RainstickStudio: View {
             .printCard(radius: Radius.card)
         }
         .onAppear {
+            sim.audioSilencedByRouteChange = false
             if !reduce && scenePhase == .active { sim.startMotion() }
         }
         .onChange(of: ToyboxAudioEngine.shared.routeStopGeneration) { _, _ in
-            sim.touchPoint = nil
-            sim.stopMotion()
+            sim.silenceAfterRouteChange()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active && !reduce {
@@ -1496,6 +1512,7 @@ private struct FireflyJarStudio: View {
                         .overlay(Capsule().strokeBorder(Palette.amber.opacity(on ? 0.9 : 0.22), lineWidth: 0.75))
                     }
                     .buttonStyle(.plain)
+                    .pillHitTarget()
                     .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
@@ -1850,7 +1867,7 @@ enum ContrastCardKind: Int, CaseIterable, Identifiable {
         case .sun: L10n.t("暖红太阳", "Radiating Sun")
         case .crescent: L10n.t("弯月星光", "Crescent & Stars")
         case .waves: L10n.t("波浪条纹", "Rolling Waves")
-        case .dots: L10n.t("圆点韵律", "Montessori Dots")
+        case .dots: L10n.t("圆点韵律", "Rhythm Dots")
         case .ottoLantern: L10n.t("Otto 小夜灯", "Otto's Lantern")
         case .butterfly: L10n.t("对称蝴蝶", "Bold Butterfly")
         case .nestedSquares: L10n.t("嵌套方框", "Nested Squares")
@@ -1860,10 +1877,10 @@ enum ContrastCardKind: Int, CaseIterable, Identifiable {
 
     var ageHint: String {
         switch self {
-        case .rings, .checkerboard, .spiral, .nestedSquares:
+        case .rings, .checkerboard, .spiral, .mossSilhouette:
             L10n.t("0–2 个月 · 纯黑白强对比", "0–2 mo · Pure black & ivory")
-        case .mossSilhouette, .ottoLantern:
-            L10n.t("0–3 个月 · 脸部轮廓与一点暖红", "0–3 mo · Silhouette & warm focal")
+        case .nestedSquares, .ottoLantern:
+            L10n.t("0–3 个月 · 轮廓与一点暖红", "0–3 mo · Frame & warm focal")
         case .sun, .crescent, .waves, .butterfly:
             L10n.t("1–4 个月 · 黑白配一抹暖红", "1–4 mo · Monochrome + vermilion")
         case .dots, .botanicalLeaf:
@@ -1961,6 +1978,7 @@ private struct ContrastCardStudio: View {
                     }
                     .foregroundStyle(motionMode ? .white : Palette.secondaryText)
                     .background(Capsule().fill(motionMode ? AnyShapeStyle(Palette.accentFill) : AnyShapeStyle(dark ? Color.white.opacity(0.08) : Palette.fill)))
+                    .pillHitTarget()
                     .buttonStyle(.plain)
 
                     Button {
@@ -1979,6 +1997,7 @@ private struct ContrastCardStudio: View {
                     }
                     .foregroundStyle(inverted ? Color(hex: 0x3A2700) : Palette.secondaryText)
                     .background(Capsule().fill(inverted ? Palette.beadLight : (dark ? Color.white.opacity(0.08) : Palette.fill)))
+                    .pillHitTarget()
                     .buttonStyle(.plain)
 
                     Button {
@@ -1995,6 +2014,7 @@ private struct ContrastCardStudio: View {
                     }
                     .foregroundStyle(Palette.accent)
                     .background(Capsule().fill(Palette.accent.opacity(dark ? 0.22 : 0.12)))
+                    .pillHitTarget()
                     .buttonStyle(.plain)
                 }
 
@@ -2081,7 +2101,7 @@ private struct ContrastFocusCover: View {
                 Spacer()
                 Text("\(cards[max(0, min(index, cards.count - 1))].title) · \(index + 1)/\(cards.count)")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(fg.opacity(0.55))
+                    .foregroundStyle(fg.opacity(0.78))
                     .padding(.bottom, 16)
             }
         }

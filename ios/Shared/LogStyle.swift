@@ -30,7 +30,7 @@ enum Crayon {
     static func glyph(on c: Color) -> Color {
         Color(UIColor { traits in
             let rgba = rgbComponents(of: c, traits: traits)
-            return relativeLuminance(rgba.r, rgba.g, rgba.b) > 0.36
+            return relativeLuminance(rgba.r, rgba.g, rgba.b) > 0.18
                 ? UIColor(red: 0.29, green: 0.20, blue: 0, alpha: 1)
                 : .white
         })

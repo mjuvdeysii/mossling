@@ -554,7 +554,7 @@ struct TimerAccessory: View {
                 j.togglePause(timer.type)
             } label: {
                 Image(systemName: isPaused ? "play.fill" : "pause.fill")
-                    .frame(minWidth: 32, minHeight: 32)
+                    .hitTarget()
                     .contentShape(Circle())
             }
             .accessibilityLabel(isPaused ? L10n.t("继续", "Resume") : L10n.t("暂停", "Pause"))

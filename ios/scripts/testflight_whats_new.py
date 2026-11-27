@@ -308,10 +308,10 @@ def update_whats_new(
                 print(f"[ASC] Waiting for build {build_number} to appear in App Store Connect...", flush=True)
         time.sleep(poll_interval)
 
-    if not build_id:
+    if not build_id or state != "VALID":
         summary = fetch_recent_builds_summary(client, app_id)
         raise RuntimeError(
-            f"Timed out waiting for build {build_number} to appear in App Store Connect. Latest ASC builds: {summary}"
+            f"Timed out waiting for build {build_number} to become VALID in App Store Connect (last state={state or 'missing'}). Latest ASC builds: {summary}"
         )
 
     results: list[str] = []

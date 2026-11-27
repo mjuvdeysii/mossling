@@ -61,12 +61,17 @@ struct TodayFace: View {
     let snap: Snapshot?
     let body_: JournalFile.Body
     let size: TodaySize
+    var journalLoadFailed: Bool = false
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
+    private var accentInk: Color { isFullColor ? WidgetInk.accent : .primary }
+    private func inkFor(_ color: Color) -> Color { isFullColor ? Crayon.ink(color) : .primary }
 
-    init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize) { self.date = date; self.snap = snap; self.body_ = body; self.size = size }
+    init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize, journalLoadFailed: Bool = false) {
+        self.date = date; self.snap = snap; self.body_ = body; self.size = size; self.journalLoadFailed = journalLoadFailed
+    }
 
     private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
     private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
@@ -91,7 +96,8 @@ struct TodayFace: View {
     /// The wide faces have room for the minutes past the hour ("2 小时 30 分前"); the narrow cards use the short form.
     private func agoText(_ d: Date) -> String { L10n.agoText(d, now: date, precise: true) }
     private func agoCard(_ d: Date) -> String { L10n.agoText(d, now: date) }
-    private var journal: Bool { visible && snap?.journal == true }
+    private var journal: Bool { visible && snap?.journal == true && !journalLoadFailed }
+    private var showReadError: Bool { visible && snap?.journal == true && journalLoadFailed }
 
     var body: some View {
         switch size {
@@ -112,7 +118,7 @@ struct TodayFace: View {
             } else {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(ageText).font(.headline).lineLimit(1).minimumScaleFactor(0.72).privacySensitive().widgetAccentable()
-                    if let t = body_.timers.first {
+                    if journal, let t = body_.timers.first {
                         HStack(spacing: 4) {
                             Text(L10n.logName(t.type))
                             if let p = t.pausedAt { Text(L10n.duration(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
@@ -132,7 +138,7 @@ struct TodayFace: View {
             AccessoryWidgetBackground()
             if !visible {
                 Image(systemName: locked ? "lock.fill" : "lamp.desk.fill").font(.title3)
-            } else if let t = body_.timers.first {
+            } else if journal, let t = body_.timers.first {
                 VStack(spacing: 1) {
                     Image(systemName: LogType.symbol(t.type)).font(.caption2).privacySensitive()
                     if let p = t.pausedAt {
@@ -196,12 +202,12 @@ struct TodayFace: View {
                                     .background(Capsule().fill(isFullColor ? WidgetInk.accent : Color.primary.opacity(0.14)))
                             }
                             HStack(alignment: .firstTextBaseline, spacing: 1) {
-                                Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
+                                Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(accentInk)
                                 Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
                             }
                             if a.days > 0 {
                                 HStack(alignment: .firstTextBaseline, spacing: 1) {
-                                    Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent)
+                                    Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(accentInk)
                                     Text(L10n.t("天", "d")).font(.caption2.weight(.semibold))
                                 }
                             }
@@ -212,7 +218,7 @@ struct TodayFace: View {
                         if let badge = snap?.careBadgeLabel() {
                             Text(badge)
                                 .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                                .foregroundStyle(snap?.careModeActive == true ? Crayon.ink(Crayon.teal) : .secondary)
+                                .foregroundStyle(snap?.careModeActive == true ? inkFor(Crayon.teal) : .secondary)
                                 .lineLimit(1)
                                 .privacySensitive()
                         }
@@ -222,7 +228,7 @@ struct TodayFace: View {
                     if locked {
                         Label(L10n.t("已锁定", "Locked"), systemImage: "lock.fill")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(WidgetInk.accent)
+                            .foregroundStyle(accentInk)
                             .lineLimit(1)
                     }
                 }
@@ -257,7 +263,7 @@ struct TodayFace: View {
             ArtImage(name: WidgetArt.sticker(t.type)).frame(width: 34, height: 34)
             VStack(alignment: .leading, spacing: 0) {
                 Text(L10n.timerStatus(t.type, side: t.side, paused: t.pausedAt != nil)).lineLimit(1).minimumScaleFactor(0.8)
-                    .font(.caption2.weight(.semibold)).foregroundStyle(Crayon.ink(LogType.color(t.type)))
+                    .font(.caption2.weight(.semibold)).foregroundStyle(inkFor(LogType.color(t.type)))
                 if let p = t.pausedAt { Text(L10n.duration(t.total(p))).font(WidgetInk.numerals(17)) }
                 else { Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(20)).contentTransition(.numericText(countsDown: false)) }
             }
@@ -267,8 +273,8 @@ struct TodayFace: View {
 
     private var small: some View {
         let dest = visible
-            ? (body_.timers.first.map { WidgetLinks.care($0.type) }
-                ?? (journal ? WidgetLinks.journal : snap?.playCode.map(WidgetLinks.play))
+            ? ((journal ? body_.timers.first.map { WidgetLinks.care($0.type) } : nil)
+                ?? (journal || showReadError ? WidgetLinks.journal : snap?.playCode.map(WidgetLinks.play))
                 ?? WidgetLinks.today)
             : WidgetLinks.today
         return VStack(alignment: .leading, spacing: 0) {
@@ -280,7 +286,13 @@ struct TodayFace: View {
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            else if let t = body_.timers.first { running(t) }
+            else if showReadError {
+                Text(L10n.t("记录读取异常，轻点打开应用", "Records unreadable — tap to open"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            else if journal, let t = body_.timers.first { running(t) }
             else if journal { since }
             else { playView(linked: false) }
         }
@@ -299,7 +311,7 @@ struct TodayFace: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Text(t == LogType.nurse ? L10n.t("上次喂奶", "Last feed") : L10n.t("上次醒来", "Last wake")).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
                         Text(d.map(agoText) ?? "—").font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
-                            .foregroundStyle(Crayon.ink(LogType.color(t))).lineLimit(1).minimumScaleFactor(0.8)
+                            .foregroundStyle(inkFor(LogType.color(t))).lineLimit(1).minimumScaleFactor(0.8)
                     }
                 }
             }
@@ -318,10 +330,11 @@ struct TodayFace: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
-                } else if journal {
-                    playView(linked: true)
-                } else if let t = body_.timers.first {
-                    Link(destination: WidgetLinks.care(t.type)) { running(t) }
+                } else if showReadError {
+                    Text(L10n.t("记录读取异常，轻点打开应用修复或查看。", "Records unreadable. Tap to open app."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 } else {
                     playView(linked: true)
                 }
@@ -346,8 +359,8 @@ struct TodayFace: View {
         return VStack(spacing: 2) {
             ArtImage(name: WidgetArt.sticker(type)).frame(width: 34, height: 34)
                 .padding(3).overlay(Circle().stroke(c.opacity(on ? 0.6 : 0), lineWidth: 3))
-            Text(title).font(.caption2.weight(.semibold)).foregroundStyle(on ? Crayon.ink(c) : .primary).lineLimit(1)
-            (sub ?? Text(" ")).font(.system(size: 11, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(on ? Crayon.ink(LogType.color(type)) : .secondary).lineLimit(1).minimumScaleFactor(0.7)
+            Text(title).font(.caption2.weight(.semibold)).foregroundStyle(on ? inkFor(c) : .primary).lineLimit(1)
+            (sub ?? Text(" ")).font(.system(size: 11, weight: .semibold, design: .rounded)).monospacedDigit().foregroundStyle(on ? inkFor(c) : .secondary).lineLimit(1).minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
@@ -385,9 +398,9 @@ struct TodayFace: View {
         let dirtyCount = diapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
         let recentDiaper = QuickCareFace.recentDiaper(in: body_.logs, now: date)
         let canShuffle = (snap?.weekPlays?.count ?? 0) >= 2
-        let isSleeping = body_.timers.contains { $0.type == LogType.sleep }
+        let isSleeping = journal && body_.timers.contains { $0.type == LogType.sleep }
         let awakeMinutes: Int? = {
-            guard !isSleeping, let w = last(LogType.sleep) else { return nil }
+            guard journal, !isSleeping, let w = last(LogType.sleep) else { return nil }
             let m = Int(date.timeIntervalSince(w) / 60)
             return (m >= 10 && m <= 150) ? m : nil
         }()
@@ -406,7 +419,7 @@ struct TodayFace: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Image(systemName: locked ? "lock.fill" : "lamp.desk.fill")
                         .font(.title3.weight(.semibold))
-                        .foregroundStyle(WidgetInk.accent)
+                        .foregroundStyle(accentInk)
                     Text(locked ? L10n.t("摸索台灯已锁定", "Moss & Otto is Locked") : L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.primary)
@@ -431,7 +444,7 @@ struct TodayFace: View {
                                 VStack(alignment: .leading, spacing: 3) {
                                     HStack(spacing: 5) {
                                         Circle().fill(isSleeping ? Crayon.lilac : WidgetInk.bead).frame(width: 6, height: 6)
-                                        Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent).lineLimit(1).minimumScaleFactor(0.8)
+                                        Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? inkFor(Crayon.lilac) : accentInk).lineLimit(1).minimumScaleFactor(0.8)
                                     }
                                     Text(name)
                                         .font(.system(size: 15, weight: .bold, design: .rounded))
@@ -451,9 +464,9 @@ struct TodayFace: View {
                             Button(intent: CycleWidgetPlayIntent()) {
                                 Image(systemName: "arrow.trianglehead.2.clockwise")
                                     .font(.caption.weight(.bold))
-                                    .foregroundStyle(WidgetInk.accent)
+                                    .foregroundStyle(accentInk)
                                     .frame(width: 30, height: 30)
-                                    .background(WidgetInk.accent.opacity(0.12), in: Circle())
+                                    .background(accentInk.opacity(0.12), in: Circle())
                             }
                             .buttonStyle(.plain)
                             .invalidatableContent()
@@ -471,7 +484,7 @@ struct TodayFace: View {
                         HStack(alignment: .center, spacing: 6) {
                             Link(destination: WidgetLinks.journal) {
                                 HStack(spacing: 6) {
-                                    Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                                    Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(accentInk)
                                     Text(L10n.t(
                                         "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
                                         "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
@@ -487,9 +500,9 @@ struct TodayFace: View {
                                 Button(intent: UndoLastDiaperIntent()) {
                                     Text(L10n.t("撤销", "Undo"))
                                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                                        .foregroundStyle(WidgetInk.accent)
+                                        .foregroundStyle(accentInk)
                                         .padding(.horizontal, 7).padding(.vertical, 3)
-                                        .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                                        .background(accentInk.opacity(0.14), in: Capsule())
                                 }
                                 .buttonStyle(.plain)
                                 .privacySensitive()
@@ -513,6 +526,20 @@ struct TodayFace: View {
                         QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty", isFullColor: isFullColor)
                     }
                     .frame(height: 84)
+                } else if showReadError {
+                    Link(destination: WidgetLinks.journal) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(accentInk)
+                            Text(L10n.t("照护记录读取异常，轻点打开应用检查。", "Care records unreadable — tap to open app."))
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    }
                 }
             }
         }
@@ -583,10 +610,12 @@ struct QuickCareFace: View {
     let snap: Snapshot?
     let body_: JournalFile.Body
     let isMedium: Bool
+    var journalLoadFailed: Bool = false
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
+    private var accentInk: Color { isFullColor ? WidgetInk.accent : .primary }
 
     static let confirmWindowSeconds: Double = 12
 
@@ -598,7 +627,8 @@ struct QuickCareFace: View {
 
     private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
     private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
-    private var journal: Bool { visible && snap?.journal == true }
+    private var journal: Bool { visible && snap?.journal == true && !journalLoadFailed }
+    private var showReadError: Bool { visible && snap?.journal == true && journalLoadFailed }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
 
@@ -614,7 +644,7 @@ struct QuickCareFace: View {
             VStack(alignment: .leading, spacing: 8) {
                 Image(systemName: "lock.fill")
                     .font(.title3.weight(.semibold))
-                    .foregroundStyle(WidgetInk.accent)
+                    .foregroundStyle(accentInk)
                     .padding(8)
                     .background(Circle().fill(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08)))
                 Spacer(minLength: 0)
@@ -635,6 +665,19 @@ struct QuickCareFace: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
             .widgetURL(WidgetLinks.settings)
+        } else if journalLoadFailed {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(accentInk)
+                    .padding(8)
+                    .background(Circle().fill(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08)))
+                Spacer(minLength: 0)
+                Text(L10n.t("记录读取异常", "Records Unreadable")).font(.subheadline.weight(.bold)).foregroundStyle(.primary)
+                Text(L10n.t("轻点打开应用恢复照护记录", "Tap to open app and check records")).font(.caption2).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .widgetURL(WidgetLinks.journal)
         } else if isMedium {
             HStack(spacing: 12) {
                 VStack(alignment: .leading, spacing: 6) {
@@ -646,7 +689,7 @@ struct QuickCareFace: View {
                                     .padding(4)
                                     .background(Circle().fill(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08)))
                                 Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.t("一键记录", "Quick Log"))
-                                    .font(.caption.weight(.bold)).foregroundStyle(WidgetInk.accent).lineLimit(1).privacySensitive()
+                                    .font(.caption.weight(.bold)).foregroundStyle(accentInk).lineLimit(1).privacySensitive()
                             }
                         }
                         Spacer(minLength: 2)
@@ -654,9 +697,9 @@ struct QuickCareFace: View {
                             Button(intent: UndoLastDiaperIntent()) {
                                 Text(L10n.t("撤销", "Undo"))
                                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                                    .foregroundStyle(WidgetInk.accent)
+                                    .foregroundStyle(accentInk)
                                     .padding(.horizontal, 7).padding(.vertical, 3)
-                                    .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                                    .background(accentInk.opacity(0.14), in: Capsule())
                             }
                             .buttonStyle(.plain)
                             .privacySensitive()
@@ -705,7 +748,7 @@ struct QuickCareFace: View {
             Text(label).font(.system(size: 10, weight: .semibold, design: .rounded)).foregroundStyle(.secondary)
             Text(at.map { L10n.agoText($0, now: date, precise: true) } ?? "—")
                 .font(.system(size: 13, weight: .bold, design: .rounded)).monospacedDigit()
-                .foregroundStyle(Crayon.ink(LogType.color(type))).lineLimit(1).minimumScaleFactor(0.75)
+                .foregroundStyle(isFullColor ? Crayon.ink(LogType.color(type)) : .primary).lineLimit(1).minimumScaleFactor(0.75)
         }
     }
 
@@ -713,6 +756,7 @@ struct QuickCareFace: View {
         let type = kind == .nurse ? LogType.nurse : LogType.sleep
         let t = body.timers.first { $0.type == type }
         let c = LogType.color(type)
+        let runningInk: Color = isFullColor ? Crayon.ink(c) : .primary
         let running = t != nil
         return Button(intent: ToggleCareTimerIntent(careType: kind)) {
             VStack(spacing: 3) {
@@ -723,14 +767,14 @@ struct QuickCareFace: View {
                     .privacySensitive()
                 if let t {
                     if let p = t.pausedAt {
-                        Text(L10n.duration(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).lineLimit(1).minimumScaleFactor(0.75).privacySensitive()
+                        Text(L10n.duration(t.total(p))).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(runningInk).lineLimit(1).minimumScaleFactor(0.75).privacySensitive()
                     } else {
-                        Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(Crayon.ink(c)).multilineTextAlignment(.center).lineLimit(1).minimumScaleFactor(0.75)
+                        Text(t.countsFrom, style: .timer).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().foregroundStyle(runningInk).multilineTextAlignment(.center).lineLimit(1).minimumScaleFactor(0.75)
                             .contentTransition(.numericText(countsDown: false))
                             .privacySensitive()
                     }
                 } else {
-                    Text(L10n.logName(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1)
+                    Text(L10n.logName(type)).font(.caption2.weight(.semibold)).foregroundStyle(.primary).lineLimit(1).minimumScaleFactor(0.8)
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -742,17 +786,18 @@ struct QuickCareFace: View {
 
     @ViewBuilder
     static func diaperTile(kind: DiaperKindAppEnum, title: String, dot: Color, stickerSize: CGFloat, count: Int = 0, justLogged: Bool = false, tapToUndo: Bool = false, isFullColor: Bool = true) -> some View {
+        let tileAccent: Color = isFullColor ? WidgetInk.accent : .primary
         let tile = ZStack(alignment: .topTrailing) {
             VStack(spacing: 3) {
                 ArtImage(name: WidgetArt.sticker(LogType.diaper))
                     .frame(width: stickerSize, height: stickerSize)
                     .padding(2)
-                    .overlay(Circle().stroke(WidgetInk.accent.opacity(justLogged ? 0.7 : 0), lineWidth: 2.2))
+                    .overlay(Circle().stroke(tileAccent.opacity(justLogged ? 0.7 : 0), lineWidth: 2.2))
                     .overlay(alignment: .bottomTrailing) {
                         if justLogged {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.system(size: 12, weight: .bold))
-                                .foregroundStyle(.white, WidgetInk.accent)
+                                .foregroundStyle(.white, tileAccent)
                                 .transition(.scale(scale: 0.7).combined(with: .opacity))
                         } else {
                             Circle().fill(dot).frame(width: 8, height: 8)
@@ -762,7 +807,7 @@ struct QuickCareFace: View {
                     .privacySensitive()
                 Text(justLogged ? (tapToUndo ? L10n.t("已记·撤销", "Undo") : L10n.t("已记", "Logged")) : title)
                     .font(.caption2.weight(justLogged ? .bold : .semibold))
-                    .foregroundStyle(justLogged ? WidgetInk.accent : .primary)
+                    .foregroundStyle(justLogged ? tileAccent : .primary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
                     .contentTransition(.opacity)
@@ -773,7 +818,7 @@ struct QuickCareFace: View {
             if count > 0 {
                 Text("\(count)")
                     .font(.system(size: 9, weight: .bold, design: .rounded)).monospacedDigit()
-                    .foregroundStyle(justLogged ? WidgetInk.accent : .secondary)
+                    .foregroundStyle(justLogged ? tileAccent : .secondary)
                     .contentTransition(.numericText())
                     .privacySensitive()
                     .padding(.top, 5).padding(.trailing, 7)
@@ -801,6 +846,7 @@ struct BedsideLampFace: View {
     let body_: JournalFile.Body
     let isMedium: Bool
     var forceAccentedPreview: Bool = false
+    var journalLoadFailed: Bool = false
 
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.colorScheme) private var colorScheme
@@ -927,6 +973,16 @@ struct BedsideLampFace: View {
                         .font(.caption.weight(.bold))
                         .foregroundStyle(primaryAccent)
                     Text(L10n.t("轻触打开暖琥珀床头夜灯", "Tap for warm amber bedside lamp"))
+                        .font(.caption2)
+                        .foregroundStyle(primaryInk.opacity(0.78))
+                        .lineLimit(2)
+                }
+            } else if journalLoadFailed {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.t("记录读取异常", "Records Unreadable"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(primaryAccent)
+                    Text(L10n.t("轻点打开应用检查本地记录", "Tap to open app and check storage"))
                         .font(.caption2)
                         .foregroundStyle(primaryInk.opacity(0.78))
                         .lineLimit(2)
@@ -1115,6 +1171,7 @@ struct StoryWindowFace: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     @Environment(\.colorScheme) private var colorScheme
     private var isFullColor: Bool { renderingMode == .fullColor }
+    private var accentInk: Color { isFullColor ? WidgetInk.accent : .primary }
 
     private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
     private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
@@ -1122,7 +1179,7 @@ struct StoryWindowFace: View {
     private var age: Age? { resolvedAge?.age }
     private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var bookMonth: Int { age?.bookMonth ?? 0 }
-    private var isSleeping: Bool { visible && body_.timers.contains { $0.type == LogType.sleep } }
+    private var isSleeping: Bool { visible && snap?.journal == true && body_.timers.contains { $0.type == LogType.sleep } }
 
     var body: some View {
         let name = visible && snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName
@@ -1132,7 +1189,7 @@ struct StoryWindowFace: View {
             ? (isMedium
                 ? (isCorrectedAge ? L10n.t("矫·第 \(beadNum)/37 颗成长珠", "Corr. Bead \(beadNum)/37") : L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37"))
                 : (isCorrectedAge ? L10n.t("矫 \(beadNum)/37 珠", "Corr \(beadNum)/37") : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37")))
-            : (locked ? L10n.t("解锁后查看成长旅程", "Unlock to view story") : L10n.t("37 颗蒙氏成长珠", "37 Growth Beads"))
+            : (locked ? L10n.t("解锁后查看成长旅程", "Unlock to view story") : L10n.t("37 颗成长珠", "37 Growth Beads"))
         let monthDest = visible ? (age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today) : WidgetLinks.today
 
         VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {
@@ -1143,7 +1200,7 @@ struct StoryWindowFace: View {
                         if visible, let badge = snap?.careBadgeLabel() {
                             Text("· \(badge)")
                                 .font(.caption2.weight(.semibold))
-                                .foregroundStyle(WidgetInk.accent)
+                                .foregroundStyle(accentInk)
                                 .lineLimit(1)
                                 .privacySensitive()
                         }
@@ -1172,7 +1229,7 @@ struct StoryWindowFace: View {
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(isSleeping ? L10n.t("正在小睡", "Napping") : L10n.t("本周一起玩", "This Week's Play"))
                                         .font(.system(size: 10, weight: .semibold, design: .rounded))
-                                        .foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent)
+                                        .foregroundStyle(isSleeping ? (isFullColor ? Crayon.ink(Crayon.lilac) : .primary) : accentInk)
                                     Text(playName)
                                         .font(.caption.weight(.bold))
                                         .foregroundStyle(.primary)
@@ -1199,7 +1256,7 @@ struct StoryWindowFace: View {
                 HStack(spacing: 4) {
                     Text(beadLabel)
                         .font(.system(size: 10, weight: .bold, design: .rounded))
-                        .foregroundStyle(WidgetInk.accent)
+                        .foregroundStyle(accentInk)
                         .monospacedDigit()
                         .privacySensitive()
                     Spacer(minLength: 2)
@@ -1238,7 +1295,7 @@ struct StoryWindowFace: View {
                     .frame(height: 4)
                     .position(x: w / 2, y: cy)
                 Capsule()
-                    .fill(WidgetInk.accent.opacity(0.65))
+                    .fill(accentInk.opacity(0.65))
                     .frame(width: max(6, x), height: 4)
                     .position(x: max(6, x) / 2, y: cy)
                 Circle()

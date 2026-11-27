@@ -278,7 +278,7 @@ struct MonthParts: View {
             }
         } else {
             let regItems = HealthRegion.schedule(for: region, month: careMonth)
-            if !regItems.isEmpty || !careMo.vaccines.isEmpty || !careMo.checkups.isEmpty {
+            if !regItems.isEmpty {
                 let total = regItems.count
                 let done = regItems.filter { item in
                     let kind = item.kind == "vaccine" ? TickKind.vaccine : TickKind.checkup
@@ -1116,6 +1116,7 @@ struct CareView: View {
                         .foregroundStyle(on ? .white : .primary)
                         .padding(.horizontal, 11).padding(.vertical, 6)
                         .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.fill)))
+                        .pillHitTarget()
                     }
                     .buttonStyle(.toy)
                     .accessibilityAddTraits(on ? .isSelected : [])

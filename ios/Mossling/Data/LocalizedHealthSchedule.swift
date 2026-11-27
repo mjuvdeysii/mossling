@@ -304,7 +304,7 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
     /// Returns days until the next milestone checkup month (`0...7` highlights an upcoming visit), plus target month.
     static func daysUntilNextCheckup(birth: Day?, today: Day = .today, region: HealthRegion = HealthRegion.defaultRegion()) -> (month: Int, daysRemaining: Int)? {
         guard let birth else { return nil }
-        for m in keyCheckupMonths(for: region) {
+        for m in keyCheckupMonths(for: region) where m > 0 {
             let visitDay = birth.plus(months: m)
             let diff = today.days(to: visitDay)
             if diff >= -2 && diff <= 30 {

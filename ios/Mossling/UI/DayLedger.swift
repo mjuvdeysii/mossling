@@ -173,7 +173,8 @@ struct DaySwimlaneCanvas: View {
 
     var body: some View {
         let d0 = day.date.timeIntervalSince1970 * 1000
-        let span = 86_400_000.0
+        let d1 = day.plus(days: 1).date.timeIntervalSince1970 * 1000
+        let span = max(1.0, d1 - d0)
         let now = nowDate.timeIntervalSince1970 * 1000
 
         HStack(spacing: 6) {
@@ -358,7 +359,7 @@ struct DaySwimlaneChart: View {
 
     private var chronologicalDayLogs: [LogEntry] {
         let d0 = day.date.timeIntervalSince1970 * 1000
-        let d1 = d0 + 86_400_000.0
+        let d1 = day.plus(days: 1).date.timeIntervalSince1970 * 1000
         return logs.filter { e in
             let matchesFilter = only.map { JournalKinds.matches(e.type, $0) } ?? true
             return matchesFilter && (e.end ?? e.start) >= d0 && e.start <= d1
@@ -370,7 +371,8 @@ struct DaySwimlaneChart: View {
         guard !chrono.isEmpty else {
             return L10n.t("今天暂无记录", "No entries recorded for this day")
         }
-        let feeds = logs.feeds().count
+        let d0 = day.date.timeIntervalSince1970 * 1000
+        let feeds = logs.feedCount(from: d0)
         let diapers = logs.filter { $0.type == LogType.diaper }.count
         let sleepSecs = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: day) }
         var parts: [String] = []

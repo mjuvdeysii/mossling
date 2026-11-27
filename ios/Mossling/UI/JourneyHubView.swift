@@ -526,9 +526,11 @@ struct JourneyHubView: View {
         let land = Land.of(baby)
         let monthFrac = app.age.map { JourneyStripMetrics.monthProgressFraction(days: $0.days, toNext: $0.toNext) } ?? 0
         let countdown: String? = app.age.flatMap { a in
-            a.toNext > 0 && baby < 36
-                ? L10n.t("\(a.toNext) 天后满 \(baby + 1) 个月", "\(a.toNext)d to mo \(baby + 1)")
-                : nil
+            guard a.toNext > 0 && baby < 36 else { return nil }
+            if app.isPreEDD {
+                return L10n.t("距预产期满 0 个月还有 \(a.toNext) 天", "\(a.toNext)d to 40w due date")
+            }
+            return L10n.t("\(a.toNext) 天后满 \(baby + 1) 个月", "\(a.toNext)d to mo \(baby + 1)")
         }
         let headerLayout = type.isAccessibilitySize
             ? AnyLayout(VStackLayout(alignment: .leading, spacing: 10))

@@ -193,7 +193,7 @@ struct ActivityWallpaperPoster: View {
                     HStack(spacing: 8) {
                         Text(plate.code)
                             .font(.system(.caption2, design: .rounded).weight(.bold))
-                            .foregroundStyle(Crayon.ink(Color(hex: plate.accentHex)))
+                            .foregroundStyle(Color(hex: 0x08675F))
                         Text(plate.title)
                             .font(.system(.footnote, design: .serif).weight(.semibold))
                             .foregroundStyle(Color(hex: 0x1F2A38))

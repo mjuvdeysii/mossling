@@ -29,7 +29,7 @@ enum SoundGuardContext: Sendable {
 /// - **Toybox sound studios** (`xylophone`, `rainstick`, `fireflies`): remind automatically on the very first visit so
 ///   parents know where a gentle volume sits (`30%–50%`), OR on later visits only if the phone is loud (`> 60%`) or
 ///   muted (`0%`). Never appears on silent `contrast` cards, and once acknowledged stays quiet for that session.
-/// - **Bedside Lamp soundscapes**: whispers only when a parent starts a soundscape at high volume (`> 62%`) so a 3 a.m.
+/// - **Bedside Lamp soundscapes**: whispers only when a parent starts a soundscape at high volume (`> 60%`) so a 3 a.m.
 ///   session never accidentally blasts next to a sleeping baby.
 @Observable
 @MainActor
@@ -127,7 +127,7 @@ final class EarSafeVolumeMonitor {
         guard !previewMode, !Self.isTestHost else { return }
         guard observation == nil else { return }
         let session = AVAudioSession.sharedInstance()
-        let activePlaybackOrRecord = SoundscapeEngine.shared.hasActiveEngine
+        let activePlaybackOrRecord = SoundscapeEngine.shared.ownsPlaybackSession
             || ToyboxAudioEngine.shared.isPlaying
             || FirstVoiceController.shared.isRecording
             || FirstVoiceController.shared.playingID != nil
@@ -138,7 +138,7 @@ final class EarSafeVolumeMonitor {
         }
         let current = session.outputVolume
         let nextLevel = EarSafeVolumeLevel.of(current)
-        if hasObservedLevel && previousLevel != .loud && nextLevel == .loud {
+        if hasObservedLevel && previousLevel != nextLevel && (nextLevel == .loud || nextLevel == .muted) {
             dismissedThisSession = false
         }
         volume = current
@@ -168,8 +168,8 @@ final class EarSafeVolumeMonitor {
                 guard let self else { return }
                 self.volume = next
                 let nextLevel = EarSafeVolumeLevel.of(next)
-                if self.previousLevel != .loud && nextLevel == .loud {
-                    // Re-arm safety guard when hardware volume crosses upward into the loud zone.
+                if self.previousLevel != nextLevel && (nextLevel == .loud || nextLevel == .muted) {
+                    // Re-arm safety guard when hardware volume transitions into loud or muted.
                     self.dismissedThisSession = false
                 }
                 if self.previousLevel == .loud && nextLevel == .safe {
@@ -184,7 +184,7 @@ final class EarSafeVolumeMonitor {
     private func refreshSessionAndLevel(reactivateIfIdle: Bool) {
         let session = AVAudioSession.sharedInstance()
         if reactivateIfIdle {
-            let busy = SoundscapeEngine.shared.hasActiveEngine
+            let busy = SoundscapeEngine.shared.ownsPlaybackSession
                 || ToyboxAudioEngine.shared.isPlaying
                 || FirstVoiceController.shared.isRecording
                 || FirstVoiceController.shared.playingID != nil
@@ -196,7 +196,7 @@ final class EarSafeVolumeMonitor {
         }
         let current = session.outputVolume
         let nextLevel = EarSafeVolumeLevel.of(current)
-        if hasObservedLevel && previousLevel != .loud && nextLevel == .loud {
+        if hasObservedLevel && previousLevel != nextLevel && (nextLevel == .loud || nextLevel == .muted) {
             dismissedThisSession = false
         }
         volume = current
@@ -226,7 +226,7 @@ final class EarSafeVolumeMonitor {
         }
         if activatedAmbientSession {
             activatedAmbientSession = false
-            let busy = SoundscapeEngine.shared.hasActiveEngine
+            let busy = SoundscapeEngine.shared.ownsPlaybackSession
                 || ToyboxAudioEngine.shared.isPlaying
                 || FirstVoiceController.shared.isRecording
                 || FirstVoiceController.shared.playingID != nil
@@ -395,7 +395,7 @@ struct EarSafeVolumeCard: View {
 
 // MARK: - Midnight High-Volume Whisper Pill (Bedside Lamp)
 
-/// Ultra-subtle high-volume whisper pill shown above the Bedside Lamp soundscape deck only if volume > 62%.
+/// Ultra-subtle high-volume whisper pill shown above the Bedside Lamp soundscape deck only if volume > 60%.
 struct LampHighVolumePill: View {
     let volumePercent: Int
     let onDismiss: () -> Void

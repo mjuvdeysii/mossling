@@ -25,6 +25,7 @@ struct FoodAtlasView: View {
     @State private var recentlyStampedId: String? = nil
     @State private var mossTapCount: Int = 0
     @State private var leafBurstTrigger: Int = 0
+    @State private var quickError: String? = nil
 
     enum StateFilter: String, CaseIterable, Identifiable {
         case all, untasted, allergen, loved, tryAgain
@@ -74,6 +75,9 @@ struct FoodAtlasView: View {
         guard app.mayKeep() else { return }
         let wasUntasted = store.record(for: food.id) == nil
         guard store.quickStamp(foodId: food.id, reaction: reaction, today: app.today) != nil else {
+            quickError = store.loadFailed
+                ? L10n.t("原有辅食记录尚未成功读取，为避免覆盖已暂停保存。", "Existing first-food records could not be read. Saving is paused to protect your data.")
+                : L10n.t("未能保存辅食记录，请稍后再试。", "Could not save first-food record. Please try again.")
             return
         }
         if wasUntasted && app.journal {
@@ -223,6 +227,9 @@ struct FoodAtlasView: View {
                 triggerStampBounce(for: savedId)
             }
             .lampPresented(sheet: true)
+        }
+        .alert(quickError ?? "", isPresented: Binding(get: { quickError != nil }, set: { if !$0 { quickError = nil } })) {
+            Button(L10n.t("好", "OK")) { quickError = nil }
         }
     }
 
@@ -612,7 +619,12 @@ struct FoodAtlasView: View {
                 if rec != nil {
                     Button {
                         guard app.mayKeep() else { return }
-                        guard store.incrementTimes(foodId: item.id) != nil else { return }
+                        guard store.incrementTimes(foodId: item.id) != nil else {
+                            quickError = store.loadFailed
+                                ? L10n.t("原有辅食记录尚未成功读取，为避免覆盖已暂停保存。", "Existing first-food records could not be read. Saving is paused to protect your data.")
+                                : L10n.t("未能保存辅食记录，请稍后再试。", "Could not save first-food record. Please try again.")
+                            return
+                        }
                         TactileEngine.shared.beadClick()
                         triggerStampBounce(for: item.id)
                     } label: {
@@ -1140,6 +1152,7 @@ private struct FoodTasteSheet: View {
                                         Image(systemName: "minus.circle.fill")
                                             .font(.title3)
                                             .foregroundStyle(times > 1 ? Palette.accent : Palette.secondaryText.opacity(0.35))
+                                            .hitTarget()
                                     }
                                     .buttonStyle(.plain)
                                     .disabled(times <= 1)
@@ -1157,6 +1170,7 @@ private struct FoodTasteSheet: View {
                                         Image(systemName: "plus.circle.fill")
                                             .font(.title3)
                                             .foregroundStyle(Palette.accent)
+                                            .hitTarget()
                                     }
                                     .buttonStyle(.plain)
                                     .accessibilityLabel(L10n.t("增加一次", "Increase times"))
@@ -1198,6 +1212,7 @@ private struct FoodTasteSheet: View {
                                         .background(Capsule().fill(dark ? Palette.lampCard : Palette.card))
                                         .overlay(Capsule().strokeBorder(Palette.outline.opacity(0.3), lineWidth: 0.75))
                                 }
+                                .pillHitTarget()
                                 .buttonStyle(.plain)
                             }
                         }
@@ -1262,8 +1277,7 @@ private struct FoodTasteSheet: View {
                         guard store.save(rec) else {
                             if wroteSticker, let url = prevStickerURL {
                                 if let prevStickerData {
-                                    try? prevStickerData.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-                                    Task { @MainActor in FoodStickerVersion.shared.bump() }
+                                    FoodStickerStore.restoreRaw(prevStickerData, for: item.id)
                                 } else {
                                     FoodStickerStore.delete(for: item.id)
                                 }

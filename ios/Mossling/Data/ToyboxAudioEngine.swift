@@ -151,6 +151,7 @@ final class ToyboxAudioEngine {
     private var lastRainChimeAt: TimeInterval = 0
     private var lastChimeSoundAt: TimeInterval = 0
     private var arpeggioTask: Task<Void, Never>?
+    private var arpeggioToken: UUID?
     private var idleStopTask: Task<Void, Never>?
     private var observersRegistered = false
     private var isInterrupted = false
@@ -321,8 +322,16 @@ final class ToyboxAudioEngine {
     func playFireflyArpeggio(ascending: Bool = true) {
         guard !isTestHost else { return }
         arpeggioTask?.cancel()
+        let token = UUID()
+        arpeggioToken = token
         let steps: [Double] = ascending ? [0.85, 0.62, 0.38, 0.14] : [0.14, 0.38, 0.62, 0.85]
         arpeggioTask = Task { @MainActor [weak self] in
+            defer {
+                if let self, self.arpeggioToken == token {
+                    self.arpeggioTask = nil
+                    self.arpeggioToken = nil
+                }
+            }
             for y in steps {
                 guard !Task.isCancelled, let self else { break }
                 if let player = self.nextPlayer(), let buf = self.chimeBuffer(normalizedY: y) {
@@ -339,10 +348,12 @@ final class ToyboxAudioEngine {
     /// Stops and releases the toybox audio engine when leaving the studio.
     func stop() {
         let shouldDeactivate = (engine != nil) || sessionActivated
+        isInterrupted = false
         idleStopTask?.cancel()
         idleStopTask = nil
         arpeggioTask?.cancel()
         arpeggioTask = nil
+        arpeggioToken = nil
         for p in players { p.stop() }
         engine?.stop()
         engine = nil
@@ -434,6 +445,7 @@ final class ToyboxAudioEngine {
                     self.idleStopTask = nil
                     self.arpeggioTask?.cancel()
                     self.arpeggioTask = nil
+                    self.arpeggioToken = nil
                     for p in self.players { p.stop() }
                     self.engine?.pause()
                 case .ended:
@@ -448,6 +460,7 @@ final class ToyboxAudioEngine {
                             try session.setCategory(.playback, mode: .default, options: [])
                             try session.setActive(true)
                             try e.start()
+                            self.scheduleIdleStop()
                         } catch {
                             self.stop()
                         }
@@ -475,6 +488,7 @@ final class ToyboxAudioEngine {
                 self.idleStopTask = nil
                 self.arpeggioTask?.cancel()
                 self.arpeggioTask = nil
+                self.arpeggioToken = nil
                 for p in self.players { p.stop() }
                 eng.stop()
                 self.engine = nil

@@ -1187,6 +1187,7 @@ struct LampHubView: View {
                         .padding(.vertical, 3)
                         .background(Capsule().fill(app.careModeActive ? Crayon.buttonFill(Crayon.teal) : Palette.fill))
                 }
+                .pillHitTarget()
                 .buttonStyle(.plain)
                 Spacer()
                 Menu {
@@ -1231,6 +1232,7 @@ struct LampHubView: View {
                         }
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(Crayon.ink(Crayon.teal))
+                        .pillHitTarget()
                         .buttonStyle(.plain)
                     }
                 }
@@ -1301,6 +1303,7 @@ struct LampHubView: View {
                         }
                         .font(.caption.weight(.medium))
                         .foregroundStyle(Palette.secondaryText)
+                        .pillHitTarget()
                     }
                 }
                 .padding(10)
@@ -1367,6 +1370,7 @@ struct LampHubView: View {
                                     .padding(.vertical, 5)
                                     .background(Capsule().fill(allOn ? Palette.accentFill : Palette.fill))
                             }
+                            .pillHitTarget()
                             .buttonStyle(.plain)
                             .accessibilityAddTraits(allOn ? .isSelected : [])
 

@@ -231,6 +231,10 @@ final class AppModel {
 
     var actualAge: Age? { birth.map { Age.on(birth: $0, today: today) } }
     var correctedAge: Age? { birth.flatMap { Age.corrected(birth: $0, gestationalWeeks: gestationalWeeks, today: today) } }
+    var isPreEDD: Bool {
+        guard let b = birth, Age.isPreterm(gestationalWeeks) else { return false }
+        return today < Age.correctedBirth(birth: b, gestationalWeeks: gestationalWeeks)
+    }
     var isUsingCorrectedAge: Bool { correctedAge != nil }
     var developmentalBirth: Day? {
         guard let birth else { return nil }
@@ -335,6 +339,7 @@ final class AppModel {
 
     /// Adopts a play swapped directly on a Home Screen widget today so opening the app never resets it.
     func syncWidgetPick() {
+        guard consented else { return }
         guard let snap = JournalFile.snapshot(),
               snap.playPickedEpochDay == today.epochDay,
               let code = snap.playCode,

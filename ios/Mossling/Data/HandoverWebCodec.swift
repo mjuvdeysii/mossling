@@ -30,17 +30,17 @@ enum HandoverWebCodec {
     static let defaultOrigin = "https://mossotto.pages.dev/"
 
     private static let englishSensitiveRegex: NSRegularExpression? = try? NSRegularExpression(
-        pattern: #"\b(?:temp|temperature|fever|fevers|tylenol|advil|motrin|calpol|nurofen|paracetamol|acetaminophen|ibuprofen|amoxicillin|antibiotic|antibiotics|saline|vitamin\s*d|drops|rash|rashes|diarrhea|vomit|vomiting|medicine|medication|medications|meds|dose|dosage|cough|allergy|allergies|eczema|jaundice|clinic|hospital|doctor|er)\b"#,
+        pattern: #"\b(?:temp|temperature|fever|fevers|feverish|tylenol|advil|motrin|calpol|nurofen|paracetamol|acetaminophen|ibuprofen|amoxicillin|antibiotic|antibiotics|saline|vitamin\s*d|drops|rash|rashes|diarrhea|diarrhoea|vomit|vomiting|vomited|vomits|medicine|medication|medications|meds|dose|doses|dosage|cough|coughed|coughing|allergy|allergies|eczema|jaundice|clinic|hospital|doctor|pediatrician|paediatrician|seizure|seizures|er)\b"#,
         options: [.caseInsensitive]
     )
 
     private static let tempValueRegex: NSRegularExpression? = try? NSRegularExpression(
-        pattern: #"(?:(?<!\d)(?:3[5-9]|4[0-2])(?:\.\d{1,2})?\s*(?:°\s*[c℃度]?|[c℃度])|(?<!\d)(?:3[5-9]|4[0-2])\.\d{1,2}(?!\d)|(?<!\d)(?:9[5-9]|10[0-8])(?:\.\d{1,2})?\s*(?:°\s*[f℉]?|[f℉])|(?<!\d)(?:9[7-9]|10[0-7])\.\d{1,2}(?!\d))"#,
+        pattern: #"(?:(?<!\d)(?:3[5-9]|4[0-2])(?:\.\d{1,2})?\s*(?:°\s*[c℃度]?|[c℃度])|(?<!\d)(?:3[5-9]|4[0-2])\.\d{1,2}(?!\d)|(?<!\d)(?:9[5-9]|10[0-8])(?:\.\d{1,2})?\s*(?:°\s*[f℉]?|[f℉])|(?<!\d)(?:9[7-9]|10[0-7])\.\d{1,2}(?!\d)|(?:发烧|烧到|低烧|高烧|体温|fever|temp)[^0-9]{0,4}(?:3[5-9]|4[0-2])(?!\d))"#,
         options: [.caseInsensitive]
     )
 
     private static let dosageRegex: NSRegularExpression? = try? NSRegularExpression(
-        pattern: #"(?:(?<!\d)\d+(?:\.\d+)?\s*(?:mg|mcg|iu)\b|(?<!\d)(?:0?\.\d+|1[0-5](?:\.\d+)?|[1-9](?:\.\d+)?)\s*ml\b|(?<!\d)\d+(?:\.\d+)?\s*(?:滴|粒|袋|片|毫克)|(?<!\d)(?:0?\.\d+|1[0-5](?:\.\d+)?|[1-9](?:\.\d+)?)\s*毫升)"#,
+        pattern: #"(?:(?<!\d)\d+(?:\.\d+)?\s*(?:mg|mcg|iu)(?![A-Za-z])|(?<!\d)(?:0?\.\d+|2[0-5](?:\.\d+)?|1?\d(?:\.\d+)?)\s*ml(?![A-Za-z])|(?<!\d)\d+(?:\.\d+)?\s*(?:滴|粒|袋|片|毫克)|(?<!\d)(?:0?\.\d+|2[0-5](?:\.\d+)?|1?\d(?:\.\d+)?)\s*毫升)"#,
         options: [.caseInsensitive]
     )
 
@@ -60,7 +60,7 @@ enum HandoverWebCodec {
             "阿莫西林", "布洛芬", "美林", "泰诺林", "泰诺", "对乙酰氨基酚",
             "生理盐水", "海盐水", "雾化", "开塞露", "益生菌", "蒙脱石",
             "维d", "维生素", "皮疹", "湿疹", "红疹", "荨麻疹", "过敏",
-            "咳嗽", "腹泻", "呕吐", "黄疸", "就医", "医院", "急诊", "门诊"
+            "咳嗽", "腹泻", "拉肚子", "呕吐", "黄疸", "头孢", "退烧贴", "奥司他韦", "惊厥", "抽搐", "就医", "医院", "急诊", "门诊"
         ]
         let hasSensitive = zhSensitiveTokens.contains(where: { lower.contains($0) })
             || matches(englishSensitiveRegex, in: raw)

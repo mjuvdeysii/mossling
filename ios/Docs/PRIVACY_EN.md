@@ -37,7 +37,7 @@ The information above is stored in this app's private storage (care logs, growth
 
 | Permission | Purpose |
 | --- | --- |
-| Face ID / Touch ID | Verified when enabling App Lock and on app launch afterward; authentication is handled by iOS with zero biometric access by the app |
+| Face ID / Touch ID | Verified when enabling App Lock, on app launch afterward, and when disabling App Lock (when a device passcode is set); authentication is handled by iOS with zero biometric access by the app |
 | Photo Library (Add-Only) | Requested solely when you save an exported wallpaper, growth print, or handover card to Photos; picking a photo for Firsts or First Foods uses the out-of-process system PhotosPicker, so full Photo Library read access is never requested |
 | Microphone (optional) | Used solely when you explicitly tap Record inside Firsts to capture up to 30 seconds of local `.m4a` audio; stored strictly in this device's sandbox with zero network transmission or background listening |
 | Motion & Fitness | Used purely in memory during Bedside Lamp and Rainstick toybox sessions for subtle tilt lighting and bead physics; never logged or stored |
@@ -81,7 +81,7 @@ You can tap "Clear All Data" or "Withdraw Consent" in "Studio › Local Data," o
 
 ## 9. Changes to This Policy
 
-If this policy is updated, the new version will be released with an app update, made available in "Studio › Legal & Help › Privacy Policy," and given an updated effective date. If a change involves collecting or transmitting personal information, or makes material changes to this policy or the children's personal information protection rules, we will notify you prominently with a confirmation card on first launch of the new version and request your consent again.
+If this policy is updated, the new version will be released with an app update, made available in "Studio › Privacy" and "Studio › Legal & Help › Privacy Policy," and given an updated effective date. If a change involves collecting or transmitting personal information, or makes material changes to this policy or the children's personal information protection rules, we will notify you prominently with a confirmation card on first launch of the new version and request your consent again.
 
 ## 10. Contact and Complaints
 

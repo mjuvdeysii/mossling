@@ -52,6 +52,7 @@ struct YouView: View {
     @Environment(\.lamp) private var lamp
     @Binding var path: NavigationPath
     @State private var editing = false
+    @State private var editingFocusBirth = false
     @State private var showingLegalSheet = false
     @State private var showingWallpapers = false
     @State private var faceAvailable = false
@@ -64,8 +65,11 @@ struct YouView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
-                FamilyCard(dark: dark) {
-                    if app.mayKeep() { editing = true }
+                FamilyCard(dark: dark) { focusBirth in
+                    if app.mayKeep() {
+                        editingFocusBirth = focusBirth
+                        editing = true
+                    }
                 }
 
                 ThemeLanguageCard(dark: dark)
@@ -120,7 +124,7 @@ struct YouView: View {
                 .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
             }
         }
-        .sheet(isPresented: $editing) { ProfileSheet().lampPresented() }
+        .sheet(isPresented: $editing) { ProfileSheet(focusBirth: editingFocusBirth).lampPresented() }
         .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark).lampPresented() }
         .sheet(isPresented: $showingWallpapers) { ActivityWallpaperSheet().lampPresented() }
     }
@@ -174,7 +178,7 @@ private struct FamilyCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     let dark: Bool
-    let edit: () -> Void
+    let edit: (Bool) -> Void
     @State private var giggles = 0
 
     var body: some View {
@@ -275,17 +279,18 @@ private struct FamilyCard: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         } else {
-            Button(action: edit) {
+            Button { edit(true) } label: {
                 Label(L10n.t("填写出生日期", "Add birthday"), systemImage: "calendar.badge.plus")
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(Palette.accent)
+                    .pillHitTarget()
             }
             .buttonStyle(.plain)
         }
     }
 
     private var editPill: some View {
-        Button(action: edit) {
+        Button { edit(false) } label: {
             Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
                 .dsPill(.primary, height: 32, horizontalPadding: 12)
         }
@@ -669,7 +674,7 @@ private struct PreferenceStudioCard: View {
     ) -> some View {
         let active = isOn && !resting
         let ax = type.isAccessibilitySize
-        let ink = dark ? color : Crayon.ink(color)
+        let ink = dark ? (color == Palette.lampTint ? Palette.amber : color) : Crayon.ink(color)
 
         return Button(action: action) {
             VStack(alignment: .leading, spacing: 8) {
@@ -843,8 +848,15 @@ private struct StudioColophonBar: View {
                         .monospacedDigit()
                         .fixedSize(horizontal: false, vertical: true)
                     if let icp = Bundle.main.infoDictionary?["MosslingICP"] as? String, !icp.isEmpty {
-                        Link(L10n.t("ICP备案：\(icp)", "ICP: \(icp)"), destination: URL(string: "https://beian.miit.gov.cn/")!)
+                        Link(destination: URL(string: "https://beian.miit.gov.cn/")!) {
+                            HStack(spacing: 3) {
+                                Text(L10n.t("ICP备案：\(icp)", "ICP: \(icp)"))
+                                Image(systemName: "arrow.up.right")
+                                    .imageScale(.small)
+                            }
                             .font(.caption2.weight(.semibold))
+                            .pillHitTarget()
+                        }
                     }
                 }
             }
@@ -880,6 +892,13 @@ struct StudioLegalSheet: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
                     VStack(spacing: 0) {
+                        NavigationLink(value: StudioRoute.doc("PRIVACY")) {
+                            DataRow(title: L10n.t("隐私政策", "Privacy Policy"), symbol: "hand.raised.fill", color: Crayon.teal)
+                        }
+                        .buttonStyle(.toy)
+
+                        Divider().padding(.leading, 52).opacity(0.45)
+
                         NavigationLink(value: StudioRoute.doc("TERMS")) {
                             DataRow(title: L10n.t("使用条款", "Terms of Use"), symbol: "doc.text.fill", color: Crayon.pebble)
                         }
@@ -1018,6 +1037,7 @@ private struct DataRow: View {
 
 /// The child: name, date of birth, sex — set once, edited here.
 struct ProfileSheet: View {
+    var focusBirth: Bool = false
     @Environment(AppModel.self) private var app
     @Environment(\.dismiss) private var dismiss
     @State private var nickname = ""
@@ -1039,14 +1059,10 @@ struct ProfileSheet: View {
                     }
                     let defaultMin = Calendar.current.date(byAdding: .year, value: -4, to: Date()) ?? Date(timeIntervalSinceNow: -4 * 365 * 86_400)
                     let minDate = min(app.birth?.date ?? defaultMin, defaultMin)
-                    DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: minDate...Date(), displayedComponents: .date)
-                        .onChange(of: date) { _, newValue in
-                            if let existing = app.birth {
-                                if Day(newValue) != existing { hasBirth = true }
-                            } else {
-                                hasBirth = true
-                            }
-                        }
+                    Toggle(L10n.t("记录出生日期", "Set Birthday"), isOn: $hasBirth)
+                    if hasBirth {
+                        DatePicker(L10n.t("出生日期", "Birthday"), selection: $date, in: minDate...Date(), displayedComponents: .date)
+                    }
                     Picker(L10n.t("性别", "Sex"), selection: Binding(get: { sex ?? "" }, set: { sex = $0.isEmpty ? nil : $0 })) {
                         Text(L10n.t("不填", "Not set")).tag(""); Text(L10n.t("男孩", "Boy")).tag("boy"); Text(L10n.t("女孩", "Girl")).tag("girl")
                     }
@@ -1064,7 +1080,7 @@ struct ProfileSheet: View {
                     }
                 } footer: {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.t("性别只用于选择 WHO 生长曲线和称呼（她 / 他）。", "Used only for WHO growth curves."))
+                        Text(L10n.t("性别只用于选择 WHO 生长曲线、称呼（她 / 他）与默认宝宝头像。", "Used only for WHO growth curves and default baby portrait."))
                         if let gw = gestationalWeeks, Age.isPreterm(gw) {
                             Text(L10n.t("按早产 \(gw) 周自动计算矫正月龄（截至 24 月龄前用于共玩推荐与 WHO 生长曲线评估）。", "Automatically applies AAP corrected age up to 24 months for play pacing and WHO growth curves (\(gw) wks)."))
                         } else {
@@ -1086,7 +1102,7 @@ struct ProfileSheet: View {
                         app.nickname = nickname.trimmingCharacters(in: .whitespacesAndNewlines)
                         app.sex = sex
                         app.gestationalWeeks = gestationalWeeks
-                        if hasBirth { app.birth = Day(date) }
+                        app.birth = hasBirth ? Day(date) : nil
                         dismiss()
                     }
                 }
@@ -1095,6 +1111,7 @@ struct ProfileSheet: View {
                 nickname = app.nickname
                 sex = app.sex
                 gestationalWeeks = app.gestationalWeeks
+                hasBirth = (app.birth != nil) || focusBirth
                 if let b = app.birth { date = b.date }
             }
         }

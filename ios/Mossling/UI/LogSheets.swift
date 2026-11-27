@@ -573,7 +573,7 @@ struct EntrySheet: View {
                 VStack(alignment: .leading, spacing: 10) {
                     Text(status.label)
                         .font(.caption.weight(.bold))
-                        .foregroundStyle(status.tint)
+                        .foregroundStyle(dark ? status.tint : Crayon.ink(status.tint))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 4)
                         .background(Capsule().fill(status.tint.opacity(dark ? 0.20 : 0.13)))
@@ -996,7 +996,8 @@ private struct MeasureScaleCard: View {
                     } label: {
                         Image(systemName: "xmark.circle.fill")
                             .font(.subheadline)
-                            .foregroundStyle(Palette.secondaryText.opacity(0.65))
+                            .foregroundStyle(Palette.secondaryText)
+                            .hitTarget()
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("清空\(indicator.short)", "Clear \(indicator.short)"))

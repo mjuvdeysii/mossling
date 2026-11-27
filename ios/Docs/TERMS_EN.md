@@ -6,7 +6,7 @@ Developer: {{DEVELOPER}}
 Contact: {{CONTACT}}
 Official Website: {{WEBSITE}}
 
-Effective date: November 24, 2026 (v2.0 alignment)
+Effective date: November 27, 2026 (v2.0 alignment)
 
 ## 1. Scope and Acceptance
 
@@ -46,12 +46,12 @@ Information you enter is processed solely on your device. The developer does not
 ## 7. Limitation of Liability
 
 1. The App is provided "as is." While the developer makes reasonable efforts to keep the content accurate and the App working reliably, the developer does not warrant that the content is error-free, continuously updated, or suitable for every child.
-2. The developer is not liable for loss of local records caused by device failure, system limitations, clearing data, or uninstalling the App. You can export a "Full Backup" anytime in "Studio › Local Data & Backup" to keep your own copy.
+2. The developer is not liable for loss of local records caused by device failure, system limitations, clearing data, or uninstalling the App. You can export a "Full Backup" anytime in "Studio › Local Data" to keep your own copy.
 3. To the maximum extent permitted by law, the developer is not liable for any indirect, incidental, or consequential damages arising from your use of, or inability to use, the App.
 
 ## 8. Changes to These Terms
 
-If these Terms are updated, the revised version will be published with an app update, made available in "Studio › About," and given an updated effective date. Continuing to use the App after an update constitutes acceptance of the revised Terms.
+If these Terms are updated, the revised version will be published with an app update, made available in "Studio › Legal & Help," and given an updated effective date. Continuing to use the App after an update constitutes acceptance of the revised Terms.
 
 ## 9. Governing Law and Contact
 

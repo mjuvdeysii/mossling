@@ -491,8 +491,20 @@ final class FirstVoiceController {
         if ok {
             lastAutoStoppedURL = activeTempURL
         } else {
-            discardTemp(activeTempURL)
-            errorMessage = L10n.t("录音被系统中断，请再试一次。", "Recording was interrupted. Please try again.")
+            let keptPartial: Bool = {
+                guard let url = activeTempURL,
+                      let size = (try? FileManager.default.attributesOfItem(atPath: url.path)[.size] as? NSNumber)?.intValue else {
+                    return false
+                }
+                return size > 1024
+            }()
+            if keptPartial {
+                lastAutoStoppedURL = activeTempURL
+                errorMessage = L10n.t("录音因系统中断已提前暂停，已保留已录片段。", "Recording was interrupted — the captured clip was kept.")
+            } else {
+                discardTemp(activeTempURL)
+                errorMessage = L10n.t("录音被系统中断，请再试一次。", "Recording was interrupted. Please try again.")
+            }
         }
         deactivateSessionIfIdle()
     }

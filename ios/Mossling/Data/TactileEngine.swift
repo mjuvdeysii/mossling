@@ -61,7 +61,7 @@ final class TactileEngine {
         }
         guard soundEnabled,
               !quietNight,
-              !SoundscapeEngine.shared.hasActiveEngine,
+              !SoundscapeEngine.shared.ownsPlaybackSession,
               !ToyboxAudioEngine.shared.isPlaying,
               !FirstVoiceController.shared.isRecording,
               FirstVoiceController.shared.playingID == nil else { return }
@@ -259,7 +259,7 @@ final class TactileEngine {
     private func ensureAudio() -> AVAudioPlayerNode? {
         guard !FirstVoiceController.shared.isRecording,
               FirstVoiceController.shared.playingID == nil,
-              !SoundscapeEngine.shared.hasActiveEngine,
+              !SoundscapeEngine.shared.ownsPlaybackSession,
               !ToyboxAudioEngine.shared.isPlaying else { return nil }
         if let p = player, let e = audioEngine {
             if !e.isRunning {

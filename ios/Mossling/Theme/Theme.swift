@@ -316,7 +316,7 @@ extension View {
 
     /// Expands compact capsule/chip tap regions invisibly via hit-test insets while keeping visual proportions tailored.
     func pillHitTarget(_ minHeight: CGFloat = LayoutSpec.hitMin) -> some View {
-        let expand = max(0, min(8, (minHeight - 32) / 2))
+        let expand = max(0, (minHeight - 26) / 2)
         return contentShape(Capsule().inset(by: -expand))
     }
 }

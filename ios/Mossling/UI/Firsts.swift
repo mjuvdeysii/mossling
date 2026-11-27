@@ -293,6 +293,7 @@ struct FirstSheet: View {
                         }
                     }
                     .font(.caption.weight(.semibold))
+                    .pillHitTarget()
                 }
             }
 
@@ -407,6 +408,7 @@ struct FirstSheet: View {
                         removeExistingVoice = true
                     }
                     .font(.caption.weight(.semibold))
+                    .pillHitTarget()
                 }
             }
 
@@ -518,7 +520,7 @@ struct FirstSheet: View {
                         Spacer(minLength: 0)
                         Image(systemName: "mic.circle.fill")
                             .font(.title3)
-                            .foregroundStyle(Crayon.tangerine)
+                            .foregroundStyle(dark ? Crayon.tangerine : Crayon.ink(Crayon.tangerine))
                     }
                     .padding(12)
                     .frame(minHeight: 44)
@@ -619,18 +621,22 @@ struct FirstSheet: View {
         var savedNewPhoto = false
         func rollbackMedia() {
             if savedNewVoice {
-                if let prevAudioData, let prevMetaData {
+                if let prevAudioData {
                     try? prevAudioData.write(to: voiceAudioURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-                    try? prevMetaData.write(to: voiceMetaURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    if let prevMetaData {
+                        try? prevMetaData.write(to: voiceMetaURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                    } else {
+                        try? FileManager.default.removeItem(at: voiceMetaURL)
+                    }
                     Task { @MainActor in FirstVoiceVersion.shared.bump() }
-                } else if isNew {
+                } else {
                     FirstVoiceStore.delete(for: f.id)
                 }
             }
             if savedNewPhoto {
                 if let prevPhotoData {
                     FirstPhotoStore.restoreRaw(prevPhotoData, for: f.id)
-                } else if isNew {
+                } else {
                     FirstPhotoStore.delete(for: f.id)
                 }
             }
@@ -1395,7 +1401,7 @@ struct FirstStamps: View {
                                 Image(systemName: "photo.fill").font(.caption2).foregroundStyle(Palette.accent)
                             }
                             if FirstVoiceStore.exists(for: f.id) {
-                                Image(systemName: "waveform").font(.caption2).foregroundStyle(Crayon.tangerine)
+                                Image(systemName: "waveform").font(.caption2).foregroundStyle(Crayon.ink(Crayon.tangerine))
                             }
                             Text(Day(f.date).md).font(.caption2).foregroundStyle(Palette.secondaryText).monospacedDigit()
                         }

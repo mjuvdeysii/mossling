@@ -319,8 +319,10 @@ final class FoodAtlasStore {
         }
     }
 
+    var isDefaultStore: Bool { fileURL == FoodAtlasStore.defaultURL }
+
     @discardableResult
-    func replaceAll(_ list: [FoodRecord]) -> Bool {
+    func replaceAll(_ list: [FoodRecord], pruneStickers: Bool = true) -> Bool {
         let prevRecords = records
         let prevFailed = loadFailed
         loadFailed = false
@@ -330,7 +332,7 @@ final class FoodAtlasStore {
             loadFailed = prevFailed
             return false
         }
-        if fileURL == FoodAtlasStore.defaultURL {
+        if pruneStickers && isDefaultStore {
             FoodStickerStore.prune(keeping: Set(records.keys))
         }
         return true

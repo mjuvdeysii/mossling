@@ -640,7 +640,7 @@ private struct StepCircleBadge: View {
                     .fill(RadialGradient(colors: [Palette.beadLight, Palette.bead], center: UnitPoint(x: 0.35, y: 0.3), startRadius: 0, endRadius: 16))
                 Image(systemName: "checkmark")
                     .font(.caption.weight(.heavy))
-                    .foregroundStyle(Color(hex: 0x5A3D00))
+                    .foregroundStyle(Color(hex: 0x3A2600))
             } else {
                 Circle().fill(Palette.accentFill)
                 Text("\(number)")

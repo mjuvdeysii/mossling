@@ -74,6 +74,19 @@ enum FoodStickerStore {
         }
     }
 
+    static func restoreRaw(_ data: Data, for foodId: String, in dir: URL = folder) {
+        guard let target = url(for: foodId, in: dir) else { return }
+        try? data.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        if dir == folder {
+            if let img = UIImage(data: data) {
+                cache.setObject(img, forKey: foodId as NSString)
+            } else {
+                cache.removeObject(forKey: foodId as NSString)
+            }
+            Task { @MainActor in FoodStickerVersion.shared.bump() }
+        }
+    }
+
     static func stickerCount(in dir: URL = folder) -> Int {
         guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else {
             return 0

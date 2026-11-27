@@ -90,6 +90,7 @@ struct TodayView: View {
                     }
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(Crayon.ink(Crayon.teal))
+                    .pillHitTarget()
                     .buttonStyle(.plain)
                 }
             }
@@ -1147,7 +1148,20 @@ struct BirthSheet: View {
             .navigationTitle(L10n.t("出生日期", "Birthday")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { guard app.mayKeep() else { return }; if first { app.journal = records }; app.birth = Day(date); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.t("完成", "Done"), systemImage: "checkmark") {
+                        guard app.mayKeep() else { return }
+                        let targetBirth = Day(date)
+                        if first { app.journal = records }
+                        if !app.onboarded {
+                            dismiss()
+                            Task { @MainActor in app.birth = targetBirth }
+                        } else {
+                            app.birth = targetBirth
+                            dismiss()
+                        }
+                    }
+                }
             }
             .onAppear { if let b = app.birth { date = b.date }; first = !app.onboarded && app.birth == nil }
         }

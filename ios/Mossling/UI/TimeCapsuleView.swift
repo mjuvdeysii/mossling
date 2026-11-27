@@ -369,6 +369,8 @@ struct TimeCapsuleListView: View {
                     .printCard(radius: Radius.card)
                 }
                 .buttonStyle(.toy)
+                .disabled(store.loadFailed)
+                .opacity(store.loadFailed ? 0.5 : 1)
             }
         }
     }
@@ -1074,6 +1076,7 @@ struct CapsuleReadSheet: View {
                     Text(L10n.t("提前揭开火漆读一读", "Break Wax Seal Early"))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(Palette.secondaryText)
+                        .pillHitTarget()
                 }
             }
         }

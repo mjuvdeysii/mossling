@@ -530,7 +530,7 @@ struct GrowthMap: View {
                     .font(.caption.weight(.semibold)).lineLimit(1).minimumScaleFactor(0.8)
                     .padding(.horizontal, 10).padding(.vertical, 4)
                     .background(Capsule().fill(m == baby ? Palette.bead.opacity(0.18) : Palette.outline.opacity(0.35)))
-                    .foregroundStyle(m == baby ? Palette.lampTint : Palette.secondaryText)
+                    .foregroundStyle(m == baby ? ((night || scheme == .dark) ? Palette.amber : Crayon.ink(Palette.bead)) : Palette.secondaryText)
                 if let close {
                     Button(action: close) {
                         Image(systemName: "chevron.up").font(.footnote.weight(.bold)).frame(width: 32, height: 32)
@@ -564,7 +564,7 @@ struct GrowthMap: View {
             }
             .animation(.easeOut(duration: 0.18), value: m)
             if m == baby, let a = app.age, a.days + a.toNext > 0 {
-                MonthProgress(days: a.days, toNext: a.toNext, next: m + 1)
+                MonthProgress(days: a.days, toNext: a.toNext, next: m + 1, preEDD: app.isPreEDD)
             }
             HStack(spacing: 6) {
                 ForEach(Array(plays.prefix(5)), id: \.id) { p in
@@ -590,16 +590,25 @@ struct GrowthMap: View {
 /// the next and Moss's golden bead between them, and how many days are left.
 struct MonthProgress: View {
     let days: Int, toNext: Int, next: Int
+    var preEDD: Bool = false
     private var flat: Bool { ArtStyle.current == .flat }
     private var words: some View {
-        Text(L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext)d to month \(next)")).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
+        let label = preEDD
+            ? L10n.t("距预产期 \(toNext) 天", "\(toNext)d to 40w EDD")
+            : L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext)d to month \(next)")
+        return Text(label).font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
             .lineLimit(1).fixedSize()
     }
     /// Large text: two whole phrases on two lines ("14 天后" / "满 7 个月"), never a break inside 7 个月.
     private var wrappingWords: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.t("\(toNext) 天后", "\(toNext)d left")).lineLimit(1)
-            Text(L10n.t("满 \(next) 个月", "to month \(next)")).lineLimit(1)
+            if preEDD {
+                Text(L10n.t("距预产期", "\(toNext)d to")).lineLimit(1)
+                Text(L10n.t("\(toNext) 天", "40w EDD")).lineLimit(1)
+            } else {
+                Text(L10n.t("\(toNext) 天后", "\(toNext)d left")).lineLimit(1)
+                Text(L10n.t("满 \(next) 个月", "to month \(next)")).lineLimit(1)
+            }
         }
         .font(.caption.weight(.semibold)).foregroundStyle(Palette.secondaryText).monospacedDigit()
         .accessibilityElement(children: .combine)
@@ -629,7 +638,7 @@ struct MonthProgress: View {
             VStack(alignment: .leading, spacing: 4) { bar(k); wrappingWords }
         }
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext) \(toNext == 1 ? "day" : "days") until month \(next)"))
+        .accessibilityLabel(preEDD ? L10n.t("距离预产期还有 \(toNext) 天", "\(toNext) days until 40-week due date") : L10n.t("\(toNext) 天后满 \(next) 个月", "\(toNext) \(toNext == 1 ? "day" : "days") until month \(next)"))
     }
 }
 

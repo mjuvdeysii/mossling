@@ -166,6 +166,18 @@ final class AppRouter {
     var expandLampLedgerToken: Int = 0
     private var pendingRouteTask: Task<Void, Never>?
 
+    func resetToRoot() {
+        pendingRouteTask?.cancel()
+        pendingRouteTask = nil
+        showingBedsideLamp = false
+        showingStorybook = false
+        explorePath = NavigationPath()
+        lampPath = NavigationPath()
+        keepsakesPath = NavigationPath()
+        studioPath = NavigationPath()
+        selectedTab = AppTab.explore.rawValue
+    }
+
     func openExplore(_ route: ExploreRoute? = nil) {
         pendingRouteTask?.cancel()
         pendingRouteTask = nil

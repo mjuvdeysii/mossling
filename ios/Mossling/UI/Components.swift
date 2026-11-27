@@ -237,7 +237,7 @@ struct CheckRow: View {
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 14) {
                     Image(systemName: on ? "checkmark.circle.fill" : "circle").font(.title2)
-                        .foregroundStyle(on ? (dark ? accent : Crayon.ink(accent)) : accent.opacity(0.45))
+                        .foregroundStyle(on ? (dark ? accent : Crayon.ink(accent)) : Palette.secondaryText)
                         .contentTransition(.symbolEffect(.replace))
                     VStack(alignment: .leading, spacing: 5) {
                         Text(text).font(.body).foregroundStyle(.primary).multilineTextAlignment(.leading)

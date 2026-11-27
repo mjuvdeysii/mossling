@@ -48,7 +48,11 @@ enum GrowthYearbookPDF {
             coverLines.append(L10n.t("记录跨度：\(L10n.ageText(actual))（\(L10n.livedDays(actual.lived))）", "Span: \(L10n.ageText(actual)) (\(L10n.livedDays(actual.lived)))"))
         }
         if let gw = app.gestationalWeeks, Age.isPreterm(gw), let ca = app.correctedAge {
-            coverLines.append(L10n.t("早产 \(gw) 周 · 矫正月龄：\(L10n.ageText(ca))", "Preterm \(gw)w · Corrected age: \(L10n.ageText(ca))"))
+            if app.isPreEDD {
+                coverLines.append(L10n.t("早产 \(gw) 周 · 待产矫正期（距预产期 \(ca.toNext) 天）", "Preterm \(gw)w · Pre-EDD (\(ca.toNext)d to 40w due date)"))
+            } else {
+                coverLines.append(L10n.t("早产 \(gw) 周 · 矫正月龄：\(L10n.ageText(ca))", "Preterm \(gw)w · Corrected age: \(L10n.ageText(ca))"))
+            }
         }
         let nonEmptyPages = allPages.filter { !$0.empty }
         let voiceCount = FirstVoiceStore.count(in: j.firsts.map(\.id))

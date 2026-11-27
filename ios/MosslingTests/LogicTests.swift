@@ -3094,11 +3094,14 @@ final class LogicTests: XCTestCase {
 
     @MainActor
     func testRound27OfficialWebsiteAndCommercialMetadata() {
-        XCTAssertEqual(Owner.developer, "")
-        XCTAssertEqual(
-            Owner.developerName,
-            L10n.t("本应用 App Store 页面上显示的开发者", "the developer listed on the App Store page")
-        )
+        if Owner.developer.isEmpty {
+            XCTAssertEqual(
+                Owner.developerName,
+                L10n.t("本应用 App Store 页面上显示的开发者", "the developer listed on the App Store page")
+            )
+        } else {
+            XCTAssertEqual(Owner.developerName, Owner.developer)
+        }
         XCTAssertEqual(Owner.email, "lbuiuiysdeyzxl@yeah.net")
         XCTAssertEqual(Owner.website, "https://mossotto.pages.dev/")
         XCTAssertEqual(Owner.websiteURL?.absoluteString, "https://mossotto.pages.dev/")
@@ -4644,5 +4647,176 @@ final class LogicTests: XCTestCase {
         let failedAtlas = FoodAtlasStore(fileURL: corruptAtlasURL)
         XCTAssertTrue(failedAtlas.loadFailed)
         XCTAssertNil(failedAtlas.quickStamp(foodId: "avocado", reaction: .loved, today: Day(y: 2026, m: 10, d: 19)))
+    }
+
+    @MainActor
+    func testAuditWave7ZeroP0AndHalfFixRemediation() throws {
+        // 1. P0-3: RecordFile.load performs transactional rollback across foodStore, capsuleStore, journal & AppModel on write failure
+        JournalFile.beginTest()
+        defer { JournalFile.endTest() }
+
+        let tmpDir = FileManager.default.temporaryDirectory
+        let foodURL = tmpDir.appendingPathComponent("wave7-food-\(UUID().uuidString).json")
+        let capURL = tmpDir.appendingPathComponent("wave7-cap-\(UUID().uuidString).json")
+        defer {
+            try? FileManager.default.removeItem(at: foodURL)
+            try? FileManager.default.removeItem(at: capURL)
+        }
+
+        let origFood = FoodRecord(foodId: "avocado", firstTastedEpochDay: 20_300, reaction: .loved)
+        let origCap = TimeCapsule(
+            title: "Original Letter",
+            body: "Stay curious",
+            writtenAt: 1_760_000_000_000,
+            writtenAgeLabel: "6m",
+            unlockEpochDay: nil,
+            openedAt: nil,
+            seal: .gold
+        )
+        let foodStore = FoodAtlasStore(fileURL: foodURL)
+        let capsuleStore = CapsuleStore(fileURL: capURL)
+        XCTAssertTrue(foodStore.replaceAll([origFood], pruneStickers: false))
+        XCTAssertTrue(capsuleStore.replaceAll([origCap]))
+
+        let appA = AppModel(defaults: UserDefaults(suiteName: "wave7-a-\(UUID().uuidString)")!)
+        appA.consent = Consent.version
+        appA.nickname = "Before"
+        let origLog = LogEntry(type: LogType.diaper, start: 1_760_000_000_000, detail: "wet")
+        var bodyA = JournalFile.Body()
+        bodyA.logs = [origLog]
+        let journalA = JournalStore(preview: bodyA)
+
+        let appB = AppModel(defaults: UserDefaults(suiteName: "wave7-b-\(UUID().uuidString)")!)
+        appB.consent = Consent.version
+        appB.nickname = "After"
+        let newFood = FoodRecord(foodId: "banana", firstTastedEpochDay: 20_305, reaction: .tasted)
+        let newCap = TimeCapsule(
+            title: "Replacement",
+            body: "New letter",
+            writtenAt: 1_760_100_000_000,
+            writtenAgeLabel: "7m",
+            unlockEpochDay: nil,
+            openedAt: nil,
+            seal: .teal
+        )
+        var newBody = JournalFile.Body()
+        newBody.logs = [LogEntry(type: LogType.bottle, start: 1_760_100_000_000, amount: 120)]
+        let backupData = RecordFile.json(appB, newBody, foods: [newFood], capsules: [newCap])
+
+        JournalFile.failWrites = true
+        XCTAssertThrowsError(
+            try RecordFile.load(backupData, into: appA, journal: journalA, foodStore: foodStore, capsuleStore: capsuleStore)
+        )
+        JournalFile.failWrites = false
+
+        // All stores & AppModel remain rolled back to pre-import state both in memory and on disk
+        XCTAssertEqual(appA.nickname, "Before")
+        XCTAssertEqual(journalA.logs.count, 1)
+        XCTAssertEqual(journalA.logs.first?.id, origLog.id)
+        XCTAssertEqual(foodStore.records.keys.sorted(), ["avocado"])
+        XCTAssertEqual(capsuleStore.items.map(\.title), ["Original Letter"])
+        XCTAssertEqual(FoodAtlasStore(fileURL: foodURL).records.keys.sorted(), ["avocado"])
+        XCTAssertEqual(CapsuleStore(fileURL: capURL).items.map(\.title), ["Original Letter"])
+
+        // Succeeds cleanly and replaces when writes are allowed
+        try RecordFile.load(backupData, into: appA, journal: journalA, foodStore: foodStore, capsuleStore: capsuleStore)
+        XCTAssertEqual(appA.nickname, "After")
+        XCTAssertEqual(foodStore.records.keys.sorted(), ["banana"])
+        XCTAssertEqual(capsuleStore.items.map(\.title), ["Replacement"])
+
+        // 2. HandoverWebCodec clinical redaction (CJK + inflected English) without false positives
+        func redactedNote(_ text: String, english: Bool) -> String {
+            let snap = HandoverSnapshot(
+                babyName: "Momo",
+                ageText: "6m",
+                dateLabel: "Oct 19",
+                timeLabel: "09:00",
+                activeTimerLine: nil,
+                lastFeedHeadline: "Bottle",
+                lastFeedDetail: "120ml",
+                lastSleepHeadline: "08:30",
+                lastSleepDetail: "45m",
+                lastDiaperHeadline: "Wet",
+                lastDiaperDetail: "08:00",
+                todayHeadline: "Calm",
+                todayDetail: "2 feeds",
+                extraNote: text
+            )
+            guard let url = HandoverWebCodec.encodeURL(from: snap, now: Date(timeIntervalSince1970: 1_760_000_000), isEnglish: english),
+                  let decoded = HandoverWebCodec.decode(from: url),
+                  let note = decoded.no else {
+                XCTFail("Expected non-nil decoded HandoverWebPayload.no for input: \(text)")
+                return ""
+            }
+            return note
+        }
+
+        let sensitiveEN = ["5ml口服", "100mg兑水", "20ml", "diarrhoea", "vomited", "feverish", "doses"]
+        for sample in sensitiveEN {
+            let out = redactedNote(sample, english: true)
+            XCTAssertFalse(out.lowercased().contains(sample.lowercased()), "Expected redaction for \(sample), got \(out)")
+        }
+        let sensitiveZH = ["20毫升", "烧到38", "拉肚子", "头孢"]
+        for sample in sensitiveZH {
+            let out = redactedNote(sample, english: false)
+            XCTAssertFalse(out.contains(sample), "Expected redaction for \(sample), got \(out)")
+        }
+        XCTAssertEqual(redactedNote("120ml bottle at 09:00", english: true), "120ml bottle at 09:00")
+        XCTAssertEqual(redactedNote("attempted nap twice", english: true), "attempted nap twice")
+        XCTAssertEqual(redactedNote("山药泥半碗 · 38周", english: false), "山药泥半碗 · 38周")
+
+        // 3. Crayon.glyph(on:) returns dark ink on bright pastel fills in Light traits (<= 0.18 luminance crossover)
+        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
+        for fill in [Crayon.sky, Crayon.pink, Crayon.sunflower] {
+            var r: CGFloat = 1, g: CGFloat = 1, b: CGFloat = 1, a: CGFloat = 0
+            UIColor(Crayon.glyph(on: fill)).resolvedColor(with: lightTraits).getRed(&r, green: &g, blue: &b, alpha: &a)
+            XCTAssertLessThan(r, 0.5, "Expected dark glyph ink on bright fill")
+            XCTAssertLessThan(g, 0.5)
+            XCTAssertLessThan(b, 0.5)
+        }
+
+        // 4. RunningTimer.countsFrom <= Date() & Measure/First reject non-finite timestamps
+        let futureMs = Date().addingTimeInterval(3600).timeIntervalSince1970 * 1000
+        let futureTimer = RunningTimer(type: LogType.nurse, start: futureMs, side: "l", pausedTotal: 7 * 86_400_000)
+        XCTAssertLessThanOrEqual(futureTimer.countsFrom.timeIntervalSince1970, Date().timeIntervalSince1970 + 1.0)
+
+        let nanDecoder = JSONDecoder()
+        nanDecoder.nonConformingFloatDecodingStrategy = .convertFromString(
+            positiveInfinity: "Inf",
+            negativeInfinity: "-Inf",
+            nan: "NaN"
+        )
+        XCTAssertThrowsError(try nanDecoder.decode(Measure.self, from: Data(#"{"at":"NaN"}"#.utf8)))
+        XCTAssertThrowsError(try nanDecoder.decode(First.self, from: Data(#"{"at":"NaN","title":"First step"}"#.utf8)))
+
+        // 5. JournalStore.rebuildIndexes ignores unclosed sleep (end == nil) in last(LogType.sleep)
+        let closedSleep = LogEntry(type: LogType.sleep, start: 1_760_000_000_000, end: 1_760_003_600_000)
+        let openSleep = LogEntry(type: LogType.sleep, start: 1_760_007_200_000, end: nil)
+        var sleepBody = JournalFile.Body()
+        sleepBody.logs = [openSleep, closedSleep]
+        let sleepStore = JournalStore(preview: sleepBody)
+        XCTAssertEqual(sleepStore.last(LogType.sleep), closedSleep.endDate)
+
+        // 6. HealthRegion.daysUntilNextCheckup skips m == 0 for .uk and .au
+        let birthDay = Day(y: 2026, m: 10, d: 1)
+        for reg in [HealthRegion.uk, HealthRegion.au] {
+            if let next = HealthRegion.daysUntilNextCheckup(birth: birthDay, today: birthDay, region: reg) {
+                XCTAssertGreaterThan(next.month, 0, "m == 0 birth discharge must not masquerade as upcoming checkup for \(reg)")
+            }
+        }
+
+        // 7. EarSafeVolumeMonitor.shouldPrompt > 0.60 lamp threshold & .muted re-arming
+        XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.59, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.61, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.0), .muted)
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.0, context: .toybox, hasSeenToyboxGuide: true, dismissedThisSession: false))
+
+        // 8. ToyboxAudioEngine & SoundscapeEngine clean stop/session invariants under test host
+        ToyboxAudioEngine.shared.playFireflyArpeggio(ascending: true)
+        ToyboxAudioEngine.shared.stop()
+        XCTAssertFalse(ToyboxAudioEngine.shared.isPlaying)
+        SoundscapeEngine.shared.stop()
+        XCTAssertFalse(SoundscapeEngine.shared.ownsPlaybackSession)
+        XCTAssertFalse(SoundscapeEngine.shared.isPausedForRemoteResume)
     }
 }

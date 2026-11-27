@@ -94,6 +94,8 @@ final class JournalStore {
         for e in sortedLogs {
             if e.type == LogType.bottle {
                 if lastMap[LogType.bottle] == nil { lastMap[LogType.bottle] = e.startDate }
+            } else if e.type == LogType.sleep {
+                if let endDate = e.endDate, lastMap[LogType.sleep] == nil { lastMap[LogType.sleep] = endDate }
             } else if e.type != LogType.nurse && lastMap[e.type] == nil {
                 lastMap[e.type] = e.endDate ?? e.startDate
             }
@@ -207,7 +209,24 @@ final class JournalStore {
     func shift(_ type: String, to: Date) {
         mutateTimer { b in
             guard let i = b.timers.firstIndex(where: { $0.type == type }) else { return false }
-            b.timers[i].start = min(to.timeIntervalSince1970 * 1000, JournalFile.now())
+            let cap = b.timers[i].pausedAt ?? JournalFile.now()
+            let targetMs = min(to.timeIntervalSince1970 * 1000, cap)
+            if !b.timers[i].sessionEntryIDs.isEmpty {
+                let firstID = b.timers[i].sessionEntryIDs[0]
+                if let logIdx = b.logs.firstIndex(where: { $0.id == firstID }) {
+                    let overallStart = b.timers[i].start - b.timers[i].carried - b.timers[i].carriedPause
+                    let maxEnd = b.logs[logIdx].end ?? b.timers[i].start
+                    let clampedTarget = min(targetMs, maxEnd)
+                    let oldStart = b.logs[logIdx].start
+                    b.logs[logIdx].start = clampedTarget
+                    b.timers[i].carried = max(0, b.timers[i].carried + (oldStart - clampedTarget))
+                    if overallStart == oldStart {
+                        b.logs.sort { $0.start < $1.start }
+                    }
+                    return true
+                }
+            }
+            b.timers[i].start = targetMs
             return true
         }
     }

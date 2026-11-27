@@ -404,7 +404,7 @@ struct ShadowWallStudio: View {
                 .foregroundStyle(selected ? .white : .primary)
                 .padding(.horizontal, 8)
                 .padding(.vertical, 6)
-                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity, minHeight: 34)
+                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity, minHeight: 44)
                 .background(Capsule().fill(selected ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
                 .overlay(Capsule().strokeBorder(selected ? .clear : Palette.outline.opacity(0.24), lineWidth: 0.75))
             }

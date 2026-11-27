@@ -168,8 +168,14 @@ struct StorybookView: View {
             return renderer.uiImage
         }
 
+        let safeWho = who.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let fileWho = safeWho.isEmpty ? L10n.t("宝宝", "Baby") : safeWho
         let yearbookTransfer = GrowthYearbookPDFTransfer(
-            filename: L10n.t("\(who)-三岁成长年鉴.pdf", "\(who)-growth-yearbook.pdf"),
+            filename: L10n.t("\(fileWho)-三岁成长年鉴.pdf", "\(fileWho)-growth-yearbook.pdf"),
             render: { GrowthYearbookPDF.render(app: app, j: j) }
         )
 
@@ -277,7 +283,7 @@ struct StorybookView: View {
                                     .frame(width: 6, height: 6)
                             }
                         }
-                        .frame(minWidth: 14, minHeight: 28)
+                        .frame(minWidth: 22, minHeight: 44)
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
@@ -744,7 +750,7 @@ private struct StorybookMonthSpread: View {
         if let w = page.measure?.weightG { out.append((L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), "kg", Crayon.caramel)) }
         if let l = page.measure?.lengthMm { out.append((L10n.t("身长", "Length"), String(format: "%.1f", Double(l) / 10), "cm", Crayon.teal)) }
         if let s = page.sleepHours { out.append((L10n.t("日均睡眠", "Avg Sleep"), String(format: "%.1f", s), "h", LogType.color(LogType.sleep))) }
-        if let f = page.feeds { out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.0f", f.rounded()), L10n.t("次", "/d"), LogType.color(LogType.nurse))) }
+        if let f = page.feeds { out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.1f", f), L10n.t("次", "/d"), LogType.color(LogType.nurse))) }
         return out
     }
 }
@@ -759,8 +765,14 @@ private struct StorybookEpilogueSpread: View {
 
     var body: some View {
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
+        let safeWho = who.replacingOccurrences(of: "/", with: "-")
+            .replacingOccurrences(of: ":", with: "-")
+            .replacingOccurrences(of: "\n", with: " ")
+            .replacingOccurrences(of: "\r", with: " ")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let fileWho = safeWho.isEmpty ? L10n.t("宝宝", "Baby") : safeWho
         let yearbookTransfer = GrowthYearbookPDFTransfer(
-            filename: L10n.t("\(who)-三岁成长年鉴.pdf", "\(who)-growth-yearbook.pdf"),
+            filename: L10n.t("\(fileWho)-三岁成长年鉴.pdf", "\(fileWho)-growth-yearbook.pdf"),
             render: { GrowthYearbookPDF.render(app: app, j: j) }
         )
         ScrollView(.vertical, showsIndicators: false) {

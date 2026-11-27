@@ -402,9 +402,11 @@ final class SoundscapeEngine {
     private(set) var didFinishAutoFade: Bool = false
     /// Remembers layer 2 when paused via lock-screen / Control Center remote commands so resume restores both layers.
     private var pausedSecondary: SoundscapeKind? = nil
+    private(set) var isPausedForRemoteResume: Bool = false
 
     var isPlaying: Bool { active != nil }
     var hasActiveEngine: Bool { engine != nil || active != nil }
+    var ownsPlaybackSession: Bool { hasActiveEngine || isPausedForRemoteResume }
 
     /// Concise display label for the currently playing soundscape or dual mix.
     var activeSummary: String? {
@@ -446,7 +448,7 @@ final class SoundscapeEngine {
                 dsp.layerTargetMix = 0
                 start(second, preserveTimer: true)
             } else {
-                stop()
+                stop(preservingRemoteResume: true)
             }
         } else if secondary == kind {
             secondary = nil
@@ -504,6 +506,7 @@ final class SoundscapeEngine {
         teardownTask?.cancel()
         teardownTask = nil
         didFinishAutoFade = false
+        isPausedForRemoteResume = false
         if secondary == kind {
             secondary = nil
             dsp.layerTargetMix = 0
@@ -568,15 +571,17 @@ final class SoundscapeEngine {
             return
         }
         if preservingRemoteResume {
+            isPausedForRemoteResume = true
             updateNowPlaying(rate: 0.0, titleOverride: pausedTitle)
         } else {
+            isPausedForRemoteResume = false
             clearNowPlaying()
         }
         teardownTask?.cancel()
         teardownTask = Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self, self.active == nil else { return }
-            self.teardownAudioGraph()
+            self.teardownAudioGraph(deactivateSession: !preservingRemoteResume)
         }
     }
 
@@ -585,6 +590,7 @@ final class SoundscapeEngine {
         teardownTask?.cancel()
         teardownTask = nil
         didFinishAutoFade = false
+        isPausedForRemoteResume = false
         countdownTask?.cancel()
         countdownTask = nil
         remainingSeconds = nil
@@ -763,7 +769,7 @@ final class SoundscapeEngine {
                 }
                 updateNowPlaying(rate: 1.0)
             } else {
-                stop()
+                stop(preservingRemoteResume: true)
             }
         @unknown default:
             break

@@ -278,7 +278,9 @@ struct DataView: View {
     }
 
     private func export(_ k: Export) {
-        if (k == .backup || k == .yearbook), (CapsuleStore.shared.loadFailed || FoodAtlasStore.shared.loadFailed) {
+        let blockedByFoods = (k == .backup || k == .yearbook || k == .summary) && FoodAtlasStore.shared.loadFailed
+        let blockedByCapsules = (k == .backup || k == .yearbook) && CapsuleStore.shared.loadFailed
+        if blockedByFoods || blockedByCapsules {
             message = L10n.t("辅食或时光胶囊读取失败，为避免导出空备份覆盖原有数据，请先在对应页面点击重试后再导出。", "Foods or Time Capsule storage failed to load. Retry loading before exporting so existing data isn't replaced by empty records.")
             return
         }
@@ -302,13 +304,17 @@ struct DataView: View {
         do {
             let fm = FileManager.default
             var dir = DataView.exportFolder
-            try? fm.removeItem(at: dir)
             try fm.createDirectory(at: dir, withIntermediateDirectories: true)
             var rv = URLResourceValues()
             rv.isExcludedFromBackup = true
             try? dir.setResourceValues(rv)
             let url = dir.appendingPathComponent(name)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            if let existing = try? fm.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) {
+                for item in existing where item.lastPathComponent != name {
+                    try? fm.removeItem(at: item)
+                }
+            }
             withAnimation(.snappy) { saved = url }
             UINotificationFeedbackGenerator().notificationOccurred(.success)
         } catch {

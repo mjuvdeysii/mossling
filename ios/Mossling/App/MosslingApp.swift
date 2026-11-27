@@ -216,6 +216,12 @@ struct RootView: View {
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
             .onChange(of: router.selectedTab) { _, next in savedTab = next }
+            .onChange(of: app.onboarded) { _, onboarded in
+                if !onboarded {
+                    router.resetToRoot()
+                    savedTab = AppTab.explore.rawValue
+                }
+            }
             .onChange(of: scheme) { _, s in
                 mascot.send(s == .dark ? .nightmodeEnabled : .nightmodeDisabled)
                 syncQuietNight()
@@ -339,7 +345,7 @@ struct RootView: View {
                 .environment(\.zoomNS, zoomYou)
             } label: { tabLabel(L10n.t("工坊", "Studio"), symbol: "square.grid.2x2", selectedSymbol: "square.grid.2x2.fill", value: AppTab.studio.rawValue) }
         }
-        .environment(\.night, night || scheme == .dark)
+        .environment(\.night, app.theme == .light ? false : (night || scheme == .dark))
         // a light tick as the chosen tab changes, like turning to a tabbed page
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         // a change of drawing style or language redraws every view immediately

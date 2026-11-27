@@ -302,16 +302,16 @@ struct RunningTimer: Codable, Hashable {
     /// The whole feed (or sleep) so far, in seconds.
     func total(_ now: Double) -> Double { elapsed(now) + carried / 1000 }
     /// The moment a clock counting the whole feed would have started at (for timers that count up from a date).
-    var countsFrom: Date { Date(timeIntervalSince1970: (start + pausedTotal - carried) / 1000) }
+    var countsFrom: Date { min(Date(), Date(timeIntervalSince1970: (start + pausedTotal - carried) / 1000)) }
     /// All the pauses of the whole feed (or sleep) so far, in seconds, the one under way included.
     func paused(_ now: Double) -> Double { (carriedPause + pausedTotal + (pausedAt.map { max(0, now - $0) } ?? 0)) / 1000 }
 
     enum CodingKeys: String, CodingKey { case type, start, side, pausedAt, pausedTotal, carried, carriedPause, sessionEntryIDs, detached }
     init(type: String, start: Double, side: String? = nil, pausedAt: Double? = nil, pausedTotal: Double = 0, carried: Double = 0, carriedPause: Double = 0, sessionEntryIDs: [UUID] = [], detached: Bool = false) {
         self.type = type
-        self.start = start.isFinite ? start : 0
+        self.start = start.isFinite ? max(-2_208_988_800_000, min(4_102_444_800_000, start)) : 0
         self.side = side
-        self.pausedAt = pausedAt.flatMap { $0.isFinite && $0 >= self.start ? $0 : nil }
+        self.pausedAt = pausedAt.flatMap { $0.isFinite && $0 >= self.start && $0 <= 4_102_444_800_000 ? $0 : nil }
         let maxSpan: Double = 7 * 86_400_000
         self.pausedTotal = pausedTotal.isFinite ? max(0, min(maxSpan, pausedTotal)) : 0
         self.carried = carried.isFinite ? max(0, min(maxSpan, carried)) : 0
@@ -346,6 +346,27 @@ struct Measure: Codable, Identifiable, Hashable {
     var weightG: Int? = nil
     var lengthMm: Int? = nil
     var headMm: Int? = nil
+
+    enum CodingKeys: String, CodingKey { case id, at, weightG, lengthMm, headMm }
+    init(id: UUID = UUID(), at: Double, weightG: Int? = nil, lengthMm: Int? = nil, headMm: Int? = nil) {
+        self.id = id
+        self.at = at.isFinite ? max(-2_208_988_800_000, min(4_102_444_800_000, at)) : 0
+        self.weightG = weightG
+        self.lengthMm = lengthMm
+        self.headMm = headMm
+    }
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        let rawAt = try c.decode(Double.self, forKey: .at)
+        guard rawAt.isFinite else {
+            throw DecodingError.dataCorruptedError(forKey: .at, in: c, debugDescription: "Non-finite Measure timestamp")
+        }
+        at = max(-2_208_988_800_000, min(4_102_444_800_000, rawAt))
+        weightG = try c.decodeIfPresent(Int.self, forKey: .weightG)
+        lengthMm = try c.decodeIfPresent(Int.self, forKey: .lengthMm)
+        headMm = try c.decodeIfPresent(Int.self, forKey: .headMm)
+    }
 }
 
 /// A first (第一次): the first time the child did something worth keeping — sucked a hand, cooed, rolled over, sat,
@@ -357,6 +378,27 @@ struct First: Codable, Identifiable, Hashable {
     var title: String
     var note: String? = nil
     var date: Date { Date(timeIntervalSince1970: at / 1000) }
+
+    enum CodingKeys: String, CodingKey { case id, at, key, title, note }
+    init(id: UUID = UUID(), at: Double, key: String? = nil, title: String, note: String? = nil) {
+        self.id = id
+        self.at = at.isFinite ? max(-2_208_988_800_000, min(4_102_444_800_000, at)) : 0
+        self.key = key
+        self.title = title
+        self.note = note
+    }
+    init(from d: Decoder) throws {
+        let c = try d.container(keyedBy: CodingKeys.self)
+        id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
+        let rawAt = try c.decode(Double.self, forKey: .at)
+        guard rawAt.isFinite else {
+            throw DecodingError.dataCorruptedError(forKey: .at, in: c, debugDescription: "Non-finite First timestamp")
+        }
+        at = max(-2_208_988_800_000, min(4_102_444_800_000, rawAt))
+        key = try c.decodeIfPresent(String.self, forKey: .key)
+        title = try c.decode(String.self, forKey: .title)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
 }
 
 /// What the widget needs to know without opening the content: written by the app whenever it changes.
