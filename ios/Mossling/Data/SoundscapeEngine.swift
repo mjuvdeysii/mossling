@@ -150,16 +150,30 @@ final class SoundscapeDSPState: @unchecked Sendable {
     }
     var layerCurrentMix: Float = 0.0
     private var lastRenderLayerKind: Int = -1
+    private var lastControls = Controls()
     // Independent low-pass state for secondary layer so filters never cross-contaminate
     var sLp1: Float = 0, sLp2: Float = 0
 
     func renderBuffer(into abl: UnsafeMutableAudioBufferListPointer, frameCount: Int, sampleRate sr: Double) {
-        let snap = controlLock.withLock { $0 }
+        var snap = lastControls
+        if let locked = controlLock.withLockIfAvailable({ $0 }) {
+            snap = locked
+            lastControls = locked
+        }
+        var didClearLayer = false
         for frame in 0..<frameCount {
-            let s = synthesizeSample(sampleRate: sr, controls: snap)
+            let s = synthesizeSample(sampleRate: sr, controls: snap, didClearLayer: &didClearLayer)
             for buf in abl {
                 if let ptr = buf.mData?.assumingMemoryBound(to: Float.self) {
                     ptr[frame] = s
+                }
+            }
+        }
+        if didClearLayer {
+            _ = controlLock.withLockIfAvailable { c in
+                if c.layerKindRaw == snap.layerKindRaw && c.layerTargetMix <= 0.0001 {
+                    c.layerKindRaw = -1
+                    lastControls.layerKindRaw = -1
                 }
             }
         }
@@ -168,19 +182,31 @@ final class SoundscapeDSPState: @unchecked Sendable {
     /// Generates one stereo-compatible mono sample in `[-1, 1]` with smooth gain ramping and optional dual-layer mix.
     func nextSample(sampleRate sr: Double) -> Float {
         let snap = controlLock.withLock { $0 }
-        return synthesizeSample(sampleRate: sr, controls: snap)
+        var didClearLayer = false
+        let sample = synthesizeSample(sampleRate: sr, controls: snap, didClearLayer: &didClearLayer)
+        if didClearLayer {
+            controlLock.withLock { c in
+                if c.layerKindRaw == snap.layerKindRaw && c.layerTargetMix <= 0.0001 {
+                    c.layerKindRaw = -1
+                }
+            }
+        }
+        return sample
     }
 
-    private func synthesizeSample(sampleRate sr: Double, controls: Controls) -> Float {
+    private func synthesizeSample(sampleRate sr: Double, controls: Controls, didClearLayer: inout Bool) -> Float {
         let t = Double(sampleIndex) / sr
         sampleIndex &+= 1
 
         let activeLayerKind = controls.layerKindRaw
         if activeLayerKind != lastRenderLayerKind {
+            let wasActive = lastRenderLayerKind >= 0
             lastRenderLayerKind = activeLayerKind
             sLp1 = 0
             sLp2 = 0
-            layerCurrentMix = 0
+            if wasActive {
+                layerCurrentMix = 0
+            }
         }
 
         // Smooth gain ramps (~250ms glide so start/stop/volume/layer transitions never click)
@@ -192,6 +218,7 @@ final class SoundscapeDSPState: @unchecked Sendable {
             lastRenderLayerKind = -1
             sLp1 = 0
             sLp2 = 0
+            didClearLayer = true
         }
 
         let primary = synthesizeLayer(kind: controls.kindRaw, t: t, sr: sr, useSecondaryFilter: false)
@@ -518,10 +545,11 @@ final class SoundscapeEngine {
         secondary = nil
         dsp.targetGain = 0.0
         dsp.layerTargetMix = 0.0
+        if !isTestHost {
+            clearNowPlaying()
+            teardownAudioGraph(deactivateSession: deactivateSession)
+        }
         dsp.currentGain = 0.0
-        guard !isTestHost else { return }
-        clearNowPlaying()
-        teardownAudioGraph(deactivateSession: deactivateSession)
     }
 
     private func completeAutoFade() {

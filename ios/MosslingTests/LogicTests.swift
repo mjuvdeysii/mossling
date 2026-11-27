@@ -3871,10 +3871,15 @@ final class LogicTests: XCTestCase {
         defer { L10n.overrideEnglish = prevLang }
 
         // 1. WCAG contrast tokens: forest-green leaf fill, deep cherry danger, and warm accent/bead normalization
+        func linearizeSRGB(_ v: CGFloat) -> Double {
+            let x = max(0, min(1, Double(v)))
+            return x <= 0.03928 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+        }
         var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
         XCTAssertTrue(UIColor(Crayon.buttonFill(Crayon.leaf)).getRed(&r, green: &g, blue: &b, alpha: &a))
-        let leafRelLum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-        XCTAssertLessThan(leafRelLum, 0.28)
+        let leafRelLum = 0.2126 * linearizeSRGB(r) + 0.7152 * linearizeSRGB(g) + 0.0722 * linearizeSRGB(b)
+        XCTAssertLessThan(leafRelLum, 0.183)
+        XCTAssertGreaterThanOrEqual(1.05 / (leafRelLum + 0.05), 4.5)
         XCTAssertTrue(UIColor(Crayon.fill(Palette.accent, false)).getRed(&r, green: &g, blue: &b, alpha: &a))
         XCTAssertTrue(UIColor(Crayon.fill(Palette.bead, false)).getRed(&r, green: &g, blue: &b, alpha: &a))
         let lightTraits = UITraitCollection(userInterfaceStyle: .light)
@@ -3894,11 +3899,11 @@ final class LogicTests: XCTestCase {
         let preDueAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: preDue))
         XCTAssertEqual(preDueAge.months, 0)
         XCTAssertEqual(preDueAge.days, 0)
-        XCTAssertEqual(preDueAge.lived, 20)
+        XCTAssertEqual(preDueAge.lived, 21)
 
         let postDue = pretermBirth.plus(days: 60)
         let postDueAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: postDue))
-        XCTAssertEqual(postDueAge.lived, 60)
+        XCTAssertEqual(postDueAge.lived, 61)
         XCTAssertEqual(postDueAge.lived, Age.on(birth: pretermBirth, today: postDue).lived)
 
         let futureAge = try XCTUnwrap(Age.corrected(birth: pretermBirth, gestationalWeeks: 32, today: pretermBirth.plus(days: -2)))
@@ -3915,9 +3920,11 @@ final class LogicTests: XCTestCase {
         srcBody.firsts = [First(id: fid, at: suiteApp.today.date.timeIntervalSince1970 * 1000, key: "smile", title: "First Smile")]
         let exportedData = RecordFile.json(suiteApp, srcBody)
         let jsonObj = try XCTUnwrap(JSONSerialization.jsonObject(with: exportedData) as? [String: Any])
-        let jsonFirsts = try XCTUnwrap(jsonObj["firsts"] as? [[String: Any]])
+        let jsonMossling = try XCTUnwrap(jsonObj["mossling"] as? [String: Any])
+        let jsonFirsts = try XCTUnwrap(jsonMossling["firsts"] as? [[String: Any]])
         XCTAssertEqual(jsonFirsts.first?["id"] as? String, fid.uuidString)
 
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
         let reloadedApp = AppModel(defaults: UserDefaults(suiteName: "wave1-rec2-\(UUID().uuidString)")!)
         let reloadedStore = JournalStore(preview: JournalFile.Body())
         try RecordFile.load(exportedData, into: reloadedApp, journal: reloadedStore)

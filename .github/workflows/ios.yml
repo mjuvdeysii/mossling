@@ -190,9 +190,12 @@ jobs:
           # app group reaches the exported build, and print what each one now declares.
           APPDIR=build/Mossling.xcarchive/Products/Applications/Mossling.app
           # Pre-upload compliance check: verify required purpose strings & matching versions across app and widget extension
-          for key in NSFaceIDUsageDescription NSMicrophoneUsageDescription NSMotionUsageDescription NSPhotoLibraryUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
+          for key in NSFaceIDUsageDescription NSMicrophoneUsageDescription NSMotionUsageDescription NSPhotoLibraryAddUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
             /usr/libexec/PlistBuddy -c "Print :$key" "$APPDIR/Info.plist" >/dev/null || { echo "::error::Missing required Info.plist key $key"; exit 1; }
           done
+          if /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$APPDIR/Info.plist" >/dev/null 2>&1; then
+            echo "::error::Unexpected NSPhotoLibraryUsageDescription in Info.plist (out-of-process PhotosPicker does not require full photo library read permission)"; exit 1
+          fi
           APP_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPDIR/Info.plist")
           APP_BLD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APPDIR/Info.plist")
           for x in "$APPDIR"/PlugIns/*.appex; do
