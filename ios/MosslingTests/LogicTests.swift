@@ -3668,4 +3668,90 @@ final class LogicTests: XCTestCase {
             XCTAssertGreaterThan(img.size.width, 100)
         }
     }
+
+    @MainActor
+    func testBatch34DesignSystemAndVisualHierarchy() {
+        // 1. DS tokens align with LayoutSpec & Apple HIG 44pt+ / 11pt+ constraints
+        XCTAssertEqual(DS.Spacing.pageH, LayoutSpec.pageH)
+        XCTAssertEqual(DS.Spacing.cardPad, LayoutSpec.cardPad)
+        XCTAssertEqual(DS.Spacing.cardPadHero, LayoutSpec.cardPadHero)
+        XCTAssertGreaterThanOrEqual(LayoutSpec.hitMin, 44)
+        XCTAssertNotNil(Typeface.numerals(8, relativeTo: .caption2, weight: .bold))
+
+        // 2. Render Design System primitives across Light, Dark & AX3
+        let suiteName = "batch34-\(UUID().uuidString)"
+        let envApp = AppModel(defaults: UserDefaults(suiteName: suiteName)!)
+        envApp.birth = Day(y: 2026, m: 4, d: 2)
+        envApp.today = Day(y: 2026, m: 10, d: 19)
+        envApp.nickname = "小满"
+        envApp.journal = true
+        let envJournal = JournalStore(preview: JournalFile.Body())
+        let envRouter = AppRouter()
+
+        let dsShowcase = VStack(alignment: .leading, spacing: DS.Spacing.cardGap) {
+            SectionTitle(title: "设计系统规范", detail: "Apple HIG")
+            DSSegmentedControl(
+                items: RhythmFilter.allCases,
+                selection: .constant(RhythmFilter.sleep),
+                dark: false,
+                title: { $0.label },
+                dotColor: { $0 == .all ? nil : $0.tint }
+            )
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                spacing: 8
+            ) {
+                DSMetricCell(label: "日均睡眠", value: "12.4", unit: "h", accent: Crayon.lilac, dark: false)
+                DSMetricCell(label: "日均喂奶", value: "5.2", unit: "次", accent: Crayon.pink, dark: false)
+            }
+            HStack(spacing: 10) {
+                Button("试听旋律") {}
+                    .buttonStyle(.ds(.secondary, fullWidth: true, height: 48))
+                Button("完成并盖印") {}
+                    .buttonStyle(.ds(.primary, fullWidth: true, height: 48))
+            }
+            HStack(spacing: 8) {
+                DSIconButton(symbol: "arrow.trianglehead.2.clockwise", accessibilityLabel: "换一个") {}
+                DSFilterChip(title: "全部", selected: true) {}
+                DSFilterChip(title: "未尝", selected: false) {}
+            }
+        }
+        .padding(.horizontal, DS.Spacing.pageH)
+
+        for scheme in [ColorScheme.light, .dark] {
+            for dt in [DynamicTypeSize.large, .accessibility3] {
+                let img = renderHostedSnapshot(
+                    dsShowcase
+                        .environment(envApp)
+                        .environment(envJournal)
+                        .environment(\.colorScheme, scheme)
+                        .environment(\.dynamicTypeSize, dt)
+                )
+                XCTAssertNotNil(img.cgImage)
+                XCTAssertGreaterThan(img.size.width, 100)
+            }
+        }
+
+        // 3. Render all upgraded core screens cleanly without nil captures
+        let views: [AnyView] = [
+            AnyView(TodayView(path: .constant(NavigationPath()))),
+            AnyView(LampHubView(path: .constant(NavigationPath()))),
+            AnyView(JourneyHubView(isRootTab: true)),
+            AnyView(YouView(path: .constant(NavigationPath()))),
+            AnyView(RhythmDialCard(nowHour: 14.5)),
+            AnyView(FoodAtlasView()),
+            AnyView(ToyboxView(initialMode: .xylophone)),
+            AnyView(BedsideLampView(initialBrightness: 0.72, previewClock: envApp.today.date)),
+        ]
+        for v in views {
+            let img = renderHostedSnapshot(
+                v
+                    .environment(envApp)
+                    .environment(envJournal)
+                    .environment(envRouter)
+            )
+            XCTAssertNotNil(img.cgImage)
+            XCTAssertGreaterThan(img.size.width, 100)
+        }
+    }
 }

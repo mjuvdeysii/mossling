@@ -156,32 +156,6 @@ private struct FamilyCard: View {
             CompanionPicker()
         }
         .padding(LayoutSpec.cardPadHero)
-        .background(alignment: .top) {
-            Canvas(rendersAsynchronously: false) { ctx, size in
-                let h = min(66.0, size.height * 0.34)
-                var arc = Path()
-                arc.move(to: .zero)
-                arc.addLine(to: CGPoint(x: size.width, y: 0))
-                arc.addLine(to: CGPoint(x: size.width, y: h * 0.62))
-                arc.addQuadCurve(
-                    to: CGPoint(x: 0, y: h * 0.62),
-                    control: CGPoint(x: size.width * 0.50, y: h * 1.15)
-                )
-                arc.closeSubpath()
-                ctx.fill(
-                    arc,
-                    with: .linearGradient(
-                        Gradient(colors: [
-                            Crayon.leaf.opacity(dark ? 0.22 : 0.16),
-                            Palette.bead.opacity(dark ? 0.16 : 0.14),
-                        ]),
-                        startPoint: .zero,
-                        endPoint: CGPoint(x: size.width, y: h)
-                    )
-                )
-            }
-            .allowsHitTesting(false)
-        }
         .printCard(radius: Radius.card)
     }
 
@@ -210,18 +184,12 @@ private struct FamilyCard: View {
 
     private var storyPill: some View {
         NavigationLink(value: StudioRoute.story) {
-            HStack(spacing: 4) {
-                GoldBead(size: 8)
+            HStack(spacing: 5) {
+                GoldBead(size: 7)
                 Text(L10n.t("故事", "Story"))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(dark ? Palette.amber : Crayon.ink(Palette.bead))
                     .lineLimit(1)
             }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .frame(minHeight: 30)
-            .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.16)))
-            .overlay(Capsule().strokeBorder(Palette.bead.opacity(dark ? 0.42 : 0.32), lineWidth: 0.8))
+            .dsPill(.secondary, height: 34, horizontalPadding: 11)
         }
         .buttonStyle(.toy)
         .accessibilityLabel(L10n.t("摸索台灯的故事 · 三幕微剧院", "Our Story · 3-Act Micro-Theater"))
@@ -230,13 +198,7 @@ private struct FamilyCard: View {
     private var editPill: some View {
         Button(action: edit) {
             Label(L10n.t("编辑", "Edit"), systemImage: "pencil")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.white)
-                .padding(.horizontal, 9)
-                .padding(.vertical, 5)
-                .frame(minHeight: 30)
-                .background(Capsule().fill(Palette.accentFill))
-                .contentShape(Capsule().inset(by: -6))
+                .dsPill(.tinted(Palette.accent), height: 34, horizontalPadding: 11)
         }
         .buttonStyle(.toy)
         .accessibilityLabel(L10n.t("编辑宝宝信息", "Edit baby profile"))
@@ -281,7 +243,6 @@ private struct CompanionPicker: View {
 
     var body: some View {
         let dark = lamp || scheme == .dark
-        let ax = type.isAccessibilitySize
         layout {
             ForEach(Kind.allCases, id: \.self) { k in
                 let on = app.companion == k
@@ -334,7 +295,12 @@ private struct CompanionPicker: View {
     }
 }
 
-/// Compact unified Appearance (`日光 / 夜灯 / 自动`) & Language (`自动 / 中文 / EN`) pill selector.
+private struct StudioSegmentOption<Value: Hashable>: Identifiable, Equatable {
+    let id: Value
+    let title: String
+}
+
+/// Compact unified Appearance (`日光 / 夜灯 / 自动`) & Language (`自动 / 中文 / EN`) segmented control card.
 private struct ThemeLanguageCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
@@ -342,33 +308,33 @@ private struct ThemeLanguageCard: View {
 
     var body: some View {
         let ax = type.isAccessibilitySize
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 10) {
             if ax {
                 VStack(alignment: .leading, spacing: 8) {
                     themeLabel
-                    themePills(ax: true)
+                    themePills
                 }
                 Divider().opacity(0.42)
                 VStack(alignment: .leading, spacing: 8) {
                     langLabel
-                    langPills(ax: true)
+                    langPills
                 }
             } else {
                 HStack(spacing: 8) {
                     themeLabel
                     Spacer(minLength: 4)
-                    themePills(ax: false)
+                    themePills
                 }
                 Divider().opacity(0.42)
                 HStack(spacing: 8) {
                     langLabel
                     Spacer(minLength: 4)
-                    langPills(ax: false)
+                    langPills
                 }
             }
         }
         .padding(.horizontal, LayoutSpec.cardPad)
-        .padding(.vertical, 14)
+        .padding(.vertical, 12)
         .printCard(radius: Radius.card)
     }
 
@@ -380,20 +346,18 @@ private struct ThemeLanguageCard: View {
         }
     }
 
-    private func themePills(ax: Bool) -> some View {
-        let pills = ForEach([ThemeMode.light, .dark, .system], id: \.self) { mode in
-            Swatch(mode: mode, on: app.theme == mode, dark: dark) {
-                TactileEngine.shared.beadClick()
-                withAnimation(.snappy) { app.theme = mode }
-            }
-        }
-        return Group {
-            if ax {
-                FlowRow(spacing: 6, lineSpacing: 6) { pills }
-            } else {
-                HStack(spacing: 5) { pills }
-            }
-        }
+    private var themePills: some View {
+        let options = [ThemeMode.light, .dark, .system].map { StudioSegmentOption(id: $0, title: $0.label) }
+        return DSSegmentedControl(
+            items: options,
+            selection: Binding(
+                get: { StudioSegmentOption(id: app.theme, title: app.theme.label) },
+                set: { app.theme = $0.id }
+            ),
+            dark: dark,
+            compact: true,
+            title: { $0.title }
+        )
     }
 
     private var langLabel: some View {
@@ -404,76 +368,19 @@ private struct ThemeLanguageCard: View {
         }
     }
 
-    private func langPills(ax: Bool) -> some View {
-        let pills = ForEach(AppLanguage.allCases, id: \.self) { lang in
-            let on = app.language == lang
-            Button {
-                withAnimation(.snappy) { app.language = lang }
-            } label: {
-                Text(lang.label)
-                    .font(.caption.weight(on ? .bold : .semibold))
-                    .foregroundStyle(on ? .white : .primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .frame(minHeight: 30)
-                    .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.72))))
-                    .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
-            }
-            .buttonStyle(.toy)
-            .accessibilityAddTraits(on ? .isSelected : [])
-        }
-
-        return Group {
-            if ax {
-                FlowRow(spacing: 6, lineSpacing: 6) { pills }
-            } else {
-                HStack(spacing: 5) { pills }
-            }
-        }
+    private var langPills: some View {
+        let options = AppLanguage.allCases.map { StudioSegmentOption(id: $0, title: $0.label) }
+        return DSSegmentedControl(
+            items: options,
+            selection: Binding(
+                get: { StudioSegmentOption(id: app.language, title: app.language.label) },
+                set: { app.language = $0.id }
+            ),
+            dark: dark,
+            compact: true,
+            title: { $0.title }
+        )
         .sensoryFeedback(.selection, trigger: app.language)
-    }
-}
-
-/// Compact tactile Theme pill with miniature living swatch dot (`日光` / `夜灯` / `自动`).
-private struct Swatch: View {
-    let mode: ThemeMode
-    let on: Bool
-    let dark: Bool
-    let pick: () -> Void
-
-    var body: some View {
-        Button(action: pick) {
-            HStack(spacing: 4) {
-                Circle()
-                    .fill(swatchGradient)
-                    .overlay(Circle().strokeBorder(Color.white.opacity(0.45), lineWidth: 0.6))
-                    .frame(width: 11, height: 11)
-                Text(mode.label)
-                    .font(.caption.weight(on ? .bold : .semibold))
-                    .foregroundStyle(on ? .white : .primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.78)
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 5)
-            .frame(minHeight: 30)
-            .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.72))))
-            .overlay(Capsule().strokeBorder(on ? .clear : Palette.outline.opacity(0.22), lineWidth: 0.75))
-        }
-        .buttonStyle(.toy)
-        .accessibilityLabel(mode.label)
-        .accessibilityAddTraits(on ? .isSelected : [])
-    }
-
-    private var swatchGradient: LinearGradient {
-        switch mode {
-        case .light:
-            LinearGradient(colors: [Color(hex: 0xFFF3D4), Crayon.sunflower], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .dark:
-            LinearGradient(colors: [Color(hex: 0x222B4F), Palette.amber], startPoint: .topLeading, endPoint: .bottomTrailing)
-        case .system:
-            LinearGradient(colors: [Color(hex: 0xFFF0C8), Color(hex: 0x222B4F)], startPoint: .leading, endPoint: .trailing)
-        }
     }
 }
 
@@ -595,18 +502,7 @@ private struct PreferenceStudioCard: View {
             }
             .padding(14)
             .frame(maxWidth: .infinity, minHeight: ax ? 78 : 74, alignment: .topLeading)
-            .background(
-                LinearGradient(
-                    colors: [color.opacity(active ? (dark ? 0.14 : 0.08) : 0.01), .clear],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
             .printCard(radius: Radius.inner)
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .strokeBorder(active ? ink.opacity(dark ? 0.50 : 0.35) : .clear, lineWidth: 1.0)
-            )
             .opacity(resting ? 0.60 : 1.0)
         }
         .buttonStyle(.toy)

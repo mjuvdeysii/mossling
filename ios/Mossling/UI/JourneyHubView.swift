@@ -253,12 +253,9 @@ struct MiniJourneyBeadStrip: View {
 
     private func stationPill(ordinal: Int) -> some View {
         Text(L10n.t("第 \(ordinal) / 37 站", "\(ordinal) / 37"))
-            .font(.caption2.weight(.bold))
+            .font(.footnote.weight(.semibold))
             .monospacedDigit()
-            .foregroundStyle(night || dark ? Palette.amber : Crayon.ink(Palette.bead))
-            .padding(.horizontal, 7)
-            .padding(.vertical, 2)
-            .background(Capsule().fill(Palette.bead.opacity(dark ? 0.22 : 0.16)))
+            .foregroundStyle(Palette.secondaryText)
     }
 }
 
@@ -464,29 +461,18 @@ struct JourneyHubView: View {
     @ViewBuilder
     private var beadFilterPills: some View {
         if app.birth != nil {
-            ForEach(StationScope.allCases) { item in
-                let on = scope == item
-                Button {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(reduce ? nil : .snappy) {
-                        scope = item
-                        if item == .lived {
-                            expandedLandsOverride = Set(Land.allCases)
-                        }
+            DSSegmentedControl(
+                items: StationScope.allCases,
+                selection: $scope,
+                dark: dark,
+                compact: true,
+                title: { $0.title },
+                onSelect: { item in
+                    if item == .lived {
+                        expandedLandsOverride = Set(Land.allCases)
                     }
-                } label: {
-                    Text(item.title)
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(on ? .white : .primary)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Palette.lampCard : Palette.card)))
-                        .overlay(Capsule().strokeBorder(Palette.outline.opacity(on ? 0 : 0.28), lineWidth: 0.75))
-                        .pillHitTarget()
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
+            )
         }
 
         Button {
@@ -497,13 +483,19 @@ struct JourneyHubView: View {
                 L10n.t("静谧", "Quiet"),
                 systemImage: quietBeads ? "circle.fill" : "circle.dotted"
             )
-            .font(.caption.weight(.bold))
-            .foregroundStyle(quietBeads ? Color(hex: 0x4A3300) : .primary)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 6)
-            .background(Capsule().fill(quietBeads ? Palette.bead : (dark ? Palette.lampCard : Palette.card)))
-            .overlay(Capsule().strokeBorder(Palette.outline.opacity(quietBeads ? 0 : 0.28), lineWidth: 0.75))
-            .pillHitTarget()
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(quietBeads ? (dark ? Palette.amber : Crayon.ink(Palette.bead)) : .primary)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(quietBeads ? Palette.bead.opacity(dark ? 0.24 : 0.16) : DS.Surface.inset(dark: dark))
+            )
+            .overlay(
+                Capsule(style: .continuous)
+                    .strokeBorder(quietBeads ? Palette.bead.opacity(0.40) : DS.Surface.hairline(dark: dark), lineWidth: 0.6)
+            )
+            .pillHitTarget(LayoutSpec.hitMin)
         }
         .buttonStyle(.plain)
         .accessibilityLabel(L10n.t("静谧珠链", "Quiet Beads"))
@@ -536,29 +528,40 @@ struct JourneyHubView: View {
 
                 VStack(alignment: .leading, spacing: 4) {
                     FlowRow(spacing: 6, lineSpacing: 4) {
-                        Label(land.name, systemImage: land.symbol)
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 2)
-                            .background(Capsule().fill(land.crayon.opacity(dark ? 0.22 : 0.16)))
+                        HStack(spacing: 5) {
+                            Circle()
+                                .fill(land.crayon)
+                                .frame(width: 6, height: 6)
+                            Text(land.name)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
+                        }
 
                         if let a = app.age {
+                            Text("·")
+                                .font(.footnote)
+                                .foregroundStyle(Palette.secondaryText)
                             Text(L10n.livedDays(a.lived))
-                                .font(.caption2)
+                                .font(.footnote)
                                 .foregroundStyle(Palette.secondaryText)
                         }
                     }
 
                     HStack(alignment: .firstTextBaseline, spacing: 3) {
                         Text(baby == 0 ? L10n.t("出生", "Birth") : "\(baby)")
-                            .font(Typeface.numerals(28, relativeTo: .title2, weight: .bold))
+                            .font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
                         if baby > 0 {
-                            Text(L10n.t("个月", "mo")).font(.caption.weight(.medium))
+                            Text(L10n.t("个月", "mo"))
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Palette.secondaryText)
                         }
                         if let d = app.age?.days, d > 0 {
-                            Text("\(d)").font(Typeface.numerals(16, relativeTo: .subheadline, weight: .bold)).padding(.leading, 2)
-                            Text(L10n.t("天", "d")).font(.caption.weight(.medium))
+                            Text("\(d)")
+                                .font(Typeface.numerals(24, relativeTo: .title2, weight: .bold))
+                                .padding(.leading, 3)
+                            Text(L10n.t("天", "d"))
+                                .font(.subheadline.weight(.medium))
+                                .foregroundStyle(Palette.secondaryText)
                         }
                     }
 
@@ -566,7 +569,7 @@ struct JourneyHubView: View {
                         .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
                         .lineLimit(type.isAccessibilitySize ? nil : 2)
-                        .lineSpacing(1.5)
+                        .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
 
@@ -590,13 +593,6 @@ struct JourneyHubView: View {
             )
         }
         .padding(LayoutSpec.cardPadHero)
-        .background(
-            LinearGradient(
-                colors: [land.crayon.opacity(dark ? 0.16 : 0.14), Palette.bead.opacity(dark ? 0.08 : 0.08)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
         .printCard(radius: Radius.card)
     }
 
@@ -604,17 +600,12 @@ struct JourneyHubView: View {
         NavigationLink(value: KeepsakesRoute.month(baby)) {
             HStack(spacing: 4) {
                 Image(systemName: "book.closed.fill")
-                    .font(.caption2.weight(.bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                 Text(L10n.t("月龄指南", "Guide"))
-                    .font(.caption2.weight(.bold))
                 Image(systemName: "chevron.right")
-                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
             }
-            .foregroundStyle(.white)
-            .padding(.horizontal, 11)
-            .padding(.vertical, 7)
-            .background(Capsule().fill(Palette.accentFill))
-            .pillHitTarget()
+            .dsPill(.tinted(Palette.accent), height: 34)
         }
         .buttonStyle(.toy)
         .accessibilityLabel(L10n.t("本月发育要点与活动", "This Month's Guide"))
@@ -705,24 +696,25 @@ struct JourneyHubView: View {
         tint: Color,
         @ViewBuilder icon: () -> Icon
     ) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
+        let _ = tint
+        return VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 icon()
                 Spacer(minLength: 4)
                 Image(systemName: "chevron.right")
-                    .font(.caption2.weight(.bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
-            VStack(alignment: .leading, spacing: 4) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(title)
-                    .font(.subheadline.weight(.bold))
+                    .font(DS.TypeScale.rowTitle)
                     .tracking(LayoutSpec.titleTracking)
                     .foregroundStyle(.primary)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
                 Text(detail)
-                    .font(.footnote)
+                    .font(DS.TypeScale.meta)
                     .foregroundStyle(Palette.secondaryText)
                     .lineLimit(type.isAccessibilitySize ? nil : 1)
                     .fixedSize(horizontal: false, vertical: true)
@@ -730,14 +722,7 @@ struct JourneyHubView: View {
             }
         }
         .padding(16)
-        .frame(maxWidth: .infinity, minHeight: 102, alignment: .topLeading)
-        .background(
-            LinearGradient(
-                colors: [tint.opacity(dark ? 0.22 : 0.16), tint.opacity(dark ? 0.05 : 0.04)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .frame(maxWidth: .infinity, minHeight: 112, alignment: .topLeading)
         .printCard(radius: Radius.card)
     }
 
@@ -778,135 +763,60 @@ struct JourneyHubView: View {
             }
             expandedLandsOverride = next
         } header: { open in
-            ZStack {
-                // Kid's book cut-paper rolling hills & stitched footpath backdrop
-                Canvas(rendersAsynchronously: false) { ctx, size in
-                    let skyTop = dark ? Color(hex: 0x241F1A) : Color(hex: 0xFFFBF2)
-                    let skyBot = dark ? land.ground.opacity(0.65) : land.ground.opacity(0.85)
-                    ctx.fill(
-                        Path(CGRect(origin: .zero, size: size)),
-                        with: .linearGradient(
-                            Gradient(colors: [skyTop, skyBot]),
-                            startPoint: .zero,
-                            endPoint: CGPoint(x: 0, y: size.height)
-                        )
-                    )
+            headerLayout {
+                HStack(spacing: 10) {
+                    RoundedRectangle(cornerRadius: 2, style: .continuous)
+                        .fill(land.crayon)
+                        .frame(width: 4, height: 30)
 
-                    let orbCenter = CGPoint(x: size.width * 0.56, y: size.height * 0.30)
-                    let orbRect = CGRect(x: orbCenter.x - 22, y: orbCenter.y - 22, width: 44, height: 44)
-                    ctx.fill(
-                        Path(ellipseIn: orbRect),
-                        with: .color(dark ? Color(hex: 0xF5D26B).opacity(0.22) : Color(hex: 0xFFE9A8).opacity(0.85))
-                    )
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(land.name)
+                            .font(.headline.weight(.semibold))
+                            .foregroundStyle(.primary)
+                            .fixedSize(horizontal: false, vertical: true)
 
-                    var backHill = Path()
-                    backHill.move(to: CGPoint(x: 0, y: size.height * 0.70))
-                    backHill.addQuadCurve(
-                        to: CGPoint(x: size.width, y: size.height * 0.62),
-                        control: CGPoint(x: size.width * 0.48, y: size.height * 0.44)
-                    )
-                    backHill.addLine(to: CGPoint(x: size.width, y: size.height))
-                    backHill.addLine(to: CGPoint(x: 0, y: size.height))
-                    backHill.closeSubpath()
-                    ctx.fill(backHill, with: .color(land.crayon.opacity(dark ? 0.24 : 0.20)))
-
-                    var frontHill = Path()
-                    frontHill.move(to: CGPoint(x: 0, y: size.height * 0.84))
-                    frontHill.addQuadCurve(
-                        to: CGPoint(x: size.width, y: size.height * 0.78),
-                        control: CGPoint(x: size.width * 0.56, y: size.height * 0.66)
-                    )
-                    frontHill.addLine(to: CGPoint(x: size.width, y: size.height))
-                    frontHill.addLine(to: CGPoint(x: 0, y: size.height))
-                    frontHill.closeSubpath()
-                    ctx.fill(frontHill, with: .color(land.crayon.opacity(dark ? 0.34 : 0.30)))
-
-                    var path = Path()
-                    path.move(to: CGPoint(x: 16, y: size.height * 0.90))
-                    path.addCurve(
-                        to: CGPoint(x: size.width - 98, y: size.height * 0.84),
-                        control1: CGPoint(x: size.width * 0.30, y: size.height * 0.76),
-                        control2: CGPoint(x: size.width * 0.52, y: size.height * 0.95)
-                    )
-                    ctx.stroke(
-                        path,
-                        with: .color((dark ? Color.white : Color(hex: 0xFFF9EE)).opacity(0.75)),
-                        style: StrokeStyle(lineWidth: 2, lineCap: .round, dash: [5, 5])
-                    )
-                }
-                .allowsHitTesting(false)
-
-                headerLayout {
-                    HStack(spacing: 8) {
-                        IconTile(symbol: land.symbol, color: land.crayon, size: 24, round: true)
-
-                        VStack(alignment: .leading, spacing: 2) {
-                            HStack(spacing: 6) {
-                                Text(land.name)
-                                    .font(.subheadline.weight(.bold))
-                                    .foregroundStyle(.primary)
-                                    .fixedSize(horizontal: false, vertical: true)
-
-                                Text(land.years)
-                                    .font(.caption2.weight(.semibold))
-                                    .foregroundStyle(Palette.secondaryText)
-                            }
-                        }
-                    }
-
-                    if !type.isAccessibilitySize {
-                        Spacer(minLength: 4)
-                    }
-
-                    HStack(spacing: 8) {
-                        Text(countLabel)
-                            .font(.caption2.weight(.bold))
-                            .monospacedDigit()
-                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3)
-                            .background(
-                                Capsule().fill(dark ? Palette.lampCard.opacity(0.90) : Color.white.opacity(0.90))
-                            )
-
-                        let bannerMonth = landCoverMonth(for: land)
-                        LivingMonthCoverStage(
-                            month: bannerMonth,
-                            dark: dark,
-                            posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
-                            interactive: false,
-                            compact: true
-                        )
-                        .frame(width: 52, height: 39)
-                        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                .strokeBorder(Palette.outline.opacity(0.24), lineWidth: 0.75)
-                        )
-                        .accessibilityHidden(true)
-
-                        Image(systemName: "chevron.down")
-                            .font(.caption2.weight(.bold))
-                            .foregroundStyle(dark ? land.crayon : Crayon.ink(land.crayon))
-                            .frame(width: 24, height: 24)
-                            .background(
-                                Circle().fill(dark ? Palette.lampCard.opacity(0.88) : Color.white.opacity(0.88))
-                            )
-                            .rotationEffect(.degrees(open ? 180 : 0))
+                        Text(land.years)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
                     }
                 }
-                .padding(.horizontal, 11)
-                .padding(.vertical, 6)
+
+                if !type.isAccessibilitySize {
+                    Spacer(minLength: 4)
+                }
+
+                HStack(spacing: 10) {
+                    Text(countLabel)
+                        .font(.footnote.weight(.semibold))
+                        .monospacedDigit()
+                        .foregroundStyle(Palette.secondaryText)
+
+                    let bannerMonth = landCoverMonth(for: land)
+                    LivingMonthCoverStage(
+                        month: bannerMonth,
+                        dark: dark,
+                        posterPhase: LivingMonthCoverCatalog.script(for: bannerMonth).posterPhase,
+                        interactive: false,
+                        compact: true
+                    )
+                    .frame(width: 52, height: 39)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8, style: .continuous)
+                            .strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5)
+                    )
+                    .accessibilityHidden(true)
+
+                    Image(systemName: "chevron.down")
+                        .font(Typeface.label(11, relativeTo: .caption2, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .rotationEffect(.degrees(open ? 180 : 0))
+                }
             }
-            .frame(minHeight: 54)
-            .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                    .strokeBorder(
-                        land.crayon.opacity(dark ? 0.45 : 0.34),
-                        style: StrokeStyle(lineWidth: 1.2, dash: [6, 4])
-                    )
-            )
+            .padding(.horizontal, 14)
+            .padding(.vertical, 11)
+            .frame(minHeight: 60)
+            .printCard(radius: Radius.card)
         } content: {
             VStack(spacing: 0) {
                 Text(landTagline(for: land))

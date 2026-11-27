@@ -515,15 +515,14 @@ private struct PlayLivingHeroCard: View {
 
                 Group {
                     if type.isAccessibilitySize {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 10) {
                             completeButton(fullWidth: true)
                             autoPlayButton(fullWidth: true)
                         }
                     } else {
-                        HStack(spacing: 8) {
-                            autoPlayButton(fullWidth: false)
-                            Spacer(minLength: 4)
-                            completeButton(fullWidth: false)
+                        HStack(spacing: 10) {
+                            autoPlayButton(fullWidth: true)
+                            completeButton(fullWidth: true)
                         }
                     }
                 }
@@ -539,21 +538,20 @@ private struct PlayLivingHeroCard: View {
                 isAutoPlaying ? L10n.t("暂停连播", "Pause Story") : L10n.t("连播全步", "Play Story"),
                 systemImage: isAutoPlaying ? "pause.fill" : "play.fill"
             )
-            .font(.subheadline.weight(.semibold))
-            .frame(maxWidth: fullWidth ? .infinity : nil)
+            .lineLimit(1)
+            .minimumScaleFactor(0.84)
         }
-        .buttonStyle(.vinyl(Crayon.caramel))
+        .buttonStyle(.ds(isAutoPlaying ? .tinted(Crayon.caramel) : .secondary, fullWidth: fullWidth, height: 48))
         .accessibilityLabel(isAutoPlaying ? L10n.t("暂停连播全步动画", "Pause story playback") : L10n.t("连播全部步骤动画", "Play all steps continuously"))
     }
 
     private func completeButton(fullWidth: Bool) -> some View {
         Button(action: onComplete) {
             Label(L10n.t("完成并盖印", "Done & Stamp"), systemImage: "checkmark.seal.fill")
-                .font(.subheadline.weight(.semibold))
-                .padding(.horizontal, 4)
-                .frame(maxWidth: fullWidth ? .infinity : nil)
+                .lineLimit(1)
+                .minimumScaleFactor(0.84)
         }
-        .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+        .buttonStyle(.ds(.primary, fullWidth: fullWidth, height: 48))
     }
 }
 
@@ -572,14 +570,14 @@ private struct CompactStepOutlineRow: View {
             HStack(spacing: 12) {
                 StepCircleBadge(number: n, done: done)
 
-                VStack(alignment: .leading, spacing: 2) {
+                VStack(alignment: .leading, spacing: 3) {
                     if active {
                         Text(L10n.t("正在看这一步", "Current Step"))
-                            .font(.caption2.weight(.bold))
+                            .font(.caption.weight(.semibold))
                             .foregroundStyle(Palette.accent)
                     }
                     Text(text)
-                        .font(.subheadline.weight(active ? .semibold : .medium))
+                        .font(.subheadline.weight(active ? .semibold : .regular))
                         .foregroundStyle(done ? Palette.secondaryText : .primary)
                         .lineLimit(active ? 3 : 2)
                         .multilineTextAlignment(.leading)
@@ -588,21 +586,28 @@ private struct CompactStepOutlineRow: View {
                 Spacer(minLength: 4)
 
                 Image(systemName: active ? "play.circle.fill" : "chevron.right")
-                    .font(.caption.weight(.bold))
+                    .font(Typeface.label(12, relativeTo: .caption, weight: .semibold))
                     .foregroundStyle(active ? Palette.accent : Palette.secondaryText.opacity(0.45))
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 10)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .frame(minHeight: 56)
             .contentShape(Rectangle())
         }
         .buttonStyle(.toy)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .fill(active ? Palette.accent.opacity(dark ? 0.16 : 0.08) : (dark ? Palette.lampCard : Palette.card))
-        )
+        .background {
+            ZStack {
+                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                    .fill(dark ? Palette.lampCard : Palette.card)
+                if active {
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(Palette.accent.opacity(dark ? 0.14 : 0.06))
+                }
+            }
+        }
         .overlay(
             RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                .strokeBorder(active ? Palette.accent.opacity(0.45) : Palette.outline.opacity(0.20), lineWidth: active ? 1.3 : 0.75)
+                .strokeBorder(active ? Palette.accent.opacity(0.45) : DS.Surface.hairline(dark: dark), lineWidth: active ? 1.2 : 0.5)
         )
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.t("第 \(n) 步，\(text)", "Step \(n), \(text)"))
@@ -1111,17 +1116,14 @@ private struct StorybookSpineScrubber: View {
                 Spacer(minLength: 4)
 
                 if let onReplay {
-                    Button(action: onReplay) {
-                        Image(systemName: "arrow.counterclockwise")
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(dark ? Palette.amber : Crayon.ink(Crayon.caramel))
-                            .frame(width: 30, height: 30)
-                            .background(Circle().fill(Crayon.caramel.opacity(dark ? 0.24 : 0.14)))
-                            .overlay(Circle().strokeBorder(Crayon.caramel.opacity(dark ? 0.36 : 0.28), lineWidth: 0.75))
-                            .contentShape(Circle().inset(by: -6))
-                    }
-                    .buttonStyle(.toy)
-                    .accessibilityLabel(L10n.t("重播这一步示范动画", "Replay this step animation"))
+                    DSIconButton(
+                        symbol: "arrow.counterclockwise",
+                        accessibilityLabel: L10n.t("重播这一步示范动画", "Replay this step animation"),
+                        visualSize: 32,
+                        dark: dark,
+                        tint: Palette.accent,
+                        action: onReplay
+                    )
                 }
             }
         }
@@ -1242,35 +1244,36 @@ private struct PlayHeader: View {
     let onLog: () -> Void
     let onMatMode: () -> Void
 
+    @Environment(\.colorScheme) private var scheme
+    @Environment(\.lamp) private var lamp
+
     var body: some View {
         let key: String = Palette.areaKey(of: play)
+        let dark = lamp || scheme == .dark
         VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .center, spacing: 10) {
-                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 34)
+                IconTile(symbol: Palette.areaSymbol(key), color: Palette.area(key), size: 32)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(play.domains.joined(separator: L10n.isEnglish ? " · " : "、"))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(Palette.areaInk(key))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(dark ? Palette.area(key).mix(with: .white, by: 0.25) : Palette.areaInk(key))
                     Text(play.age)
-                        .font(.caption)
+                        .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer(minLength: 4)
                 Button(action: onMatMode) {
                     Label(L10n.t("垫旁共玩", "Mat Mode"), systemImage: "rectangle.inset.filled.and.person.filled")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Palette.areaInk(key))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Palette.area(key).opacity(0.16)))
+                        .dsPill(.secondary, height: 34)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("进入垫旁共玩全屏卡片", "Enter distraction-free Mat Mode"))
             }
 
             Text(play.name)
-                .font(.largeTitle.weight(.bold))
+                .font(.title.weight(.bold))
+                .tracking(-0.4)
                 .fixedSize(horizontal: false, vertical: true)
 
             HStack {
@@ -1278,14 +1281,15 @@ private struct PlayHeader: View {
                 Spacer(minLength: 8)
                 Button(action: onLog) {
                     Label(L10n.t("记一次", "Log Play"), systemImage: "plus")
+                        .font(.footnote.weight(.semibold))
                 }
-                .buttonStyle(.vinyl)
+                .buttonStyle(.ds(.tinted(Palette.accent), height: 36))
                 .overlay { BeadBurst(trigger: cheer) }
                 .accessibilityLabel(L10n.t("玩过了，记一次", "Log one play session"))
             }
         }
-        .padding(.horizontal, 4)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 2)
+        .padding(.bottom, 4)
     }
 }
 

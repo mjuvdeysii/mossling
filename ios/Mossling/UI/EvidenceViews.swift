@@ -330,34 +330,42 @@ struct LampCardSpotlightCard: View {
                 Spacer(minLength: 4)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text(L10n.t("此时可以对宝宝说：", "You can say aloud:"))
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Palette.secondaryText)
-                Text("“\(card.sayAloud)”")
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.primary)
-                    .fixedSize(horizontal: false, vertical: true)
+            HStack(alignment: .top, spacing: 10) {
+                RoundedRectangle(cornerRadius: 2, style: .continuous)
+                    .fill(Palette.bead)
+                    .frame(width: 3)
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.t("此时可以对宝宝说", "You can say aloud"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Palette.secondaryText)
+                    Text("“\(card.sayAloud)”")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.primary)
+                        .lineSpacing(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            .padding(10)
+            .padding(12)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
-                    .fill(Crayon.sunflower.opacity(dark ? 0.16 : 0.10))
+                    .fill(DS.Surface.inset(dark: dark))
             )
 
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "hand.point.up.left.fill")
                     .font(.caption.weight(.bold))
-                    .foregroundStyle(Crayon.ink(Crayon.teal))
+                    .foregroundStyle(Palette.accent)
                     .padding(.top, 2)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L10n.t("手边微动作", "Micro-Action"))
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(Crayon.ink(Crayon.teal))
+                        .foregroundStyle(Palette.accent)
                     Text(card.microAction)
                         .font(.footnote)
                         .foregroundStyle(.primary)
+                        .lineSpacing(2)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -371,34 +379,20 @@ struct LampCardSpotlightCard: View {
                         reader.isSpeaking ? L10n.t("停止朗读", "Stop Voice") : L10n.t("读给我听", "Read Aloud"),
                         systemImage: reader.isSpeaking ? "stop.circle.fill" : "speaker.wave.2.fill"
                     )
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(Crayon.ink(Crayon.sky))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Capsule().fill(Crayon.sky.opacity(dark ? 0.18 : 0.12)))
+                    .dsPill(.secondary)
                 }
                 .buttonStyle(.toy)
 
                 if let h5URL {
                     ShareLink(item: h5URL, message: Text(card.shareMessage())) {
                         Label(L10n.t("发给家人 H5", "Family Card"), systemImage: "square.and.arrow.up")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Crayon.ink(Crayon.caramel))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .frame(minHeight: 44)
-                            .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.18 : 0.12)))
+                            .dsPill(.secondary)
                     }
                     .accessibilityLabel(L10n.t("生成零流量长辈卡发给家人", "Share grandparent H5 card"))
                 } else {
                     ShareLink(item: card.shareMessage()) {
                         Label(L10n.t("发给家人", "Share with Family"), systemImage: "square.and.arrow.up")
-                            .font(.caption.weight(.semibold))
-                            .foregroundStyle(Crayon.ink(Crayon.caramel))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .frame(minHeight: 44)
-                            .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.18 : 0.12)))
+                            .dsPill(.secondary)
                     }
                 }
 
@@ -407,11 +401,7 @@ struct LampCardSpotlightCard: View {
                     showDetail = true
                 } label: {
                     Label(L10n.t("L2/L3 共情与循证", "Why & Sources"), systemImage: "book.pages.fill")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Palette.accentFill))
+                        .dsPill(.tinted(Palette.accent))
                 }
                 .buttonStyle(.toy)
             }

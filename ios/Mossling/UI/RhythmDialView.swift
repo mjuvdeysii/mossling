@@ -14,6 +14,14 @@ struct RenderedPoster: Transferable {
     }
 }
 
+/// Selectable day window for the 24-hour rhythm dial.
+private enum RhythmSpan: Int, CaseIterable, Identifiable {
+    case week = 7
+    case fortnight = 14
+    var id: Int { rawValue }
+    var title: String { L10n.t("\(rawValue)天", "\(rawValue)d") }
+}
+
 /// Which layer of daily life is highlighted on the 24-hour circadian dial.
 enum RhythmFilter: String, CaseIterable, Identifiable {
     case all, sleep, feeds, play
@@ -257,25 +265,24 @@ struct RhythmDialCard: View {
         }
 
         VStack(alignment: .leading, spacing: 14) {
-            // Card Header + 7d / 14d toggle + Heirloom Print ShareLink
+            // Card Header + Segmented 7d/14d Toggle + Share Button
             HStack(alignment: .center, spacing: 8) {
-                HStack(spacing: 6) {
-                    GoldBead(size: 9)
-                    Text(L10n.t("昼夜节律盘", "24h Rhythm Dial"))
-                        .font(.subheadline.weight(.bold))
-                        .foregroundStyle(.primary)
-                }
+                Text(L10n.t("昼夜节律盘", "24h Rhythm Dial"))
+                    .font(DS.TypeScale.cardTitle)
+                    .foregroundStyle(.primary)
                 Spacer(minLength: 4)
-                spanPicker
+                spanPicker(dark: dark)
                 ShareLink(
                     item: exportItem,
                     preview: SharePreview(L10n.t("摸索台灯 · 昼夜节律印画", "Moss & Otto · Rhythm Print"))
                 ) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.caption.weight(.bold))
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(Palette.accent)
-                        .frame(width: 30, height: 30)
-                        .background(Circle().fill(Palette.accent.opacity(dark ? 0.2 : 0.12)))
+                        .frame(width: 32, height: 32)
+                        .background(Circle().fill(DS.Surface.inset(dark: dark)))
+                        .overlay(Circle().strokeBorder(DS.Surface.hairline(dark: dark), lineWidth: 0.5))
+                        .hitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("分享昼夜节律印画", "Share Rhythm Print"))
@@ -330,49 +337,30 @@ struct RhythmDialCard: View {
                 }
             }
 
-            // Filter pills (All / Sleep / Feeds / Play)
-            HStack(spacing: 6) {
-                ForEach(RhythmFilter.allCases) { f in
-                    let on = filter == f
-                    let chipTint = f == .all ? Crayon.teal : f.tint
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(reduce ? nil : .snappy) { filter = f }
-                    } label: {
-                        HStack(spacing: 4) {
-                            if f != .all {
-                                Circle().fill(on ? Color.white : f.tint).frame(width: 6, height: 6)
-                            }
-                            Text(f.label)
-                                .font(.caption.weight(on ? .bold : .semibold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .foregroundStyle(on ? .white : Palette.secondaryText)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 7)
-                        .vinylSurface(on ? Crayon.fill(chipTint, lamp) : Palette.stone, radius: Radius.chip, strong: on)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
+            // Segmented Filter Bar (All / Sleep / Feeds / Play)
+            DSSegmentedControl(
+                items: RhythmFilter.allCases,
+                selection: $filter,
+                dark: dark,
+                title: { $0.label },
+                dotColor: { $0 == .all ? nil : $0.tint }
+            )
 
-            // Quiet factual summary strip (strictly observed averages, zero predictions)
-            let chips = summaryChips(model.summary)
-            if !chips.isEmpty {
-                FlowRow(spacing: 6, lineSpacing: 6) {
-                    ForEach(Array(chips.enumerated()), id: \.offset) { _, chip in
-                        HStack(spacing: 5) {
-                            Circle().fill(chip.color).frame(width: 6, height: 6)
-                            Text(chip.text)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(dark ? Palette.lampInk : Crayon.ink(chip.color))
-                                .monospacedDigit()
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(chip.color.opacity(dark ? 0.20 : 0.12)))
+            // Uniform 2x2 Editorial Metrics Grid (zero ragged multi-color pill wrapping)
+            let metrics = summaryMetrics(model.summary)
+            if !metrics.isEmpty {
+                LazyVGrid(
+                    columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                    spacing: 8
+                ) {
+                    ForEach(Array(metrics.enumerated()), id: \.offset) { _, m in
+                        DSMetricCell(
+                            label: m.label,
+                            value: m.value,
+                            unit: m.unit,
+                            accent: m.color,
+                            dark: dark
+                        )
                     }
                 }
             }
@@ -380,7 +368,7 @@ struct RhythmDialCard: View {
             // Quiet legend + ring orientation hint
             if model.totalLogs == 0 {
                 Text(L10n.t("记下几天睡眠与喂奶后，宝宝自己的昼夜节律会一圈一圈浮现出来。", "After a few days of sleep and feed logs, your baby's natural rhythm appears ring by ring."))
-                    .font(.caption)
+                    .font(.footnote)
                     .foregroundStyle(Palette.secondaryText)
                     .fixedSize(horizontal: false, vertical: true)
             } else {
@@ -390,7 +378,7 @@ struct RhythmDialCard: View {
                     legendDot(LogType.color(LogType.play), L10n.t("玩耍", "Play"))
                     Spacer(minLength: 4)
                     Text(L10n.t("外圈是今天", "Outer = Today"))
-                        .font(.caption2.weight(.medium))
+                        .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
                 }
             }
@@ -399,42 +387,34 @@ struct RhythmDialCard: View {
         .printCard(radius: Radius.card)
     }
 
-    private func summaryChips(_ s: RhythmDialModel.RhythmSummary) -> [(text: String, color: Color)] {
-        var out: [(String, Color)] = []
+    private func summaryMetrics(_ s: RhythmDialModel.RhythmSummary) -> [(label: String, value: String, unit: String, color: Color)] {
+        var out: [(String, String, String, Color)] = []
         if let hrs = s.avgSleepHours {
-            out.append((L10n.t("日均睡 \(String(format: "%.1f", hrs))h", "Sleep \(String(format: "%.1f", hrs))h/d"), LogType.color(LogType.sleep)))
+            out.append((L10n.t("日均睡眠", "Avg Sleep"), String(format: "%.1f", hrs), "h", LogType.color(LogType.sleep)))
         }
         if let longest = s.longestSleepHours {
-            out.append((L10n.t("最长一觉 \(String(format: "%.1f", longest))h", "Longest \(String(format: "%.1f", longest))h"), Crayon.sky))
+            out.append((L10n.t("最长一觉", "Longest"), String(format: "%.1f", longest), "h", Crayon.sky))
         }
         if let feeds = s.avgFeedsPerDay {
-            out.append((L10n.t("日均喂 \(String(format: "%.1f", feeds)) 次", "\(String(format: "%.1f", feeds)) feeds/d"), LogType.color(LogType.nurse)))
+            out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.1f", feeds), L10n.t("次", "/d"), LogType.color(LogType.nurse)))
         }
         if let bed = s.typicalBedtimeHour {
-            out.append((L10n.t("常约 \(String(format: "%02d:00", bed)) 入睡", "Bed ~\(String(format: "%02d:00", bed))"), Palette.amberDeep))
+            out.append((L10n.t("常约入睡", "Bedtime"), String(format: "%02d:00", bed), "", Palette.amberDeep))
         }
         return out
     }
 
-    private var spanPicker: some View {
-        HStack(spacing: 4) {
-            ForEach([7, 14], id: \.self) { days in
-                let on = spanDays == days
-                Button {
-                    TactileEngine.shared.beadClick()
-                    withAnimation(reduce ? nil : .snappy) { spanDays = days }
-                } label: {
-                    Text(L10n.t("\(days)天", "\(days)d"))
-                        .font(.caption2.weight(on ? .bold : .semibold))
-                        .foregroundStyle(on ? .white : Palette.secondaryText)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
-                        .vinylSurface(on ? Crayon.fill(Crayon.teal, lamp) : Palette.stone, radius: Radius.chip, strong: on)
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(on ? .isSelected : [])
-            }
-        }
+    private func spanPicker(dark: Bool) -> some View {
+        DSSegmentedControl(
+            items: RhythmSpan.allCases,
+            selection: Binding(
+                get: { RhythmSpan(rawValue: spanDays) ?? .week },
+                set: { spanDays = $0.rawValue }
+            ),
+            dark: dark,
+            compact: true,
+            title: { $0.title }
+        )
     }
 
     @ViewBuilder

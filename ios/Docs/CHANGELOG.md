@@ -3,6 +3,13 @@
 ## 2.0
 面向 0–3 岁家庭的年度旗舰版本：首页「三层光晕」空间体验、Otto 金色灯珠下拉物理交互与水彩晕染切换 3D/2D、真绘本分步动态图解与完工金珠火漆纪念卡、全站 0 Emoji 植物学百味食盒、纵向「串珠旅程」、四工坊桌面感官玩具盒与护耳音量保护、StandBy 夜间信标、Siri 与控制中心捷径，全程纯离线、完整中英双语。
 
+- **Batch 34（Codified Apple HIG 设计系统 `DS` 与全站可见视觉重构）**：
+  - **建立唯一设计系统规范（`DesignSystem.swift` + `Theme.swift`）**：沉淀 `DS` 色彩材质（全不透明洁白卡片 + 克制暖米灰画布 + 弱化底部草地与顶拱洗色、克制 0.5pt 发丝线与柔和阴影）、5 级字体层级、`DSButtonStyle`（Primary / Secondary / Tinted 三层权重）、`DSSegmentedControl` 原生分段轨道、`DSMetricCell` 等高数据格、`DSIconButton`（34pt 视觉配 44pt+ 点击热区）与 `DSFilterChip`；`Typeface.numerals` 同步兜底 `11pt` 可读底线，`SectionTitle` 左对齐卡片网格线。
+  - **全站界面可见级去噪与对齐重塑**：
+    - `TodayView` / `EvidenceViews`：去除探索问候卡、感官发现双砖及每周其他活动上的彩底渐变套娃与负边距按钮黑科技，改用苹果健康式等宽图文行、洁净白卡与克制次级胶囊；
+    - `PlayView`：彻底修复 `CompactStepOutlineRow` 透明底渗花草错觉，将「连播全步 / 完成并盖印」规范为等高等宽主次分栏双按钮，并精简头部与重播按钮热区；
+    - `LampHubView` / `RhythmDialView`：等高锁定三列汇总砖（`喂奶 / 睡眠 / 尿布`）、统一 `44pt` 中性导航与轻记按钮组，夜灯六声景重排为齐整 `3×2` 网格、暖色切换升级 `DSSegmentedControl`；节律盘清除 12 枚杂乱彩囊，替换为分段切换器与 `2×2` 等宽数据格；
+    - `JourneyHubView` / `FoodAtlasView` / `ToyboxView` / `YouView` / `BedsideLampView` / `StorybookView`：2×2 留念格与三大区域横幅全面回归洁白画册卡片并统一月龄基准字号；百味食盒清零 6 枚微胶囊并弱化彩框噪音；木琴底部规范为主次双钮并与外观/语言分段器、夜灯 44pt 盲操热区及绘本 2×2 指标格全线对齐，新增单测 `testBatch34DesignSystemAndVisualHierarchy()`。
 - **Batch 33（字体字号、间距、按钮热区与双端布局全面精修）**：
   - **系统级排版与触控热区规范升级（`Theme.swift` + `Components.swift`）**：扩展 `LayoutSpec`（新增 `hitMin = 44pt`、`ctaPrimaryHeight = 52pt`、`ctaSecondaryHeight = 44pt`、`rowPadH/V`、`pillPadH/V`、`sheetH`）与 `Typeface.label(_:relativeTo:weight:)` 11pt 可读性底线；新增 `.hitTarget()` / `.pillHitTarget()` 无损热区扩展修饰器，为 `SectionTitle` 应用 `-0.4` 字距收敛，并将 `Card`、`VinylButton`、`BoxRow`、`CheckRow`、`TableBlock` 分龄胶囊与 `CalmDisclosureNote` 全面拉齐至苹果人机交互 44pt+ / 52pt 标准。
   - **全站实时界面清零 `<11pt` 微小字号与低矮热区**：全面翻新夜灯全屏舱（`BedsideLampView`）、今日首页（`TodayView`）、共玩剧场（`PlayView`）、壁纸画室（`ActivityWallpaperStudio`）、感官玩具盒与黑白视卡全屏模式（`ToyboxView`）、百味食盒（`FoodAtlasView`）、第一次里程碑（`Firsts`）、37 站旅程（`JourneyHubView`）、成长月度页（`GrowthMap`）、成长绘本（`StorybookView`）、照护台灯中枢（`LampHubView`、`DailyRhythmStudio`、`RhythmDialView`）及科学依据与个人页（`EditorialViews`、`YouView`），全部可交互界面彻底清零 `<11pt` 固定小字并补齐 `44pt+` 点击区域。

@@ -38,7 +38,7 @@ enum Palette {
     static let accentFill = Color(hex: 0x0B7D74)
     /// Paper: the warm white of the picture book's pages (a warm charcoal in dark mode).
     // dark is the lamp (build 160: one dark appearance, Otto's — deep blue, amber light), wherever it shows
-    static let background = Color.dyn(0xF6F7F9, 0x0E1430)
+    static let background = Color.dyn(0xF5F4F0, 0x0E1430)
     static let card = Color.dyn(0xFFFFFF, 0x19213F)
     static let fill = Color.dyn(0xEDEFF3, 0x212A4C)
     static let text = Color.primary
@@ -104,11 +104,12 @@ enum Typeface {
                                                                   (.callout, 16), (.subheadline, 15), (.footnote, 13), (.caption, 12), (.caption2, 11)]
     static func numerals(_ size: CGFloat, relativeTo style: Font.TextStyle = .body, weight: Font.Weight = .semibold) -> Font {
         // a size that is a text style's own is that text style — fully Dynamic Type, as the accessibility audit and
-        // VoiceOver's large content expect; display sizes in between scale with the given style
-        if let match = styleSizes.first(where: { $0.0 == style && $0.1 == size }) ?? styleSizes.first(where: { $0.1 == size }) {
+        // VoiceOver's large content expect; display sizes in between scale with the given style (minimum 11pt HIG floor)
+        let floored = max(11, size)
+        if let match = styleSizes.first(where: { $0.0 == style && $0.1 == floored }) ?? styleSizes.first(where: { $0.1 == floored }) {
             return .system(match.0, design: .rounded, weight: weight).monospacedDigit()
         }
-        return .system(size: scaled(size, style), weight: weight, design: .rounded).monospacedDigit()
+        return .system(size: scaled(floored, style), weight: weight, design: .rounded).monospacedDigit()
     }
 
     /// Dynamic-type rounded label font enforcing an 11pt optical floor across all live interactive controls.
@@ -392,7 +393,7 @@ private struct TabCanopyArc: View {
             ctx.fill(
                 Path(CGRect(x: 0, y: 0, width: size.width, height: h)),
                 with: .linearGradient(
-                    Gradient(colors: [pair.0.opacity(0.75), pair.1.opacity(0.32), .clear]),
+                    Gradient(colors: [pair.0.opacity(0.26), pair.1.opacity(0.12), .clear]),
                     startPoint: .zero,
                     endPoint: CGPoint(x: 0, y: h)
                 )
@@ -406,7 +407,7 @@ private struct TabCanopyArc: View {
                 control: CGPoint(x: size.width * 0.42, y: h * 0.96)
             )
             backArc.closeSubpath()
-            ctx.fill(backArc, with: .color(pair.0.opacity(0.45)))
+            ctx.fill(backArc, with: .color(pair.0.opacity(0.16)))
 
             var frontArc = Path()
             frontArc.move(to: CGPoint(x: size.width, y: 0))
@@ -417,7 +418,7 @@ private struct TabCanopyArc: View {
             )
             frontArc.addLine(to: .zero)
             frontArc.closeSubpath()
-            ctx.fill(frontArc, with: .color(pair.1.opacity(0.55)))
+            ctx.fill(frontArc, with: .color(pair.1.opacity(0.18)))
         }
         .allowsHitTesting(false)
     }
@@ -436,8 +437,8 @@ struct PaperPools: View {
             ]
             for (c, r, col, seed) in pools {
                 let blob = Wash.blob(c, r, seed: seed, wobble: 0.09)
-                ctx.fill(blob, with: .radialGradient(Gradient(colors: [col.opacity(0.03), col.opacity(0.07)]), center: c, startRadius: 0, endRadius: r))
-                ctx.stroke(blob, with: .color(col.opacity(0.11)), lineWidth: 1.2)
+                ctx.fill(blob, with: .radialGradient(Gradient(colors: [col.opacity(0.015), col.opacity(0.035)]), center: c, startRadius: 0, endRadius: r))
+                ctx.stroke(blob, with: .color(col.opacity(0.045)), lineWidth: 1.0)
             }
         }
         .allowsHitTesting(false)
@@ -461,10 +462,9 @@ struct DayAir: View {
             // the sun, its hill and flowers: drawn once and flattened into one cached Metal texture
             ZStack {
                 Canvas { ctx, size in sunDisc(&ctx, size) }
-                // the meadow at the foot of the page: low and quiet, so text that reaches the bottom of a short page stays
-                // easy to read over it
+                // the meadow at the foot of the page: whisper-quiet so cards and text above stay crisp and legible
                 Canvas { ctx, size in meadow(&ctx, size, 0) }
-                    .opacity(0.4).offset(y: 28 * scale)
+                    .opacity(0.15).offset(y: 36 * scale)
             }
             .drawingGroup()
             // the beams breathe as one slow change of opacity, run by the system compositor, not redrawn
@@ -709,7 +709,7 @@ struct ValueText: View {
     }
 }
 
-/// A heading between cards on a scrolling page.
+/// A flush-left Apple-HIG section heading between cards on a scrolling page.
 struct SectionTitle: View {
     @Environment(\.dynamicTypeSize) private var type
     let title: String
@@ -718,31 +718,34 @@ struct SectionTitle: View {
         Group {
             if type.isAccessibilitySize {
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                        // every section starts at a golden bead, the same bead as the counts and the growth chain
-                        GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                        Text(title).font(.title3.weight(.bold)).tracking(LayoutSpec.sectionTracking).fixedSize(horizontal: false, vertical: true)
-                    }
+                    Text(title)
+                        .font(.title3.weight(.bold))
+                        .tracking(LayoutSpec.sectionTracking)
+                        .fixedSize(horizontal: false, vertical: true)
                     if let detail {
                         Text(detail)
                             .font(.footnote)
                             .foregroundStyle(Palette.secondaryText)
                             .fixedSize(horizontal: false, vertical: true)
-                            .padding(.leading, 18)
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    // every section starts at a golden bead, the same bead as the counts and the growth chain
-                    GoldBead(size: 10).alignmentGuide(.firstTextBaseline) { $0[VerticalAlignment.center] + 5 }
-                    Text(title).font(.title3.weight(.bold)).tracking(LayoutSpec.sectionTracking)
+                    Text(title)
+                        .font(.title3.weight(.bold))
+                        .tracking(LayoutSpec.sectionTracking)
                     Spacer()
-                    if let detail { Text(detail).font(.footnote).foregroundStyle(Palette.secondaryText) }
+                    if let detail {
+                        Text(detail)
+                            .font(.footnote)
+                            .foregroundStyle(Palette.secondaryText)
+                    }
                 }
             }
         }
-        .padding(.horizontal, 4).padding(.top, 20)
+        .padding(.horizontal, 2)
+        .padding(.top, 16)
         .accessibilityAddTraits(.isHeader)
     }
 }
@@ -784,33 +787,33 @@ struct PrintCard: ViewModifier {
         let base = lamp ? Palette.lampCard : fill
         if ArtStyle.current == .flat || Perf.plainCards {
             content
-                .background { ZStack { base; Grain(dark: dark, strength: 0.25) }.clipShape(shape) }
+                .background { ZStack { base; Grain(dark: dark, strength: 0.05) }.clipShape(shape) }
                 .clipShape(shape)
                 .overlay {
                     shape.strokeBorder(dark ? .white.opacity(0.08) : Color.black.opacity(0.055), lineWidth: 0.5)
                         .allowsHitTesting(false)
                 }
-                .shadow(color: dark ? .clear : Color.black.opacity(0.065), radius: 16, y: 6)
+                .shadow(color: dark ? .clear : Color.black.opacity(0.045), radius: 10, y: 3)
         } else {
         content
             .background {
                 ZStack {
                     base
                     LinearGradient(
-                        colors: [.white.opacity(dark ? 0.03 : 0.10), .clear],
+                        colors: [.white.opacity(dark ? 0.025 : 0.06), .clear],
                         startPoint: .top, endPoint: .bottom
                     )
-                    Grain(dark: dark, strength: 0.25)
+                    Grain(dark: dark, strength: 0.05)
                 }
             }
             .clipShape(shape)
             .background {
                 shape.fill(base)
-                    .shadow(color: dark ? .black.opacity(0.24) : Color.black.opacity(0.065), radius: 16, y: 6)
+                    .shadow(color: dark ? .black.opacity(0.22) : Color.black.opacity(0.045), radius: 10, y: 3)
             }
             .overlay {
                 shape.strokeBorder(
-                    dark ? Palette.amber.opacity(0.16) : Color.black.opacity(0.055),
+                    dark ? .white.opacity(0.08) : Color.black.opacity(0.055),
                     lineWidth: 0.5
                 )
                 .allowsHitTesting(false)

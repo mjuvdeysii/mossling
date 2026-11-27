@@ -214,17 +214,17 @@ struct FoodAtlasView: View {
                         .font(Typeface.numerals(23, relativeTo: .title2, weight: .bold))
                         .foregroundStyle(.primary)
                     Text("/ \(FoodItem.catalog.count)")
-                        .font(Typeface.numerals(10, relativeTo: .caption2, weight: .semibold))
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .medium))
                         .foregroundStyle(Palette.secondaryText)
                 }
             }
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(wreathAccessibilityLabel)
 
-            VStack(alignment: .leading, spacing: 5) {
+            VStack(alignment: .leading, spacing: 6) {
                 HStack(spacing: 6) {
                     Text(L10n.t("初尝人间百味", "Tasting the Table"))
-                        .font(.headline)
+                        .font(DS.TypeScale.cardTitle)
                         .foregroundStyle(.primary)
                     Spacer(minLength: 0)
                     Button {
@@ -244,6 +244,7 @@ struct FoodAtlasView: View {
                         )
                         .frame(width: 34, height: 34)
                         .overlay { MintLeafBurst(trigger: leafBurstTrigger) }
+                        .hitTarget(LayoutSpec.hitMin)
                     }
                     .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("摸一摸 Moss，轻点三次会飘出嫩芽", "Tap Moss gently — three taps drift out mint leaves"))
@@ -254,64 +255,35 @@ struct FoodAtlasView: View {
                         ? L10n.t("轻点任意食材原地盖章。", "Tap any food below to quick-stamp.")
                         : L10n.t("已尝 \(store.tastedCount) 种 · \(store.lovedCount) 种很喜欢。", "\(store.tastedCount) explored · \(store.lovedCount) loved.")
                 )
-                .font(.caption)
+                .font(DS.TypeScale.meta)
                 .foregroundStyle(Palette.secondaryText)
                 .fixedSize(horizontal: false, vertical: true)
 
-                // Self-explanatory 6-category icon + count micro-pills
-                let catPills = ForEach(FoodCategory.allCases) { cat in
-                    let c = store.tastedCount(in: cat)
-                    let active = selectedCategory == cat
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(reduce ? nil : .snappy) {
-                            selectedCategory = active ? nil : cat
+                // Sleek 6-segment botanical category progress bar (zero micro-pill clutter)
+                HStack(spacing: 4) {
+                    ForEach(FoodCategory.allCases) { cat in
+                        let done = store.tastedCount(in: cat)
+                        let total = max(1, store.totalCount(in: cat))
+                        let frac = min(1.0, Double(done) / Double(total))
+                        GeometryReader { g in
+                            ZStack(alignment: .leading) {
+                                Capsule()
+                                    .fill(cat.color.opacity(dark ? 0.22 : 0.16))
+                                if done > 0 {
+                                    Capsule()
+                                        .fill(cat.color)
+                                        .frame(width: max(5, g.size.width * frac))
+                                }
+                            }
                         }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: cat.symbol)
-                                .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
-                                .foregroundStyle(dark ? cat.color : Crayon.ink(cat.color))
-                            Text("\(c)")
-                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
-                                .foregroundStyle(active ? Palette.accent : (c > 0 ? .primary : Palette.secondaryText))
-                        }
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule().fill(
-                                active
-                                    ? cat.color.opacity(dark ? 0.28 : 0.20)
-                                    : cat.color.opacity(dark ? 0.12 : 0.10)
-                            )
-                        )
-                        .overlay(
-                            Capsule().strokeBorder(active ? cat.color.opacity(0.65) : .clear, lineWidth: 1)
-                        )
-                        .pillHitTarget()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.t("\(cat.title)，已尝 \(c) / \(store.totalCount(in: cat))", "\(cat.title), \(c) of \(store.totalCount(in: cat)) tasted"))
-                }
-
-                Group {
-                    if type.isAccessibilitySize {
-                        FlowRow(spacing: 5, lineSpacing: 5) { catPills }
-                    } else {
-                        HStack(spacing: 4) { catPills }
+                        .frame(height: 5)
                     }
                 }
-                .padding(.top, 1)
+                .padding(.top, 2)
+                .accessibilityHidden(true)
             }
         }
-        .padding(12)
-        .background(
-            LinearGradient(
-                colors: [Crayon.leaf.opacity(dark ? 0.14 : 0.14), Crayon.sunflower.opacity(dark ? 0.05 : 0.06)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
+        .padding(16)
         .printCard(radius: Radius.card)
     }
 
@@ -357,20 +329,18 @@ struct FoodAtlasView: View {
 
             Spacer(minLength: 4)
 
-            Button {
+            DSIconButton(
+                symbol: "arrow.trianglehead.2.clockwise",
+                accessibilityLabel: L10n.t("换一种推荐食材", "Shuffle next food idea"),
+                visualSize: 34,
+                dark: dark,
+                tint: Palette.secondaryText
+            ) {
                 TactileEngine.shared.beadClick()
                 withAnimation(reduce ? nil : .snappy) {
                     suggestionOffset += 1
                 }
-            } label: {
-                Image(systemName: "arrow.trianglehead.2.clockwise")
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(Palette.secondaryText)
-                    .frame(width: 34, height: 34)
-                    .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill))
             }
-            .buttonStyle(.toy)
-            .accessibilityLabel(L10n.t("换一种推荐食材", "Shuffle next food idea"))
 
             Button {
                 performQuickStamp(food: candidate, reaction: .tasted)
@@ -379,20 +349,11 @@ struct FoodAtlasView: View {
                 }
             } label: {
                 Text(isRetry ? L10n.t("再尝一次", "Retried") : L10n.t("尝到了", "Stamped"))
-                    .font(.caption.weight(.bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 11)
-                    .padding(.vertical, 8)
-                    .background(Capsule().fill(Palette.accentFill))
             }
-            .buttonStyle(.toy)
+            .buttonStyle(.ds(.tinted(Palette.accent), height: 36))
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .fill(color.opacity(dark ? 0.10 : 0.07))
-        )
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .printCard(radius: Radius.card)
     }
 
@@ -402,30 +363,20 @@ struct FoodAtlasView: View {
         let isDrawerMode = selectedCategory == nil && query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         let allCollapsed = collapsedCategories.count == FoodCategory.allCases.count
 
-        return HStack(alignment: .top, spacing: 6) {
-            FlowRow(spacing: 5, lineSpacing: 5) {
+        return HStack(alignment: .center, spacing: 6) {
+            FlowRow(spacing: 6, lineSpacing: 6) {
                 if let activeCat = selectedCategory {
-                    Button {
+                    DSFilterChip(
+                        title: activeCat.title,
+                        selected: true,
+                        dark: dark,
+                        symbol: activeCat.symbol
+                    ) {
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : .snappy) {
                             selectedCategory = nil
                         }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: activeCat.symbol)
-                                .font(.caption2.weight(.bold))
-                            Text(activeCat.title)
-                                .font(.caption.weight(.bold))
-                            Image(systemName: "xmark")
-                                .font(.caption2.weight(.bold))
-                        }
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(Palette.accentFill))
-                        .pillHitTarget()
                     }
-                    .buttonStyle(.plain)
                     .accessibilityLabel(L10n.t("清除分类筛选 \(activeCat.title)", "Clear category filter \(activeCat.title)"))
                 }
 
@@ -437,43 +388,30 @@ struct FoodAtlasView: View {
                     case .tryAgain where store.tryAgainCount > 0: "\(sf.label) \(store.tryAgainCount)"
                     default: sf.label
                     }
-                    Button {
+                    DSFilterChip(title: label, selected: on, dark: dark) {
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : .snappy) {
                             stateFilter = sf
                         }
-                    } label: {
-                        Text(label)
-                            .font(.caption.weight(on ? .bold : .semibold))
-                            .foregroundStyle(on ? Crayon.ink(Palette.accent) : Palette.secondaryText)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(on ? Palette.accent.opacity(dark ? 0.22 : 0.14) : (dark ? Color.white.opacity(0.06) : Palette.fill.opacity(0.8))))
-                            .overlay(Capsule().strokeBorder(on ? Palette.accent.opacity(0.45) : .clear, lineWidth: 0.8))
-                            .pillHitTarget()
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.vertical, 1)
 
             if isDrawerMode {
-                Button {
+                DSIconButton(
+                    symbol: allCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical",
+                    accessibilityLabel: allCollapsed ? L10n.t("展开全部抽屉", "Expand all drawers") : L10n.t("收起全部抽屉", "Collapse all drawers"),
+                    visualSize: 34,
+                    dark: dark,
+                    tint: Palette.secondaryText
+                ) {
                     TactileEngine.shared.beadClick()
                     withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
                         collapsedCategories = allCollapsed ? [] : Set(FoodCategory.allCases)
                     }
-                } label: {
-                    Image(systemName: allCollapsed ? "rectangle.expand.vertical" : "rectangle.compress.vertical")
-                        .font(.caption.weight(.bold))
-                        .foregroundStyle(Palette.secondaryText)
-                        .frame(width: 28, height: 28)
-                        .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill.opacity(0.85)))
                 }
-                .buttonStyle(.toy)
-                .accessibilityLabel(allCollapsed ? L10n.t("展开全部抽屉", "Expand all drawers") : L10n.t("收起全部抽屉", "Collapse all drawers"))
             }
         }
     }
@@ -668,20 +606,18 @@ struct FoodAtlasView: View {
                         .pillHitTarget()
                 }
                 .buttonStyle(.toy)
-                Button {
+                DSIconButton(
+                    symbol: "xmark",
+                    accessibilityLabel: L10n.t("收起快捷盖章栏", "Close quick-stamp dock"),
+                    visualSize: 30,
+                    dark: dark,
+                    tint: Palette.secondaryText
+                ) {
                     TactileEngine.shared.beadClick()
                     withAnimation(reduce ? nil : .snappy) {
                         selectedFoodId = nil
                     }
-                } label: {
-                    Image(systemName: "xmark")
-                        .font(.caption2.weight(.bold))
-                        .foregroundStyle(Palette.secondaryText)
-                        .frame(width: 26, height: 26)
-                        .background(Circle().fill(dark ? Color.white.opacity(0.08) : Palette.fill))
                 }
-                .buttonStyle(.plain)
-                .accessibilityLabel(L10n.t("收起快捷盖章栏", "Close quick-stamp dock"))
             }
 
             HStack(spacing: 8) {
@@ -861,10 +797,10 @@ private struct FoodSpecimenChip: View {
                         Image(systemName: rec.reaction.symbol)
                             .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                             .foregroundStyle(.white)
-                            .frame(width: 17, height: 17)
+                            .frame(width: 16, height: 16)
                             .background(Circle().fill(rec.reaction.color))
-                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.2))
-                            .offset(x: 3, y: -2)
+                            .overlay(Circle().strokeBorder(dark ? Palette.lampCard : .white, lineWidth: 1.5))
+                            .offset(x: 1, y: -1)
                     } else if item.isCommonAllergen {
                         Circle()
                             .fill(Palette.amber)
@@ -875,7 +811,7 @@ private struct FoodSpecimenChip: View {
                 }
 
                 Text(item.name)
-                    .font(.caption.weight(tasted ? .bold : .semibold))
+                    .font(.caption.weight(tasted ? .semibold : .medium))
                     .foregroundStyle(tasted ? .primary : Palette.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -907,20 +843,18 @@ private struct FoodSpecimenChip: View {
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity, minHeight: 76, maxHeight: .infinity, alignment: .top)
             .background(
-                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                     .fill(
                         isSelected
-                            ? catColor.opacity(dark ? 0.22 : 0.14)
-                            : (tasted ? catColor.opacity(dark ? 0.12 : 0.08) : (dark ? Color.white.opacity(0.04) : Palette.background.opacity(0.72)))
+                            ? catColor.opacity(dark ? 0.20 : 0.12)
+                            : (tasted ? catColor.opacity(dark ? 0.10 : 0.06) : DS.Surface.inset(dark: dark).opacity(0.65))
                     )
             )
             .overlay(
-                RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                     .strokeBorder(
-                        isSelected
-                            ? Palette.accent
-                            : (tasted ? catColor.opacity(dark ? 0.50 : 0.40) : Palette.outline.opacity(0.18)),
-                        lineWidth: isSelected ? 1.8 : (tasted ? 1.2 : 0.65)
+                        isSelected ? Palette.accent : DS.Surface.hairline(dark: dark),
+                        lineWidth: isSelected ? 1.5 : 0.5
                     )
             )
             .scaleEffect(isSelected && !reduce ? 1.03 : 1.0)

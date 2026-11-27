@@ -460,7 +460,7 @@ struct BedsideLampView: View {
 
                 Spacer(minLength: 6)
 
-                VStack(spacing: 10) {
+                VStack(spacing: 12) {
                     if soundscape.isPlaying && volumeMonitor.shouldShow(for: .lamp) {
                         LampHighVolumePill(volumePercent: volumeMonitor.volumePercent) {
                             withAnimation(.snappy) {
@@ -1110,7 +1110,7 @@ struct BedsideLampView: View {
                 }
 
                 // Compact 3-Warmth Color Swatches (Amber / Candle Red / Peach)
-                HStack(spacing: 6) {
+                HStack(spacing: 2) {
                     ForEach(LampWarmth.allCases) { preset in
                         let on = warmth == preset
                         Button {
@@ -1128,15 +1128,18 @@ struct BedsideLampView: View {
                                     Circle()
                                         .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
                                 )
+                                .frame(width: 34, height: 34)
+                                .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(preset.label)
                         .accessibilityAddTraits(on ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 8)
-                .padding(.vertical, 4)
+                .padding(.horizontal, 6)
+                .frame(minHeight: 36)
                 .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
+                .pillHitTarget(LayoutSpec.hitMin)
             }
         }
     }
@@ -1306,19 +1309,19 @@ struct BedsideLampView: View {
                                 }
                             } label: {
                                 Image(systemName: isSecondary ? "checkmark" : "plus")
-                                    .font(.caption2.weight(.bold))
+                                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                                     .foregroundStyle(isSecondary ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                                    .frame(width: 22, height: 22)
+                                    .frame(width: 24, height: 24)
                                     .background(Circle().fill(isSecondary ? warmth.secondaryBadgeFill : warmth.primaryGlow.opacity(0.18)))
-                                    .frame(minWidth: 36, minHeight: 36)
+                                    .frame(minWidth: 44, minHeight: 44)
                                     .contentShape(Rectangle())
                             }
                             .buttonStyle(.plain)
                             .accessibilityLabel(isSecondary ? L10n.t("移除叠层\(kind.title)", "Remove \(kind.title) layer") : L10n.t("叠加\(kind.title)", "Blend \(kind.title)"))
                         }
                     }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 7)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .fill(isPrimary ? warmth.primaryGlow.opacity(0.22) : (isSecondary ? warmth.primaryGlow.opacity(0.14) : Color(hex: 0x161E3B).opacity(0.75)))
@@ -1326,8 +1329,8 @@ struct BedsideLampView: View {
                     .overlay(
                         RoundedRectangle(cornerRadius: Radius.tile, style: .continuous)
                             .strokeBorder(
-                                isPrimary ? warmth.primaryGlow.opacity(0.72) : (isSecondary ? warmth.secondaryBadgeFill.opacity(0.55) : warmth.primaryGlow.opacity(0.12)),
-                                lineWidth: on ? 1.3 : 1.0
+                                isPrimary ? warmth.primaryGlow.opacity(0.65) : (isSecondary ? warmth.secondaryBadgeFill.opacity(0.45) : Color.white.opacity(0.08)),
+                                lineWidth: on ? 1.2 : 0.75
                             )
                     )
                     .accessibilityElement(children: .contain)
@@ -1410,14 +1413,14 @@ struct BedsideLampView: View {
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .padding(11)
+        .padding(13)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Color(hex: 0x121933).opacity(0.76))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(warmth.primaryGlow.opacity(0.16), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.75)
         )
     }
 
@@ -1541,7 +1544,7 @@ struct BedsideLampView: View {
         )
         .overlay(
             RoundedRectangle(cornerRadius: summary.nightStatusLine != nil && !summary.facts.isEmpty ? 14 : 999, style: .continuous)
-                .strokeBorder(warmth.primaryGlow.opacity(0.14), lineWidth: 1)
+                .strokeBorder(Color.white.opacity(0.08), lineWidth: 0.75)
         )
         .accessibilityElement(children: .combine)
     }
@@ -1580,6 +1583,7 @@ struct BedsideLampView: View {
                         .foregroundStyle(quickCareMode == .diaper ? warmth.onPrimaryInk : warmth.primaryGlow)
                         .frame(width: 36, height: 36)
                         .background(Circle().fill(quickCareMode == .diaper ? warmth.primaryGlow : Color(hex: 0x222D54)))
+                        .hitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("顺手记尿布", "Quick log diaper"))
@@ -1596,6 +1600,7 @@ struct BedsideLampView: View {
                             .padding(.horizontal, 10)
                             .frame(minHeight: 36)
                             .background(Capsule().fill(Color(hex: 0x222D54)))
+                            .pillHitTarget(LayoutSpec.hitMin)
                     }
                     .buttonStyle(.toy)
                 }
@@ -1610,6 +1615,7 @@ struct BedsideLampView: View {
                         .foregroundStyle(Palette.lampInk)
                         .frame(width: 38, height: 36)
                         .background(Capsule().fill(Color(hex: 0x222D54)))
+                        .hitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(paused ? L10n.t("继续计时", "Resume timer") : L10n.t("暂停计时", "Pause timer"))
@@ -1631,22 +1637,21 @@ struct BedsideLampView: View {
                 )
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(warmth.actionInk)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .background(
                     Capsule().fill(warmth.actionFill.opacity(0.90))
                 )
             }
             .buttonStyle(.toy)
         }
-        .padding(11)
+        .padding(13)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(Color(hex: 0x151D3B).opacity(0.84))
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(warmth.primaryGlow.opacity(0.24), lineWidth: 1)
+                .strokeBorder(warmth.primaryGlow.opacity(0.12), lineWidth: 0.75)
         )
     }
 

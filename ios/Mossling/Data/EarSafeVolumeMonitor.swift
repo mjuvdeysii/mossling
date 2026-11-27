@@ -233,12 +233,13 @@ struct EarSafeVolumeCard: View {
                             : L10n.t("合适 · 开玩", "Safe · Play"),
                         systemImage: "checkmark"
                     )
-                    .font(.caption2.weight(.bold))
+                    .font(Typeface.label(11, relativeTo: .caption2, weight: .bold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
                     .background(Capsule().fill(monitor.level == .loud ? Crayon.tangerine : Palette.accentFill))
                     .fixedSize(horizontal: true, vertical: false)
+                    .pillHitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
             }
@@ -289,20 +290,23 @@ struct EarSafeVolumeCard: View {
                         .foregroundStyle(dark ? Crayon.leaf.mix(with: .white, by: 0.25) : Crayon.ink(Crayon.leaf))
                     Spacer()
                     Text(L10n.t("侧键微调 · \(pct)%", "Side keys · \(pct)%"))
-                        .font(Typeface.numerals(10, relativeTo: .caption2, weight: .semibold))
+                        .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
                         .foregroundStyle(Palette.secondaryText)
                 }
             }
         }
-        .padding(.horizontal, 11)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 12)
+        .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
                 .fill(dark ? Palette.lampCard : Palette.card)
         )
         .overlay(
             RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
-                .strokeBorder(tone.opacity(dark ? 0.50 : 0.36), lineWidth: 1.2)
+                .strokeBorder(
+                    monitor.level == .loud ? tone.opacity(dark ? 0.50 : 0.36) : DS.Surface.hairline(dark: dark),
+                    lineWidth: monitor.level == .loud ? 1.2 : 0.5
+                )
         )
         .accessibilityElement(children: .contain)
     }

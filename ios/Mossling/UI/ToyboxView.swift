@@ -79,7 +79,6 @@ struct ToyboxView: View {
     @State private var recordedSession = false
     @State private var volumeMonitor: EarSafeVolumeMonitor
     @State private var manualShowVolumeCard = false
-    @Namespace private var pillNS
 
     private let previewPlayAlong: Bool
     private let initialShadowPuppet: ShadowPuppetKind
@@ -206,54 +205,13 @@ struct ToyboxView: View {
     }
 
     private func modePicker(dark: Bool) -> some View {
-        let pills = ForEach(ToyboxMode.allCases) { item in
-            let selected = mode == item
-            Button {
-                guard mode != item else { return }
-                TactileEngine.shared.beadClick()
-                withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.82)) {
-                    mode = item
-                }
-            } label: {
-                HStack(spacing: 4) {
-                    Image(systemName: item.symbol)
-                        .font(.caption2.weight(.bold))
-                    Text(item.title)
-                        .font(.caption.weight(.bold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.74)
-                }
-                .foregroundStyle(selected ? .white : Palette.text)
-                .padding(.horizontal, type.isAccessibilitySize ? 10 : 4)
-                .padding(.vertical, 7)
-                .frame(maxWidth: type.isAccessibilitySize ? nil : .infinity)
-                .background {
-                    if selected {
-                        Capsule()
-                            .fill(Palette.accentFill)
-                            .matchedGeometryEffect(id: "toyboxModePill", in: pillNS)
-                    }
-                }
-            }
-            .buttonStyle(.plain)
-            .accessibilityAddTraits(selected ? .isSelected : [])
-        }
-
-        return Group {
-            if type.isAccessibilitySize {
-                FlowRow(spacing: 6, lineSpacing: 6) { pills }
-            } else {
-                HStack(spacing: 4) { pills }
-            }
-        }
-        .padding(4)
-        .background(
-            Capsule()
-                .fill(dark ? Palette.lampCard : Palette.card)
-        )
-        .overlay(
-            Capsule()
-                .strokeBorder(Palette.outline.opacity(0.3), lineWidth: 0.75)
+        DSSegmentedControl(
+            items: ToyboxMode.allCases,
+            selection: $mode,
+            dark: dark,
+            compact: false,
+            title: { $0.title },
+            symbol: { $0.symbol }
         )
     }
 }
@@ -439,37 +397,18 @@ private struct XylophoneStudio: View {
                     .accessibilityLabel(L10n.t("选择童谣曲目", "Choose melody"))
                 }
 
-                // Compact 3-Timbre Switcher
-                HStack(spacing: 6) {
-                    ForEach(ToyboxTimbre.allCases) { item in
-                        let on = timbre == item
-                        Button {
-                            guard timbre != item else { return }
-                            TactileEngine.shared.beadClick()
-                            withAnimation(reduce ? nil : .snappy) {
-                                timbre = item
-                            }
-                        } label: {
-                            HStack(spacing: 4) {
-                                Image(systemName: item.symbol)
-                                    .font(.caption2.weight(.bold))
-                                Text(item.title)
-                                    .font(.caption.weight(on ? .bold : .semibold))
-                                    .lineLimit(1)
-                                    .minimumScaleFactor(0.8)
-                            }
-                            .foregroundStyle(on ? .white : Palette.secondaryText)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(on ? AnyShapeStyle(Palette.accentFill) : AnyShapeStyle(dark ? Color.white.opacity(0.08) : Palette.fill)))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityAddTraits(on ? .isSelected : [])
-                    }
-                }
+                // Compact 3-Timbre Segmented Switcher
+                DSSegmentedControl(
+                    items: ToyboxTimbre.allCases,
+                    selection: $timbre,
+                    dark: dark,
+                    compact: true,
+                    title: { $0.title },
+                    symbol: { $0.symbol }
+                )
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
             .printCard(radius: Radius.card)
 
             // Rosewood resonator marimba with satin beveled tone bars, brushed brass studs & ripple acoustics
@@ -607,7 +546,7 @@ private struct XylophoneStudio: View {
             }
             .frame(minHeight: 290)
 
-            // Footer Dual Controls: Listen to Melody + Follow-the-Glow Play Along
+            // Footer Dual Controls: Secondary Listen + Primary Follow-the-Glow Play Along
             HStack(spacing: 10) {
                 Button {
                     if isPlayingLullaby {
@@ -620,13 +559,10 @@ private struct XylophoneStudio: View {
                         isPlayingLullaby ? L10n.t("停下来", "Stop") : L10n.t("试听旋律", "Listen"),
                         systemImage: isPlayingLullaby ? "stop.fill" : "play.fill"
                     )
-                    .font(.subheadline.weight(.bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
                 }
-                .buttonStyle(.vinyl(isPlayingLullaby ? Crayon.pink : Palette.accentFill, prominent: true))
+                .buttonStyle(.ds(isPlayingLullaby ? .tinted(Crayon.pink) : .secondary, fullWidth: true, height: 50))
 
                 Button {
                     TactileEngine.shared.beadClick()
@@ -640,13 +576,10 @@ private struct XylophoneStudio: View {
                         playAlong ? L10n.t("退出跟弹", "Exit Guide") : L10n.t("跟光弹", "Play Along"),
                         systemImage: playAlong ? "xmark.circle.fill" : "sparkles"
                     )
-                    .font(.subheadline.weight(.bold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.82)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
                 }
-                .buttonStyle(.vinyl(playAlong ? Palette.bead : Crayon.caramel, prominent: true))
+                .buttonStyle(.ds(.primary, fullWidth: true, height: 50))
             }
         }
         .onDisappear {

@@ -677,17 +677,15 @@ private struct StorybookMonthSpread: View {
                     }
                 }
 
-                // Quiet Factual Snapshot Row (weight/length/sleep/feeds)
-                let snippets = snapshotLine
-                if !snippets.isEmpty {
-                    WrapLayout(spacing: 6) {
-                        ForEach(snippets, id: \.self) { text in
-                            Text(text)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(Palette.secondaryText)
-                                .padding(.horizontal, 10)
-                                .padding(.vertical, 5)
-                                .background(Capsule().fill(dark ? Color.white.opacity(0.08) : Palette.fill))
+                // Uniform 2x2 Factual Snapshot Grid (weight/length/sleep/feeds)
+                let metrics = snapshotMetrics
+                if !metrics.isEmpty {
+                    LazyVGrid(
+                        columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                        spacing: 8
+                    ) {
+                        ForEach(Array(metrics.enumerated()), id: \.offset) { _, m in
+                            DSMetricCell(label: m.label, value: m.value, unit: m.unit, dark: dark)
                         }
                     }
                 }
@@ -740,12 +738,12 @@ private struct StorybookMonthSpread: View {
         return a.y == b.y ? "\(a.md) – \(b.md)" : "\(a.ymd) – \(b.ymd)"
     }
 
-    private var snapshotLine: [String] {
-        var out: [String] = []
-        if let w = page.measure?.weightG { out.append(L10n.t("体重 ", "Weight ") + String(format: "%.2f kg", Double(w) / 1000)) }
-        if let l = page.measure?.lengthMm { out.append(L10n.t("身长 ", "Length ") + String(format: "%.1f cm", Double(l) / 10)) }
-        if let s = page.sleepHours { out.append(L10n.t("日均睡眠 ", "Sleep ") + String(format: "%.1f h", s)) }
-        if let f = page.feeds { out.append(L10n.t("日均喂奶 ", "Feeds ") + String(format: "%.0f", f.rounded()) + L10n.t(" 次", "/d")) }
+    private var snapshotMetrics: [(label: String, value: String, unit: String)] {
+        var out: [(String, String, String)] = []
+        if let w = page.measure?.weightG { out.append((L10n.t("体重", "Weight"), String(format: "%.2f", Double(w) / 1000), "kg")) }
+        if let l = page.measure?.lengthMm { out.append((L10n.t("身长", "Length"), String(format: "%.1f", Double(l) / 10), "cm")) }
+        if let s = page.sleepHours { out.append((L10n.t("日均睡眠", "Avg Sleep"), String(format: "%.1f", s), "h")) }
+        if let f = page.feeds { out.append((L10n.t("日均喂奶", "Avg Feeds"), String(format: "%.0f", f.rounded()), L10n.t("次", "/d"))) }
         return out
     }
 }
