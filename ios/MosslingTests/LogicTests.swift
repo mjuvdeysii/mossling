@@ -3758,7 +3758,11 @@ final class LogicTests: XCTestCase {
     @MainActor
     func testBatch35WarmColorPaletteAndZeroTruncationMetrics() {
         let prevLang = L10n.preference
-        defer { L10n.preference = prevLang }
+        let prevOverride = L10n.overrideEnglish
+        defer {
+            L10n.overrideEnglish = prevOverride
+            L10n.preference = prevLang
+        }
 
         enum WarmThemeProbe: String, Identifiable, CaseIterable {
             case day, lamp, auto
@@ -3779,6 +3783,7 @@ final class LogicTests: XCTestCase {
         envApp.today = Day(y: 2026, m: 11, d: 25)
         envApp.nickname = "小薄荷"
         envApp.theme = .light
+        L10n.overrideEnglish = true
         envApp.language = .en
         envApp.journal = true
         let envJournal = JournalStore(preview: JournalFile.Body())
@@ -3842,6 +3847,7 @@ final class LogicTests: XCTestCase {
             AnyView(BedsideLampView(initialBrightness: 0.72, previewClock: envApp.today.date)),
         ]
         for lang in [AppLanguage.en, .zh] {
+            L10n.overrideEnglish = (lang == .en)
             envApp.language = lang
             for dt in [DynamicTypeSize.large, .accessibility3] {
                 for v in views {
