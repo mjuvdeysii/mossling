@@ -10,24 +10,27 @@ import UniformTypeIdentifiers
 @Observable
 final class SpeechReader {
     private final class Delegate: NSObject, AVSpeechSynthesizerDelegate, @unchecked Sendable {
-        let onFinish: @MainActor @Sendable () -> Void
+        let onFinish: @MainActor @Sendable (ObjectIdentifier) -> Void
 
-        init(onFinish: @escaping @MainActor @Sendable () -> Void) {
+        init(onFinish: @escaping @MainActor @Sendable (ObjectIdentifier) -> Void) {
             self.onFinish = onFinish
             super.init()
         }
 
         func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-            Task { @MainActor [onFinish] in onFinish() }
+            let id = ObjectIdentifier(utterance)
+            Task { @MainActor [onFinish] in onFinish(id) }
         }
 
         func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
-            Task { @MainActor [onFinish] in onFinish() }
+            let id = ObjectIdentifier(utterance)
+            Task { @MainActor [onFinish] in onFinish(id) }
         }
     }
 
     private var synthesizer: AVSpeechSynthesizer?
     private var delegate: Delegate?
+    private var activeUtteranceID: ObjectIdentifier?
     var isSpeaking = false
 
     init() {}
@@ -42,12 +45,23 @@ final class SpeechReader {
             stop()
             return
         }
+        guard !FirstVoiceController.shared.isRecording else { return }
+        if !SoundscapeEngine.shared.isPlaying {
+            let session = AVAudioSession.sharedInstance()
+            try? session.setCategory(.playback, mode: .spokenAudio, options: [.duckOthers])
+            try? session.setActive(true)
+        }
         let synth = synthesizer ?? {
             let instance = AVSpeechSynthesizer()
             let box = WeakBox()
             box.owner = self
-            let del = Delegate {
-                box.owner?.isSpeaking = false
+            let del = Delegate { finishedID in
+                guard let owner = box.owner, owner.activeUtteranceID == finishedID else { return }
+                owner.activeUtteranceID = nil
+                owner.isSpeaking = false
+                if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+                    try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                }
             }
             instance.delegate = del
             delegate = del
@@ -57,15 +71,20 @@ final class SpeechReader {
         let utterance = AVSpeechUtterance(string: text)
         utterance.voice = AVSpeechSynthesisVoice(language: L10n.isEnglish ? "en-US" : "zh-CN")
         utterance.rate = 0.47
+        activeUtteranceID = ObjectIdentifier(utterance)
         isSpeaking = true
         synth.speak(utterance)
     }
 
     func stop() {
+        activeUtteranceID = nil
         if synthesizer?.isSpeaking == true {
             synthesizer?.stopSpeaking(at: .immediate)
         }
         isSpeaking = false
+        if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 }
 
@@ -431,13 +450,13 @@ struct LampCardDetailSheet: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
-                    Card(title: L10n.t("L1 · 此刻手边做法", "L1 · Immediate Action"), symbol: "lightbulb.fill", color: Crayon.sunflower) {
+                    Card(title: L10n.t("此刻手边做法", "Immediate Action"), symbol: "lightbulb.fill", color: Crayon.sunflower) {
                         Text(card.headline).font(.headline).fixedSize(horizontal: false, vertical: true)
                         Text("“\(card.sayAloud)”").font(.subheadline.weight(.medium)).fixedSize(horizontal: false, vertical: true)
                         Text(card.microAction).font(.footnote).foregroundStyle(Palette.secondaryText).fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Card(title: L10n.t("L2 · 宝宝视角与家人话术", "L2 · Child's View & Family Note"), symbol: "heart.text.square.fill", color: Crayon.caramel) {
+                    Card(title: L10n.t("宝宝视角与家人话术", "Child's View & Family Note"), symbol: "heart.text.square.fill", color: Crayon.caramel) {
                         Text(card.translation)
                             .font(.subheadline)
                             .fixedSize(horizontal: false, vertical: true)
@@ -450,7 +469,7 @@ struct LampCardDetailSheet: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    Card(title: L10n.t("L3 · 临床依据与就诊提示", "L3 · Clinical Evidence & Red Flags"), symbol: "cross.case.fill", color: Crayon.teal) {
+                    Card(title: L10n.t("临床依据与就诊提示", "Clinical Evidence & Red Flags"), symbol: "cross.case.fill", color: Crayon.teal) {
                         WrapLayout(spacing: 6) {
                             ForEach(card.clinicalTerms, id: \.self) { term in
                                 Text(term)
@@ -665,7 +684,7 @@ enum ClinicSnapshotPDF {
             : flagged.map { L10n.t("\($0.month)月龄：\($0.label)", "\($0.month)m: \($0.label)") }
 
         var checkupFocusLines: [String] = []
-        if let m = app.babyMonth, let cue = HealthRegion.screeningCue(for: region, month: m) {
+        if let m = app.actualAge?.months, let cue = HealthRegion.screeningCue(for: region, month: m) {
             checkupFocusLines.append(cue)
         }
         if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today) {
@@ -751,13 +770,15 @@ enum ClinicSnapshotPDF {
             let footerNs = NSAttributedString(string: footer, attributes: subAttr)
 
             func drawFooter() {
-                footerNs.draw(in: CGRect(x: margin, y: pageRect.height - 42, width: contentWidth, height: 24))
+                footerNs.draw(in: CGRect(x: margin, y: pageRect.height - 46, width: contentWidth, height: 32))
             }
 
             func ensureSpace(_ needed: CGFloat) {
-                if y + needed > pageRect.height - 54 {
+                if y + needed > pageRect.height - 58 {
                     drawFooter()
                     ctx.beginPage()
+                    cg.setFillColor(UIColor(red: 0.99, green: 0.98, blue: 0.95, alpha: 1).cgColor)
+                    cg.fill(pageRect)
                     y = 38
                 }
             }

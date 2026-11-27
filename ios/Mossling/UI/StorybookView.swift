@@ -93,7 +93,7 @@ struct StorybookView: View {
                     .padding(.bottom, 12)
             }
         }
-        .sheet(isPresented: $askBirth) { BirthSheet() }
+        .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
         .accessibilityElement(children: .contain)
     }
 
@@ -124,7 +124,7 @@ struct StorybookView: View {
         let firstIDs: [UUID] = currentPageData?.firsts.map(\.id) ?? []
         let tastedCount = (foodStore ?? .shared).tastedCount
 
-        let exportPoster = RenderedPoster {
+        let exportPoster = RenderedPoster(filename: "moss-otto-storybook") {
             let view: AnyView
             if let pageMonth {
                 view = AnyView(

@@ -102,23 +102,6 @@
           }
         }
       }
-    },
-    "NSPhotoLibraryUsageDescription" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose keepsake photos for Firsts and food stickers for First Foods. Photos stay strictly on this iPhone and are never uploaded."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "为「第一次」与「百味食盒」挑选纪念照片与辅食贴纸，照片仅保存在这台手机上，不会上传。"
-          }
-        }
-      }
     }
   },
   "version" : "1.0"

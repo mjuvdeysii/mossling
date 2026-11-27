@@ -1,5 +1,6 @@
 import SwiftUI
 import Charts
+import Accessibility
 
 /// Weight, length and head circumference against the WHO Child Growth Standards: the latest of each (tap one to chart
 /// it), the chart (3rd–97th and 15th–85th percentile bands, the median, today, the child's own line), every measurement.
@@ -34,8 +35,26 @@ struct GrowthView: View {
         return cur - prev
     }
 
+    static func developmentalBirth(for measure: Measure, birth: Day?, gestationalWeeks: Int?) -> Day? {
+        guard let birth else { return nil }
+        let measureDay = Day(Date(timeIntervalSince1970: measure.at / 1000))
+        let chronoAge = Age.on(birth: birth, today: measureDay)
+        if let gw = gestationalWeeks, Age.isPreterm(gw), chronoAge.months < 24 {
+            return Age.correctedBirth(birth: birth, gestationalWeeks: gw)
+        }
+        return birth
+    }
+
+    static func developmentalMonths(for measure: Measure, birth: Day?, gestationalWeeks: Int?) -> Double? {
+        guard let refBirth = developmentalBirth(for: measure, birth: birth, gestationalWeeks: gestationalWeeks) else { return nil }
+        let measureDay = Day(Date(timeIntervalSince1970: measure.at / 1000))
+        return Double(refBirth.days(to: measureDay)) / 30.4375
+    }
+
     private func value(_ m: Measure, _ i: Indicator) -> Double? { Self.measureValue(m, i) }
-    private func months(_ m: Measure) -> Double? { app.developmentalBirth.map { Double($0.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375 } }
+    private func months(_ m: Measure) -> Double? {
+        Self.developmentalMonths(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks)
+    }
     private func pct(_ m: Measure, _ i: Indicator) -> Double? {
         guard app.sex != nil, let mo = months(m), mo >= 0, mo <= 36, let v = value(m, i), v > 0 else { return nil }
         let p = app.growth.percentile(i, girl: app.girl, months: mo, value: v)
@@ -72,7 +91,7 @@ struct GrowthView: View {
                     ForEach(Array(all.reversed().enumerated()), id: \.element.id) { i, m in
                         row(m, all: all, active: m.id == activeID, last: i == all.count - 1)
                             .contextMenu {
-                                Button(L10n.t("编辑", "Edit"), systemImage: "pencil") { editing = m }
+                                Button(L10n.t("编辑", "Edit"), systemImage: "pencil") { if app.mayKeep() { editing = m } }
                                 Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { j.deleteMeasure(m) }
                             }
                     }
@@ -90,7 +109,7 @@ struct GrowthView: View {
                             .fill(Palette.fill.opacity(0.65))
                     )
             }
-            .padding(.horizontal, 16).padding(.bottom, 32)
+            .padding(.horizontal, LayoutSpec.pageH).padding(.bottom, 32)
         }
         .calmWhileScrolling()
         .pageBackground()
@@ -105,7 +124,7 @@ struct GrowthView: View {
                     let nowMo = app.age.map { Double($0.months) + Double($0.days) / 30.4375 }
                     let autoSpan = min(36.0, max(6.0, max(nowMo ?? 0, pts.map(\.1).max() ?? 0) + 3))
                     let span = fullSpan ? 36.0 : autoSpan
-                    let posterItem = RenderedPoster {
+                    let posterItem = RenderedPoster(filename: "moss-otto-growth-\(currentInd.rawValue)") {
                         let poster = GrowthPrintPoster(
                             babyName: who,
                             ageText: ageStr,
@@ -113,8 +132,9 @@ struct GrowthView: View {
                             indicator: currentInd,
                             spanMonths: span,
                             measures: j.measures,
-                            birth: app.developmentalBirth,
-                            growth: app.growth
+                            birth: app.birth,
+                            growth: app.growth,
+                            gestationalWeeks: app.gestationalWeeks
                         )
                         let renderer = ImageRenderer(content: poster)
                         renderer.scale = 3.0
@@ -277,6 +297,7 @@ struct GrowthView: View {
         .frame(height: 260)
         .padding(.top, 14)
         .accessibilityLabel(L10n.t("\(ind.label)曲线，\(pts.count) 个测量点", "\(ind.label) curve, \(pts.count) measurements"))
+        .accessibilityChartDescriptor(GrowthAudioGraph(indicator: ind, pts: pts))
     }
 
     private func selectNearestPoint(atX locationX: CGFloat, proxy: ChartProxy, geo: GeometryProxy, pts: [(Measure, Double, Double)]) {
@@ -298,13 +319,13 @@ struct GrowthView: View {
         return VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(verbatim: d.ymd).font(.subheadline.weight(.semibold))
-                if let b = app.developmentalBirth {
+                if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                     let days = b.days(to: d)
                     Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
                         .font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 4)
-                Button(L10n.t("编辑", "Edit")) { editing = m }.font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
+                Button(L10n.t("编辑", "Edit")) { if app.mayKeep() { editing = m } }.font(.caption.weight(.semibold)).foregroundStyle(Palette.accent)
             }
             HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text(ind.fmt(val) + " " + ind.unit).font(Typeface.numerals(18, relativeTo: .headline, weight: .bold)).foregroundStyle(Crayon.ink(ind.tint))
@@ -360,7 +381,7 @@ struct GrowthView: View {
                                 Text(verbatim: d.ymd)
                                     .font(.subheadline.weight(.semibold))
                                     .foregroundStyle(.primary)
-                                if let b = app.developmentalBirth {
+                                if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                                     let days = b.days(to: d)
                                     Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
                                         .font(.caption.weight(.semibold))
@@ -376,8 +397,10 @@ struct GrowthView: View {
                         .buttonStyle(.plain)
 
                         Button {
-                            TactileEngine.shared.beadClick()
-                            editing = m
+                            if app.mayKeep() {
+                                TactileEngine.shared.beadClick()
+                                editing = m
+                            }
                         } label: {
                             Image(systemName: "pencil")
                                 .font(.caption.weight(.semibold))
@@ -497,7 +520,7 @@ struct StatsView: View {
                     }
                 }
             }
-            .padding(.horizontal, 16).padding(.bottom, 8)
+            .padding(.horizontal, LayoutSpec.pageH).padding(.bottom, 8)
             Text(L10n.t(
                 "每格是一天，最右是今天；数字是有记录的整天的平均（今天还没过完，不算在内）。",
                 "Each bar is one day, ending with today on the right. Daily averages use completed days with logs (today is still in progress)."
@@ -607,6 +630,7 @@ struct GrowthPrintPoster: View {
     let measures: [Measure]
     let birth: Day?
     let growth: Growth
+    var gestationalWeeks: Int? = nil
 
     private func value(_ m: Measure, _ i: Indicator) -> Double? {
         MeasureParser.value(in: m, for: i)
@@ -627,9 +651,9 @@ struct GrowthPrintPoster: View {
         let sexLabel = sex == nil ? "" : (girl ? L10n.t(" · 女孩", " · Girl") : L10n.t(" · 男孩", " · Boy"))
 
         let pts: [(Double, Double)] = measures.compactMap { m in
-            guard let birth, let v = value(m, indicator) else { return nil }
-            let mo = Double(birth.days(to: Day(Date(timeIntervalSince1970: m.at / 1000)))) / 30.4375
-            guard mo >= 0, mo <= spanMonths else { return nil }
+            guard let mo = GrowthView.developmentalMonths(for: m, birth: birth, gestationalWeeks: gestationalWeeks),
+                  let v = value(m, indicator),
+                  mo >= 0, mo <= spanMonths else { return nil }
             return (mo, v)
         }
 
@@ -779,5 +803,59 @@ struct GrowthPrintPoster: View {
         .padding(24)
         .frame(width: 360)
         .background(paper)
+    }
+}
+
+/// Audio Graph accessibility descriptor so VoiceOver users can explore growth curves audibly by month & value.
+private struct GrowthAudioGraph: AXChartDescriptorRepresentable {
+    let indicator: Indicator
+    let pts: [(Measure, Double, Double)]
+
+    func makeChartDescriptor() -> AXChartDescriptor {
+        let maxMonth = max(6.0, (pts.map(\.1).max() ?? 6.0).rounded(.up))
+        let vals = pts.map(\.2)
+        let lo = max(0.0, (vals.min() ?? 0.0) - 0.5)
+        let hi = max(lo + 1.0, (vals.max() ?? 10.0) + 0.5)
+
+        let xAxis = AXNumericDataAxisDescriptor(
+            title: L10n.t("月龄（月）", "Age (months)"),
+            range: 0...maxMonth,
+            gridlinePositions: []
+        ) { mo in
+            L10n.t(String(format: "%.1f 个月", mo), String(format: "%.1f mo", mo))
+        }
+
+        let yAxis = AXNumericDataAxisDescriptor(
+            title: "\(indicator.label) (\(indicator.unit))",
+            range: lo...hi,
+            gridlinePositions: []
+        ) { val in
+            "\(indicator.fmt(val)) \(indicator.unit)"
+        }
+
+        let dataPoints = pts.map { _, mo, val in
+            AXDataPoint(
+                x: mo,
+                y: val,
+                label: L10n.t(
+                    String(format: "%.1f 个月，%@ %@", mo, indicator.fmt(val), indicator.unit),
+                    String(format: "%.1f mo, %@ %@", mo, indicator.fmt(val), indicator.unit)
+                )
+            )
+        }
+
+        let series = AXDataSeriesDescriptor(
+            name: indicator.label,
+            isContinuous: pts.count > 1,
+            dataPoints: dataPoints
+        )
+
+        return AXChartDescriptor(
+            title: indicator.label + L10n.t("生长曲线", " Growth Curve"),
+            summary: L10n.t("共 \(pts.count) 次测量记录", "\(pts.count) measurements recorded"),
+            xAxis: xAxis,
+            yAxis: yAxis,
+            series: [series]
+        )
     }
 }

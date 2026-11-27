@@ -50,7 +50,7 @@ enum Palette {
     static let danger = Crayon.ink(Crayon.cherry)
     /// An area's colour deep enough for text.
     static func areaInk(_ key: String) -> Color { Crayon.ink(area(key)) }
-    static let caution = Crayon.tangerine
+    static let caution = Crayon.ink(Crayon.tangerine)
 
     /// The six areas of development, each with a system colour and an SF Symbol.
     static func area(_ key: String) -> Color {
@@ -239,18 +239,18 @@ struct LampPresented: ViewModifier {
     @Environment(\.lamp) private var lamp
     @ViewBuilder func body(content: Self.Content) -> some View {
         let activeLamp = forceLamp || lamp
-        let base = content.fontDesign(.rounded).modifier(LampScope(on: activeLamp)).preferredColorScheme(activeLamp ? .dark : nil)
-        let styled = Group {
-            if sheet {
-                base.presentationCornerRadius(28).presentationDragIndicator(.visible)
-            } else {
-                base
-            }
-        }
+        let base = content
+            .fontDesign(.rounded)
+            .modifier(LampScope(on: activeLamp))
+            .preferredColorScheme(activeLamp ? .dark : nil)
+            .presentationCornerRadius(sheet ? 28 : nil)
+            .presentationDragIndicator(sheet ? .visible : .automatic)
         if activeLamp && ArtStyle.current == .flat {
             // in 2D, every sheet at night has the page's night behind it (the fireflies), lists and forms included
-            styled.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
-        } else { styled }
+            base.scrollContentBackground(.hidden).presentationBackground { PageBackground().environment(\.lamp, true) }
+        } else {
+            base
+        }
     }
 }
 extension View { func lampPresented(sheet: Bool = true, forceLamp: Bool = false) -> some View { modifier(LampPresented(sheet: sheet, forceLamp: forceLamp)) } }
@@ -913,18 +913,21 @@ struct VinylButton: ButtonStyle {
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.dynamicTypeSize) private var typeSize
     @ViewBuilder
     func makeBody(configuration: Configuration) -> some View {
         let dark = lamp || scheme == .dark
         let pressed = configuration.isPressed
-        let body = prominent ? Crayon.fill(tint, dark) : tint.opacity(dark ? 0.26 : 0.16)
+        let body = prominent ? Crayon.fill(tint, dark) : tint.opacity(dark ? 0.24 : 0.14)
         let ink: Color = prominent ? .white : Crayon.ink(tint)
         let shape = Capsule(style: .continuous)
+        let lines = typeSize.isAccessibilitySize ? 2 : 1
         if ArtStyle.current == .flat {
             // build 196: the system's tinted capsule
             configuration.label
                 .font((large ? Font.callout : Font.subheadline).weight(.semibold))
-                .lineLimit(1)
+                .lineLimit(lines)
+                .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.84)
                 .foregroundStyle(ink)
                 .padding(.horizontal, large ? 20 : LayoutSpec.pillPadH).padding(.vertical, large ? 13 : 9)
@@ -933,7 +936,7 @@ struct VinylButton: ButtonStyle {
                 .contentShape(shape.inset(by: large ? 0 : -4))
                 .opacity(enabled ? (pressed ? 0.6 : 1) : 0.45)
         } else {
-            let rimTop: Color = dark ? Palette.amber.opacity(prominent ? 0.22 : 0.15) : .white.opacity(0.85)
+            let rimTop: Color = dark ? Palette.amber.opacity(prominent ? 0.22 : 0.15) : .white.opacity(0.75)
             let shadowColor: Color = dark
                 ? Color.black.opacity(prominent ? 0.34 : 0.18)
                 : (prominent ? tint : Color(hex: 0x7A5230)).opacity(prominent ? 0.28 : 0.10)
@@ -941,17 +944,18 @@ struct VinylButton: ButtonStyle {
             let shadowY: CGFloat = pressed ? 0.8 : (prominent ? 3 : 2)
             configuration.label
                 .font((large ? Font.callout : Font.subheadline).weight(.semibold))
-                .lineLimit(1)
+                .lineLimit(lines)
+                .multilineTextAlignment(.center)
                 .minimumScaleFactor(0.84)
                 .foregroundStyle(ink)
-                .padding(.horizontal, large ? 20 : 16).padding(.vertical, large ? 13 : 9)
+                .padding(.horizontal, large ? 20 : LayoutSpec.pillPadH).padding(.vertical, large ? 13 : 9)
                 .frame(minHeight: large ? LayoutSpec.ctaPrimaryHeight : 38)
                 .background {
                     // Direct shadowPath on base capsule avoids an off-screen alpha render pass on every 3D button
                     ZStack {
                         shape.fill(body)
                             .shadow(color: shadowColor, radius: shadowR, y: shadowY)
-                        shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.09 : (dark ? 0.06 : 0.45)), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                        shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.06 : 0.03), .white.opacity(0)], startPoint: .top, endPoint: .center))
                         shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1)
                     }
                 }

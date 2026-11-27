@@ -6,18 +6,22 @@ import SwiftUI
 /// two keep watch, and they are not to be covered.
 struct ToastHost: ViewModifier {
     var bottom = false
+    var suppressed = false
     func body(content: Self.Content) -> some View {
-        content.overlay(alignment: bottom ? .bottom : .top) { ToastSlot(bottom: bottom).padding(.bottom, bottom ? 84 : 0) }
+        content.overlay(alignment: bottom ? .bottom : .top) {
+            ToastSlot(bottom: bottom, suppressed: suppressed).padding(.bottom, bottom ? 84 : 0)
+        }
     }
 }
 
 private struct ToastSlot: View {
     var bottom = false
+    var suppressed = false
     @Environment(JournalStore.self) private var j
     @Environment(\.accessibilityReduceMotion) private var reduce
     var body: some View {
         ZStack {
-            if let t = j.toast, bottom || j.focus == nil {
+            if let t = j.toast, !suppressed, bottom || j.focus == nil {
                 ToastBar(toast: t)
                     .transition(reduce ? AnyTransition.opacity : AnyTransition.move(edge: bottom ? .bottom : .top).combined(with: .opacity))
                     .id(t.id)
@@ -29,13 +33,15 @@ private struct ToastSlot: View {
 
 private struct ToastBar: View {
     @Environment(JournalStore.self) private var j
+    @Environment(\.dynamicTypeSize) private var typeSize
     let toast: Toast
     var body: some View {
         HStack(spacing: 10) {
             if toast.failed { IconTile(symbol: "exclamationmark.triangle.fill", color: Palette.danger, size: 30, round: true) }
             else { IconTile(symbol: LogType.symbol(toast.type), color: LogType.color(toast.type), size: 30, round: true) }
             Text(toast.text).font(.subheadline.weight(.semibold)).foregroundStyle(.primary)
-                .lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                .lineLimit(typeSize.isAccessibilitySize ? 4 : 2)
+                .fixedSize(horizontal: false, vertical: true)
             Spacer(minLength: 4)
             if toast.restore != nil {
                 Button(L10n.t("撤销", "Undo")) { j.undo(toast) }
@@ -48,7 +54,7 @@ private struct ToastBar: View {
         }
         .padding(.leading, 10).padding(.trailing, 10).padding(.vertical, 6)
         .glassEffect(.regular, in: Capsule())
-        .padding(.horizontal, 16).padding(.vertical, 6)
+        .padding(.horizontal, typeSize.isAccessibilitySize ? 12 : 16).padding(.vertical, 6)
         .gesture(
             DragGesture(minimumDistance: 16).onEnded { value in
                 if abs(value.translation.height) > 12 { j.toast = nil }
@@ -59,7 +65,8 @@ private struct ToastBar: View {
                 UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
             }
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            try? await Task.sleep(for: .seconds(toast.failed ? 6 : toast.restore == nil ? 3.5 : 5))
+            let seconds: Double = toast.failed ? 6 : (toast.restore == nil ? 3.5 : (UIAccessibility.isVoiceOverRunning ? 15 : 5))
+            try? await Task.sleep(for: .seconds(seconds))
             if j.toast?.id == toast.id { j.toast = nil }
         }
         .accessibilityElement(children: .contain)
@@ -68,5 +75,7 @@ private struct ToastBar: View {
 }
 
 extension View {
-    func toasts(bottom: Bool = false) -> some View { modifier(ToastHost(bottom: bottom)) }
+    func toasts(bottom: Bool = false, suppressed: Bool = false) -> some View {
+        modifier(ToastHost(bottom: bottom, suppressed: suppressed))
+    }
 }

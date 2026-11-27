@@ -73,9 +73,11 @@ struct YouView: View {
 
                 StudioPortalGrid(dark: dark)
 
-                StudioColophonBar(dark: dark) {
-                    showingLegalSheet = true
-                }
+                StudioColophonBar(
+                    dark: dark,
+                    openStory: { path.append(StudioRoute.story) },
+                    openLegal: { showingLegalSheet = true }
+                )
             }
             .padding(.top, 8)
             .padding(.horizontal, LayoutSpec.pageH)
@@ -87,11 +89,11 @@ struct YouView: View {
         .navigationTitle(L10n.t("工坊", "Studio"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
-            faceAvailable = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+            faceAvailable = Biometry.refresh()
         }
         .onChange(of: scenePhase) { _, p in
             if p == .active {
-                faceAvailable = LAContext().canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+                faceAvailable = Biometry.refresh()
             }
         }
         .toolbar {
@@ -348,7 +350,9 @@ private struct StudioSegmentOption<Value: Hashable>: Identifiable, Equatable {
 private struct ThemeLanguageCard: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
+    @Environment(\.accessibilityReduceMotion) private var reduce
     let dark: Bool
+    @State private var cardFrame: CGRect = .zero
 
     var body: some View {
         let ax = type.isAccessibilitySize
@@ -362,6 +366,11 @@ private struct ThemeLanguageCard: View {
                 VStack(alignment: .leading, spacing: 8) {
                     langLabel
                     langPills
+                }
+                Divider().opacity(0.42)
+                VStack(alignment: .leading, spacing: 8) {
+                    styleLabel
+                    stylePills
                 }
             } else {
                 ViewThatFits(in: .horizontal) {
@@ -387,10 +396,23 @@ private struct ThemeLanguageCard: View {
                         langPills
                     }
                 }
+                Divider().opacity(0.42)
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 8) {
+                        styleLabel
+                        Spacer(minLength: 4)
+                        stylePills
+                    }
+                    VStack(alignment: .leading, spacing: 8) {
+                        styleLabel
+                        stylePills
+                    }
+                }
             }
         }
         .padding(.horizontal, LayoutSpec.cardPad)
         .padding(.vertical, 12)
+        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { cardFrame = $0 }
         .printCard(radius: Radius.card)
     }
 
@@ -480,6 +502,38 @@ private struct ThemeLanguageCard: View {
             title: { $0.title }
         )
         .sensoryFeedback(.selection, trigger: app.language)
+    }
+
+    private var styleLabel: some View {
+        HStack(spacing: 8) {
+            StudioBadge(symbol: "paintbrush.pointed.fill", color: Crayon.tangerine, active: true, dark: dark)
+            Text(L10n.t("画风", "Art Style"))
+                .font(.subheadline.weight(.semibold))
+                .fixedSize(horizontal: true, vertical: false)
+        }
+    }
+
+    private var stylePills: some View {
+        let options = [
+            StudioSegmentOption(id: ArtStyle.vinyl, title: L10n.t("3D 软陶", "3D Clay")),
+            StudioSegmentOption(id: ArtStyle.flat, title: L10n.t("2D 水彩", "2D Watercolor")),
+        ]
+        let currentTitle = app.artStyle == .flat ? L10n.t("2D 水彩", "2D Watercolor") : L10n.t("3D 软陶", "3D Clay")
+        return DSSegmentedControl(
+            items: options,
+            selection: Binding(
+                get: { StudioSegmentOption(id: app.artStyle, title: currentTitle) },
+                set: { next in
+                    guard next.id != app.artStyle else { return }
+                    TactileEngine.shared.beadClick()
+                    StyleShift.shared.transition(to: next.id, from: cardFrame, app: app, reduce: reduce)
+                }
+            ),
+            dark: dark,
+            compact: true,
+            title: { $0.title }
+        )
+        .sensoryFeedback(.selection, trigger: app.artStyle)
     }
 }
 
@@ -718,10 +772,10 @@ private struct StudioColophonBar: View {
     @Environment(AppModel.self) private var app
     @Environment(\.dynamicTypeSize) private var type
     let dark: Bool
+    let openStory: () -> Void
     let openLegal: () -> Void
     @State private var hops = 0
     @State private var lampLit = false
-    @State private var openStory = false
 
     var body: some View {
         let v = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "2.0"
@@ -733,7 +787,7 @@ private struct StudioColophonBar: View {
         layout {
             HStack(alignment: .center, spacing: 10) {
                 Duo(primary: app.companion, size: 36, cheer: hops, lit: lampLit)
-                    .storyKnock(hops: $hops, lamp: $lampLit) { openStory = true }
+                    .storyKnock(hops: $hops, lamp: $lampLit) { openStory() }
 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(L10n.t("\(L10n.appName) · v\(v)（\(b)）", "Moss & Otto · v\(v) (\(b))"))
@@ -763,7 +817,6 @@ private struct StudioColophonBar: View {
         }
         .padding(.horizontal, 4)
         .padding(.top, 2)
-        .navigationDestination(isPresented: $openStory) { StoryView() }
     }
 }
 
@@ -943,7 +996,7 @@ struct ProfileSheet: View {
                         )
                     ) {
                         Text(L10n.t("足月（37 周及以上）", "Full term (37+ wks)")).tag(0)
-                        ForEach(Array((24...36).reversed()), id: \.self) { wk in
+                        ForEach(Array((22...36).reversed()), id: \.self) { wk in
                             Text(L10n.t("\(wk) 周（早产）", "\(wk) wks (Preterm)")).tag(wk)
                         }
                     }
@@ -1688,13 +1741,28 @@ struct LicensesView: View {
 }
 
 /// What the phone unlocks with, named as the phone names it: 面容 ID, 触控 ID, or the passcode.
+@MainActor
 enum Biometry {
-    nonisolated(unsafe) private static var evaluating = false
-    private static var type: LABiometryType {
+    private static var evaluating = false
+    private static var cachedType: LABiometryType = .none
+    private static var loaded = false
+
+    @discardableResult
+    static func refresh() -> Bool {
         let c = LAContext()
-        _ = c.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
-        return c.biometryType
+        let ok = c.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil)
+        cachedType = c.biometryType
+        loaded = true
+        return ok
     }
+
+    private static var type: LABiometryType {
+        if !loaded {
+            _ = refresh()
+        }
+        return cachedType
+    }
+
     static var name: String {
         switch type {
         case .faceID: L10n.t("面容 ID", "Face ID")

@@ -250,15 +250,15 @@
           <div class="toybox-copy">
             <p class="toybox-kicker" data-zh="摸索 · 感官玩具盒 · 护耳限幅 dB" data-en="Explore · Sensory Toybox · Ear-safe dB limiter">摸索 · 感官玩具盒 · 护耳限幅 dB</p>
             <h3 data-zh="5 间护耳感官玩具屋，零刺激随时合奏" data-en="Five ear-safe acoustic playrooms built right in">5 间护耳感官玩具屋，零刺激随时合奏</h3>
-            <p data-zh="木琴五声音阶、彩虹转转鼓、物理大眼睛、晚安手影墙与重力弹珠盒；顶部实时显示声压绿区限制，柔化发声包络保护宝宝听力。" data-en="Pentatonic xylophone, rainbow drum, physics googly eyes, shadow theater and gravity marbles—each capped inside a calm green dB ceiling.">
-              木琴五声音阶、彩虹转转鼓、物理大眼睛、晚安手影墙与重力弹珠盒；顶部实时显示声压绿区限制，柔化发声包络保护宝宝听力。
+            <p data-zh="八音木琴五声音阶、晚安手影墙、金珠雨声棒、流光萤火虫罐与高对比视觉卡；顶部实时显示声压绿区限制，柔化发声包络保护宝宝听力。" data-en="Pentatonic xylophone, bedtime shadow wall, tilt-physics rainstick, starlight firefly jar, and high-contrast visual cards—each capped inside a calm green dB ceiling.">
+              八音木琴五声音阶、晚安手影墙、金珠雨声棒、流光萤火虫罐与高对比视觉卡；顶部实时显示声压绿区限制，柔化发声包络保护宝宝听力。
             </p>
             <div class="toybox-pills">
               <span class="toybox-pill"><span class="toy-dot tint-teal" aria-hidden="true"></span><span data-zh="八音木琴 · 五声音阶" data-en="Xylophone · Pentatonic">八音木琴 · 五声音阶</span></span>
-              <span class="toybox-pill"><span class="toy-dot tint-amber" aria-hidden="true"></span><span data-zh="彩虹转转鼓 · 鼓点触控" data-en="Rainbow Drum · Touch">彩虹转转鼓 · 鼓点触控</span></span>
-              <span class="toybox-pill"><span class="toy-dot tint-cobalt" aria-hidden="true"></span><span data-zh="大眼睛 · 追视互动" data-en="Googly Eyes · Tracking">大眼睛 · 追视互动</span></span>
               <span class="toybox-pill"><span class="toy-dot tint-coral" aria-hidden="true"></span><span data-zh="手影墙 · 光影比例" data-en="Shadow Wall · Bedtime">手影墙 · 光影比例</span></span>
-              <span class="toybox-pill"><span class="toy-dot tint-teal" aria-hidden="true"></span><span data-zh="重力摇摇盒 · 柔音弹珠" data-en="Gravity Box · Marbles">重力摇摇盒 · 柔音弹珠</span></span>
+              <span class="toybox-pill"><span class="toy-dot tint-amber" aria-hidden="true"></span><span data-zh="金珠雨声棒 · 倾斜听雨" data-en="Rainstick · Tilt Beads">金珠雨声棒 · 倾斜听雨</span></span>
+              <span class="toybox-pill"><span class="toy-dot tint-cobalt" aria-hidden="true"></span><span data-zh="萤火虫罐 · 触碰星群" data-en="Firefly Jar · Starlight">萤火虫罐 · 触碰星群</span></span>
+              <span class="toybox-pill"><span class="toy-dot tint-teal" aria-hidden="true"></span><span data-zh="高对比视觉卡 · 追视黑白" data-en="Contrast Cards · Visual">高对比视觉卡 · 追视黑白</span></span>
             </div>
           </div>
 
@@ -1173,8 +1173,8 @@
 
           <details class="faq-item">
             <summary data-zh="换新 iPhone 后，成长记录和时光胶囊会丢吗？" data-en="How do I migrate my records and sealed letters to a new iPhone?">换新 iPhone 后，成长记录和时光胶囊会丢吗？</summary>
-            <p data-zh="应用无云端数据库，除跟随 Apple 换机整机迁移外，还可以在「工坊 › 离线数据与备份」随时导出完整便携档案保存到系统文件 App，在新手机一键导入。" data-en="Beyond standard iPhone device transfer, export one portable encrypted archive anytime in Studio › Local Data &amp; Backup.">
-              应用无云端数据库，除跟随 Apple 换机整机迁移外，还可以在「工坊 › 离线数据与备份」随时导出完整便携档案保存到系统文件 App，在新手机一键导入。
+            <p data-zh="应用无云端数据库，除跟随 Apple 换机整机迁移（可完整迁移照片与童声片段）外，还可以在「工坊 › 离线备份」随时导出 JSON 便携备份、成长年鉴 PDF 或 Markdown 摘要并存储带走。" data-en="Beyond standard iPhone device transfer (which preserves local photos and voice clips), export a portable JSON backup, Yearbook PDF, or Markdown record anytime in Studio › Local Data.">
+              应用无云端数据库，除跟随 Apple 换机整机迁移（可完整迁移照片与童声片段）外，还可以在「工坊 › 离线备份」随时导出 JSON 便携备份、成长年鉴 PDF 或 Markdown 摘要并存储带走。
             </p>
           </details>
 
@@ -1359,8 +1359,11 @@
       var menuBtn = document.getElementById("menuBtn");
       var drawer = document.getElementById("mobileDrawer");
 
+      function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
       function getLang() {
-        return localStorage.getItem("mossling-lang") === "en" ? "en" : "zh";
+        return storageGet("mossling-lang") === "en" ? "en" : "zh";
       }
 
       /* Web Audio helper (strictly created on explicit user click) */
@@ -1932,18 +1935,18 @@
           srcEn: "assets/screens/scr-capsules-en.jpg",
           kickerZh: "TAB 04 · 工坊 STUDIO",
           kickerEn: "TAB 04 · STUDIO",
-          titleZh: "面向全家设置与数据主权：随时整库带走、全面容锁离线守护",
-          titleEn: "Profiles, themes, Face ID lock & portable encrypted backups",
+          titleZh: "面向全家设置与数据主权：随时便携备份、全面容锁离线守护",
+          titleEn: "Profiles, themes, Face ID lock & portable JSON backups",
           sumZh: "没有账号密码、也不需要绑定云端。所有设定、角色切换、循证来源表与一键导入导出全集中在此。",
           sumEn: "Zero accounts or remote logins. Manage companion choice, Day/Lamp themes, source citations, and single-file device backups.",
           f1tZh: "宝宝档案与 Moss / Otto 双角色",
           f1tEn: "Baby profile & Moss / Otto mode",
           f1dZh: "随时填写或留空宝宝生日与孕周，一键在热爱探索的「摸索」与柔和守夜的「Otto」间切换。",
           f1dEn: "Optional birth & gestation weeks paired with one-tap companion and 3D/2D watercolor switching.",
-          f2tZh: "面容锁守护与便携加密导出",
-          f2tEn: "Face ID lock & one-file backup",
-          f2dZh: "整库记录、贴纸与时光胶囊可随时导出到系统「文件 App」，换新 iPhone 一键离线迁移无遗漏。",
-          f2dEn: "Lock private journals with Face ID and export everything cleanly to your Files app anytime.",
+          f2tZh: "面容锁守护与便携 JSON 导出",
+          f2tEn: "Face ID lock & one-file JSON backup",
+          f2dZh: "全部设置、喂睡生长日志、百味食盒与时光胶囊信件可随时生成 JSON 备份并分享保存（照片与录音随整机迁移留存本机）。",
+          f2dEn: "Lock private journals with Face ID and export portable JSON backups anytime (local photos & voice clips transfer with your iPhone).",
           f3tZh: "一次买断，终身透明离线使用",
           f3tEn: "One-time purchase · zero tracking",
           f3dZh: "不含连续包年、零第三方统计 SDK，每处医疗与发育科普均在「循证来源」列出原始出处。",
@@ -2595,7 +2598,7 @@
       function applyLang(lang) {
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        localStorage.setItem("mossling-lang", lang);
+        storageSet("mossling-lang", lang);
         if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
 
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {

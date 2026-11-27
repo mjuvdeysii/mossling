@@ -32,30 +32,115 @@ enum Crayon {
     static func buttonFill(_ c: Color) -> Color {
         switch c {
         case teal, aqua, mint: Color(red: 0x0B / 255, green: 0x7D / 255, blue: 0x74 / 255)
-        case pink, rose: Color(red: 0xC7 / 255, green: 0x36 / 255, blue: 0x5C / 255)
-        case sunflower: Color(red: 0x8A / 255, green: 0x5A / 255, blue: 0x00 / 255)
-        case cherry: Color(red: 0xC2 / 255, green: 0x30 / 255, blue: 0x28 / 255)
+        case pink, rose: Color(red: 0xB8 / 255, green: 0x2D / 255, blue: 0x52 / 255)
+        case sunflower: Color(red: 0x7D / 255, green: 0x51 / 255, blue: 0x00 / 255)
+        case cherry: Color(red: 0xB5 / 255, green: 0x28 / 255, blue: 0x20 / 255)
         case leaf: Color(red: 0x1E / 255, green: 0x7B / 255, blue: 0x3A / 255)
         case sky: Color(red: 0x1F / 255, green: 0x6D / 255, blue: 0xB8 / 255)
-        case tangerine, peach, caramel: Color(red: 0xB8 / 255, green: 0x55 / 255, blue: 0x0C / 255)
+        case tangerine, peach, caramel: Color(red: 0xA3 / 255, green: 0x48 / 255, blue: 0x06 / 255)
         case lilac: Color(red: 0x6A / 255, green: 0x48 / 255, blue: 0xC8 / 255)
-        default: Color(red: 0x5A / 255, green: 0x54 / 255, blue: 0x4E / 255)
+        default: contrastSafeButtonFill(c)
         }
     }
     /// The same colour, deep enough for text (≥ 4.5:1 on paper, cards and the dark page).
     static func ink(_ c: Color) -> Color {
         switch c {
-        case teal, aqua, mint: dyn(0x0B7D74, 0x4FD8CB)
-        case pink, rose: dyn(0xC7365C, 0xFF8FAA)
-        case sunflower: dyn(0x8A5A00, 0xFFD36B)
-        case cherry: dyn(0xC23028, 0xFF7A70)
-        case leaf: dyn(0x1E7B3A, 0x6ACF85)
-        case sky: dyn(0x1F6DB8, 0x7DB8F2)
-        case tangerine, peach, caramel: dyn(0xB8550C, 0xFFA066)
-        case lilac: dyn(0x6A48C8, 0xB39CF4)
-        case pebble: dyn(0x5E574F, 0xD2CAC0)
-        default: c
+        case teal, aqua, mint: dyn(0x08675F, 0x4FD8CB)
+        case pink, rose: dyn(0xB82D52, 0xFF8FAA)
+        case sunflower: dyn(0x7D5100, 0xFFD36B)
+        case cherry: dyn(0xB52820, 0xFF7A70)
+        case leaf: dyn(0x1B6E33, 0x6ACF85)
+        case sky: dyn(0x195FA3, 0x7DB8F2)
+        case tangerine, peach, caramel: dyn(0xA34806, 0xFFA066)
+        case lilac: dyn(0x5E3EB8, 0xB39CF4)
+        case pebble: dyn(0x59524A, 0xD2CAC0)
+        default: contrastSafeInk(c)
         }
+    }
+
+    private static func rgbComponents(of color: Color, traits: UITraitCollection) -> (r: CGFloat, g: CGFloat, b: CGFloat, a: CGFloat) {
+        let resolved = UIColor(color).resolvedColor(with: traits)
+        var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 1
+        if resolved.getRed(&r, green: &g, blue: &b, alpha: &a) {
+            return (r, g, b, a)
+        }
+        if let srgb = CGColorSpace(name: CGColorSpace.sRGB),
+           let converted = resolved.cgColor.converted(to: srgb, intent: .defaultIntent, options: nil),
+           let c = converted.components, c.count >= 3 {
+            return (c[0], c[1], c[2], c.count > 3 ? c[3] : 1)
+        }
+        return (0.2, 0.2, 0.2, 1)
+    }
+
+    private static func relativeLuminance(_ r: CGFloat, _ g: CGFloat, _ b: CGFloat) -> Double {
+        func linearize(_ v: CGFloat) -> Double {
+            let x = max(0, min(1, Double(v)))
+            return x <= 0.03928 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+        }
+        return 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+    }
+
+    private static func contrastSafeButtonFill(_ c: Color) -> Color {
+        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
+        let rgba = rgbComponents(of: c, traits: lightTraits)
+        // Target luminance <= 0.168 ensures contrast >= 4.8:1 under white label text
+        let targetLum = 0.168
+        if relativeLuminance(rgba.r, rgba.g, rgba.b) <= targetLum { return c }
+        var lo: CGFloat = 0, hi: CGFloat = 1
+        for _ in 0..<12 {
+            let mid = (lo + hi) * 0.5
+            if relativeLuminance(rgba.r * mid, rgba.g * mid, rgba.b * mid) > targetLum {
+                hi = mid
+            } else {
+                lo = mid
+            }
+        }
+        return Color(UIColor(red: rgba.r * lo, green: rgba.g * lo, blue: rgba.b * lo, alpha: rgba.a))
+    }
+
+    private static func contrastSafeInk(_ c: Color) -> Color {
+        Color(UIColor { traits in
+            let rgba = rgbComponents(of: c, traits: traits)
+            if traits.userInterfaceStyle == .dark {
+                // Target luminance >= 0.275 achieves >= 4.8:1 on #19213F lamp card
+                let targetLum = 0.275
+                if relativeLuminance(rgba.r, rgba.g, rgba.b) >= targetLum {
+                    return UIColor(red: rgba.r, green: rgba.g, blue: rgba.b, alpha: rgba.a)
+                }
+                var lo: CGFloat = 0, hi: CGFloat = 1
+                for _ in 0..<12 {
+                    let mid = (lo + hi) * 0.5
+                    let mr = rgba.r + (0.96 - rgba.r) * mid
+                    let mg = rgba.g + (0.94 - rgba.g) * mid
+                    let mb = rgba.b + (0.90 - rgba.b) * mid
+                    if relativeLuminance(mr, mg, mb) < targetLum {
+                        lo = mid
+                    } else {
+                        hi = mid
+                    }
+                }
+                let r = rgba.r + (0.96 - rgba.r) * hi
+                let g = rgba.g + (0.94 - rgba.g) * hi
+                let b = rgba.b + (0.90 - rgba.b) * hi
+                return UIColor(red: r, green: g, blue: b, alpha: rgba.a)
+            } else {
+                // Target luminance <= 0.132 achieves >= 4.8:1 on warm paper and tinted light cards
+                let targetLum = 0.132
+                if relativeLuminance(rgba.r, rgba.g, rgba.b) <= targetLum {
+                    return UIColor(red: rgba.r, green: rgba.g, blue: rgba.b, alpha: rgba.a)
+                }
+                var lo: CGFloat = 0, hi: CGFloat = 1
+                for _ in 0..<12 {
+                    let mid = (lo + hi) * 0.5
+                    if relativeLuminance(rgba.r * mid, rgba.g * mid, rgba.b * mid) > targetLum {
+                        hi = mid
+                    } else {
+                        lo = mid
+                    }
+                }
+                return UIColor(red: rgba.r * lo, green: rgba.g * lo, blue: rgba.b * lo, alpha: rgba.a)
+            }
+        })
     }
 }
 

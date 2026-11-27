@@ -470,8 +470,28 @@
         }
       }
 
+      function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
       var livePayload = decodeFragment();
-      var activeLang = livePayload && livePayload.l === "en" ? "en" : (localStorage.getItem("mossling-lang") === "en" ? "en" : "zh");
+      var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
+
+      function formatRelativeAgo(epochSec, lang) {
+        var sec = Number(epochSec);
+        if (!isFinite(sec) || sec <= 0) return null;
+        var diffMin = Math.max(0, Math.floor((Date.now() - sec * 1000) / 60000));
+        if (diffMin < 1) return lang === "en" ? "Just now" : "刚刚";
+        if (diffMin < 60) return lang === "en" ? (diffMin + "m ago") : (diffMin + " 分钟前");
+        var hrs = Math.floor(diffMin / 60);
+        var rem = diffMin % 60;
+        if (hrs < 48) {
+          return lang === "en"
+            ? (rem > 0 ? (hrs + "h " + rem + "m ago") : (hrs + "h ago"))
+            : (rem > 0 ? (hrs + " 小时 " + rem + " 分前") : (hrs + " 小时前"));
+        }
+        var days = Math.floor(hrs / 24);
+        return lang === "en" ? (days + "d ago") : (days + " 天前");
+      }
 
       function updateNightBtn() {
         var isNight = document.body.classList.contains("beacon-night");
@@ -488,7 +508,7 @@
         var modeEl = document.getElementById("beaconModeText");
         if (modeEl) {
           modeEl.textContent = isLive
-            ? (activeLang === "en" ? "Live Encrypted Handover Beacon" : "来自家庭 iPhone 的即时传灯交接")
+            ? (activeLang === "en" ? "Live Family Handover Beacon" : "来自家庭 iPhone 的即时传灯交接")
             : (activeLang === "en" ? "Sample Handover Beacon (Demo)" : "示例照护灯牌（演示预览）");
         }
 
@@ -506,11 +526,11 @@
           timerRow.style.display = "none";
         }
 
-        document.getElementById("valFeedHead").textContent = data.f1 || "-";
+        document.getElementById("valFeedHead").textContent = formatRelativeAgo(data.fts, activeLang) || data.f1 || "-";
         document.getElementById("valFeedDetail").textContent = data.f2 || "";
-        document.getElementById("valSleepHead").textContent = data.s1 || "-";
+        document.getElementById("valSleepHead").textContent = formatRelativeAgo(data.sts, activeLang) || data.s1 || "-";
         document.getElementById("valSleepDetail").textContent = data.s2 || "";
-        document.getElementById("valDiaperHead").textContent = data.p1 || "-";
+        document.getElementById("valDiaperHead").textContent = formatRelativeAgo(data.pts, activeLang) || data.p1 || "-";
         document.getElementById("valDiaperDetail").textContent = data.p2 || "";
         document.getElementById("valRhythmHead").textContent = data.r1 || "-";
         document.getElementById("valRhythmDetail").textContent = data.r2 || "";
@@ -542,7 +562,7 @@
         activeLang = lang;
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        localStorage.setItem("mossling-lang", lang);
+        storageSet("mossling-lang", lang);
         if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
           var t = el.getAttribute(lang === "en" ? "data-en" : "data-zh");

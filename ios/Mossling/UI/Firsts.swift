@@ -595,17 +595,18 @@ struct FirstSheet: View {
             return
         }
         didSave = true
-        if removeExistingPhoto {
-            FirstPhotoStore.delete(for: f.id)
-        } else if let img = photoImage {
+        if let img = photoImage {
             FirstPhotoStore.save(img, for: f.id)
+        } else if removeExistingPhoto {
+            FirstPhotoStore.delete(for: f.id)
         }
-        if removeExistingVoice {
+        if let draftURL = draftVoiceURL {
+            if FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil {
+                voiceController.discardTemp(draftURL)
+                draftVoiceURL = nil
+            }
+        } else if removeExistingVoice {
             FirstVoiceStore.delete(for: f.id)
-        } else if let draftURL = draftVoiceURL {
-            _ = FirstVoiceStore.saveRecording(from: draftURL, for: f.id)
-            voiceController.discardTemp(draftURL)
-            draftVoiceURL = nil
         }
         TactileEngine.shared.goldChime()
         cheers += 1
@@ -745,6 +746,7 @@ struct FirstsView: View {
             night: lamp
         )
         let addBtn = Button {
+            guard app.mayKeep() else { return }
             TactileEngine.shared.beadClick()
             draftNew = First(at: ms(Date()), title: "")
         } label: {
@@ -987,6 +989,7 @@ struct FirstsView: View {
         WrapLayout(spacing: 8) {
             ForEach(charms) { k in
                 Button {
+                    guard app.mayKeep() else { return }
                     TactileEngine.shared.beadClick()
                     draftNew = First(at: ms(Date()), key: k.id, title: k.title)
                 } label: {

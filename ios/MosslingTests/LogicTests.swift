@@ -4005,4 +4005,162 @@ final class LogicTests: XCTestCase {
             XCTAssertTrue(text.contains("1C8F.1"), "Missing 1C8F.1 in \(manifestURL.lastPathComponent)")
         }
     }
+
+    @MainActor
+    func testAuditWave2And3Remediations() throws {
+        let prevEnglish = L10n.overrideEnglish
+        defer { L10n.overrideEnglish = prevEnglish }
+
+        // 1. PalmPatRhythm continuous phase continuity under autoSlow
+        var prevPhase = PalmPatRhythm.phaseFraction(startBPM: 60, elapsedSeconds: 0, autoSlow: true)
+        for step in 1...6000 {
+            let tSec = Double(step) * 0.05
+            let cur = PalmPatRhythm.phaseFraction(startBPM: 60, elapsedSeconds: tSec, autoSlow: true)
+            var delta = cur - prevPhase
+            if delta < 0 { delta += 1.0 }
+            XCTAssertLessThan(delta, 0.08, "Phase continuity jump at t=\(tSec)")
+            prevPhase = cur
+        }
+
+        // 2. MidnightCareSummary daytime vs night wording (ZH & EN)
+        let refDay = Day(y: 2026, m: 11, d: 20)
+        let day14 = try XCTUnwrap(Day.cal.date(bySettingHour: 14, minute: 0, second: 0, of: refDay.date))
+        let day14Ms = day14.timeIntervalSince1970 * 1000
+        let daytimeFeed = [LogEntry(type: LogType.nurse, start: day14Ms - 3_600_000, end: day14Ms - 3_000_000, side: "l")]
+        let daytimeSleepTimer = RunningTimer(type: LogType.sleep, start: day14Ms - 1_200_000, side: nil, pausedAt: nil, pausedTotal: 0)
+        L10n.overrideEnglish = true
+        let daySummaryEN = MidnightCareSummary.build(logs: daytimeFeed, timers: [daytimeSleepTimer], now: day14)
+        XCTAssertTrue(daySummaryEN.nightStatusLine?.contains("today") == true)
+        XCTAssertFalse(daySummaryEN.nightStatusLine?.contains("night") == true)
+        L10n.overrideEnglish = false
+        let daySummaryZH = MidnightCareSummary.build(logs: daytimeFeed, timers: [daytimeSleepTimer], now: day14)
+        XCTAssertTrue(daySummaryZH.nightStatusLine?.contains("今日") == true)
+        XCTAssertFalse(daySummaryZH.nightStatusLine?.contains("今夜") == true)
+
+        // 3. HandoverSnapshot preserves temp + medication alongside solids, while HandoverWebCodec strips sensitive vitals from #d=
+        L10n.overrideEnglish = true
+        let handoverNow = try XCTUnwrap(Day.cal.date(bySettingHour: 20, minute: 30, second: 0, of: refDay.date))
+        let hMs = handoverNow.timeIntervalSince1970 * 1000
+        let hApp = AppModel(defaults: UserDefaults(suiteName: "wave2-handover-\(UUID().uuidString)")!)
+        hApp.consent = Consent.version
+        hApp.nickname = "Milo"
+        hApp.today = refDay
+        var hBody = JournalFile.Body()
+        hBody.logs = [
+            LogEntry(type: LogType.bottle, start: hMs - 5_400_000, amount: 120, detail: "breastmilk"),
+            LogEntry(type: LogType.sleep, start: hMs - 9_000_000, end: hMs - 3_600_000),
+            LogEntry(type: LogType.diaper, start: hMs - 2_400_000, detail: "wet"),
+            LogEntry(type: LogType.temp, start: hMs - 1_800_000, amount: 379),
+            LogEntry(type: LogType.medicine, start: hMs - 900_000, detail: "Vitamin D3"),
+            LogEntry(type: LogType.solid, start: hMs - 600_000, detail: "Avocado")
+        ]
+        let hStore = JournalStore(preview: hBody)
+        let hSnap = HandoverSnapshot.build(app: hApp, journal: hStore, day: refDay, now: handoverNow)
+        XCTAssertEqual(hSnap.careAlerts.count, 2)
+        XCTAssertTrue(hSnap.todayDetail.contains("Avocado"))
+        XCTAssertNotNil(hSnap.feedTimestampSec)
+        XCTAssertNotNil(hSnap.sleepTimestampSec)
+        XCTAssertNotNil(hSnap.diaperTimestampSec)
+
+        let rawTempSnap = HandoverSnapshot(
+            babyName: "Milo", ageText: "6m", dateLabel: "Nov 20", timeLabel: "20:30",
+            activeTimerLine: nil, lastFeedHeadline: "1h ago", lastFeedDetail: "120 ml",
+            lastSleepHeadline: "1h ago", lastSleepDetail: "Today total 2h",
+            lastDiaperHeadline: "40m ago", lastDiaperDetail: "1 wet",
+            todayHeadline: "1 feed · 1 diaper", todayDetail: "Temp · 37.9 °C",
+            extraNote: "", careAlerts: ["Temp: 37.9 °C"],
+            feedTimestampSec: hSnap.feedTimestampSec, sleepTimestampSec: hSnap.sleepTimestampSec, diaperTimestampSec: hSnap.diaperTimestampSec
+        )
+        let beaconURL = try XCTUnwrap(HandoverWebCodec.encodeURL(from: rawTempSnap, now: handoverNow, isEnglish: true))
+        let decodedBeacon = try XCTUnwrap(HandoverWebCodec.decode(from: beaconURL))
+        XCTAssertFalse(decodedBeacon.r2.contains("37.9"))
+        XCTAssertFalse(decodedBeacon.r2.contains("Temp"))
+        XCTAssertEqual(decodedBeacon.fts, hSnap.feedTimestampSec)
+
+        // 4. Crayon contrast-safe ink/fill fallback for non-Crayon Palette colors
+        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
+        let darkTraits = UITraitCollection(userInterfaceStyle: .dark)
+        func linearize(_ v: CGFloat) -> Double {
+            let x = max(0, min(1, Double(v)))
+            return x <= 0.03928 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+        }
+        for paletteColor in [Palette.rod, Palette.bead, Palette.amber] {
+            let lightInk = UIColor(Crayon.ink(paletteColor)).resolvedColor(with: lightTraits)
+            let darkInk = UIColor(Crayon.ink(paletteColor)).resolvedColor(with: darkTraits)
+            let fill = UIColor(Crayon.buttonFill(paletteColor)).resolvedColor(with: lightTraits)
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            XCTAssertTrue(lightInk.getRed(&r, green: &g, blue: &b, alpha: &a))
+            XCTAssertTrue(darkInk.getRed(&r, green: &g, blue: &b, alpha: &a))
+            XCTAssertTrue(fill.getRed(&r, green: &g, blue: &b, alpha: &a))
+            let lum = 0.2126 * linearize(r) + 0.7152 * linearize(g) + 0.0722 * linearize(b)
+            let whiteContrast = 1.05 / (lum + 0.05)
+            XCTAssertGreaterThanOrEqual(whiteContrast, 4.5)
+        }
+
+        // 5. TimerIntent.canRecord gates on appLocked & consentVersion
+        let okSnap = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true, appLocked: false, consentVersion: SharedConsent.version)
+        let lockedSnap = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true, appLocked: true, consentVersion: SharedConsent.version)
+        let staleConsentSnap = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true, appLocked: false, consentVersion: "2020-01-01")
+        XCTAssertTrue(TimerIntent.canRecord(snapshot: okSnap))
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: lockedSnap))
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: staleConsentSnap))
+
+        // 6. RecordFile.load bounds & per-measurement preterm growth logic
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+        let importApp = AppModel(defaults: UserDefaults(suiteName: "wave2-import-\(UUID().uuidString)")!)
+        importApp.consent = Consent.version
+        let importStore = JournalStore()
+        let importPayload: [String: Any] = [
+            "app": "mossling",
+            "version": 1,
+            "mossling": [
+                "settings": ["consent": Consent.version],
+                "logs": [
+                    ["type": LogType.diaper, "start": -5_000_000_000_000.0, "detail": "wet"],
+                    ["type": LogType.diaper, "start": 9_999_999_999_999.0, "detail": "wet"],
+                    ["type": LogType.diaper, "start": day14Ms, "detail": "wet"]
+                ],
+                "measures": [
+                    ["at": day14Ms, "weightG": 99_999],
+                    ["at": day14Ms, "weightG": 6400]
+                ]
+            ]
+        ]
+        let importData = try JSONSerialization.data(withJSONObject: importPayload)
+        try RecordFile.load(importData, into: importApp, journal: importStore)
+        XCTAssertEqual(importStore.logs.count, 1)
+        XCTAssertEqual(importStore.measures.count, 1)
+        XCTAssertEqual(importStore.measures.first?.weightG, 6400)
+
+        let pretermBirth = Day(y: 2024, m: 1, d: 1)
+        let earlyMeasureDay = Day(y: 2024, m: 7, d: 1)
+        let lateMeasureDay = Day(y: 2026, m: 3, d: 1)
+        let earlyM = Measure(at: earlyMeasureDay.date.timeIntervalSince1970 * 1000, weightG: 6500)
+        let lateM = Measure(at: lateMeasureDay.date.timeIntervalSince1970 * 1000, weightG: 12500)
+        let earlyMo = try XCTUnwrap(GrowthView.developmentalMonths(for: earlyM, birth: pretermBirth, gestationalWeeks: 32))
+        let lateMo = try XCTUnwrap(GrowthView.developmentalMonths(for: lateM, birth: pretermBirth, gestationalWeeks: 32))
+        XCTAssertLessThan(earlyMo, 5.0)
+        XCTAssertGreaterThan(lateMo, 25.0)
+
+        // 7. Entry-level delta undo preserves concurrent external additions
+        XCTAssertTrue(JournalFile.write(JournalFile.Body()))
+        let deltaStore = JournalStore()
+        let undoneId = UUID()
+        XCTAssertTrue(deltaStore.record(LogEntry(id: undoneId, type: LogType.diaper, start: day14Ms, detail: "wet")))
+        let undoToast = try XCTUnwrap(deltaStore.toast)
+        let concurrentId = UUID()
+        _ = JournalFile.mutate { body in
+            body.logs.append(LogEntry(id: concurrentId, type: LogType.sleep, start: day14Ms + 60_000, end: day14Ms + 300_000))
+            return true
+        }
+        deltaStore.undo(undoToast)
+        XCTAssertFalse(deltaStore.logs.contains { $0.id == undoneId })
+        XCTAssertTrue(deltaStore.logs.contains { $0.id == concurrentId })
+
+        // 8. EarSafeVolumeMonitor aligned at 0.60 threshold
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.60), .safe)
+        XCTAssertEqual(EarSafeVolumeLevel.of(0.61), .loud)
+        XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.60, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+        XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.61, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+    }
 }

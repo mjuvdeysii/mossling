@@ -37,6 +37,7 @@ struct RootView: View {
     @Environment(\.colorScheme) private var scheme
     @State private var locked = true
     @State private var unlocking = false
+    @State private var unlockAttemptedForCurrentLock = false
     @State private var pendingURL: URL?
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
@@ -66,24 +67,39 @@ struct RootView: View {
     }
 
     @ViewBuilder private var rootContent: some View {
-        if isLocked {
-            // replace the whole tree while locked so no .sheet or .fullScreenCover can sit above LockView
-            LockView { unlock() }
-        } else if !app.onboarded {
-            OnboardingView()
-        } else {
-            // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
-            // sleep rides above it on every tab
-            tabs
+        ZStack {
+            Group {
+                if !app.onboarded {
+                    OnboardingView()
+                } else {
+                    // the system tab bar (Liquid Glass): it shrinks while reading; a running feed or
+                    // sleep rides above it on every tab
+                    tabs
+                }
+            }
+            .allowsHitTesting(!isLocked)
+            .accessibilityHidden(isLocked)
+
+            if isLocked {
+                LockView { unlock() }
+                    .transition(.opacity)
+                    .zIndex(100)
+            }
         }
     }
 
     private var observedContent: some View {
         rootContent
             // the lock was just turned on after the owner confirmed: no second prompt until the app leaves the screen
-            .onChange(of: app.lock) { _, on in if on { locked = false } }
+            .onChange(of: app.lock) { _, on in
+                locked = false
+                unlockAttemptedForCurrentLock = false
+            }
             .onChange(of: locked) { _, stillLocked in
                 if !stillLocked, let u = pendingURL { pendingURL = nil; open(u) }
+            }
+            .onChange(of: isLocked, initial: true) { _, nowLocked in
+                app.appLocked = nowLocked
             }
             .onChange(of: phase) { _, p in
                 if p == .active {
@@ -94,23 +110,33 @@ struct RootView: View {
                     Task { await LiveTimers.sync() }
                     mascot.timing = !journal.timers.isEmpty
                     mascot.send(.appActive)
-                    if isLocked { unlock() }
+                    if isLocked && !unlockAttemptedForCurrentLock { unlock() }
                 }
-                if p == .background { locked = true; mascot.send(.appBackground) }
+                if p == .background {
+                    locked = true
+                    unlockAttemptedForCurrentLock = false
+                    mascot.send(.appBackground)
+                }
             }
-            .overlay {
-                if app.lock && phase == .inactive && !isLocked {
-                    Rectangle().fill(.ultraThinMaterial).ignoresSafeArea().accessibilityHidden(true)
-                }
+            .background {
+                LockWindowShield(
+                    isLocked: isLocked,
+                    isPrivacyShieldActive: app.lock && phase == .inactive && !isLocked,
+                    companion: app.companion,
+                    unlock: unlock
+                )
             }
             .task {
                 router.selectedTab = savedTab
-                if app.lock { unlock() }
+                if app.lock && !unlockAttemptedForCurrentLock { unlock() }
                 roll()
                 app.publish(journal)
-                let validFirsts = Set(journal.firsts.map(\.id))
-                FirstPhotoStore.prune(keeping: validFirsts)
-                FirstVoiceStore.prune(keeping: validFirsts)
+                if let verified = try? JournalFile.load() {
+                    journal.reload()
+                    let validFirsts = Set(verified.firsts.map(\.id))
+                    FirstPhotoStore.prune(keeping: validFirsts)
+                    FirstVoiceStore.prune(keeping: validFirsts)
+                }
             }
             // the IP event adapter: the journal reports confirmed events, the companions decide how to show them; nothing
             // flows back into the journal
@@ -171,7 +197,7 @@ struct RootView: View {
             // one dark appearance, the lamp, for the whole app: whenever it is dark (the 夜灯 theme, the system's dark mode,
             // or night with 晚上自动开夜灯) every page is lit like the records — and the window itself is dark, so the
             // system's own bars, pickers and sheets follow
-            .toasts()
+            .toasts(suppressed: isLocked || app.isBedsideLampOpen || router.showingBedsideLamp)
             .sheet(isPresented: consentShown) { ConsentSheet().lampPresented() }
             // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
             .onOpenURL { url in open(url) }
@@ -187,7 +213,21 @@ struct RootView: View {
                 if let t = journal.timers.first { TimerAccessory(timer: t, also: journal.timers.dropFirst().first) }
             }
         } else {
-            tabView
+            tabView.safeAreaInset(edge: .bottom, spacing: 0) {
+                if !journal.timers.isEmpty, let t = journal.timers.first {
+                    TimerAccessory(timer: t, also: journal.timers.dropFirst().first)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(.regularMaterial)
+                                .overlay(Capsule(style: .continuous).strokeBorder(Palette.outline.opacity(0.35), lineWidth: 0.75))
+                                .shadow(color: Color.black.opacity(0.12), radius: 10, y: 4)
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 6)
+                }
+            }
         }
     }
 
@@ -231,6 +271,7 @@ struct RootView: View {
         // a light tick as the chosen tab changes, like turning to a tabbed page
         .sensoryFeedback(.selection, trigger: router.selectedTab)
         // a change of drawing style or language redraws every view immediately
+        .environment(\.locale, Locale(identifier: L10n.isEnglish ? "en" : "zh-Hans"))
         .id("\(app.artStyle.rawValue)-\(app.language.rawValue)")
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
         .overlay { StyleShiftOverlay() }
@@ -325,27 +366,90 @@ struct RootView: View {
     private func unlock() {
         guard !unlocking else { return }
         unlocking = true
+        unlockAttemptedForCurrentLock = true
         Task { @MainActor in
             defer { unlocking = false }
             let ctx = LAContext()
             if (try? await ctx.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: L10n.t("确认是你本人", "Confirm it's you"))) == true {
                 locked = false
+                unlockAttemptedForCurrentLock = false
             }
         }
     }
 }
 
 private struct LockView: View {
-    @Environment(AppModel.self) private var app
+    var companion: Kind = .moss
     let unlock: () -> Void
     var body: some View {
         VStack(spacing: 16) {
-            Duo(primary: app.companion, size: 110, mood: .sleep, poke: false)
+            Duo(primary: companion, size: 110, mood: .sleep, poke: false)
             Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked")).font(.title2.weight(.bold))
             Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()
+    }
+}
+
+/// Hosts an opaque window above all presented sheets and covers whenever app lock or inactive privacy shielding is active,
+/// preserving the underlying SwiftUI navigation stacks and unsaved sheet drafts without leaks.
+private struct LockWindowShield: UIViewRepresentable {
+    let isLocked: Bool
+    let isPrivacyShieldActive: Bool
+    let companion: Kind
+    let unlock: () -> Void
+
+    final class Coordinator {
+        var shieldWindow: UIWindow?
+    }
+
+    func makeCoordinator() -> Coordinator { Coordinator() }
+
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView(frame: .zero)
+        view.isHidden = true
+        view.isUserInteractionEnabled = false
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {
+        let shouldShow = isLocked || isPrivacyShieldActive
+        if !shouldShow {
+            context.coordinator.shieldWindow?.isHidden = true
+            context.coordinator.shieldWindow?.rootViewController = nil
+            context.coordinator.shieldWindow = nil
+            return
+        }
+        guard let scene = uiView.window?.windowScene else { return }
+        let window: UIWindow
+        if let existing = context.coordinator.shieldWindow, existing.windowScene === scene {
+            window = existing
+        } else {
+            let created = UIWindow(windowScene: scene)
+            created.windowLevel = .alert + 1
+            created.backgroundColor = .clear
+            context.coordinator.shieldWindow = created
+            window = created
+        }
+        let content: AnyView = isLocked
+            ? AnyView(LockView(companion: companion, unlock: unlock))
+            : AnyView(
+                ZStack {
+                    Palette.background
+                    Duo(primary: companion, size: 88, mood: .sleep, poke: false).opacity(0.65)
+                }
+                .ignoresSafeArea()
+                .accessibilityHidden(true)
+            )
+        if let host = window.rootViewController as? UIHostingController<AnyView> {
+            host.rootView = content
+        } else {
+            let host = UIHostingController(rootView: content)
+            host.view.backgroundColor = .clear
+            window.rootViewController = host
+        }
+        window.isHidden = false
     }
 }
 
@@ -456,6 +560,7 @@ struct OnboardingView: View {
     @Environment(AppModel.self) private var app
     @Environment(\.accessibilityReduceMotion) private var reduce
     @State private var askBirth = false
+    @State private var pendingBirthAfterConsent = false
     @State private var doc: String?
     @State private var chose = false
     @State private var lookDown = false
@@ -487,7 +592,13 @@ struct OnboardingView: View {
                     .padding(.top, 20).padding(.horizontal, 24)
 
                     VStack(spacing: 10) {
-                        Button { if app.mayKeep() { askBirth = true } } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
+                        Button {
+                            if app.mayKeep() {
+                                askBirth = true
+                            } else {
+                                pendingBirthAfterConsent = true
+                            }
+                        } label: { Text(L10n.t("填写出生日期", "Add Birthday")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                             .buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
                         Button { app.onboarded = true } label: { Text(L10n.t("稍后再填", "Later")).frame(maxWidth: .infinity).padding(.vertical, 6) }
                             .buttonStyle(.glass).controlSize(.large)
@@ -534,6 +645,14 @@ struct OnboardingView: View {
             lookDown = true
         }
         .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
+        .onChange(of: app.consent) { _, next in
+            if pendingBirthAfterConsent && next == Consent.version {
+                pendingBirthAfterConsent = false
+                askBirth = true
+            } else if !next.isEmpty {
+                pendingBirthAfterConsent = false
+            }
+        }
         .sheet(item: Binding(get: { doc.map { DocName(id: $0) } }, set: { doc = $0?.id })) { d in
             NavigationStack { DocView(name: d.id).toolbar { ToolbarItem(placement: .cancellationAction) { Button(L10n.t("关闭", "Close"), systemImage: "xmark") { doc = nil } } } }
                 .lampPresented()

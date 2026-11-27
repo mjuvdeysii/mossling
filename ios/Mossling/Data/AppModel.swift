@@ -163,6 +163,8 @@ final class AppModel {
     /// Tracks active BedsideLampView presentations across any tab/timer/deep-link so TactileEngine stays strictly silent.
     var bedsideLampPresentedCount: Int = 0
     var isBedsideLampOpen: Bool { bedsideLampPresentedCount > 0 }
+    /// Live lock-screen state synced from `RootView` into shared `Snapshot` so Siri/Shortcuts never leak data while locked.
+    var appLocked: Bool = false
     /// A play started and not finished: "CODE|month|step". Shown above the tab bar until it is finished or put away.
     var session: String { didSet { d.set(session, forKey: "session") } }
     private(set) var ticks: [String: Tick] { didSet { d.set(try? JSONEncoder().encode(Array(ticks.values)), forKey: "ticks") } }
@@ -350,27 +352,31 @@ final class AppModel {
                 gestationalWeeks: gestationalWeeks,
                 careGearRaw: currentGear.rawValue,
                 careModeActive: careModeActive,
-                graduatedModules: graduatedList
+                graduatedModules: graduatedList,
+                appLocked: appLocked,
+                consentVersion: consent
             )
         )
         WidgetCenter.shared.reloadAllTimelines()
     }
     var publishKey: String {
         let grads = graduatedModules.sorted().joined(separator: ",")
-        return "\(birth?.epochDay ?? -1)|\(gestationalWeeks ?? 0)|\(careModeActive)|\(currentGear.rawValue)|\(grads)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)"
+        return "\(birth?.epochDay ?? -1)|\(gestationalWeeks ?? 0)|\(careModeActive)|\(currentGear.rawValue)|\(grads)|\(nickname)|\(companion.rawValue)|\(journal)|\(consented)|\(appLocked)|\(consent)|\(pick)|\(shelf)|\(today.epochDay)|\(language.rawValue)"
     }
 
     func clearAll() {
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
                   "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "lampBrightness", "lampWarmthRaw", "lampBreathingGuide", "mapSeenMonth",
-                  "gestationalWeeks", "graduatedModules", "dismissedGraduations", "careModeActive", "observationStates"] { d.removeObject(forKey: k) }
+                  "gestationalWeeks", "graduatedModules", "dismissedGraduations", "careModeActive", "observationStates",
+                  ReviewPromptGate.versionKey, ReviewPromptGate.dateKey] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
-        // everything the app wrote about the child, not only the settings: the widget's copy, the exports in the Files
-        // app, files kept aside from older builds; and a timer on the Lock Screen ends at once
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil, consented: false))
+        // everything the app wrote about the child, not only the settings: the widget's copy, the exports,
+        // files kept aside from older builds; and a timer on the Lock Screen ends at once
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: Kind.moss.rawValue, journal: false, playCode: nil, playName: nil, consented: false, appLocked: false, consentVersion: ""))
         WidgetCenter.shared.reloadAllTimelines()
         let fm = FileManager.default
         try? fm.removeItem(at: DataView.exportFolder)
+        try? fm.removeItem(at: DataView.legacyDocumentsExportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
         FirstPhotoStore.clearAll()
         FirstVoiceStore.clearAll()
@@ -378,12 +384,13 @@ final class AppModel {
         Task { @MainActor in
             SoundscapeEngine.shared.stop()
             ToyboxAudioEngine.shared.stop()
+            FirstVoiceController.shared.stopAll()
             CapsuleStore.shared.clearAll()
             FoodAtlasStore.shared.clearAll()
         }
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
-        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; onboarded = false
+        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; appLocked = false; onboarded = false
         theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
         lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
         gestationalWeeks = nil; graduatedModules = []; dismissedGraduations = []; careModeActive = false; observationStates = [:]

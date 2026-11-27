@@ -196,9 +196,11 @@
 
   <script>
     (function () {
+      function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
       var html = document.documentElement;
       var langBtn = document.getElementById("langBtn");
-      var lang = localStorage.getItem("mossling-lang") === "en" ? "en" : "zh";
+      var lang = storageGet("mossling-lang") === "en" ? "en" : "zh";
       function syncLang() {
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
@@ -211,7 +213,7 @@
       if (langBtn) {
         langBtn.addEventListener("click", function () {
           lang = lang === "zh" ? "en" : "zh";
-          localStorage.setItem("mossling-lang", lang);
+          storageSet("mossling-lang", lang);
           syncLang();
         });
       }

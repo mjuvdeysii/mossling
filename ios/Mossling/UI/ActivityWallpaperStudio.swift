@@ -109,7 +109,7 @@ struct ActivityWallpaperPlate: Identifiable, Hashable, Sendable {
         ),
         ActivityWallpaperPlate(
             id: "wp_a06",
-            code: "A06",
+            code: "A05",
             filename: "wp_a06.jpg",
             titleZH: "听声转头 · 星夜小铜铃",
             titleEN: "Gentle Bell",
@@ -271,18 +271,18 @@ struct ActivityWallpaperSheet: View {
                             maxPixel: 1400
                         )
 
-                        if format == .lockScreen && !showPlaque {
+                        if format == .lockScreen {
                             VStack(spacing: 2) {
                                 Text("9:41")
-                                    .font(Typeface.numerals(46, relativeTo: .largeTitle, weight: .semibold))
-                                    .foregroundStyle(.white.opacity(0.90))
-                                    .shadow(color: .black.opacity(0.24), radius: 8, y: 2)
+                                    .font(Typeface.numerals(44, relativeTo: .largeTitle, weight: .semibold))
+                                    .foregroundStyle(.white.opacity(0.92))
+                                    .shadow(color: .black.opacity(0.28), radius: 8, y: 2)
                                 Text(selected.biome)
                                     .font(.caption.weight(.medium))
-                                    .foregroundStyle(.white.opacity(0.84))
-                                    .shadow(color: .black.opacity(0.24), radius: 6, y: 1)
+                                    .foregroundStyle(.white.opacity(0.86))
+                                    .shadow(color: .black.opacity(0.28), radius: 6, y: 1)
                             }
-                            .padding(.top, 38)
+                            .padding(.top, 30)
                             .allowsHitTesting(false)
                         }
                     }
@@ -357,7 +357,7 @@ struct ActivityWallpaperSheet: View {
                         }
                     }
 
-                    let exportPoster = RenderedPoster {
+                    let exportPoster = RenderedPoster(filename: "moss-otto-\(selected.code.lowercased())") {
                         let poster = ActivityWallpaperPoster(
                             plate: selected,
                             format: format,
@@ -383,8 +383,10 @@ struct ActivityWallpaperSheet: View {
                             systemImage: "square.and.arrow.down"
                         )
                         .font(.callout.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .dsPill(.primary, height: LayoutSpec.ctaPrimaryHeight)
                     }
-                    .buttonStyle(.ds(.primary, fullWidth: true, height: LayoutSpec.ctaPrimaryHeight))
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal, LayoutSpec.pageH)
                 .padding(.bottom, 24)

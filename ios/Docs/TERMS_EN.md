@@ -51,7 +51,7 @@ Information you enter is processed solely on your device. The developer does not
 
 ## 8. Changes to These Terms
 
-If these Terms are updated, the revised version will be published with an app update, made available in "About Moss & Otto," and given an updated effective date. Continuing to use the App after an update constitutes acceptance of the revised Terms.
+If these Terms are updated, the revised version will be published with an app update, made available in "Studio › About," and given an updated effective date. Continuing to use the App after an update constitutes acceptance of the revised Terms.
 
 ## 9. Governing Law and Contact
 

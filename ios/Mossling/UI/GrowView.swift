@@ -260,9 +260,25 @@ struct MonthParts: View {
             let total = mo.observe.reduce(0) { $0 + $1.items.count }, done = app.count(m, TickKind.observed)
             out.append(Part(symbol: "eye.fill", color: Crayon.sky, title: L10n.t("可以留意", "Things to Notice"), note: "\(done) / \(total)", done: done, total: total, route: .observe(m)))
         }
-        if !mo.vaccines.isEmpty || !mo.checkups.isEmpty {
-            let total = mo.vaccines.count + mo.checkups.count, done = app.count(m, TickKind.vaccine) + app.count(m, TickKind.checkup)
-            out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: .care(m)))
+        let careMonth = (m == app.babyMonth && app.isUsingCorrectedAge) ? (app.actualAge?.bookMonth ?? m) : m
+        let careMo = careMonth == m ? mo : app.content.month(careMonth)
+        let region = HealthRegion.defaultRegion()
+        if region == .cn {
+            if !careMo.vaccines.isEmpty || !careMo.checkups.isEmpty {
+                let total = careMo.vaccines.count + careMo.checkups.count
+                let done = app.count(careMonth, TickKind.vaccine) + app.count(careMonth, TickKind.checkup)
+                out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: "\(done) / \(total)", done: done, total: total, route: .care(careMonth)))
+            }
+        } else {
+            let regItems = HealthRegion.schedule(for: region, month: careMonth)
+            if !regItems.isEmpty || !careMo.vaccines.isEmpty || !careMo.checkups.isEmpty {
+                let total = regItems.count
+                let done = regItems.filter { item in
+                    let kind = item.kind == "vaccine" ? TickKind.vaccine : TickKind.checkup
+                    return app.ticked(careMonth, kind, "reg-\(region.rawValue)-\(item.id)")
+                }.count
+                out.append(Part(symbol: "syringe.fill", color: Crayon.pink, title: L10n.t("接种与儿保", "Vaccines & Check-ups"), note: total > 0 ? "\(done) / \(total)" : L10n.t("参考日程", "Schedule"), done: done, total: total, route: .care(careMonth)))
+            }
         }
         out.append(Part(symbol: "circle.hexagongrid.fill", color: Crayon.teal, title: L10n.t("六个方面", "Six Areas"), note: L10n.t("这个月的样子", "This month's overview"), route: .areas(m)))
         if !mo.notes.isEmpty { out.append(Part(symbol: "lightbulb.fill", color: Crayon.sunflower, title: L10n.t("还要知道", "Good to Know"), note: L10n.t("\(mo.notes.count) 条", mo.notes.count == 1 ? "1 note" : "\(mo.notes.count) notes"), route: .notes(m))) }
@@ -536,7 +552,7 @@ struct AreasView: View {
 
     @ViewBuilder
     private func constellationCard(ordered: [Area], activeKey: String, focusKey: String?, dark: Bool) -> some View {
-        let chipColumns = Array(repeating: GridItem(.flexible(), spacing: 7), count: typeSize.isAccessibilitySize ? 2 : 2)
+        let chipColumns = Array(repeating: GridItem(.flexible(), spacing: 7), count: typeSize.isAccessibilitySize ? 1 : 2)
         let wheelSize: CGFloat = 118
         let center = CGPoint(x: wheelSize / 2, y: wheelSize / 2)
         let radius = wheelSize * 0.34
@@ -775,6 +791,17 @@ struct CareView: View {
         let filteredCheckups = mo.checkups.enumerated().filter { filter.matches(ticked: app.ticked(m, TickKind.checkup, "\($0.offset)")) }
         let filteredEarlier = earlier.filter { filter.matches(ticked: app.ticked($0.month, $0.kind, $0.key)) }
         let regionalEntries = HealthRegion.schedule(for: region, month: m)
+        let regKey: (HealthRegion.ReferenceEntry) -> (kind: String, key: String) = { item in
+            (item.kind == "vaccine" ? TickKind.vaccine : TickKind.checkup, "reg-\(region.rawValue)-\(item.id)")
+        }
+        let filteredRegional = regionalEntries.filter { item in
+            let rk = regKey(item)
+            return filter.matches(ticked: app.ticked(m, rk.kind, rk.key))
+        }
+        let regDoneCount = regionalEntries.filter { item in
+            let rk = regKey(item)
+            return app.ticked(m, rk.kind, rk.key)
+        }.count
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
@@ -799,7 +826,8 @@ struct CareView: View {
                 }
 
                 if region != .cn {
-                    VStack(alignment: .leading, spacing: 10) {
+                    let regPendingCount = max(0, regionalEntries.count - regDoneCount)
+                    VStack(alignment: .leading, spacing: 12) {
                         HStack(spacing: 8) {
                             IconTile(symbol: "globe.americas.fill", color: Crayon.sky, size: 28, round: true)
                             VStack(alignment: .leading, spacing: 1) {
@@ -809,22 +837,79 @@ struct CareView: View {
                                     .font(.caption)
                                     .foregroundStyle(Palette.secondaryText)
                             }
+                            Spacer(minLength: 4)
+                            if !regionalEntries.isEmpty {
+                                Text("\(regDoneCount) / \(regionalEntries.count)")
+                                    .font(Typeface.numerals(14, relativeTo: .subheadline, weight: .bold))
+                                    .foregroundStyle(.primary)
+                            }
                         }
-                        ForEach(regionalEntries) { item in
-                            HStack(alignment: .top, spacing: 8) {
-                                Circle()
-                                    .fill(item.kind == "vaccine" ? Crayon.cherry : Crayon.teal)
-                                    .frame(width: 7, height: 7)
-                                    .padding(.top, 5)
-                                Text(item.title)
-                                    .font(.subheadline)
-                                    .fixedSize(horizontal: false, vertical: true)
+
+                        if !regionalEntries.isEmpty {
+                            WrapLayout(spacing: 8) {
+                                ForEach(CareFilterMode.allCases) { mode in
+                                    let on = (filter == mode)
+                                    let cnt = switch mode {
+                                    case .all: regionalEntries.count
+                                    case .pending: regPendingCount
+                                    case .done: regDoneCount
+                                    }
+                                    Button {
+                                        withAnimation(.snappy) { filter = mode }
+                                    } label: {
+                                        HStack(spacing: 4) {
+                                            Text(mode.label)
+                                                .font(.caption.weight(on ? .bold : .semibold))
+                                            Text("\(cnt)")
+                                                .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
+                                                .opacity(on ? 0.92 : 0.72)
+                                        }
+                                        .foregroundStyle(on ? .white : .primary)
+                                        .padding(.horizontal, 11).padding(.vertical, 6)
+                                        .background(Capsule().fill(on ? Palette.accentFill : (dark ? Color.white.opacity(0.08) : Palette.fill)))
+                                        .pillHitTarget()
+                                    }
+                                    .buttonStyle(.toy)
+                                    .accessibilityAddTraits(on ? .isSelected : [])
+                                }
                             }
                         }
                     }
                     .padding(14)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .printCard(radius: Radius.card)
+
+                    if regionalEntries.isEmpty {
+                        Text(L10n.t("该月龄在本地区通常无常规新增项目，请以当地诊所医嘱为准。", "No routine milestone visits listed for this month in this region — confirm locally with your clinician."))
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.secondaryText)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .printCard(radius: Radius.card)
+                    } else if filteredRegional.isEmpty {
+                        Text(filter == .done
+                             ? L10n.t("还没有勾完的项目，轻点上方状态切换到待完成查看。", "Nothing logged yet — switch filter to see items due.")
+                             : L10n.t("本月参考项目均已记下。", "All items for this month are checked off."))
+                            .font(.subheadline)
+                            .foregroundStyle(Palette.secondaryText)
+                            .padding(16)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .printCard(radius: Radius.card)
+                    } else {
+                        Box(title: region.shortLabel, detail: "\(regDoneCount) / \(regionalEntries.count)") {
+                            ForEach(Array(filteredRegional.enumerated()), id: \.element.id) { idx, item in
+                                let rk = regKey(item)
+                                CheckRow(
+                                    text: item.title,
+                                    on: app.ticked(m, rk.kind, rk.key),
+                                    accent: item.kind == "vaccine" ? Crayon.cherry : Crayon.teal,
+                                    last: idx == filteredRegional.count - 1
+                                ) {
+                                    app.toggle(m, rk.kind, rk.key, item.title)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 if region == .cn && (monthTotal > 0 || !earlier.isEmpty) {
@@ -907,17 +992,28 @@ struct CareView: View {
                         .printCard(radius: Radius.card)
                 }
 
-                CalmDisclosureNote(
-                    title: L10n.t("数据依据与适用说明", "Schedule Reference & Scope"),
-                    symbol: "doc.text"
-                ) {
+                VStack(alignment: .leading, spacing: 6) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "doc.text")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Palette.secondaryText)
+                        Text(L10n.t("数据依据与适用说明", "Schedule Reference & Scope"))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Palette.secondaryText)
+                    }
                     Text(region.scopeNote)
                         .font(.footnote)
                         .foregroundStyle(Palette.secondaryText)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill(Palette.fill.opacity(dark ? 0.45 : 0.65))
+                )
             }
-            .padding(.horizontal, 16).padding(.bottom, 48)
+            .padding(.horizontal, LayoutSpec.pageH).padding(.bottom, 48)
         }
         .calmWhileScrolling()
         .pageBackground()
@@ -938,6 +1034,7 @@ struct CareView: View {
         }
         .sheet(isPresented: $showingClinicSnapshot) {
             ClinicSnapshotSheet()
+                .lampPresented()
         }
     }
 
@@ -1295,6 +1392,7 @@ struct ObserveView: View {
         }
         .sheet(isPresented: $showingClinicSnapshot) {
             ClinicSnapshotSheet()
+                .lampPresented()
         }
     }
 }

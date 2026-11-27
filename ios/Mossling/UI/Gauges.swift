@@ -49,7 +49,11 @@ struct LevelGauge: View {
         .sensoryFeedback(.selection, trigger: value)
         .accessibilityElement()
         .accessibilityLabel(vessel == .bottle ? L10n.t("奶量", "Volume") : L10n.t("体温", "Temperature"))
-        .accessibilityValue(label(value))
+        .accessibilityValue(
+            vessel == .bottle
+                ? L10n.t("\(Int(value.rounded())) 毫升", "\(Int(value.rounded())) milliliters")
+                : L10n.t(String(format: "%.1f 摄氏度", value), String(format: "%.1f degrees Celsius", value))
+        )
         .accessibilityAdjustableAction { d in
             switch d {
             case .increment: value = min(range.upperBound, value + step)

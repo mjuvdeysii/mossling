@@ -335,18 +335,25 @@ final class ToyboxAudioEngine {
         engine?.stop()
         engine = nil
         players = []
+        if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        }
     }
 
     // MARK: - Audio Engine Pool
 
     private func ensureEngine() -> Bool {
+        guard !FirstVoiceController.shared.isRecording else { return false }
+        if SoundscapeEngine.shared.isPlaying {
+            SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
+        }
         if let e = engine {
             if !e.isRunning { try? e.start() }
             return e.isRunning
         }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true, options: [])
             let e = AVAudioEngine()
             guard let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1) else { return false }

@@ -141,65 +141,66 @@ struct MidnightCareSummary: Equatable {
             .max { $0.start < $1.start }
         let milkKind = lastBottle.flatMap { ["breastmilk", "formula"].contains($0.detail ?? "") ? $0.detail : nil } ?? "formula"
 
-        let nightStartMs = nightWindowStartMs(for: now)
-        let nightFeeds = logs.filter { $0.start <= nowMs }.feedCount(from: nightStartMs)
-        var nightSleepSec = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { acc, entry in
+        let hour = Day.cal.component(.hour, from: now)
+        let isDaytime = (9..<19).contains(hour)
+        let windowStartMs = isDaytime
+            ? Day(now).date.timeIntervalSince1970 * 1000
+            : nightWindowStartMs(for: now)
+        let windowFeeds = logs.filter { $0.start <= nowMs }.feedCount(from: windowStartMs)
+        var windowSleepSec = logs.filter { $0.type == LogType.sleep }.reduce(0.0) { acc, entry in
             let entryEnd = min(entry.end ?? nowMs, nowMs)
-            let s = max(entry.start, nightStartMs)
+            let s = max(entry.start, windowStartMs)
             guard entryEnd > s else { return acc }
             let rawSpan = max(1.0, (entryEnd - entry.start) / 1000.0)
-            let ratio = entry.start < nightStartMs ? min(1.0, ((entryEnd - s) / 1000.0) / rawSpan) : 1.0
+            let ratio = entry.start < windowStartMs ? min(1.0, ((entryEnd - s) / 1000.0) / rawSpan) : 1.0
             return acc + min(entry.activeSeconds, rawSpan) * ratio
         }
         if let activeSleep = timers.first(where: { $0.type == LogType.sleep }) {
             let activeEnd = min(activeSleep.pausedAt ?? nowMs, nowMs)
-            let activeStart = max(activeSleep.start, nightStartMs)
+            let activeStart = max(activeSleep.start, windowStartMs)
             if activeEnd > activeStart {
                 let rawElapsed = activeSleep.total(nowMs)
                 let fullSpan = max(1.0, (activeEnd - activeSleep.start) / 1000.0)
-                let ratio = activeSleep.start < nightStartMs ? min(1.0, ((activeEnd - activeStart) / 1000.0) / fullSpan) : 1.0
-                nightSleepSec += rawElapsed * ratio
+                let ratio = activeSleep.start < windowStartMs ? min(1.0, ((activeEnd - activeStart) / 1000.0) / fullSpan) : 1.0
+                windowSleepSec += rawElapsed * ratio
             }
         }
 
         let statusLine: String?
         if let activeSleep = timers.first(where: { $0.type == LogType.sleep }) {
             let dur = L10n.duration(activeSleep.total(nowMs))
-            if nightFeeds > 0 {
-                statusLine = L10n.t(
-                    "安睡中 \(dur) · 今夜喂 \(nightFeeds) 次",
-                    "Asleep \(dur) · \(nightFeeds) night \(nightFeeds == 1 ? "feed" : "feeds")"
-                )
+            if windowFeeds > 0 {
+                statusLine = isDaytime
+                    ? L10n.t("安睡中 \(dur) · 今日喂 \(windowFeeds) 次", "Asleep \(dur) · \(windowFeeds) \(windowFeeds == 1 ? "feed" : "feeds") today")
+                    : L10n.t("安睡中 \(dur) · 今夜喂 \(windowFeeds) 次", "Asleep \(dur) · \(windowFeeds) night \(windowFeeds == 1 ? "feed" : "feeds")")
             } else {
                 statusLine = L10n.t("安睡中 · 本觉已 \(dur)", "Asleep · \(dur)")
             }
         } else if let activeNurse = timers.first(where: { $0.type == LogType.nurse }) {
             let dur = L10n.duration(activeNurse.total(nowMs))
             let side = activeNurse.side == "r" ? L10n.t("右侧", "R") : L10n.t("左侧", "L")
-            if nightSleepSec >= 60 {
-                statusLine = L10n.t(
-                    "亲喂\(side) \(dur) · 今夜已睡 \(L10n.duration(nightSleepSec))",
-                    "Nursing \(side) \(dur) · Night sleep \(L10n.duration(nightSleepSec))"
-                )
+            if windowSleepSec >= 60 {
+                statusLine = isDaytime
+                    ? L10n.t("亲喂\(side) \(dur) · 今日睡 \(L10n.duration(windowSleepSec))", "Nursing \(side) \(dur) · Today sleep \(L10n.duration(windowSleepSec))")
+                    : L10n.t("亲喂\(side) \(dur) · 今夜已睡 \(L10n.duration(windowSleepSec))", "Nursing \(side) \(dur) · Night sleep \(L10n.duration(windowSleepSec))")
             } else {
                 statusLine = L10n.t("亲喂\(side) · 已 \(dur)", "Nursing \(side) · \(dur)")
             }
         } else if let lastWake = LastFact.of(LogType.sleep, in: logs) {
             let awakeSec = now.timeIntervalSince(lastWake.at)
             if awakeSec >= 60 && awakeSec < 14 * 3600 {
-                if nightSleepSec >= 60 {
-                    statusLine = L10n.t(
-                        "已醒 \(L10n.duration(awakeSec)) · 今夜睡 \(L10n.duration(nightSleepSec))",
-                        "Awake \(L10n.duration(awakeSec)) · Night sleep \(L10n.duration(nightSleepSec))"
-                    )
+                if windowSleepSec >= 60 {
+                    statusLine = isDaytime
+                        ? L10n.t("已醒 \(L10n.duration(awakeSec)) · 今日睡 \(L10n.duration(windowSleepSec))", "Awake \(L10n.duration(awakeSec)) · Today sleep \(L10n.duration(windowSleepSec))")
+                        : L10n.t("已醒 \(L10n.duration(awakeSec)) · 今夜睡 \(L10n.duration(windowSleepSec))", "Awake \(L10n.duration(awakeSec)) · Night sleep \(L10n.duration(windowSleepSec))")
                 } else {
                     statusLine = L10n.t("已醒 \(L10n.duration(awakeSec))", "Awake \(L10n.duration(awakeSec))")
                 }
             } else {
-                statusLine = nightSummaryFallback(nightSleepSec: nightSleepSec, nightFeeds: nightFeeds)
+                statusLine = windowSummaryFallback(sleepSec: windowSleepSec, feeds: windowFeeds, daytime: isDaytime)
             }
         } else {
-            statusLine = nightSummaryFallback(nightSleepSec: nightSleepSec, nightFeeds: nightFeeds)
+            statusLine = windowSummaryFallback(sleepSec: windowSleepSec, feeds: windowFeeds, daytime: isDaytime)
         }
 
         return MidnightCareSummary(
@@ -218,18 +219,16 @@ struct MidnightCareSummary: Equatable {
         return anchor.timeIntervalSince1970 * 1000
     }
 
-    private static func nightSummaryFallback(nightSleepSec: Double, nightFeeds: Int) -> String? {
-        if nightSleepSec >= 60 && nightFeeds > 0 {
-            return L10n.t(
-                "今夜睡 \(L10n.duration(nightSleepSec)) · 喂 \(nightFeeds) 次",
-                "Night sleep \(L10n.duration(nightSleepSec)) · \(nightFeeds) \(nightFeeds == 1 ? "feed" : "feeds")"
-            )
+    private static func windowSummaryFallback(sleepSec: Double, feeds: Int, daytime: Bool) -> String? {
+        if sleepSec >= 60 {
+            return daytime
+                ? L10n.t("今日睡 \(L10n.duration(sleepSec))", "Today sleep \(L10n.duration(sleepSec))")
+                : L10n.t("今夜已睡 \(L10n.duration(sleepSec))", "Night sleep \(L10n.duration(sleepSec))")
         }
-        if nightSleepSec >= 60 {
-            return L10n.t("今夜累计睡 \(L10n.duration(nightSleepSec))", "Night sleep \(L10n.duration(nightSleepSec))")
-        }
-        if nightFeeds > 0 {
-            return L10n.t("今夜已喂 \(nightFeeds) 次", "\(nightFeeds) night \(nightFeeds == 1 ? "feed" : "feeds")")
+        if feeds > 0 {
+            return daytime
+                ? L10n.t("今日已喂 \(feeds) 次", "\(feeds) \(feeds == 1 ? "feed" : "feeds") today")
+                : L10n.t("今夜已喂 \(feeds) 次", "\(feeds) night \(feeds == 1 ? "feed" : "feeds")")
         }
         return nil
     }
@@ -267,6 +266,25 @@ enum PalmPatRhythm {
         return max(46.0, base - (base - 48.0) * progress)
     }
 
+    /// Exact continuous analytical integral of `bpm(u)/60` over `0...elapsedSeconds`, preventing
+    /// epoch-multiplication strobe jumps when `autoSlow` gradually lowers BPM.
+    static func phaseFraction(startBPM: Double, elapsedSeconds: Double, autoSlow: Bool) -> Double {
+        let t = max(0.0, elapsedSeconds)
+        let base = max(46.0, min(72.0, startBPM))
+        let cycles: Double
+        if !autoSlow || base <= 48.0 || t <= 0 {
+            cycles = t * base / 60.0
+        } else {
+            let ramp = min(t, 300.0)
+            let endRampBPM = base - (base - 48.0) * (ramp / 300.0)
+            let avgRampBPM = 0.5 * (base + endRampBPM)
+            let rampCycles = ramp * avgRampBPM / 60.0
+            let tailCycles = max(0.0, t - 300.0) * (48.0 / 60.0)
+            cycles = rampCycles + tailCycles
+        }
+        return cycles.truncatingRemainder(dividingBy: 1.0)
+    }
+
     static func bpmFromTapTimestamps(_ timestamps: [TimeInterval]) -> Double? {
         guard timestamps.count >= 3 else { return nil }
         let recent = Array(timestamps.suffix(5))
@@ -293,6 +311,7 @@ struct BedsideLampView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     /// Initial brightness (0.15...1.0), configurable for previews and deterministic screenshots.
     @State private var brightness: Double
@@ -445,38 +464,43 @@ struct BedsideLampView: View {
     var body: some View {
         ZStack {
             backdrop
-            VStack(spacing: 0) {
-                topBar
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
+            GeometryReader { geo in
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        topBar
+                            .padding(.horizontal, 20)
+                            .padding(.top, 10)
 
-                Spacer(minLength: 10)
+                        Spacer(minLength: 10)
 
-                lanternCenterpiece
-                    .frame(maxWidth: .infinity)
-                    .overlay(alignment: .trailing) {
-                        dimmerRail
-                            .padding(.trailing, 10)
-                    }
+                        lanternCenterpiece
+                            .frame(maxWidth: .infinity)
+                            .overlay(alignment: .trailing) {
+                                dimmerRail
+                                    .padding(.trailing, 10)
+                            }
 
-                Spacer(minLength: 6)
+                        Spacer(minLength: 6)
 
-                VStack(spacing: 12) {
-                    if soundscape.isPlaying && volumeMonitor.shouldShow(for: .lamp) {
-                        LampHighVolumePill(volumePercent: volumeMonitor.volumePercent) {
-                            withAnimation(.snappy) {
-                                volumeMonitor.acknowledge(context: .lamp)
+                        VStack(spacing: 12) {
+                            if soundscape.isPlaying && volumeMonitor.shouldShow(for: .lamp) {
+                                LampHighVolumePill(volumePercent: volumeMonitor.volumePercent) {
+                                    withAnimation(.snappy) {
+                                        volumeMonitor.acknowledge(context: .lamp)
+                                    }
+                                }
+                                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                            }
+                            soundscapeDeck
+                            if app.journal {
+                                careDock
                             }
                         }
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
+                        .padding(.horizontal, 18)
+                        .padding(.bottom, 12)
                     }
-                    soundscapeDeck
-                    if app.journal {
-                        careDock
-                    }
+                    .frame(minHeight: geo.size.height)
                 }
-                .padding(.horizontal, 18)
-                .padding(.bottom, 12)
             }
             .overlay(alignment: .top) {
                 if let toast = j.toast {
@@ -542,10 +566,8 @@ struct BedsideLampView: View {
             if phase == .active {
                 applyScreenDimmerIfAllowed()
                 if !reduce { motion.start() }
-            } else if phase == .background {
-                restoreScreenBrightness()
-                motion.stop()
             } else {
+                restoreScreenBrightness()
                 motion.stop()
             }
         }
@@ -824,9 +846,8 @@ struct BedsideLampView: View {
 
                 if palmPatActive && !emberResting {
                     TimelineView(.animation(minimumInterval: 1.0 / 24.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
-                        let t = (reduce || Perf.still) ? 0.28 : tl.date.timeIntervalSinceReferenceDate
-                        let beatHz = livePalmPatBPM / 60.0
-                        let phase = (t * beatHz).truncatingRemainder(dividingBy: 1.0)
+                        let elapsed = (reduce || Perf.still) ? 0.28 : max(0, tl.date.timeIntervalSince(palmPatStartedAt))
+                        let phase = PalmPatRhythm.phaseFraction(startBPM: palmPatBPM, elapsedSeconds: elapsed, autoSlow: palmPatAutoSlow)
                         let pulseWave = exp(-phase * 3.4)
                         let ringSize: CGFloat = 132 + CGFloat(phase) * 56
 
@@ -958,7 +979,7 @@ struct BedsideLampView: View {
             .frame(minHeight: 142, idealHeight: 176, maxHeight: 186)
             .layoutPriority(-1)
 
-            HStack(spacing: 8) {
+            let modeControls = HStack(spacing: 8) {
                 if emberResting {
                     Button {
                         TactileEngine.shared.beadClick()
@@ -1113,38 +1134,49 @@ struct BedsideLampView: View {
                     .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.32))
                     .accessibilityHidden(true)
                 }
+            }
 
-                // Compact 3-Warmth Color Swatches (Amber / Candle Red / Peach)
-                HStack(spacing: 2) {
-                    ForEach(LampWarmth.allCases) { preset in
-                        let on = warmth == preset
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            rekindleFromEmber()
-                            withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
-                                warmth = preset
-                            }
-                            commitLampPreferences()
-                        } label: {
-                            Circle()
-                                .fill(preset.primaryGlow)
-                                .frame(width: on ? 16 : 13, height: on ? 16 : 13)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
-                                )
-                                .frame(width: 34, height: 34)
-                                .contentShape(Rectangle())
+            let warmthSwatches = HStack(spacing: 2) {
+                ForEach(LampWarmth.allCases) { preset in
+                    let on = warmth == preset
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                        withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
+                            warmth = preset
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel(preset.label)
-                        .accessibilityAddTraits(on ? .isSelected : [])
+                        commitLampPreferences()
+                    } label: {
+                        Circle()
+                            .fill(preset.primaryGlow)
+                            .frame(width: on ? 16 : 13, height: on ? 16 : 13)
+                            .overlay(
+                                Circle()
+                                    .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
+                            )
+                            .frame(width: 34, height: 34)
+                            .contentShape(Rectangle())
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(preset.label)
+                    .accessibilityAddTraits(on ? .isSelected : [])
                 }
-                .padding(.horizontal, 6)
-                .frame(minHeight: 36)
-                .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
-                .pillHitTarget(LayoutSpec.hitMin)
+            }
+            .padding(.horizontal, 6)
+            .frame(minHeight: 36)
+            .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
+            .pillHitTarget(LayoutSpec.hitMin)
+
+            if palmPatActive || breathingGuide || typeSize.isAccessibilitySize {
+                VStack(spacing: 8) {
+                    modeControls
+                    warmthSwatches
+                }
+            } else {
+                HStack(spacing: 8) {
+                    modeControls
+                    warmthSwatches
+                }
             }
         }
     }
@@ -1504,10 +1536,10 @@ struct BedsideLampView: View {
 
                 if let t = activeTimer {
                     if let previewClock {
-                        activeTimerCard(t, now: previewClock.timeIntervalSince1970 * 1000)
+                        activeTimerCard(t, now: previewClock.timeIntervalSince1970 * 1000, summary: summary)
                     } else {
                         TimelineView(.periodic(from: .now, by: 1)) { liveTl in
-                            activeTimerCard(t, now: liveTl.date.timeIntervalSince1970 * 1000)
+                            activeTimerCard(t, now: liveTl.date.timeIntervalSince1970 * 1000, summary: summary)
                         }
                     }
                 } else {
@@ -1562,14 +1594,14 @@ struct BedsideLampView: View {
         .accessibilityElement(children: .combine)
     }
 
-    private func activeTimerCard(_ t: RunningTimer, now: Double) -> some View {
+    private func activeTimerCard(_ t: RunningTimer, now: Double, summary: MidnightCareSummary) -> some View {
         let paused = t.pausedAt != nil
         return VStack(spacing: 8) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 Image(systemName: LogType.symbol(t.type))
                     .font(.headline.weight(.bold))
                     .foregroundStyle(warmth.primaryGlow)
-                    .frame(width: 36, height: 36)
+                    .frame(width: 34, height: 34)
                     .background(Circle().fill(warmth.primaryGlow.opacity(0.16)))
 
                 VStack(alignment: .leading, spacing: 2) {
@@ -1594,12 +1626,32 @@ struct BedsideLampView: View {
                     Image(systemName: LogType.symbol(LogType.diaper))
                         .font(.caption.weight(.bold))
                         .foregroundStyle(quickCareMode == .diaper ? warmth.onPrimaryInk : warmth.primaryGlow)
-                        .frame(width: 36, height: 36)
+                        .frame(width: 34, height: 34)
                         .background(Circle().fill(quickCareMode == .diaper ? warmth.primaryGlow : Color(hex: 0x222D54)))
                         .hitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
                 .accessibilityLabel(L10n.t("顺手记尿布", "Quick log diaper"))
+
+                if t.type == LogType.sleep {
+                    Button {
+                        TactileEngine.shared.beadClick()
+                        rekindleFromEmber()
+                        bottleMilkKind = summary.defaultMilkKind
+                        withAnimation(reduce ? nil : .snappy) {
+                            quickCareMode = quickCareMode == .bottle ? nil : .bottle
+                        }
+                    } label: {
+                        Image(systemName: LogType.symbol(LogType.bottle))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(quickCareMode == .bottle ? warmth.onPrimaryInk : warmth.primaryGlow)
+                            .frame(width: 34, height: 34)
+                            .background(Circle().fill(quickCareMode == .bottle ? warmth.primaryGlow : Color(hex: 0x222D54)))
+                            .hitTarget(LayoutSpec.hitMin)
+                    }
+                    .buttonStyle(.toy)
+                    .accessibilityLabel(L10n.t("顺手记瓶喂", "Quick log bottle"))
+                }
 
                 if t.type == LogType.nurse {
                     Button {
@@ -1636,6 +1688,9 @@ struct BedsideLampView: View {
 
             if quickCareMode == .diaper {
                 diaperQuickTray
+                    .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
+            } else if quickCareMode == .bottle {
+                bottleQuickTray(suggestions: summary.bottleSuggestions)
                     .transition(.opacity.combined(with: .scale(scale: 0.97, anchor: .top)))
             }
 

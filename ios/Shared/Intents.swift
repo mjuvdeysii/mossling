@@ -64,7 +64,11 @@ struct TimerIntent: LiveActivityIntent {
     init() {}
     init(type: String, action: String) { self.type = type; self.action = action }
     static func canRecord(snapshot: Snapshot?) -> Bool {
-        snapshot.map { ($0.consented ?? $0.journal) && $0.journal } ?? false
+        guard let s = snapshot else { return false }
+        guard (s.consented ?? s.journal) && s.journal else { return false }
+        if s.appLocked == true { return false }
+        if let ver = s.consentVersion, !ver.isEmpty, ver != SharedConsent.version { return false }
+        return true
     }
     func perform() async throws -> some IntentResult {
         guard Self.canRecord(snapshot: JournalFile.snapshot()) else {
@@ -411,8 +415,30 @@ struct BabyCareStatusIntent: AppIntent {
     init() {}
 
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
-        let body = JournalFile.read()
         let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            let locked = snap?.appLocked == true
+            let dialog = locked
+                ? L10n.t("摸索台灯已锁定，请先解锁后再查看宝宝近况。", "Moss & Otto is locked. Unlock the app to check baby status.")
+                : L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first.")
+            let hidden = locked ? L10n.t("已锁定", "Locked") : L10n.t("已隐藏", "Hidden")
+            let redacted = BabyCareStatusSummary(
+                babyName: L10n.appName,
+                activeTimerLabel: nil,
+                activeTimerDuration: nil,
+                lastFeedPhrase: hidden,
+                lastFeedNote: nil,
+                lastWakePhrase: hidden,
+                lastWakeNote: nil,
+                todayWetDiapers: 0,
+                todayDirtyDiapers: 0,
+                dialogText: dialog
+            )
+            return .result(dialog: "\(dialog)") {
+                BabyCareStatusSnippetView(summary: redacted)
+            }
+        }
+        let body = JournalFile.read()
         let summary = BabyCareStatusSummary.build(body: body, snap: snap, now: Date())
         return .result(dialog: "\(summary.dialogText)") {
             BabyCareStatusSnippetView(summary: summary)

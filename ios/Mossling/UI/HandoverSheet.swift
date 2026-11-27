@@ -17,6 +17,10 @@ struct HandoverSnapshot: Sendable {
     let todayHeadline: String
     let todayDetail: String
     let extraNote: String
+    var careAlerts: [String] = []
+    var feedTimestampSec: Int64? = nil
+    var sleepTimestampSec: Int64? = nil
+    var diaperTimestampSec: Int64? = nil
 
     var plainText: String {
         let headerAge = ageText.isEmpty ? "" : " · \(ageText)"
@@ -31,6 +35,9 @@ struct HandoverSnapshot: Sendable {
         lines.append(L10n.t("上次醒来：\(lastSleepHeadline)（\(lastSleepDetail)）", "Last wake: \(lastSleepHeadline) (\(lastSleepDetail))"))
         lines.append(L10n.t("上次尿布：\(lastDiaperHeadline)（\(lastDiaperDetail)）", "Last diaper: \(lastDiaperHeadline) (\(lastDiaperDetail))"))
         lines.append(L10n.t("今日节奏：\(todayHeadline) · \(todayDetail)", "Today: \(todayHeadline) · \(todayDetail)"))
+        for alert in careAlerts {
+            lines.append(alert)
+        }
         if !extraNote.isEmpty {
             lines.append(L10n.t("交接备注：\(extraNote)", "Handover note: \(extraNote)"))
         }
@@ -63,8 +70,10 @@ struct HandoverSnapshot: Sendable {
         let lastFeedObj = journal.logs.feeds().last
         let lastFeedHead: String
         let lastFeedSub: String
+        let feedAt: Date?
         if let f = lastFeedObj {
             let at = lastFeedFact?.at ?? f.startDate
+            feedAt = at
             lastFeedHead = L10n.agoText(at, now: now, precise: true)
             if f.isBottle, let ml = f.first.amount, ml > 0 {
                 lastFeedSub = L10n.t("\(hm(at)) · 瓶喂 \(ml) 毫升", "\(hm(at)) · " + L10n.volume(ml: ml))
@@ -72,6 +81,7 @@ struct HandoverSnapshot: Sendable {
                 lastFeedSub = L10n.t("\(hm(at)) · 今日共 \(feeds) 次", "\(hm(at)) · \(feeds) today")
             }
         } else {
+            feedAt = nil
             lastFeedHead = "—"
             lastFeedSub = L10n.t("今日共 \(feeds) 次", "\(feeds) today")
         }
@@ -88,11 +98,23 @@ struct HandoverSnapshot: Sendable {
         let feedWord = feeds == 1 ? "feed" : "feeds"
         let diaperWord = diapers.count == 1 ? "diaper" : "diapers"
         let todayHead = L10n.t("喂 \(feeds) 次 · 尿布 \(diapers.count)", "\(feeds) \(feedWord) · \(diapers.count) \(diaperWord)")
-        let latestSpecial = own.filter { $0.type == LogType.solid || $0.type == LogType.medicine || $0.type == LogType.temp }.max { $0.start < $1.start }
+        let latestTemp = own.filter { $0.type == LogType.temp }.max { $0.start < $1.start }
+        let latestMed = own.filter { $0.type == LogType.medicine }.max { $0.start < $1.start }
+        var alerts: [String] = []
+        if let temp = latestTemp {
+            let sum = temp.summary
+            alerts.append(L10n.t("体温（\(hm(temp.startDate))）：\(sum)", "Temp (\(hm(temp.startDate))): \(sum)"))
+        }
+        if let med = latestMed {
+            let sum = med.summary.isEmpty ? LogType.name(LogType.medicine) : med.summary
+            alerts.append(L10n.t("用药（\(hm(med.startDate))）：\(sum)", "Medication (\(hm(med.startDate))): \(sum)"))
+        }
+
+        let latestSolid = own.filter { $0.type == LogType.solid }.max { $0.start < $1.start }
         let todaySub: String
-        if let sp = latestSpecial {
-            let summary = sp.summary
-            todaySub = summary.isEmpty ? LogType.name(sp.type) : "\(LogType.name(sp.type)) · \(summary)"
+        if let solid = latestSolid {
+            let summary = solid.summary
+            todaySub = summary.isEmpty ? LogType.name(solid.type) : "\(LogType.name(solid.type)) · \(summary)"
         } else if let mo = app.babyMonth, let play = app.todayPlay(mo, journal) {
             todaySub = L10n.t("今日玩：\(play.name)", "Play: \(play.name)")
         } else {
@@ -113,7 +135,11 @@ struct HandoverSnapshot: Sendable {
             lastDiaperDetail: lastDiaperSub,
             todayHeadline: todayHead,
             todayDetail: todaySub,
-            extraNote: extraNote.trimmingCharacters(in: .whitespacesAndNewlines)
+            extraNote: extraNote.trimmingCharacters(in: .whitespacesAndNewlines),
+            careAlerts: alerts,
+            feedTimestampSec: feedAt.map { Int64($0.timeIntervalSince1970) },
+            sleepTimestampSec: lastSleepDate.map { Int64($0.timeIntervalSince1970) },
+            diaperTimestampSec: lastDiaperDate.map { Int64($0.timeIntervalSince1970) }
         )
     }
 }
@@ -151,6 +177,7 @@ struct HandoverSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     let day: Day
     let previewNow: Date?
@@ -209,8 +236,11 @@ struct HandoverSheet: View {
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(.primary)
 
+                            let noteCols = typeSize.isAccessibilitySize
+                                ? [GridItem(.flexible())]
+                                : [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)]
                             LazyVGrid(
-                                columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)],
+                                columns: noteCols,
                                 spacing: 7
                             ) {
                                 ForEach(quickNotes, id: \.self) { chip in
@@ -222,7 +252,7 @@ struct HandoverSheet: View {
                                         Text(chip)
                                             .font(.caption.weight(.semibold))
                                             .foregroundStyle(active ? .white : .primary)
-                                            .lineLimit(1)
+                                            .lineLimit(typeSize.isAccessibilitySize ? 2 : 1)
                                             .minimumScaleFactor(0.8)
                                             .frame(maxWidth: .infinity)
                                             .padding(.horizontal, 10)
@@ -242,20 +272,20 @@ struct HandoverSheet: View {
                                 .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(Palette.outline.opacity(0.28), lineWidth: 0.75))
                         }
 
-                        // Compact Side-by-Side Share Visual Card & Copy Text Actions
-                        HStack(spacing: 10) {
+                        // Compact Side-by-Side Share Visual Card & Copy Text Actions (stacked in AX)
+                        let shareButtons = Group {
                             ShareLink(
                                 item: poster,
                                 preview: SharePreview(
                                     L10n.t("\(snap.babyName)的照护交接卡", "\(snap.babyName)'s Care Handover Card")
                                 )
                             ) {
-                                Label(L10n.t("分享交接卡", "Share Card"), systemImage: "square.and.arrow.up")
+                                    Label(L10n.t("分享交接卡", "Share Card"), systemImage: "square.and.arrow.up")
                                     .font(.subheadline.weight(.bold))
                                     .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 11)
+                                    .dsPill(.primary, height: LayoutSpec.ctaSecondaryHeight)
                             }
-                            .buttonStyle(.vinyl(Palette.accentFill, prominent: true))
+                            .buttonStyle(.plain)
 
                             Button {
                                 UIPasteboard.general.string = snap.plainText
@@ -276,6 +306,11 @@ struct HandoverSheet: View {
                             }
                             .buttonStyle(.vinyl(copied ? Crayon.leaf : Crayon.caramel))
                         }
+                        if typeSize.isAccessibilitySize {
+                            VStack(spacing: 10) { shareButtons }
+                        } else {
+                            HStack(spacing: 10) { shareButtons }
+                        }
 
                         if let webURL {
                             HStack(spacing: 10) {
@@ -287,9 +322,9 @@ struct HandoverSheet: View {
                                     Label(L10n.t("发给安卓家人（免下载灯牌）", "Send Web Beacon (Android)"), systemImage: "safari.fill")
                                         .font(.subheadline.weight(.bold))
                                         .frame(maxWidth: .infinity)
-                                        .padding(.vertical, 10)
+                                        .dsPill(.secondary, height: LayoutSpec.ctaSecondaryHeight)
                                 }
-                                .buttonStyle(.vinyl(Crayon.sky))
+                                .buttonStyle(.plain)
 
                                 Button {
                                     UIPasteboard.general.url = webURL
@@ -342,6 +377,7 @@ private struct HandoverCardContent: View {
     @Binding var passProgress: Double
     @Binding var lanternPassed: Bool
     @State private var lastDetent = 0
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -471,8 +507,11 @@ private struct HandoverCardContent: View {
                 .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.amber.opacity(dark ? 0.18 : 0.16)))
             }
 
+            let statCols = typeSize.isAccessibilitySize
+                ? [GridItem(.flexible())]
+                : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
             LazyVGrid(
-                columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)],
+                columns: statCols,
                 spacing: 10
             ) {
                 statBox(
@@ -507,6 +546,26 @@ private struct HandoverCardContent: View {
                     detail: snapshot.todayDetail,
                     dark: dark
                 )
+            }
+
+            if !snapshot.careAlerts.isEmpty {
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(snapshot.careAlerts, id: \.self) { alert in
+                        HStack(alignment: .top, spacing: 6) {
+                            Image(systemName: "cross.case.fill")
+                                .font(.caption.weight(.bold))
+                                .foregroundStyle(Crayon.ink(Crayon.cherry))
+                                .padding(.top, 2)
+                            Text(alert)
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(.primary)
+                                .fixedSize(horizontal: false, vertical: true)
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Crayon.cherry.opacity(dark ? 0.18 : 0.11)))
             }
 
             if !snapshot.extraNote.isEmpty {
@@ -787,6 +846,19 @@ struct HandoverPoster: View {
                 posterCell(title: L10n.t("上次醒来", "Last Wake"), value: snapshot.lastSleepHeadline, detail: snapshot.lastSleepDetail, tint: Crayon.lilac, ink: ink, muted: muted)
                 posterCell(title: L10n.t("上次尿布", "Last Diaper"), value: snapshot.lastDiaperHeadline, detail: snapshot.lastDiaperDetail, tint: Crayon.sky, ink: ink, muted: muted)
                 posterCell(title: L10n.t("今日节奏", "Today's Rhythm"), value: snapshot.todayHeadline, detail: snapshot.todayDetail, tint: Crayon.leaf, ink: ink, muted: muted)
+            }
+
+            if !snapshot.careAlerts.isEmpty {
+                VStack(alignment: .leading, spacing: 3) {
+                    ForEach(snapshot.careAlerts, id: \.self) { alert in
+                        Text("• \(alert)")
+                            .font(.system(size: 11.5, weight: .bold, design: .rounded))
+                            .foregroundStyle(Color(hex: 0xB52820))
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                }
+                .padding(9)
+                .background(RoundedRectangle(cornerRadius: 10).fill(Crayon.cherry.opacity(0.11)))
             }
 
             if !snapshot.extraNote.isEmpty {

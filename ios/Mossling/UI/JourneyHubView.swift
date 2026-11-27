@@ -425,7 +425,7 @@ struct JourneyHubView: View {
                 StorybookView().lampPresented(sheet: false)
             }
             .sheet(isPresented: $showingClinicSnapshot) {
-                ClinicSnapshotSheet()
+                ClinicSnapshotSheet().lampPresented()
             }
         }
     }

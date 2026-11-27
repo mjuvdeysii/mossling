@@ -16,7 +16,6 @@
 	<key>NSFaceIDUsageDescription</key><string>打开应用锁后，用面容 ID 确认是你本人。</string>
 	<key>NSMicrophoneUsageDescription</key><string>为「第一次」与「童言一句」录制宝宝的小声音，音频仅保存在这台手机本地，不会上传。</string>
 	<key>NSMotionUsageDescription</key><string>在床头夜灯和金珠雨声棒中，感受手机轻倾以呈现柔和光影与木珠滚动。</string>
-	<key>NSPhotoLibraryUsageDescription</key><string>为「第一次」与「百味食盒」挑选纪念照片与辅食贴纸，照片仅保存在这台手机上，不会上传。</string>
 	<key>NSPhotoLibraryAddUsageDescription</key><string>保存藏画壁纸、成长印画与照护交接卡片到系统相册。</string>
 	<key>NSSupportsLiveActivities</key><true/>
 	<key>UILaunchScreen</key>
@@ -30,8 +29,8 @@
 	<array><string>UIInterfaceOrientationPortrait</string></array>
 	<key>CFBundleURLTypes</key>
 	<array><dict><key>CFBundleURLName</key><string>app.mossling</string><key>CFBundleURLSchemes</key><array><string>mossling</string></array></dict></array>
-	<key>UIFileSharingEnabled</key><true/>
-	<key>LSSupportsOpeningDocumentsInPlace</key><true/>
+	<key>UIFileSharingEnabled</key><false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key><false/>
 	<key>MosslingICP</key><string>$(MOSSLING_ICP)</string>
 	<key>MosslingDeveloper</key><string>$(MOSSLING_DEVELOPER)</string>
 	<key>MosslingEmail</key><string>$(MOSSLING_EMAIL)</string>

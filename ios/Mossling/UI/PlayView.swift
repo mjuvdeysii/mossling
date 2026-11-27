@@ -205,7 +205,7 @@ struct PlayView: View {
         }
         .onDisappear {
             stopAutoPlay()
-            keepAwake(false)
+            if !matMode { keepAwake(false) }
         }
         .onChange(of: open) { _, o in keepAwake(!dimVeil && (o < play.steps.count || matMode)) }
         .onChange(of: dimVeil) { _, on in
@@ -310,6 +310,8 @@ struct PlayView: View {
                 }
             )
             .lampPresented()
+            .onAppear { keepAwake(true) }
+            .onDisappear { keepAwake(!dimVeil && open < play.steps.count) }
         }
     }
 
@@ -349,12 +351,22 @@ struct PlayView: View {
         if recordedHere {
             TactileEngine.shared.goldChime()
             cheer += 1
-        } else if app.mayKeep(), app.didPlay(play, month: month, j) {
-            app.finishPlaying()
-            TactileEngine.shared.goldChime()
-            cheer += 1
         } else {
-            return
+            guard app.consented else {
+                matMode = false
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(350))
+                    _ = app.mayKeep()
+                }
+                return
+            }
+            if app.mayKeep(), app.didPlay(play, month: month, j) {
+                app.finishPlaying()
+                TactileEngine.shared.goldChime()
+                cheer += 1
+            } else {
+                return
+            }
         }
         withAnimation(reduce ? nil : .snappy) {
             open = play.steps.count
@@ -1057,15 +1069,15 @@ private struct StorybookSpineScrubber: View {
                 .frame(height: 44)
                 .contentShape(Rectangle())
                 .gesture(
-                    DragGesture(minimumDistance: 0)
+                    DragGesture(minimumDistance: 6)
                         .onChanged { value in
+                            if !isScrubbing {
+                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
+                                isScrubbing = true
+                            }
                             let u = min(0.9999, max(0.0, Double(value.location.x / trackW)))
                             let newTimelinePos = u * Double(count)
                             let decomp = PlayScrubMath.decompose(timelinePosition: newTimelinePos, stepCount: count)
-
-                            if !isScrubbing {
-                                isScrubbing = true
-                            }
                             if let oldPos = lastTimelinePos {
                                 if let newStep = PlayScrubMath.crossedStepBoundary(from: oldPos, to: newTimelinePos, stepCount: count) {
                                     TactileEngine.shared.beadClick()

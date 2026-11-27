@@ -91,6 +91,9 @@ struct StyleDoor<Content: View>: View {
                 return new >= Self.crackAt ? .impact(flexibility: .soft, intensity: min(1, 0.4 + Double(new - Self.crackAt) * 0.1)) : nil
             }
             .sensoryFeedback(.selection, trigger: ticks)
+            .accessibilityAction(named: flat ? L10n.t("切换回 3D 软陶画风", "Switch to 3D Clay style") : L10n.t("切换为 2D 水彩画风", "Switch to 2D Watercolor style")) {
+                StyleShift.shared.toggleArtStyle(from: frame, app: app, reduce: reduce)
+            }
     }
 
     private func tapped(at loc: CGPoint) {

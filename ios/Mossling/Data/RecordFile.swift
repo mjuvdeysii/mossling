@@ -76,6 +76,16 @@ enum RecordFile {
             return Int(x)
         }
         func posInt(_ v: Any?) -> Int? { safeInt(v).flatMap { $0 > 0 ? $0 : nil } }
+        let minValidMs: Double = -2_208_988_800_000   // 1900-01-01
+        let maxValidMs: Double = 4_102_444_800_000    // 2100-01-01
+        func validMs(_ v: Any?) -> Double? {
+            guard let x = num(v), x >= minValidMs, x <= maxValidMs else { return nil }
+            return x
+        }
+        func validEpochDay(_ v: Any?) -> Int? {
+            guard let d = safeInt(v), (-25_567...47_847).contains(d) else { return nil }
+            return d
+        }
         let s = m["settings"] as? [String: Any] ?? [:]
         var parsedBirth: Day? = nil
         if let b = s["birth"] as? String {
@@ -85,34 +95,40 @@ enum RecordFile {
             }
         }
         let ticks = (m["ticks"] as? [[String: Any]] ?? []).compactMap { t -> Tick? in
-            guard let key = t["key"] as? String, let mo = safeInt(t["month"]), let kind = t["kind"] as? String else { return nil }
-            return Tick(key: key, month: mo, kind: kind, label: t["label"] as? String ?? "", at: num(t["at"]) ?? 0)
+            guard let key = t["key"] as? String, let mo = safeInt(t["month"]), (0...60).contains(mo),
+                  let kind = t["kind"] as? String else { return nil }
+            return Tick(key: key, month: mo, kind: kind, label: t["label"] as? String ?? "", at: validMs(t["at"]) ?? 0)
         }
         var body = JournalFile.Body()
         body.logs = (m["logs"] as? [[String: Any]] ?? []).compactMap { o in
-            guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
-            return LogEntry(type: type, start: start, end: num(o["end"]), amount: safeInt(o["amount"]), side: o["side"] as? String, detail: o["detail"] as? String)
+            guard let type = o["type"] as? String, let start = validMs(o["start"]) else { return nil }
+            let rawEnd = validMs(o["end"])
+            let clampedEnd = rawEnd.flatMap { $0 >= start ? $0 : nil }
+            return LogEntry(type: type, start: start, end: clampedEnd, amount: safeInt(o["amount"]), side: o["side"] as? String, detail: o["detail"] as? String)
         }
         body.measures = (m["measures"] as? [[String: Any]] ?? []).compactMap { o in
-            guard let at = num(o["at"]) else { return nil }
-            let w = posInt(o["weightG"]), l = posInt(o["lengthMm"]), h = posInt(o["headMm"])
+            guard let at = validMs(o["at"]) else { return nil }
+            let w = posInt(o["weightG"]).flatMap { (200...45_000).contains($0) ? $0 : nil }
+            let l = posInt(o["lengthMm"]).flatMap { (200...1_500).contains($0) ? $0 : nil }
+            let h = posInt(o["headMm"]).flatMap { (150...700).contains($0) ? $0 : nil }
             guard w != nil || l != nil || h != nil else { return nil }
             return Measure(at: at, weightG: w, lengthMm: l, headMm: h)
         }
         body.firsts = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
-            guard let at = num(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
+            guard let at = validMs(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
             let fid = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
             return First(id: fid, at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
         }
         body.timers = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
-            guard let type = o["type"] as? String, let start = num(o["start"]) else { return nil }
-            return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: num(o["pausedAt"]), pausedTotal: max(0, num(o["pausedTotal"]) ?? 0),
-                                carried: max(0, num(o["carried"]) ?? 0), carriedPause: max(0, num(o["carriedPause"]) ?? 0))
+            guard let type = o["type"] as? String, let start = validMs(o["start"]) else { return nil }
+            let pausedAt = validMs(o["pausedAt"]).flatMap { $0 >= start ? $0 : nil }
+            return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: pausedAt, pausedTotal: max(0, min(7 * 86_400_000, num(o["pausedTotal"]) ?? 0)),
+                                carried: max(0, min(7 * 86_400_000, num(o["carried"]) ?? 0)), carriedPause: max(0, min(7 * 86_400_000, num(o["carriedPause"]) ?? 0)))
         }
         let rawFoods = m["foods"] as? [[String: Any]]
         let parsedFoods: [FoodRecord]? = rawFoods?.compactMap { o in
             guard let foodId = o["foodId"] as? String, !foodId.isEmpty,
-                  let epochDay = safeInt(o["firstTastedEpochDay"]),
+                  let epochDay = validEpochDay(o["firstTastedEpochDay"]),
                   let reactionRaw = o["reaction"] as? String,
                   let reaction = FoodReaction(rawValue: reactionRaw) else { return nil }
             return FoodRecord(
@@ -128,7 +144,7 @@ enum RecordFile {
         let parsedCapsules: [TimeCapsule]? = rawCapsules?.compactMap { o in
             guard let title = o["title"] as? String, !title.isEmpty,
                   let capBody = o["body"] as? String, !capBody.isEmpty,
-                  let writtenAt = num(o["writtenAt"]) else { return nil }
+                  let writtenAt = validMs(o["writtenAt"]) else { return nil }
             let id = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
             let seal = (o["seal"] as? String).flatMap(CapsuleSeal.init(rawValue:)) ?? .gold
             return TimeCapsule(
@@ -137,8 +153,8 @@ enum RecordFile {
                 body: capBody,
                 writtenAt: writtenAt,
                 writtenAgeLabel: o["writtenAgeLabel"] as? String ?? "",
-                unlockEpochDay: safeInt(o["unlockEpochDay"]),
-                openedAt: num(o["openedAt"]),
+                unlockEpochDay: validEpochDay(o["unlockEpochDay"]),
+                openedAt: validMs(o["openedAt"]),
                 seal: seal
             )
         }
@@ -230,12 +246,17 @@ enum RecordFile {
             }
         }
 
-        // growth
+        // growth (preterm corrected age applied per measurement when chronological age at measurement < 24m)
         let ms = j.measures.sorted { $0.at < $1.at }
         if !ms.isEmpty {
             o += L10n.t("\n## 生长测量\n\n| 日期 | 月龄 | 体重（千克） | 身长 / 身高（厘米） | 头围（厘米） |\n|---|---|---|---|---|\n", "\n## Measurements\n\n| Date | Age (mo) | Weight (kg) | Length / Height (cm) | Head circumference (cm) |\n|---|---|---|---|---|\n")
             for m in ms {
-                let months = app.birth.map { Double(Day(Date(timeIntervalSince1970: m.at / 1000)).epochDay - $0.epochDay) / 30.4375 }
+                let measDay = Day(Date(timeIntervalSince1970: m.at / 1000))
+                let devBirth: Day? = app.birth.map { b in
+                    guard Age.isPreterm(app.gestationalWeeks), Age.on(birth: b, today: measDay).months < 24 else { return b }
+                    return Age.correctedBirth(birth: b, gestationalWeeks: app.gestationalWeeks)
+                }
+                let months = devBirth.map { Double(measDay.epochDay - $0.epochDay) / 30.4375 }
                 func cell(_ v: Int?, _ i: Indicator, _ k: Double) -> String {
                     guard let v, v > 0 else { return "" }
                     let x = Double(v) / k
@@ -243,49 +264,53 @@ enum RecordFile {
                     guard let p, p.isFinite else { return i.fmt(x) }
                     return L10n.t("\(i.fmt(x))（\(pctText(p))）", "\(i.fmt(x)) (\(pctText(p)))")
                 }
-                let row: [String] = [date(m.at), months.map { String(format: "%.1f", $0) } ?? "", cell(m.weightG, .weight, 1000), cell(m.lengthMm, .length, 10), cell(m.headMm, .head, 10)]
+                let ageStr = months.map { $0 >= 0 ? String(format: "%.1f", $0) : L10n.t("待产矫正期", "Pre-term") } ?? ""
+                let row: [String] = [date(m.at), ageStr, cell(m.weightG, .weight, 1000), cell(m.lengthMm, .length, 10), cell(m.headMm, .head, 10)]
                 o += "| \(row.joined(separator: " | ")) |\n"
             }
         }
 
-        // day by day — pre-grouped by calendar day (including multi-day carryovers) in O(logs)
+        // day by day — pre-grouped by calendar day (including multi-day carryovers) capped to 1500 days
         let logs = j.logs.sorted { $0.start < $1.start }
         if let first = logs.first {
             o += L10n.t("\n## 每天汇总\n\n| 日期 | 喂奶次数 | 亲喂 | 瓶喂 | 睡眠 | 尿布（湿 / 便） | 体温最高 | 辅食 | 用药 |\n|---|---|---|---|---|---|---|---|---|\n", "\n## Daily totals\n\n| Date | Feeds | Nursing | Bottle | Sleep | Diapers (wet / dirty) | Peak temp | Solids | Medicine |\n|---|---|---|---|---|---|---|---|---|\n")
             let last = Day.today
+            let minDayEpoch = max(Day(first.startDate).epochDay, last.epochDay - 1500)
             var byDay: [Int: [LogEntry]] = [:]
             for e in logs {
                 let startDay = Day(e.startDate)
-                if startDay.epochDay <= last.epochDay {
+                if startDay.epochDay >= minDayEpoch && startDay.epochDay <= last.epochDay {
                     byDay[startDay.epochDay, default: []].append(e)
                 }
                 if let endMs = e.end, endMs > e.start {
                     var cur = startDay.plus(days: 1)
-                    while cur.epochDay <= last.epochDay && endMs > cur.date.timeIntervalSince1970 * 1000 {
-                        byDay[cur.epochDay, default: []].append(e)
+                    var steps = 0
+                    while cur.epochDay <= last.epochDay && steps < 30 && endMs > cur.date.timeIntervalSince1970 * 1000 {
+                        if cur.epochDay >= minDayEpoch {
+                            byDay[cur.epochDay, default: []].append(e)
+                        }
                         cur = cur.plus(days: 1)
+                        steps += 1
                     }
                 }
             }
-            var d = Day(first.startDate)
-            while d.epochDay <= last.epochDay {
-                if let day = byDay[d.epochDay], !day.isEmpty {
-                    let own = day.filter { !$0.carriedOver(into: d) }
-                    let feeds = day.feedCount(from: d.date.timeIntervalSince1970 * 1000)
-                    let nursed = day.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) }
-                    let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
-                    let sleep = day.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) }
-                    let nap = own.filter { $0.type == LogType.diaper }
-                    let wet = nap.filter { $0.detail == "wet" || $0.detail == "both" }.count, dirty = nap.filter { $0.detail == "dirty" || $0.detail == "both" }.count
-                    let temp = own.filter { $0.type == LogType.temp }.compactMap(\.amount).max().map { L10n.temperature(tenthsC: $0) } ?? ""
-                    let solid = own.filter { $0.type == LogType.solid }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
-                    let med = own.filter { $0.type == LogType.medicine }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
-                    o += String(format: "| %04d-%02d-%02d ", d.y, d.m, d.d)
-                    let cells: [String] = ["\(feeds)", nursed > 0 ? minutesOf(nursed) : "", ml > 0 ? L10n.volume(ml: ml) : "", sleep > 0 ? minutesOf(sleep) : "",
-                                           nap.isEmpty ? "" : L10n.t("\(nap.count)（\(wet) / \(dirty)）", "\(nap.count) (\(wet) / \(dirty))"), temp, solid, med]
-                    o += "| \(cells.joined(separator: " | ")) |\n"
-                }
-                d = d.plus(days: 1)
+            for ep in byDay.keys.sorted() {
+                guard let day = byDay[ep], !day.isEmpty else { continue }
+                let d = Day(epochDay: ep)
+                let own = day.filter { !$0.carriedOver(into: d) }
+                let feeds = day.feedCount(from: d.date.timeIntervalSince1970 * 1000)
+                let nursed = day.filter { $0.type == LogType.nurse && $0.end != nil }.reduce(0.0) { $0 + $1.seconds(on: d) }
+                let ml = own.filter { $0.type == LogType.bottle }.reduce(0) { $0 + ($1.amount ?? 0) }
+                let sleep = day.filter { $0.type == LogType.sleep }.reduce(0.0) { $0 + $1.seconds(on: d) }
+                let nap = own.filter { $0.type == LogType.diaper }
+                let wet = nap.filter { $0.detail == "wet" || $0.detail == "both" }.count, dirty = nap.filter { $0.detail == "dirty" || $0.detail == "both" }.count
+                let temp = own.filter { $0.type == LogType.temp }.compactMap(\.amount).max().map { L10n.temperature(tenthsC: $0) } ?? ""
+                let solid = own.filter { $0.type == LogType.solid }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
+                let med = own.filter { $0.type == LogType.medicine }.compactMap(\.detail).filter { !$0.isEmpty }.joined(separator: listSep)
+                o += String(format: "| %04d-%02d-%02d ", d.y, d.m, d.d)
+                let cells: [String] = ["\(feeds)", nursed > 0 ? minutesOf(nursed) : "", ml > 0 ? L10n.volume(ml: ml) : "", sleep > 0 ? minutesOf(sleep) : "",
+                                       nap.isEmpty ? "" : L10n.t("\(nap.count)（\(wet) / \(dirty)）", "\(nap.count) (\(wet) / \(dirty))"), temp, solid, med]
+                o += "| \(cells.joined(separator: " | ")) |\n"
             }
         }
 

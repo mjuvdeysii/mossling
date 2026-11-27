@@ -105,7 +105,7 @@ struct FoodAtlasView: View {
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
         let snapshotRecords = store.records
         let ageLabel = app.age.map { L10n.ageText($0) } ?? ""
-        let passportPoster = RenderedPoster {
+        let passportPoster = RenderedPoster(filename: "moss-otto-first-foods") {
             let stickers = FoodItem.catalog.reduce(into: [String: UIImage]()) { out, item in
                 if let sticker = FoodStickerStore.load(for: item.id) {
                     out[item.id] = sticker
@@ -121,7 +121,7 @@ struct FoodAtlasView: View {
         let candidates = store.suggestedBiteCandidates()
         let nextCandidate = candidates.isEmpty ? nil : candidates[suggestionOffset % candidates.count]
         let columns: [GridItem] = type.isAccessibilitySize
-            ? Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+            ? Array(repeating: GridItem(.flexible(), spacing: 8), count: type >= .accessibility3 ? 1 : 2)
             : Array(repeating: GridItem(.flexible(), spacing: 8), count: 4)
 
         let directItems = matchingItems(in: selectedCategory)
@@ -587,6 +587,7 @@ struct FoodAtlasView: View {
                 Spacer(minLength: 4)
                 if rec != nil {
                     Button {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.beadClick()
                         _ = store.incrementTimes(foodId: item.id)
                         triggerStampBounce(for: item.id)
@@ -634,13 +635,15 @@ struct FoodAtlasView: View {
             HStack(spacing: 8) {
                 ForEach(FoodReaction.allCases) { r in
                     let on = rec?.reaction == r
+                    let fillColor = Crayon.fill(r.color, dark)
+                    let inkColor = dark ? r.color : Crayon.ink(r.color)
                     Button {
                         performQuickStamp(food: item, reaction: r)
                     } label: {
                         HStack(spacing: 5) {
                             Image(systemName: r.symbol)
                                 .font(.caption.weight(.bold))
-                                .foregroundStyle(on ? .white : r.color)
+                                .foregroundStyle(on ? .white : inkColor)
                             Text(r.title)
                                 .font(.caption.weight(.bold))
                                 .foregroundStyle(on ? .white : .primary)
@@ -649,7 +652,7 @@ struct FoodAtlasView: View {
                         }
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 8)
-                        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(on ? r.color : (dark ? Color.white.opacity(0.07) : Palette.fill.opacity(0.75))))
+                        .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(on ? fillColor : (dark ? Color.white.opacity(0.07) : Palette.fill.opacity(0.75))))
                     }
                     .buttonStyle(.toy)
                 }
@@ -938,6 +941,8 @@ private struct FoodTasteSheet: View {
     @State private var pickedPhotoItem: PhotosPickerItem? = nil
     @State private var cuttingSticker = false
     @State private var customSticker: UIImage? = nil
+    @State private var stickerDirty = false
+    @State private var stickerRemoved = false
 
     init(item: FoodItem, existing: FoodRecord?, store: FoodAtlasStore, onSaved: @escaping (String) -> Void = { _ in }) {
         self.item = item
@@ -990,9 +995,10 @@ private struct FoodTasteSheet: View {
                             if customSticker != nil {
                                 Button {
                                     TactileEngine.shared.beadClick()
-                                    FoodStickerStore.delete(for: item.id)
                                     withAnimation(reduce ? nil : .snappy) {
                                         customSticker = nil
+                                        stickerDirty = true
+                                        stickerRemoved = true
                                     }
                                 } label: {
                                     Text(L10n.t("恢复手绘图标", "Restore drawn icon"))
@@ -1004,7 +1010,7 @@ private struct FoodTasteSheet: View {
                         }
                         Spacer(minLength: 4)
 
-                        PhotosPicker(selection: $pickedPhotoItem, matching: .images, photoLibrary: .shared()) {
+                        PhotosPicker(selection: $pickedPhotoItem, matching: .images) {
                             HStack(spacing: 4) {
                                 Image(systemName: customSticker == nil ? "sparkles" : "arrow.trianglehead.2.clockwise")
                                     .font(.caption2.weight(.bold))
@@ -1031,6 +1037,8 @@ private struct FoodTasteSheet: View {
                         HStack(spacing: 10) {
                             ForEach(FoodReaction.allCases) { r in
                                 let on = reaction == r
+                                let fillColor = Crayon.fill(r.color, dark)
+                                let inkColor = dark ? r.color : Crayon.ink(r.color)
                                 Button {
                                     TactileEngine.shared.beadClick()
                                     reaction = r
@@ -1038,15 +1046,15 @@ private struct FoodTasteSheet: View {
                                     VStack(spacing: 6) {
                                         Image(systemName: r.symbol)
                                             .font(.title3.weight(.bold))
-                                            .foregroundStyle(on ? .white : r.color)
+                                            .foregroundStyle(on ? .white : inkColor)
                                         Text(r.title)
                                             .font(.footnote.weight(.bold))
                                             .foregroundStyle(on ? .white : .primary)
                                     }
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
-                                    .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(on ? r.color : (dark ? Palette.lampCard : Palette.card)))
-                                    .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(on ? r.color : Palette.outline.opacity(0.28), lineWidth: 1))
+                                    .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(on ? fillColor : (dark ? Palette.lampCard : Palette.card)))
+                                    .overlay(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).strokeBorder(on ? fillColor : Palette.outline.opacity(0.28), lineWidth: 1))
                                 }
                                 .buttonStyle(.toy)
                             }
@@ -1184,6 +1192,12 @@ private struct FoodTasteSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.t("盖章保存", "Save")) {
+                        guard app.mayKeep() else { return }
+                        if stickerRemoved {
+                            FoodStickerStore.delete(for: item.id)
+                        } else if stickerDirty, let sticker = customSticker {
+                            _ = FoodStickerStore.save(sticker, for: item.id)
+                        }
                         let rec = FoodRecord(
                             foodId: item.id,
                             firstTastedEpochDay: Day(tastedDate).epochDay,
@@ -1213,11 +1227,12 @@ private struct FoodTasteSheet: View {
             }
             .onAppear {
                 customSticker = FoodStickerStore.load(for: item.id)
+                stickerDirty = false
+                stickerRemoved = false
             }
             .onChange(of: pickedPhotoItem) { _, newItem in
                 guard let newItem else { return }
                 cuttingSticker = true
-                let targetId = item.id
                 Task { @MainActor in
                     defer {
                         cuttingSticker = false
@@ -1228,12 +1243,12 @@ private struct FoodTasteSheet: View {
                         return
                     }
                     let sticker = await VisionSubjectCutout.extractDieCutSticker(from: rawImage)
-                    if FoodStickerStore.save(sticker, for: targetId) {
-                        withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.62)) {
-                            customSticker = sticker
-                        }
-                        TactileEngine.shared.goldChime()
+                    withAnimation(reduce ? nil : .spring(response: 0.42, dampingFraction: 0.62)) {
+                        customSticker = sticker
+                        stickerDirty = true
+                        stickerRemoved = false
                     }
+                    TactileEngine.shared.goldChime()
                 }
             }
         }

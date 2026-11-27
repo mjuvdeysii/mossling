@@ -96,7 +96,7 @@ final class EarSafeVolumeMonitor {
             if !hasSeenToyboxGuide { return true }
             return lvl == .loud || lvl == .muted
         case .lamp:
-            return volume > 0.62
+            return volume > 0.60
         }
     }
 
@@ -124,13 +124,12 @@ final class EarSafeVolumeMonitor {
         guard !previewMode, !Self.isTestHost else { return }
         guard observation == nil else { return }
         let session = AVAudioSession.sharedInstance()
-        do {
-            if !SoundscapeEngine.shared.isPlaying {
-                try session.setCategory(.ambient, options: .mixWithOthers)
-            }
-            try session.setActive(true, options: [])
-        } catch {
-            // Best-effort read; fall through to current outputVolume value
+        let activePlaybackOrRecord = SoundscapeEngine.shared.isPlaying
+            || FirstVoiceController.shared.isRecording
+            || FirstVoiceController.shared.playingID != nil
+        if !activePlaybackOrRecord {
+            try? session.setCategory(.ambient, options: .mixWithOthers)
+            try? session.setActive(true, options: [])
         }
         volume = session.outputVolume
         previousLevel = EarSafeVolumeLevel.of(volume)
@@ -209,14 +208,14 @@ struct EarSafeVolumeCard: View {
     private var bodyCopy: String {
         switch monitor.level {
         case .loud:
-            return L10n.t("轻按手机侧边音量减键，把圆点调回绿色区（约 20%–55%），轻柔保护宝宝耳膜。",
-                          "Tap the side volume-down button back into the green 20%–55% zone to protect baby's ears.")
+            return L10n.t("轻按手机侧边音量减键，把圆点调回绿色区（约 20%–60%），轻柔保护宝宝耳膜。",
+                          "Tap the side volume-down button back into the green 20%–60% zone to protect baby's ears.")
         case .muted:
             return L10n.t("调至约两到三格（约 25%–45%）就能听见温润木声，也不会突然吓到宝宝。",
                           "Around 25%–45% gives a warm acoustic chime without startling your baby.")
         case .safe:
-            return L10n.t("当前处于绿色护耳舒适带（20%–55%），随时可用手机侧键微调。",
-                          "Currently right inside the green 20%–55% baby-safe acoustic comfort zone.")
+            return L10n.t("当前处于绿色护耳舒适带（20%–60%），随时可用手机侧键微调。",
+                          "Currently right inside the green 20%–60% baby-safe acoustic comfort zone.")
         }
     }
 
@@ -261,13 +260,13 @@ struct EarSafeVolumeCard: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Capsule().fill(monitor.level == .loud ? Crayon.tangerine : Palette.accentFill))
+                    .background(Capsule().fill(monitor.level == .loud ? Crayon.buttonFill(Crayon.tangerine) : Palette.accentFill))
                     .pillHitTarget(LayoutSpec.hitMin)
                 }
                 .buttonStyle(.toy)
             }
 
-            // Compact live 3-zone hardware volume bar (~8pt height) keeping 20%–55% baby-safe band crisp
+            // Compact live 3-zone hardware volume bar (~8pt height) keeping 20%–60% baby-safe band crisp
             VStack(spacing: 3) {
                 GeometryReader { g in
                     let w = g.size.width
@@ -280,8 +279,8 @@ struct EarSafeVolumeCard: View {
 
                         Capsule()
                             .fill(Crayon.tangerine.opacity(dark ? 0.26 : 0.20))
-                            .frame(width: w * 0.38, height: 8)
-                            .offset(x: w * 0.62)
+                            .frame(width: w * 0.40, height: 8)
+                            .offset(x: w * 0.60)
 
                         Capsule()
                             .fill(tone.opacity(monitor.level == .loud ? 0.72 : 0.90))
@@ -293,7 +292,7 @@ struct EarSafeVolumeCard: View {
                                 RoundedRectangle(cornerRadius: 4, style: .continuous)
                                     .strokeBorder(safeColor.opacity(0.85), lineWidth: 1.4)
                             )
-                            .frame(width: w * 0.35, height: 10)
+                            .frame(width: w * 0.40, height: 10)
                             .offset(x: w * 0.20)
 
                         Circle()
@@ -308,7 +307,7 @@ struct EarSafeVolumeCard: View {
                 .frame(height: 13)
 
                 HStack {
-                    Text(L10n.t("绿色护耳带 20%–55%", "Baby-Safe 20%–55%"))
+                    Text(L10n.t("绿色护耳带 20%–60%", "Baby-Safe 20%–60%"))
                         .font(.caption2.weight(.bold))
                         .foregroundStyle(dark ? Crayon.leaf.mix(with: .white, by: 0.25) : Crayon.ink(Crayon.leaf))
                     Spacer()

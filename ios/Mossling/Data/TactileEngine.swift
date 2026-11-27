@@ -238,7 +238,9 @@ final class TactileEngine {
     }
 
     private func ensureAudio() -> AVAudioPlayerNode? {
-        guard !FirstVoiceController.shared.isRecording, !SoundscapeEngine.shared.isPlaying else { return nil }
+        guard !FirstVoiceController.shared.isRecording,
+              FirstVoiceController.shared.playingID == nil,
+              !SoundscapeEngine.shared.isPlaying else { return nil }
         if let p = player, let e = audioEngine {
             if !e.isRunning {
                 do { try e.start() } catch { teardownAudio(); return nil }
@@ -249,7 +251,10 @@ final class TactileEngine {
         }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.ambient, options: [.mixWithOthers])
+            // Preserve .playback or .playAndRecord when already active (e.g., Toybox or SpeechReader) so Silent mode doesn't drop
+            if session.category != .playback && session.category != .playAndRecord {
+                try session.setCategory(.ambient, options: [.mixWithOthers])
+            }
             try session.setActive(true, options: [])
             let engine = AVAudioEngine()
             let node = AVAudioPlayerNode()

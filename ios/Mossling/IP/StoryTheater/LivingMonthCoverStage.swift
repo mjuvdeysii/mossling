@@ -235,11 +235,11 @@ struct LivingMonthCoverStage: View {
             lid: lid,
             lean: lean,
             hopping: hopping,
-            breathTime: isStatic ? 0 : now.timeIntervalSinceReferenceDate,
+            breathTime: isStatic ? 0 : now.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3600),
             isStatic: isStatic,
             dark: dark,
             flat: isFlat,
-            compact: compact,
+            compact: compact || exportSafe,
             lightDirection: CGPoint(x: 0.78, y: -0.62),
             secondaryLagDegrees: -lean * 0.35
         )

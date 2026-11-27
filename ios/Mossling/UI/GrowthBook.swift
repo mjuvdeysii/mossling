@@ -18,8 +18,10 @@ struct BookPage {
     static func all(_ app: AppModel, _ j: JournalStore) -> [BookPage] {
         guard let birth = app.birth, let maxMonth = app.actualAge?.bookMonth ?? app.babyMonth else { return [] }
         let now = Date()
+        let endOfToday = app.today.plus(days: 1).date
+        let cutoff = max(now, endOfToday)
         return (0...maxMonth).reversed().map { m in
-            let from = birth.plus(months: m).date, to = min(birth.plus(months: m + 1).date, now)
+            let from = birth.plus(months: m).date, to = min(birth.plus(months: m + 1).date, cutoff)
             let a = from.timeIntervalSince1970 * 1000, b = to.timeIntervalSince1970 * 1000
             let logs = j.logs.filter { $0.start >= a && $0.start < b }
             var times: [String: Int] = [:], order: [String] = []

@@ -148,7 +148,7 @@ struct LampScene: View {
             Button { pick(kind) } label: { c }
                 .buttonStyle(.plain)
                 .position(p)
-                .accessibilityLabel("\(kind.rawValue)，\(kind.trait)")
+                .accessibilityLabel(L10n.t("\(kind.rawValue)，\(kind.trait)", "\(kind.rawValue), \(kind.trait)"))
                 .accessibilityAddTraits(chosen == kind ? .isSelected : [])
         } else {
             c.position(p).accessibilityHidden(true)
@@ -158,34 +158,44 @@ struct LampScene: View {
     // MARK: the four seconds
 
     private func run() async {
-        guard play else {
-            if reduce { finalFrame() }
+        guard play, !reduce, !played else {
+            finalFrame()
             return
         }
-        guard !reduce, !played else { finalFrame(); return }
         played = true
-        func wait(_ ms: Int) async { try? await Task.sleep(for: .milliseconds(ms)) }
-        await wait(450)
+        light = 0; awake = false
+        mossLook = CGPoint(x: 0.2, y: 0.5); mossLean = 0; reach = false; delighted = false
+        ottoLid = 0.85; ottoLean = 0; ottoLook = CGPoint(x: -0.6, y: 0.5); wobble = 0
+
+        func wait(_ ms: Int) async -> Bool {
+            try? await Task.sleep(for: .milliseconds(ms))
+            return !Task.isCancelled
+        }
+        guard await wait(450) else { finalFrame(); return }
         ottoLid = nil                                                     // Otto opens his eye, slowly
-        await wait(450)
+        guard await wait(450) else { finalFrame(); return }
         withAnimation(.easeOut(duration: 0.7)) { light = 1 }              // the lamp comes on
-        await wait(750)
+        guard await wait(750) else { finalFrame(); return }
         awake = true                                                      // in its light, Moss wakes
-        mossLook = CGPoint(x: 0.5, y: 0.2); await wait(MascotStyle.moss.glanceMs + 40)
+        mossLook = CGPoint(x: 0.5, y: 0.2)
+        guard await wait(MascotStyle.moss.glanceMs + 40) else { finalFrame(); return }
         mossLook = CGPoint(x: 0.95, y: 0.55); ottoLook = CGPoint(x: -0.9, y: 0.7)   // two quick looks at the rings
-        await wait(500)
+        guard await wait(500) else { finalFrame(); return }
         mossLean = MascotStyle.moss.tiltDegrees; reach = true            // leans in and touches
-        await wait(260)
-        for a in [9.0, -6, 3.5, -1.5, 0] { wobble = a; await wait(80) }     // the top ring wobbles
+        guard await wait(260) else { finalFrame(); return }
+        for a in [9.0, -6, 3.5, -1.5, 0] {
+            wobble = a
+            guard await wait(80) else { finalFrame(); return }
+        }     // the top ring wobbles
         ottoLean = -MascotStyle.otto.tiltDegrees                          // the lamp follows the hand
-        await wait(520)
+        guard await wait(520) else { finalFrame(); return }
         reach = false; mossLean = 0
         delighted = true; mossLook = CGPoint(x: 0.95, y: -0.2)            // turns to Otto, delighted
-        await wait(450)
+        guard await wait(450) else { finalFrame(); return }
         ottoLook = CGPoint(x: -0.95, y: 0.1); ottoLid = 1                 // one slow blink back
-        await wait(MascotStyle.otto.blinkMs + 120)
+        guard await wait(MascotStyle.otto.blinkMs + 120) else { finalFrame(); return }
         ottoLid = nil
-        await wait(700)
+        guard await wait(700) else { finalFrame(); return }
         delighted = false
         settleLooks()
     }

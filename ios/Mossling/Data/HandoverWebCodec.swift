@@ -12,10 +12,13 @@ struct HandoverWebPayload: Codable, Equatable, Sendable {
     var ac: String?
     var f1: String
     var f2: String
+    var fts: Int64?
     var s1: String
     var s2: String
+    var sts: Int64?
     var p1: String
     var p2: String
+    var pts: Int64?
     var r1: String
     var r2: String
     var no: String?
@@ -25,6 +28,16 @@ struct HandoverWebPayload: Codable, Equatable, Sendable {
 /// without sending any baby care data to a backend server.
 enum HandoverWebCodec {
     static let defaultOrigin = "https://mossotto.pages.dev/"
+
+    private static func sanitizedSummaryDetail(_ raw: String, english: Bool) -> String {
+        let lower = raw.lowercased()
+        let tempTokens = [LogType.name(LogType.temp).lowercased(), "°c", "体温", "fever", "temp"]
+        let medTokens = [LogType.name(LogType.medicine).lowercased(), "用药", "medication", "medicine"]
+        if tempTokens.contains(where: { lower.contains($0) }) || medTokens.contains(where: { lower.contains($0) }) {
+            return english ? "See family card for care notes" : "详细体征请见交接卡"
+        }
+        return String(raw.prefix(48))
+    }
 
     @MainActor
     static func makePayload(
@@ -44,12 +57,15 @@ enum HandoverWebCodec {
             ac: snapshot.activeTimerLine.map { String($0.prefix(60)) },
             f1: String(snapshot.lastFeedHeadline.prefix(32)),
             f2: String(snapshot.lastFeedDetail.prefix(48)),
+            fts: snapshot.feedTimestampSec,
             s1: String(snapshot.lastSleepHeadline.prefix(32)),
             s2: String(snapshot.lastSleepDetail.prefix(48)),
+            sts: snapshot.sleepTimestampSec,
             p1: String(snapshot.lastDiaperHeadline.prefix(32)),
             p2: String(snapshot.lastDiaperDetail.prefix(48)),
+            pts: snapshot.diaperTimestampSec,
             r1: String(snapshot.todayHeadline.prefix(36)),
-            r2: String(snapshot.todayDetail.prefix(48)),
+            r2: sanitizedSummaryDetail(snapshot.todayDetail, english: english),
             no: snapshot.extraNote.isEmpty ? nil : String(snapshot.extraNote.prefix(120))
         )
     }

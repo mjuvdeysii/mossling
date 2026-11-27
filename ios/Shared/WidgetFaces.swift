@@ -434,10 +434,10 @@ struct TodayFace: View {
                 }
 
                 HStack(spacing: 8) {
-                    QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32)
-                    QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32)
-                    QuickCareFace.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: 32, count: wetCount, justLogged: recentDiaper?.detail == "wet")
-                    QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty")
+                    QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32, isFullColor: isFullColor)
+                    QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32, isFullColor: isFullColor)
+                    QuickCareFace.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: 32, count: wetCount, justLogged: recentDiaper?.detail == "wet", isFullColor: isFullColor)
+                    QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty", isFullColor: isFullColor)
                 }
                 .frame(height: 84)
             }
@@ -756,6 +756,7 @@ struct BedsideLampFace: View {
     var body: some View {
         let cardDark = Color(red: 0x19 / 255, green: 0x21 / 255, blue: 0x3F / 255)
         let wakeTint = accented ? primaryInk.opacity(0.88) : Self.sleepMist
+        let journalOn = snap?.journal == true
         VStack(alignment: .leading, spacing: isMedium ? 8 : 6) {
             HStack(alignment: .center, spacing: 8) {
                 ZStack {
@@ -777,13 +778,14 @@ struct BedsideLampFace: View {
                             .fill(primaryAccent)
                             .frame(width: 6, height: 6)
                             .widgetAccentable()
-                        Text(snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName)
+                        Text(journalOn && snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName)
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(primaryAccent)
                             .lineLimit(1)
+                            .privacySensitive()
                             .widgetAccentable()
                     }
-                    if let a = age {
+                    if journalOn, let a = age {
                         let ageLine = (isCorrectedAge ? L10n.t("矫·\(a.months)m · ", "Corr. \(a.months)m · ") : "") + L10n.livedDays(a.lived)
                         let extra = snap?.careModeActive == true ? L10n.t(" · 减负照护", " · Care Mode") : ""
                         Text(ageLine + extra)
@@ -792,23 +794,35 @@ struct BedsideLampFace: View {
                             .monospacedDigit()
                             .lineLimit(1)
                             .minimumScaleFactor(0.8)
-                    } else if let badge = snap?.careBadgeLabel() {
+                            .privacySensitive()
+                    } else if journalOn, let badge = snap?.careBadgeLabel() {
                         Text(badge)
                             .font(.caption.weight(.bold))
                             .foregroundStyle(primaryInk.opacity(0.82))
                             .lineLimit(1)
+                            .privacySensitive()
                     }
                 }
                 Spacer(minLength: 4)
 
-                if isMedium {
+                if isMedium && journalOn {
                     headerControl(cardDark: cardDark)
                 }
             }
 
             Spacer(minLength: 0)
 
-            if let t = body_.timers.first {
+            if !journalOn {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.t("床头夜灯", "Bedside Lamp"))
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(primaryAccent)
+                    Text(L10n.t("轻触打开暖琥珀床头夜灯", "Tap for warm amber bedside lamp"))
+                        .font(.caption2)
+                        .foregroundStyle(primaryInk.opacity(0.78))
+                        .lineLimit(2)
+                }
+            } else if let t = body_.timers.first {
                 HStack(alignment: .center, spacing: 10) {
                     ArtImage(name: WidgetArt.sticker(t.type))
                         .frame(width: isMedium ? 36 : 26, height: isMedium ? 36 : 26)
@@ -818,6 +832,7 @@ struct BedsideLampFace: View {
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(primaryAccent)
                             .lineLimit(1)
+                            .privacySensitive()
                             .widgetAccentable()
                         if let p = t.pausedAt {
                             Text(L10n.duration(t.total(p)))
@@ -825,6 +840,7 @@ struct BedsideLampFace: View {
                                 .foregroundStyle(primaryInk)
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
+                                .privacySensitive()
                                 .widgetAccentable()
                         } else {
                             Text(t.countsFrom, style: .timer)
@@ -833,6 +849,7 @@ struct BedsideLampFace: View {
                                 .lineLimit(1)
                                 .minimumScaleFactor(0.75)
                                 .contentTransition(.numericText(countsDown: false))
+                                .privacySensitive()
                                 .widgetAccentable()
                         }
                     }
@@ -846,18 +863,23 @@ struct BedsideLampFace: View {
                         lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, wakeTint, inkColor: primaryInk)
                     }
                 }
+                .privacySensitive()
             } else {
                 VStack(alignment: .leading, spacing: 5) {
                     lampMetric(L10n.t("上次喂奶", "Last feed"), lastFeed, primaryAccent, inkColor: primaryInk)
                     lampMetric(L10n.t("上次醒来", "Last wake"), lastWake, wakeTint, inkColor: primaryInk)
                 }
+                .privacySensitive()
             }
 
-            horizonStrip(sleepTint: wakeTint)
+            if journalOn {
+                horizonStrip(sleepTint: wakeTint)
+                    .privacySensitive()
+            }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
-        .widgetURL(body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp)
+        .widgetURL(journalOn ? (body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp) : WidgetLinks.lamp)
     }
 
     @ViewBuilder
@@ -1137,9 +1159,14 @@ struct TimerFace: View {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(L10n.timerStatus(type, side: s.side, paused: s.pausedAt != nil))
                         .font(.subheadline.weight(.semibold)).foregroundStyle(Crayon.ink(c))
-                    TimerFace.elapsed(s).font(WidgetInk.numerals(34)).foregroundStyle(.primary)
+                    TimerFace.elapsed(s)
+                        .font(WidgetInk.numerals(34))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.65)
                     if let n = s.note { Text(n).font(.caption.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit() }
                 }
+                .privacySensitive()
                 Spacer(minLength: 0)
                 ArtImage(name: WidgetArt.pair).frame(width: 42, height: 42).padding(6).background(Circle().fill(WidgetInk.card))
             }
@@ -1148,8 +1175,8 @@ struct TimerFace: View {
         .padding(16)
     }
     @ViewBuilder static func elapsed(_ s: TimerAttributes.ContentState) -> some View {
-        if let p = s.pausedAt { Text(L10n.duration(p.timeIntervalSince(s.start))) }
-        else { Text(timerInterval: s.start...Date.distantFuture, countsDown: false).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
+        if let p = s.pausedAt { Text(L10n.duration(p.timeIntervalSince(s.start))).lineLimit(1).minimumScaleFactor(0.65) }
+        else { Text(timerInterval: s.start...Date.distantFuture, countsDown: false).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65).contentTransition(.numericText(countsDown: false)) }
     }
 }
 

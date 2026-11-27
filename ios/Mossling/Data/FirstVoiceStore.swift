@@ -238,11 +238,12 @@ final class FirstVoiceController {
     private let delegateProxy = FirstVoiceAudioDelegate()
 
     private init() {
-        delegateProxy.onRecordFinish = { [weak self] _ in
-            self?.handleRecordingStopped()
+        delegateProxy.onRecordFinish = { [weak self] ok in
+            self?.handleRecordingStopped(successfully: ok)
         }
         delegateProxy.onPlayFinish = { [weak self] _ in
-            self?.stopPlayback()
+            guard let self, self.player != nil else { return }
+            self.stopPlayback()
         }
     }
 
@@ -263,12 +264,13 @@ final class FirstVoiceController {
         errorMessage = nil
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)
             let audioPlayer = try AVAudioPlayer(contentsOf: url)
             audioPlayer.delegate = delegateProxy
             audioPlayer.prepareToPlay()
             guard audioPlayer.play() else {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 errorMessage = L10n.t("这段声音暂时无法播放。", "Could not play this voice keepsake.")
                 return
             }
@@ -278,6 +280,7 @@ final class FirstVoiceController {
             TactileEngine.shared.beadClick()
             startPlaybackTimer()
         } catch {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             errorMessage = L10n.t("这段声音暂时无法播放。", "Could not play this voice keepsake.")
         }
     }
@@ -321,6 +324,7 @@ final class FirstVoiceController {
             rec.isMeteringEnabled = true
             rec.prepareToRecord()
             guard rec.record(forDuration: FirstVoiceWaveform.maxDuration) else {
+                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
                 errorMessage = L10n.t("未能启动麦克风录音。", "Could not start microphone recording.")
                 return nil
             }
@@ -335,6 +339,7 @@ final class FirstVoiceController {
             startRecordTimer()
             return tempURL
         } catch {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
             errorMessage = L10n.t("未能启动麦克风录音。", "Could not start microphone recording.")
             return nil
         }
@@ -343,7 +348,9 @@ final class FirstVoiceController {
     func finishDraftRecording() -> URL? {
         guard isRecording else { return activeTempURL }
         let url = activeTempURL
+        recorder?.delegate = nil
         recorder?.stop()
+        recorder = nil
         isRecording = false
         stopTimer()
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
@@ -351,6 +358,7 @@ final class FirstVoiceController {
     }
 
     func stopPlayback() {
+        player?.delegate = nil
         player?.stop()
         player = nil
         playingID = nil
@@ -362,11 +370,13 @@ final class FirstVoiceController {
     }
 
     func stopAll() {
+        recorder?.delegate = nil
         if isRecording {
             recorder?.stop()
             isRecording = false
         }
         recorder = nil
+        player?.delegate = nil
         player?.stop()
         player = nil
         playingID = nil
@@ -405,11 +415,17 @@ final class FirstVoiceController {
         }
     }
 
-    private func handleRecordingStopped() {
+    private func handleRecordingStopped(successfully ok: Bool) {
+        guard isRecording || recorder != nil else { return }
         isRecording = false
         recorder = nil
         stopTimer()
-        lastAutoStoppedURL = activeTempURL
+        if ok {
+            lastAutoStoppedURL = activeTempURL
+        } else {
+            discardTemp(activeTempURL)
+            errorMessage = L10n.t("录音被系统中断，请再试一次。", "Recording was interrupted. Please try again.")
+        }
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 

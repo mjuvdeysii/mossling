@@ -266,20 +266,29 @@ struct FlowChips<T: Hashable>: View {
 /// Lays children out in rows, wrapping to the next row when a row is full.
 struct WrapLayout: Layout {
     var spacing: CGFloat = 8
+    private func fittedSize(for s: LayoutSubview, maxWidth: CGFloat?) -> CGSize {
+        let natural = s.sizeThatFits(.unspecified)
+        guard let maxWidth, maxWidth.isFinite, maxWidth > 0, natural.width > maxWidth else {
+            return natural
+        }
+        let constrained = s.sizeThatFits(ProposedViewSize(width: maxWidth, height: nil))
+        return CGSize(width: min(constrained.width, maxWidth), height: constrained.height)
+    }
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
         let w = proposal.width ?? .infinity
         var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0, maxX: CGFloat = 0
         for s in subviews {
-            let z = s.sizeThatFits(.unspecified)
+            let z = fittedSize(for: s, maxWidth: proposal.width)
             if x > 0 && x + z.width > w { x = 0; y += row + spacing; row = 0 }
             x += z.width + spacing; row = max(row, z.height); maxX = max(maxX, x - spacing)
         }
         return CGSize(width: proposal.width ?? maxX, height: y + row)
     }
     func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let maxWidth: CGFloat? = b.width > 0 ? b.width : proposal.width
         var x = b.minX, y = b.minY, row: CGFloat = 0
         for s in subviews {
-            let z = s.sizeThatFits(.unspecified)
+            let z = fittedSize(for: s, maxWidth: maxWidth)
             if x > b.minX && x + z.width > b.maxX { x = b.minX; y += row + spacing; row = 0 }
             s.place(at: CGPoint(x: x, y: y), proposal: ProposedViewSize(z))
             x += z.width + spacing; row = max(row, z.height)
@@ -289,6 +298,7 @@ struct WrapLayout: Layout {
 
 /// One entry, to change or to add after the fact: exact start (and end), the amount, side or kind, the text.
 struct EntrySheet: View {
+    @Environment(AppModel.self) private var app
     @Environment(JournalStore.self) private var j
     @Environment(\.dismiss) private var dismiss
     @Environment(\.lamp) private var lamp
@@ -431,6 +441,7 @@ struct EntrySheet: View {
             }
             .safeAreaBar(edge: .bottom) {
                 Button {
+                    guard app.mayKeep() else { return }
                     if save() { saved += 1; dismiss() } else { failed = true }
                 } label: {
                     Text(L10n.t("保存", "Save")).frame(maxWidth: .infinity)

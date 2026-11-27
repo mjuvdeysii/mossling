@@ -107,57 +107,63 @@ struct ToyboxView: View {
 
     var body: some View {
         let dark = lamp || scheme == .dark
-        VStack(spacing: 10) {
-            modePicker(dark: dark)
+        GeometryReader { geo in
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(spacing: 10) {
+                    modePicker(dark: dark)
 
-            if mode.hasSound && (manualShowVolumeCard || volumeMonitor.shouldShow(for: .toybox)) {
-                EarSafeVolumeCard(monitor: volumeMonitor, dark: dark) {
-                    withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.84)) {
-                        manualShowVolumeCard = false
-                        volumeMonitor.acknowledge(context: .toybox)
+                    if mode.hasSound && (manualShowVolumeCard || volumeMonitor.shouldShow(for: .toybox)) {
+                        EarSafeVolumeCard(monitor: volumeMonitor, dark: dark) {
+                            withAnimation(reduce ? nil : .spring(response: 0.34, dampingFraction: 0.84)) {
+                                manualShowVolumeCard = false
+                                volumeMonitor.acknowledge(context: .toybox)
+                            }
+                        }
+                        .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
                     }
-                }
-                .transition(reduce ? .opacity : .opacity.combined(with: .move(edge: .top)))
-            }
 
-            Group {
-                switch mode {
-                case .xylophone:
-                    XylophoneStudio(
-                        dark: dark,
-                        initialPlayAlong: previewPlayAlong,
-                        onInteract: markCoPlay
-                    )
-                case .shadows:
-                    ShadowWallStudio(
-                        dark: dark,
-                        initialPuppet: initialShadowPuppet,
-                        onInteract: markCoPlay
-                    )
-                case .rainstick:
-                    RainstickStudio(
-                        dark: dark,
-                        initialLayout: initialRainstickLayout,
-                        onInteract: markCoPlay
-                    )
-                case .fireflies:
-                    FireflyJarStudio(
-                        initialFormation: initialFormation,
-                        onInteract: markCoPlay
-                    )
-                case .contrast:
-                    ContrastCardStudio(
-                        dark: dark,
-                        initialIndex: initialContrastIndex,
-                        onInteract: markCoPlay
-                    )
+                    Group {
+                        switch mode {
+                        case .xylophone:
+                            XylophoneStudio(
+                                dark: dark,
+                                initialPlayAlong: previewPlayAlong,
+                                onInteract: markCoPlay
+                            )
+                        case .shadows:
+                            ShadowWallStudio(
+                                dark: dark,
+                                initialPuppet: initialShadowPuppet,
+                                onInteract: markCoPlay
+                            )
+                        case .rainstick:
+                            RainstickStudio(
+                                dark: dark,
+                                initialLayout: initialRainstickLayout,
+                                onInteract: markCoPlay
+                            )
+                        case .fireflies:
+                            FireflyJarStudio(
+                                initialFormation: initialFormation,
+                                onInteract: markCoPlay
+                            )
+                        case .contrast:
+                            ContrastCardStudio(
+                                dark: dark,
+                                initialIndex: initialContrastIndex,
+                                onInteract: markCoPlay
+                            )
+                        }
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
+                .padding(.horizontal, LayoutSpec.pageH)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
+                .frame(minHeight: geo.size.height)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scrollBounceBehavior(.basedOnSize)
         }
-        .padding(.horizontal, LayoutSpec.pageH)
-        .padding(.top, 8)
-        .padding(.bottom, 14)
         .pageBackground(tone: mode.tone)
         .navigationTitle(L10n.t("感官玩具盒", "Sensory Toybox"))
         .navigationSubtitle(L10n.t("亲子轻点共玩 · 不单独看屏", "Co-play together · No solo screen"))
@@ -961,7 +967,10 @@ private final class RainstickSimulation {
             dt = 1.0 / 60.0
         }
         lastFrameDate = now
+        advanceStep(dt: dt)
+    }
 
+    func advanceStep(dt: Double) {
         let impacts = physics.step(dt: dt, gx: motionGX, gy: motionGY, touch: touchPoint)
         if impacts > 0 && !isTestHost {
             let intensity = min(0.85, 0.35 + Double(impacts) * 0.12)
@@ -1092,6 +1101,7 @@ private struct RainstickStudio: View {
                         )
 
                     TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
+                        let _ = flipCount
                         Canvas(rendersAsynchronously: false) { ctx, size in
                             if !reduce && !Perf.still && scenePhase == .active {
                                 sim.advance(to: tl.date)
@@ -1111,6 +1121,10 @@ private struct RainstickStudio: View {
                                     x: max(0, min(1, value.location.x / w)),
                                     y: max(0, min(1, value.location.y / h))
                                 )
+                                if reduce || Perf.still || scenePhase != .active {
+                                    sim.advanceStep(dt: 1.0 / 30.0)
+                                    flipCount &+= 1
+                                }
                             }
                             .onEnded { _ in
                                 sim.touchPoint = nil
@@ -1173,6 +1187,9 @@ private struct RainstickStudio: View {
                     onInteract()
                     TactileEngine.shared.beadClick()
                     sim.flip()
+                    if reduce || Perf.still {
+                        sim.advanceStep(dt: 1.0 / 24.0)
+                    }
                     flipCount &+= 1
                 } label: {
                     Label(L10n.t("翻转", "Flip"), systemImage: "arrow.up.arrow.down")
@@ -1371,6 +1388,10 @@ private final class FireflySimulation {
         physics.step(dt: dt, target: touchPoint)
     }
 
+    func advanceStep(dt: Double) {
+        physics.step(dt: dt, target: touchPoint)
+    }
+
     func swirl() {
         physics.swirl()
     }
@@ -1503,6 +1524,7 @@ private struct FireflyJarStudio: View {
 
                         // 60fps glowing fireflies, comet trails & fingertip lantern ripples
                         TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: reduce || Perf.still || scenePhase != .active)) { tl in
+                            let _ = swirlCount
                             Canvas(rendersAsynchronously: false) { ctx, size in
                                 if !reduce && !Perf.still && scenePhase == .active {
                                     sim.advance(to: tl.date)
@@ -1524,6 +1546,10 @@ private struct FireflyJarStudio: View {
                                     sim.touchPoint = pt
                                     sim.spawnTouchRipple(at: pt)
                                     ToyboxAudioEngine.shared.playFireflyChime(normalizedY: ny)
+                                    if reduce || Perf.still || scenePhase != .active {
+                                        sim.advanceStep(dt: 1.0 / 30.0)
+                                        swirlCount &+= 1
+                                    }
                                 }
                                 .onEnded { _ in
                                     sim.touchPoint = nil
@@ -1605,6 +1631,9 @@ private struct FireflyJarStudio: View {
                     onInteract()
                     TactileEngine.shared.beadClick()
                     sim.swirl()
+                    if reduce || Perf.still {
+                        sim.advanceStep(dt: 1.0 / 24.0)
+                    }
                     swirlCount &+= 1
                     ToyboxAudioEngine.shared.playFireflyArpeggio(ascending: true)
                 } label: {

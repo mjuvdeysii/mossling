@@ -611,9 +611,12 @@
         }
       }
 
+      function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
+
       var livePayload = decodeFragment();
       var activeSample = "roll";
-      var activeLang = livePayload && livePayload.l === "en" ? "en" : (localStorage.getItem("mossling-lang") === "en" ? "en" : "zh");
+      var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
 
       function stopSpeech() {
         if ("speechSynthesis" in window) {
@@ -706,7 +709,7 @@
       if (langBtn) {
         langBtn.addEventListener("click", function () {
           activeLang = activeLang === "zh" ? "en" : "zh";
-          localStorage.setItem("mossling-lang", activeLang);
+          storageSet("mossling-lang", activeLang);
           render();
         });
       }

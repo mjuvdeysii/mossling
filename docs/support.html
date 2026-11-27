@@ -55,9 +55,9 @@
 
         <h2 data-zh="二、常用操作一分钟学会" data-en="2. Quick Guides">二、常用操作一分钟学会</h2>
         <ul>
-          <li data-zh="切换 3D 软陶与 2D 水彩：在首页向下拉动 Otto 头顶的金色灯珠，或前往「工坊」直接点选外观画风。" data-en="Switch 3D Clay &amp; 2D Watercolor: Pull Otto's brass bead down on Home, or choose styles inside Studio.">切换 3D 软陶与 2D 水彩：在首页向下拉动 Otto 头顶的金色灯珠，或前往「工坊」直接点选外观画风。</li>
+          <li data-zh="切换 3D 软陶与 2D 水彩：前往「工坊」的外观卡片直接切换画风，或在「摸索台灯的故事」插画上触发水彩过渡。" data-en="Switch 3D Clay &amp; 2D Watercolor: Pick the Art Style directly inside Studio's Theme card, or trigger the watercolor transition on the Story page.">切换 3D 软陶与 2D 水彩：前往「工坊」的外观卡片直接切换画风，或在「摸索台灯的故事」插画上触发水彩过渡。</li>
           <li data-zh="使用无声掌心轻拍：进入「台灯 › 全屏夜灯」顶部切到「轻拍」后把手机贴于掌心，选择每分钟 60 / 54 / 48 拍与渐缓，或直接跟着你哄睡的手速点击灯珠。" data-en="Using Silent Palm-Pat: Open Bedside Lamp, switch to Pat mode, pick 60 / 54 / 48 BPM fade-down, or tap the warm lamp glow at your hand's natural beat.">使用无声掌心轻拍：进入「台灯 › 全屏夜灯」顶部切到「轻拍」后把手机贴于掌心，选择每分钟 60 / 54 / 48 拍与渐缓，或直接跟着你哄睡的手速点击灯珠。</li>
-          <li data-zh="备份与更换手机还原：打开「工坊 › 离线数据与备份」点击「导出完整备份」，文件保存在系统「文件 App › 我的 iPhone › 摸索台灯 › 导出」；换好新手机后在同一入口点选导入即还原全部记录。" data-en="Moving to a new iPhone: Open Studio › Local Data &amp; Backup to save a full portable backup into the Files app, then import it back onto your new iPhone.">备份与更换手机还原：打开「工坊 › 离线数据与备份」点击「导出完整备份」，文件保存在系统「文件 App › 我的 iPhone › 摸索台灯 › 导出」；换好新手机后在同一入口点选导入即还原全部记录。</li>
+          <li data-zh="备份与更换手机还原：打开「工坊 › 离线备份」按需生成「完整备份（JSON）」后，通过下方分享按钮存储到「文件 App」或隔空投送；换好新手机后在同一入口导入即可（原图与童声录音建议通过 Apple 整机迁移保留）。" data-en="Moving to a new iPhone: Open Studio › Local Data to generate a portable JSON backup, then save to Files or AirDrop via the Share sheet (local photos &amp; voice clips preserve across standard iPhone device transfer).">备份与更换手机还原：打开「工坊 › 离线备份」按需生成「完整备份（JSON）」后，通过下方分享按钮存储到「文件 App」或隔空投送；换好新手机后在同一入口导入即可（原图与童声录音建议通过 Apple 整机迁移保留）。</li>
           <li data-zh="重温页面新手提示：在「工坊」底部点击「条款与帮助」，点亮「重新显示使用提示」即可。" data-en="Replay Tips: Open Legal &amp; Help at the bottom of Studio and select Replay Tips.">重温页面新手提示：在「工坊」底部点击「条款与帮助」，点亮「重新显示使用提示」即可。</li>
         </ul>
       </article>
@@ -81,17 +81,19 @@
     (function () {
       var html = document.documentElement;
       var langBtn = document.getElementById("langBtn");
+      function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+      function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
       function applyLang(lang) {
         html.setAttribute("data-lang", lang);
         html.setAttribute("lang", lang === "en" ? "en" : "zh-Hans");
-        localStorage.setItem("mossling-lang", lang);
+        storageSet("mossling-lang", lang);
         if (langBtn) langBtn.textContent = lang === "en" ? "中文" : "EN";
         document.querySelectorAll("[data-zh][data-en]").forEach(function (el) {
           el.textContent = el.getAttribute(lang === "en" ? "data-en" : "data-zh");
         });
       }
-      if (langBtn) langBtn.addEventListener("click", function () { applyLang((localStorage.getItem("mossling-lang") || "zh") === "zh" ? "en" : "zh"); });
-      applyLang(localStorage.getItem("mossling-lang") || "zh");
+      if (langBtn) langBtn.addEventListener("click", function () { applyLang((storageGet("mossling-lang") || "zh") === "zh" ? "en" : "zh"); });
+      applyLang(storageGet("mossling-lang") || "zh");
     })();
   </script>
 </body>

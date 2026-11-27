@@ -6,7 +6,7 @@ import SwiftUI
 /// comes back only when the parent asks for one of those.
 enum Consent {
     /// Raised when the privacy policy or the children's rules change in substance: everyone is asked again.
-    static let version = "2026-11-27"   // disclose voice recordings, food sticker photos & H5 fragment sharing
+    static let version = SharedConsent.version
 }
 
 struct ConsentSheet: View {

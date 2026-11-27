@@ -2,6 +2,7 @@ import SwiftUI
 import Observation
 import WidgetKit
 import CoreFoundation
+import os
 
 /// The journal as the app sees it: the shared file, reloaded when the app comes back (a Live Activity or the widget may
 /// have changed it), saved after every change, with the Live Activities and widgets kept in step.
@@ -171,7 +172,7 @@ final class JournalStore {
             let ago = Int(Date().timeIntervalSince(at) / 60)
             let sidePart = side == "l" ? L10n.t(" · 左侧", " · Left") : side == "r" ? L10n.t(" · 右侧", " · Right") : ""
             let agoPart = ago >= 1 ? L10n.t(" · 从 \(ago) 分钟前算起", " · from \(ago) min ago") : ""
-            say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before)
+            say(type, L10n.t(LogType.name(type) + "开始计时", LogType.name(type) + " started") + sidePart + agoPart, undo: before, op: .removeTimer(type: type))
         case let .unchanged(b):
             apply(b)
             if openFocus { focus = type }
@@ -220,7 +221,8 @@ final class JournalStore {
             onEvent?(.recordPersistSuccess)
             if let e = after.logs.last, e.type == type {
                 let durStr = durationValue(e.activeSeconds), endStr = hm(e.endDate ?? Date())
-                say(type, L10n.t("已记下 " + LogType.name(type) + " · " + durStr + "，到 " + endStr, "Logged " + LogType.name(type) + " · " + durStr + ", ended " + endStr), undo: before)
+                let prevTimer = before.timers.first { $0.type == type }
+                say(type, L10n.t("已记下 " + LogType.name(type) + " · " + durStr + "，到 " + endStr, "Logged " + LogType.name(type) + " · " + durStr + ", ended " + endStr), undo: before, op: .restoreStoppedTimer(timer: prevTimer, addedLogID: e.id))
             }
         case .unchanged:
             reload()
@@ -231,11 +233,16 @@ final class JournalStore {
     /// Drops a running timer and any mid-session side logs from it; said back with 撤销.
     func discard(_ type: String) {
         // said only once it is really dropped (a failed save says so, with nothing to take back)
-        guard let before = edit({ $0 = JournalFile.discarding($0, type) }) else { return }
+        var removedTimer: RunningTimer?
+        guard let before = edit({ b in
+            removedTimer = b.timers.first { $0.type == type }
+            b = JournalFile.discarding(b, type)
+        }) else { return }
         if type == LogType.nurse { detachNextNurse = true }
         if focus == type { focus = nil }
         onEvent?(.timerEnded)
-        say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before)
+        let op: UndoOp? = removedTimer.map { .restoreTimer($0) }
+        say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before, op: op)
     }
 
     @discardableResult func add(_ e: LogEntry) -> Bool { edit { $0.logs.append(e) } != nil }
@@ -246,15 +253,30 @@ final class JournalStore {
         onEvent?(.recordPersistSuccess)
         let what = [LogType.name(e.type), e.summary].filter { !$0.isEmpty }.joined(separator: " · ")
         let when = Day(e.startDate) == Day.today ? hm(e.startDate) : whenLabel(e.startDate)
-        say(e.type, L10n.t("已记下 ", "Logged ") + what + " · " + when, undo: before)
+        say(e.type, L10n.t("已记下 ", "Logged ") + what + " · " + when, undo: before, op: .removeLogs([e.id]))
         return true
     }
-    /// Takes back what the toast describes: the journal as it was just before.
+    /// Takes back what the toast describes using an entry-level delta under coordinated file mutation so concurrent
+    /// Widget/Live-Activity additions are never overwritten.
     func undo(_ t: Toast) {
+        guard t.deltaUndo != nil || t.restore != nil else { return }
+        if let op = t.deltaUndo {
+            switch JournalFile.mutate({ b in
+                Self.applyUndoOp(op, to: &b)
+                return true
+            }) {
+            case let .saved(_, after):
+                changed(after)
+                toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
+            case .unchanged, .failed:
+                reload()
+                toast = Toast(type: t.type, text: L10n.t("没有撤销成功，点「撤销」再试一次", "Couldn't undo. Tap \"Undo\" to try again."), restore: t.restore, deltaUndo: op, failed: true)
+                onEvent?(.recordPersistFailure)
+            }
+            return
+        }
         guard let b = t.restore else { return }
-        // 已撤销 only when it is really back in the file
         guard JournalFile.write(b) else {
-            // not written: said so, and 撤销 stays on the toast to try again
             reload()
             toast = Toast(type: t.type, text: L10n.t("没有撤销成功，点「撤销」再试一次", "Couldn't undo. Tap \"Undo\" to try again."), restore: b, failed: true)
             onEvent?(.recordPersistFailure)
@@ -263,22 +285,68 @@ final class JournalStore {
         changed(b)
         toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
     }
-    private func say(_ type: String, _ text: String, undo: JournalFile.Body?) { toast = Toast(type: type, text: text, restore: undo) }
+    private static func applyUndoOp(_ op: UndoOp, to b: inout JournalFile.Body) {
+        switch op {
+        case let .removeLogs(ids):
+            let set = Set(ids)
+            b.logs.removeAll { set.contains($0.id) }
+        case let .restoreLogs(prev):
+            for entry in prev {
+                if let idx = b.logs.firstIndex(where: { $0.id == entry.id }) {
+                    b.logs[idx] = entry
+                } else {
+                    b.logs.append(entry)
+                }
+            }
+            b.logs.sort { $0.start < $1.start }
+        case let .removeTimer(type):
+            b.timers.removeAll { $0.type == type }
+        case let .restoreTimer(timer):
+            if !b.timers.contains(where: { $0.type == timer.type }) {
+                b.timers.append(timer)
+            }
+        case let .restoreStoppedTimer(timer, addedLogID):
+            b.logs.removeAll { $0.id == addedLogID }
+            if let timer, !b.timers.contains(where: { $0.type == timer.type }) {
+                b.timers.append(timer)
+            }
+        case let .restoreMeasure(prev, currentID):
+            b.measures.removeAll { $0.id == currentID }
+            if let prev {
+                b.measures.append(prev)
+                b.measures.sort { $0.at < $1.at }
+            }
+        case let .restoreFirst(prev, currentID):
+            b.firsts.removeAll { $0.id == currentID }
+            if let prev {
+                b.firsts.append(prev)
+            }
+        }
+    }
+    private func say(_ type: String, _ text: String, undo: JournalFile.Body?, op: UndoOp? = nil) {
+        toast = Toast(type: type, text: text, restore: undo, deltaUndo: op)
+    }
     @discardableResult func update(_ e: LogEntry) -> Bool { edit { b in if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } } != nil }
     /// Several entries changed at once (the sides of one feed): one write — all or none — said back with 撤销.
     @discardableResult func update(_ es: [LogEntry], feed: Bool = false) -> Bool {
         guard let first = es.min(by: { $0.start < $1.start }) else { return true }
+        var prevEntries: [LogEntry] = []
         guard let before = edit({ b in
-            for e in es { if let i = b.logs.firstIndex(where: { $0.id == e.id }) { b.logs[i] = e } }
+            for e in es {
+                if let i = b.logs.firstIndex(where: { $0.id == e.id }) {
+                    prevEntries.append(b.logs[i])
+                    b.logs[i] = e
+                }
+            }
         }) else { return false }
         let what: String = feed || es.count > 1 ? L10n.t("已修改这一顿" + LogType.name(first.type), "Updated " + LogType.name(first.type)) : L10n.t("已修改 " + LogType.name(first.type), "Updated " + LogType.name(first.type))
-        say(first.type, what + " · " + hm(first.startDate), undo: before)
+        say(first.type, what + " · " + hm(first.startDate), undo: before, op: .restoreLogs(prevEntries))
         return true
     }
     /// Deleting is one tap (no confirmation to tap through at night): it is said back with 撤销 instead.
     func delete(_ e: LogEntry) {
         guard let before = edit({ $0.logs.removeAll { $0.id == e.id } }) else { return }
-        say(e.type, L10n.t("已删除 ", "Deleted ") + LogType.name(e.type) + " · " + hm(e.startDate), undo: before)
+        say(e.type, L10n.t("已删除 ", "Deleted ") + LogType.name(e.type) + " · " + hm(e.startDate), undo: before, op: .restoreLogs([e]))
     }
     /// A whole breast feed — its sides — at once: one change, one line said back, one 撤销.
     func delete(_ es: [LogEntry]) {
@@ -286,29 +354,47 @@ final class JournalStore {
         if es.count == 1 { delete(e); return }
         let ids = Set(es.map(\.id))
         guard let before = edit({ $0.logs.removeAll { ids.contains($0.id) } }) else { return }
-        say(e.type, L10n.t("已删除这一顿" + LogType.name(e.type), "Deleted " + LogType.name(e.type)) + " · " + hm(e.startDate), undo: before)
+        say(e.type, L10n.t("已删除这一顿" + LogType.name(e.type), "Deleted " + LogType.name(e.type)) + " · " + hm(e.startDate), undo: before, op: .restoreLogs(es))
     }
     /// Keeps a measurement and says so, with 撤销; false when it could not be saved (the sheet keeps what was typed).
     @discardableResult func saveMeasure(_ m: Measure) -> Bool {
-        guard let before = edit({ b in if let i = b.measures.firstIndex(where: { $0.id == m.id }) { b.measures[i] = m } else { b.measures.append(m) } }) else { return false }
-        say(LogType.growth, L10n.t("已记下测量 · ", "Logged measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+        var prev: Measure?
+        guard let before = edit({ b in
+            if let i = b.measures.firstIndex(where: { $0.id == m.id }) {
+                prev = b.measures[i]
+                b.measures[i] = m
+            } else {
+                b.measures.append(m)
+            }
+        }) else { return false }
+        say(LogType.growth, L10n.t("已记下测量 · ", "Logged measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before, op: .restoreMeasure(prev: prev, currentID: m.id))
         return true
     }
     func deleteMeasure(_ m: Measure) {
         guard let before = edit({ $0.measures.removeAll { $0.id == m.id } }) else { return }
-        say(LogType.growth, L10n.t("已删除这次测量 · ", "Deleted measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before)
+        say(LogType.growth, L10n.t("已删除这次测量 · ", "Deleted measurement · ") + Day(Date(timeIntervalSince1970: m.at / 1000)).md, undo: before, op: .restoreMeasure(prev: m, currentID: m.id))
     }
     /// Keeps a first (new or changed) and says so; false when it could not be saved.
     @discardableResult func saveFirst(_ f: First) -> Bool {
         let isNew = !firsts.contains { $0.id == f.id }
-        guard let before = edit({ b in if let i = b.firsts.firstIndex(where: { $0.id == f.id }) { b.firsts[i] = f } else { b.firsts.append(f) } }) else { return false }
+        var prev: First?
+        guard let before = edit({ b in
+            if let i = b.firsts.firstIndex(where: { $0.id == f.id }) {
+                prev = b.firsts[i]
+                b.firsts[i] = f
+            } else {
+                b.firsts.append(f)
+            }
+        }) else { return false }
         onEvent?(.recordPersistSuccess)
-        if isNew { toast = Toast(type: LogType.note, text: L10n.t("记下了第一次：", "Logged first: ") + f.title + " · " + whenLabelDay(f.date), restore: before) }
+        if isNew {
+            toast = Toast(type: LogType.note, text: L10n.t("记下了第一次：", "Logged first: ") + f.title + " · " + whenLabelDay(f.date), restore: before, deltaUndo: .restoreFirst(prev: prev, currentID: f.id))
+        }
         return true
     }
     func deleteFirst(_ f: First) {
         guard let before = edit({ $0.firsts.removeAll { $0.id == f.id } }) else { return }
-        say(LogType.note, L10n.t("已删除第一次：", "Deleted first: ") + f.title, undo: before)
+        say(LogType.note, L10n.t("已删除第一次：", "Deleted first: ") + f.title, undo: before, op: .restoreFirst(prev: f, currentID: f.id))
     }
     @discardableResult func replaceAll(_ body: JournalFile.Body) -> Bool {
         guard JournalFile.write(body) else { failed(L10n.t("备份数据", "backup data")); return false }
@@ -339,17 +425,43 @@ final class JournalStore {
 
 /// Observes cross-process Darwin notifications posted by widgets, Control Center, and Live Activities.
 private final class ExternalJournalObserver: @unchecked Sendable {
+    private final class WeakBox: @unchecked Sendable {
+        weak var target: ExternalJournalObserver?
+        init(_ target: ExternalJournalObserver? = nil) { self.target = target }
+    }
+
+    private struct Registry: @unchecked Sendable {
+        var nextID: Int = 1
+        var boxes: [Int: WeakBox] = [:]
+    }
+
+    private static let registry = OSAllocatedUnfairLock(initialState: Registry())
+
     private let onChange: () -> Void
+    private let tokenID: Int
+
     init(onChange: @escaping () -> Void) {
         self.onChange = onChange
-        let observer = Unmanaged.passUnretained(self).toOpaque()
+        let box = WeakBox()
+        let id: Int = Self.registry.withLock { reg in
+            let current = max(1, reg.nextID)
+            reg.nextID = current &+ 1 == 0 ? 1 : current &+ 1
+            reg.boxes[current] = box
+            return current
+        }
+        self.tokenID = id
+        box.target = self
+        let observerPtr = UnsafeRawPointer(bitPattern: id)!
+
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
-            observer,
+            observerPtr,
             { _, observer, _, _, _ in
                 guard let observer else { return }
-                let box = Unmanaged<ExternalJournalObserver>.fromOpaque(observer).takeUnretainedValue()
-                DispatchQueue.main.async { box.onChange() }
+                let id = Int(bitPattern: observer)
+                let target = ExternalJournalObserver.registry.withLock { $0.boxes[id]?.target }
+                guard let target else { return }
+                DispatchQueue.main.async { target.onChange() }
             },
             JournalFile.darwinNotificationName,
             nil,
@@ -357,14 +469,28 @@ private final class ExternalJournalObserver: @unchecked Sendable {
         )
     }
     deinit {
-        let observer = Unmanaged.passUnretained(self).toOpaque()
-        CFNotificationCenterRemoveObserver(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            observer,
-            CFNotificationName(JournalFile.darwinNotificationName),
-            nil
-        )
+        _ = Self.registry.withLock { $0.boxes.removeValue(forKey: tokenID) }
+        if let observerPtr = UnsafeRawPointer(bitPattern: tokenID) {
+            CFNotificationCenterRemoveObserver(
+                CFNotificationCenterGetDarwinNotifyCenter(),
+                observerPtr,
+                CFNotificationName(JournalFile.darwinNotificationName),
+                nil
+            )
+        }
     }
+}
+
+/// Entry-level undo operation allowing `JournalStore.undo(_:)` to roll back a single change without overwriting
+/// records created concurrently by widgets or Live Activities.
+enum UndoOp: Sendable {
+    case removeLogs([UUID])
+    case restoreLogs([LogEntry])
+    case removeTimer(type: String)
+    case restoreTimer(RunningTimer)
+    case restoreStoppedTimer(timer: RunningTimer?, addedLogID: UUID)
+    case restoreMeasure(prev: Measure?, currentID: UUID)
+    case restoreFirst(prev: First?, currentID: UUID)
 }
 
 /// A short note of what just happened, shown at the top for a few seconds.
@@ -373,6 +499,7 @@ struct Toast: Identifiable {
     let type: String
     let text: String
     let restore: JournalFile.Body?
+    var deltaUndo: UndoOp? = nil
     /// A save that did not happen: said with a warning, never with the success haptic.
     var failed = false
 }

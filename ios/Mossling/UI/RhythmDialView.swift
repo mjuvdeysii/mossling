@@ -4,12 +4,22 @@ import UniformTypeIdentifiers
 /// Lazily renders a high-resolution SwiftUI keepsake view to PNG only when the user actually taps Share,
 /// keeping scrolling and interactive gestures completely hitch-free.
 struct RenderedPoster: Transferable {
+    var filename: String = "moss-otto-print"
     let render: @MainActor @Sendable () -> UIImage?
 
     static var transferRepresentation: some TransferRepresentation {
-        DataRepresentation(exportedContentType: .png) { item in
-            let data = await MainActor.run { item.render()?.pngData() }
-            return data ?? Data()
+        FileRepresentation(exportedContentType: .png) { item in
+            guard let data = await MainActor.run(body: { item.render()?.pngData() }), !data.isEmpty else {
+                throw CocoaError(.fileWriteUnknown)
+            }
+            let safeName = item.filename
+                .replacingOccurrences(of: "/", with: "-")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let url = FileManager.default.temporaryDirectory
+                .appendingPathComponent((safeName.isEmpty ? "moss-otto-print" : safeName) + "-" + UUID().uuidString.prefix(8))
+                .appendingPathExtension("png")
+            try data.write(to: url, options: .atomic)
+            return SentTransferredFile(url, allowAccessingOriginalFile: false)
         }
     }
 }
@@ -229,6 +239,7 @@ struct RhythmDialCard: View {
     @State private var spanDays: Int = 7
     @State private var filter: RhythmFilter = .all
     @State private var inspectedHour: Int?
+    @State private var scrubbingRing = false
 
     /// Optional deterministic clock override for screenshot tests.
     let nowHour: Double?
@@ -238,20 +249,34 @@ struct RhythmDialCard: View {
         _inspectedHour = State(initialValue: initialInspectedHour)
     }
 
-    private var currentHour: Double {
+    private func clockHour(for date: Date) -> Double {
         if let nowHour { return nowHour }
-        let c = Day.cal.dateComponents([.hour, .minute], from: Date())
+        let c = Day.cal.dateComponents([.hour, .minute], from: date)
         return Double(c.hour ?? 12) + Double(c.minute ?? 0) / 60.0
     }
 
+    private var currentHour: Double {
+        clockHour(for: Date())
+    }
+
     var body: some View {
+        if nowHour != nil {
+            dialBody(hr: currentHour)
+        } else {
+            TimelineView(.periodic(from: .now, by: 60)) { tl in
+                dialBody(hr: clockHour(for: tl.date))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func dialBody(hr: Double) -> some View {
         let model = RhythmDialModel.build(logs: j.logs, today: app.today, days: spanDays)
         let dark = lamp || scheme == .dark
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
         let ageLabel = app.age.map { L10n.ageText($0) } ?? ""
         let daysCount = spanDays
-        let hr = currentHour
-        let exportItem = RenderedPoster {
+        let exportItem = RenderedPoster(filename: "moss-otto-rhythm") {
             let poster = RhythmPrintPoster(
                 name: who,
                 ageLabel: ageLabel,
@@ -300,7 +325,7 @@ struct RhythmDialCard: View {
                         model: model,
                         filter: filter,
                         inspectedHour: inspectedHour,
-                        nowHour: currentHour,
+                        nowHour: hr,
                         dark: dark
                     )
                     centerMedallion(model: model, dark: dark)
@@ -326,13 +351,37 @@ struct RhythmDialCard: View {
                             }
                         }
                 )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            let sx = value.startLocation.x - center.x
+                            let sy = value.startLocation.y - center.y
+                            let startDist = hypot(sx, sy)
+                            guard startDist >= side * 0.19, startDist <= side * 0.52 else { return }
+                            if !scrubbingRing {
+                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
+                                scrubbingRing = true
+                            }
+                            let dx = value.location.x - center.x
+                            let dy = value.location.y - center.y
+                            guard hypot(dx, dy) >= side * 0.16 else { return }
+                            let h = RhythmDialModel.hour(forVector: dx, dy: dy)
+                            if inspectedHour != h {
+                                inspectedHour = h
+                                TactileEngine.shared.beadClick()
+                            }
+                        }
+                        .onEnded { _ in
+                            scrubbingRing = false
+                        }
+                )
             }
             .frame(height: 300)
             .accessibilityElement(children: .ignore)
             .accessibilityLabel(L10n.t("24 小时昼夜节律盘，过去 \(spanDays) 天", "24-hour circadian rhythm dial, last \(spanDays) days"))
             .accessibilityValue(accessibilitySummary(model: model))
             .accessibilityAdjustableAction { dir in
-                let cur = inspectedHour ?? Int(currentHour)
+                let cur = inspectedHour ?? Int(hr)
                 switch dir {
                 case .increment: inspectedHour = (cur + 1) % 24; TactileEngine.shared.beadClick()
                 case .decrement: inspectedHour = (cur + 23) % 24; TactileEngine.shared.beadClick()

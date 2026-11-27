@@ -94,6 +94,7 @@ struct LampHubView: View {
     private func defaultTimeForSelectedDay() -> Double {
         selectedDay == app.today ? JournalFile.now() : ms(pastNoon)
     }
+    @State private var quick3AMMilkKind: String? = nil
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -201,6 +202,7 @@ struct LampHubView: View {
                     .accessibilityLabel(L10n.t("切换日期查看记录", "Choose day"))
 
                     Button {
+                        guard app.mayKeep() else { return }
                         TactileEngine.shared.beadClick()
                         editing = LogEntry(type: LogType.bottle, start: defaultTimeForSelectedDay(), amount: 120)
                     } label: {
@@ -246,7 +248,7 @@ struct LampHubView: View {
         .sheet(item: $editing) { e in
             EntrySheet(entry: e, isNew: !j.logs.contains { $0.id == e.id }, feed: j.feedEntries(containing: e.id)).lampPresented(forceLamp: is3AMOled || lamp)
         }
-        .onChange(of: app.today) { _, t in selectedDay = t }
+        .onChange(of: app.today) { old, t in if selectedDay == old { selectedDay = t } }
         .onChange(of: j.jumpToToday) { _, _ in selectedDay = app.today }
         .onChange(of: router?.expandLampLedgerToken ?? 0) { _, _ in
             withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
@@ -260,15 +262,28 @@ struct LampHubView: View {
 
     @ViewBuilder
     private func midnightOneHandSanctuary(day: Day) -> some View {
-        let now = Date()
-        let summary = MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: now)
-        let lastNurseSide = j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side
-        let suggestedSide = lastNurseSide == "l" ? "r" : "l"
-        let activeSleep = j.timers.first { $0.type == LogType.sleep }
-        let activeNurse = j.timers.first { $0.type == LogType.nurse }
-        let cols = type.isAccessibilitySize
-            ? [GridItem(.flexible())]
-            : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
+            let now = tl.date
+            let summary = MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: now)
+            let lastNurseSide = j.logs.filter { $0.type == LogType.nurse }.max { $0.start < $1.start }?.side
+            let suggestedSide = lastNurseSide == "l" ? "r" : "l"
+            let activeSleep = j.timers.first { $0.type == LogType.sleep }
+            let activeNurse = j.timers.first { $0.type == LogType.nurse }
+            let cols = type.isAccessibilitySize
+                ? [GridItem(.flexible())]
+                : [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
+
+            midnightOneHandBody(summary: summary, suggestedSide: suggestedSide, activeSleep: activeSleep, activeNurse: activeNurse, cols: cols)
+        }
+    }
+
+    private func midnightOneHandBody(
+        summary: MidnightCareSummary,
+        suggestedSide: String,
+        activeSleep: RunningTimer?,
+        activeNurse: RunningTimer?,
+        cols: [GridItem]
+    ) -> some View {
 
         VStack(alignment: .leading, spacing: 12) {
             // 1. Minimalist OLED midnight facts banner + 1-tap Full Lamp / Handover actions
@@ -385,6 +400,7 @@ struct LampHubView: View {
 
             VStack(spacing: 10) {
                 VStack(alignment: .leading, spacing: 8) {
+                    let activeMilkKind = quick3AMMilkKind ?? summary.defaultMilkKind
                     HStack(spacing: 6) {
                         Image(systemName: LogType.symbol(LogType.bottle))
                             .font(.subheadline.weight(.bold))
@@ -393,16 +409,27 @@ struct LampHubView: View {
                             .font(.subheadline.weight(.bold))
                             .foregroundStyle(Palette.lampInk)
                         Spacer(minLength: 0)
-                        Text(summary.defaultMilkKind == "breastmilk" ? L10n.t("母乳", "Milk") : L10n.t("配方", "Formula"))
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(Palette.lampInk.opacity(0.62))
+                        Button {
+                            TactileEngine.shared.beadClick()
+                            quick3AMMilkKind = activeMilkKind == "breastmilk" ? "formula" : "breastmilk"
+                        } label: {
+                            Text(activeMilkKind == "breastmilk" ? L10n.t("母乳", "Milk") : L10n.t("配方", "Formula"))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(Palette.lampInk.opacity(0.90))
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 3)
+                                .background(Capsule().fill(Color.white.opacity(0.12)))
+                                .pillHitTarget()
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.t("切换母乳或配方奶", "Switch between breast milk and formula"))
                     }
                     HStack(spacing: 8) {
                         ForEach(summary.bottleSuggestions, id: \.self) { ml in
                             Button {
                                 guard app.mayKeep() else { return }
                                 TactileEngine.shared.beadClick()
-                                _ = j.record(LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: summary.defaultMilkKind))
+                                _ = j.record(LogEntry(type: LogType.bottle, start: JournalFile.now(), amount: ml, detail: activeMilkKind))
                             } label: {
                                 Text(L10n.volume(ml: ml))
                                     .font(Typeface.numerals(13, relativeTo: .caption, weight: .bold))
@@ -626,7 +653,13 @@ struct LampHubView: View {
     }
 
     private func ottoLampHeroCard(dark: Bool) -> some View {
-        let midnight = app.journal ? MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: Date()) : nil
+        TimelineView(.periodic(from: .now, by: 60)) { tl in
+            let midnight = app.journal ? MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: tl.date) : nil
+            ottoLampHeroBody(midnight: midnight, dark: dark)
+        }
+    }
+
+    private func ottoLampHeroBody(midnight: MidnightCareSummary?, dark: Bool) -> some View {
         let brightness = max(0.15, min(1.0, app.lampBrightness))
         let surfaceTop = Color(hex: 0x161E3B)
         let surfaceBottom = Color(hex: 0x0D1328)
@@ -1000,12 +1033,12 @@ struct LampHubView: View {
     @ViewBuilder
     private func rhythmNavControls(baby: Int, dark: Bool) -> some View {
         NavigationLink(value: LampRoute.rhythm(baby)) {
-            compactNavPill(symbol: "clock.arrow.circlepath", text: L10n.t("24h 节律盘", "Rhythm Dial"), color: Crayon.lilac, dark: dark)
+            compactNavPill(symbol: "clock.arrow.circlepath", text: L10n.t("月龄作息", "Daily Guide"), color: Crayon.lilac, dark: dark)
         }
         .buttonStyle(.toy)
 
         NavigationLink(value: LampRoute.stats) {
-            compactNavPill(symbol: "chart.bar.fill", text: L10n.t("七日对比", "7-Day Stats"), color: Crayon.sky, dark: dark)
+            compactNavPill(symbol: "chart.bar.fill", text: L10n.t("节律与七日", "Dial & 7-Day"), color: Crayon.sky, dark: dark)
         }
         .buttonStyle(.toy)
 
@@ -1050,9 +1083,12 @@ struct LampHubView: View {
 
     private func quietCareStrip(day: Day, isToday: Bool, dark: Bool) -> some View {
         let diaperGraduated = app.graduatedModules.contains(CareGearEngine.diaperModule) && !app.careModeActive
-        let primaryTypes = diaperGraduated
-            ? [LogType.nurse, LogType.bottle, LogType.sleep]
-            : [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper]
+        let feedsGraduated = app.graduatedModules.contains(CareGearEngine.feedsModule) && !app.careModeActive
+        let primaryTypes = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper].filter { type in
+            if diaperGraduated && type == LogType.diaper { return false }
+            if feedsGraduated && (type == LogType.nurse || type == LogType.bottle) { return false }
+            return true
+        }
         let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) && $0 != LogType.growth }
         let hint = isToday
             ? CareGearEngine.suggestedGraduation(
@@ -1111,7 +1147,7 @@ struct LampHubView: View {
 
             let cols = type.isAccessibilitySize
                 ? [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)]
-                : Array(repeating: GridItem(.flexible(), spacing: 10), count: primaryTypes.count)
+                : Array(repeating: GridItem(.flexible(), spacing: 10), count: max(1, primaryTypes.count))
 
             LazyVGrid(columns: cols, spacing: 10) {
                 ForEach(primaryTypes, id: \.self) { t in
@@ -1252,7 +1288,8 @@ struct LampHubView: View {
                                     .foregroundStyle(on ? .white : .primary)
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 5)
-                                    .background(Capsule().fill(on ? tint : tint.opacity(dark ? 0.16 : 0.10)))
+                                    .background(Capsule().fill(on ? Crayon.fill(tint, dark) : tint.opacity(dark ? 0.16 : 0.10)))
+                                    .pillHitTarget()
                                 }
                                 .buttonStyle(.plain)
                                 .accessibilityAddTraits(on ? .isSelected : [])
@@ -1276,6 +1313,7 @@ struct LampHubView: View {
 
                     HStack(spacing: 8) {
                         Button {
+                            guard app.mayKeep() else { return }
                             TactileEngine.shared.beadClick()
                             editing = LogEntry(type: LogType.bottle, start: defaultTimeForSelectedDay(), amount: 120)
                         } label: {
@@ -1349,7 +1387,7 @@ struct LampHubView: View {
             let endMs = defaultTimeForSelectedDay()
             let startMs = endMs - 20 * 60_000
             let nextSide: String? = t == LogType.nurse
-                ? (j.logs.last(where: { $0.type == LogType.nurse })?.side == "l" ? "r" : "l")
+                ? (j.logs.first(where: { $0.type == LogType.nurse })?.side == "l" ? "r" : "l")
                 : nil
             editing = LogEntry(type: t, start: startMs, end: endMs, side: nextSide)
             return

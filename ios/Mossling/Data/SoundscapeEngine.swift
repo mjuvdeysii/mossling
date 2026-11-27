@@ -3,6 +3,7 @@ import SwiftUI
 import AVFoundation
 import MediaPlayer
 import Observation
+import os
 
 /// Six handcrafted nursery soundscapes synthesized in real time via `AVAudioEngine` (zero audio files in bundle,
 /// infinitely non-repeating, zero network). Tuned low and warm to protect infant ears.
@@ -69,12 +70,32 @@ enum SoundscapeDuration: Int, CaseIterable, Identifiable {
     }
 }
 
-/// Pure lock-free DSP synthesis state shared with the real-time audio render block.
+/// Thread-safe DSP synthesis state shared with the real-time audio render block.
 final class SoundscapeDSPState: @unchecked Sendable {
-    var kindRaw: Int = 0
-    var targetGain: Float = 0.0
+    struct Controls: Sendable {
+        var kindRaw: Int = 0
+        var targetGain: Float = 0.0
+        var userVolume: Float = 0.72
+        var layerKindRaw: Int = -1
+        var layerTargetMix: Float = 0.0
+    }
+
+    private let controlLock = OSAllocatedUnfairLock(initialState: Controls())
+
+    var kindRaw: Int {
+        get { controlLock.withLock { $0.kindRaw } }
+        set { controlLock.withLock { $0.kindRaw = newValue } }
+    }
+    var targetGain: Float {
+        get { controlLock.withLock { $0.targetGain } }
+        set { controlLock.withLock { $0.targetGain = newValue } }
+    }
+    var userVolume: Float {
+        get { controlLock.withLock { $0.userVolume } }
+        set { controlLock.withLock { $0.userVolume = newValue } }
+    }
+
     var currentGain: Float = 0.0
-    var userVolume: Float = 0.72
 
     // PRNG + pink noise filter banks
     var seed: UInt64 = 0x243F6A8885A308D3
@@ -118,20 +139,43 @@ final class SoundscapeDSPState: @unchecked Sendable {
         return out
     }
 
-    /// Secondary ambient harmony layer (`-1` = off, `0...3` = SoundscapeKind index).
-    var layerKindRaw: Int = -1
-    var layerTargetMix: Float = 0.0
+    /// Secondary ambient harmony layer (`-1` = off, `0...5` = SoundscapeKind index).
+    var layerKindRaw: Int {
+        get { controlLock.withLock { $0.layerKindRaw } }
+        set { controlLock.withLock { $0.layerKindRaw = newValue } }
+    }
+    var layerTargetMix: Float {
+        get { controlLock.withLock { $0.layerTargetMix } }
+        set { controlLock.withLock { $0.layerTargetMix = newValue } }
+    }
     var layerCurrentMix: Float = 0.0
     private var lastRenderLayerKind: Int = -1
     // Independent low-pass state for secondary layer so filters never cross-contaminate
     var sLp1: Float = 0, sLp2: Float = 0
 
+    func renderBuffer(into abl: UnsafeMutableAudioBufferListPointer, frameCount: Int, sampleRate sr: Double) {
+        let snap = controlLock.withLock { $0 }
+        for frame in 0..<frameCount {
+            let s = synthesizeSample(sampleRate: sr, controls: snap)
+            for buf in abl {
+                if let ptr = buf.mData?.assumingMemoryBound(to: Float.self) {
+                    ptr[frame] = s
+                }
+            }
+        }
+    }
+
     /// Generates one stereo-compatible mono sample in `[-1, 1]` with smooth gain ramping and optional dual-layer mix.
     func nextSample(sampleRate sr: Double) -> Float {
+        let snap = controlLock.withLock { $0 }
+        return synthesizeSample(sampleRate: sr, controls: snap)
+    }
+
+    private func synthesizeSample(sampleRate sr: Double, controls: Controls) -> Float {
         let t = Double(sampleIndex) / sr
         sampleIndex &+= 1
 
-        let activeLayerKind = layerKindRaw
+        let activeLayerKind = controls.layerKindRaw
         if activeLayerKind != lastRenderLayerKind {
             lastRenderLayerKind = activeLayerKind
             sLp1 = 0
@@ -140,20 +184,19 @@ final class SoundscapeDSPState: @unchecked Sendable {
         }
 
         // Smooth gain ramps (~250ms glide so start/stop/volume/layer transitions never click)
-        let desired = targetGain * userVolume
+        let desired = controls.targetGain * controls.userVolume
         currentGain += (desired - currentGain) * 0.00018
-        layerCurrentMix += (layerTargetMix - layerCurrentMix) * 0.00018
-        if layerTargetMix <= 0.0001 && layerCurrentMix <= 0.0005 && activeLayerKind >= 0 {
+        layerCurrentMix += (controls.layerTargetMix - layerCurrentMix) * 0.00018
+        if controls.layerTargetMix <= 0.0001 && layerCurrentMix <= 0.0005 && activeLayerKind >= 0 {
             layerCurrentMix = 0
-            layerKindRaw = -1
             lastRenderLayerKind = -1
             sLp1 = 0
             sLp2 = 0
         }
 
-        let primary = synthesizeLayer(kind: kindRaw, t: t, sr: sr, useSecondaryFilter: false)
+        let primary = synthesizeLayer(kind: controls.kindRaw, t: t, sr: sr, useSecondaryFilter: false)
         var combined = primary
-        if activeLayerKind >= 0 && activeLayerKind != kindRaw && layerCurrentMix > 0.0005 {
+        if activeLayerKind >= 0 && activeLayerKind != controls.kindRaw && layerCurrentMix > 0.0005 {
             let secondary = synthesizeLayer(kind: activeLayerKind, t: t, sr: sr, useSecondaryFilter: true)
             combined = primary * 0.80 + secondary * (0.58 * layerCurrentMix)
         }
@@ -515,7 +558,7 @@ final class SoundscapeEngine {
         if let e = engine, e.isRunning { return }
         do {
             let session = AVAudioSession.sharedInstance()
-            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [])
             try session.setActive(true)
 
             let eng = AVAudioEngine()
@@ -524,14 +567,7 @@ final class SoundscapeEngine {
             let state = dsp
             let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
                 let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
-                for frame in 0..<Int(frameCount) {
-                    let s = state.nextSample(sampleRate: sr)
-                    for buf in abl {
-                        if let ptr = buf.mData?.assumingMemoryBound(to: Float.self) {
-                            ptr[frame] = s
-                        }
-                    }
-                }
+                state.renderBuffer(into: abl, frameCount: Int(frameCount), sampleRate: sr)
                 return noErr
             }
             eng.attach(node)
@@ -571,6 +607,18 @@ final class SoundscapeEngine {
                 self?.handleRouteChange(reasonVal: reasonVal)
             }
         }
+        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.handleEngineConfigurationChange()
+            }
+        }
+    }
+
+    private func handleEngineConfigurationChange() {
+        guard active != nil, !isTestHost, engine?.isRunning != true else { return }
+        teardownAudioGraph(deactivateSession: false)
+        startAudioGraph()
+        updateNowPlaying()
     }
 
     private func handleInterruption(typeVal: UInt?, optVal: UInt?) {
@@ -620,6 +668,11 @@ final class SoundscapeEngine {
         guard !remoteCommandsConfigured else { return }
         remoteCommandsConfigured = true
         let cc = MPRemoteCommandCenter.shared()
+        cc.playCommand.isEnabled = true
+        cc.playCommand.addTarget { [weak self] _ in
+            Task { @MainActor [weak self] in self?.resumeFromRemoteCommand() }
+            return .success
+        }
         cc.pauseCommand.isEnabled = true
         cc.pauseCommand.addTarget { [weak self] _ in
             Task { @MainActor [weak self] in self?.stop() }
@@ -633,10 +686,20 @@ final class SoundscapeEngine {
         cc.togglePlayPauseCommand.isEnabled = true
         cc.togglePlayPauseCommand.addTarget { [weak self] _ in
             Task { @MainActor [weak self] in
-                if self?.isPlaying == true { self?.stop() }
+                guard let self else { return }
+                if self.isPlaying {
+                    self.stop()
+                } else {
+                    self.resumeFromRemoteCommand()
+                }
             }
             return .success
         }
+    }
+
+    private func resumeFromRemoteCommand() {
+        guard active == nil else { return }
+        start(lastUsedKind, preserveTimer: remainingSeconds != nil)
     }
 
     private func updateNowPlaying() {

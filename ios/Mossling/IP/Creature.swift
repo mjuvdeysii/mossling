@@ -72,7 +72,9 @@ struct Creature: View {
 
     @Environment(JournalStore.self) private var journal: JournalStore?
     @Environment(\.scrolling) private var scrolling
+    @Environment(\.scenePhase) private var scenePhase
     private var still: Bool { !alive || reduce || Perf.noCreatures || Perf.still }
+    private var paused: Bool { still || !onScreen || scrolling.moving || scenePhase != .active }
 
     var body: some View {
         if ArtStyle.current == .flat {
@@ -86,7 +88,7 @@ struct Creature: View {
                 stillFigure
             } else {
                 // 24 frames a second is plenty for a breath, a blink and a hop (all eased); 60 cost the scroll its smoothness
-                TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: still || !onScreen || scrolling.moving)) { tl in
+                TimelineView(.animation(minimumInterval: 1.0 / Motion.creatureFPS, paused: paused)) { tl in
                     Canvas(rendersAsynchronously: false) { ctx, size in draw(&ctx, size, still ? Date.distantPast : tl.date) }
                 }
             }
@@ -102,8 +104,8 @@ struct Creature: View {
         .sensoryFeedback(.impact(weight: .light, intensity: 0.7), trigger: taps)
         .sensoryFeedback(.success, trigger: pats)
         .allowsHitTesting(poke)
-        .task(id: still) { await blinks() }
-        .task(id: still) { await glances() }
+        .task(id: still || scenePhase != .active) { await blinks() }
+        .task(id: still || scenePhase != .active) { await glances() }
         .task(id: kind) { await loadSprites() }
         .onChange(of: mood) { old, new in if new == .happy && old != .happy && !still { hopSize = 1; hopAt = Date() } }
         .modifier(CreatureCues(notice: notice, sleeps: journal?.sleepsStarted ?? 0, setbacks: director?.setbacks ?? 0,
@@ -173,7 +175,7 @@ struct Creature: View {
 
     /// Irregular blinks, sometimes two.
     private func blinks() async {
-        guard !still else { return }
+        guard !still, scenePhase == .active else { return }
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(2600 + Int.random(in: 0...4200)))
             if mood == .open || mood == .wow { doubleBlink = Int.random(in: 0..<5) == 0; blinkAt = Date() }
@@ -181,7 +183,7 @@ struct Creature: View {
     }
     /// A glance away now and then, held, and back.
     private func glances() async {
-        guard !still else { return }
+        guard !still, scenePhase == .active else { return }
         while !Task.isCancelled {
             // Moss can't keep still; Otto can barely be bothered
             try? await Task.sleep(for: kind == .moss ? .milliseconds(3200 + Int.random(in: 0...3800)) : .milliseconds(9000 + Int.random(in: 0...8000)))

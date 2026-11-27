@@ -215,6 +215,7 @@ struct RhythmView: View {
     let month: Int
     @State private var selectedStage: DailyRhythmStage
     @State private var inspectedHour: Int?
+    @State private var scrubbingRing = false
 
     init(month: Int, initialInspectedHour: Int? = nil) {
         self.month = month
@@ -406,6 +407,31 @@ struct RhythmView: View {
                             }
                         }
                 )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 10)
+                        .onChanged { value in
+                            let sx = value.startLocation.x - center.x
+                            let sy = value.startLocation.y - center.y
+                            let startDist = hypot(sx, sy)
+                            guard startDist >= side * 0.21, startDist <= side * 0.52 else { return }
+                            if !scrubbingRing {
+                                // Only engage ring scrub when drag does not look like a pure vertical scroll swipe
+                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
+                                scrubbingRing = true
+                            }
+                            let dx = value.location.x - center.x
+                            let dy = value.location.y - center.y
+                            guard hypot(dx, dy) >= side * 0.16 else { return }
+                            let h = RhythmDialModel.hour(forVector: dx, dy: dy)
+                            if inspectedHour != h {
+                                inspectedHour = h
+                                TactileEngine.shared.dimmerTick()
+                            }
+                        }
+                        .onEnded { _ in
+                            scrubbingRing = false
+                        }
+                )
             }
             .frame(height: 276)
             .accessibilityElement(children: .ignore)
@@ -479,18 +505,16 @@ struct RhythmView: View {
     }
 
     private func hourInsight(hour: Int, stage: DailyRhythmStage) -> (title: String, detail: String) {
-        let sleepSpanHalf = stage.sleepMidHours / 2.0
-        let nightStart = 20.5
-        let nightEnd = (nightStart + min(11.0, sleepSpanHalf * 1.45)).truncatingRemainder(dividingBy: 24.0)
-        let h = Double(hour)
-        let isNightSleep = h >= nightStart || h < nightEnd
-        if isNightSleep {
+        let geometry = CircadianLoomCanvas.geometry(for: stage)
+        let hCenter = Double(hour) + 0.5
+        if geometry.isHour(hCenter, insideCenter: geometry.nightCenter, span: geometry.nightMaxSpan) {
             return (
                 L10n.t("夜间睡眠", "Night Sleep"),
                 L10n.t("低暗暖光 · 安静照护", "Dim amber light · calm care")
             )
         }
-        if hour >= 12 && hour < 15 && stage != .threeYears {
+        if geometry.napMaxSpan >= 0.8,
+           geometry.isHour(hCenter, insideCenter: geometry.napCenter, span: geometry.napMaxSpan) {
             return (
                 L10n.t("午间小睡窗", "Midday Nap"),
                 L10n.t("计入 \(stage.sleepRangeText) 总睡", "In \(stage.sleepRangeText) total")
@@ -927,26 +951,15 @@ private struct CircadianLoomCanvas: View {
             let trackRect = CGRect(x: center.x - outerR, y: center.y - outerR, width: outerR * 2, height: outerR * 2)
             ctx.stroke(Path(ellipseIn: trackRect), with: .color(playColor.opacity(dark ? 0.58 : 0.48)), lineWidth: 12)
 
-            // Night sleep arc centered around 01:00 + representative daytime nap window
-            let napFraction: Double = switch stage {
-            case .newborn: 0.42
-            case .infant: 0.30
-            case .oneYear, .twoYears: 0.18
-            case .threeYears: 0.10
-            }
-
-            let minNightHrs = Double(stage.sleepMinHours) * (1.0 - napFraction)
-            let maxNightHrs = Double(stage.sleepMaxHours) * (1.0 - napFraction)
-            let minNapHrs = Double(stage.sleepMinHours) * napFraction
-            let maxNapHrs = Double(stage.sleepMaxHours) * napFraction
+            let g = Self.geometry(for: stage)
 
             // Draw max range (translucent outer halo) then min range (solid sleep ribbon)
-            drawSleepArc(&ctx, center: center, radius: outerR, centerHour: 1.0, spanHours: maxNightHrs, color: sleepColor.opacity(dark ? 0.40 : 0.32), width: 16)
-            drawSleepArc(&ctx, center: center, radius: outerR, centerHour: 1.0, spanHours: minNightHrs, color: sleepColor, width: 14)
+            drawSleepArc(&ctx, center: center, radius: outerR, centerHour: g.nightCenter, spanHours: g.nightMaxSpan, color: sleepColor.opacity(dark ? 0.40 : 0.32), width: 16)
+            drawSleepArc(&ctx, center: center, radius: outerR, centerHour: g.nightCenter, spanHours: g.nightMinSpan, color: sleepColor, width: 14)
 
-            if maxNapHrs >= 0.8 {
-                drawSleepArc(&ctx, center: center, radius: outerR, centerHour: 13.5, spanHours: maxNapHrs, color: sleepColor.opacity(dark ? 0.38 : 0.30), width: 16)
-                drawSleepArc(&ctx, center: center, radius: outerR, centerHour: 13.5, spanHours: minNapHrs, color: sleepColor.opacity(0.92), width: 14)
+            if g.napMaxSpan >= 0.8 {
+                drawSleepArc(&ctx, center: center, radius: outerR, centerHour: g.napCenter, spanHours: g.napMaxSpan, color: sleepColor.opacity(dark ? 0.38 : 0.30), width: 16)
+                drawSleepArc(&ctx, center: center, radius: outerR, centerHour: g.napCenter, spanHours: g.napMinSpan, color: sleepColor.opacity(0.92), width: 14)
             }
 
             // Inner live 7-day average ring when recorded data is present
@@ -954,11 +967,11 @@ private struct CircadianLoomCanvas: View {
             ctx.stroke(Path(ellipseIn: innerRect), with: .color(Palette.outline.opacity(dark ? 0.24 : 0.18)), lineWidth: 5)
             if let avgSleepHours, avgSleepHours > 0 {
                 let avgClamped = min(24.0, avgSleepHours)
-                let avgNight = avgClamped * (1.0 - napFraction)
-                let avgNap = avgClamped * napFraction
-                drawSleepArc(&ctx, center: center, radius: liveR, centerHour: 1.0, spanHours: avgNight, color: Palette.bead, width: 6)
+                let avgNight = avgClamped * (1.0 - g.napFraction)
+                let avgNap = avgClamped * g.napFraction
+                drawSleepArc(&ctx, center: center, radius: liveR, centerHour: g.nightCenter, spanHours: avgNight, color: Palette.bead, width: 6)
                 if avgNap >= 0.5 {
-                    drawSleepArc(&ctx, center: center, radius: liveR, centerHour: 13.5, spanHours: avgNap, color: Palette.bead, width: 6)
+                    drawSleepArc(&ctx, center: center, radius: liveR, centerHour: g.napCenter, spanHours: avgNap, color: Palette.bead, width: 6)
                 }
             }
 
@@ -988,7 +1001,7 @@ private struct CircadianLoomCanvas: View {
 
             // Interactive probe beam when user touches/drags an hour
             if let h = inspectedHour {
-                let a = RhythmDialModel.angle(forHour: Double(h) + 0.5)
+                let a = RhythmDialModel.angle(forHour: Double(h))
                 var beam = Path()
                 beam.move(to: CGPoint(x: center.x + cos(a) * (side * 0.21), y: center.y + sin(a) * (side * 0.21)))
                 beam.addLine(to: CGPoint(x: center.x + cos(a) * (beadR - 2), y: center.y + sin(a) * (beadR - 2)))
@@ -996,6 +1009,41 @@ private struct CircadianLoomCanvas: View {
             }
         }
         .accessibilityHidden(true)
+    }
+
+    struct LoomGeometry {
+        let napFraction: Double
+        let nightCenter: Double
+        let nightMinSpan: Double
+        let nightMaxSpan: Double
+        let napCenter: Double
+        let napMinSpan: Double
+        let napMaxSpan: Double
+
+        func isHour(_ hour: Double, insideCenter center: Double, span: Double) -> Bool {
+            var delta = (hour - center).truncatingRemainder(dividingBy: 24.0)
+            if delta > 12.0 { delta -= 24.0 }
+            if delta < -12.0 { delta += 24.0 }
+            return abs(delta) <= span / 2.0
+        }
+    }
+
+    static func geometry(for stage: DailyRhythmStage) -> LoomGeometry {
+        let napFraction: Double = switch stage {
+        case .newborn: 0.42
+        case .infant: 0.30
+        case .oneYear, .twoYears: 0.18
+        case .threeYears: 0.10
+        }
+        return LoomGeometry(
+            napFraction: napFraction,
+            nightCenter: 1.0,
+            nightMinSpan: Double(stage.sleepMinHours) * (1.0 - napFraction),
+            nightMaxSpan: Double(stage.sleepMaxHours) * (1.0 - napFraction),
+            napCenter: 13.5,
+            napMinSpan: Double(stage.sleepMinHours) * napFraction,
+            napMaxSpan: Double(stage.sleepMaxHours) * napFraction
+        )
     }
 
     private func drawSleepArc(

@@ -4,6 +4,11 @@ import CoreFoundation
 import ActivityKit
 #endif
 
+/// Shared privacy consent version validated by both the main app and WidgetKit/AppIntents extensions.
+enum SharedConsent {
+    static let version = "2026-11-27"
+}
+
 /// The kinds of entry, with the same identifiers as on Android (so record files move between the two).
 enum LogType {
     static let nurse = "nurse", bottle = "bottle", sleep = "sleep", diaper = "diaper", solid = "solid", bath = "bath"
@@ -310,6 +315,10 @@ struct Snapshot: Codable {
     var careModeActive: Bool? = nil
     /// Log/module keys gently graduated by parent (e.g. `"feeds"`, `"diaper"`).
     var graduatedModules: [String]? = nil
+    /// Whether app lock is currently engaged or enabled so Siri / Shortcuts never speak child data while locked.
+    var appLocked: Bool? = nil
+    /// Privacy policy / consent version recorded alongside `consented`.
+    var consentVersion: String? = nil
 }
 
 extension Snapshot {

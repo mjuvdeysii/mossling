@@ -646,7 +646,7 @@ struct ReleaseNotesView: View {
                 id: "four-tabs",
                 symbol: "square.grid.2x2.fill",
                 color: Crayon.teal,
-                title: L10n.t("四屏纯血重构：摸索 · 台灯 · 留念 · 工坊", "Four-Screen Narrative: Explore · Lamp · Keepsakes · Studio"),
+                title: L10n.t("四屏全新布局：摸索 · 台灯 · 留念 · 工坊", "Four-Tab Layout: Explore · Lamp · Keepsakes · Studio"),
                 detail: L10n.t(
                     "首屏完全留给孩子探索、本周活动与感官小工坊；第二屏把 Otto 床头暖灯与 24 小时节律归集放到台前；成长绘本、拍立得画册、火漆胶囊与 WHO 曲线归入「留念」；理念故事与透明文档回归「工坊」。",
                     "Explore focuses purely on play and discovery; Lamp centers Otto's interactive bedside light and rhythm; Keepsakes houses Storybook, Firsts, Capsules, and WHO curves; Studio carries philosophy, design craft, and evidence."
