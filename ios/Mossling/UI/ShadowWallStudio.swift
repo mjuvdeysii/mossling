@@ -281,6 +281,7 @@ struct ShadowWallStudio: View {
                         }
                 )
             }
+            .frame(minHeight: 320)
             .clipShape(RoundedRectangle(cornerRadius: Radius.card, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: Radius.card, style: .continuous)
@@ -297,6 +298,16 @@ struct ShadowWallStudio: View {
             }
 
             puppetSelectorDock
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                chordTask?.cancel()
+                chordTask = nil
+                settleTask?.cancel()
+                settleTask = nil
+                flapPhase = 0.0
+                mossExcited = false
+            }
         }
         .onDisappear {
             chordTask?.cancel()
@@ -426,14 +437,19 @@ struct ShadowWallStudio: View {
             }
         }
 
-        withAnimation(reduce ? nil : .spring(response: 0.24, dampingFraction: 0.55)) {
+        if reduce || scenePhase != .active {
+            flapPhase = 0.0
+            mossExcited = false
+            return
+        }
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.55)) {
             flapPhase = 1.0
             mossExcited = true
         }
         settleTask = Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(420))
             guard !Task.isCancelled else { return }
-            withAnimation(reduce ? nil : .spring(response: 0.36, dampingFraction: 0.72)) {
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.72)) {
                 flapPhase = 0.0
                 mossExcited = false
             }

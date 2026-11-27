@@ -28,13 +28,13 @@ struct TodayEntry: TimelineEntry {
 
 struct TodayProvider: TimelineProvider {
     func placeholder(in context: Context) -> TodayEntry {
-        TodayEntry(date: .now, snap: Snapshot(birthEpochDay: Day.today.plus(days: -200).epochDay, nickname: "", companion: "Moss", journal: true, playCode: "A11", playName: L10n.t("双手物品传递机会", "Hand-to-Hand Transfer")), body: .init())
+        TodayEntry(date: .now, snap: Snapshot(birthEpochDay: Day.today.plus(days: -200).epochDay, nickname: "", companion: "Moss", journal: true, playCode: "A11", playName: L10n.t("双手物品传递机会", "Hand-to-Hand Transfer"), consented: true, consentVersion: SharedConsent.version), body: .init())
     }
     func getSnapshot(in context: Context, completion: @escaping (TodayEntry) -> Void) { completion(entry(.now)) }
     func getTimeline(in context: Context, completion: @escaping (Timeline<TodayEntry>) -> Void) {
         let now = Date()
         let snap = JournalFile.snapshot()
-        let body = JournalFile.read()
+        let body = WidgetPrivacy.canShowRecords(snap: snap) ? JournalFile.read() : JournalFile.Body()
         var dates: [Date] = [now]
         // If a diaper was just logged on the widget, schedule a clean transition back to normal right after the 12s confirm window
         if let recent = QuickCareFace.recentDiaper(in: body.logs, now: now) {
@@ -55,7 +55,11 @@ struct TodayProvider: TimelineProvider {
         dates.sort()
         completion(Timeline(entries: dates.map { TodayEntry(date: $0, snap: snap, body: body) }, policy: .atEnd))
     }
-    private func entry(_ d: Date) -> TodayEntry { TodayEntry(date: d, snap: JournalFile.snapshot(), body: JournalFile.read()) }
+    private func entry(_ d: Date) -> TodayEntry {
+        let snap = JournalFile.snapshot()
+        let body = WidgetPrivacy.canShowRecords(snap: snap) ? JournalFile.read() : JournalFile.Body()
+        return TodayEntry(date: d, snap: snap, body: body)
+    }
 }
 
 private struct WidgetPaperBackground: View {
@@ -174,14 +178,16 @@ private struct BedsideLampWidgetView: View {
 struct SleepControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
-        JournalFile.read().timers.contains { $0.type == LogType.sleep }
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
+        return JournalFile.read().timers.contains { $0.type == LogType.sleep }
     }
 }
 
 struct NurseControlProvider: ControlValueProvider {
     var previewValue: Bool { false }
     func currentValue() async throws -> Bool {
-        JournalFile.read().timers.contains { $0.type == LogType.nurse }
+        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else { return false }
+        return JournalFile.read().timers.contains { $0.type == LogType.nurse }
     }
 }
 
@@ -260,9 +266,14 @@ struct TimerLiveActivity: Widget {
                         ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 30, height: 30)
                         Text(L10n.timerStatus(ctx.attributes.type, side: ctx.state.side, paused: ctx.state.pausedAt != nil)).font(.headline).foregroundStyle(c).lineLimit(1).minimumScaleFactor(0.7)
                     }
+                    .privacySensitive()
                 }
-                DynamicIslandExpandedRegion(.trailing) { TimerFace.elapsed(ctx.state).font(WidgetInk.numerals(24)).foregroundStyle(.white) }
-                DynamicIslandExpandedRegion(.bottom) { TimerControls(type: ctx.attributes.type, s: ctx.state, light: true) }
+                DynamicIslandExpandedRegion(.trailing) {
+                    TimerFace.elapsed(ctx.state).font(WidgetInk.numerals(24)).foregroundStyle(.white).privacySensitive()
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    TimerControls(type: ctx.attributes.type, s: ctx.state, light: true).privacySensitive()
+                }
             } compactLeading: {
                 ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
             } compactTrailing: {
@@ -271,6 +282,7 @@ struct TimerLiveActivity: Widget {
                     .minimumScaleFactor(0.65)
                     .frame(maxWidth: 52)
                     .foregroundStyle(c)
+                    .privacySensitive()
             } minimal: {
                 ArtImage(name: WidgetArt.sticker(ctx.attributes.type)).frame(width: 22, height: 22)
             }

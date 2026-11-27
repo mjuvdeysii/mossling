@@ -117,6 +117,12 @@ final class AppModel {
     /// Set when something that keeps the child's information is asked for before the guardian has agreed: the consent
     /// card comes up (once per ask, never on its own).
     var askConsent = false
+    /// Active modal/sheet/cover host IDs so `ConsentSheet` presents inside the topmost open modal without colliding with `RootView`.
+    var consentHostStack: [UUID] = []
+    /// Live reactive 3AM sanctuary window (00:00–04:59) + optional parent manual override within the current session.
+    var isLateNightWindow: Bool = CircadianDutyPhase.isLateNight3AM()
+    var manual3AMOverride: Bool? = nil
+    var is3AMSanctuaryActive: Bool { journal && (manual3AMOverride ?? isLateNightWindow) }
     var journal: Bool { didSet { d.set(journal, forKey: "journal") } }
     /// 夜灯: from 7 pm to 6 am the records and the timer turn into Otto's lamp — dim warm light on deep blue.
     var nightLight: Bool { didSet { d.set(nightLight, forKey: "nightLight") } }
@@ -156,6 +162,12 @@ final class AppModel {
     var dismissedGraduations: Set<String> { didSet { d.set(Array(dismissedGraduations).sorted(), forKey: "dismissedGraduations") } }
     /// Temporary Care Mode toggle (e.g. fever or illness) temporarily re-surfacing quick care tools.
     var careModeActive: Bool { didSet { d.set(careModeActive, forKey: "careModeActive") } }
+    /// Preferred regional immunization & well-child schedule (`""` follows current language/locale automatically).
+    var healthRegionRaw: String { didSet { d.set(healthRegionRaw, forKey: "mossling.healthRegion") } }
+    var healthRegion: HealthRegion {
+        get { HealthRegion(rawValue: healthRegionRaw) ?? HealthRegion.defaultRegion() }
+        set { healthRegionRaw = newValue.rawValue }
+    }
     /// Gentle three-state observation selections keyed cleanly alongside `ticks`.
     private(set) var observationStates: [String: ObservationState] {
         didSet { d.set(try? JSONEncoder().encode(observationStates), forKey: "observationStates") }
@@ -204,6 +216,7 @@ final class AppModel {
         graduatedModules = Set(d.stringArray(forKey: "graduatedModules") ?? [])
         dismissedGraduations = Set(d.stringArray(forKey: "dismissedGraduations") ?? [])
         careModeActive = d.bool(forKey: "careModeActive")
+        healthRegionRaw = d.string(forKey: "mossling.healthRegion") ?? ""
         observationStates = (d.data(forKey: "observationStates")).flatMap {
             try? JSONDecoder().decode([String: ObservationState].self, from: $0)
         } ?? [:]
@@ -328,6 +341,29 @@ final class AppModel {
 
     /// What the widget shows, written whenever it changes.
     func publish(_ j: JournalStore) {
+        guard consented else {
+            JournalFile.writeSnapshot(
+                Snapshot(
+                    birthEpochDay: nil,
+                    nickname: "",
+                    companion: companion.rawValue,
+                    journal: false,
+                    playCode: nil,
+                    playName: nil,
+                    consented: false,
+                    weekPlays: nil,
+                    playPickedEpochDay: nil,
+                    gestationalWeeks: nil,
+                    careGearRaw: nil,
+                    careModeActive: nil,
+                    graduatedModules: nil,
+                    appLocked: appLocked,
+                    consentVersion: consent
+                )
+            )
+            WidgetCenter.shared.reloadAllTimelines()
+            return
+        }
         // the widget says the play the home page says, plus this week's shelf so the widget can swap plays inline
         let p = babyMonth.flatMap { todayPlay($0, j) }
         let code = p?.code, name = p?.name
@@ -365,9 +401,18 @@ final class AppModel {
     }
 
     func clearAll() {
+        // 1. Reset in-memory properties first so property didSet hooks run before wiping UserDefaults keys.
+        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; appLocked = false; onboarded = false
+        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
+        lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
+        gestationalWeeks = nil; graduatedModules = []; dismissedGraduations = []; careModeActive = false; healthRegionRaw = ""; observationStates = [:]
+        consentHostStack = []; manual3AMOverride = nil; isLateNightWindow = CircadianDutyPhase.isLateNight3AM()
+
+        // 2. Remove all persisted UserDefaults keys.
         for k in ["birth", "companion", "theme", "onboarded", "todayPick", "sex", "look", "nickname", "lock", "shelf", "journal", "ticks", "session", "consent",
                   "artStyle", "nightLight", "tactileSounds", "bulbSpringPreset", "lampBrightness", "lampWarmthRaw", "lampBreathingGuide", "mapSeenMonth",
                   "gestationalWeeks", "graduatedModules", "dismissedGraduations", "careModeActive", "observationStates",
+                  "mossling.earSafe.toyboxGuideSeen", "mossling.toybox.daily", "mossling.healthRegion",
                   ReviewPromptGate.versionKey, ReviewPromptGate.dateKey] { d.removeObject(forKey: k) }
         JournalFile.write(JournalFile.Body())
         // everything the app wrote about the child, not only the settings: the widget's copy, the exports,
@@ -378,22 +423,35 @@ final class AppModel {
         try? fm.removeItem(at: DataView.exportFolder)
         try? fm.removeItem(at: DataView.legacyDocumentsExportFolder)
         try? fm.removeItem(at: fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true))
+        let tmp = fm.temporaryDirectory
+        if let tmpItems = try? fm.contentsOfDirectory(at: tmp, includingPropertiesForKeys: nil) {
+            for item in tmpItems {
+                let name = item.lastPathComponent
+                if (name.hasPrefix("voice_draft_") && name.hasSuffix(".m4a")) || (name.hasPrefix("moss-otto-") && name.hasSuffix(".png")) {
+                    try? fm.removeItem(at: item)
+                }
+            }
+        }
         FirstPhotoStore.clearAll()
         FirstVoiceStore.clearAll()
         FoodStickerStore.clearAll()
-        Task { @MainActor in
-            SoundscapeEngine.shared.stop()
+
+        let stopAudioAndStores: @MainActor () -> Void = {
+            SoundscapeEngine.shared.stopImmediately(deactivateSession: true)
             ToyboxAudioEngine.shared.stop()
             FirstVoiceController.shared.stopAll()
             CapsuleStore.shared.clearAll()
             FoodAtlasStore.shared.clearAll()
         }
+        if Thread.isMainThread {
+            MainActor.assumeIsolated { stopAudioAndStores() }
+        } else {
+            DispatchQueue.main.sync {
+                MainActor.assumeIsolated { stopAudioAndStores() }
+            }
+        }
         Task { await LiveTimers.sync() }
         Guide.replayNextLaunch()
-        birth = nil; sex = nil; look = nil; nickname = ""; shelf = ""; pick = ""; consent = ""; ticks = [:]; session = ""; journal = false; lock = false; appLocked = false; onboarded = false
-        theme = .system; companion = .moss; artStyle = .vinyl; nightLight = true; tactileSounds = true
-        lampBrightness = 0.72; lampWarmthRaw = "amber"; lampBreathingGuide = false
-        gestationalWeeks = nil; graduatedModules = []; dismissedGraduations = []; careModeActive = false; observationStates = [:]
     }
 
     /// Whether the guardian has agreed to the current rules (the child's information may be kept).

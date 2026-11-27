@@ -42,9 +42,6 @@ enum Kind: String, CaseIterable, Codable { case moss = "Moss", otto = "Otto"
     var tint: Color { self == .moss ? Palette.moss : Palette.rod }
 }
 enum Mood { case open, happy, wow, sleep }
-/// What the arms do: hidden at rest (as on the icon), one waving, or both up.
-/// `hug`: one long arm reaching out to the left, round whatever stands there (the baby's picture).
-enum Arms { case rest, wave, cheer, hug }
 
 /// Geometry in a 100 × 100 box, shared with Android (ui/ip/Creatures.kt).
 enum Shapes {

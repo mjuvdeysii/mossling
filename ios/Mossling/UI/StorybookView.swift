@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 「成长绘本」 — Unified full-screen horizontal-paging keepsake picture book built automatically from the child's lived months,
-/// Firsts (with optional local Polaroid photos), Montessori play trays, measurements, and quiet notes.
+/// Firsts (with optional local keepsake photos), Montessori play trays, measurements, and quiet notes.
 /// When birthday is not yet set, welcomes parents directly on the heirloom cover spread with an inline Birthday setup button.
 struct StorybookView: View {
     @Environment(AppModel.self) private var app
@@ -94,6 +94,7 @@ struct StorybookView: View {
             }
         }
         .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
+        .localConsentSheet()
         .accessibilityElement(children: .contain)
     }
 

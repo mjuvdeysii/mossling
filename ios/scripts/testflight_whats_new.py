@@ -149,21 +149,31 @@ class ASCClient:
             self._token_exp = now + 1000
         return self._token
 
-    def request(self, method: str, path: str, body: dict | None = None) -> dict:
+    def request(self, method: str, path: str, body: dict | None = None, max_attempts: int = 3) -> dict:
         url = path if path.startswith("http") else f"{API_BASE}{path}"
         data = json.dumps(body).encode("utf-8") if body is not None else None
-        req = urllib.request.Request(url, data=data, method=method)
-        req.add_header("Authorization", f"Bearer {self._get_token()}")
-        req.add_header("Accept", "application/json")
-        if data is not None:
-            req.add_header("Content-Type", "application/json")
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                raw = resp.read()
-                return json.loads(raw.decode("utf-8")) if raw else {}
-        except urllib.error.HTTPError as e:
-            detail = e.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"ASC {method} {path} failed ({e.code}): {detail}") from e
+        for attempt in range(1, max_attempts + 1):
+            req = urllib.request.Request(url, data=data, method=method)
+            req.add_header("Authorization", f"Bearer {self._get_token()}")
+            req.add_header("Accept", "application/json")
+            if data is not None:
+                req.add_header("Content-Type", "application/json")
+            try:
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    raw = resp.read()
+                    return json.loads(raw.decode("utf-8")) if raw else {}
+            except urllib.error.HTTPError as e:
+                detail = e.read().decode("utf-8", errors="replace")
+                if e.code in (429, 500, 502, 503, 504) and attempt < max_attempts:
+                    time.sleep(min(8, 2**attempt))
+                    continue
+                raise RuntimeError(f"ASC {method} {path} failed ({e.code}): {detail}") from e
+            except urllib.error.URLError as e:
+                if attempt < max_attempts:
+                    time.sleep(min(8, 2**attempt))
+                    continue
+                raise RuntimeError(f"ASC {method} {path} network error: {e}") from e
+        raise RuntimeError(f"ASC {method} {path} exhausted retries")
 
 
 def upsert_beta_localization(client: ASCClient, build_id: str, build_number: str, state: str, locale: str, whats_new: str) -> str:
@@ -185,19 +195,39 @@ def upsert_beta_localization(client: ASCClient, build_id: str, build_number: str
         )
         return f"updated existing {locale} localization (id={loc_id}) for build {build_number} (state={state})"
 
-    created = client.request(
-        "POST",
-        "/betaBuildLocalizations",
-        {
-            "data": {
-                "type": "betaBuildLocalizations",
-                "attributes": {"locale": locale, "whatsNew": whats_new},
-                "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
-            }
-        },
-    )
-    loc_id = created.get("data", {}).get("id", "unknown")
-    return f"created {locale} localization (id={loc_id}) for build {build_number} (state={state})"
+    try:
+        created = client.request(
+            "POST",
+            "/betaBuildLocalizations",
+            {
+                "data": {
+                    "type": "betaBuildLocalizations",
+                    "attributes": {"locale": locale, "whatsNew": whats_new},
+                    "relationships": {"build": {"data": {"type": "builds", "id": build_id}}},
+                }
+            },
+        )
+        loc_id = created.get("data", {}).get("id", "unknown")
+        return f"created {locale} localization (id={loc_id}) for build {build_number} (state={state})"
+    except RuntimeError as exc:
+        if "(409)" in str(exc):
+            locs = client.request("GET", f"/builds/{build_id}/betaBuildLocalizations").get("data", [])
+            existing = next((x for x in locs if x.get("attributes", {}).get("locale") == locale), None)
+            if existing:
+                loc_id = existing["id"]
+                client.request(
+                    "PATCH",
+                    f"/betaBuildLocalizations/{loc_id}",
+                    {
+                        "data": {
+                            "type": "betaBuildLocalizations",
+                            "id": loc_id,
+                            "attributes": {"whatsNew": whats_new},
+                        }
+                    },
+                )
+                return f"updated existing {locale} localization after 409 (id={loc_id}) for build {build_number} (state={state})"
+        raise
 
 
 def fetch_recent_builds_summary(client: ASCClient, app_id: str, limit: int = 5) -> str:

@@ -71,6 +71,8 @@ struct PlayView: View {
     @State private var matMode = false
     @State private var dimVeil = false
     @State private var wallpaperOpen = false
+    @State private var didApplyInitialMatMode = false
+    @Environment(\.scenePhase) private var scenePhase
     /// The count when the page was opened: a count above it means this visit already recorded a time (by 记一次,
     /// the menu, or the last step) — derived from the records, not kept beside them.
     @State private var base: Int?
@@ -200,21 +202,27 @@ struct PlayView: View {
             if let p = app.playing, p.play.code == play.code { open = p.step }
             before = rec.count == 0
             if base == nil { base = j.plays(play.code).count }
-            if initialMatMode { matMode = true }
-            keepAwake(!dimVeil && (open < play.steps.count || matMode))
+            if initialMatMode && !didApplyInitialMatMode {
+                didApplyInitialMatMode = true
+                matMode = true
+            }
+            keepAwake(scenePhase == .active && !dimVeil && (open < play.steps.count || matMode))
+        }
+        .onChange(of: scenePhase) { _, phase in
+            keepAwake(phase == .active && !dimVeil && (open < play.steps.count || matMode))
         }
         .onDisappear {
             stopAutoPlay()
             if !matMode { keepAwake(false) }
         }
-        .onChange(of: open) { _, o in keepAwake(!dimVeil && (o < play.steps.count || matMode)) }
+        .onChange(of: open) { _, o in keepAwake(scenePhase == .active && !dimVeil && (o < play.steps.count || matMode)) }
         .onChange(of: dimVeil) { _, on in
             if on { stopAutoPlay() }
-            keepAwake(!on && (open < play.steps.count || matMode))
+            keepAwake(scenePhase == .active && !on && (open < play.steps.count || matMode))
         }
         .onChange(of: matMode) { _, active in
             if active { stopAutoPlay() }
-            keepAwake(!dimVeil && (active || open < play.steps.count))
+            keepAwake(scenePhase == .active && !dimVeil && (active || open < play.steps.count))
         }
         .safeAreaBar(edge: .bottom) {
             if !dimVeil {
@@ -310,6 +318,7 @@ struct PlayView: View {
                 }
             )
             .lampPresented()
+            .localConsentSheet()
             .onAppear { keepAwake(true) }
             .onDisappear { keepAwake(!dimVeil && open < play.steps.count) }
         }
@@ -998,7 +1007,7 @@ private struct StorybookSpineScrubber: View {
     let pick: (Int) -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduce
-    @State private var isScrubbing = false
+    @GestureState private var isScrubbing = false
     @State private var lastTimelinePos: Double? = nil
 
     var body: some View {
@@ -1068,13 +1077,26 @@ private struct StorybookSpineScrubber: View {
                 }
                 .frame(height: 44)
                 .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 6)
-                        .onChanged { value in
-                            if !isScrubbing {
-                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
-                                isScrubbing = true
+                .simultaneousGesture(
+                    SpatialTapGesture()
+                        .onEnded { value in
+                            let u = min(0.9999, max(0.0, Double(value.location.x / trackW)))
+                            let step = min(count - 1, max(0, Int(floor(u * Double(count)))))
+                            if step != current {
+                                TactileEngine.shared.beadClick()
+                                pick(step)
                             }
+                        }
+                )
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 6)
+                        .updating($isScrubbing) { value, state, _ in
+                            if !state && abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
+                                state = true
+                            }
+                        }
+                        .onChanged { value in
+                            guard isScrubbing || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                             let u = min(0.9999, max(0.0, Double(value.location.x / trackW)))
                             let newTimelinePos = u * Double(count)
                             let decomp = PlayScrubMath.decompose(timelinePosition: newTimelinePos, stepCount: count)
@@ -1100,11 +1122,16 @@ private struct StorybookSpineScrubber: View {
                             scrubPhase = decomp.localPhase
                         }
                         .onEnded { _ in
-                            isScrubbing = false
                             lastTimelinePos = nil
                             scrubPhase = nil
                         }
                 )
+                .onChange(of: isScrubbing) { _, active in
+                    if !active {
+                        lastTimelinePos = nil
+                        scrubPhase = nil
+                    }
+                }
             }
             .frame(height: 44)
             .accessibilityElement(children: .ignore)

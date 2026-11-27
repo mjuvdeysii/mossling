@@ -53,6 +53,7 @@ struct YouView: View {
     @Binding var path: NavigationPath
     @State private var editing = false
     @State private var showingLegalSheet = false
+    @State private var showingWallpapers = false
     @State private var faceAvailable = false
     @Environment(\.scenePhase) private var scenePhase
 
@@ -72,6 +73,8 @@ struct YouView: View {
                 PreferenceStudioCard(app: app, face: face, dark: dark)
 
                 StudioPortalGrid(dark: dark)
+
+                atelierDoorwayCard(dark: dark)
 
                 StudioColophonBar(
                     dark: dark,
@@ -119,6 +122,50 @@ struct YouView: View {
         }
         .sheet(isPresented: $editing) { ProfileSheet().lampPresented() }
         .sheet(isPresented: $showingLegalSheet) { StudioLegalSheet(dark: dark).lampPresented() }
+        .sheet(isPresented: $showingWallpapers) { ActivityWallpaperSheet().lampPresented() }
+    }
+
+    @ViewBuilder
+    private func atelierDoorwayCard(dark: Bool) -> some View {
+        HStack(spacing: 10) {
+            Button {
+                TactileEngine.shared.beadClick()
+                showingWallpapers = true
+            } label: {
+                HStack(spacing: 7) {
+                    StudioBadge(symbol: "photo.artframe", color: Crayon.caramel, active: true, dark: dark, size: 24)
+                    Text(L10n.t("藏画壁纸", "Wallpapers"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.84)
+                }
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .padding(.horizontal, 10)
+                .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(Crayon.caramel.opacity(dark ? 0.16 : 0.10)))
+            }
+            .buttonStyle(.toy)
+
+            Button {
+                TactileEngine.shared.beadClick()
+                path.append(StudioRoute.story)
+            } label: {
+                HStack(spacing: 7) {
+                    StudioBadge(symbol: "sparkles", color: Crayon.lilac, active: true, dark: dark, size: 24)
+                    Text(L10n.t("我们的故事", "Our Story"))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.84)
+                }
+                .frame(maxWidth: .infinity, minHeight: 38)
+                .padding(.horizontal, 10)
+                .background(RoundedRectangle(cornerRadius: Radius.tile, style: .continuous).fill(Crayon.lilac.opacity(dark ? 0.16 : 0.10)))
+            }
+            .buttonStyle(.toy)
+        }
+        .padding(10)
+        .printCard(radius: Radius.card)
     }
 }
 
@@ -293,7 +340,7 @@ private struct CompanionPicker: View {
                 } label: {
                     HStack(alignment: .center, spacing: 8) {
                         Creature(kind: k, mood: on ? .happy : .open, look: CGPoint(x: k == .moss ? 0.6 : -0.6, y: 0.1), lid: k == .otto && lamp ? 0.5 : nil,
-                                 alive: on, poke: false, arms: on && cheer % 2 == 1 ? .cheer : .rest, glow: k == .otto && lamp)
+                                 alive: on, poke: false, glow: k == .otto && lamp)
                             .frame(width: (on ? 30 : 27) * k.scale, height: (on ? 30 : 27) * k.scale)
                             .frame(width: 30, height: 34, alignment: .bottom)
 
@@ -1524,8 +1571,7 @@ private struct StoryMicroTheaterStage: View {
                         look: act == .explore ? CGPoint(x: 0.9, y: 0.3) : CGPoint(x: 0.75, y: 0.1),
                         lean: act == .explore ? (exploreTaps > 0 ? 5 : 2.5) : 0,
                         alive: !reduce,
-                        poke: false,
-                        arms: act == .explore && exploreTaps > 0 ? .wave : .rest
+                        poke: false
                     )
                     .frame(width: ms, height: ms)
                     .overlay { MintLeafBurst(trigger: leafBurstTrigger) }
@@ -1716,27 +1762,51 @@ struct TurnCard<Front: View, Back: View>: View {
 
 struct LicensesView: View {
     var body: some View {
-        List {
-            Section(L10n.t("制作", "Craft")) {
-                row(L10n.appName,
-                    L10n.t("由独立创作者构思与持续打磨，专注安静、离线、以孩子节奏为本的家庭陪伴体验。",
-                           "Independently designed and crafted as a quiet, offline companion paced to your child."),
-                    "Moss & Otto")
+        ScrollView {
+            VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
+                sectionCard(title: L10n.t("制作", "Craft")) {
+                    row(L10n.appName,
+                        L10n.t("由独立创作者构思与持续打磨，专注安静、离线、以孩子节奏为本的家庭陪伴体验。",
+                               "Independently designed and crafted as a quiet, offline companion paced to your child."),
+                        "Moss & Otto")
+                }
+                sectionCard(title: L10n.t("数据", "Data")) {
+                    row("WHO Child Growth Standards",
+                        L10n.t("按世界卫生组织的使用条款引用", "Used under World Health Organization terms"),
+                        "© World Health Organization")
+                }
+                sectionCard(title: L10n.t("系统框架", "Frameworks")) {
+                    row("SwiftUI · Swift Charts · WidgetKit · ActivityKit", "Apple SDK", "© Apple Inc.")
+                }
             }
-            Section(L10n.t("数据", "Data")) {
-                row("WHO Child Growth Standards",
-                    L10n.t("按世界卫生组织的使用条款引用", "Used under World Health Organization terms"),
-                    "© World Health Organization")
-            }
-            Section(L10n.t("系统框架", "Frameworks")) {
-                row("SwiftUI · Swift Charts · WidgetKit · ActivityKit", "Apple SDK", "© Apple Inc.")
-            }
+            .padding(.horizontal, LayoutSpec.pageH)
+            .padding(.top, 10)
+            .padding(.bottom, 28)
         }
-        .scrollContentBackground(.hidden).pageBackground()
+        .calmWhileScrolling()
+        .pageBackground()
         .navigationTitle(L10n.t("许可与致谢", "Licenses & Credits"))
     }
+
+    private func sectionCard<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(Palette.secondaryText)
+                .padding(.horizontal, 4)
+            content()
+                .padding(LayoutSpec.cardPad)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .printCard(radius: Radius.card)
+        }
+    }
+
     private func row(_ a: String, _ b: String, _ c: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) { Text(a).font(.subheadline.weight(.semibold)); Text(b).font(.footnote); Text(c).font(.caption).foregroundStyle(Palette.secondaryText) }
+        VStack(alignment: .leading, spacing: 3) {
+            Text(a).font(.subheadline.weight(.semibold))
+            Text(b).font(.footnote)
+            Text(c).font(.caption).foregroundStyle(Palette.secondaryText)
+        }
     }
 }
 

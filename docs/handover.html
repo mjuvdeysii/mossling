@@ -351,7 +351,12 @@
           <button class="beacon-mode-btn" type="button" id="nightToggleBtn" data-zh="深夜护眼黑" data-en="OLED Night Mode">深夜护眼黑</button>
         </div>
 
-        <article class="beacon-card">
+        <div class="beacon-timer" id="beaconErrorBanner" style="display:none;">
+          <span class="beacon-dot" aria-hidden="true"></span>
+          <span id="beaconErrorText"></span>
+        </div>
+
+        <article class="beacon-card" id="beaconCard">
           <div class="beacon-header">
             <div>
               <h1 id="beaconTitle">小满 · 照护交接灯牌</h1>
@@ -452,10 +457,10 @@
 
       function decodeFragment() {
         var h = window.location.hash || "";
-        if (!h || h.indexOf("d=") === -1) return null;
+        if (!h || h.indexOf("d=") === -1) return { status: "none", payload: null };
         try {
           var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
-          if (!raw) return null;
+          if (!raw || raw.length <= 2) return { status: "invalid", payload: null };
           var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
           while (b64.length % 4) b64 += "=";
           var bin = atob(b64);
@@ -463,17 +468,18 @@
           for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
           var jsonStr = new TextDecoder("utf-8").decode(bytes);
           var obj = JSON.parse(jsonStr);
-          if (!obj || typeof obj !== "object" || typeof obj.n !== "string") return null;
-          return obj;
+          if (!obj || typeof obj !== "object" || typeof obj.n !== "string") return { status: "invalid", payload: null };
+          return { status: "ok", payload: obj };
         } catch (e) {
-          return null;
+          return { status: "invalid", payload: null };
         }
       }
 
       function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
       function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
-      var livePayload = decodeFragment();
+      var decoded = decodeFragment();
+      var livePayload = decoded.payload;
       var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
 
       function formatRelativeAgo(epochSec, lang) {
@@ -503,9 +509,27 @@
       }
 
       function renderPayload() {
+        var errBox = document.getElementById("beaconErrorBanner");
+        var errText = document.getElementById("beaconErrorText");
+        var cardEl = document.getElementById("beaconCard");
+        var modeEl = document.getElementById("beaconModeText");
+        if (decoded.status === "invalid") {
+          if (errBox && errText) {
+            errBox.style.display = "flex";
+            errText.textContent = activeLang === "en"
+              ? "This handover link is incomplete or truncated. Please ask your family member to re-share it."
+              : "这条交接灯牌链接不完整或已被聊天软件截断，为防误读不展示示例数据，请让家人重新分享一次。";
+          }
+          if (cardEl) cardEl.style.display = "none";
+          if (modeEl) {
+            modeEl.textContent = activeLang === "en" ? "Incomplete Handover Link" : "交接链接不完整";
+          }
+          return;
+        }
+        if (errBox) errBox.style.display = "none";
+        if (cardEl) cardEl.style.display = "";
         var data = livePayload || (activeLang === "en" ? demoEn : demoZh);
         var isLive = !!livePayload;
-        var modeEl = document.getElementById("beaconModeText");
         if (modeEl) {
           modeEl.textContent = isLive
             ? (activeLang === "en" ? "Live Family Handover Beacon" : "来自家庭 iPhone 的即时传灯交接")
@@ -591,7 +615,12 @@
       }
 
       window.addEventListener("hashchange", function () {
-        livePayload = decodeFragment();
+        decoded = decodeFragment();
+        livePayload = decoded.payload;
+        if (livePayload && (livePayload.l === "en" || livePayload.l === "zh")) {
+          applyLang(livePayload.l);
+          return;
+        }
         renderPayload();
       });
 

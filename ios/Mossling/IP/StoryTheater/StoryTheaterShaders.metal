@@ -70,7 +70,8 @@ inline float fbm3(float2 p) {
 
     // Gentle diagonal afternoon caustic bloom in daylight / cozy hearth bounce at night
     float causticBand = 0.5 + 0.5 * sin(uv.x * 11.5 - uv.y * 6.5 + keyUV.x * 3.1);
-    float midMask = exp(-pow(uv.y - 0.52, 2.0) * 6.5);
+    float dy = uv.y - 0.52;
+    float midMask = exp(-(dy * dy) * 6.5);
     half3 causticTone = darkMode > 0.5 ? half3(0.95h, 0.68h, 0.36h) : half3(1.0h, 0.97h, 0.88h);
     rgb += causticTone * half((darkMode > 0.5 ? 0.018 : 0.022) * causticBand * midMask * keyIntensity);
 
@@ -167,6 +168,7 @@ inline float fbm3(float2 p) {
         return color;
     }
 
+    float2 safeSize = max(size, float2(1.0));
     float2 axis = targetPos - beadPos;
     float axisLen = max(length(axis), 12.0);
     float2 dir = axis / axisLen;
@@ -175,8 +177,8 @@ inline float fbm3(float2 p) {
     float perp = abs(rel.x * (-dir.y) + rel.y * dir.x);
 
     float alongNorm = clamp(along / axisLen, 0.0, 1.35);
-    float coneRadius = mix(8.0, max(size.x, size.y) * 0.31, clamp(alongNorm, 0.0, 1.0));
-    float inCone = smoothstep(coneRadius, coneRadius * 0.16, perp)
+    float coneRadius = mix(8.0, max(safeSize.x, safeSize.y) * 0.31, clamp(alongNorm, 0.0, 1.0));
+    float inCone = (1.0 - smoothstep(coneRadius * 0.16, coneRadius, perp))
         * smoothstep(-6.0, 14.0, along)
         * (1.0 - smoothstep(axisLen * 0.85, axisLen * 1.32, along));
 
@@ -319,7 +321,7 @@ inline float fbm3(float2 p) {
     float2 rel = uv - lampUV;
     float upDist = max(0.0, -rel.y);
     float coneHalfW = 0.12 + upDist * 0.82;
-    float inBeam = smoothstep(coneHalfW, coneHalfW * 0.18, abs(rel.x))
+    float inBeam = (1.0 - smoothstep(coneHalfW * 0.18, coneHalfW, abs(rel.x)))
         * smoothstep(-0.04, 0.10, -rel.y)
         * (1.0 - smoothstep(0.55, 1.05, upDist));
 

@@ -91,7 +91,7 @@ struct RhythmDialModel: Sendable {
     let totalLogs: Int
     let summary: RhythmSummary
 
-    static func build(logs: [LogEntry], today: Day, days: Int = 7) -> RhythmDialModel {
+    static func build(logs: [LogEntry], today: Day, days: Int = 7, excludeIncompleteToday: Bool = false) -> RhythmDialModel {
         let count = max(1, min(30, days))
         let allFeeds = logs.feeds()
         var built: [DayRing] = []
@@ -99,8 +99,12 @@ struct RhythmDialModel: Sendable {
         var total = 0
         var sleepDaysCount = 0
         var totalSleepHours = 0.0
+        var completedSleepDaysCount = 0
+        var completedSleepHours = 0.0
         var feedDaysCount = 0
         var totalFeedsCount = 0
+        var completedFeedDaysCount = 0
+        var completedFeedsCount = 0
         var activeDays = 0
 
         for idx in 0..<count {
@@ -109,6 +113,7 @@ struct RhythmDialModel: Sendable {
             let dayStartMs = d.date.timeIntervalSince1970 * 1000
             let dayEndMs = d.plus(days: 1).date.timeIntervalSince1970 * 1000
             let dayLen = max(1, dayEndMs - dayStartMs)
+            let isCompletedDay = idx < count - 1
 
             // Sleep spans clipped precisely to [dayStartMs, dayEndMs] (handles overnight carry-over accurately)
             var sleeps: [SleepSpan] = []
@@ -127,6 +132,10 @@ struct RhythmDialModel: Sendable {
             if daySleepHours > 0 || !sleeps.isEmpty {
                 sleepDaysCount += 1
                 totalSleepHours += daySleepHours
+                if isCompletedDay {
+                    completedSleepDaysCount += 1
+                    completedSleepHours += daySleepHours
+                }
             }
 
             // Feeds grouped via Feed (one bead per meal, never double-counting left/right sides)
@@ -138,6 +147,10 @@ struct RhythmDialModel: Sendable {
             if !feeds.isEmpty {
                 feedDaysCount += 1
                 totalFeedsCount += feeds.count
+                if isCompletedDay {
+                    completedFeedDaysCount += 1
+                    completedFeedsCount += feeds.count
+                }
             }
 
             // Play sessions started on this day
@@ -175,8 +188,12 @@ struct RhythmDialModel: Sendable {
             }
         }
 
-        let avgSleep = sleepDaysCount > 0 ? totalSleepHours / Double(sleepDaysCount) : nil
-        let avgFeeds = feedDaysCount > 0 ? Double(totalFeedsCount) / Double(feedDaysCount) : nil
+        let effSleepDays = (excludeIncompleteToday && count > 1 && completedSleepDaysCount > 0) ? completedSleepDaysCount : sleepDaysCount
+        let effSleepHours = (excludeIncompleteToday && count > 1 && completedSleepDaysCount > 0) ? completedSleepHours : totalSleepHours
+        let effFeedDays = (excludeIncompleteToday && count > 1 && completedFeedDaysCount > 0) ? completedFeedDaysCount : feedDaysCount
+        let effFeedsCount = (excludeIncompleteToday && count > 1 && completedFeedDaysCount > 0) ? completedFeedsCount : totalFeedsCount
+        let avgSleep = effSleepDays > 0 ? effSleepHours / Double(effSleepDays) : nil
+        let avgFeeds = effFeedDays > 0 ? Double(effFeedsCount) / Double(effFeedDays) : nil
         let typicalBedtime: Int? = if bedtimeHours.count >= 2 {
             Int((bedtimeHours.reduce(0, +) / Double(bedtimeHours.count)).rounded()) % 24
         } else {
@@ -239,7 +256,8 @@ struct RhythmDialCard: View {
     @State private var spanDays: Int = 7
     @State private var filter: RhythmFilter = .all
     @State private var inspectedHour: Int?
-    @State private var scrubbingRing = false
+    @State private var showAgeHalo = false
+    @GestureState private var scrubbingRing = false
 
     /// Optional deterministic clock override for screenshot tests.
     let nowHour: Double?
@@ -271,8 +289,9 @@ struct RhythmDialCard: View {
 
     @ViewBuilder
     private func dialBody(hr: Double) -> some View {
-        let model = RhythmDialModel.build(logs: j.logs, today: app.today, days: spanDays)
+        let model = RhythmDialModel.build(logs: j.logs, today: app.today, days: spanDays, excludeIncompleteToday: true)
         let dark = lamp || scheme == .dark
+        let ageHaloStage: DailyRhythmStage? = showAgeHalo ? DailyRhythmStage.stage(for: app.babyMonth ?? 0) : nil
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
         let ageLabel = app.age.map { L10n.ageText($0) } ?? ""
         let daysCount = spanDays
@@ -326,7 +345,8 @@ struct RhythmDialCard: View {
                         filter: filter,
                         inspectedHour: inspectedHour,
                         nowHour: hr,
-                        dark: dark
+                        dark: dark,
+                        ageHaloStage: ageHaloStage
                     )
                     centerMedallion(model: model, dark: dark)
                         .frame(width: side * 0.405, height: side * 0.405)
@@ -353,15 +373,26 @@ struct RhythmDialCard: View {
                 )
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 10)
+                        .updating($scrubbingRing) { value, state, _ in
+                            guard !state else { return }
+                            let sx = value.startLocation.x - center.x
+                            let sy = value.startLocation.y - center.y
+                            let startDist = hypot(sx, sy)
+                            let outerR = side * 0.395
+                            let rNorm = startDist / max(1, outerR)
+                            guard rNorm >= 0.45, rNorm <= 1.28 else { return }
+                            if abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
+                                state = true
+                            }
+                        }
                         .onChanged { value in
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            guard startDist >= side * 0.19, startDist <= side * 0.52 else { return }
-                            if !scrubbingRing {
-                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
-                                scrubbingRing = true
-                            }
+                            let outerR = side * 0.395
+                            let rNorm = startDist / max(1, outerR)
+                            guard rNorm >= 0.45, rNorm <= 1.28 else { return }
+                            guard scrubbingRing || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             guard hypot(dx, dy) >= side * 0.16 else { return }
@@ -370,9 +401,6 @@ struct RhythmDialCard: View {
                                 inspectedHour = h
                                 TactileEngine.shared.beadClick()
                             }
-                        }
-                        .onEnded { _ in
-                            scrubbingRing = false
                         }
                 )
             }
@@ -417,22 +445,37 @@ struct RhythmDialCard: View {
                 }
             }
 
-            // Quiet legend + ring orientation hint
-            if model.totalLogs == 0 {
-                Text(L10n.t("记下几天睡眠与喂奶后，宝宝自己的昼夜节律会一圈一圈浮现出来。", "After a few days of sleep and feed logs, your baby's natural rhythm appears ring by ring."))
-                    .font(.footnote)
-                    .foregroundStyle(Palette.secondaryText)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                HStack(spacing: 12) {
+            // Quiet legend + toggleable 同龄参考光晕 + ring orientation hint
+            FlowRow(spacing: 10, lineSpacing: 6) {
+                if model.totalLogs == 0 {
+                    Text(L10n.t("记下几天睡眠与喂奶后，宝宝自己的昼夜节律会一圈一圈浮现出来。", "After a few days of sleep and feed logs, your baby's natural rhythm appears ring by ring."))
+                        .font(.footnote)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else {
                     legendDot(LogType.color(LogType.sleep), L10n.t("睡眠弧", "Sleep"))
                     legendDot(LogType.color(LogType.nurse), L10n.t("喂奶珠", "Feed"))
                     legendDot(LogType.color(LogType.play), L10n.t("玩耍", "Play"))
-                    Spacer(minLength: 4)
-                    Text(L10n.t("外圈是今天", "Outer = Today"))
-                        .font(.footnote)
-                        .foregroundStyle(Palette.secondaryText)
                 }
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) { showAgeHalo.toggle() }
+                } label: {
+                    Label(L10n.t("同龄参考光晕", "Age Halo"), systemImage: showAgeHalo ? "sparkles.rectangle.stack.fill" : "circle.dashed")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(showAgeHalo ? .white : Crayon.ink(Crayon.teal))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4)
+                        .background(Capsule().fill(showAgeHalo ? Crayon.buttonFill(Crayon.teal) : Crayon.teal.opacity(dark ? 0.22 : 0.12)))
+                        .pillHitTarget()
+                }
+                .buttonStyle(.plain)
+                .accessibilityAddTraits(showAgeHalo ? .isSelected : [])
+            }
+            if model.totalLogs > 0 {
+                Text(L10n.t("外圈是今天", "Outer = Today"))
+                    .font(.footnote)
+                    .foregroundStyle(Palette.secondaryText)
             }
         }
         .padding(16)
@@ -589,6 +632,7 @@ struct RhythmDialCanvas: View {
     let inspectedHour: Int?
     let nowHour: Double
     let dark: Bool
+    var ageHaloStage: DailyRhythmStage? = nil
 
     var body: some View {
         Canvas { ctx, size in
@@ -626,6 +670,25 @@ struct RhythmDialCanvas: View {
                     with: .color((dark ? Color.white : Color(hex: 0x6B5A48)).opacity(isMajor ? 0.20 : 0.09)),
                     lineWidth: isMajor ? 1.1 : 0.7
                 )
+            }
+
+            // 2b. Optional 同龄参考光晕 (outer gentle sleep/nap band)
+            if let ageHaloStage {
+                let g = CircadianLoomCanvas.geometry(for: ageHaloStage)
+                let haloR = outerR + 6
+                let haloSleepColor = LogType.color(LogType.sleep).opacity(dark ? 0.34 : 0.28)
+                func drawHaloArc(centerHour: Double, span: Double) {
+                    guard span > 0.2 else { return }
+                    let a0 = RhythmDialModel.angle(forHour: centerHour - span / 2.0)
+                    let a1 = RhythmDialModel.angle(forHour: centerHour + span / 2.0)
+                    var halo = Path()
+                    halo.addArc(center: c, radius: haloR, startAngle: .radians(a0), endAngle: .radians(a1), clockwise: false)
+                    ctx.stroke(halo, with: .color(haloSleepColor), style: StrokeStyle(lineWidth: 4.5, lineCap: .round))
+                }
+                drawHaloArc(centerHour: g.nightCenter, span: g.nightMaxSpan)
+                if g.napMaxSpan >= 0.8 {
+                    drawHaloArc(centerHour: g.napCenter, span: g.napMaxSpan)
+                }
             }
 
             // 3. Otto's warm amber lamp spotlight beam for the currently scrubbed hour

@@ -20,7 +20,7 @@ Last updated: November 27, 2026 (v2.0 compliance alignment)
 
 | Category | Contents | Purpose |
 | --- | --- | --- |
-| Baby profile | Date of birth; nickname and sex (optional) | Calculate age in months; sex is used only to select WHO growth curves |
+| Baby profile | Date of birth, gestational weeks (optional for preterm); nickname and sex (optional) | Calculate actual & corrected age in months; sex is used only to select WHO growth curves |
 | Monthly checklists | Observed milestones, vaccinations, and well-child visits | Track monthly progress |
 | This week's play | Weekly recommended activities and the activity chosen for today | Display "Today's Play" on the Home screen |
 | Play history | Activities completed and timestamps | Play counts, Growth Book, and exports |
@@ -29,7 +29,7 @@ Last updated: November 27, 2026 (v2.0 compliance alignment)
 | Care logs (optional) | Feeds, sleep, diapers, solids, baths, temperature, medication, notes, and active timers | Shown under Lamp › Rhythm & Entries and widgets |
 | Growth measurements (optional) | Weight, length / height, and head circumference | WHO growth curves |
 | App settings | Appearance, 3D/2D style, chosen companion (Moss or Otto), lamp brightness/warmth preset, App Lock, and tips state | Display and tactile features |
-| Widget & StandBy copy | Date of birth, nickname, companion, today's activity, and Care Log status | Home Screen, Lock Screen, StandBy Beacon & Control Center widgets |
+| Widget & StandBy copy | Date of birth, gestational weeks, nickname, companion, today's activity, Care Log/Gear/Care-Mode flags, App Lock state, consent version | Home Screen, Lock Screen, StandBy & Control Center widgets (hidden when locked or unconsented, privacy-redacted on Lock Screen, never exposing temperature or medication) |
 
 The information above is stored in this app's private storage (care logs, growth measurements, "Firsts," and the widget copy are stored in a shared container accessible only to this app and its widgets). Other apps cannot read it, and it is encrypted by iOS Data Protection so it cannot be read before the first unlock after your device restarts. The app never exposes an unencrypted public folder in the Files app; exported files are generated on demand when you share or save through the system sheet, and any temporary export cache is deleted with Clear All Data. All stored information remains on your device until you delete it in the app, clear all data, withdraw consent, or uninstall the app.
 
@@ -73,7 +73,7 @@ If iCloud Backup is turned on for your device, iOS automatically encrypts and ba
 - **Importing a backup file**: the app reads only the single backup file you select in the system file picker (previously exported by this app), writes it locally, and keeps no extra copy of the file.
 - **Sharing an activity or web handover/family card**: only when you tap "Share" or generate a no-download web beacon/family card is the activity text or `#d=` URL-fragment link (carrying nickname, age, or care summary) handed to the app you select. Encoding and decoding occur strictly in local browser scripts without server upload, though opening the link visits the static site host and messaging apps may fetch link previews.
 - **Home Screen widgets & Live Activities**: display your child's age, active timers, and recent logs using data stored locally on your device, without passing through any server.
-- **Clearing all data**: in "Studio › Local Data & Backup," tapping "Clear All Data" and confirming deletes your child's profile, all care logs, settings, the widget copy, and files inside the app's export folder on this device, and immediately ends any active timer on the Lock Screen. Files already sent elsewhere are not affected.
+- **Clearing all data**: in "Studio › Local Data & Backup," tapping "Clear All Data" and confirming deletes your child's profile, all care logs, settings, the widget copy, and private temporary/export caches (`Application Support/Exports` and temp files) on this device, and immediately ends any active timer on the Lock Screen. Files already sent elsewhere are not affected.
 
 ## 8. Deleting Your Data
 

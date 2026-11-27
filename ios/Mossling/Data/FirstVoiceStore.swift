@@ -235,6 +235,8 @@ final class FirstVoiceController {
     private var timer: Timer?
     private var activeTempURL: URL?
     private var startingRecording = false
+    private var recordingGeneration = 0
+    private var interruptionObserver: NSObjectProtocol?
     private let delegateProxy = FirstVoiceAudioDelegate()
 
     private init() {
@@ -245,12 +247,37 @@ final class FirstVoiceController {
             guard let self, self.player != nil else { return }
             self.stopPlayback()
         }
+        interruptionObserver = NotificationCenter.default.addObserver(
+            forName: AVAudioSession.interruptionNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            let typeVal = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            Task { @MainActor [weak self] in
+                guard let self, let typeVal, let type = AVAudioSession.InterruptionType(rawValue: typeVal), type == .began else { return }
+                if self.isRecording {
+                    self.handleRecordingStopped(successfully: false)
+                } else if self.playingID != nil {
+                    self.stopPlayback()
+                    self.errorMessage = L10n.t("声音播放被系统中断。", "Audio playback was interrupted.")
+                }
+            }
+        }
     }
 
     func refreshPermission() {
         if #available(iOS 17.0, *) {
             permissionDenied = (AVAudioApplication.shared.recordPermission == .denied)
         }
+    }
+
+    private func deactivateSessionIfIdle() {
+        guard !SoundscapeEngine.shared.hasActiveEngine && !ToyboxAudioEngine.shared.isPlaying else { return }
+        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+    }
+
+    func clearError() {
+        errorMessage = nil
     }
 
     func togglePlay(id: UUID, url: URL) {
@@ -270,7 +297,7 @@ final class FirstVoiceController {
             audioPlayer.delegate = delegateProxy
             audioPlayer.prepareToPlay()
             guard audioPlayer.play() else {
-                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                deactivateSessionIfIdle()
                 errorMessage = L10n.t("这段声音暂时无法播放。", "Could not play this voice keepsake.")
                 return
             }
@@ -280,7 +307,7 @@ final class FirstVoiceController {
             TactileEngine.shared.beadClick()
             startPlaybackTimer()
         } catch {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            deactivateSessionIfIdle()
             errorMessage = L10n.t("这段声音暂时无法播放。", "Could not play this voice keepsake.")
         }
     }
@@ -289,6 +316,9 @@ final class FirstVoiceController {
         guard !startingRecording else { return nil }
         startingRecording = true
         defer { startingRecording = false }
+
+        recordingGeneration &+= 1
+        let expectedGen = recordingGeneration
 
         stopPlayback()
         errorMessage = nil
@@ -300,6 +330,7 @@ final class FirstVoiceController {
             permissionDenied = true
             return nil
         }
+        guard recordingGeneration == expectedGen else { return nil }
 
         SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
         ToyboxAudioEngine.shared.stop()
@@ -324,7 +355,7 @@ final class FirstVoiceController {
             rec.isMeteringEnabled = true
             rec.prepareToRecord()
             guard rec.record(forDuration: FirstVoiceWaveform.maxDuration) else {
-                try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+                deactivateSessionIfIdle()
                 errorMessage = L10n.t("未能启动麦克风录音。", "Could not start microphone recording.")
                 return nil
             }
@@ -339,13 +370,14 @@ final class FirstVoiceController {
             startRecordTimer()
             return tempURL
         } catch {
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            deactivateSessionIfIdle()
             errorMessage = L10n.t("未能启动麦克风录音。", "Could not start microphone recording.")
             return nil
         }
     }
 
     func finishDraftRecording() -> URL? {
+        recordingGeneration &+= 1
         guard isRecording else { return activeTempURL }
         let url = activeTempURL
         recorder?.delegate = nil
@@ -353,7 +385,7 @@ final class FirstVoiceController {
         recorder = nil
         isRecording = false
         stopTimer()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        deactivateSessionIfIdle()
         return url
     }
 
@@ -365,11 +397,12 @@ final class FirstVoiceController {
         playProgress = 0
         if !isRecording {
             stopTimer()
-            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            deactivateSessionIfIdle()
         }
     }
 
     func stopAll() {
+        recordingGeneration &+= 1
         recorder?.delegate = nil
         if isRecording {
             recorder?.stop()
@@ -382,7 +415,7 @@ final class FirstVoiceController {
         playingID = nil
         playProgress = 0
         stopTimer()
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        deactivateSessionIfIdle()
     }
 
     func discardTemp(_ url: URL?) {
@@ -426,7 +459,7 @@ final class FirstVoiceController {
             discardTemp(activeTempURL)
             errorMessage = L10n.t("录音被系统中断，请再试一次。", "Recording was interrupted. Please try again.")
         }
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        deactivateSessionIfIdle()
     }
 
     private func startRecordTimer() {

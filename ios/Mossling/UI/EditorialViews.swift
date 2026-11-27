@@ -648,7 +648,7 @@ struct ReleaseNotesView: View {
                 color: Crayon.teal,
                 title: L10n.t("四屏全新布局：摸索 · 台灯 · 留念 · 工坊", "Four-Tab Layout: Explore · Lamp · Keepsakes · Studio"),
                 detail: L10n.t(
-                    "首屏完全留给孩子探索、本周活动与感官小工坊；第二屏把 Otto 床头暖灯与 24 小时节律归集放到台前；成长绘本、拍立得画册、火漆胶囊与 WHO 曲线归入「留念」；理念故事与透明文档回归「工坊」。",
+                    "首屏完全留给孩子探索、本周活动与感官小工坊；第二屏把 Otto 床头暖灯与 24 小时节律归集放到台前；成长绘本、纪念相纸、火漆胶囊与 WHO 曲线归入「留念」；理念故事与透明文档回归「工坊」。",
                     "Explore focuses purely on play and discovery; Lamp centers Otto's interactive bedside light and rhythm; Keepsakes houses Storybook, Firsts, Capsules, and WHO curves; Studio carries philosophy, design craft, and evidence."
                 )
             ),
@@ -658,8 +658,8 @@ struct ReleaseNotesView: View {
                 color: Palette.amber,
                 title: L10n.t("双画风活态绘本与独立动画", "Living Picture-Book Stage (3D & 2D)"),
                 detail: L10n.t(
-                    "加入柔光棚拍与手绘水彩双风格画面，推出 30 部覆盖 0–24 个月的完全独立手工编排活动小动画与第 6 月旗舰草原野餐封面。",
-                    "Paired soft-vinyl warm studio lighting with hand-tinted watercolor textures, featuring 30 bespoke step animations across 0–24 months and the Month 6 flagship picnic cover."
+                    "加入柔光棚拍与手绘水彩双风格画面，推出 46 部覆盖 0–36 个月的完全独立手工编排活动小动画与全月龄活态成长封面。",
+                    "Paired soft-vinyl warm studio lighting with hand-tinted watercolor textures, featuring 46 bespoke step animations across 0–36 months and living monthly covers."
                 )
             ),
             ReleaseFeature(

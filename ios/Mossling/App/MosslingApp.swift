@@ -39,6 +39,7 @@ struct RootView: View {
     @State private var unlocking = false
     @State private var unlockAttemptedForCurrentLock = false
     @State private var pendingURL: URL?
+    @State private var handledInitialURL = false
     @Namespace private var zoomToday
     @Namespace private var zoomJourney
     @Namespace private var zoomJournal
@@ -48,7 +49,7 @@ struct RootView: View {
 
     /// Synchronizes TactileEngine's silent-night shield across dark theme, sleep timers, 3AM duty phase, and any Bedside Lamp cover.
     private func syncQuietNight() {
-        let lateNight = CircadianDutyPhase.isLateNight3AM()
+        let lateNight = app.is3AMSanctuaryActive || CircadianDutyPhase.isLateNight3AM()
         TactileEngine.shared.quietNight = scheme == .dark || lateNight || router.showingBedsideLamp || app.isBedsideLampOpen || journal.timers.contains { $0.type == LogType.sleep }
     }
 
@@ -62,7 +63,7 @@ struct RootView: View {
     /// The consent card: on the first run (and after 清除全部数据, or when the rules change), and whenever something that
     /// keeps the child's information is asked for before the guardian agreed.
     private var consentShown: Binding<Bool> {
-        Binding(get: { !isLocked && (app.consent.isEmpty || app.askConsent || (app.consent != "declined" && !app.consented)) },
+        Binding(get: { !isLocked && app.consentHostStack.isEmpty && (app.consent.isEmpty || app.askConsent || (app.consent != "declined" && !app.consented)) },
                 set: { if !$0 { app.askConsent = false } })
     }
 
@@ -113,25 +114,30 @@ struct RootView: View {
                     if isLocked && !unlockAttemptedForCurrentLock { unlock() }
                 }
                 if p == .background {
-                    locked = true
+                    if app.lock { locked = true }
                     unlockAttemptedForCurrentLock = false
                     mascot.send(.appBackground)
                 }
             }
             .background {
+                let darkShield = (app.theme == .dark) || (app.theme == .system && app.nightLight && night) || scheme == .dark
                 LockWindowShield(
                     isLocked: isLocked,
                     isPrivacyShieldActive: app.lock && phase == .inactive && !isLocked,
+                    isDark: darkShield,
+                    locale: Locale(identifier: L10n.isEnglish ? "en" : "zh-Hans"),
                     companion: app.companion,
                     unlock: unlock
                 )
             }
             .task {
-                router.selectedTab = savedTab
-                if app.lock && !unlockAttemptedForCurrentLock { unlock() }
+                if !handledInitialURL && AppTab(rawValue: savedTab) != nil {
+                    router.selectedTab = savedTab
+                }
+                if phase == .active && app.lock && !unlockAttemptedForCurrentLock { unlock() }
                 roll()
                 app.publish(journal)
-                if let verified = try? JournalFile.load() {
+                if let verified = JournalFile.loadExistingForPrune() {
                     journal.reload()
                     let validFirsts = Set(verified.firsts.map(\.id))
                     FirstPhotoStore.prune(keeping: validFirsts)
@@ -146,7 +152,7 @@ struct RootView: View {
                 TactileEngine.shared.soundEnabled = app.tactileSounds
                 syncQuietNight()
                 if scheme == .dark { mascot.send(.nightmodeEnabled) }
-                journal.onEvent = { [mascot, journal] e in mascot.timing = !journal.timers.isEmpty; mascot.send(e) }
+                journal.onEvent = { [mascot, weak journal] e in mascot.timing = !(journal?.timers.isEmpty ?? true); mascot.send(e) }
                 journal.onExternalChange = { [app] in app.syncWidgetPick() }
             }
             .onChange(of: router.selectedTab) { _, next in savedTab = next }
@@ -180,6 +186,11 @@ struct RootView: View {
                         app.today = nowDay
                         roll()
                     }
+                    let lateNightNow = CircadianDutyPhase.isLateNight3AM()
+                    if lateNightNow != app.isLateNightWindow {
+                        app.isLateNightWindow = lateNightNow
+                        app.manual3AMOverride = nil
+                    }
                     night = Daylight.isNight()
                     syncQuietNight()
                     try? await Task.sleep(for: .seconds(60))
@@ -202,13 +213,13 @@ struct RootView: View {
             // links from the widget: mossling://care/nurse opens a feed's page, mossling://log/diaper a nappy's
             .onOpenURL { url in open(url) }
             .modifier(LampScope(on: scheme == .dark))
-            // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone
-            .preferredColorScheme(app.theme == .system && app.nightLight && night ? .dark : app.theme.scheme)
+            // 日光 and 夜灯 are what they say at any hour; only 自动 follows the night (when 晚上自动开夜灯 is on) or the phone; 3AM sanctuary keeps OLED dark across all tabs
+            .preferredColorScheme((app.is3AMSanctuaryActive || (app.theme == .system && app.nightLight && night)) ? .dark : app.theme.scheme)
     }
 
     /// Above the tab bar, a feed or sleep being timed, on every tab; it appears only while one runs.
     @ViewBuilder private var tabs: some View {
-        if #available(iOS 26.2, *) {
+        if #available(iOS 26.1, *) {
             tabView.tabViewBottomAccessory(isEnabled: !journal.timers.isEmpty) {
                 if let t = journal.timers.first { TimerAccessory(timer: t, also: journal.timers.dropFirst().first) }
             }
@@ -276,20 +287,21 @@ struct RootView: View {
         // the door between the two worlds (关于摸索台灯): the shards, the sheet of paper, the bloom of light
         .overlay { StyleShiftOverlay() }
         // a feed or sleep, once started (or opened from above the tab bar), has its own screen
-        .fullScreenCover(item: Binding(get: { isLocked ? nil : journal.focus.map { Wrap(id: $0) } },
-                                       set: { if !isLocked { journal.focus = $0?.id } })) { w in
+        .fullScreenCover(item: Binding(get: { journal.focus.map { Wrap(id: $0) } },
+                                       set: { journal.focus = $0?.id })) { w in
             TimerScreen(type: w.id).lampPresented(sheet: false)
         }
-        .fullScreenCover(isPresented: Binding(get: { !isLocked && router.showingBedsideLamp }, set: { router.showingBedsideLamp = $0 })) {
+        .fullScreenCover(isPresented: $r.showingBedsideLamp) {
             BedsideLampView()
         }
-        .fullScreenCover(isPresented: Binding(get: { !isLocked && router.showingStorybook }, set: { router.showingStorybook = $0 })) {
+        .fullScreenCover(isPresented: $r.showingStorybook) {
             StorybookView().lampPresented(sheet: false)
         }
     }
 
     private func open(_ url: URL) {
         guard url.scheme == "mossling" else { return }
+        handledInitialURL = true
         if isLocked { pendingURL = url; return }
         guard app.onboarded else { return }
         // Always pull fresh writes from widgets / Control Center / Live Activities before routing
@@ -384,11 +396,25 @@ private struct LockView: View {
     var body: some View {
         VStack(spacing: 16) {
             Duo(primary: companion, size: 110, mood: .sleep, poke: false)
-            Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked")).font(.title2.weight(.bold))
-            Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock).buttonStyle(.glassProminent).tint(Palette.accentFill).controlSize(.large)
+            Text(L10n.t("摸索台灯已锁定", "Moss & Otto is Locked"))
+                .font(.title2.weight(.bold))
+                .multilineTextAlignment(.center)
+            Button(L10n.t("解锁", "Unlock"), systemImage: Biometry.symbol, action: unlock)
+                .buttonStyle(.glassProminent)
+                .tint(Palette.accentFill)
+                .controlSize(.large)
         }
+        .padding(.horizontal, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .pageBackground()
+    }
+}
+
+private final class ShieldAnchorView: UIView {
+    var onMoveToWindow: (() -> Void)?
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        onMoveToWindow?()
     }
 }
 
@@ -397,42 +423,69 @@ private struct LockView: View {
 private struct LockWindowShield: UIViewRepresentable {
     let isLocked: Bool
     let isPrivacyShieldActive: Bool
+    let isDark: Bool
+    let locale: Locale
     let companion: Kind
     let unlock: () -> Void
 
     final class Coordinator {
         var shieldWindow: UIWindow?
+        var syncBlock: (() -> Void)?
+        deinit {
+            let win = shieldWindow
+            shieldWindow = nil
+            if let win {
+                DispatchQueue.main.async {
+                    win.isHidden = true
+                    win.rootViewController = nil
+                }
+            }
+        }
     }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
 
     func makeUIView(context: Context) -> UIView {
-        let view = UIView(frame: .zero)
+        let view = ShieldAnchorView(frame: .zero)
         view.isHidden = true
         view.isUserInteractionEnabled = false
+        view.onMoveToWindow = { [weak coordinator = context.coordinator] in
+            coordinator?.syncBlock?()
+        }
         return view
     }
 
     func updateUIView(_ uiView: UIView, context: Context) {
+        let coordinator = context.coordinator
+        coordinator.syncBlock = {
+            syncShield(uiView: uiView, coordinator: coordinator)
+        }
+        syncShield(uiView: uiView, coordinator: coordinator)
+    }
+
+    private func syncShield(uiView: UIView, coordinator: Coordinator) {
         let shouldShow = isLocked || isPrivacyShieldActive
         if !shouldShow {
-            context.coordinator.shieldWindow?.isHidden = true
-            context.coordinator.shieldWindow?.rootViewController = nil
-            context.coordinator.shieldWindow = nil
+            coordinator.shieldWindow?.isHidden = true
+            coordinator.shieldWindow?.rootViewController = nil
+            coordinator.shieldWindow = nil
             return
         }
         guard let scene = uiView.window?.windowScene else { return }
         let window: UIWindow
-        if let existing = context.coordinator.shieldWindow, existing.windowScene === scene {
+        if let existing = coordinator.shieldWindow, existing.windowScene === scene {
             window = existing
         } else {
             let created = UIWindow(windowScene: scene)
             created.windowLevel = .alert + 1
             created.backgroundColor = .clear
-            context.coordinator.shieldWindow = created
+            coordinator.shieldWindow = created
             window = created
         }
-        let content: AnyView = isLocked
+        window.overrideUserInterfaceStyle = isDark ? .dark : .light
+        window.accessibilityViewIsModal = true
+
+        let baseView: AnyView = isLocked
             ? AnyView(LockView(companion: companion, unlock: unlock))
             : AnyView(
                 ZStack {
@@ -442,11 +495,19 @@ private struct LockWindowShield: UIViewRepresentable {
                 .ignoresSafeArea()
                 .accessibilityHidden(true)
             )
+        let themed = AnyView(
+            baseView
+                .lamp(isDark)
+                .preferredColorScheme(isDark ? .dark : .light)
+                .environment(\.locale, locale)
+        )
         if let host = window.rootViewController as? UIHostingController<AnyView> {
-            host.rootView = content
+            host.rootView = themed
+            host.overrideUserInterfaceStyle = isDark ? .dark : .light
         } else {
-            let host = UIHostingController(rootView: content)
+            let host = UIHostingController(rootView: themed)
             host.view.backgroundColor = .clear
+            host.overrideUserInterfaceStyle = isDark ? .dark : .light
             window.rootViewController = host
         }
         window.isHidden = false

@@ -29,14 +29,23 @@ struct HandoverWebPayload: Codable, Equatable, Sendable {
 enum HandoverWebCodec {
     static let defaultOrigin = "https://mossotto.pages.dev/"
 
-    private static func sanitizedSummaryDetail(_ raw: String, english: Bool) -> String {
+    private static func sanitizedBeaconText(_ raw: String, limit: Int, english: Bool, isNote: Bool) -> String {
         let lower = raw.lowercased()
-        let tempTokens = [LogType.name(LogType.temp).lowercased(), "°c", "体温", "fever", "temp"]
-        let medTokens = [LogType.name(LogType.medicine).lowercased(), "用药", "medication", "medicine"]
-        if tempTokens.contains(where: { lower.contains($0) }) || medTokens.contains(where: { lower.contains($0) }) {
+        let sensitiveTokens = [
+            LogType.name(LogType.temp).lowercased(),
+            LogType.name(LogType.medicine).lowercased(),
+            "°c", "°f", "体温", "发烧", "发热", "退烧", "用药", "药物", "维生素",
+            "布洛芬", "美林", "泰诺", "对乙酰氨基酚",
+            "temp", "fever", "medication", "medicine", "med ", "vitamin",
+            "ibuprofen", "tylenol", "paracetamol", "acetaminophen", "motrin", "advil"
+        ]
+        if sensitiveTokens.contains(where: { lower.contains($0) }) {
+            if isNote {
+                return english ? "See family card for care notes" : "体征与用药详情请见当面交接卡"
+            }
             return english ? "See family card for care notes" : "详细体征请见交接卡"
         }
-        return String(raw.prefix(48))
+        return String(raw.prefix(limit))
     }
 
     @MainActor
@@ -65,8 +74,8 @@ enum HandoverWebCodec {
             p2: String(snapshot.lastDiaperDetail.prefix(48)),
             pts: snapshot.diaperTimestampSec,
             r1: String(snapshot.todayHeadline.prefix(36)),
-            r2: sanitizedSummaryDetail(snapshot.todayDetail, english: english),
-            no: snapshot.extraNote.isEmpty ? nil : String(snapshot.extraNote.prefix(120))
+            r2: sanitizedBeaconText(snapshot.todayDetail, limit: 48, english: english, isNote: false),
+            no: snapshot.extraNote.isEmpty ? nil : sanitizedBeaconText(snapshot.extraNote, limit: 120, english: english, isNote: true)
         )
     }
 

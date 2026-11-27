@@ -95,6 +95,7 @@ final class CapsuleStore {
     static let shared = CapsuleStore()
 
     private(set) var items: [TimeCapsule] = []
+    private(set) var loadFailed = false
     private let fileURL: URL?
 
     nonisolated static var defaultURL: URL {
@@ -114,15 +115,24 @@ final class CapsuleStore {
     }
 
     func reload() {
-        guard let url = fileURL,
-              let data = try? Data(contentsOf: url),
-              let decoded = try? JSONDecoder().decode([TimeCapsule].self, from: data) else {
+        guard let url = fileURL else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            loadFailed = false
+            items = []
             return
         }
-        items = decoded.sorted { $0.writtenAt > $1.writtenAt }
+        do {
+            let data = try Data(contentsOf: url)
+            let decoded = try JSONDecoder().decode([TimeCapsule].self, from: data)
+            items = decoded.sorted { $0.writtenAt > $1.writtenAt }
+            loadFailed = false
+        } catch {
+            loadFailed = true
+        }
     }
 
     func save(_ capsule: TimeCapsule) {
+        loadFailed = false
         if let idx = items.firstIndex(where: { $0.id == capsule.id }) {
             items[idx] = capsule
         } else {
@@ -133,7 +143,7 @@ final class CapsuleStore {
     }
 
     func open(id: UUID, now: Double = Date().timeIntervalSince1970 * 1000) {
-        guard let idx = items.firstIndex(where: { $0.id == id }) else { return }
+        guard !loadFailed, let idx = items.firstIndex(where: { $0.id == id }) else { return }
         if items[idx].openedAt == nil {
             items[idx].openedAt = now
             persist()
@@ -141,11 +151,13 @@ final class CapsuleStore {
     }
 
     func delete(id: UUID) {
+        guard !loadFailed else { return }
         items.removeAll { $0.id == id }
         persist()
     }
 
     func clearAll() {
+        loadFailed = false
         items = []
         if let url = fileURL {
             try? FileManager.default.removeItem(at: url)
@@ -153,6 +165,7 @@ final class CapsuleStore {
     }
 
     func replaceAll(_ list: [TimeCapsule]) {
+        loadFailed = false
         items = list.sorted { $0.writtenAt > $1.writtenAt }
         persist()
     }
@@ -162,7 +175,7 @@ final class CapsuleStore {
     }
 
     private func persist() {
-        guard let url = fileURL else { return }
+        guard !loadFailed, let url = fileURL else { return }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let data = try JSONEncoder().encode(items)

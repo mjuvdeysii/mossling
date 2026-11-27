@@ -32,6 +32,7 @@ struct LampHubView: View {
     @State private var quickNight3AM: Bool
     @State private var ledgerFilter: String? = nil
     @State private var lampCardExpanded = false
+    private let usesExternal3AMOverride: Bool
 
     init(
         path: Binding<NavigationPath>,
@@ -42,6 +43,7 @@ struct LampHubView: View {
         _path = path
         _selectedDay = State(initialValue: initialDay ?? .today)
         _ledgerExpanded = State(initialValue: initialLedgerExpanded)
+        usesExternal3AMOverride = initialLedgerExpanded || initialQuickNight3AM != nil
         _quickNight3AM = State(initialValue: initialLedgerExpanded ? false : (initialQuickNight3AM ?? CircadianDutyPhase.isLateNight3AM()))
     }
 
@@ -108,7 +110,8 @@ struct LampHubView: View {
         let diaperCount = own.filter { $0.type == LogType.diaper }.count
         let entryCount = dayLogs.rows().count
 
-        let is3AMOled = app.journal && quickNight3AM && isToday
+        let want3AM = usesExternal3AMOverride ? quickNight3AM : app.is3AMSanctuaryActive
+        let is3AMOled = app.journal && want3AM && isToday
         let effectiveDark = dark || is3AMOled
 
         ScrollView {
@@ -171,13 +174,17 @@ struct LampHubView: View {
                     Button {
                         TactileEngine.shared.beadClick()
                         withAnimation(reduce ? nil : .snappy) {
-                            quickNight3AM.toggle()
+                            if usesExternal3AMOverride {
+                                quickNight3AM.toggle()
+                            } else {
+                                app.manual3AMOverride = !is3AMOled
+                            }
                         }
                     } label: {
                         HStack(spacing: 4) {
-                            Image(systemName: quickNight3AM ? "sun.max.fill" : "moon.stars.fill")
+                            Image(systemName: is3AMOled ? "sun.max.fill" : "moon.stars.fill")
                                 .font(.caption2.weight(.bold))
-                            Text(quickNight3AM ? L10n.t("日间台灯", "Full") : L10n.t("3AM 极速", "3AM"))
+                            Text(is3AMOled ? L10n.t("日间台灯", "Full") : L10n.t("3AM 极速", "3AM"))
                                 .font(.caption2.weight(.bold))
                         }
                         .foregroundStyle(is3AMOled ? Palette.amber : Palette.accent)
@@ -187,7 +194,7 @@ struct LampHubView: View {
                         .pillHitTarget()
                     }
                     .buttonStyle(.plain)
-                    .accessibilityLabel(quickNight3AM ? L10n.t("切换回完整台灯与节律视图", "Switch to full Lamp & rhythm view") : L10n.t("切换到凌晨三点极速护眼模式", "Switch to 3AM one-handed OLED mode"))
+                    .accessibilityLabel(is3AMOled ? L10n.t("切换回完整台灯与节律视图", "Switch to full Lamp & rhythm view") : L10n.t("切换到凌晨三点极速护眼模式", "Switch to 3AM one-handed OLED mode"))
                 }
             }
 
@@ -252,7 +259,11 @@ struct LampHubView: View {
         .onChange(of: j.jumpToToday) { _, _ in selectedDay = app.today }
         .onChange(of: router?.expandLampLedgerToken ?? 0) { _, _ in
             withAnimation(reduce ? nil : CalmMotion.accordionSpring) {
-                quickNight3AM = false
+                if usesExternal3AMOverride {
+                    quickNight3AM = false
+                } else {
+                    app.manual3AMOverride = false
+                }
                 ledgerExpanded = true
             }
         }
@@ -481,20 +492,67 @@ struct LampHubView: View {
                 .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder(Color.white.opacity(0.10), lineWidth: 1))
             }
 
+            let careWatch = CareWatchSummary.recent24h(in: j.logs)
+            if careWatch.hasActivity || app.careModeActive {
+                HStack(spacing: 8) {
+                    Image(systemName: careWatch.hasFever ? "thermometer.high" : "cross.case.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(careWatch.hasFever ? Crayon.tangerine : warmth.primaryGlow)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(careWatch.latestTemp.map { L10n.t("24h 体温 \($0.summary)", "24h Temp \($0.summary)") } ?? L10n.t("24h 照护看护", "24h Care Watch"))
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(Palette.lampInk)
+                        if let med = careWatch.latestMed {
+                            let ms = med.summary.isEmpty ? LogType.name(LogType.medicine) : med.summary
+                            Text(L10n.t("用药 \(hm(med.startDate)) · \(ms)", "Med \(hm(med.startDate)) · \(ms)"))
+                                .font(.caption2)
+                                .foregroundStyle(Palette.lampInk.opacity(0.75))
+                        }
+                    }
+                    Spacer(minLength: 4)
+                    Button(L10n.t("体温", "Temp")) {
+                        if app.mayKeep() { j.ask = LogType.temp }
+                    }
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(warmth.onPrimaryInk)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(warmth.primaryGlow))
+                    .pillHitTarget()
+                    .buttonStyle(.plain)
+                    Button(L10n.t("用药", "Med")) {
+                        if app.mayKeep() { j.ask = LogType.medicine }
+                    }
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(Palette.lampInk)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(Color.white.opacity(0.12)))
+                    .pillHitTarget()
+                    .buttonStyle(.plain)
+                }
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).fill(Palette.oledSurface))
+                .overlay(RoundedRectangle(cornerRadius: Radius.card, style: .continuous).strokeBorder((careWatch.hasFever ? Crayon.tangerine : warmth.primaryGlow).opacity(0.35), lineWidth: 1))
+            }
+
             Button {
                 TactileEngine.shared.beadClick()
                 withAnimation(reduce ? nil : .snappy) {
-                    quickNight3AM = false
+                    if usesExternal3AMOverride {
+                        quickNight3AM = false
+                    } else {
+                        app.manual3AMOverride = false
+                    }
                 }
             } label: {
                 HStack(spacing: 6) {
                     Image(systemName: "clock.arrow.circlepath")
-                    Text(L10n.t("展开完整 24h 节律盘、声景与今日手账明细", "Open full 24h rhythm dial, soundscapes & entries"))
+                    Text(L10n.t("切回完整台灯 · 24h 节律盘与手账明细", "Switch to Full Lamp · 24h dial & entries"))
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(warmth.primaryGlow.opacity(0.9))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 10)
+                .frame(maxWidth: .infinity, minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: Radius.inner, style: .continuous).fill(Palette.oledSurface))
             }
             .buttonStyle(.plain)
@@ -1013,8 +1071,15 @@ struct LampHubView: View {
                 onSelectFilter: { toggleLedgerFilter($0) }
             )
 
-            DaySwimlaneCanvas(day: day, logs: dayLogs, timers: isToday ? j.timers : [], only: ledgerFilter, dark: dark)
-                .allowsHitTesting(false)
+            if isToday {
+                TimelineView(.periodic(from: .now, by: 60)) { tl in
+                    DaySwimlaneCanvas(day: day, logs: dayLogs, timers: j.timers, only: ledgerFilter, dark: dark, nowDate: tl.date)
+                        .allowsHitTesting(false)
+                }
+            } else {
+                DaySwimlaneCanvas(day: day, logs: dayLogs, timers: [], only: ledgerFilter, dark: dark)
+                    .allowsHitTesting(false)
+            }
 
             if type.isAccessibilitySize {
                 VStack(spacing: 8) {
@@ -1084,11 +1149,15 @@ struct LampHubView: View {
     private func quietCareStrip(day: Day, isToday: Bool, dark: Bool) -> some View {
         let diaperGraduated = app.graduatedModules.contains(CareGearEngine.diaperModule) && !app.careModeActive
         let feedsGraduated = app.graduatedModules.contains(CareGearEngine.feedsModule) && !app.careModeActive
-        let primaryTypes = [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper].filter { type in
-            if diaperGraduated && type == LogType.diaper { return false }
-            if feedsGraduated && (type == LogType.nurse || type == LogType.bottle) { return false }
-            return true
-        }
+        let primaryTypes: [String] = {
+            if app.careModeActive {
+                return [LogType.nurse, LogType.bottle, LogType.sleep, LogType.diaper, LogType.temp, LogType.medicine]
+            }
+            var out: [String] = feedsGraduated ? [LogType.solid, LogType.sleep] : [LogType.nurse, LogType.bottle, LogType.sleep]
+            if !diaperGraduated { out.append(LogType.diaper) }
+            return out
+        }()
+        let careWatch = isToday ? CareWatchSummary.recent24h(in: j.logs) : nil
         let extraTypes = LogType.buttons.filter { !primaryTypes.contains($0) && $0 != LogType.growth }
         let hint = isToday
             ? CareGearEngine.suggestedGraduation(
@@ -1105,27 +1174,22 @@ struct LampHubView: View {
                 Text(isToday ? L10n.t("随手轻记", "Quiet Log") : L10n.t("补记 \(day.md)", "Log to \(day.md)"))
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.primary)
-                if !app.graduatedModules.isEmpty || app.careModeActive {
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        withAnimation(reduce ? nil : .snappy) { app.careModeActive.toggle() }
-                    } label: {
-                        Label(L10n.t("照护模式", "Care Mode"), systemImage: app.careModeActive ? "cross.case.fill" : "cross.case")
-                            .font(.caption2.weight(.semibold))
-                            .foregroundStyle(app.careModeActive ? .white : Palette.secondaryText)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 3)
-                            .background(Capsule().fill(app.careModeActive ? Crayon.teal : Palette.fill))
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    Text(app.currentGear.title)
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(Palette.secondaryText)
-                        .lineLimit(1)
+                Button {
+                    TactileEngine.shared.beadClick()
+                    withAnimation(reduce ? nil : .snappy) { app.careModeActive.toggle() }
+                } label: {
+                    Label(L10n.t("照护模式", "Care Mode"), systemImage: app.careModeActive ? "cross.case.fill" : "cross.case")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(app.careModeActive ? .white : Palette.secondaryText)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 3)
+                        .background(Capsule().fill(app.careModeActive ? Crayon.buttonFill(Crayon.teal) : Palette.fill))
                 }
+                .buttonStyle(.plain)
                 Spacer()
                 Menu {
+                    Text(app.currentGear.title)
+                    Divider()
                     ForEach(extraTypes, id: \.self) { t in
                         Button(LogType.name(t), systemImage: LogType.symbol(t)) {
                             handleTap(t, day: day, isToday: isToday)
@@ -1143,6 +1207,37 @@ struct LampHubView: View {
                         .font(.footnote.weight(.medium))
                         .foregroundStyle(Palette.accent)
                 }
+            }
+
+            if let careWatch, careWatch.hasActivity {
+                HStack(spacing: 8) {
+                    Image(systemName: careWatch.hasFever ? "thermometer.high" : "cross.case.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(careWatch.hasFever ? Palette.danger : Crayon.ink(Crayon.teal))
+                    Text([
+                        careWatch.latestTemp.map { L10n.t("24h 体温 \($0.summary)", "24h Temp \($0.summary)") },
+                        careWatch.latestMed.map { L10n.t("用药 \($0.summary.isEmpty ? LogType.name(LogType.medicine) : $0.summary)", "Med \($0.summary.isEmpty ? LogType.name(LogType.medicine) : $0.summary)") }
+                    ].compactMap { $0 }.joined(separator: " · "))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(careWatch.hasFever ? Palette.danger : .primary)
+                    .lineLimit(type.isAccessibilitySize ? nil : 1)
+                    Spacer(minLength: 4)
+                    if !app.careModeActive {
+                        Button(L10n.t("展开", "Focus")) {
+                            TactileEngine.shared.beadClick()
+                            withAnimation(reduce ? nil : .snappy) { app.careModeActive = true }
+                        }
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(Crayon.ink(Crayon.teal))
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 8)
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.inner, style: .continuous)
+                        .fill((careWatch.hasFever ? Palette.danger : Crayon.teal).opacity(dark ? 0.18 : 0.10))
+                )
             }
 
             let cols = type.isAccessibilitySize

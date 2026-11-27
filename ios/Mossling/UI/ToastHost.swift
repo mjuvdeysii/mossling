@@ -28,6 +28,11 @@ private struct ToastSlot: View {
             }
         }
         .animation(reduce ? nil : .snappy, value: j.toast?.id)
+        .onChange(of: suppressed, initial: true) { _, isSuppressed in
+            if isSuppressed && j.toast != nil {
+                j.toast = nil
+            }
+        }
     }
 }
 
@@ -36,6 +41,9 @@ private struct ToastBar: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let toast: Toast
     var body: some View {
+        let glassShape = typeSize.isAccessibilitySize
+            ? AnyShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+            : AnyShape(Capsule())
         HStack(spacing: 10) {
             if toast.failed { IconTile(symbol: "exclamationmark.triangle.fill", color: Palette.danger, size: 30, round: true) }
             else { IconTile(symbol: LogType.symbol(toast.type), color: LogType.color(toast.type), size: 30, round: true) }
@@ -53,7 +61,7 @@ private struct ToastBar: View {
             }
         }
         .padding(.leading, 10).padding(.trailing, 10).padding(.vertical, 6)
-        .glassEffect(.regular, in: Capsule())
+        .glassEffect(.regular, in: glassShape)
         .padding(.horizontal, typeSize.isAccessibilitySize ? 12 : 16).padding(.vertical, 6)
         .gesture(
             DragGesture(minimumDistance: 16).onEnded { value in
@@ -65,11 +73,15 @@ private struct ToastBar: View {
                 UINotificationFeedbackGenerator().notificationOccurred(toast.failed ? .error : .success)
             }
             UIAccessibility.post(notification: .announcement, argument: toast.text)
-            let seconds: Double = toast.failed ? 6 : (toast.restore == nil ? 3.5 : (UIAccessibility.isVoiceOverRunning ? 15 : 5))
+            let baseSeconds: Double = toast.failed ? 6 : (toast.restore == nil ? 3.5 : 5)
+            let seconds: Double = UIAccessibility.isVoiceOverRunning ? max(15, baseSeconds) : baseSeconds
             try? await Task.sleep(for: .seconds(seconds))
             if j.toast?.id == toast.id { j.toast = nil }
         }
         .accessibilityElement(children: .contain)
+        .accessibilityAction(.escape) {
+            j.toast = nil
+        }
         .accessibilityAction(named: L10n.t("关闭提示", "Dismiss")) { j.toast = nil }
     }
 }

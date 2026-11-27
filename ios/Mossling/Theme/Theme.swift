@@ -955,7 +955,7 @@ struct VinylButton: ButtonStyle {
                     ZStack {
                         shape.fill(body)
                             .shadow(color: shadowColor, radius: shadowR, y: shadowY)
-                        shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.06 : 0.03), .white.opacity(0)], startPoint: .top, endPoint: .center))
+                        shape.fill(LinearGradient(colors: [.white.opacity(prominent ? 0.02 : 0.015), .white.opacity(0)], startPoint: .top, endPoint: .center))
                         shape.strokeBorder(LinearGradient(colors: [rimTop, .clear], startPoint: .top, endPoint: .bottom), lineWidth: 1)
                     }
                 }

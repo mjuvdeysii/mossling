@@ -358,6 +358,7 @@ private struct XylophoneStudio: View {
     let dark: Bool
     let onInteract: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
     @State private var activeBar: Int? = nil
     @State private var lastNote: ToyboxNote? = nil
     @State private var mossLook: CGPoint = CGPoint(x: 0, y: 0.45)
@@ -536,7 +537,7 @@ private struct XylophoneStudio: View {
 
                     // Acoustic wave rings & drifting note particles (strictly read-only inside Canvas draw)
                     if !reduce && !Perf.still {
-                        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !fxActive)) { tl in
+                        TimelineView(.animation(minimumInterval: 1.0 / 60.0, paused: !fxActive || scenePhase != .active)) { tl in
                             Canvas { ctx, size in
                                 let now = tl.date.timeIntervalSinceReferenceDate
                                 for ring in fx.rings {
@@ -1124,6 +1125,7 @@ private struct RainstickStudio: View {
                                 if reduce || Perf.still || scenePhase != .active {
                                     sim.advanceStep(dt: 1.0 / 30.0)
                                     flipCount &+= 1
+                                    TactileEngine.shared.dimmerTick()
                                 }
                             }
                             .onEnded { _ in
@@ -1549,6 +1551,7 @@ private struct FireflyJarStudio: View {
                                     if reduce || Perf.still || scenePhase != .active {
                                         sim.advanceStep(dt: 1.0 / 30.0)
                                         swirlCount &+= 1
+                                        TactileEngine.shared.dimmerTick()
                                     }
                                 }
                                 .onEnded { _ in
@@ -1835,6 +1838,7 @@ private struct ContrastCardStudio: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(minHeight: 320)
             .onChange(of: index) { oldVal, newVal in
                 guard oldVal != newVal else { return }
                 onInteract()
@@ -1952,6 +1956,7 @@ private struct ContrastFocusCover: View {
     @Binding var inverted: Bool
     let motionMode: Bool
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         let bg = inverted ? Color(hex: 0x191A17) : Color(hex: 0xFBF7F0)
@@ -2013,7 +2018,8 @@ private struct ContrastFocusCover: View {
                     .padding(.bottom, 16)
             }
         }
-        .onAppear { UIApplication.shared.isIdleTimerDisabled = true }
+        .onAppear { UIApplication.shared.isIdleTimerDisabled = (scenePhase == .active) }
+        .onChange(of: scenePhase) { _, phase in UIApplication.shared.isIdleTimerDisabled = (phase == .active) }
         .onDisappear { UIApplication.shared.isIdleTimerDisabled = false }
     }
 }
@@ -2025,6 +2031,7 @@ private struct ContrastCardArtwork: View {
     var motionMode: Bool = false
     var frameless: Bool = false
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
 
     private let ivory = Color(hex: 0xFBF7F0)
     private let charcoal = Color(hex: 0x191A17)
@@ -2033,7 +2040,7 @@ private struct ContrastCardArtwork: View {
     var body: some View {
         let bg = inverted ? charcoal : ivory
         let fg = inverted ? ivory : charcoal
-        let activeMotion = motionMode && !reduce && !Perf.still
+        let activeMotion = motionMode && !reduce && !Perf.still && scenePhase == .active
 
         GeometryReader { geo in
             let side = min(geo.size.width, geo.size.height)
@@ -2209,28 +2216,31 @@ private struct ContrastCardArtwork: View {
             }
 
         case .ottoLantern:
-            // Rounded Otto lantern silhouette with high arch handle and vermilion warm focal bulb
-            let bodyR = maxR * 0.66
-            let arch = Path { p in
-                p.addArc(center: CGPoint(x: cx, y: cy - bodyR * 0.42), radius: bodyR * 0.56, startAngle: .degrees(190), endAngle: .degrees(350), clockwise: false)
+            // Canonical tall Otto silhouette with forward curved lamp rod, vermilion glow bead, and single expressive eye
+            let bodyR = maxR * 0.64
+            let bodyRect = CGRect(x: cx - bodyR * 0.72, y: cy - bodyR * 0.42, width: bodyR * 1.44, height: bodyR * 1.44)
+            let rod = Path { p in
+                p.move(to: CGPoint(x: cx, y: bodyRect.minY + bodyR * 0.04))
+                p.addCurve(
+                    to: CGPoint(x: cx - bodyR * 0.92, y: cy - bodyR * 0.76),
+                    control1: CGPoint(x: cx - bodyR * 0.16, y: cy - bodyR * 1.06),
+                    control2: CGPoint(x: cx - bodyR * 0.72, y: cy - bodyR * 1.08)
+                )
             }
-            ctx.stroke(arch, with: .color(fg), style: StrokeStyle(lineWidth: maxR * 0.11, lineCap: .round))
-            let bodyRect = CGRect(x: cx - bodyR * 0.88, y: cy - bodyR * 0.36, width: bodyR * 1.76, height: bodyR * 1.38)
-            ctx.fill(Path(roundedRect: bodyRect, cornerRadius: bodyR * 0.68), with: .color(fg))
-            // Hanging vermilion glow bead inside arch + crisp expressive newborn eyes
-            let bulbR = bodyR * 0.22
+            ctx.stroke(rod, with: .color(fg), style: StrokeStyle(lineWidth: maxR * 0.09, lineCap: .round))
+            let bulbR = bodyR * 0.24
+            let bulbCenter = CGPoint(x: cx - bodyR * 0.92, y: cy - bodyR * 0.68)
             ctx.fill(
-                Path(ellipseIn: CGRect(x: cx - bulbR, y: cy - bodyR * 0.96 - bulbR, width: bulbR * 2, height: bulbR * 2)),
+                Path(ellipseIn: CGRect(x: bulbCenter.x - bulbR, y: bulbCenter.y - bulbR, width: bulbR * 2, height: bulbR * 2)),
                 with: .color(vermilion)
             )
-            let eyeR = bodyR * 0.22
-            let eyeY = cy + bodyR * 0.18
-            for dir in [-1.0, 1.0] {
-                let ex = cx + CGFloat(dir) * bodyR * 0.34
-                ctx.fill(Path(ellipseIn: CGRect(x: ex - eyeR, y: eyeY - eyeR, width: eyeR * 2, height: eyeR * 2)), with: .color(bg))
-                let pr = eyeR * 0.55
-                ctx.fill(Path(ellipseIn: CGRect(x: ex - pr, y: eyeY - pr, width: pr * 2, height: pr * 2)), with: .color(fg))
-            }
+            ctx.fill(Path(roundedRect: bodyRect, cornerRadius: bodyR * 0.68), with: .color(fg))
+            let eyeRx = bodyR * 0.36
+            let eyeRy = bodyR * 0.33
+            let eyeCenter = CGPoint(x: cx + bodyR * 0.02, y: cy + bodyR * 0.12)
+            ctx.fill(Path(ellipseIn: CGRect(x: eyeCenter.x - eyeRx, y: eyeCenter.y - eyeRy, width: eyeRx * 2, height: eyeRy * 2)), with: .color(bg))
+            let pr = eyeRy * 0.62
+            ctx.fill(Path(ellipseIn: CGRect(x: eyeCenter.x - pr, y: eyeCenter.y - pr, width: pr * 2, height: pr * 2)), with: .color(fg))
 
         case .butterfly:
             // Bold symmetrical geometric butterfly with vermilion wing eyespots

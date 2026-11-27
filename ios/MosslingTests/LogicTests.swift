@@ -205,9 +205,12 @@ final class LogicTests: XCTestCase {
     }
 
     func testReleaseRequirementsAreInTheBundle() {
-        // App Store: a privacy manifest in the app; the legal documents shown in the app; export compliance declared
+        // App Store: a privacy manifest in the app; legal documents shown in the app; internal changelogs excluded; export compliance declared
         XCTAssertNotNil(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"), "PrivacyInfo.xcprivacy is not in the app bundle")
-        for d in ["PRIVACY", "TERMS", "DISCLAIMER", "CHANGELOG"] { XCTAssertNotNil(Bundle.main.url(forResource: d, withExtension: "md"), d) }
+        for d in ["PRIVACY", "TERMS", "DISCLAIMER"] { XCTAssertNotNil(Bundle.main.url(forResource: d, withExtension: "md"), d) }
+        for internalDoc in ["CHANGELOG", "CHANGELOG_EN", "TESTFLIGHT_NOTES", "TESTFLIGHT_NOTES_EN"] {
+            XCTAssertNil(Bundle.main.url(forResource: internalDoc, withExtension: "md"), "\(internalDoc).md must not ship inside app bundle")
+        }
         XCTAssertEqual(Bundle.main.object(forInfoDictionaryKey: "ITSAppUsesNonExemptEncryption") as? Bool, false)
         XCTAssertNotNil(Bundle.main.object(forInfoDictionaryKey: "NSFaceIDUsageDescription"))
     }
@@ -600,12 +603,14 @@ final class LogicTests: XCTestCase {
         XCTAssertFalse(TimerIntent.canRecord(snapshot: nil))
         let declined = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: false)
         XCTAssertFalse(TimerIntent.canRecord(snapshot: declined))
-        let journalOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil, consented: true)
+        let journalOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil, consented: true, consentVersion: SharedConsent.version)
         XCTAssertFalse(TimerIntent.canRecord(snapshot: journalOff), "widgets must not record when journal is turned off")
-        let agreed = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true)
+        let agreed = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true, consentVersion: SharedConsent.version)
         XCTAssertTrue(TimerIntent.canRecord(snapshot: agreed))
+        let missingVersion = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true)
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: missingVersion), "widgets must fail closed without explicit current consentVersion")
         let legacyOn = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: nil, playName: nil)
-        XCTAssertTrue(TimerIntent.canRecord(snapshot: legacyOn))
+        XCTAssertFalse(TimerIntent.canRecord(snapshot: legacyOn), "legacy snapshot with nil consented must fail closed")
         let legacyOff = Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: false, playCode: nil, playName: nil)
         XCTAssertFalse(TimerIntent.canRecord(snapshot: legacyOff))
     }
@@ -1350,7 +1355,8 @@ final class LogicTests: XCTestCase {
             nickname: "小苔",
             companion: "Otto",
             journal: true,
-            consented: true
+            consented: true,
+            consentVersion: SharedConsent.version
         )
         var body = JournalFile.Body()
         body.logs = [
@@ -2440,11 +2446,12 @@ final class LogicTests: XCTestCase {
 
         // 2. Regional health schedule rules cover US / UK / AU while preserving CN authoritative baseline
         for region in [HealthRegion.us, .uk, .au] {
-            let m6 = HealthRegion.schedule(for: region, month: 6)
-            XCTAssertFalse(m6.isEmpty, "Missing 6-month schedule for \(region.rawValue)")
+            let m12 = HealthRegion.schedule(for: region, month: 12)
+            XCTAssertFalse(m12.isEmpty, "Missing 12-month schedule for \(region.rawValue)")
             XCTAssertFalse(region.authorityHeadline.isEmpty)
             XCTAssertFalse(region.scopeNote.isEmpty)
         }
+        XCTAssertTrue(HealthRegion.schedule(for: .uk, month: 6).isEmpty, "UK NHS has no routine 6-month visit/vaccine slot")
         XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: false, locale: Locale(identifier: "zh_CN")), .cn)
         XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: true, locale: Locale(identifier: "en_GB")), .uk)
         XCTAssertEqual(HealthRegion.defaultRegion(isEnglish: true, locale: Locale(identifier: "en_AU")), .au)
@@ -3471,7 +3478,8 @@ final class LogicTests: XCTestCase {
             gestationalWeeks: 32,
             careGearRaw: CareGear.gear2Explore.rawValue,
             careModeActive: true,
-            graduatedModules: [CareGearEngine.diaperModule]
+            graduatedModules: [CareGearEngine.diaperModule],
+            consentVersion: SharedConsent.version
         )
         let snapData = try JSONEncoder().encode(snap)
         let decodedSnap = try JSONDecoder().decode(Snapshot.self, from: snapData)
@@ -4169,5 +4177,198 @@ final class LogicTests: XCTestCase {
         XCTAssertEqual(EarSafeVolumeLevel.of(0.61), .loud)
         XCTAssertFalse(EarSafeVolumeMonitor.shouldPrompt(volume: 0.60, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
         XCTAssertTrue(EarSafeVolumeMonitor.shouldPrompt(volume: 0.61, context: .lamp, hasSeenToyboxGuide: true, dismissedThisSession: false))
+    }
+
+    @MainActor
+    func testAuditWave4AndCreativeAlchemy() throws {
+        L10n.overrideEnglish = false; defer { L10n.overrideEnglish = nil }
+        JournalFile.beginTest(); defer { JournalFile.endTest() }
+
+        // 1. WidgetPrivacy & AppModel.publish redaction
+        let validSnap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "抓握", consented: true, appLocked: false, consentVersion: SharedConsent.version)
+        let lockedSnap = Snapshot(birthEpochDay: validSnap.birthEpochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "抓握", consented: true, appLocked: true, consentVersion: SharedConsent.version)
+        let declinedSnap = Snapshot(birthEpochDay: validSnap.birthEpochDay, nickname: "小满", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: false, appLocked: false, consentVersion: SharedConsent.version)
+        let staleSnap = Snapshot(birthEpochDay: validSnap.birthEpochDay, nickname: "小满", companion: "Moss", journal: true, playCode: nil, playName: nil, consented: true, appLocked: false, consentVersion: "1999-01-01")
+        XCTAssertTrue(WidgetPrivacy.canShowRecords(snap: validSnap))
+        XCTAssertFalse(WidgetPrivacy.canShowRecords(snap: lockedSnap))
+        XCTAssertFalse(WidgetPrivacy.canShowRecords(snap: declinedSnap))
+        XCTAssertFalse(WidgetPrivacy.canShowRecords(snap: staleSnap))
+        XCTAssertFalse(WidgetPrivacy.canShowRecords(snap: nil))
+
+        let redactApp = AppModel(defaults: UserDefaults(suiteName: "wave4-redact-\(UUID().uuidString)")!)
+        redactApp.birth = Day(y: 2026, m: 4, d: 2)
+        redactApp.nickname = "小满"
+        redactApp.consent = "declined"
+        redactApp.publish(JournalStore(preview: JournalFile.Body()))
+        let publishedRedacted = try XCTUnwrap(JournalFile.snapshot())
+        XCTAssertNil(publishedRedacted.birthEpochDay)
+        XCTAssertEqual(publishedRedacted.nickname, "")
+        XCTAssertEqual(publishedRedacted.consented, false)
+
+        // 2. RecordFile round-trip (healthRegion, CFBoolean rejection, dedupe, askDoctor) + Yearbook sealed capsule redaction
+        let srcApp = AppModel(defaults: UserDefaults(suiteName: "wave4-rec-src-\(UUID().uuidString)")!)
+        srcApp.consent = Consent.version
+        srcApp.today = Day(y: 2026, m: 10, d: 19)
+        srcApp.birth = Day(y: 2026, m: 4, d: 2)
+        srcApp.healthRegion = .uk
+        srcApp.setObservationState(6, "0-0", "抬手", to: .askDoctor)
+        let srcBody = JournalFile.Body()
+        let exported = RecordFile.json(srcApp, srcBody)
+        let dstApp = AppModel(defaults: UserDefaults(suiteName: "wave4-rec-dst-\(UUID().uuidString)")!)
+        let dstStore = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(exported, into: dstApp, journal: dstStore)
+        XCTAssertEqual(dstApp.healthRegion, .uk)
+        XCTAssertEqual(dstApp.observationState(6, "0-0"), .askDoctor)
+
+        let dupId = UUID()
+        let dayMs = Day(y: 2026, m: 10, d: 18).date.timeIntervalSince1970 * 1000
+        let cfBoolPayload: [String: Any] = [
+            "app": "mossling",
+            "version": 1,
+            "mossling": [
+                "settings": [
+                    "consent": Consent.version,
+                    "birth": true
+                ],
+                "firsts": [
+                    ["id": dupId.uuidString, "title": "A", "at": dayMs],
+                    ["id": dupId.uuidString, "title": "B", "at": dayMs + 1000]
+                ],
+                "logs": [
+                    ["type": LogType.diaper, "start": true, "detail": "wet"],
+                    ["type": LogType.diaper, "start": dayMs, "detail": "wet"]
+                ]
+            ]
+        ]
+        let cfBoolData = try JSONSerialization.data(withJSONObject: cfBoolPayload)
+        let cfDstApp = AppModel(defaults: UserDefaults(suiteName: "wave4-cf-\(UUID().uuidString)")!)
+        let cfStore = JournalStore(preview: JournalFile.Body())
+        try RecordFile.load(cfBoolData, into: cfDstApp, journal: cfStore)
+        XCTAssertNil(cfDstApp.birth, "CFBoolean birth must not decode as epochDay 1")
+        XCTAssertEqual(cfStore.firsts.count, 1)
+        XCTAssertEqual(cfStore.logs.count, 1)
+
+        let secretCap = TimeCapsule(
+            title: "未来之信",
+            body: "SECRET_UNOPENED_BODY_TOKEN",
+            writtenAt: dayMs,
+            writtenAgeLabel: "6m",
+            unlockEpochDay: srcApp.today.plus(days: -5).epochDay,
+            openedAt: nil,
+            seal: .gold
+        )
+        let ybSections = GrowthYearbookPDF.buildSections(app: srcApp, j: dstStore, foods: [], capsules: [secretCap])
+        let joinedYb = ybSections.flatMap(\.lines).joined(separator: "\n")
+        XCTAssertFalse(joinedYb.contains("SECRET_UNOPENED_BODY_TOKEN"))
+
+        // 3. LocalizedHealthSchedule accuracy
+        XCTAssertFalse(HealthRegion.schedule(for: .us, month: 1).isEmpty)
+        let us24 = HealthRegion.schedule(for: .us, month: 24).map(\.title).joined(separator: " ")
+        XCTAssertFalse(us24.localizedCaseInsensitiveContains("blood pressure"))
+        XCTAssertFalse(us24.contains("血压"))
+        XCTAssertTrue(HealthRegion.schedule(for: .uk, month: 6).isEmpty)
+        XCTAssertFalse(HealthRegion.schedule(for: .uk, month: 3).isEmpty)
+        XCTAssertFalse(HealthRegion.schedule(for: .uk, month: 4).isEmpty)
+        XCTAssertFalse(HealthRegion.schedule(for: .uk, month: 18).isEmpty)
+        let ukNext = HealthRegion.daysUntilNextCheckup(birth: Day(y: 2026, m: 8, d: 1), today: Day(y: 2026, m: 10, d: 10), region: .uk)
+        let cnNext = HealthRegion.daysUntilNextCheckup(birth: Day(y: 2026, m: 8, d: 1), today: Day(y: 2026, m: 10, d: 10), region: .cn)
+        XCTAssertNotNil(ukNext)
+        XCTAssertNotNil(cnNext)
+
+        // 4. WCAG contrast >= 4.5 across Palette + Crayons in light & dark modes
+        let paper = Color(hex: 0xFBF7F0)
+        let darkCard = Color(hex: 0x19213F)
+        let white = Color.white
+        func lin(_ v: CGFloat) -> Double {
+            let x = max(0, min(1, Double(v)))
+            return x <= 0.03928 ? x / 12.92 : pow((x + 0.055) / 1.055, 2.4)
+        }
+        func cr(_ a: Color, _ b: Color, _ style: UIUserInterfaceStyle) -> Double {
+            let tr = UITraitCollection(userInterfaceStyle: style)
+            var r1: CGFloat = 0, g1: CGFloat = 0, b1: CGFloat = 0, a1: CGFloat = 0
+            var r2: CGFloat = 0, g2: CGFloat = 0, b2: CGFloat = 0, a2: CGFloat = 0
+            UIColor(a).resolvedColor(with: tr).getRed(&r1, green: &g1, blue: &b1, alpha: &a1)
+            UIColor(b).resolvedColor(with: tr).getRed(&r2, green: &g2, blue: &b2, alpha: &a2)
+            let l1 = 0.2126 * lin(r1) + 0.7152 * lin(g1) + 0.0722 * lin(b1)
+            let l2 = 0.2126 * lin(r2) + 0.7152 * lin(g2) + 0.0722 * lin(b2)
+            return (max(l1, l2) + 0.05) / (min(l1, l2) + 0.05)
+        }
+        let paletteAuditColors = [Palette.accent, Palette.danger, Palette.caution, Palette.rod, Palette.bead, Palette.amber, Crayon.teal, Crayon.cherry, Crayon.sky, Crayon.tangerine, Crayon.lilac, Crayon.pink, Crayon.leaf, Crayon.sunflower, Crayon.peach, Crayon.aqua, Crayon.caramel]
+        for col in paletteAuditColors {
+            XCTAssertGreaterThanOrEqual(cr(Crayon.ink(col), paper, .light), 4.5)
+            XCTAssertGreaterThanOrEqual(cr(Crayon.ink(col), darkCard, .dark), 4.5)
+            XCTAssertGreaterThanOrEqual(cr(Crayon.buttonFill(col), white, .light), 4.5)
+            XCTAssertGreaterThanOrEqual(cr(Crayon.buttonFill(col), white, .dark), 4.5)
+        }
+
+        // 5. Handover 24h cross-midnight retention (23:30 yesterday -> 01:15 today)
+        let dYest = Day(y: 2026, m: 10, d: 18)
+        let dToday = Day(y: 2026, m: 10, d: 19)
+        let tempTime = try XCTUnwrap(Day.cal.date(bySettingHour: 23, minute: 30, second: 0, of: dYest.date))
+        let medTime = try XCTUnwrap(Day.cal.date(bySettingHour: 23, minute: 45, second: 0, of: dYest.date))
+        let nowAfterMidnight = try XCTUnwrap(Day.cal.date(bySettingHour: 1, minute: 15, second: 0, of: dToday.date))
+        var midnightBody = JournalFile.Body()
+        midnightBody.logs = [
+            LogEntry(type: LogType.temp, start: tempTime.timeIntervalSince1970 * 1000, amount: 385),
+            LogEntry(type: LogType.medicine, start: medTime.timeIntervalSince1970 * 1000, detail: "布洛芬")
+        ]
+        let handover = HandoverSnapshot.build(app: srcApp, journal: JournalStore(preview: midnightBody), day: dToday, now: nowAfterMidnight)
+        XCTAssertEqual(handover.careAlerts.count, 2)
+        XCTAssertTrue(handover.careAlerts.joined(separator: " ").contains("38.5"))
+        XCTAssertTrue(handover.careAlerts.joined(separator: " ").contains("布洛芬"))
+
+        // 6. PalmPatRhythm & MidnightCareSummary 06:00 daytime boundary
+        XCTAssertEqual(PalmPatRhythm.bpmFromTapTimestamps([0.0, 2.0, 4.0]), 46.0)
+        XCTAssertEqual(PalmPatRhythm.bpmFromTapTimestamps([0.0, 0.5, 1.0]), 72.0)
+        let morning630 = try XCTUnwrap(Day.cal.date(bySettingHour: 6, minute: 30, second: 0, of: dToday.date))
+        let bottle610 = try XCTUnwrap(Day.cal.date(bySettingHour: 6, minute: 10, second: 0, of: dToday.date))
+        let morningSummary = MidnightCareSummary.build(
+            logs: [LogEntry(type: LogType.bottle, start: bottle610.timeIntervalSince1970 * 1000, amount: 120)],
+            now: morning630
+        )
+        XCTAssertTrue(morningSummary.nightStatusLine?.contains("今日") == true)
+
+        // 7. RhythmDialModel incomplete today exclusion
+        let d2 = Day(y: 2026, m: 10, d: 18)
+        let d3 = Day(y: 2026, m: 10, d: 19)
+        let sCompleted = LogEntry(type: LogType.sleep, start: Day.cal.date(bySettingHour: 10, minute: 0, second: 0, of: d2.date)!.timeIntervalSince1970 * 1000, end: Day.cal.date(bySettingHour: 20, minute: 0, second: 0, of: d2.date)!.timeIntervalSince1970 * 1000)
+        let sPartialToday = LogEntry(type: LogType.sleep, start: Day.cal.date(bySettingHour: 1, minute: 0, second: 0, of: d3.date)!.timeIntervalSince1970 * 1000, end: Day.cal.date(bySettingHour: 2, minute: 0, second: 0, of: d3.date)!.timeIntervalSince1970 * 1000)
+        let inclDial = RhythmDialModel.build(logs: [sCompleted, sPartialToday], today: d3, days: 2, excludeIncompleteToday: false)
+        let exclDial = RhythmDialModel.build(logs: [sCompleted, sPartialToday], today: d3, days: 2, excludeIncompleteToday: true)
+        XCTAssertEqual(inclDial.summary.avgSleepHours ?? 0, 5.5, accuracy: 0.05)
+        XCTAssertEqual(exclDial.summary.avgSleepHours ?? 0, 10.0, accuracy: 0.05)
+
+        // 8. CareWatchSummary, is3AMSanctuaryActive, consentHostStack, & non-destructive AppRouter
+        let watch = CareWatchSummary.recent24h(in: midnightBody.logs, now: nowAfterMidnight)
+        XCTAssertTrue(watch.hasFever)
+        XCTAssertTrue(watch.hasActivity)
+        let hostA = UUID(), hostB = UUID()
+        srcApp.consentHostStack = [hostA, hostB]
+        XCTAssertEqual(srcApp.consentHostStack.last, hostB)
+        srcApp.isLateNightWindow = true
+        srcApp.manual3AMOverride = nil
+        XCTAssertTrue(srcApp.is3AMSanctuaryActive)
+        srcApp.manual3AMOverride = false
+        XCTAssertFalse(srcApp.is3AMSanctuaryActive)
+
+        let router = AppRouter()
+        router.selectedTab = AppTab.lamp.rawValue
+        router.openLamp(.stats)
+        XCTAssertFalse(router.lampPath.isEmpty)
+        router.openBedsideLamp()
+        XCTAssertEqual(router.selectedTab, AppTab.lamp.rawValue)
+        XCTAssertTrue(router.showingBedsideLamp)
+        XCTAssertFalse(router.lampPath.isEmpty)
+        router.selectedTab = AppTab.studio.rawValue
+        router.openStorybook()
+        XCTAssertEqual(router.selectedTab, AppTab.studio.rawValue)
+        XCTAssertTrue(router.showingStorybook)
+
+        // 9. Clinical term localization covers every catalog item
+        for card in LampCardCatalog.all {
+            for term in card.clinicalTerms {
+                XCTAssertNotEqual(LampCard.localizedClinicalTerm(term), term, "Missing Chinese localization for clinical term '\(term)'")
+            }
+        }
     }
 }

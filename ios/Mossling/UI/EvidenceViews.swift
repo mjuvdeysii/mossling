@@ -137,7 +137,7 @@ struct ObservationStateRow: View {
                         )
                     }
                     .buttonStyle(.toy)
-                    .accessibilityLabel("\(text)，\(choice.label)")
+                    .accessibilityLabel(L10n.t("\(text)，\(choice.label)", "\(text), \(choice.label)"))
                     .accessibilityAddTraits(active ? .isSelected : [])
                 }
             }
@@ -236,7 +236,7 @@ struct WHOMotorSpectrumCard: View {
                             .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.22 : 0.15)))
                     }
                     Spacer(minLength: 4)
-                    Text(String(format: "%.1f–%.1fm", window.startMonth, window.endMonth))
+                    Text(String(format: L10n.t("%.1f–%.1f 月", "%.1f–%.1f mo"), window.startMonth, window.endMonth))
                         .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
                         .foregroundStyle(Palette.secondaryText)
                 }
@@ -254,7 +254,7 @@ struct WHOMotorSpectrumCard: View {
                                 .padding(.vertical, 2)
                                 .background(Capsule().fill(Crayon.caramel.opacity(dark ? 0.22 : 0.15)))
                         }
-                        Text(String(format: "%.1f–%.1fm", window.startMonth, window.endMonth))
+                        Text(String(format: L10n.t("%.1f–%.1f 月", "%.1f–%.1f mo"), window.startMonth, window.endMonth))
                             .font(Typeface.numerals(11, relativeTo: .caption2, weight: .semibold))
                             .foregroundStyle(Palette.secondaryText)
                     }
@@ -472,7 +472,7 @@ struct LampCardDetailSheet: View {
                     Card(title: L10n.t("临床依据与就诊提示", "Clinical Evidence & Red Flags"), symbol: "cross.case.fill", color: Crayon.teal) {
                         WrapLayout(spacing: 6) {
                             ForEach(card.clinicalTerms, id: \.self) { term in
-                                Text(term)
+                                Text(LampCard.localizedClinicalTerm(term))
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(Crayon.ink(Crayon.teal))
                                     .padding(.horizontal, 8)
@@ -619,15 +619,17 @@ enum ClinicSnapshotPDF {
         }
         if !medRecords.isEmpty {
             let meds = medRecords.sorted(by: { $0.start > $1.start }).prefix(3).compactMap(\.detail).filter { !$0.isEmpty }
-            let medDetail = meds.isEmpty ? L10n.t("共 \(medRecords.count) 次用药记录", "\(medRecords.count) medication logs") : meds.joined(separator: "、")
+            let medDetail = meds.isEmpty ? L10n.t("共 \(medRecords.count) 次用药记录", "\(medRecords.count) medication logs") : meds.joined(separator: L10n.t("、", ", "))
             careLines.append(L10n.t("近期用药/补充：", "Recent meds/supplements: ") + medDetail)
         }
 
-        // Latest growth measurement + WHO percentiles (using corrected birth when preterm <24m)
+        // Latest growth measurement + WHO percentiles (per-measurement preterm adjustment under 24m)
         var growthLines: [String] = []
         if let latest = measures.sorted(by: { $0.at < $1.at }).last {
             let d = Day(Date(timeIntervalSince1970: latest.at / 1000))
-            let mo = app.developmentalBirth.map { Double($0.days(to: d)) / 30.4375 }
+            let measBirth = GrowthView.developmentalBirth(for: latest, birth: app.birth, gestationalWeeks: app.gestationalWeeks)
+            let mo = measBirth.map { Double($0.days(to: d)) / 30.4375 }
+            let ageSuffix = measBirth != nil && measBirth != app.birth ? L10n.t(" · 矫正月龄", " · Corrected") : ""
             func formatMetric(_ raw: Int?, _ ind: Indicator, _ div: Double) -> String? {
                 guard let raw, raw > 0 else { return nil }
                 let val = Double(raw) / div
@@ -646,7 +648,7 @@ enum ClinicSnapshotPDF {
                 formatMetric(latest.headMm, .head, 10)
             ].compactMap { $0 }
             if !items.isEmpty {
-                growthLines.append(L10n.t("最近测量（\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))）：", "Latest (\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))): ") + items.joined(separator: " · "))
+                growthLines.append(L10n.t("最近测量（\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))\(ageSuffix)）：", "Latest (\(String(format: "%04d-%02d-%02d", d.y, d.m, d.d))\(ageSuffix)): ") + items.joined(separator: " · "))
             }
         }
         if growthLines.isEmpty {
@@ -687,7 +689,7 @@ enum ClinicSnapshotPDF {
         if let m = app.actualAge?.months, let cue = HealthRegion.screeningCue(for: region, month: m) {
             checkupFocusLines.append(cue)
         }
-        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today) {
+        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today, region: region) {
             let timing = upcoming.daysRemaining <= 0
                 ? L10n.t("满 \(upcoming.month) 月龄儿保窗口就在这几天", "\(upcoming.month)-month checkup window is open now")
                 : L10n.t("距满 \(upcoming.month) 月龄儿保窗口还有 \(upcoming.daysRemaining) 天", "\(upcoming.daysRemaining) days to \(upcoming.month)-month checkup window")
@@ -767,19 +769,32 @@ enum ClinicSnapshotPDF {
                 "摸索台灯 Moss & Otto · 生长常模参考 WHO (2006) 儿童生长标准 · 医学判断请以儿保医生现场评估为准。",
                 "Moss & Otto · Reference: WHO Child Growth Standards (2006) · Does not replace professional pediatric care."
             )
-            let footerNs = NSAttributedString(string: footer, attributes: subAttr)
+            var pageNo = 1
+            let genDate = String(format: "%04d-%02d-%02d", app.today.y, app.today.m, app.today.d)
 
             func drawFooter() {
-                footerNs.draw(in: CGRect(x: margin, y: pageRect.height - 46, width: contentWidth, height: 32))
+                let pageLabel = L10n.t("第 \(pageNo) 页", "Page \(pageNo)")
+                let pageAttr = NSAttributedString(string: pageLabel, attributes: subAttr)
+                let pw = ceil(pageAttr.size().width)
+                let footerAttr = NSAttributedString(string: footer, attributes: subAttr)
+                footerAttr.draw(in: CGRect(x: margin, y: pageRect.height - 46, width: max(120, contentWidth - pw - 12), height: 32))
+                pageAttr.draw(in: CGRect(x: margin + contentWidth - pw, y: pageRect.height - 46, width: pw, height: 32))
             }
 
             func ensureSpace(_ needed: CGFloat) {
                 if y + needed > pageRect.height - 58 {
                     drawFooter()
                     ctx.beginPage()
+                    pageNo += 1
                     cg.setFillColor(UIColor(red: 0.99, green: 0.98, blue: 0.95, alpha: 1).cgColor)
                     cg.fill(pageRect)
                     y = 38
+                    let contHead = NSAttributedString(
+                        string: L10n.t("摸索台灯 · 儿保诊室一页摘要（续 · \(genDate)）", "Moss & Otto · Pediatric Clinic Snapshot (cont. · \(genDate))"),
+                        attributes: subAttr
+                    )
+                    contHead.draw(in: CGRect(x: margin, y: y, width: contentWidth, height: 18))
+                    y += 24
                 }
             }
 
@@ -801,7 +816,6 @@ enum ClinicSnapshotPDF {
             }
 
             drawText(L10n.t("摸索台灯 · 儿保诊室一页摘要", "Moss & Otto · Pediatric Clinic Snapshot"), attrs: titleAttr, spacingAfter: 4)
-            let genDate = String(format: "%04d-%02d-%02d", app.today.y, app.today.m, app.today.d)
             drawText(L10n.t("生成日期：\(genDate) · 所有数据来自家长本地记录，仅供就诊沟通参考", "Generated \(genDate) · Parent-entered offline care record · Non-diagnostic summary"), attrs: subAttr, spacingAfter: 14)
 
             for sec in sections {
@@ -838,7 +852,7 @@ struct ClinicSnapshotSheet: View {
 
     var body: some View {
         let foodRecords = Array(FoodAtlasStore.shared.records.values)
-        let region = HealthRegion.defaultRegion()
+        let region = app.healthRegion
         let sections = ClinicSnapshotPDF.summaryLines(
             app: app,
             logs: j.logs,

@@ -26,8 +26,15 @@ enum Crayon {
     static let pebble = dyn(0x9A9289, 0xA9A29A)
     /// The order of the rainbow, for things that cycle.
     static let rainbow = [teal, pink, sunflower, cherry, sky, tangerine, mint, lilac]
-    /// The glyph on a crayon: white, except dark on the light sunflower.
-    static func glyph(on c: Color) -> Color { c == sunflower ? Color(red: 0.42, green: 0.27, blue: 0) : .white }
+    /// The glyph on a crayon: dark amber-ink on luminous yellow/amber/gold tokens, white on rich saturated fills.
+    static func glyph(on c: Color) -> Color {
+        Color(UIColor { traits in
+            let rgba = rgbComponents(of: c, traits: traits)
+            return relativeLuminance(rgba.r, rgba.g, rgba.b) > 0.36
+                ? UIColor(red: 0.36, green: 0.22, blue: 0, alpha: 1)
+                : .white
+        })
+    }
     /// The same colour as a button fill under white text: the deep value in both modes (≥ 4.5:1 with white).
     static func buttonFill(_ c: Color) -> Color {
         switch c {
@@ -81,29 +88,32 @@ enum Crayon {
     }
 
     private static func contrastSafeButtonFill(_ c: Color) -> Color {
-        let lightTraits = UITraitCollection(userInterfaceStyle: .light)
-        let rgba = rgbComponents(of: c, traits: lightTraits)
-        // Target luminance <= 0.168 ensures contrast >= 4.8:1 under white label text
-        let targetLum = 0.168
-        if relativeLuminance(rgba.r, rgba.g, rgba.b) <= targetLum { return c }
-        var lo: CGFloat = 0, hi: CGFloat = 1
-        for _ in 0..<12 {
-            let mid = (lo + hi) * 0.5
-            if relativeLuminance(rgba.r * mid, rgba.g * mid, rgba.b * mid) > targetLum {
-                hi = mid
-            } else {
-                lo = mid
+        Color(UIColor { traits in
+            let rgba = rgbComponents(of: c, traits: traits)
+            // Target luminance <= 0.168 ensures contrast >= 4.8:1 under white label text in both light & dark modes.
+            let targetLum = 0.168
+            if relativeLuminance(rgba.r, rgba.g, rgba.b) <= targetLum {
+                return UIColor(red: rgba.r, green: rgba.g, blue: rgba.b, alpha: rgba.a)
             }
-        }
-        return Color(UIColor(red: rgba.r * lo, green: rgba.g * lo, blue: rgba.b * lo, alpha: rgba.a))
+            var lo: CGFloat = 0, hi: CGFloat = 1
+            for _ in 0..<12 {
+                let mid = (lo + hi) * 0.5
+                if relativeLuminance(rgba.r * mid, rgba.g * mid, rgba.b * mid) > targetLum {
+                    hi = mid
+                } else {
+                    lo = mid
+                }
+            }
+            return UIColor(red: rgba.r * lo, green: rgba.g * lo, blue: rgba.b * lo, alpha: rgba.a)
+        })
     }
 
     private static func contrastSafeInk(_ c: Color) -> Color {
         Color(UIColor { traits in
             let rgba = rgbComponents(of: c, traits: traits)
             if traits.userInterfaceStyle == .dark {
-                // Target luminance >= 0.275 achieves >= 4.8:1 on #19213F lamp card
-                let targetLum = 0.275
+                // Target luminance >= 0.36 achieves >= 4.5:1 on both #19213F cards and 24% tinted dark pills.
+                let targetLum = 0.36
                 if relativeLuminance(rgba.r, rgba.g, rgba.b) >= targetLum {
                     return UIColor(red: rgba.r, green: rgba.g, blue: rgba.b, alpha: rgba.a)
                 }

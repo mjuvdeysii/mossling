@@ -432,7 +432,7 @@ struct JourneyHubView: View {
 
     @ViewBuilder
     private var upcomingCheckupPrepBanner: some View {
-        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today),
+        if let upcoming = HealthRegion.daysUntilNextCheckup(birth: app.birth, today: app.today, region: app.healthRegion),
            upcoming.daysRemaining <= 7 {
             let timing = upcoming.daysRemaining <= 0
                 ? L10n.t("满 \(upcoming.month) 月龄儿保窗口就在这几天", "\(upcoming.month)-month well-child window is here")
@@ -444,7 +444,7 @@ struct JourneyHubView: View {
                         Text(timing)
                             .font(.subheadline.weight(.bold))
                             .fixedSize(horizontal: false, vertical: true)
-                        if let cue = HealthRegion.screeningCue(for: HealthRegion.defaultRegion(), month: upcoming.month) {
+                        if let cue = HealthRegion.screeningCue(for: app.healthRegion, month: upcoming.month) {
                             Text(cue)
                                 .font(.caption)
                                 .foregroundStyle(Palette.secondaryText)
@@ -463,7 +463,7 @@ struct JourneyHubView: View {
                         .padding(.horizontal, 12)
                         .padding(.vertical, 8)
                         .frame(minHeight: 44)
-                        .background(Capsule().fill(Crayon.teal))
+                        .background(Capsule().fill(Crayon.buttonFill(Crayon.teal)))
                 }
                 .buttonStyle(.toy)
             }
@@ -671,7 +671,7 @@ struct JourneyHubView: View {
                 shelfTile(
                     title: L10n.t("第一次相纸", "Firsts"),
                     detail: j.firsts.isEmpty
-                        ? L10n.t("记下珍贵瞬间", "Polaroid moments")
+                        ? L10n.t("记下珍贵瞬间", "Keepsake moments")
                         : L10n.t("已留存 \(j.firsts.count) 个", "\(j.firsts.count) captured"),
                     tint: Crayon.pink
                 ) {

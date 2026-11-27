@@ -33,7 +33,6 @@ struct Creature: View {
     var alive: Bool = true
     var poke: Bool = false
     var label: String? = nil
-    var arms: Arms = .rest
     /// Otto's bead lit as a lamp (at night).
     var glow: Bool = false
     /// With `glow`: light the lamp only for this many seconds after appearing (a lamp switched on to look in on a
@@ -78,7 +77,7 @@ struct Creature: View {
 
     var body: some View {
         if ArtStyle.current == .flat {
-            FlatCreature(kind: kind, mood: mood, look: look, lid: lid, lean: lean, alive: alive, poke: poke, label: label, arms: arms, glow: glow, notice: notice)
+            FlatCreature(kind: kind, mood: mood, look: look, lid: lid, lean: lean, alive: alive, poke: poke, label: label, glow: glow, notice: notice)
         } else { vinyl }
     }
 
@@ -125,7 +124,7 @@ struct Creature: View {
 
     /// Lightweight static path for non-animating creatures (reduces Metal Canvas allocation during scrolls and static cards).
     @ViewBuilder private var stillFigure: some View {
-        let face: Mood = arms == .cheer ? .happy : mood
+        let face: Mood = mood
         let st = Self.state(kind, face: face, look: look, lid: lid ?? 0, hopping: false, yawning: false)
         let pool = self.sprites.isEmpty ? (Self.shared[kind] ?? [:]) : self.sprites
         let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
@@ -178,6 +177,7 @@ struct Creature: View {
         guard !still, scenePhase == .active else { return }
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(2600 + Int.random(in: 0...4200)))
+            guard !Task.isCancelled else { return }
             if mood == .open || mood == .wow { doubleBlink = Int.random(in: 0..<5) == 0; blinkAt = Date() }
         }
     }
@@ -187,6 +187,7 @@ struct Creature: View {
         while !Task.isCancelled {
             // Moss can't keep still; Otto can barely be bothered
             try? await Task.sleep(for: kind == .moss ? .milliseconds(3200 + Int.random(in: 0...3800)) : .milliseconds(9000 + Int.random(in: 0...8000)))
+            guard !Task.isCancelled else { return }
             guard mood != .sleep else { continue }
             if kind == .otto && mood == .open && Int.random(in: 0..<4) == 0 { yawnAt = Date(); continue }
             if kind == .moss && mood == .open && Int.random(in: 0..<5) == 0 { hopSize = 0.45; hopAt = Date(); continue }
@@ -300,13 +301,13 @@ struct Creature: View {
         let patted = !still && now.timeIntervalSince(pattedAt) < 1.6
         // the resting lids are part of the figures (Moss half-lidded, Otto heavier); only a real blink or a shut lid swaps
         let l = max(lid ?? 0, !still && blinkValue(now) >= 0.5 ? 1 : 0)
-        let face: Mood = patted ? .happy : (arms == .cheer ? .happy : mood)
+        let face: Mood = patted ? .happy : mood
         let e0 = lookValue(still ? .distantFuture : now), g = still ? .zero : glanceValue(now)
         let e = CGPoint(x: e0.x + g.x, y: e0.y + g.y)
         let squeeze: Double = patted && !still ? 0.04 * sin(min(1.0, now.timeIntervalSince(pattedAt) / 0.3) * Double.pi) : 0
         if squeeze > 0 { ctx.translateBy(x: 50, y: feet); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -feet) }
         let yawning = !still && now.timeIntervalSince(yawnAt) < 1.7
-        let st = Self.state(kind, face: face, look: e, lid: patted ? 0 : l, hopping: hop > 0.15 || (arms == .cheer && !still), yawning: yawning)
+        let st = Self.state(kind, face: face, look: e, lid: patted ? 0 : l, hopping: hop > 0.15, yawning: yawning)
         let box = CGRect(x: 0, y: 0, width: 100, height: 100)
         let sprites = self.sprites.isEmpty ? (Self.shared[kind] ?? [:]) : self.sprites
         let prefix = kind == .moss ? "ip_moss_" : "ip_otto_"
@@ -379,7 +380,7 @@ struct Duo: View {
     var lid: Double? = nil
     var poke = true
     var together = true
-    /// Change it to make both cheer (arms up, a hop) for a moment.
+    /// Change it to make both cheer (a joyful hop) for a moment.
     var cheer = 0
     /// Night: the pair rests; Otto's bead glows.
     var night = false
@@ -394,6 +395,7 @@ struct Duo: View {
     /// Otto lights his lamp now, by day too (to light the way somewhere).
     var lit = false
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(MascotDirector.self) private var mascot: MascotDirector?
     @State private var beat = 0
     @State private var cheering = false
@@ -419,7 +421,7 @@ struct Duo: View {
 
     var body: some View {
         if ArtStyle.current == .flat {
-            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night, notice: notice, lit: lit)
+            FlatDuo(primary: primary, size: size, mood: mood, look: look, lid: lid, poke: poke, together: together, cheer: cheer, night: night, briefLamp: briefLamp, reacts: reacts, label: label, notice: notice, lit: lit)
         } else { vinyl }
     }
 
@@ -432,12 +434,12 @@ struct Duo: View {
             Creature(kind: primary.other, mood: asleep ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lid: night && !cheering ? 0.5 : nil,
                      lean: beat == 1 ? -MascotStyle.of(primary.other).tiltDegrees - (primary.other == .otto ? 6 : 0) : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: (night || lit) && primary.other == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
+                     glow: (night || lit) && primary.other == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: Self.apart(primary, size), y: -lift)
             Creature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
                      look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid ?? (night && !cheering && mood != .sleep ? 0.5 : nil), poke: poke,
-                     label: label, arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
+                     label: label, glow: (night || lit) && primary == .otto, glowFor: briefLamp && !lit ? 4.5 : nil, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: Self.apart(primary, size) + small, height: max(size, small + lift), alignment: .bottomLeading)
@@ -453,19 +455,20 @@ struct Duo: View {
             let ms = MascotStyle.of(primary).observeMs
             Task { try? await Task.sleep(for: .milliseconds(ms)); observing = false }
         }
-        .task(id: "\(reduce)\(asleep)\(together)\(night)") {
+        .task(id: "\(reduce)\(asleep)\(together)\(night)\(scenePhase == .active)") {
             beat = 0
-            guard !reduce, !asleep, together, !night else { return }
+            guard !reduce, !asleep, together, !night, scenePhase == .active else { return }
             try? await Task.sleep(for: .milliseconds(4000 + Int.random(in: 0...4000)))
+            guard !Task.isCancelled else { return }
             while !Task.isCancelled {
-                beat = 1; try? await Task.sleep(for: .milliseconds(900))
-                beat = 2; try? await Task.sleep(for: .milliseconds(1200))
+                beat = 1; try? await Task.sleep(for: .milliseconds(900)); guard !Task.isCancelled else { return }
+                beat = 2; try? await Task.sleep(for: .milliseconds(1200)); guard !Task.isCancelled else { return }
                 beat = 0; try? await Task.sleep(for: .milliseconds(14000 + Int.random(in: 0...10000)))
             }
         }
     }
 
-    /// The single reply: arms up and a hop, for the companion's own short time (≤ 550 ms); nothing under Reduce Motion.
+    /// The single reply: a joyful hop, for the companion's own short time (≤ 550 ms); nothing under Reduce Motion.
     private func answer() {
         guard !reduce else { return }
         cheering = true

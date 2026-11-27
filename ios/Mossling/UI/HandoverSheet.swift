@@ -98,16 +98,27 @@ struct HandoverSnapshot: Sendable {
         let feedWord = feeds == 1 ? "feed" : "feeds"
         let diaperWord = diapers.count == 1 ? "diaper" : "diapers"
         let todayHead = L10n.t("喂 \(feeds) 次 · 尿布 \(diapers.count)", "\(feeds) \(feedWord) · \(diapers.count) \(diaperWord)")
-        let latestTemp = own.filter { $0.type == LogType.temp }.max { $0.start < $1.start }
-        let latestMed = own.filter { $0.type == LogType.medicine }.max { $0.start < $1.start }
+        let nowMs = now.timeIntervalSince1970 * 1000
+        let windowEndMs = Day(now) == day
+            ? nowMs
+            : day.plus(days: 1).date.timeIntervalSince1970 * 1000
+        let windowStartMs = windowEndMs - 24.0 * 3600.0 * 1000.0
+        let tempPool = journal.logs.filter { $0.type == LogType.temp && $0.start >= windowStartMs && $0.start <= windowEndMs }
+        let medPool = journal.logs.filter { $0.type == LogType.medicine && $0.start >= windowStartMs && $0.start <= windowEndMs }
+        let latestTemp = tempPool.max { $0.start < $1.start }
+        let latestMed = medPool.max { $0.start < $1.start }
         var alerts: [String] = []
         if let temp = latestTemp {
             let sum = temp.summary
-            alerts.append(L10n.t("体温（\(hm(temp.startDate))）：\(sum)", "Temp (\(hm(temp.startDate))): \(sum)"))
+            let tempDay = Day(temp.startDate)
+            let whenStr = tempDay == day ? hm(temp.startDate) : "\(tempDay.md) \(hm(temp.startDate))"
+            alerts.append(L10n.t("体温（\(whenStr)）：\(sum)", "Temp (\(whenStr)): \(sum)"))
         }
         if let med = latestMed {
             let sum = med.summary.isEmpty ? LogType.name(LogType.medicine) : med.summary
-            alerts.append(L10n.t("用药（\(hm(med.startDate))）：\(sum)", "Medication (\(hm(med.startDate))): \(sum)"))
+            let medDay = Day(med.startDate)
+            let whenStr = medDay == day ? hm(med.startDate) : "\(medDay.md) \(hm(med.startDate))"
+            alerts.append(L10n.t("用药（\(whenStr)）：\(sum)", "Medication (\(whenStr)): \(sum)"))
         }
 
         let latestSolid = own.filter { $0.type == LogType.solid }.max { $0.start < $1.start }

@@ -125,7 +125,7 @@ func whenLabelDay(_ d: Date) -> String {
     return day.mdOrYmd
 }
 
-/// Records a first, or changes one: what (one of the common firsts, or named), which day, an optional local Polaroid photo, and a line about it.
+/// Records a first, or changes one: what (one of the common firsts, or named), which day, an optional local keepsake photo, and a line about it.
 struct FirstSheet: View {
     @Environment(JournalStore.self) private var j
     @Environment(AppModel.self) private var app
@@ -246,6 +246,12 @@ struct FirstSheet: View {
                 draftVoiceURL = nil
             }
         }
+        .onChange(of: voiceController.isRecording) { _, recording in
+            if !recording && voiceMeta == nil && voiceController.errorMessage != nil {
+                draftVoiceURL = nil
+            }
+        }
+        .localConsentSheet()
         .onChange(of: pickedPhoto) { _, item in
             guard let item else { return }
             Task {
@@ -295,7 +301,7 @@ struct FirstSheet: View {
                         .rotationEffect(.degrees(-2))
 
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(L10n.t("会收进成长绘本与纪念相纸墙", "Pinned into your Storybook & Polaroid line"))
+                        Text(L10n.t("会收进成长绘本与纪念相纸墙", "Pinned into your Storybook & Keepsake Line"))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.primary)
                         PhotosPicker(selection: $pickedPhoto, matching: .images) {
@@ -386,6 +392,7 @@ struct FirstSheet: View {
                 if voiceMeta != nil && !voiceController.isRecording {
                     Button(L10n.t("移除", "Remove"), role: .destructive) {
                         voiceController.stopAll()
+                        voiceController.clearError()
                         voiceController.discardTemp(draftVoiceURL)
                         draftVoiceURL = nil
                         voiceMeta = nil
@@ -550,14 +557,14 @@ struct FirstSheet: View {
                             }
                             Text(k.title)
                                 .font(.subheadline.weight(on ? .bold : .semibold))
-                                .foregroundStyle(on ? .white : (kept ? Palette.secondaryText : .primary))
+                                .foregroundStyle(on ? Crayon.glyph(on: Crayon.fill(k.color, dark)) : (kept ? Palette.secondaryText : .primary))
                         }
                         .padding(.leading, 7)
                         .padding(.trailing, 12)
                         .padding(.vertical, 6)
                         .background(
                             Capsule().fill(
-                                on ? k.color : (kept ? Palette.fill.opacity(0.6) : (dark ? Palette.lampCard : Palette.card))
+                                on ? Crayon.fill(k.color, dark) : (kept ? Palette.fill.opacity(0.6) : (dark ? Palette.lampCard : Palette.card))
                             )
                         )
                         .overlay(
@@ -589,10 +596,27 @@ struct FirstSheet: View {
         var f = first
         f.title = f.title.trimmingCharacters(in: .whitespacesAndNewlines)
         f.at = ms(Day.cal.date(bySettingHour: 12, minute: 0, second: 0, of: day) ?? day)
+        var voiceToSave: URL? = nil
+        if let draftURL = draftVoiceURL,
+           FileManager.default.fileExists(atPath: draftURL.path) {
+            voiceToSave = draftURL
+        }
         guard j.saveFirst(f) else {
             isSaving = false
             failed = true
             return
+        }
+        if let draftURL = voiceToSave {
+            if FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil {
+                voiceController.discardTemp(draftURL)
+                draftVoiceURL = nil
+            } else {
+                isSaving = false
+                failed = true
+                return
+            }
+        } else if removeExistingVoice {
+            FirstVoiceStore.delete(for: f.id)
         }
         didSave = true
         if let img = photoImage {
@@ -600,21 +624,13 @@ struct FirstSheet: View {
         } else if removeExistingPhoto {
             FirstPhotoStore.delete(for: f.id)
         }
-        if let draftURL = draftVoiceURL {
-            if FirstVoiceStore.saveRecording(from: draftURL, for: f.id) != nil {
-                voiceController.discardTemp(draftURL)
-                draftVoiceURL = nil
-            }
-        } else if removeExistingVoice {
-            FirstVoiceStore.delete(for: f.id)
-        }
         TactileEngine.shared.goldChime()
         cheers += 1
         Task { @MainActor in try? await Task.sleep(for: .milliseconds(650)); dismiss() }
     }
 }
 
-/// 第一次: Montessori Keepsake Studio — a living companion stage, a Polaroid twine gallery when photos exist,
+/// 第一次: Montessori Keepsake Studio — a living companion stage, a cotton-paper twine photo gallery when photos exist,
 /// hand-crafted picture-book charms strung along one continuous golden thread from birth to today,
 /// and 3× cotton-paper print export.
 struct FirstsView: View {
@@ -642,7 +658,7 @@ struct FirstsView: View {
         let voiceCount = FirstVoiceStore.count(in: j.firsts.map(\.id))
         let who = app.nickname.isEmpty ? L10n.t("宝宝", "Baby") : app.nickname
         let ageStr = app.age.map { L10n.ageText($0) } ?? ""
-        let photoMap = Dictionary(uniqueKeysWithValues: photoEntries.map { ($0.first.id, $0.image) })
+        let photoMap = Dictionary(photoEntries.map { ($0.first.id, $0.image) }, uniquingKeysWith: { first, _ in first })
         let posterItem = RenderedPoster {
             let poster = FirstsPrintPoster(
                 babyName: who,
@@ -865,7 +881,7 @@ struct FirstsView: View {
 
         return VStack(alignment: .leading, spacing: 10) {
             SectionTitle(
-                title: L10n.t("拍立得相纸墙", "Polaroid Keepsake Line"),
+                title: L10n.t("纪念相纸墙", "Keepsake Photo Line"),
                 detail: L10n.t("轻点相纸可放大细看", "Tap any photo to admire")
             )
 
@@ -927,7 +943,7 @@ struct FirstsView: View {
                         }
                         .buttonStyle(.toy)
                         .accessibilityLabel(Firsts.displayTitle(item.first) + "，" + ageTag)
-                        .accessibilityHint(L10n.t("打开相纸大图", "Open full-size Polaroid"))
+                        .accessibilityHint(L10n.t("打开相纸大图", "Open full-size keepsake photo"))
                     }
                 }
                 .padding(.top, 8)
@@ -1099,7 +1115,7 @@ private struct FirstRow: View {
                                 .rotationEffect(.degrees(reduce ? 0 : 2.5))
                         }
                         .buttonStyle(.toy)
-                        .accessibilityLabel(L10n.t("查看拍立得照片", "View Polaroid photo"))
+                        .accessibilityLabel(L10n.t("查看纪念照片", "View keepsake photo"))
                     }
                 }
 
@@ -1119,7 +1135,7 @@ private struct FirstRow: View {
             .padding(.bottom, 12)
             .contextMenu {
                 if photo != nil {
-                    Button(L10n.t("查看纪念照片", "View Polaroid"), systemImage: "photo") { onViewPhoto() }
+                    Button(L10n.t("查看纪念照片", "View Keepsake Photo"), systemImage: "photo") { onViewPhoto() }
                 }
                 Button(L10n.t("编辑", "Edit"), systemImage: "pencil") { onEdit() }
                 Button(L10n.t("删除", "Delete"), systemImage: "trash", role: .destructive) { onDelete() }

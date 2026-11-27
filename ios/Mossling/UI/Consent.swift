@@ -96,10 +96,15 @@ struct ConsentSheet: View {
     }
 
     private func answer(_ yes: Bool) {
+        let wasDeclined = (app.consent == "declined")
         app.consent = yes ? Consent.version : "declined"
         app.askConsent = false
         // declined: nothing more about the child is kept — the records (and the widgets' quick logging) are turned off
-        if !yes { app.journal = false }
+        if !yes {
+            app.journal = false
+        } else if wasDeclined {
+            app.journal = true
+        }
     }
 
     private func docLink(_ title: String, _ name: String, symbol: String, color: Color) -> some View {
@@ -135,3 +140,35 @@ struct ConsentSheet: View {
 }
 
 private struct ConsentDoc: Identifiable { let id: String }
+
+/// Presents `ConsentSheet` inside an active modal (`sheet` or `fullScreenCover`) when `app.mayKeep()` triggers consent.
+private struct LocalConsentSheetModifier: ViewModifier {
+    @Environment(AppModel.self) private var app
+    @State private var hostID = UUID()
+
+    func body(content: Self.Content) -> some View {
+        let presented = Binding(
+            get: { app.askConsent && app.consentHostStack.last == hostID },
+            set: { if !$0 { app.askConsent = false } }
+        )
+        content
+            .onAppear {
+                if !app.consentHostStack.contains(hostID) {
+                    app.consentHostStack.append(hostID)
+                }
+            }
+            .onDisappear {
+                app.consentHostStack.removeAll { $0 == hostID }
+            }
+            .sheet(isPresented: presented) {
+                ConsentSheet().lampPresented()
+            }
+    }
+}
+
+extension View {
+    /// Ensures `ConsentSheet` appears above this modal context instead of being blocked under a cover/sheet on `RootView`.
+    func localConsentSheet() -> some View {
+        modifier(LocalConsentSheetModifier())
+    }
+}

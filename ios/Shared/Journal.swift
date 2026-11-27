@@ -9,6 +9,21 @@ enum SharedConsent {
     static let version = "2026-11-27"
 }
 
+/// Fail-closed privacy gate shared by WidgetKit timelines, views, Control Center, and AppIntents.
+enum WidgetPrivacy {
+    static func isLocked(snap: Snapshot?) -> Bool {
+        snap?.appLocked == true
+    }
+
+    static func canShowRecords(snap: Snapshot?) -> Bool {
+        guard let s = snap else { return false }
+        guard s.consented == true else { return false }
+        if s.appLocked == true { return false }
+        guard s.consentVersion == SharedConsent.version else { return false }
+        return true
+    }
+}
+
 /// The kinds of entry, with the same identifiers as on Android (so record files move between the two).
 enum LogType {
     static let nurse = "nurse", bottle = "bottle", sleep = "sleep", diaper = "diaper", solid = "solid", bath = "bath"
@@ -354,11 +369,17 @@ extension Snapshot {
 /// The journal file, shared with the widget and the Live Activity through the app group.
 enum JournalFile {
     static let group = "group.app.mossling"
-    static var dir: URL {
+    static var groupDir: URL? {
         #if DEBUG
         if let t = testDir { return t }
         #endif
         return FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: group)
+    }
+    static var dir: URL {
+        #if DEBUG
+        if let t = testDir { return t }
+        #endif
+        return groupDir
             ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
     #if DEBUG
@@ -458,6 +479,26 @@ enum JournalFile {
 
     static func read() -> Body { (try? load()) ?? Body() }
 
+    /// Strictly reads an existing journal inside the App Group container (or `testDir` in DEBUG) for media pruning.
+    /// Never falls back to Documents and returns `nil` when the container or file is missing or unreadable so startup
+    /// pruning never deletes local photos or voice clips due to a transient container lookup failure.
+    static func loadExistingForPrune() -> Body? {
+        guard let container = groupDir else { return nil }
+        let targetURL = container.appendingPathComponent("journal.json")
+        guard FileManager.default.fileExists(atPath: targetURL.path) else { return nil }
+        var coordError: NSError?
+        var decoded: Body?
+        NSFileCoordinator(filePresenter: nil).coordinate(readingItemAt: targetURL, options: [], error: &coordError) { target in
+            guard FileManager.default.fileExists(atPath: target.path),
+                  let data = try? Data(contentsOf: target),
+                  let body = try? JSONDecoder().decode(Body.self, from: data) else {
+                return
+            }
+            decoded = body
+        }
+        return coordError == nil ? decoded : nil
+    }
+
     /// Writes the journal under file coordination; false when it could not be saved (the caller says so and keeps what was typed).
     @discardableResult static func write(_ b: Body) -> Bool {
         #if DEBUG
@@ -539,12 +580,34 @@ enum JournalFile {
             return true
         }
     }
+    /// Variant of `startSmart` reporting whether the coordinated write persisted to disk.
+    static func tryStartSmart(_ type: String, at: Double = now()) -> Bool {
+        switch mutate({ b in
+            guard !b.timers.contains(where: { $0.type == type }) else { return false }
+            let chosenSide = type == LogType.nurse ? suggestedNurseSide(in: b.logs) : nil
+            b.timers.append(RunningTimer(type: type, start: at, side: chosenSide))
+            return true
+        }) {
+        case .saved, .unchanged: return true
+        case .failed: return false
+        }
+    }
     /// Appends a single instant entry (diaper, quick bottle, etc.) under file coordination from a widget or shortcut.
     @discardableResult static func quickLog(type: String, detail: String? = nil, amount: Int? = nil, at: Double = now()) -> Body {
         applyMutation { b in
             b.logs.append(LogEntry(type: type, start: at, amount: amount, detail: detail))
             return true
         }
+    }
+    /// Variant of `quickLog` reporting whether the coordinated write persisted to disk.
+    static func tryQuickLog(type: String, detail: String? = nil, amount: Int? = nil, at: Double = now()) -> Bool {
+        if case .saved = mutate({ b in
+            b.logs.append(LogEntry(type: type, start: at, amount: amount, detail: detail))
+            return true
+        }) {
+            return true
+        }
+        return false
     }
     /// Removes the most recent entry of `type` if logged within `withinSeconds`, enabling safe 1-tap widget undo.
     @discardableResult static func undoRecent(type: String, withinSeconds: Double = 30, now n: Double = now()) -> Bool {
@@ -559,17 +622,30 @@ enum JournalFile {
         case .unchanged, .failed: return false
         }
     }
-    /// Rotates `playCode` / `playName` in `snapshot.json` to the next play in `weekPlays` under file coordination.
+    /// Atomically rotates `playCode` / `playName` in `snapshot.json` to the next play in `weekPlays` under file coordination.
     @discardableResult static func cycleWidgetPlay() -> Snapshot? {
-        guard var s = snapshot(), let pool = s.weekPlays, pool.count >= 2 else { return nil }
-        let cur = pool.firstIndex { $0.code == s.playCode } ?? -1
-        let next = pool[(cur + 1) % pool.count]
-        s.playCode = next.code
-        s.playName = next.name
-        s.playPickedEpochDay = Day.today.epochDay
-        writeSnapshot(s)
+        var coordError: NSError?
+        var updated: Snapshot?
+        NSFileCoordinator(filePresenter: nil).coordinate(writingItemAt: snapshotURL, options: [], error: &coordError) { target in
+            guard let data = try? Data(contentsOf: target),
+                  var s = try? JSONDecoder().decode(Snapshot.self, from: data),
+                  let pool = s.weekPlays, pool.count >= 2 else { return }
+            let cur = pool.firstIndex { $0.code == s.playCode } ?? -1
+            let next = pool[(cur + 1) % pool.count]
+            s.playCode = next.code
+            s.playName = next.name
+            s.playPickedEpochDay = Day.today.epochDay
+            guard let out = try? JSONEncoder().encode(s) else { return }
+            do {
+                try out.write(to: target, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                updated = s
+            } catch {
+                updated = nil
+            }
+        }
+        guard coordError == nil, let result = updated else { return nil }
         notifyChanged()
-        return s
+        return result
     }
     @discardableResult static func togglePause(_ type: String) -> Body {
         applyMutation { b in
@@ -653,6 +729,17 @@ enum JournalFile {
             guard b.timers.contains(where: { $0.type == type }) else { return false }
             b = stopping(b, type, now: now())
             return true
+        }
+    }
+    /// Variant of `stop` reporting whether the coordinated write succeeded or timer was absent.
+    static func tryStop(_ type: String) -> Bool {
+        switch mutate({ b in
+            guard b.timers.contains(where: { $0.type == type }) else { return false }
+            b = stopping(b, type, now: now())
+            return true
+        }) {
+        case .saved, .unchanged: return true
+        case .failed: return false
         }
     }
     static func stopping(_ b0: Body, _ type: String, now n: Double) -> Body {

@@ -87,7 +87,7 @@ struct DSButtonStyle: ButtonStyle {
         let fg: Color = switch role {
         case .primary, .warm: .white
         case .secondary: .primary
-        case .tinted(let c): dark ? c.mix(with: .white, by: 0.28) : Crayon.ink(c)
+        case .tinted(let c): Crayon.ink(c)
         }
 
         let border: Color = switch role {
@@ -141,6 +141,7 @@ struct DSPillLabel: ViewModifier {
     let role: DSButtonRole
     var height: CGFloat = 32
     var horizontalPadding: CGFloat = 12
+    var fullWidth: Bool = false
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.dynamicTypeSize) private var type
@@ -159,7 +160,7 @@ struct DSPillLabel: ViewModifier {
         let fg: Color = switch role {
         case .primary, .warm: .white
         case .secondary: .primary
-        case .tinted(let c): dark ? c.mix(with: .white, by: 0.28) : Crayon.ink(c)
+        case .tinted(let c): Crayon.ink(c)
         }
         let border: Color = switch role {
         case .primary, .warm: .clear
@@ -171,10 +172,10 @@ struct DSPillLabel: ViewModifier {
             .font(labelFont)
             .lineLimit(type.isAccessibilitySize ? 2 : 1)
             .minimumScaleFactor(0.86)
-            .fixedSize(horizontal: !type.isAccessibilitySize, vertical: type.isAccessibilitySize)
+            .fixedSize(horizontal: !fullWidth && !type.isAccessibilitySize, vertical: type.isAccessibilitySize)
             .foregroundStyle(fg)
             .padding(.horizontal, horizontalPadding)
-            .frame(minHeight: visualH)
+            .frame(maxWidth: fullWidth ? .infinity : nil, minHeight: visualH)
             .background(Capsule(style: .continuous).fill(bg))
             .overlay {
                 if border != .clear {
@@ -186,8 +187,8 @@ struct DSPillLabel: ViewModifier {
 }
 
 extension View {
-    func dsPill(_ role: DSButtonRole, height: CGFloat = 32, horizontalPadding: CGFloat = 12) -> some View {
-        modifier(DSPillLabel(role: role, height: height, horizontalPadding: horizontalPadding))
+    func dsPill(_ role: DSButtonRole, height: CGFloat = 32, horizontalPadding: CGFloat = 12, fullWidth: Bool = false) -> some View {
+        modifier(DSPillLabel(role: role, height: height, horizontalPadding: horizontalPadding, fullWidth: fullWidth))
     }
 }
 
@@ -218,13 +219,11 @@ struct DSSegmentedControl<Item: Identifiable & Equatable>: View {
 
         if type.isAccessibilitySize {
             pillsFlow(activeFill: activeFill, trackFill: trackFill, activeInk: activeInk, inactiveInk: inactiveInk)
-        } else if compact {
+        } else {
             ViewThatFits(in: .horizontal) {
                 horizontalTrack(thumbH: thumbH, corner: corner, trackFill: trackFill, activeFill: activeFill, activeInk: activeInk, inactiveInk: inactiveInk)
                 pillsFlow(activeFill: activeFill, trackFill: trackFill, activeInk: activeInk, inactiveInk: inactiveInk)
             }
-        } else {
-            horizontalTrack(thumbH: thumbH, corner: corner, trackFill: trackFill, activeFill: activeFill, activeInk: activeInk, inactiveInk: inactiveInk)
         }
     }
 

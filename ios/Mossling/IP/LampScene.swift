@@ -139,7 +139,6 @@ struct LampScene: View {
                          look: moss ? mossLook : ottoLook,
                          lid: moss ? nil : ottoLid,
                          lean: moss ? mossLean : ottoLean,
-                         arms: moss && reach ? .wave : .rest,
                          glow: !moss && light > 0.5,
                          lookSeconds: Double(MascotStyle.of(kind).glanceMs) / 1000)
             .frame(width: size, height: size)
@@ -187,7 +186,7 @@ struct LampScene: View {
             wobble = a
             guard await wait(80) else { finalFrame(); return }
         }     // the top ring wobbles
-        ottoLean = -MascotStyle.otto.tiltDegrees                          // the lamp follows the hand
+        ottoLean = -MascotStyle.otto.tiltDegrees                          // Otto leans gently with the lamp
         guard await wait(520) else { finalFrame(); return }
         reach = false; mossLean = 0
         delighted = true; mossLook = CGPoint(x: 0.95, y: -0.2)            // turns to Otto, delighted

@@ -171,7 +171,7 @@ struct DailyRhythmComparison: Sendable, Equatable {
                 todayPlayCount: 0
             )
         }
-        let dial = RhythmDialModel.build(logs: logs, today: today, days: 7)
+        let dial = RhythmDialModel.build(logs: logs, today: today, days: 7, excludeIncompleteToday: true)
         let sleepDays = dial.rings.filter { !$0.sleepSpans.isEmpty }.count
         let todaySleep = logs
             .filter { $0.type == LogType.sleep }
@@ -215,7 +215,7 @@ struct RhythmView: View {
     let month: Int
     @State private var selectedStage: DailyRhythmStage
     @State private var inspectedHour: Int?
-    @State private var scrubbingRing = false
+    @GestureState private var scrubbingRing = false
 
     init(month: Int, initialInspectedHour: Int? = nil) {
         self.month = month
@@ -409,16 +409,26 @@ struct RhythmView: View {
                 )
                 .simultaneousGesture(
                     DragGesture(minimumDistance: 10)
+                        .updating($scrubbingRing) { value, state, _ in
+                            guard !state else { return }
+                            let sx = value.startLocation.x - center.x
+                            let sy = value.startLocation.y - center.y
+                            let startDist = hypot(sx, sy)
+                            let outerR = side * 0.36
+                            let rNorm = startDist / max(1, outerR)
+                            guard rNorm >= 0.45, rNorm <= 1.32 else { return }
+                            if abs(value.translation.width) >= abs(value.translation.height) * 0.85 {
+                                state = true
+                            }
+                        }
                         .onChanged { value in
                             let sx = value.startLocation.x - center.x
                             let sy = value.startLocation.y - center.y
                             let startDist = hypot(sx, sy)
-                            guard startDist >= side * 0.21, startDist <= side * 0.52 else { return }
-                            if !scrubbingRing {
-                                // Only engage ring scrub when drag does not look like a pure vertical scroll swipe
-                                guard abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
-                                scrubbingRing = true
-                            }
+                            let outerR = side * 0.36
+                            let rNorm = startDist / max(1, outerR)
+                            guard rNorm >= 0.45, rNorm <= 1.32 else { return }
+                            guard scrubbingRing || abs(value.translation.width) >= abs(value.translation.height) * 0.85 else { return }
                             let dx = value.location.x - center.x
                             let dy = value.location.y - center.y
                             guard hypot(dx, dy) >= side * 0.16 else { return }
@@ -427,9 +437,6 @@ struct RhythmView: View {
                                 inspectedHour = h
                                 TactileEngine.shared.dimmerTick()
                             }
-                        }
-                        .onEnded { _ in
-                            scrubbingRing = false
                         }
                 )
             }
@@ -929,7 +936,7 @@ struct RhythmView: View {
 
 // MARK: - 24-Hour Circadian Bead Loom Canvas
 
-private struct CircadianLoomCanvas: View {
+struct CircadianLoomCanvas: View {
     let stage: DailyRhythmStage
     let avgSleepHours: Double?
     let inspectedHour: Int?

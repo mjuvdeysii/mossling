@@ -29,13 +29,25 @@ final class TactileEngine {
     private var hapticEngine: CHHapticEngine?
     private var audioEngine: AVAudioEngine?
     private var player: AVAudioPlayerNode?
+    private var idleTeardownTask: Task<Void, Never>?
+    private var backgroundObserver: NSObjectProtocol?
     private var buffers: [Cue: AVAudioPCMBuffer] = [:]
     private let sampleRate: Double = 44_100
     private var isTestHost: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    private init() {}
+    private init() {
+        backgroundObserver = NotificationCenter.default.addObserver(
+            forName: UIApplication.didEnterBackgroundNotification,
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                self?.teardownAudio()
+            }
+        }
+    }
 
     /// Plays the tactile haptic + (when appropriate) wooden micro-acoustic for `cue`.
     func play(_ cue: Cue) {
@@ -47,7 +59,12 @@ final class TactileEngine {
         default:
             break
         }
-        guard soundEnabled, !quietNight, !SoundscapeEngine.shared.isPlaying, !FirstVoiceController.shared.isRecording else { return }
+        guard soundEnabled,
+              !quietNight,
+              !SoundscapeEngine.shared.hasActiveEngine,
+              !ToyboxAudioEngine.shared.isPlaying,
+              !FirstVoiceController.shared.isRecording,
+              FirstVoiceController.shared.playingID == nil else { return }
         fireSound(cue)
     }
 
@@ -231,6 +248,8 @@ final class TactileEngine {
     // MARK: - Procedural Micro-Acoustics (0 KB bundled audio)
 
     private func teardownAudio() {
+        idleTeardownTask?.cancel()
+        idleTeardownTask = nil
         player?.stop()
         audioEngine?.stop()
         player = nil
@@ -240,7 +259,8 @@ final class TactileEngine {
     private func ensureAudio() -> AVAudioPlayerNode? {
         guard !FirstVoiceController.shared.isRecording,
               FirstVoiceController.shared.playingID == nil,
-              !SoundscapeEngine.shared.isPlaying else { return nil }
+              !SoundscapeEngine.shared.hasActiveEngine,
+              !ToyboxAudioEngine.shared.isPlaying else { return nil }
         if let p = player, let e = audioEngine {
             if !e.isRunning {
                 do { try e.start() } catch { teardownAudio(); return nil }
@@ -251,10 +271,7 @@ final class TactileEngine {
         }
         do {
             let session = AVAudioSession.sharedInstance()
-            // Preserve .playback or .playAndRecord when already active (e.g., Toybox or SpeechReader) so Silent mode doesn't drop
-            if session.category != .playback && session.category != .playAndRecord {
-                try session.setCategory(.ambient, options: [.mixWithOthers])
-            }
+            try session.setCategory(.ambient, options: [.mixWithOthers])
             try session.setActive(true, options: [])
             let engine = AVAudioEngine()
             let node = AVAudioPlayerNode()
@@ -277,6 +294,12 @@ final class TactileEngine {
     private func fireSound(_ cue: Cue) {
         guard let node = ensureAudio(), let buf = buffer(for: cue) else { return }
         node.scheduleBuffer(buf, at: nil, options: [], completionHandler: nil)
+        idleTeardownTask?.cancel()
+        idleTeardownTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .seconds(2.5))
+            guard !Task.isCancelled else { return }
+            self?.teardownAudio()
+        }
     }
 
     private func buffer(for cue: Cue) -> AVAudioPCMBuffer? {

@@ -740,11 +740,13 @@ struct CapsuleComposeSheet: View {
                 }
             }
         }
+        .localConsentSheet()
     }
 
     private func saveLetter() {
         let trimmedBody = letterBody.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedBody.isEmpty else { return }
+        guard app.mayKeep() else { return }
         let fallbackTitle = L10n.t("写给未来的信", "A Letter for Later")
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         let ageLabel = app.birth.map { Firsts.age(from: $0, to: app.today) } ?? ""

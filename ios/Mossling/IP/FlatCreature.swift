@@ -15,7 +15,6 @@ struct FlatCreature: View {
     var alive: Bool = true
     var poke: Bool = false
     var label: String? = nil
-    var arms: Arms = .rest
     /// Otto's bead lit as a lamp (at night).
     var glow: Bool = false
     /// Something new in front of them (see Creature.notice).
@@ -48,7 +47,7 @@ struct FlatCreature: View {
     @State private var onScreen = true
     @Environment(\.scrolling) private var scrolling
     @Environment(\.scenePhase) private var scenePhase
-    private var still: Bool { !alive || reduce || Perf.still }
+    private var still: Bool { !alive || reduce || Perf.noCreatures || Perf.still }
     private var paused: Bool { still || !onScreen || scrolling.moving || scenePhase != .active }
 
     var body: some View {
@@ -99,6 +98,7 @@ struct FlatCreature: View {
         guard !still, scenePhase == .active else { return }
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(2600 + Int.random(in: 0...4200)))
+            guard !Task.isCancelled else { return }
             if mood == .open || mood == .wow { doubleBlink = Int.random(in: 0..<5) == 0; blinkAt = Date() }
         }
     }
@@ -107,6 +107,7 @@ struct FlatCreature: View {
         guard !still, scenePhase == .active else { return }
         while !Task.isCancelled {
             try? await Task.sleep(for: .milliseconds(7000 + Int.random(in: 0...7000)))
+            guard !Task.isCancelled else { return }
             guard mood != .sleep else { continue }
             glanceTo = CGPoint(x: Double.random(in: -0.6...0.6) - look.x * 0.6, y: Double.random(in: -0.5...0.3) - look.y * 0.6)
             glanceAt = Date()
@@ -167,9 +168,8 @@ struct FlatCreature: View {
         let e = CGPoint(x: e0.x + g.x, y: e0.y + g.y)
         let squeeze: Double = patted && !still ? 0.04 * sin(min(1.0, now.timeIntervalSince(pattedAt) / 0.3) * Double.pi) : 0
         if squeeze > 0 { ctx.translateBy(x: 50, y: 88); ctx.scaleBy(x: 1 + squeeze, y: 1 - squeeze); ctx.translateBy(x: -50, y: -88) }
-        let pose: Arms = patted ? .rest : arms
-        if kind == .moss { drawMoss(&ctx, e, patted ? 1 : l, face, pose, wave, sway: (b - 0.5) * 6 + leaf) }
-        else { drawOtto(&ctx, e, patted ? 1 : l, face, pose, wave, swing: (b - 0.5) * 5 + leaf * 0.4 + swingK, yawning: yawn) }
+        if kind == .moss { drawMoss(&ctx, e, patted ? 1 : l, face, sway: (b - 0.5) * 6 + leaf) }
+        else { drawOtto(&ctx, e, patted ? 1 : l, face, swing: (b - 0.5) * 5 + leaf * 0.4 + swingK, yawning: yawn, now: now) }
 
         // the mint leaves drifting up
         let f = now.timeIntervalSince(fleckAt) / 1.6
@@ -244,12 +244,7 @@ struct FlatCreature: View {
         default: break
         }
     }
-    /// Moss and Otto have no arms: a wave or a cheer is the hop and the face alone (the cast as themselves).
-    private func armsDraw(_ ctx: inout GraphicsContext, _ pose: Arms, left: CGPoint, right: CGPoint, _ c: Color, _ wave: Double) {
-        // Intentionally empty per docs/IP.md: canonical Moss and Otto never render detached arms.
-    }
-
-    private func drawMoss(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, sway: Double) {
+    private func drawMoss(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, sway: Double) {
         shadow(&ctx, 31)
         ctx.stroke(Shapes.mossStem, with: .color(Palette.mossDeep), style: StrokeStyle(lineWidth: 2.2, lineCap: .round))
         var leaves = ctx
@@ -260,7 +255,6 @@ struct FlatCreature: View {
         leaves.fill(Shapes.mintC, with: .color(Palette.mintPale))
         leaves.stroke(Shapes.mintVeins, with: .color(Palette.mintVein.opacity(0.45)), style: StrokeStyle(lineWidth: 0.6, lineCap: .round))
         leg(&ctx, 33); leg(&ctx, 59)
-        armsDraw(&ctx, pose, left: CGPoint(x: 19, y: 62), right: CGPoint(x: 83, y: 60), Palette.mossDeep, wave)
         body(&ctx, Shapes.mossBody, Palette.moss, under: Shapes.mossUnder, Palette.mossDeep)
         ctx.fill(Shapes.mossTufts, with: .color(Palette.mossLight.opacity(0.70)))
         eye(&ctx, 43, 55, 6.4, 7.4, look, lid, Palette.moss, face)
@@ -268,21 +262,20 @@ struct FlatCreature: View {
         mouth(&ctx, CGPoint(x: 50.5, y: 68), face)
     }
 
-    private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, _ pose: Arms, _ wave: Double, swing: Double, yawning: Double) {
+    private func drawOtto(_ ctx: inout GraphicsContext, _ look: CGPoint, _ lid: Double, _ face: Mood, swing: Double, yawning: Double, now: Date) {
         shadow(&ctx, 23)
         // the rod curves forward and the golden bead hangs from it, as on the icon
         var rod = ctx
         rod.translateBy(x: 50, y: 16.5); rod.rotate(by: .degrees(swing)); rod.translateBy(x: -50, y: -16.5)
         rod.stroke(Shapes.ottoRod, with: .color(Palette.rodDeep), style: StrokeStyle(lineWidth: 2.4, lineCap: .round))
         if glow {
-            let pulse = still ? 1 : 0.85 + 0.15 * sin(Date().timeIntervalSinceReferenceDate * 2)
+            let pulse = still ? 1 : 0.85 + 0.15 * sin(now.timeIntervalSinceReferenceDate * 2)
             rod.fill(Path(ellipseIn: CGRect(x: 20 - 14 * pulse, y: 11.5 - 14 * pulse, width: 28 * pulse, height: 28 * pulse)),
                      with: .radialGradient(Gradient(colors: [Palette.amber.opacity(0.75), Palette.amber.opacity(0)]), center: CGPoint(x: 20, y: 11.5), startRadius: 2, endRadius: 14 * pulse))
         }
         rod.fill(Path(ellipseIn: CGRect(x: 15, y: 6.5, width: 10, height: 10)), with: .color(glow ? Palette.amber : Palette.bead))
         rod.fill(Path(ellipseIn: CGRect(x: 17, y: 8.3, width: 3.2, height: 3.2)), with: .color(Palette.beadLight))
         leg(&ctx, 38); leg(&ctx, 56)
-        armsDraw(&ctx, pose, left: CGPoint(x: 29, y: 60), right: CGPoint(x: 72, y: 58), Palette.rodDeep, wave)
         body(&ctx, Shapes.ottoBody, Palette.rod, under: Shapes.ottoDip, Palette.rodDeep)
         eye(&ctx, 51, 44, 12.5, 11.5, look, face == .wow ? 0 : lid, Palette.rod, face)
         if yawning > 0.02 {
@@ -301,15 +294,21 @@ struct FlatDuo: View {
     var lid: Double? = nil
     var poke = true
     var together = true
-    /// Change it to make both cheer (arms up, a hop) for a moment.
+    /// Change it to make both cheer (a joyful hop) for a moment.
     var cheer = 0
     /// Night: Otto's bead is a lamp, and Moss sleeps unless Moss is the one in front.
     var night = false
+    var briefLamp = false
+    var reacts = false
+    var label: String? = nil
     var notice = 0
     var lit = false
     @Environment(\.accessibilityReduceMotion) private var reduce
+    @Environment(\.scenePhase) private var scenePhase
+    @Environment(MascotDirector.self) private var mascot: MascotDirector?
     @State private var beat = 0
     @State private var cheering = false
+    @State private var observing = false
 
     var body: some View {
         let small = size * 0.72
@@ -317,29 +316,43 @@ struct FlatDuo: View {
         ZStack(alignment: .bottomLeading) {
             FlatCreature(kind: primary.other, mood: asleep || (night && primary.other == .moss) ? .sleep : cheering || beat == 2 ? .happy : .open,
                      look: beat >= 1 ? CGPoint(x: -0.9, y: 0.5) : CGPoint(x: -0.7, y: 0.1), lean: beat == 1 ? -9 : primary.other == .otto && !asleep ? -6 : 0, alive: !reduce, poke: poke,
-                     arms: cheering ? .cheer : .rest, glow: (night || lit) && primary.other == .otto, notice: notice)
+                     glow: (night || lit) && primary.other == .otto, notice: notice)
                 .frame(width: small, height: small)
                 .offset(x: size - small * 0.38, y: -2)
             FlatCreature(kind: primary, mood: cheering ? .happy : beat == 2 && mood == .open ? .happy : mood,
-                     look: beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
-                     label: primary == .moss ? L10n.t("Moss 和 Otto", "Moss and Otto") : L10n.t("Otto 和 Moss", "Otto and Moss"), arms: cheering ? .cheer : .rest, glow: (night || lit) && primary == .otto, notice: notice)
+                     look: observing ? CGPoint(x: -0.3, y: 1) : beat >= 1 ? CGPoint(x: 0.95, y: -0.35) : look, lid: beat >= 1 ? nil : lid, poke: poke,
+                     label: label, glow: (night || lit) && primary == .otto, notice: notice)
                 .frame(width: size, height: size)
         }
         .frame(width: size + small * 0.62, height: size, alignment: .bottomLeading)
-        .onChange(of: cheer) { _, _ in
-            guard !reduce else { return }
-            cheering = true
-            Task { try? await Task.sleep(for: .milliseconds(1400)); cheering = false }
+        .accessibilityElement(children: label == nil ? .ignore : .combine)
+        .accessibilityLabel(label ?? "")
+        .accessibilityHidden(label == nil)
+        .onChange(of: cheer) { _, _ in answer() }
+        .onChange(of: mascot?.acknowledgements ?? 0) { _, _ in if reacts { answer() } }
+        .onChange(of: mascot?.observations ?? 0) { _, _ in
+            guard reacts, !reduce else { return }
+            observing = true
+            let ms = MascotStyle.of(primary).observeMs
+            Task { try? await Task.sleep(for: .milliseconds(ms)); observing = false }
         }
-        .task(id: "\(reduce)\(asleep)\(together)") {
+        .task(id: "\(reduce)\(asleep)\(together)\(night)\(scenePhase == .active)") {
             beat = 0
-            guard !reduce, !asleep, together else { return }
+            guard !reduce, !asleep, together, !night, scenePhase == .active else { return }
             try? await Task.sleep(for: .milliseconds(1800 + Int.random(in: 0...1600)))
+            guard !Task.isCancelled else { return }
             while !Task.isCancelled {
-                beat = 1; try? await Task.sleep(for: .milliseconds(900))
-                beat = 2; try? await Task.sleep(for: .milliseconds(1500))
+                beat = 1; try? await Task.sleep(for: .milliseconds(900)); guard !Task.isCancelled else { return }
+                beat = 2; try? await Task.sleep(for: .milliseconds(1500)); guard !Task.isCancelled else { return }
                 beat = 0; try? await Task.sleep(for: .milliseconds(6500 + Int.random(in: 0...5000)))
             }
         }
+    }
+
+    private func answer() {
+        guard !reduce else { return }
+        cheering = true
+        let ms = MascotStyle.of(primary).acknowledgeMs
+        Task { try? await Task.sleep(for: .milliseconds(ms)); cheering = false }
     }
 }

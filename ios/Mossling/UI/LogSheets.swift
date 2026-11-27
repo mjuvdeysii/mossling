@@ -94,6 +94,7 @@ struct AskSheet: View {
             .background { PageBackground(tone: LogType.color(type)) }
         }
         .presentationDetents([.large])
+        .localConsentSheet()
         .sensoryFeedback(.success, trigger: saved)
         .onAppear { if let on { ago = nil; when = on } }
         .onAppear { if type == LogType.bottle, let b = j.logs.first(where: { $0.type == LogType.bottle }) { if let a = b.amount { ml = Double(a) }; if let d = b.detail, ["breastmilk", "formula"].contains(d) { milk = d } } }
@@ -133,7 +134,7 @@ struct AskSheet: View {
             HStack(spacing: 10) {
                 ForEach([("wet", L10n.t("湿", "Wet"), "drop.halffull", "ic_drop_halffull.webp"), ("dirty", L10n.t("便", "Dirty"), "circle.fill", "ic_diaper_dirty.webp"), ("both", L10n.t("都有", "Both"), "circle.lefthalf.filled", "ic_diaper_both.webp")], id: \.0) { k, t, sym, art in
                     ChoiceTile(sticker: art, symbol: sym, title: t, on: chosen == k, tint: c, height: 116) {
-                        guard chosen == nil else { return }
+                        guard app.mayKeep(), chosen == nil else { return }
                         withAnimation(.snappy) { chosen = k }
                         if j.record(LogEntry(type: LogType.diaper, start: ms(at), detail: k)) {
                             saved += 1
@@ -235,7 +236,10 @@ struct AskSheet: View {
     /// view at the foot of the sheet whatever is above it — a one-handed parent never scrolls to find it.
     @ViewBuilder private var saveBar: some View {
         if let s = submit {
-            Button { if s.run() { saved += 1; dismiss() } else { failed = true } } label: { Text(L10n.t("记下", "Save")).frame(maxWidth: .infinity) }
+            Button {
+                guard app.mayKeep() else { return }
+                if s.run() { saved += 1; dismiss() } else { failed = true }
+            } label: { Text(L10n.t("记下", "Save")).frame(maxWidth: .infinity) }
                 .buttonStyle(.vinyl(LogType.color(type), prominent: true, large: true)).disabled(!s.enabled)
                 .padding(.horizontal, 20).padding(.top, 8).padding(.bottom, 6)
         }
@@ -275,17 +279,18 @@ struct WrapLayout: Layout {
         return CGSize(width: min(constrained.width, maxWidth), height: constrained.height)
     }
     func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
-        let w = proposal.width ?? .infinity
+        let finiteWidth = proposal.width.flatMap { ($0.isFinite && $0 > 0) ? $0 : nil }
+        let w = finiteWidth ?? .infinity
         var x: CGFloat = 0, y: CGFloat = 0, row: CGFloat = 0, maxX: CGFloat = 0
         for s in subviews {
-            let z = fittedSize(for: s, maxWidth: proposal.width)
+            let z = fittedSize(for: s, maxWidth: finiteWidth)
             if x > 0 && x + z.width > w { x = 0; y += row + spacing; row = 0 }
             x += z.width + spacing; row = max(row, z.height); maxX = max(maxX, x - spacing)
         }
-        return CGSize(width: proposal.width ?? maxX, height: y + row)
+        return CGSize(width: finiteWidth ?? maxX, height: y + row)
     }
     func placeSubviews(in b: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
-        let maxWidth: CGFloat? = b.width > 0 ? b.width : proposal.width
+        let maxWidth: CGFloat? = b.width > 0 ? b.width : proposal.width.flatMap { ($0.isFinite && $0 > 0) ? $0 : nil }
         var x = b.minX, y = b.minY, row: CGFloat = 0
         for s in subviews {
             let z = fittedSize(for: s, maxWidth: maxWidth)
@@ -456,6 +461,7 @@ struct EntrySheet: View {
                 ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
             }
         }
+        .localConsentSheet()
         .sensoryFeedback(.success, trigger: saved)
     }
 
@@ -755,6 +761,7 @@ struct MeasureSheet: View {
 
     var body: some View {
         let dark = lamp || scheme == .dark
+        let refBirth = GrowthView.developmentalBirth(for: Measure(at: dayNoonMs), birth: app.birth, gestationalWeeks: app.gestationalWeeks)
         let weightParsed = MeasureParser.parseWeightGrams(w)
         let lengthParsed = MeasureParser.parseLengthMm(l)
         let headParsed = MeasureParser.parseHeadMm(h)
@@ -787,8 +794,8 @@ struct MeasureSheet: View {
                                 : L10n.t("拖动标尺粗调，或点数字精确输入（如 7.85）", "Drag the wooden ruler or tap numerals for exact input (e.g. 7.85)")),
                         isError: weightParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .weight, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .weight, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
-                        percentileText: wg.flatMap { MeasureParser.percentileLabel(for: .weight, value: Double($0) / 1000.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .weight, date: day, birth: refBirth, sex: app.sex, growth: app.growth),
+                        percentileText: wg.flatMap { MeasureParser.percentileLabel(for: .weight, value: Double($0) / 1000.0, date: day, birth: refBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -807,8 +814,8 @@ struct MeasureSheet: View {
                             : L10n.t("精确到 0.1 厘米；2 岁前躺着量身长", "To 0.1 cm; measure lying down under age 2"),
                         isError: lengthParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .length, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .length, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
-                        percentileText: lm.flatMap { MeasureParser.percentileLabel(for: .length, value: Double($0) / 10.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .length, date: day, birth: refBirth, sex: app.sex, growth: app.growth),
+                        percentileText: lm.flatMap { MeasureParser.percentileLabel(for: .length, value: Double($0) / 10.0, date: day, birth: refBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -827,8 +834,8 @@ struct MeasureSheet: View {
                             : L10n.t("经眉上缘与后脑最突出处绕量", "Above eyebrows around the widest back of head"),
                         isError: headParsed.invalid,
                         previousValue: MeasureParser.previousValue(for: .head, excluding: measure.id, before: dayNoonMs, in: j.measures),
-                        typicalRange: MeasureParser.typicalRange(for: .head, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth),
-                        percentileText: hm.flatMap { MeasureParser.percentileLabel(for: .head, value: Double($0) / 10.0, date: day, birth: app.developmentalBirth, sex: app.sex, growth: app.growth) },
+                        typicalRange: MeasureParser.typicalRange(for: .head, date: day, birth: refBirth, sex: app.sex, growth: app.growth),
+                        percentileText: hm.flatMap { MeasureParser.percentileLabel(for: .head, value: Double($0) / 10.0, date: day, birth: refBirth, sex: app.sex, growth: app.growth) },
                         dark: dark,
                         focused: $focused
                     )
@@ -859,6 +866,7 @@ struct MeasureSheet: View {
             .safeAreaBar(edge: .bottom) {
                 Button {
                     focused = nil
+                    guard app.mayKeep() else { return }
                     var m = measure
                     m.at = dayNoonMs
                     m.weightG = wg
@@ -898,6 +906,7 @@ struct MeasureSheet: View {
             l = measure.lengthMm.map { String(format: "%.1f", Double($0) / 10) } ?? ""
             h = measure.headMm.map { String(format: "%.1f", Double($0) / 10) } ?? ""
         }
+        .localConsentSheet()
     }
 
     private func dateTray(dark: Bool) -> some View {
@@ -1124,7 +1133,7 @@ private struct WoodenRulerScrubber: View {
     let typicalRange: ClosedRange<Double>?
     let dark: Bool
 
-    @State private var draggingHorizontal = false
+    @GestureState private var draggingHorizontal = false
 
     private func x(for val: Double, width: CGFloat) -> CGFloat {
         let pad: CGFloat = 10
@@ -1220,19 +1229,18 @@ private struct WoodenRulerScrubber: View {
             )
             .simultaneousGesture(
                 DragGesture(minimumDistance: 8)
-                    .onChanged { g in
-                        if !draggingHorizontal {
-                            guard abs(g.translation.width) >= abs(g.translation.height) * 0.85 else { return }
-                            draggingHorizontal = true
+                    .updating($draggingHorizontal) { g, state, _ in
+                        if !state && abs(g.translation.width) >= abs(g.translation.height) * 0.85 {
+                            state = true
                         }
+                    }
+                    .onChanged { g in
+                        guard draggingHorizontal || abs(g.translation.width) >= abs(g.translation.height) * 0.85 else { return }
                         let next = value(at: g.location.x, width: size.width)
                         if value != next {
                             value = next
                             TactileEngine.shared.beadClick()
                         }
-                    }
-                    .onEnded { _ in
-                        draggingHorizontal = false
                     }
             )
         }

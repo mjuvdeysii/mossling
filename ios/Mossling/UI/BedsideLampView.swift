@@ -142,7 +142,7 @@ struct MidnightCareSummary: Equatable {
         let milkKind = lastBottle.flatMap { ["breastmilk", "formula"].contains($0.detail ?? "") ? $0.detail : nil } ?? "formula"
 
         let hour = Day.cal.component(.hour, from: now)
-        let isDaytime = (9..<19).contains(hour)
+        let isDaytime = (6..<19).contains(hour)
         let windowStartMs = isDaytime
             ? Day(now).date.timeIntervalSince1970 * 1000
             : nightWindowStartMs(for: now)
@@ -298,7 +298,7 @@ enum PalmPatRhythm {
         guard !intervals.isEmpty else { return nil }
         let mean = intervals.reduce(0, +) / Double(intervals.count)
         guard mean > 0 else { return nil }
-        return max(42.0, min(72.0, (60.0 / mean).rounded()))
+        return max(46.0, min(72.0, (60.0 / mean).rounded()))
     }
 }
 
@@ -473,12 +473,16 @@ struct BedsideLampView: View {
 
                         Spacer(minLength: 10)
 
-                        lanternCenterpiece
-                            .frame(maxWidth: .infinity)
-                            .overlay(alignment: .trailing) {
-                                dimmerRail
-                                    .padding(.trailing, 10)
-                            }
+                        ZStack {
+                            lanternCenterpiece
+                                .frame(maxWidth: .infinity)
+                                .overlay(alignment: .trailing) {
+                                    dimmerRail
+                                        .padding(.trailing, 10)
+                                }
+                        }
+                        .contentShape(Rectangle())
+                        .highPriorityGesture(dimmerGesture)
 
                         Spacer(minLength: 6)
 
@@ -516,7 +520,7 @@ struct BedsideLampView: View {
         .lamp(true)
         .preferredColorScheme(.dark)
         .statusBarHidden(false)
-        .gesture(dimmerGesture)
+        .localConsentSheet()
         .onAppear {
             bottleMilkKind = MidnightCareSummary.build(logs: j.logs, now: previewClock ?? Date()).defaultMilkKind
             if !countedPresentation {
@@ -564,9 +568,11 @@ struct BedsideLampView: View {
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .active {
+                UIApplication.shared.isIdleTimerDisabled = !emberResting
                 applyScreenDimmerIfAllowed()
                 if !reduce { motion.start() }
             } else {
+                UIApplication.shared.isIdleTimerDisabled = false
                 restoreScreenBrightness()
                 motion.stop()
             }
@@ -970,7 +976,7 @@ struct BedsideLampView: View {
                     lean: reduce ? 0 : motion.roll * 5.0,
                     alive: !emberResting,
                     poke: false,
-                    label: L10n.t("Otto 提着床头夜灯陪着你们", "Otto holding the warm bedside lamp"),
+                    label: L10n.t("Otto 守在床头夜灯旁陪着你们", "Otto beside the warm bedside lamp"),
                     glow: true
                 )
                 .frame(width: 136, height: 136)
@@ -979,205 +985,240 @@ struct BedsideLampView: View {
             .frame(minHeight: 142, idealHeight: 176, maxHeight: 186)
             .layoutPriority(-1)
 
-            let modeControls = HStack(spacing: 8) {
-                if emberResting {
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        rekindleFromEmber()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(warmth.primaryGlow.opacity(0.75))
-                                .frame(width: 6, height: 6)
-                            Text(L10n.t("余烬 · 重燃", "Ember · Relight"))
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(warmth.primaryGlow.opacity(0.92))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.8)
-                        }
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.14)))
-                        .pillHitTarget()
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        soundscape.duration = .m15
-                        soundscape.start(soundscape.lastUsedKind)
-                        rekindleFromEmber()
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: "play.fill")
-                                .font(.caption2.weight(.bold))
-                            Text(L10n.t("续播 15m", "15m Encore"))
-                                .font(.caption.weight(.bold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
-                        .foregroundStyle(warmth.onPrimaryInk)
-                        .padding(.horizontal, 11)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
-                        .pillHitTarget()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.t("续播 15 分钟安抚声景", "Play 15-minute soundscape encore"))
-                } else if palmPatActive {
-                    HStack(spacing: 5) {
-                        Circle()
-                            .fill(warmth.primaryGlow)
-                            .frame(width: 6, height: 6)
-                        Text(L10n.t("无声轻拍 \(Int(livePalmPatBPM.rounded())) · 点灯定拍", "Silent Pat \(Int(livePalmPatBPM.rounded()))"))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(warmth.primaryGlow.opacity(0.95))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.76)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 5)
-                    .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
-
-                    ForEach(PalmPatPreset.allCases) { preset in
-                        let on = Int(palmPatBPM.rounded()) == preset.rawValue
-                        Button {
-                            TactileEngine.shared.beadClick()
-                            palmPatBPM = preset.bpm
-                            palmPatStartedAt = Date()
-                            TactileEngine.shared.palmPatPulse(intensity: 0.54)
-                        } label: {
-                            Text("\(preset.rawValue)")
-                                .font(.caption.weight(.bold))
-                                .monospacedDigit()
-                                .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                                .padding(.horizontal, 9)
-                                .padding(.vertical, 6)
-                                .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
-                                .pillHitTarget()
-                        }
-                        .buttonStyle(.plain)
-                    }
-
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        palmPatAutoSlow.toggle()
-                        palmPatStartedAt = Date()
-                    } label: {
-                        Text(L10n.t("渐缓", "Slow"))
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(palmPatAutoSlow ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.86))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 6)
-                            .background(Capsule().fill(palmPatAutoSlow ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
-                            .pillHitTarget()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityAddTraits(palmPatAutoSlow ? .isSelected : [])
-                } else if breathingGuide {
-                    TimelineView(.animation(minimumInterval: 0.25, paused: reduce || Perf.still || scenePhase != .active)) { tl in
-                        let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
-                        HStack(spacing: 6) {
-                            Circle()
-                                .fill(warmth.primaryGlow.opacity(st.inhaling ? 0.95 : 0.55))
-                                .frame(width: 7, height: 7)
-                            Text(
-                                st.inhaling
-                                    ? L10n.t("吸气 · \(st.secondsLeft)s", "Inhale · \(st.secondsLeft)s")
-                                    : L10n.t("呼气 · \(st.secondsLeft)s", "Exhale · \(st.secondsLeft)s")
-                            )
-                            .font(.caption.weight(.bold))
-                            .foregroundStyle(warmth.primaryGlow.opacity(0.95))
-                            .monospacedDigit()
-                            .lineLimit(1)
-                        }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
-                    }
-
-                    Button {
-                        withAnimation(reduce ? nil : .snappy) {
-                            breathingHaptics.toggle()
-                        }
-                        if breathingHaptics {
-                            let nowState = Self.breathingState(at: Date().timeIntervalSinceReferenceDate)
-                            TactileEngine.shared.breathCue(inhaling: nowState.inhaling)
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Image(systemName: breathingHaptics ? "hand.tap.fill" : "hand.tap")
-                                .font(.caption2.weight(.bold))
-                            Text(L10n.t("手心轻振", "Pulse"))
-                                .font(.caption.weight(.bold))
-                                .lineLimit(1)
-                                .minimumScaleFactor(0.85)
-                        }
-                        .foregroundStyle(breathingHaptics ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .background(Capsule().fill(breathingHaptics ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
-                        .pillHitTarget()
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(L10n.t(breathingHaptics ? "关闭闭眼手心呼吸轻振" : "开启闭眼手心呼吸轻振", breathingHaptics ? "Turn off silent palm breathing pulse" : "Turn on silent palm breathing pulse"))
-                } else {
-                    HStack(spacing: 5) {
-                        Image(systemName: "arrow.up.and.down")
-                            .font(.caption2.weight(.bold))
-                        Text(L10n.t("上下滑动调光 · 双击轻暗", "Slide to dim · 2× tap low"))
-                            .font(.caption.weight(.medium))
-                            .lineLimit(1)
-                            .minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.32))
-                    .accessibilityHidden(true)
-                }
-            }
-
-            let warmthSwatches = HStack(spacing: 2) {
-                ForEach(LampWarmth.allCases) { preset in
-                    let on = warmth == preset
-                    Button {
-                        TactileEngine.shared.beadClick()
-                        rekindleFromEmber()
-                        withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
-                            warmth = preset
-                        }
-                        commitLampPreferences()
-                    } label: {
-                        Circle()
-                            .fill(preset.primaryGlow)
-                            .frame(width: on ? 16 : 13, height: on ? 16 : 13)
-                            .overlay(
-                                Circle()
-                                    .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
-                            )
-                            .frame(width: 34, height: 34)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel(preset.label)
-                    .accessibilityAddTraits(on ? .isSelected : [])
-                }
-            }
-            .padding(.horizontal, 6)
-            .frame(minHeight: 36)
-            .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
-            .pillHitTarget(LayoutSpec.hitMin)
-
             if palmPatActive || breathingGuide || typeSize.isAccessibilitySize {
                 VStack(spacing: 8) {
-                    modeControls
-                    warmthSwatches
+                    FlowRow(spacing: 6, lineSpacing: 6) {
+                        modeControlsList
+                    }
+                    warmthSwatchesBar
                 }
             } else {
                 HStack(spacing: 8) {
-                    modeControls
-                    warmthSwatches
+                    HStack(spacing: 8) {
+                        modeControlsList
+                    }
+                    warmthSwatchesBar
                 }
             }
+        }
+    }
+
+    private var warmthSwatchesBar: some View {
+        HStack(spacing: 2) {
+            ForEach(LampWarmth.allCases) { preset in
+                let on = warmth == preset
+                Button {
+                    TactileEngine.shared.beadClick()
+                    rekindleFromEmber()
+                    withAnimation(reduce ? nil : .easeInOut(duration: 0.26)) {
+                        warmth = preset
+                    }
+                    commitLampPreferences()
+                } label: {
+                    Circle()
+                        .fill(preset.primaryGlow)
+                        .frame(width: on ? 16 : 13, height: on ? 16 : 13)
+                        .overlay(
+                            Circle()
+                                .strokeBorder(.white.opacity(on ? 0.92 : 0.28), lineWidth: on ? 1.8 : 0.8)
+                        )
+                        .frame(width: 34, height: 34)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(preset.label)
+                .accessibilityAddTraits(on ? .isSelected : [])
+            }
+        }
+        .padding(.horizontal, 6)
+        .frame(minHeight: 36)
+        .background(Capsule().fill(Color(hex: 0x161E3B).opacity(0.76)))
+        .pillHitTarget(LayoutSpec.hitMin)
+    }
+
+    @ViewBuilder
+    private var palmPatStatusPill: some View {
+        let paused = Perf.still || previewClock != nil || !palmPatAutoSlow || scenePhase != .active
+        if paused {
+            let nowDate = previewClock ?? Date()
+            let bpm = PalmPatRhythm.effectiveBPM(
+                startBPM: palmPatBPM,
+                elapsedSeconds: max(0, nowDate.timeIntervalSince(palmPatStartedAt)),
+                autoSlow: palmPatAutoSlow
+            )
+            palmPatBadgeContent(bpm: bpm)
+        } else {
+            TimelineView(.periodic(from: .now, by: 1.0)) { tl in
+                let nowDate = max(tl.date, Date())
+                let bpm = PalmPatRhythm.effectiveBPM(
+                    startBPM: palmPatBPM,
+                    elapsedSeconds: max(0, nowDate.timeIntervalSince(palmPatStartedAt)),
+                    autoSlow: palmPatAutoSlow
+                )
+                palmPatBadgeContent(bpm: bpm)
+            }
+        }
+    }
+
+    private func palmPatBadgeContent(bpm: Double) -> some View {
+        HStack(spacing: 5) {
+            Circle()
+                .fill(warmth.primaryGlow)
+                .frame(width: 6, height: 6)
+            Text(L10n.t("无声轻拍 \(Int(bpm.rounded())) · 点灯定拍", "Silent Pat \(Int(bpm.rounded()))"))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(warmth.primaryGlow.opacity(0.95))
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 5)
+        .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
+    }
+
+    @ViewBuilder
+    private var modeControlsList: some View {
+        if emberResting {
+            Button {
+                TactileEngine.shared.beadClick()
+                rekindleFromEmber()
+            } label: {
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(warmth.primaryGlow.opacity(0.75))
+                        .frame(width: 6, height: 6)
+                    Text(L10n.t("余烬 · 重燃", "Ember · Relight"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(warmth.primaryGlow.opacity(0.92))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(warmth.primaryGlow.opacity(0.14)))
+                .pillHitTarget()
+            }
+            .buttonStyle(.plain)
+
+            Button {
+                TactileEngine.shared.beadClick()
+                soundscape.duration = .m15
+                soundscape.start(soundscape.lastUsedKind)
+                rekindleFromEmber()
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "play.fill")
+                        .font(.caption2.weight(.bold))
+                    Text(L10n.t("续播 15m", "15m Encore"))
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(warmth.onPrimaryInk)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(warmth.primaryGlow.opacity(0.88)))
+                .pillHitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t("续播 15 分钟安抚声景", "Play 15-minute soundscape encore"))
+        } else if palmPatActive {
+            palmPatStatusPill
+
+            ForEach(PalmPatPreset.allCases) { preset in
+                let on = Int(palmPatBPM.rounded()) == preset.rawValue
+                Button {
+                    TactileEngine.shared.beadClick()
+                    palmPatBPM = preset.bpm
+                    palmPatStartedAt = Date()
+                    TactileEngine.shared.palmPatPulse(intensity: 0.54)
+                } label: {
+                    Text("\(preset.rawValue)")
+                        .font(.caption.weight(.bold))
+                        .monospacedDigit()
+                        .foregroundStyle(on ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 6)
+                        .background(Capsule().fill(on ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                        .pillHitTarget()
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                TactileEngine.shared.beadClick()
+                palmPatAutoSlow.toggle()
+                palmPatStartedAt = Date()
+            } label: {
+                Text(L10n.t("渐缓", "Slow"))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(palmPatAutoSlow ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.86))
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 6)
+                    .background(Capsule().fill(palmPatAutoSlow ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                    .pillHitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityAddTraits(palmPatAutoSlow ? .isSelected : [])
+        } else if breathingGuide {
+            TimelineView(.animation(minimumInterval: 0.25, paused: reduce || Perf.still || scenePhase != .active)) { tl in
+                let st = Self.breathingState(at: (reduce || Perf.still) ? 2.8 : tl.date.timeIntervalSinceReferenceDate)
+                HStack(spacing: 6) {
+                    Circle()
+                        .fill(warmth.primaryGlow.opacity(st.inhaling ? 0.95 : 0.55))
+                        .frame(width: 7, height: 7)
+                    Text(
+                        st.inhaling
+                            ? L10n.t("吸气 · \(st.secondsLeft)s", "Inhale · \(st.secondsLeft)s")
+                            : L10n.t("呼气 · \(st.secondsLeft)s", "Exhale · \(st.secondsLeft)s")
+                    )
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(warmth.primaryGlow.opacity(0.95))
+                    .monospacedDigit()
+                    .lineLimit(1)
+                }
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Capsule().fill(warmth.primaryGlow.opacity(0.15)))
+            }
+
+            Button {
+                withAnimation(reduce ? nil : .snappy) {
+                    breathingHaptics.toggle()
+                }
+                if breathingHaptics {
+                    let nowState = Self.breathingState(at: Date().timeIntervalSinceReferenceDate)
+                    TactileEngine.shared.breathCue(inhaling: nowState.inhaling)
+                }
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: breathingHaptics ? "hand.tap.fill" : "hand.tap")
+                        .font(.caption2.weight(.bold))
+                    Text(L10n.t("手心轻振", "Pulse"))
+                        .font(.caption.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
+                }
+                .foregroundStyle(breathingHaptics ? warmth.onPrimaryInk : warmth.primaryGlow.opacity(0.9))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(breathingHaptics ? warmth.primaryGlow : Color(hex: 0x161E3B).opacity(0.76)))
+                .pillHitTarget()
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.t(breathingHaptics ? "关闭闭眼手心呼吸轻振" : "开启闭眼手心呼吸轻振", breathingHaptics ? "Turn off silent palm breathing pulse" : "Turn on silent palm breathing pulse"))
+        } else {
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.up.and.down")
+                    .font(.caption2.weight(.bold))
+                Text(L10n.t("上下滑动调光 · 双击轻暗", "Slide to dim · 2× tap low"))
+                    .font(.caption.weight(.medium))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(Palette.lampInk.opacity(showingDimmerHint ? 0.56 : 0.32))
+            .accessibilityHidden(true)
         }
     }
 
@@ -1528,7 +1569,8 @@ struct BedsideLampView: View {
     @ViewBuilder
     private var careDock: some View {
         TimelineView(.periodic(from: .now, by: 60)) { tl in
-            let summary = MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: previewClock ?? tl.date)
+            let effectiveNow = previewClock ?? max(tl.date, Date())
+            let summary = MidnightCareSummary.build(logs: j.logs, timers: j.timers, now: effectiveNow)
             VStack(spacing: 8) {
                 if !summary.facts.isEmpty || summary.nightStatusLine != nil {
                     midnightFactsStrip(summary)
@@ -1539,7 +1581,8 @@ struct BedsideLampView: View {
                         activeTimerCard(t, now: previewClock.timeIntervalSince1970 * 1000, summary: summary)
                     } else {
                         TimelineView(.periodic(from: .now, by: 1)) { liveTl in
-                            activeTimerCard(t, now: liveTl.date.timeIntervalSince1970 * 1000, summary: summary)
+                            let liveNow = max(liveTl.date, Date())
+                            activeTimerCard(t, now: liveNow.timeIntervalSince1970 * 1000, summary: summary)
                         }
                     }
                 } else {

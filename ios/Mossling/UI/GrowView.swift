@@ -262,7 +262,7 @@ struct MonthParts: View {
         }
         let careMonth = (m == app.babyMonth && app.isUsingCorrectedAge) ? (app.actualAge?.bookMonth ?? m) : m
         let careMo = careMonth == m ? mo : app.content.month(careMonth)
-        let region = HealthRegion.defaultRegion()
+        let region = app.healthRegion
         if region == .cn {
             if !careMo.vaccines.isEmpty || !careMo.checkups.isEmpty {
                 let total = careMo.vaccines.count + careMo.checkups.count
@@ -775,8 +775,9 @@ struct CareView: View {
     @Environment(\.dynamicTypeSize) private var typeSize
     let month: Int
     @State private var filter: CareFilterMode = .all
-    @State private var region: HealthRegion = HealthRegion.defaultRegion()
     @State private var showingClinicSnapshot = false
+
+    private var region: HealthRegion { app.healthRegion }
 
     var body: some View {
         let dark = lamp || scheme == .dark
@@ -805,12 +806,28 @@ struct CareView: View {
 
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
+                if let gw = app.gestationalWeeks, Age.isPreterm(gw) {
+                    HStack(alignment: .top, spacing: 10) {
+                        IconTile(symbol: "calendar.badge.clock", color: Crayon.sky, size: 28, round: true)
+                        Text(L10n.t(
+                            "早产宝宝（\(gw) 周）：免疫接种与儿保体检通常按实际出生月龄推进，生长与发育观察则可参照矫正月龄；具体以儿保医生医嘱为准。",
+                            "Preterm (\(gw) wks): Routine immunizations and checkups usually follow chronological age from birth, while growth/milestones use corrected age. Follow your pediatrician's schedule."
+                        ))
+                        .font(.caption)
+                        .foregroundStyle(Palette.secondaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .printCard(radius: Radius.card)
+                }
+
                 FlowRow(spacing: 8, lineSpacing: 8) {
                     ForEach(HealthRegion.allCases) { r in
                         let on = region == r
                         Button {
                             TactileEngine.shared.beadClick()
-                            withAnimation(.snappy) { region = r }
+                            withAnimation(.snappy) { app.healthRegion = r }
                         } label: {
                             Text(r.shortLabel)
                                 .font(.caption.weight(on ? .bold : .semibold))
@@ -1310,9 +1327,11 @@ struct ObserveView: View {
                                 Button {
                                     withAnimation(.snappy) { selectedGroupIndex = (on ? nil : gi) }
                                 } label: {
+                                    let activeFill = Crayon.fill(col, dark)
+                                    let activeInk = Crayon.glyph(on: activeFill)
                                     HStack(spacing: 5) {
                                         Circle()
-                                            .fill(on ? Color.white : col)
+                                            .fill(on ? activeInk : col)
                                             .frame(width: 7, height: 7)
                                         Text(g.area)
                                             .font(.caption.weight(on ? .bold : .semibold))
@@ -1320,9 +1339,9 @@ struct ObserveView: View {
                                             .font(Typeface.numerals(11, relativeTo: .caption2, weight: .bold))
                                             .opacity(on ? 0.9 : 0.72)
                                     }
-                                    .foregroundStyle(on ? .white : .primary)
+                                    .foregroundStyle(on ? activeInk : .primary)
                                     .padding(.horizontal, 10).padding(.vertical, 6)
-                                    .background(Capsule().fill(on ? col : col.opacity(dark ? 0.16 : 0.12)))
+                                    .background(Capsule().fill(on ? activeFill : col.opacity(dark ? 0.16 : 0.12)))
                                 }
                                 .buttonStyle(.toy)
                                 .accessibilityAddTraits(on ? .isSelected : [])

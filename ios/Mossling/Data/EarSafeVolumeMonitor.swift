@@ -124,7 +124,8 @@ final class EarSafeVolumeMonitor {
         guard !previewMode, !Self.isTestHost else { return }
         guard observation == nil else { return }
         let session = AVAudioSession.sharedInstance()
-        let activePlaybackOrRecord = SoundscapeEngine.shared.isPlaying
+        let activePlaybackOrRecord = SoundscapeEngine.shared.hasActiveEngine
+            || ToyboxAudioEngine.shared.isPlaying
             || FirstVoiceController.shared.isRecording
             || FirstVoiceController.shared.playingID != nil
         if !activePlaybackOrRecord {
@@ -141,8 +142,12 @@ final class EarSafeVolumeMonitor {
             let current = AVAudioSession.sharedInstance().outputVolume
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                let nextLevel = EarSafeVolumeLevel.of(current)
+                if self.previousLevel != .loud && nextLevel == .loud {
+                    self.dismissedThisSession = false
+                }
                 self.volume = current
-                self.previousLevel = EarSafeVolumeLevel.of(current)
+                self.previousLevel = nextLevel
             }
         }
         observation = session.observe(\.outputVolume, options: [.new]) { [weak self] session, _ in

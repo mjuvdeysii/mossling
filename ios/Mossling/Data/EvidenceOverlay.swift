@@ -177,6 +177,68 @@ struct LampCard: Identifiable, Sendable {
     var grandparentNote: String { L10n.t(grandparentNoteZh, grandparentNoteEn) }
     var redFlag: String { L10n.t(redFlagZh, redFlagEn) }
 
+    /// Bilingual display label for structured clinical tags so Chinese parents don't hit an opaque English pill wall.
+    static func localizedClinicalTerm(_ term: String) -> String {
+        guard !L10n.isEnglish else { return term }
+        switch term {
+        case "Tummy Time Gradient": return "俯卧时间梯度"
+        case "Early Neck Control": return "早期头颈控制"
+        case "Core Attachment": return "核心安全依恋"
+        case "Basic Trust": return "基本信任感"
+        case "Serve & Return Step 1": return "发球与回球第一步"
+        case "RIE Slow Diaper Care": return "慢节奏尊重换尿布"
+        case "CDC 75% Revision": return "CDC 75% 里程碑标准"
+        case "Midline Grasp": return "中线抓握"
+        case "Independent Initiation": return "自主发起翻身"
+        case "Oral Sensory Exploration": return "口腔触觉探索"
+        case "Serve & Return Turns": return "发球回球对话轮次"
+        case "Vowel Cooing": return "元音咕咕发音"
+        case "Object Permanence": return "客体永存概念"
+        case "Cause & Effect": return "因果探索"
+        case "Division of Responsibility": return "喂养餐桌分工"
+        case "Stranger Wariness": return "阶段性认生表现"
+        case "Secure Attachment": return "安全型依恋"
+        case "Predictable Separation": return "可预期的短暂分离"
+        case "WHO Walk Window": return "WHO 独走宽窗口"
+        case "Barefoot Cruising": return "光脚扶物巡航"
+        case "RIE Unassisted Motor": return "无代劳自主大运动"
+        case "Joint Attention": return "共同注意力"
+        case "Proto-declarative Pointing": return "原初分享式指点"
+        case "RIE Yes Space": return "全允许探索区"
+        case "External Co-Regulation": return "成人外部共同调节"
+        case "15-Month Tantrum Surge": return "15月龄情绪高峰"
+        case "Nap Transition Window": return "并觉过渡窗口"
+        case "Normal Toddler Growth Deceleration": return "幼儿生长自然放缓"
+        case "Montessori Practical Life": return "蒙氏生活实践"
+        case "Cup Transition": return "敞口杯/吸管杯过渡"
+        case "Sensitive Period for Order": return "秩序敏感期"
+        case "Limited Choices": return "受限二选一"
+        case "Anticipatory Guidance": return "提前温和预告"
+        case "Toilet Readiness Cues": return "自主如厕就绪信号"
+        case "Autonomous Body Naming": return "尊重式身体认知"
+        case "18m Preventive Care": return "18月龄预防保健"
+        case "Parallel Play": return "平行游戏期"
+        case "Sportscaster Technique": return "解说员式客观描述"
+        case "Proto-Share Development": return "物权与轮流萌芽"
+        case "Toddler Autonomy": return "幼儿自主意愿"
+        case "Pouring Coordination": return "倾倒手眼协调"
+        case "24m ASD & BMI Baseline": return "24月龄发育与生长核查"
+        case "Symbolic Imagination": return "象征性想象爆发"
+        case "Co-Viewed Media Limit": return "共视屏幕时长上限"
+        case "Emotional Naming": return "情绪词汇命名"
+        case "Embodied Spatial Math": return "具身空间数学感知"
+        case "Two-Step Directions": return "两步连续指令"
+        case "Open-Ended Book Talk": return "开放式绘本问答"
+        case "10-Minute Settling Window": return "入园 10 分钟缓和窗口"
+        case "Separation Ritual": return "温和告别仪式"
+        case "Social Graces & Courtesy": return "社交礼仪萌芽"
+        case "Reciprocal Conversation": return "多轮往复对话"
+        case "Pre-Literacy Narrative": return "前读写叙事表达"
+        case "Fine Motor Kitchen Prep": return "厨房精细动作准备"
+        default: return term
+        }
+    }
+
     /// Plain-text shareable summary for WeChat / Messages without needing an app install.
     func shareMessage() -> String {
         let sources = meta.sources.map(\.title).joined(separator: L10n.t("；", "; "))

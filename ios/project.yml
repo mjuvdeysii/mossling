@@ -44,6 +44,7 @@ targets:
         type: folder
         buildPhase: resources
       - path: Docs
+        excludes: ["CHANGELOG.md", "CHANGELOG_EN.md", "TESTFLIGHT_NOTES.md", "TESTFLIGHT_NOTES_EN.md"]
         buildPhase: resources
     settings:
       base:

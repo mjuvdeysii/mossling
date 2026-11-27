@@ -47,7 +47,7 @@ struct CareStage: View {
                 // beside a sleep; a wave only when tapped
                 Creature(kind: kind, mood: type == LogType.sleep && !lamp ? .sleep : .open,
                          look: CGPoint(x: -0.7, y: -0.1), lid: lamp && !waving ? 0.5 : nil, poke: true,
-                         arms: waving ? .wave : .rest, glow: lamp && kind == .otto)
+                         glow: lamp && kind == .otto)
                     .frame(width: 70, height: 70)
                     .padding(.trailing, 12).padding(.bottom, 2)
                     .onTapGesture { wave() }

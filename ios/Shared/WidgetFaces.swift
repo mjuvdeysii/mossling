@@ -67,10 +67,13 @@ struct TodayFace: View {
 
     init(date: Date, snap: Snapshot?, body: JournalFile.Body, size: TodaySize) { self.date = date; self.snap = snap; self.body_ = body; self.size = size }
 
-    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
+    private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { visible ? snap?.developmentalAge(on: Day(date)) : nil }
     private var age: Age? { resolvedAge?.age }
     private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var ageText: String {
+        guard visible else { return locked ? L10n.t("已锁定", "Locked") : L10n.appName }
         guard let a = age else { return L10n.t("填写出生日期", "Add birthday") }
         let base = L10n.ageText(a)
         return isCorrectedAge ? L10n.t("矫·\(base)", "Corr. \(base)") : base
@@ -87,24 +90,35 @@ struct TodayFace: View {
     /// The wide faces have room for the minutes past the hour ("2 小时 30 分前"); the narrow cards use the short form.
     private func agoText(_ d: Date) -> String { L10n.agoText(d, now: date, precise: true) }
     private func agoCard(_ d: Date) -> String { L10n.agoText(d, now: date) }
-    private var journal: Bool { snap?.journal == true }
+    private var journal: Bool { visible && snap?.journal == true }
 
     var body: some View {
         switch size {
         case .inline:
-            Text("\(ageText)" + (snap?.playName.map { " · \($0)" } ?? ""))
-                .privacySensitive()
+            if visible {
+                Text("\(ageText)" + (snap?.playName.map { " · \($0)" } ?? ""))
+                    .privacySensitive()
+            } else {
+                Text(locked ? L10n.t("摸索台灯已锁定", "Moss & Otto Locked") : L10n.appName)
+            }
         case .circular: circular
         case .rectangular:
-            VStack(alignment: .leading, spacing: 1) {
-                Text(ageText).font(.headline).lineLimit(1).minimumScaleFactor(0.72).privacySensitive().widgetAccentable()
-                if let t = body_.timers.first {
-                    HStack(spacing: 4) {
-                        Text(L10n.logName(t.type))
-                        if let p = t.pausedAt { Text(L10n.duration(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
-                    }.font(.caption).lineLimit(1).minimumScaleFactor(0.72).privacySensitive()
-                } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1).minimumScaleFactor(0.8) }
-                if journal, let f = lastFeed { Text("\(L10n.t("喂奶", "Fed")) \(agoText(f))").font(.caption).lineLimit(1).minimumScaleFactor(0.75).privacySensitive() }
+            if !visible {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(locked ? L10n.t("摸索台灯已锁定", "Moss & Otto Locked") : L10n.appName).font(.headline).lineLimit(1).minimumScaleFactor(0.72)
+                    Text(locked ? L10n.t("打开应用解锁后查看", "Open app to unlock") : L10n.t("孩子摸索，大人点灯", "They explore. You hold the light.")).font(.caption).lineLimit(1).minimumScaleFactor(0.75)
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(ageText).font(.headline).lineLimit(1).minimumScaleFactor(0.72).privacySensitive().widgetAccentable()
+                    if let t = body_.timers.first {
+                        HStack(spacing: 4) {
+                            Text(L10n.logName(t.type))
+                            if let p = t.pausedAt { Text(L10n.duration(t.total(p))) } else { Text(t.countsFrom, style: .timer).monospacedDigit().contentTransition(.numericText(countsDown: false)) }
+                        }.font(.caption).lineLimit(1).minimumScaleFactor(0.72).privacySensitive()
+                    } else if let p = snap?.playName { Text(p).font(.caption).lineLimit(1).minimumScaleFactor(0.8) }
+                    if journal, let f = lastFeed { Text("\(L10n.t("喂奶", "Fed")) \(agoText(f))").font(.caption).lineLimit(1).minimumScaleFactor(0.75).privacySensitive() }
+                }
             }
         case .large: large
         case .medium: medium
@@ -115,7 +129,9 @@ struct TodayFace: View {
     private var circular: some View {
         ZStack {
             AccessoryWidgetBackground()
-            if let t = body_.timers.first {
+            if !visible {
+                Image(systemName: locked ? "lock.fill" : "lamp.desk.fill").font(.title3)
+            } else if let t = body_.timers.first {
                 VStack(spacing: 1) {
                     Image(systemName: t.type == LogType.sleep ? "moon.zzz.fill" : "drop.fill").font(.caption2)
                     if let p = t.pausedAt {
@@ -143,11 +159,13 @@ struct TodayFace: View {
                     Text(agoCard(f)).font(.system(size: 11, weight: .bold, design: .rounded)).monospacedDigit().lineLimit(1).minimumScaleFactor(0.65)
                 }
                 .padding(4)
+                .privacySensitive()
             } else if let a = age {
                 VStack(spacing: 0) {
                     Text("\(a.months)").font(.system(size: 20, weight: .bold, design: .rounded)).monospacedDigit()
                     Text(L10n.t("个月", "mo")).font(.system(size: 9, weight: .semibold, design: .rounded))
                 }
+                .privacySensitive()
             } else {
                 Image(systemName: "lamp.desk.fill").font(.title3)
             }
@@ -158,45 +176,55 @@ struct TodayFace: View {
     private var head: some View {
         HStack(alignment: .top, spacing: 4) {
             VStack(alignment: .leading, spacing: 0) {
-                if let n = snap?.nickname, !n.isEmpty {
-                    Text(n)
-                        .font(.caption2.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .privacySensitive()
-                }
-                if let a = age {
-                    HStack(alignment: .firstTextBaseline, spacing: 5) {
-                        if isCorrectedAge {
-                            Text(L10n.t("矫", "C"))
-                                .font(.system(size: 10, weight: .bold, design: .rounded))
-                                .foregroundStyle(isFullColor ? .white : .primary)
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 1.5)
-                                .background(Capsule().fill(isFullColor ? WidgetInk.accent : Color.primary.opacity(0.14)))
-                        }
-                        HStack(alignment: .firstTextBaseline, spacing: 1) {
-                            Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
-                            Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
-                        }
-                        if a.days > 0 {
-                            HStack(alignment: .firstTextBaseline, spacing: 1) {
-                                Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent)
-                                Text(L10n.t("天", "d")).font(.caption2.weight(.semibold))
-                            }
-                        }
-                    }
-                    .widgetAccentable()
-                    .privacySensitive()
-                    .lineLimit(1).minimumScaleFactor(0.7)
-                    if let badge = snap?.careBadgeLabel() {
-                        Text(badge)
-                            .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                            .foregroundStyle(snap?.careModeActive == true ? Crayon.ink(Crayon.teal) : .secondary)
+                if visible {
+                    if let n = snap?.nickname, !n.isEmpty {
+                        Text(n)
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(.secondary)
                             .lineLimit(1)
                             .privacySensitive()
                     }
-                } else { Text(L10n.appName).font(.headline) }
+                    if let a = age {
+                        HStack(alignment: .firstTextBaseline, spacing: 5) {
+                            if isCorrectedAge {
+                                Text(L10n.t("矫", "C"))
+                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                                    .foregroundStyle(isFullColor ? .white : .primary)
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 1.5)
+                                    .background(Capsule().fill(isFullColor ? WidgetInk.accent : Color.primary.opacity(0.14)))
+                            }
+                            HStack(alignment: .firstTextBaseline, spacing: 1) {
+                                Text("\(a.months)").font(WidgetInk.numerals(34)).foregroundStyle(WidgetInk.accent)
+                                Text(L10n.t("个月", "m")).font(.caption2.weight(.semibold))
+                            }
+                            if a.days > 0 {
+                                HStack(alignment: .firstTextBaseline, spacing: 1) {
+                                    Text("\(a.days)").font(WidgetInk.numerals(17)).foregroundStyle(WidgetInk.accent)
+                                    Text(L10n.t("天", "d")).font(.caption2.weight(.semibold))
+                                }
+                            }
+                        }
+                        .widgetAccentable()
+                        .privacySensitive()
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                        if let badge = snap?.careBadgeLabel() {
+                            Text(badge)
+                                .font(.system(size: 9.5, weight: .bold, design: .rounded))
+                                .foregroundStyle(snap?.careModeActive == true ? Crayon.ink(Crayon.teal) : .secondary)
+                                .lineLimit(1)
+                                .privacySensitive()
+                        }
+                    } else { Text(L10n.appName).font(.headline) }
+                } else {
+                    Text(L10n.appName).font(.headline)
+                    if locked {
+                        Label(L10n.t("已锁定", "Locked"), systemImage: "lock.fill")
+                            .font(.caption2.weight(.semibold))
+                            .foregroundStyle(WidgetInk.accent)
+                            .lineLimit(1)
+                    }
+                }
             }
             Spacer(minLength: 0)
             // the companions on a small disc of paper, so Otto's blue still reads on the lamp's blue
@@ -232,16 +260,25 @@ struct TodayFace: View {
                 else { Text(t.countsFrom, style: .timer).font(WidgetInk.numerals(20)).contentTransition(.numericText(countsDown: false)) }
             }
         }
+        .privacySensitive()
     }
 
     private var small: some View {
-        let dest = body_.timers.first.map { WidgetLinks.care($0.type) }
-            ?? (journal ? WidgetLinks.journal : snap?.playCode.map(WidgetLinks.play))
-            ?? WidgetLinks.today
+        let dest = visible
+            ? (body_.timers.first.map { WidgetLinks.care($0.type) }
+                ?? (journal ? WidgetLinks.journal : snap?.playCode.map(WidgetLinks.play))
+                ?? WidgetLinks.today)
+            : WidgetLinks.today
         return VStack(alignment: .leading, spacing: 0) {
             head
             Spacer(minLength: 4)
-            if let t = body_.timers.first { running(t) }
+            if !visible {
+                Text(locked ? L10n.t("打开应用解锁后查看记录", "Open app to unlock records") : L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            else if let t = body_.timers.first { running(t) }
             else if journal { since }
             else { playView(linked: false) }
         }
@@ -265,17 +302,29 @@ struct TodayFace: View {
                 }
             }
         }
+        .privacySensitive()
     }
 
     private var medium: some View {
-        let headerDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
+        let headerDest = visible ? (age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today) : WidgetLinks.today
         return HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 0) {
                 Link(destination: headerDest) { head }
                 Spacer(minLength: 4)
-                if journal { playView(linked: true) } else if let t = body_.timers.first { Link(destination: WidgetLinks.care(t.type)) { running(t) } } else { playView(linked: true) }
+                if !visible {
+                    Text(locked ? L10n.t("应用已锁定，宝宝记录与快捷按钮已隐藏。", "App is locked. Records and quick actions are hidden.") : L10n.t("孩子摸索，大人点灯。在应用里同意本地保存即可同步卡片。", "They explore. You hold the light. Agree to local storage in the app to sync cards."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if journal {
+                    playView(linked: true)
+                } else if let t = body_.timers.first {
+                    Link(destination: WidgetLinks.care(t.type)) { running(t) }
+                } else {
+                    playView(linked: true)
+                }
             }
-            if journal {
+            if visible && journal {
                 HStack(spacing: 6) {
                     timerButton(LogType.nurse)
                     timerButton(LogType.sleep)
@@ -285,7 +334,7 @@ struct TodayFace: View {
             }
         }
         .foregroundStyle(.primary)
-        .widgetURL(snap?.playCode.map(WidgetLinks.play) ?? headerDest)
+        .widgetURL(visible ? (snap?.playCode.map(WidgetLinks.play) ?? headerDest) : WidgetLinks.today)
     }
 
     /// A kind of entry as a sticker on a paper card: the sticker, its name and how long ago; a timer that runs shows
@@ -347,103 +396,125 @@ struct TodayFace: View {
             }
             return L10n.t("今天一起玩", "Today's Play")
         }()
-        let headerLink = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
+        let headerLink = visible ? (age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today) : WidgetLinks.today
         return VStack(alignment: .leading, spacing: 11) {
             Link(destination: headerLink) { head }
 
-            if let code = snap?.playCode, let name = snap?.playName {
-                HStack(spacing: 12) {
-                    Link(destination: WidgetLinks.play(code)) {
-                        HStack(spacing: 12) {
-                            ArtImage(name: WidgetArt.tray(code))
-                                .frame(width: 80, height: 58)
-                                .id(code)
-                                .transition(.push(from: .bottom).combined(with: .opacity))
-                            VStack(alignment: .leading, spacing: 3) {
-                                HStack(spacing: 5) {
-                                    Circle().fill(isSleeping ? Crayon.lilac : WidgetInk.bead).frame(width: 6, height: 6)
-                                    Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent).lineLimit(1).minimumScaleFactor(0.8)
-                                }
-                                Text(name)
-                                    .font(.system(size: 15, weight: .bold, design: .rounded))
-                                    .foregroundStyle(.primary)
-                                    .lineLimit(2)
-                                    .minimumScaleFactor(0.88)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .id(name)
-                                    .transition(.opacity)
-                            }
-                            Spacer(minLength: 4)
-                        }
-                        .contentShape(Rectangle())
-                    }
-                    if canShuffle {
-                        Button(intent: CycleWidgetPlayIntent()) {
-                            Image(systemName: "arrow.trianglehead.2.clockwise")
-                                .font(.caption.weight(.bold))
-                                .foregroundStyle(WidgetInk.accent)
-                                .frame(width: 30, height: 30)
-                                .background(WidgetInk.accent.opacity(0.12), in: Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .invalidatableContent()
-                        .accessibilityLabel(L10n.t("换一个活动", "Swap activity"))
-                    }
+            if !visible {
+                VStack(alignment: .leading, spacing: 6) {
+                    Image(systemName: locked ? "lock.fill" : "lamp.desk.fill")
+                        .font(.title3.weight(.semibold))
+                        .foregroundStyle(WidgetInk.accent)
+                    Text(locked ? L10n.t("摸索台灯已锁定", "Moss & Otto is Locked") : L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                    Text(locked ? L10n.t("打开应用解锁后查看今日活动与记录", "Open Moss & Otto to unlock today's play and care records.") : L10n.t("在应用里同意本地保存并填写宝宝生日，桌面小组件会同步陪伴。", "Agree to local storage and add baby's birthday inside the app to activate widgets."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-                .padding(.horizontal, 13).padding(.vertical, 12)
+                .padding(14)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .background(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
-            }
-
-            Spacer(minLength: 0)
-
-            if journal {
-                VStack(alignment: .leading, spacing: 7) {
-                    HStack(alignment: .center, spacing: 6) {
-                        Link(destination: WidgetLinks.journal) {
-                            HStack(spacing: 6) {
-                                Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
-                                Text(L10n.t(
-                                    "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
-                                    "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
-                                ))
-                                    .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
-                                    .contentTransition(.numericText())
-                                    .lineLimit(1).minimumScaleFactor(0.78)
+                Spacer(minLength: 0)
+            } else {
+                if let code = snap?.playCode, let name = snap?.playName {
+                    HStack(spacing: 12) {
+                        Link(destination: WidgetLinks.play(code)) {
+                            HStack(spacing: 12) {
+                                ArtImage(name: WidgetArt.tray(code))
+                                    .frame(width: 80, height: 58)
+                                    .id(code)
+                                    .transition(.push(from: .bottom).combined(with: .opacity))
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 5) {
+                                        Circle().fill(isSleeping ? Crayon.lilac : WidgetInk.bead).frame(width: 6, height: 6)
+                                        Text(playCue).font(.caption2.weight(.semibold)).foregroundStyle(isSleeping ? Crayon.ink(Crayon.lilac) : WidgetInk.accent).lineLimit(1).minimumScaleFactor(0.8)
+                                    }
+                                    .privacySensitive()
+                                    Text(name)
+                                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(2)
+                                        .minimumScaleFactor(0.88)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                        .id(name)
+                                        .transition(.opacity)
+                                }
+                                Spacer(minLength: 4)
                             }
+                            .contentShape(Rectangle())
                         }
-                        Spacer(minLength: 2)
-                        if recentDiaper != nil {
-                            Button(intent: UndoLastDiaperIntent()) {
-                                Text(L10n.t("撤销", "Undo"))
-                                    .font(.system(size: 10, weight: .bold, design: .rounded))
+                        if canShuffle {
+                            Button(intent: CycleWidgetPlayIntent()) {
+                                Image(systemName: "arrow.trianglehead.2.clockwise")
+                                    .font(.caption.weight(.bold))
                                     .foregroundStyle(WidgetInk.accent)
-                                    .padding(.horizontal, 7).padding(.vertical, 3)
-                                    .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                                    .frame(width: 30, height: 30)
+                                    .background(WidgetInk.accent.opacity(0.12), in: Circle())
                             }
                             .buttonStyle(.plain)
-                            .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            .invalidatableContent()
+                            .accessibilityLabel(L10n.t("换一个活动", "Swap activity"))
                         }
                     }
-                    .padding(.horizontal, 2)
+                    .padding(.horizontal, 13).padding(.vertical, 12)
+                    .background(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                }
 
-                    Link(destination: WidgetLinks.journal) {
-                        MontessoriDayStrip(day: day, now: date, logs: todayLogs)
-                            .frame(height: 12)
-                            .padding(.horizontal, 2)
+                Spacer(minLength: 0)
+
+                if journal {
+                    VStack(alignment: .leading, spacing: 7) {
+                        HStack(alignment: .center, spacing: 6) {
+                            Link(destination: WidgetLinks.journal) {
+                                HStack(spacing: 6) {
+                                    Text(L10n.t("今天", "Today")).font(.caption2.weight(.semibold)).foregroundStyle(WidgetInk.accent)
+                                    Text(L10n.t(
+                                        "喂奶 \(feeds) 次 · 睡眠 \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") · 尿布 \(diapers.count) 次",
+                                        "\(feeds) \(feeds == 1 ? "feed" : "feeds") · \(sleepSec > 0 ? L10n.duration(sleepSec) : "—") sleep · \(diapers.count) \(diapers.count == 1 ? "diaper" : "diapers")"
+                                    ))
+                                        .font(.caption2.weight(.semibold)).foregroundStyle(.secondary).monospacedDigit()
+                                        .contentTransition(.numericText())
+                                        .lineLimit(1).minimumScaleFactor(0.78)
+                                }
+                            }
+                            .privacySensitive()
+                            Spacer(minLength: 2)
+                            if recentDiaper != nil {
+                                Button(intent: UndoLastDiaperIntent()) {
+                                    Text(L10n.t("撤销", "Undo"))
+                                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                                        .foregroundStyle(WidgetInk.accent)
+                                        .padding(.horizontal, 7).padding(.vertical, 3)
+                                        .background(WidgetInk.accent.opacity(0.14), in: Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .transition(.scale(scale: 0.85).combined(with: .opacity))
+                            }
+                        }
+                        .padding(.horizontal, 2)
+
+                        Link(destination: WidgetLinks.journal) {
+                            MontessoriDayStrip(day: day, now: date, logs: todayLogs, isFullColor: isFullColor)
+                                .frame(height: 12)
+                                .padding(.horizontal, 2)
+                        }
+                        .privacySensitive()
                     }
-                }
 
-                HStack(spacing: 8) {
-                    QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32, isFullColor: isFullColor)
-                    QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32, isFullColor: isFullColor)
-                    QuickCareFace.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: 32, count: wetCount, justLogged: recentDiaper?.detail == "wet", isFullColor: isFullColor)
-                    QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty", isFullColor: isFullColor)
+                    HStack(spacing: 8) {
+                        QuickCareFace.timerTile(body: body_, kind: .nurse, stickerSize: 32, isFullColor: isFullColor)
+                        QuickCareFace.timerTile(body: body_, kind: .sleep, stickerSize: 32, isFullColor: isFullColor)
+                        QuickCareFace.diaperTile(kind: .wet, title: L10n.t("湿尿布", "Wet"), dot: Crayon.sky, stickerSize: 32, count: wetCount, justLogged: recentDiaper?.detail == "wet", isFullColor: isFullColor)
+                        QuickCareFace.diaperTile(kind: .dirty, title: L10n.t("便尿布", "Dirty"), dot: Crayon.caramel, stickerSize: 32, count: dirtyCount, justLogged: recentDiaper?.detail == "dirty", isFullColor: isFullColor)
+                    }
+                    .frame(height: 84)
                 }
-                .frame(height: 84)
             }
         }
         .foregroundStyle(.primary)
-        .widgetURL(snap?.playCode.map(WidgetLinks.play) ?? headerLink)
+        .widgetURL(visible ? (snap?.playCode.map(WidgetLinks.play) ?? headerLink) : WidgetLinks.today)
     }
 }
 
@@ -453,6 +524,7 @@ struct MontessoriDayStrip: View {
     let day: Day
     let now: Date
     let logs: [LogEntry]
+    var isFullColor: Bool = true
 
     var body: some View {
         GeometryReader { g in
@@ -493,7 +565,7 @@ struct MontessoriDayStrip: View {
                 Circle()
                     .fill(WidgetInk.bead)
                     .frame(width: 7, height: 7)
-                    .overlay(Circle().stroke(WidgetInk.card, lineWidth: 1))
+                    .overlay(Circle().stroke(isFullColor ? WidgetInk.card : Color.clear, lineWidth: 1))
                     .position(x: max(6, min(w - 6, w * nowFrac)), y: cy)
             }
         }
@@ -520,7 +592,9 @@ struct QuickCareFace: View {
         return (elapsed >= -2 && elapsed <= confirmWindowSeconds) ? last : nil
     }
 
-    private var journal: Bool { snap?.journal == true }
+    private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
+    private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
+    private var journal: Bool { visible && snap?.journal == true }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
     private var lastWake: Date? { LastFact.of(LogType.sleep, in: body_.logs)?.at }
 
@@ -532,7 +606,20 @@ struct QuickCareFace: View {
         let dirtyCount = todayDiapers.filter { $0.detail == "dirty" || $0.detail == "both" }.count
         let recent = Self.recentDiaper(in: body_.logs, now: date)
 
-        if !journal {
+        if locked {
+            VStack(alignment: .leading, spacing: 8) {
+                Image(systemName: "lock.fill")
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(WidgetInk.accent)
+                    .padding(8)
+                    .background(Circle().fill(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08)))
+                Spacer(minLength: 0)
+                Text(L10n.t("应用已锁定", "App Locked")).font(.subheadline.weight(.bold)).foregroundStyle(.primary)
+                Text(L10n.t("解锁摸索台灯后再查看或快速记录", "Unlock Moss & Otto to view or quick log")).font(.caption2).foregroundStyle(.secondary)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .widgetURL(WidgetLinks.today)
+        } else if !journal {
             VStack(alignment: .leading, spacing: 8) {
                 ArtImage(name: WidgetArt.pair)
                     .frame(width: 34, height: 34)
@@ -726,10 +813,12 @@ struct BedsideLampFace: View {
         }
     }
 
+    private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
+    private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
     private var accented: Bool { forceAccentedPreview || renderingMode != .fullColor }
     private var primaryAccent: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x5C / 255, blue: 0x4D / 255) : Self.amber }
     private var primaryInk: Color { forceAccentedPreview ? Color(red: 0xFF / 255, green: 0x8F / 255, blue: 0x7A / 255) : .white }
-    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { visible ? snap?.developmentalAge(on: Day(date)) : nil }
     private var age: Age? { resolvedAge?.age }
     private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var lastFeed: Date? { LastFact.of(LogType.nurse, in: body_.logs)?.at }
@@ -756,7 +845,7 @@ struct BedsideLampFace: View {
     var body: some View {
         let cardDark = Color(red: 0x19 / 255, green: 0x21 / 255, blue: 0x3F / 255)
         let wakeTint = accented ? primaryInk.opacity(0.88) : Self.sleepMist
-        let journalOn = snap?.journal == true
+        let journalOn = visible && snap?.journal == true
         VStack(alignment: .leading, spacing: isMedium ? 8 : 6) {
             HStack(alignment: .center, spacing: 8) {
                 ZStack {
@@ -786,7 +875,7 @@ struct BedsideLampFace: View {
                             .widgetAccentable()
                     }
                     if journalOn, let a = age {
-                        let ageLine = (isCorrectedAge ? L10n.t("矫·\(a.months)m · ", "Corr. \(a.months)m · ") : "") + L10n.livedDays(a.lived)
+                        let ageLine = (isCorrectedAge ? L10n.t("矫·\(a.months)月 · ", "Corr. \(a.months)m · ") : "") + L10n.livedDays(a.lived)
                         let extra = snap?.careModeActive == true ? L10n.t(" · 减负照护", " · Care Mode") : ""
                         Text(ageLine + extra)
                             .font(.caption.weight(.bold))
@@ -807,12 +896,23 @@ struct BedsideLampFace: View {
 
                 if isMedium && journalOn {
                     headerControl(cardDark: cardDark)
+                        .privacySensitive()
                 }
             }
 
             Spacer(minLength: 0)
 
-            if !journalOn {
+            if locked {
+                VStack(alignment: .leading, spacing: 4) {
+                    Label(L10n.t("摸索台灯已锁定", "Moss & Otto Locked"), systemImage: "lock.fill")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(primaryAccent)
+                    Text(L10n.t("夜间记录与台灯卡片已隐藏", "Night records hidden until unlocked"))
+                        .font(.caption2)
+                        .foregroundStyle(primaryInk.opacity(0.78))
+                        .lineLimit(2)
+                }
+            } else if !journalOn {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.t("床头夜灯", "Bedside Lamp"))
                         .font(.caption.weight(.bold))
@@ -879,7 +979,7 @@ struct BedsideLampFace: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
         .environment(\.colorScheme, .dark)
-        .widgetURL(journalOn ? (body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp) : WidgetLinks.lamp)
+        .widgetURL(locked ? WidgetLinks.today : (journalOn ? (body_.timers.first.map { WidgetLinks.care($0.type) } ?? WidgetLinks.lamp) : WidgetLinks.lamp))
     }
 
     @ViewBuilder
@@ -1005,27 +1105,31 @@ struct StoryWindowFace: View {
     @Environment(\.widgetRenderingMode) private var renderingMode
     private var isFullColor: Bool { renderingMode == .fullColor }
 
-    private var resolvedAge: (age: Age, isCorrected: Bool)? { snap?.developmentalAge(on: Day(date)) }
+    private var locked: Bool { WidgetPrivacy.isLocked(snap: snap) }
+    private var visible: Bool { WidgetPrivacy.canShowRecords(snap: snap) }
+    private var resolvedAge: (age: Age, isCorrected: Bool)? { visible ? snap?.developmentalAge(on: Day(date)) : nil }
     private var age: Age? { resolvedAge?.age }
     private var isCorrectedAge: Bool { resolvedAge?.isCorrected == true }
     private var bookMonth: Int { age?.bookMonth ?? 0 }
-    private var isSleeping: Bool { body_.timers.contains { $0.type == LogType.sleep } }
+    private var isSleeping: Bool { visible && body_.timers.contains { $0.type == LogType.sleep } }
 
     var body: some View {
-        let name = snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName
-        let chapter = L10n.stretchName(for: bookMonth)
+        let name = visible && snap?.nickname.isEmpty == false ? snap!.nickname : L10n.appName
+        let chapter = visible ? L10n.stretchName(for: bookMonth) : (locked ? L10n.t("成长故事已锁定", "Story Locked") : L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
         let beadNum = min(bookMonth + 1, 37)
-        let beadLabel = isMedium
-            ? (isCorrectedAge ? L10n.t("矫·第 \(beadNum)/37 颗成长珠", "Corr. Bead \(beadNum)/37") : L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37"))
-            : (isCorrectedAge ? L10n.t("矫 \(beadNum)/37 珠", "Corr \(beadNum)/37") : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37"))
-        let monthDest = age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today
+        let beadLabel = visible
+            ? (isMedium
+                ? (isCorrectedAge ? L10n.t("矫·第 \(beadNum)/37 颗成长珠", "Corr. Bead \(beadNum)/37") : L10n.t("第 \(beadNum) / 37 颗成长珠", "Bead \(beadNum) of 37"))
+                : (isCorrectedAge ? L10n.t("矫 \(beadNum)/37 珠", "Corr \(beadNum)/37") : L10n.t("\(beadNum) / 37 珠", "\(beadNum) / 37")))
+            : (locked ? L10n.t("解锁后查看成长旅程", "Unlock to view story") : L10n.t("37 颗蒙氏成长珠", "37 Growth Beads"))
+        let monthDest = visible ? (age.map { WidgetLinks.month($0.bookMonth) } ?? WidgetLinks.today) : WidgetLinks.today
 
         VStack(alignment: .leading, spacing: isMedium ? 10 : 8) {
             HStack(alignment: .top, spacing: 8) {
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 4) {
                         Text(name).font(.caption2.weight(.semibold)).foregroundStyle(.secondary).lineLimit(1).privacySensitive()
-                        if let badge = snap?.careBadgeLabel() {
+                        if visible, let badge = snap?.careBadgeLabel() {
                             Text("· \(badge)")
                                 .font(.caption2.weight(.semibold))
                                 .foregroundStyle(WidgetInk.accent)
@@ -1050,7 +1154,7 @@ struct StoryWindowFace: View {
 
             if isMedium {
                 HStack(spacing: 10) {
-                    if let code = snap?.playCode, let playName = snap?.playName {
+                    if visible, let code = snap?.playCode, let playName = snap?.playName {
                         Link(destination: WidgetLinks.play(code)) {
                             HStack(spacing: 8) {
                                 ArtImage(name: WidgetArt.tray(code)).frame(width: 44, height: 34)
@@ -1068,9 +1172,10 @@ struct StoryWindowFace: View {
                             }
                             .padding(.horizontal, 10).padding(.vertical, 7)
                             .background(isFullColor ? WidgetInk.card : Color.primary.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                            .privacySensitive()
                         }
                     } else {
-                        Text(L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
+                        Text(locked ? L10n.t("打开摸索台灯解锁后查看陪伴活动。", "Open Moss & Otto to unlock activities.") : L10n.t("孩子摸索，大人点灯。", "They explore. You hold the light."))
                             .font(.caption.weight(.medium))
                             .foregroundStyle(.secondary)
                     }
@@ -1085,8 +1190,9 @@ struct StoryWindowFace: View {
                         .font(.system(size: 10, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetInk.accent)
                         .monospacedDigit()
+                        .privacySensitive()
                     Spacer(minLength: 2)
-                    if let a = age {
+                    if visible, let a = age {
                         Text(L10n.livedDays(a.lived))
                             .font(.system(size: 10, weight: .semibold, design: .rounded))
                             .foregroundStyle(.secondary)
@@ -1094,8 +1200,9 @@ struct StoryWindowFace: View {
                             .privacySensitive()
                     }
                 }
-                beadHorizon(current: bookMonth)
+                beadHorizon(current: visible ? bookMonth : 0)
                     .frame(height: 10)
+                    .privacySensitive()
             }
             if isMedium {
                 Link(destination: monthDest) { progressBar }
@@ -1104,7 +1211,7 @@ struct StoryWindowFace: View {
             }
         }
         .foregroundStyle(.primary)
-        .widgetURL(WidgetLinks.book)
+        .widgetURL(visible ? WidgetLinks.book : WidgetLinks.today)
     }
 
     /// 37-bead Montessori growth path condensed into a clean horizon bar with Otto's gold bead marking the child's month.
@@ -1227,5 +1334,6 @@ struct TimerControls: View {
         }
         .buttonStyle(.borderedProminent)
         .font(.subheadline.weight(.semibold))
+        .privacySensitive()
     }
 }

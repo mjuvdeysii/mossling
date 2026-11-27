@@ -382,9 +382,7 @@ struct ActivityWallpaperSheet: View {
                             L10n.t("保存或分享超清壁纸 / 印画", "Save or Share High-Res Wallpaper"),
                             systemImage: "square.and.arrow.down"
                         )
-                        .font(.callout.weight(.semibold))
-                        .frame(maxWidth: .infinity)
-                        .dsPill(.primary, height: LayoutSpec.ctaPrimaryHeight)
+                        .dsPill(.primary, height: LayoutSpec.ctaPrimaryHeight, fullWidth: true)
                     }
                     .buttonStyle(.plain)
                 }

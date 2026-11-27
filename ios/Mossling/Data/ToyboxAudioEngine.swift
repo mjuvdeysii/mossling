@@ -148,6 +148,9 @@ final class ToyboxAudioEngine {
     private var lastRainChimeAt: TimeInterval = 0
     private var lastChimeSoundAt: TimeInterval = 0
     private var arpeggioTask: Task<Void, Never>?
+    private var observersRegistered = false
+
+    var isPlaying: Bool { engine?.isRunning == true }
 
     private var isTestHost: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -335,7 +338,7 @@ final class ToyboxAudioEngine {
         engine?.stop()
         engine = nil
         players = []
-        if !SoundscapeEngine.shared.isPlaying && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
+        if !SoundscapeEngine.shared.hasActiveEngine && !FirstVoiceController.shared.isRecording && FirstVoiceController.shared.playingID == nil {
             try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         }
     }
@@ -344,9 +347,13 @@ final class ToyboxAudioEngine {
 
     private func ensureEngine() -> Bool {
         guard !FirstVoiceController.shared.isRecording else { return false }
-        if SoundscapeEngine.shared.isPlaying {
+        if SoundscapeEngine.shared.hasActiveEngine {
             SoundscapeEngine.shared.stopImmediately(deactivateSession: false)
         }
+        if FirstVoiceController.shared.playingID != nil {
+            FirstVoiceController.shared.stopPlayback()
+        }
+        registerObserversIfNeeded()
         if let e = engine {
             if !e.isRunning { try? e.start() }
             return e.isRunning
@@ -371,6 +378,52 @@ final class ToyboxAudioEngine {
             return true
         } catch {
             return false
+        }
+    }
+
+    private func registerObserversIfNeeded() {
+        guard !observersRegistered, !isTestHost else { return }
+        observersRegistered = true
+        let nc = NotificationCenter.default
+        nc.addObserver(forName: AVAudioSession.interruptionNotification, object: nil, queue: nil) { [weak self] note in
+            let typeVal = note.userInfo?[AVAudioSessionInterruptionTypeKey] as? UInt
+            let optVal = note.userInfo?[AVAudioSessionInterruptionOptionKey] as? UInt
+            Task { @MainActor [weak self] in
+                guard let self, let typeVal, let type = AVAudioSession.InterruptionType(rawValue: typeVal) else { return }
+                switch type {
+                case .began:
+                    self.arpeggioTask?.cancel()
+                    self.arpeggioTask = nil
+                    for p in self.players { p.stop() }
+                    self.engine?.pause()
+                case .ended:
+                    let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
+                    if opts.contains(.shouldResume), let e = self.engine, !FirstVoiceController.shared.isRecording, !SoundscapeEngine.shared.hasActiveEngine {
+                        try? AVAudioSession.sharedInstance().setActive(true)
+                        try? e.start()
+                    }
+                @unknown default:
+                    break
+                }
+            }
+        }
+        nc.addObserver(forName: AVAudioSession.routeChangeNotification, object: nil, queue: nil) { [weak self] note in
+            let reasonVal = note.userInfo?[AVAudioSessionRouteChangeReasonKey] as? UInt
+            Task { @MainActor [weak self] in
+                guard let self, let reasonVal, let reason = AVAudioSession.RouteChangeReason(rawValue: reasonVal) else { return }
+                if reason == .oldDeviceUnavailable {
+                    self.stop()
+                }
+            }
+        }
+        nc.addObserver(forName: .AVAudioEngineConfigurationChange, object: nil, queue: nil) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.engine != nil else { return }
+                for p in self.players { p.stop() }
+                self.engine?.stop()
+                self.engine = nil
+                self.players = []
+            }
         }
     }
 

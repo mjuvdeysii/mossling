@@ -439,7 +439,11 @@
           </div>
         </div>
 
-        <article class="lamp-paper">
+        <section class="card-block" id="cardErrorBanner" hidden>
+          <p id="cardErrorText"></p>
+        </section>
+
+        <article class="lamp-paper" id="cardPaper">
           <div class="card-meta-row">
             <span class="card-stage-pill" id="cardStagePill">3–6 月 · 掌控身体</span>
             <span class="card-baby-pill" id="cardKindPill">发光微直觉卡</span>
@@ -594,34 +598,37 @@
 
       function decodeFragment() {
         var h = window.location.hash || "";
-        if (!h || h.indexOf("d=") === -1) return null;
+        if (!h || h.indexOf("d=") === -1) return { status: "none", payload: null };
         try {
           var raw = h.replace(/^#/, "").split("&").find(function (p) { return p.indexOf("d=") === 0; });
-          if (!raw) return null;
+          if (!raw || raw.length <= 2) return { status: "invalid", payload: null };
           var b64 = raw.slice(2).replace(/-/g, "+").replace(/_/g, "/");
           while (b64.length % 4) b64 += "=";
           var bin = atob(b64);
           var bytes = new Uint8Array(bin.length);
           for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
           var obj = JSON.parse(new TextDecoder("utf-8").decode(bytes));
-          if (!obj || typeof obj !== "object" || typeof obj.ti !== "string") return null;
-          return obj;
+          if (!obj || typeof obj !== "object" || typeof obj.ti !== "string") return { status: "invalid", payload: null };
+          return { status: "ok", payload: obj };
         } catch (e) {
-          return null;
+          return { status: "invalid", payload: null };
         }
       }
 
       function storageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
       function storageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
 
-      var livePayload = decodeFragment();
+      var decoded = decodeFragment();
+      var livePayload = decoded.payload;
       var activeSample = "roll";
       var activeLang = livePayload && livePayload.l === "en" ? "en" : (storageGet("mossling-lang") === "en" ? "en" : "zh");
 
       function stopSpeech() {
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-        }
+        try {
+          if ("speechSynthesis" in window && window.speechSynthesis) {
+            window.speechSynthesis.cancel();
+          }
+        } catch (e) {}
         if (speakBtn) {
           speakBtn.classList.remove("active");
           speakBtn.textContent = activeLang === "en" ? "Read Aloud" : "读给家人听";
@@ -629,7 +636,6 @@
       }
 
       function render() {
-        var data = livePayload || samples[activeSample][activeLang];
         html.setAttribute("data-lang", activeLang);
         html.setAttribute("lang", activeLang === "en" ? "en" : "zh-Hans");
         if (langBtn) langBtn.textContent = activeLang === "en" ? "中文" : "EN";
@@ -639,7 +645,31 @@
           if (txt !== null) el.textContent = txt;
         });
 
+        var errBanner = document.getElementById("cardErrorBanner");
+        var errText = document.getElementById("cardErrorText");
+        var cardPaper = document.getElementById("cardPaper");
         var statusLabel = document.getElementById("cardStatusLabel");
+        var demoBar = document.getElementById("demoBar");
+
+        if (decoded.status === "invalid") {
+          if (errBanner && errText) {
+            errBanner.hidden = false;
+            errText.textContent = activeLang === "en"
+              ? "This shared card link is incomplete or truncated. Please ask your family member to re-share it."
+              : "这张分享卡片链接不完整或已被截断，为防误导不显示示例卡片，请让家人重新发送。";
+          }
+          if (cardPaper) cardPaper.hidden = true;
+          if (demoBar) demoBar.hidden = true;
+          if (statusLabel) {
+            statusLabel.textContent = activeLang === "en" ? "Incomplete Shared Link" : "分享链接不完整";
+          }
+          stopSpeech();
+          return;
+        }
+        if (errBanner) errBanner.hidden = true;
+        if (cardPaper) cardPaper.hidden = false;
+
+        var data = livePayload || samples[activeSample][activeLang];
         if (statusLabel) {
           if (livePayload) {
             statusLabel.textContent = activeLang === "en" ? "From Family iPhone · Offline URL # Card" : "来自家人 iPhone · 零服务器长辈摸索卡";
@@ -648,7 +678,6 @@
           }
         }
 
-        var demoBar = document.getElementById("demoBar");
         if (demoBar) {
           demoBar.hidden = Boolean(livePayload);
         }
@@ -745,11 +774,24 @@
           utter.rate = 0.92;
           utter.onend = stopSpeech;
           utter.onerror = stopSpeech;
-          speakBtn.classList.add("active");
-          speakBtn.textContent = activeLang === "en" ? "Stop Voice" : "停止朗读";
-          window.speechSynthesis.speak(utter);
-        });
+            speakBtn.classList.add("active");
+            speakBtn.textContent = activeLang === "en" ? "Stop Voice" : "停止朗读";
+            try {
+              window.speechSynthesis.speak(utter);
+            } catch (e) {
+              stopSpeech();
+            }
+          });
       }
+
+      window.addEventListener("hashchange", function () {
+        decoded = decodeFragment();
+        livePayload = decoded.payload;
+        if (livePayload && (livePayload.l === "en" || livePayload.l === "zh")) {
+          activeLang = livePayload.l;
+        }
+        render();
+      });
 
       document.querySelectorAll("[data-sample]").forEach(function (btn) {
         btn.addEventListener("click", function () {

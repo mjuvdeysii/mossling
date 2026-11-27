@@ -593,7 +593,7 @@ final class ScreenshotTests: XCTestCase {
     func test32Widgets() {
         let day = Day(y: 2026, m: 10, d: 19)
         let now = day.date.addingTimeInterval(20 * 3600)
-        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会")
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true, consentVersion: SharedConsent.version)
         var idle = JournalFile.Body()
         idle.logs = [LogEntry(type: LogType.nurse, start: ms(now) - 140 * 60_000, end: ms(now) - 120 * 60_000, side: "l"),
                      LogEntry(type: LogType.sleep, start: ms(now) - 300 * 60_000, end: ms(now) - 200 * 60_000),
@@ -631,7 +631,7 @@ final class ScreenshotTests: XCTestCase {
         let day = Day(y: 2026, m: 10, d: 19)
         let now = day.date.addingTimeInterval(16 * 3600 + 20 * 60)
         let plays = [PlayRef(code: "A11", name: "双手物品传递机会"), PlayRef(code: "A12", name: "听声音找方向")]
-        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true, weekPlays: plays)
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true, weekPlays: plays, consentVersion: SharedConsent.version)
         var idle = JournalFile.Body()
         idle.logs = [
             LogEntry(type: LogType.sleep, start: ms(day.date) + 1 * 3600_000, end: ms(day.date) + 6 * 3600_000),
@@ -670,7 +670,7 @@ final class ScreenshotTests: XCTestCase {
         let day = Day(y: 2026, m: 10, d: 19)
         let now = day.date.addingTimeInterval(16 * 3600 + 20 * 60)
         let plays = [PlayRef(code: "A11", name: "Hand-to-Hand Object Transfer"), PlayRef(code: "A12", name: "Follow the Gentle Sound")]
-        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "Leo", companion: "Moss", journal: true, playCode: "A11", playName: "Hand-to-Hand Object Transfer", consented: true, weekPlays: plays)
+        let snap = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "Leo", companion: "Moss", journal: true, playCode: "A11", playName: "Hand-to-Hand Object Transfer", consented: true, weekPlays: plays, consentVersion: SharedConsent.version)
         var idle = JournalFile.Body()
         idle.logs = [
             LogEntry(type: LogType.sleep, start: ms(day.date) + 1 * 3600_000, end: ms(day.date) + 6 * 3600_000),
@@ -705,7 +705,7 @@ final class ScreenshotTests: XCTestCase {
                 .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
         }
         L10n.overrideEnglish = false
-        let snapZh = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true)
+        let snapZh = Snapshot(birthEpochDay: Day(y: 2026, m: 4, d: 2).epochDay, nickname: "小满", companion: "Moss", journal: true, playCode: "A11", playName: "双手物品传递机会", consented: true, consentVersion: SharedConsent.version)
         let storyPage = VStack(spacing: 18) {
             HStack(spacing: 18) {
                 tile(170, 170, bg: WidgetInk.paper, StoryWindowFace(date: now, snap: snapZh, body_: idle, isMedium: false))
@@ -1225,7 +1225,8 @@ final class ScreenshotTests: XCTestCase {
             journal: true,
             playCode: "A11",
             playName: "左右手倒手",
-            consented: true
+            consented: true,
+            consentVersion: SharedConsent.version
         )
         var idle = JournalFile.Body()
         idle.logs = [
@@ -1302,7 +1303,8 @@ final class ScreenshotTests: XCTestCase {
             nickname: "Leo",
             companion: "Moss",
             journal: true,
-            consented: true
+            consented: true,
+            consentVersion: SharedConsent.version
         )
         shot("53_standby_beacon_accented_en", dark: true, height: 610,
              VStack(spacing: 16) {

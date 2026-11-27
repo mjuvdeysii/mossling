@@ -250,19 +250,22 @@ struct GrowthView: View {
                 RuleMark(x: .value(L10n.t("今天", "Today"), now)).foregroundStyle(ind.tint.opacity(0.6)).lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 4]))
                     .annotation(position: .top, alignment: .center) { Text(L10n.t("今天", "Today")).font(.caption2).foregroundStyle(ind.tint) }
             }
-            ForEach(Array(pts.enumerated()), id: \.offset) { _, p in
+            ForEach(Array(pts.filter { $0.1 >= 0 && $0.1 <= 36 }.enumerated()), id: \.offset) { _, p in
                 LineMark(x: .value(L10n.t("月龄", "Age"), p.1), y: .value(L10n.t("值", "Value"), p.2), series: .value(L10n.t("百分位", "Percentile"), "child"))
                     .foregroundStyle(ind.tint).lineStyle(StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
                 PointMark(x: .value(L10n.t("月龄", "Age"), p.1), y: .value(L10n.t("值", "Value"), p.2))
                     .foregroundStyle(ind.tint).symbolSize(activeID == p.0.id ? 120 : 56)
             }
-            if let id = activeID, let p = pts.first(where: { $0.0.id == id }) {
+            if let id = activeID, let p = pts.first(where: { $0.0.id == id && $0.1 >= 0 && $0.1 <= 36 }) {
                 RuleMark(x: .value(L10n.t("选中", "Selected"), p.1))
                     .foregroundStyle(ind.tint.opacity(0.45))
                     .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [2, 3]))
                 PointMark(x: .value(L10n.t("月龄", "Age"), p.1), y: .value(L10n.t("值", "Value"), p.2))
                     .foregroundStyle(.white).symbolSize(26)
             }
+        }
+        .chartPlotStyle { plotArea in
+            plotArea.clipped()
         }
         .chartForegroundStyleScale(["3–97": ind.tint.opacity(0.09), "15–85": ind.tint.opacity(0.15)])
         .chartLegend(.hidden)
@@ -321,7 +324,8 @@ struct GrowthView: View {
                 Text(verbatim: d.ymd).font(.subheadline.weight(.semibold))
                 if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                     let days = b.days(to: d)
-                    Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
+                    let ageStr = days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d)
+                    Text(verbatim: b != app.birth ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : ageStr)
                         .font(.caption).foregroundStyle(Palette.secondaryText)
                 }
                 Spacer(minLength: 4)
@@ -383,7 +387,8 @@ struct GrowthView: View {
                                     .foregroundStyle(.primary)
                                 if let b = Self.developmentalBirth(for: m, birth: app.birth, gestationalWeeks: app.gestationalWeeks) {
                                     let days = b.days(to: d)
-                                    Text(verbatim: days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d))
+                                    let ageStr = days >= 0 ? Firsts.age(from: b, to: d) : Firsts.age(from: app.birth ?? b, to: d)
+                                    Text(verbatim: b != app.birth ? "\(ageStr) · \(L10n.t("矫正", "Corrected"))" : ageStr)
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(Palette.secondaryText)
                                         .padding(.horizontal, 7)

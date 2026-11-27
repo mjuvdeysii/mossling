@@ -134,14 +134,16 @@ enum GrowthYearbookPDF {
             var capLines: [String] = []
             for cap in capsuleItems.sorted(by: { $0.writtenAt < $1.writtenAt }) {
                 let ageTrim = cap.writtenAgeLabel.trimmingCharacters(in: .whitespacesAndNewlines)
-                if cap.isLocked(on: app.today) {
-                    let unlockLabel = cap.unlockDay?.ymd ?? L10n.t("未来约定日", "Future date")
+                if cap.openedAt == nil {
+                    let unlockLabel = cap.unlockDay?.ymd ?? L10n.t("随时可启封", "ready to unseal")
                     let agePartZh = ageTrim.isEmpty ? "" : "\(ageTrim)"
                     let agePartEn = ageTrim.isEmpty ? "" : " \(ageTrim)"
+                    let stateZh = cap.isLocked(on: app.today) ? "\(unlockLabel)启封，正文封存保密中" : "火漆未启封，正文保密中"
+                    let stateEn = cap.isLocked(on: app.today) ? "locked until \(unlockLabel)" : "unopened wax seal — body masked"
                     capLines.append(
                         L10n.t(
-                            "[\(cap.seal.title)]《\(cap.title)》· \(agePartZh)封缄（\(unlockLabel)启封，正文封存保密中）",
-                            "[\(cap.seal.title)] \"\(cap.title)\" · sealed\(agePartEn) (locked until \(unlockLabel))"
+                            "[\(cap.seal.title)]《\(cap.title)》· \(agePartZh)封缄（\(stateZh)）",
+                            "[\(cap.seal.title)] \"\(cap.title)\" · sealed\(agePartEn) (\(stateEn))"
                         )
                     )
                 } else {

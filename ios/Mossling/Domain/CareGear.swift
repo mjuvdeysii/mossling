@@ -84,6 +84,26 @@ enum CareGearEngine {
     }
 }
 
+/// Recent 24-hour fever / medication watch snapshot surfacing proactive medical care cards across Explore & Lamp.
+struct CareWatchSummary: Equatable, Sendable {
+    let latestTemp: LogEntry?
+    let latestMed: LogEntry?
+    var hasFever: Bool { (latestTemp?.amount ?? 0) >= 380 }
+    var hasActivity: Bool { latestTemp != nil || latestMed != nil }
+
+    static func recent24h(in logs: [LogEntry], now: Date = Date()) -> CareWatchSummary {
+        let endMs = now.timeIntervalSince1970 * 1000
+        let startMs = endMs - 24.0 * 3600.0 * 1000.0
+        let temp = logs
+            .filter { $0.type == LogType.temp && $0.start >= startMs && $0.start <= endMs }
+            .max { $0.start < $1.start }
+        let med = logs
+            .filter { $0.type == LogType.medicine && $0.start >= startMs && $0.start <= endMs }
+            .max { $0.start < $1.start }
+        return CareWatchSummary(latestTemp: temp, latestMed: med)
+    }
+}
+
 /// Pure, tested category filter powering click-to-isolate standalone ledger columns in `LampHubView`.
 enum LampHubFilter {
     static let feedKey = "feed"

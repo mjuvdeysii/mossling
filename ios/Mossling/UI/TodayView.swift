@@ -4,12 +4,13 @@ import TipKit
 /// Pure Moss Exploration Home (`摸索 / Explore`):
 /// Holds strictly what helps parent and child explore together right now:
 /// 1) Serene compact `ExploreGreetingStrip` (with cross-tab switch to `留念` Journey when desired),
-/// 2) `TodayPlayCard` (Play together today with live Pixar 3D × Ghibli 2D living stage + 4 weekly plays),
+/// 2) `TodayPlayCard` (Play together today with live 3D soft-vinyl × 2D watercolor stage + 4 weekly plays),
 /// 3) Two-card `SensoryDiscoveryDock` (Sensory Toybox + First Foods Atlas).
 /// Sleep/feeds/lamp/rhythm live on `台灯 (Lamp)`, keepsakes/month guide/growth/due checkups live on `留念 (Keepsakes)`.
 struct TodayView: View {
     @Environment(AppModel.self) private var app
     @Environment(AppRouter.self) private var router: AppRouter?
+    @Environment(JournalStore.self) private var j
     @Environment(\.colorScheme) private var scheme
     @Environment(\.lamp) private var lamp
     @Environment(\.night) private var night
@@ -23,6 +24,7 @@ struct TodayView: View {
     var body: some View {
         let baby = app.babyMonth ?? 0
         let dark = lamp || scheme == .dark
+        let careWatch = app.journal ? CareWatchSummary.recent24h(in: j.logs) : nil
 
         ScrollView {
             VStack(alignment: .leading, spacing: LayoutSpec.cardGap) {
@@ -33,6 +35,9 @@ struct TodayView: View {
                 ExploreGreetingStrip(month: baby, baby: baby, isNight: night || lamp) {
                     TactileEngine.shared.beadClick()
                     router?.openKeepsakes(.month(baby))
+                }
+                if let careWatch, app.careModeActive || careWatch.hasFever || careWatch.latestMed != nil {
+                    careSanctuaryCard(watch: careWatch, dark: dark)
                 }
                 if app.age != nil { TipView(shelfTip) }
                 TodayPlayCard(
@@ -61,6 +66,79 @@ struct TodayView: View {
         }
         .sheet(isPresented: $askBirth) { BirthSheet().lampPresented() }
         .sheet(isPresented: $arranging) { ShelfEditor().lampPresented() }
+    }
+
+    @ViewBuilder
+    private func careSanctuaryCard(watch: CareWatchSummary, dark: Bool) -> some View {
+        let alertColor: Color = watch.hasFever ? Palette.danger : Crayon.teal
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 8) {
+                IconTile(symbol: watch.hasFever ? "thermometer.high" : "cross.case.fill", color: alertColor, size: 28, round: true)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(watch.hasFever ? L10n.t("24h 体温与照护看护", "24h Fever & Care Watch") : L10n.t("柔和照护模式", "Care Sanctuary Mode"))
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.primary)
+                    Text(L10n.t("近期有体温或用药记录，随时单手补记", "Recent fever or medicine logged — quick 1-tap follow-up"))
+                        .font(.caption2)
+                        .foregroundStyle(Palette.secondaryText)
+                }
+                Spacer(minLength: 4)
+                if app.careModeActive {
+                    Button(L10n.t("收起", "Done")) {
+                        TactileEngine.shared.beadClick()
+                        withAnimation(.snappy) { app.careModeActive = false }
+                    }
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(Crayon.ink(Crayon.teal))
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if let temp = watch.latestTemp {
+                HStack(spacing: 6) {
+                    Circle().fill(watch.hasFever ? Palette.danger : Crayon.tangerine).frame(width: 7, height: 7)
+                    Text(L10n.t("体温 \(hm(temp.startDate)) · \(temp.summary)", "Temp \(hm(temp.startDate)) · \(temp.summary)"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(watch.hasFever ? Palette.danger : .primary)
+                }
+            }
+            if let med = watch.latestMed {
+                let medText = med.summary.isEmpty ? LogType.name(LogType.medicine) : med.summary
+                HStack(spacing: 6) {
+                    Circle().fill(Crayon.teal).frame(width: 7, height: 7)
+                    Text(L10n.t("用药 \(hm(med.startDate)) · \(medText)", "Med \(hm(med.startDate)) · \(medText)"))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.primary)
+                }
+            }
+
+            WrapLayout(spacing: 8) {
+                Button {
+                    guard app.mayKeep() else { return }
+                    TactileEngine.shared.beadClick()
+                    j.ask = LogType.temp
+                    router?.openLamp(nil)
+                } label: {
+                    Label(L10n.t("记体温", "Log Temp"), systemImage: LogType.symbol(LogType.temp))
+                        .dsPill(.tinted(watch.hasFever ? Crayon.cherry : Crayon.tangerine), height: 34)
+                }
+                .buttonStyle(.toy)
+
+                Button {
+                    guard app.mayKeep() else { return }
+                    TactileEngine.shared.beadClick()
+                    j.ask = LogType.medicine
+                    router?.openLamp(nil)
+                } label: {
+                    Label(L10n.t("记用药", "Log Med"), systemImage: LogType.symbol(LogType.medicine))
+                        .dsPill(.tinted(Crayon.teal), height: 34)
+                }
+                .buttonStyle(.toy)
+            }
+        }
+        .padding(LayoutSpec.cardPad)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .printCard(radius: Radius.card, fill: alertColor.opacity(dark ? 0.16 : 0.08))
     }
 
     @ViewBuilder
@@ -457,10 +535,17 @@ struct DueCard: View {
     let month: Int
     var body: some View {
         let dark = lamp || scheme == .dark
+        let region = app.healthRegion
         let mo = app.content.month(month)
-        let total = mo.vaccines.count + mo.checkups.count
-        let done = app.count(month, TickKind.vaccine) + app.count(month, TickKind.checkup)
-        let earlier = app.duePending(before: month).count
+        let regItems = region == .cn ? [] : HealthRegion.schedule(for: region, month: month)
+        let total = region == .cn ? (mo.vaccines.count + mo.checkups.count) : regItems.count
+        let done = region == .cn
+            ? (app.count(month, TickKind.vaccine) + app.count(month, TickKind.checkup))
+            : regItems.filter { item in
+                let kind = item.kind == "vaccine" ? TickKind.vaccine : TickKind.checkup
+                return app.ticked(month, kind, "reg-\(region.rawValue)-\(item.id)")
+            }.count
+        let earlier = region == .cn ? app.duePending(before: month).count : 0
         let dotsCount = max(1, min(total, 8))
         if total > done || earlier > 0 {
             NavigationLink(value: KeepsakesRoute.care(month)) {
@@ -1052,10 +1137,11 @@ struct BirthSheet: View {
             .navigationTitle(L10n.t("出生日期", "Birthday")).navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(L10n.t("取消", "Cancel"), systemImage: "xmark") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { if first { app.journal = records }; app.birth = Day(date); dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(L10n.t("完成", "Done"), systemImage: "checkmark") { guard app.mayKeep() else { return }; if first { app.journal = records }; app.birth = Day(date); dismiss() } }
             }
             .onAppear { if let b = app.birth { date = b.date }; first = !app.onboarded && app.birth == nil }
         }
         .presentationDetents([.large])
+        .localConsentSheet()
     }
 }

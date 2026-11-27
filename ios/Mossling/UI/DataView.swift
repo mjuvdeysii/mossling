@@ -247,10 +247,26 @@ struct DataView: View {
         .navigationTitle(L10n.t("离线备份", "Local Data"))
         .navigationBarTitleDisplayMode(.inline)
         .confirmationDialog(L10n.t("清除这台手机上的全部数据？", "Clear all data on this iPhone?"), isPresented: $clearing, titleVisibility: .visible) {
-            Button(L10n.t("全部清除", "Clear all"), role: .destructive) { app.clearAll(); j.reload(); saved = nil }
+            Button(L10n.t("全部清除", "Clear all"), role: .destructive) {
+                app.clearAll()
+                j.reload()
+                j.toast = nil
+                j.focus = nil
+                j.ask = nil
+                saved = nil
+            }
         } message: { Text(L10n.t("包括孩子资料、全部记录、设置与本机暂存的导出文件。清除后无法恢复。", "This includes your child's profile, all records, settings, and staged exports. This cannot be undone.")) }
         .confirmationDialog(L10n.t("撤回同意，并清除这台手机上的全部数据？", "Withdraw consent and clear all data on this iPhone?"), isPresented: $withdrawing, titleVisibility: .visible) {
-            Button(L10n.t("撤回并清除", "Withdraw and clear"), role: .destructive) { app.clearAll(); app.consent = "declined"; app.onboarded = true; j.reload(); saved = nil }
+            Button(L10n.t("撤回并清除", "Withdraw and clear"), role: .destructive) {
+                app.clearAll()
+                app.consent = "declined"
+                app.onboarded = true
+                j.reload()
+                j.toast = nil
+                j.focus = nil
+                j.ask = nil
+                saved = nil
+            }
         } message: { Text(L10n.t("撤回后不再保存孩子的信息，已保存的会全部删除，无法恢复；需要保留的，请先在上面导出完整备份。仍可浏览全部玩法和月龄内容。以后需要时，可以再次选择同意。", "After withdrawing, no child information will be stored and all saved data will be permanently deleted. Export a full backup above first if you want to keep a copy. You can still browse all activities and age guides, and agree again anytime.")) }
         .fileImporter(isPresented: $importing, allowedContentTypes: [.json]) { r in
             if case let .success(url) = r { confirmImport = url }
@@ -280,8 +296,13 @@ struct DataView: View {
         let d = Day.today, t = hm(Date()).replacingOccurrences(of: ":", with: "")
         let name = "\(L10n.appName)-\(k.fileSlug)-" + String(format: "%04d%02d%02d", d.y, d.m, d.d) + "-\(t).\(k.ext)"
         do {
-            let dir = DataView.exportFolder
-            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            let fm = FileManager.default
+            var dir = DataView.exportFolder
+            try? fm.removeItem(at: dir)
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            var rv = URLResourceValues()
+            rv.isExcludedFromBackup = true
+            try? dir.setResourceValues(rv)
             let url = dir.appendingPathComponent(name)
             try data.write(to: url, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             withAnimation(.snappy) { saved = url }
@@ -329,13 +350,20 @@ struct DataView: View {
     static func tidyDocuments() {
         let fm = FileManager.default
         let docs = fm.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let keep = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true)
+        var keep = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0].appendingPathComponent("earlier", isDirectory: true)
         guard let items = try? fm.contentsOfDirectory(at: docs, includingPropertiesForKeys: nil) else { return }
         for u in items {
             // with no app group the journal itself lives in Documents: leave it where the app reads it
             if JournalFile.dir.standardizedFileURL == docs.standardizedFileURL && ["journal.json", "snapshot.json"].contains(u.lastPathComponent) { continue }
             try? fm.createDirectory(at: keep, withIntermediateDirectories: true)
-            try? fm.moveItem(at: u, to: keep.appendingPathComponent(u.lastPathComponent))
+            var rv = URLResourceValues()
+            rv.isExcludedFromBackup = true
+            try? keep.setResourceValues(rv)
+            let preferred = keep.appendingPathComponent(u.lastPathComponent)
+            let dest = fm.fileExists(atPath: preferred.path)
+                ? keep.appendingPathComponent("\(UUID().uuidString)-\(u.lastPathComponent)")
+                : preferred
+            try? fm.moveItem(at: u, to: dest)
         }
     }
 }

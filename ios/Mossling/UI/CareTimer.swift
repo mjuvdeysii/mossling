@@ -210,13 +210,14 @@ struct TimerScreen: View {
             }
             .navigationTitle(L10n.logName(type))
             .navigationBarTitleDisplayMode(.inline)
-            .toasts(bottom: true)
+            .toasts(bottom: true, suppressed: showingLamp || app.appLocked)
         }
         .onAppear { volumeMonitor.start() }
         .onDisappear { volumeMonitor.stop() }
         .fullScreenCover(isPresented: $showingLamp) {
             BedsideLampView()
         }
+        .localConsentSheet()
     }
 
     // MARK: before starting
@@ -317,6 +318,7 @@ struct TimerScreen: View {
     }
 
     private func begin(side: String?) {
+        guard app.mayKeep() else { return }
         TactileEngine.shared.beadClick()
         withAnimation(.snappy) { j.start(type, side: side, at: min(chosenStart, Date())) }
         startAgo = 0; startAt = nil

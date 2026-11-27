@@ -87,12 +87,17 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
         case 0:
             return [
                 ReferenceEntry(id: "us-0-v", kind: "vaccine", title: L10n.t("乙肝疫苗第 1 剂（出生后）", "HepB dose 1 (birth)")),
-                ReferenceEntry(id: "us-0-c", kind: "checkup", title: L10n.t("新生儿出院后首次儿科复诊（3–5 天）与满月随访", "Newborn visit (3–5 days) & 1-month well-child check"))
+                ReferenceEntry(id: "us-0-c", kind: "checkup", title: L10n.t("新生儿出院后首次儿科复诊（3–5 天）", "Newborn visit (3–5 days after birth)"))
+            ]
+        case 1:
+            return [
+                ReferenceEntry(id: "us-1-v", kind: "vaccine", title: L10n.t("1–2 月龄乙肝疫苗第 2 剂窗口", "1–2 mo window: HepB dose 2")),
+                ReferenceEntry(id: "us-1-c", kind: "checkup", title: L10n.t("满月 AAP 儿保访视：体重回升与喂养沟通", "1-month AAP well-child visit: growth & feeding review"))
             ]
         case 2:
             return [
-                ReferenceEntry(id: "us-2-v", kind: "vaccine", title: L10n.t("2 月龄联合免疫（DTaP / Hib / IPV / PCV / 轮状病毒）", "2-month vaccines: DTaP, Hib, IPV, PCV, Rotavirus (HepB dose 2 at 1–2 mo)")),
-                ReferenceEntry(id: "us-2-c", kind: "checkup", title: L10n.t("2 月龄 AAP 儿保访视：体重身高头围曲线与喂养沟通", "2-month AAP well-child visit & maternal depression screen"))
+                ReferenceEntry(id: "us-2-v", kind: "vaccine", title: L10n.t("2 月龄联合免疫（DTaP / Hib / IPV / PCV / 轮状病毒）", "2-month vaccines: DTaP, Hib, IPV, PCV, Rotavirus")),
+                ReferenceEntry(id: "us-2-c", kind: "checkup", title: L10n.t("2 月龄 AAP 儿保访视：生长曲线与产后情绪问询", "2-month AAP well-child visit & maternal well-being screen"))
             ]
         case 4:
             return [
@@ -101,7 +106,7 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 6:
             return [
-                ReferenceEntry(id: "us-6-v", kind: "vaccine", title: L10n.t("6 月龄联合免疫（DTaP / PCV / 乙肝 / 季节性流感建议）", "6-month vaccines: DTaP, PCV, HepB (6–18 mo window), Influenza (6 mo+)")),
+                ReferenceEntry(id: "us-6-v", kind: "vaccine", title: L10n.t("6 月龄联合免疫（DTaP / PCV / 乙肝 6–18m 窗口 / 季节性流感建议）", "6-month vaccines: DTaP, PCV, HepB (6–18 mo window), Influenza (6 mo+)")),
                 ReferenceEntry(id: "us-6-c", kind: "checkup", title: L10n.t("6 月龄 AAP 儿保访视：口腔涂氟问询与辅食引入", "6-month AAP well-child visit, oral health & solid foods review"))
             ]
         case 9:
@@ -115,7 +120,7 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 15:
             return [
-                ReferenceEntry(id: "us-15-v", kind: "vaccine", title: L10n.t("15–18 月龄 DTaP 第 4 剂（及未完成窗口疫苗）", "15–18 mo DTaP dose 4 & catch-up check")),
+                ReferenceEntry(id: "us-15-v", kind: "vaccine", title: L10n.t("15–18 月龄 DTaP 第 4 剂（及 6–18m IPV/HepB 窗口复核）", "15–18 mo DTaP dose 4 & IPV/HepB catch-up check")),
                 ReferenceEntry(id: "us-15-c", kind: "checkup", title: L10n.t("15 月龄 AAP 儿保访视", "15-month AAP well-child visit"))
             ]
         case 18:
@@ -125,7 +130,7 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 24:
             return [
-                ReferenceEntry(id: "us-24-c", kind: "checkup", title: L10n.t("2 岁 AAP 儿保访视：24 月龄社交沟通筛查与血压/口腔复核", "24-month AAP well-child visit & developmental follow-up"))
+                ReferenceEntry(id: "us-24-c", kind: "checkup", title: L10n.t("2 岁 AAP 儿保访视：24 月龄社交沟通筛查与口腔健康复核", "24-month AAP well-child visit & developmental follow-up"))
             ]
         case 30:
             return [
@@ -133,12 +138,10 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 36:
             return [
-                ReferenceEntry(id: "us-36-c", kind: "checkup", title: L10n.t("3 岁 AAP 儿保访视：视力初步检查、语言与社会情绪评估", "3-year AAP well-child visit, vision & emotional screening"))
+                ReferenceEntry(id: "us-36-c", kind: "checkup", title: L10n.t("3 岁 AAP 儿保访视：视力检查、儿童血压评估、语言与社会情绪发展", "3-year AAP well-child visit, vision, blood pressure & preschool readiness"))
             ]
         default:
-            return [
-                ReferenceEntry(id: "us-\(month)-n", kind: "checkup", title: L10n.t("美国 AAP 本月无固定常规接种节点，关注年度生长记录与日常发育观察即可。", "No routine US AAP/CDC well-child visit scheduled specifically at \(month) months; check adjacent milestones."))
-            ]
+            return []
         }
     }
 
@@ -150,37 +153,35 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
             ]
         case 2:
             return [
-                ReferenceEntry(id: "uk-2-v", kind: "vaccine", title: L10n.t("8 周（约 2 月龄）：六联疫苗第 1 剂、MenB、轮状病毒", "8 weeks (~2 mo): 6-in-1 (1st), MenB (1st), Rotavirus (1st)")),
+                ReferenceEntry(id: "uk-2-v", kind: "vaccine", title: L10n.t("8 周（约 2 月龄）：六联疫苗第 1 剂、MenB 第 1 剂、轮状病毒第 1 剂", "8 weeks (~2 mo): 6-in-1 (1st), MenB (1st), Rotavirus (1st)")),
                 ReferenceEntry(id: "uk-2-c", kind: "checkup", title: L10n.t("6–8 周 GP 婴儿与产后全面健康检查", "6–8 week GP baby & postnatal health check"))
             ]
         case 3:
             return [
-                ReferenceEntry(id: "uk-3-v", kind: "vaccine", title: L10n.t("12 周（约 3 月龄）：六联疫苗第 2 剂、PCV13、轮状病毒第 2 剂", "12 weeks (~3 mo): 6-in-1 (2nd), PCV, Rotavirus (2nd)"))
+                ReferenceEntry(id: "uk-3-v", kind: "vaccine", title: L10n.t("12 周（约 3 月龄）：六联疫苗第 2 剂、MenB 第 2 剂、轮状病毒第 2 剂", "12 weeks (~3 mo): 6-in-1 (2nd), MenB (2nd), Rotavirus (2nd)"))
             ]
         case 4:
             return [
-                ReferenceEntry(id: "uk-4-v", kind: "vaccine", title: L10n.t("16 周（约 4 月龄）：六联疫苗第 3 剂、MenB 第 2 剂", "16 weeks (~4 mo): 6-in-1 (3rd), MenB (2nd)"))
+                ReferenceEntry(id: "uk-4-v", kind: "vaccine", title: L10n.t("16 周（约 4 月龄）：六联疫苗第 3 剂、肺炎球菌 PCV 第 1 剂", "16 weeks (~4 mo): 6-in-1 (3rd), PCV (1st)"))
             ]
-        case 9...11:
-            return month == 10 ? [
+        case 10:
+            return [
                 ReferenceEntry(id: "uk-10-c", kind: "checkup", title: L10n.t("9–12 月龄 NHS 健康发展评估（Health & Development Review）", "9–12 month NHS Healthy Child development review"))
-            ] : [
-                ReferenceEntry(id: "uk-fit-note", kind: "checkup", title: L10n.t("可在 9–12 月龄窗口安排 NHS 发育随访（ASQ-3）。", "9–12 month NHS development review window."))
             ]
         case 12:
             return [
-                ReferenceEntry(id: "uk-12-v", kind: "vaccine", title: L10n.t("1 周岁疫苗：Hib/MenC、PCV 加强、MMR 第 1 剂、MenB 加强", "1 year vaccines: Hib/MenC, PCV booster, MMR (1st), MenB booster"))
+                ReferenceEntry(id: "uk-12-v", kind: "vaccine", title: L10n.t("1 周岁疫苗：肺炎球菌 PCV 加强、MMR 第 1 剂、MenB 加强（按 NHS 新程已取消 1 岁 Hib/MenC）", "1 year vaccines: PCV booster, MMR (1st), MenB booster"))
             ]
-        case 24...30:
-            return month == 27 ? [
+        case 18:
+            return [
+                ReferenceEntry(id: "uk-18-v", kind: "vaccine", title: L10n.t("18 月龄 NHS 免疫访视：六联第 4 剂（含 Hib 加强）、MMR 第 2 剂", "18 months (NHS schedule): 6-in-1 (4th dose incl. Hib), MMR (2nd dose)"))
+            ]
+        case 27:
+            return [
                 ReferenceEntry(id: "uk-27-c", kind: "checkup", title: L10n.t("2–2.5 岁 NHS 全面发展评估（语言、社交与动作观察）", "2 to 2.5 year NHS Health Visitor developmental review"))
-            ] : [
-                ReferenceEntry(id: "uk-24-note", kind: "checkup", title: L10n.t("注意 2–2.5 岁 NHS 发育回顾通知；每年秋季关注适用月龄流感喷剂计划。", "Expect the 2–2.5 yr NHS development review invitation; check annual flu schedule from 2 yrs."))
             ]
         default:
-            return [
-                ReferenceEntry(id: "uk-\(month)-n", kind: "checkup", title: L10n.t("英国 NHS 本月无固定常规接种节点，沿用红本（Red Book）日常生长追踪。", "No routine UK NHS clinic milestone at \(month) months; track growth in your Personal Child Health Record (Red Book)."))
-            ]
+            return []
         }
     }
 
@@ -224,15 +225,20 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
                 ReferenceEntry(id: "au-36-c", kind: "checkup", title: L10n.t("3 周岁（或 3.5 岁前）社区儿保随访", "3-year child health & development check"))
             ]
         default:
-            return [
-                ReferenceEntry(id: "au-\(month)-n", kind: "checkup", title: L10n.t("澳洲 NIP 本月无常规疫苗节点，保持社区保健册定期记录。", "No routine Australian NIP milestone scheduled at \(month) months."))
-            ]
+            return []
         }
     }
 
     // MARK: - Key Screening Cues & Checkup Timing Helpers
 
-    static let keyCheckupMonths = [1, 3, 6, 8, 9, 12, 18, 24, 30, 36]
+    static func keyCheckupMonths(for region: HealthRegion = HealthRegion.defaultRegion()) -> [Int] {
+        switch region {
+        case .cn: [1, 3, 6, 8, 12, 18, 24, 30, 36]
+        case .us: [1, 2, 4, 6, 9, 12, 15, 18, 24, 30, 36]
+        case .uk: [0, 2, 3, 4, 10, 12, 18, 27]
+        case .au: [0, 2, 4, 6, 12, 18, 24, 36]
+        }
+    }
 
     /// Regional developmental, vision, dental, and anemia screening highlights for key pediatric visit months.
     static func screeningCue(for region: HealthRegion, month: Int) -> String? {
@@ -292,9 +298,9 @@ enum HealthRegion: String, CaseIterable, Identifiable, Sendable {
     }
 
     /// Returns days until the next milestone checkup month (`0...7` highlights an upcoming visit), plus target month.
-    static func daysUntilNextCheckup(birth: Day?, today: Day = .today) -> (month: Int, daysRemaining: Int)? {
+    static func daysUntilNextCheckup(birth: Day?, today: Day = .today, region: HealthRegion = HealthRegion.defaultRegion()) -> (month: Int, daysRemaining: Int)? {
         guard let birth else { return nil }
-        for m in keyCheckupMonths {
+        for m in keyCheckupMonths(for: region) {
             let visitDay = birth.plus(months: m)
             let diff = today.days(to: visitDay)
             if diff >= -2 && diff <= 30 {

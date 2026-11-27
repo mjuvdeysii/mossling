@@ -4,7 +4,7 @@ name: iOS
 on:
   push:
     branches: [main]
-    paths: ["ios/**", "app/src/main/assets/**", "*.md", ".github/workflows/ios.yml"]
+    paths: ["ios/**", "app/src/main/assets/**", ".github/workflows/ios.yml"]
   workflow_dispatch:
     inputs:
       screens:
@@ -19,17 +19,25 @@ on:
         description: "Measure scrolling (hitch time ratio) on the home, 3D and 2D"
         type: boolean
         default: false
-permissions:
-  contents: write
-concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
+      upload_testflight:
+        description: "Upload archive to TestFlight (manual run)"
+        type: boolean
+        default: false
+      filing_cert:
+        description: "Extract App filing certificate SHA-1 and public key (explicit opt-in)"
+        type: boolean
+        default: false
 jobs:
   build:
     runs-on: xcode-27
     timeout-minutes: 80
+    permissions:
+      contents: write
+    concurrency:
+      group: ios-build-${{ github.ref }}
+      cancel-in-progress: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Xcode
         run: |
           ls -d /Applications/Xcode*.app
@@ -149,18 +157,23 @@ jobs:
           cp /tmp/s/* . && echo "${GITHUB_SHA}" > COMMIT && git add -A && git commit -qm "ios screens ${GITHUB_SHA}" && git push -q origin s-small:refs/heads/shots-${GITHUB_SHA::7}
   testflight:
     # Signs with the developer account's App Store Connect API key and uploads the build to TestFlight.
-    # Runs only when the secrets ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 and APPLE_TEAM_ID are set.
+    # Runs on pushes to main or manual dispatch with upload_testflight=true, when ASC secrets are set.
     needs: build
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || inputs.upload_testflight == true)
     runs-on: xcode-27
     timeout-minutes: 60
+    permissions:
+      contents: read
+    concurrency:
+      group: ios-testflight
+      cancel-in-progress: false
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       TEAM: ${{ secrets.APPLE_TEAM_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         if: env.ASC_KEY_ID != ''
       - name: Archive and upload
         if: env.ASC_KEY_ID != ''
@@ -177,7 +190,9 @@ jobs:
             done
           fi
           brew install xcodegen >/dev/null && xcodegen generate
-          mkdir -p ~/private_keys && printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          mkdir -p ~/private_keys
+          printf '%s' "$ASC_KEY_P8" > ~/private_keys/AuthKey_$ASC_KEY_ID.p8
+          chmod 600 ~/private_keys/AuthKey_$ASC_KEY_ID.p8
           # The archive is built unsigned and signed only at export, with the account's cloud-managed distribution
           # certificate, so no new development certificate is created on each run (the account allows only a few).
           AUTH=(-allowProvisioningUpdates -authenticationKeyPath "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID")
@@ -190,16 +205,29 @@ jobs:
           # declare. Sign them ad hoc (no certificate) with their entitlements — the widget first, then the app — so the
           # app group reaches the exported build, and print what each one now declares.
           APPDIR=build/Mossling.xcarchive/Products/Applications/Mossling.app
-          # Pre-upload compliance check: verify required purpose strings & matching versions across app and widget extension
+          # Pre-upload compliance check: verify required purpose strings, privacy manifests, file sharing flags,
+          # excluded internal docs, and matching versions across app and widget extension.
           for key in NSFaceIDUsageDescription NSMicrophoneUsageDescription NSMotionUsageDescription NSPhotoLibraryAddUsageDescription UIBackgroundModes ITSAppUsesNonExemptEncryption; do
             /usr/libexec/PlistBuddy -c "Print :$key" "$APPDIR/Info.plist" >/dev/null || { echo "::error::Missing required Info.plist key $key"; exit 1; }
           done
           if /usr/libexec/PlistBuddy -c "Print :NSPhotoLibraryUsageDescription" "$APPDIR/Info.plist" >/dev/null 2>&1; then
             echo "::error::Unexpected NSPhotoLibraryUsageDescription in Info.plist (out-of-process PhotosPicker does not require full photo library read permission)"; exit 1
           fi
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :UIFileSharingEnabled' "$APPDIR/Info.plist" 2>/dev/null || echo missing)" = "false" ] || { echo "::error::UIFileSharingEnabled must be false"; exit 1; }
+          [ "$(/usr/libexec/PlistBuddy -c 'Print :LSSupportsOpeningDocumentsInPlace' "$APPDIR/Info.plist" 2>/dev/null || echo missing)" = "false" ] || { echo "::error::LSSupportsOpeningDocumentsInPlace must be false"; exit 1; }
+          [ -f "$APPDIR/PrivacyInfo.xcprivacy" ] || { echo "::error::Missing PrivacyInfo.xcprivacy in app bundle"; exit 1; }
+          for doc in CHANGELOG.md CHANGELOG_EN.md TESTFLIGHT_NOTES.md TESTFLIGHT_NOTES_EN.md; do
+            if [ -e "$APPDIR/$doc" ]; then
+              echo "::error::Internal doc $doc must not be bundled in .app"; exit 1
+            fi
+          done
+          DEV_VAL=$(/usr/libexec/PlistBuddy -c 'Print :MosslingDeveloper' "$APPDIR/Info.plist" 2>/dev/null || true)
+          ICP_VAL=$(/usr/libexec/PlistBuddy -c 'Print :MosslingICP' "$APPDIR/Info.plist" 2>/dev/null || true)
+          echo "::notice title=Release Metadata::MosslingDeveloper=$([ -n "$DEV_VAL" ] && echo set || echo empty), MosslingICP=$([ -n "$ICP_VAL" ] && echo set || echo empty)"
           APP_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$APPDIR/Info.plist")
           APP_BLD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$APPDIR/Info.plist")
           for x in "$APPDIR"/PlugIns/*.appex; do
+            [ -f "$x/PrivacyInfo.xcprivacy" ] || { echo "::error::Missing PrivacyInfo.xcprivacy in $(basename "$x")"; exit 1; }
             EXT_VER=$(/usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" "$x/Info.plist")
             EXT_BLD=$(/usr/libexec/PlistBuddy -c "Print :CFBundleVersion" "$x/Info.plist")
             echo "::notice title=Bundle Check::$(basename "$x") v${EXT_VER} (${EXT_BLD}) inside app v${APP_VER} (${APP_BLD})"
@@ -226,10 +254,8 @@ jobs:
           echo "MARKETING_VERSION=$VER" >> "$GITHUB_ENV"
           echo "::notice title=TestFlight::v${VER} build $BUILD uploaded; it appears in TestFlight after Apple finishes processing (usually 10–30 minutes)"
       - name: Certificate for the App filing (备案 public key and SHA-1)
-        # The account's distribution certificate is cloud-managed and cannot be downloaded, so the facts are read
-        # from the certificate that actually signs the app: the archive is exported once more to a local .ipa and
-        # the leaf certificate is taken from the app's signature.
-        if: env.ASC_KEY_ID != ''
+        # Explicit opt-in via workflow_dispatch with filing_cert=true so personal real-name cert details are never leaked on push.
+        if: env.ASC_KEY_ID != '' && github.event_name == 'workflow_dispatch' && inputs.filing_cert == true
         continue-on-error: true
         working-directory: ios
         run: |
@@ -245,7 +271,7 @@ jobs:
           echo "::notice title=备案 SHA-1::$SHA1"
           echo "::notice title=备案 公钥（RSA 模数，十六进制）::$MOD"
       - name: Update TestFlight What to Test
-        # Automatically copies the latest version section of ios/Docs/CHANGELOG.md (and CHANGELOG_EN.md) into
+        # Automatically copies curated tester release notes from ios/Docs/TESTFLIGHT_NOTES.md (and _EN.md) into
         # TestFlight's zh-Hans & en-US "What to Test" (betaBuildLocalizations.whatsNew) once ASC processes the build.
         if: env.ASC_KEY_ID != '' && env.BUILD != ''
         continue-on-error: true
@@ -256,12 +282,15 @@ jobs:
             --bundle-id app.mossling \
             --build "$BUILD" \
             --version "$MARKETING_VERSION" \
-            --changelog Docs/CHANGELOG.md \
-            --en-changelog Docs/CHANGELOG_EN.md \
+            --changelog Docs/TESTFLIGHT_NOTES.md \
+            --en-changelog Docs/TESTFLIGHT_NOTES_EN.md \
             --locale zh-Hans \
             --key-path "$HOME/private_keys/AuthKey_$ASC_KEY_ID.p8" \
             --timeout 1800
+      - name: Clean up signing key
+        if: always()
+        run: rm -rf ~/private_keys
       - name: Report errors
         if: failure()
         working-directory: ios
-        run: cat archive.log export.log 2>/dev/null | grep -E "error:|Error|ITMS-|failed" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done
+        run: cat archive.log export.log 2>/dev/null | grep -E "error:|Error|ITMS-|NSLocalizedDescription|Code Sign|Provisioning|failed" | sort -u | head -40 | while IFS= read -r l; do echo "::error::$l"; done

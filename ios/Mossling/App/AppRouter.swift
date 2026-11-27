@@ -164,8 +164,11 @@ final class AppRouter {
     var showingBedsideLamp = false
     var showingStorybook = false
     var expandLampLedgerToken: Int = 0
+    private var pendingRouteTask: Task<Void, Never>?
 
     func openExplore(_ route: ExploreRoute? = nil) {
+        pendingRouteTask?.cancel()
+        pendingRouteTask = nil
         let needsSwitch = selectedTab != AppTab.explore.rawValue
         selectedTab = AppTab.explore.rawValue
         guard let route else {
@@ -174,8 +177,9 @@ final class AppRouter {
         }
         if needsSwitch {
             explorePath = NavigationPath()
-            Task { @MainActor [weak self] in
+            pendingRouteTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(90))
+                guard !Task.isCancelled else { return }
                 self?.explorePath = NavigationPath([route])
             }
         } else {
@@ -184,6 +188,8 @@ final class AppRouter {
     }
 
     func openLamp(_ route: LampRoute? = nil, expandLedger: Bool = false) {
+        pendingRouteTask?.cancel()
+        pendingRouteTask = nil
         let needsSwitch = selectedTab != AppTab.lamp.rawValue
         selectedTab = AppTab.lamp.rawValue
         if expandLedger {
@@ -195,8 +201,9 @@ final class AppRouter {
         }
         if needsSwitch {
             lampPath = NavigationPath()
-            Task { @MainActor [weak self] in
+            pendingRouteTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(90))
+                guard !Task.isCancelled else { return }
                 self?.lampPath = NavigationPath([route])
             }
         } else {
@@ -205,12 +212,12 @@ final class AppRouter {
     }
 
     func openBedsideLamp() {
-        selectedTab = AppTab.lamp.rawValue
-        lampPath = NavigationPath()
         showingBedsideLamp = true
     }
 
     func openKeepsakes(_ route: KeepsakesRoute? = nil) {
+        pendingRouteTask?.cancel()
+        pendingRouteTask = nil
         let needsSwitch = selectedTab != AppTab.keepsakes.rawValue
         selectedTab = AppTab.keepsakes.rawValue
         guard let route else {
@@ -219,8 +226,9 @@ final class AppRouter {
         }
         if needsSwitch {
             keepsakesPath = NavigationPath()
-            Task { @MainActor [weak self] in
+            pendingRouteTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(90))
+                guard !Task.isCancelled else { return }
                 self?.keepsakesPath = NavigationPath([route])
             }
         } else {
@@ -229,12 +237,12 @@ final class AppRouter {
     }
 
     func openStorybook() {
-        selectedTab = AppTab.keepsakes.rawValue
-        keepsakesPath = NavigationPath()
         showingStorybook = true
     }
 
     func openStudio(_ route: StudioRoute? = nil) {
+        pendingRouteTask?.cancel()
+        pendingRouteTask = nil
         let needsSwitch = selectedTab != AppTab.studio.rawValue
         selectedTab = AppTab.studio.rawValue
         guard let route else {
@@ -243,8 +251,9 @@ final class AppRouter {
         }
         if needsSwitch {
             studioPath = NavigationPath()
-            Task { @MainActor [weak self] in
+            pendingRouteTask = Task { @MainActor [weak self] in
                 try? await Task.sleep(for: .milliseconds(90))
+                guard !Task.isCancelled else { return }
                 self?.studioPath = NavigationPath([route])
             }
         } else {
@@ -270,6 +279,9 @@ final class AppRouter {
         case .lampRoot:
             openLamp(nil)
         case .bedsideLamp:
+            pendingRouteTask?.cancel()
+            pendingRouteTask = nil
+            selectedTab = AppTab.lamp.rawValue
             openBedsideLamp()
         case .lampLedger:
             openLamp(nil, expandLedger: true)
@@ -281,6 +293,9 @@ final class AppRouter {
         case .keepsakesRoot:
             openKeepsakes(nil)
         case .storybook:
+            pendingRouteTask?.cancel()
+            pendingRouteTask = nil
+            selectedTab = AppTab.keepsakes.rawValue
             openStorybook()
         case let .month(month):
             openKeepsakes(.month(month))

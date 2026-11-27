@@ -542,7 +542,7 @@ struct FirstsPrintPoster: View {
                     .background(gold.opacity(0.22), in: Capsule())
 
                 if !photos.isEmpty {
-                    Text(L10n.t("\(photos.count) 张拍立得相纸", "\(photos.count) \(photos.count == 1 ? "Polaroid" : "Polaroids")"))
+                    Text(L10n.t("\(photos.count) 张纪念相纸", "\(photos.count) \(photos.count == 1 ? "Keepsake Print" : "Keepsake Prints")"))
                         .font(.system(size: 11.5, weight: .bold, design: .rounded))
                         .foregroundStyle(teal)
                         .padding(.horizontal, 10)

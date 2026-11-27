@@ -65,10 +65,21 @@ struct TimerIntent: LiveActivityIntent {
     init(type: String, action: String) { self.type = type; self.action = action }
     static func canRecord(snapshot: Snapshot?) -> Bool {
         guard let s = snapshot else { return false }
-        guard (s.consented ?? s.journal) && s.journal else { return false }
+        guard s.consented == true && s.journal else { return false }
         if s.appLocked == true { return false }
-        if let ver = s.consentVersion, !ver.isEmpty, ver != SharedConsent.version { return false }
+        guard s.consentVersion == SharedConsent.version else { return false }
         return true
+    }
+
+    static func blockedDialog(snapshot: Snapshot?) -> String {
+        if snapshot?.appLocked == true {
+            return L10n.t("摸索台灯已锁定，请先打开应用解锁。", "Moss & Otto is locked. Open the app to unlock first.")
+        }
+        return L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and agree to local storage in Moss & Otto first.")
+    }
+
+    static var saveFailedDialog: String {
+        L10n.t("没有保存成功，请稍后再试。", "Couldn't save right now. Please try again.")
     }
     func perform() async throws -> some IntentResult {
         guard Self.canRecord(snapshot: JournalFile.snapshot()) else {
@@ -121,10 +132,13 @@ struct QuickLogDiaperIntent: AppIntent {
     init(kind: DiaperKindAppEnum) { self.kind = kind }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
+        let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
-        JournalFile.quickLog(type: LogType.diaper, detail: kind.rawValue)
+        guard JournalFile.tryQuickLog(type: LogType.diaper, detail: kind.rawValue) else {
+            return .result(dialog: "\(TimerIntent.saveFailedDialog)")
+        }
         WidgetCenter.shared.reloadAllTimelines()
         let label = kind == .wet ? L10n.t("湿尿布", "Wet diaper") : kind == .dirty ? L10n.t("便尿布", "Dirty diaper") : L10n.t("湿便都有", "Wet & dirty diaper")
         return .result(dialog: "\(L10n.t("已记下：\(label)。", "Logged: \(label)."))")
@@ -154,6 +168,10 @@ struct CycleWidgetPlayIntent: AppIntent {
     init() {}
 
     func perform() async throws -> some IntentResult {
+        guard let s = JournalFile.snapshot(), !WidgetPrivacy.isLocked(snap: s), WidgetPrivacy.canShowRecords(snap: s) else {
+            WidgetCenter.shared.reloadAllTimelines()
+            return .result()
+        }
         _ = JournalFile.cycleWidgetPlay()
         WidgetCenter.shared.reloadAllTimelines()
         return .result()
@@ -170,15 +188,15 @@ struct ToggleCareTimerIntent: AppIntent {
     init(careType: CareTimerAppEnum) { self.careType = careType }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
+        let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
         let running = (try? JournalFile.load())?.timers.contains(where: { $0.type == type }) ?? false
-        if running {
-            JournalFile.stop(type)
-        } else {
-            JournalFile.startSmart(type)
+        let ok = running ? JournalFile.tryStop(type) : JournalFile.tryStartSmart(type)
+        guard ok else {
+            return .result(dialog: "\(TimerIntent.saveFailedDialog)")
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
@@ -203,10 +221,10 @@ struct SetCareTimerIntent: SetValueIntent {
             return .result()
         }
         let type = careType == .nurse ? LogType.nurse : LogType.sleep
-        if value {
-            JournalFile.startSmart(type)
-        } else {
-            JournalFile.stop(type)
+        let ok = value ? JournalFile.tryStartSmart(type) : JournalFile.tryStop(type)
+        if !ok {
+            ControlCenter.shared.reloadAllControls()
+            return .result()
         }
         await LiveTimers.sync()
         WidgetCenter.shared.reloadAllTimelines()
@@ -238,11 +256,14 @@ struct QuickLogBottleIntent: AppIntent {
     }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
+        let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let clamped = max(10, min(360, amountMl))
-        JournalFile.quickLog(type: LogType.bottle, detail: milk.rawValue, amount: clamped)
+        guard JournalFile.tryQuickLog(type: LogType.bottle, detail: milk.rawValue, amount: clamped) else {
+            return .result(dialog: "\(TimerIntent.saveFailedDialog)")
+        }
         WidgetCenter.shared.reloadAllTimelines()
         let milkLabel = milk == .breastmilk ? L10n.t("母乳", "breast milk") : L10n.t("配方奶", "formula")
         let vol = L10n.volume(ml: clamped)
@@ -260,12 +281,15 @@ struct QuickLogSolidIntent: AppIntent {
     init(foodName: String = "") { self.foodName = foodName }
 
     func perform() async throws -> some IntentResult & ProvidesDialog {
-        guard TimerIntent.canRecord(snapshot: JournalFile.snapshot()) else {
-            return .result(dialog: "\(L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first."))")
+        let snap = JournalFile.snapshot()
+        guard TimerIntent.canRecord(snapshot: snap) else {
+            return .result(dialog: "\(TimerIntent.blockedDialog(snapshot: snap))")
         }
         let trimmed = foodName.trimmingCharacters(in: .whitespacesAndNewlines)
         let detail = trimmed.isEmpty ? nil : String(trimmed.prefix(40))
-        JournalFile.quickLog(type: LogType.solid, detail: detail)
+        guard JournalFile.tryQuickLog(type: LogType.solid, detail: detail) else {
+            return .result(dialog: "\(TimerIntent.saveFailedDialog)")
+        }
         WidgetCenter.shared.reloadAllTimelines()
         let spoken = detail ?? L10n.t("辅食", "first food")
         return .result(dialog: "\(L10n.t("已记下辅食：\(spoken)。", "Logged first food: \(spoken)."))")
@@ -284,6 +308,7 @@ struct BabyCareStatusSummary: Equatable {
     let todayWetDiapers: Int
     let todayDirtyDiapers: Int
     let dialogText: String
+    let redacted: Bool
 
     static func build(body: JournalFile.Body, snap: Snapshot?, now: Date = Date()) -> BabyCareStatusSummary {
         let name = (snap?.nickname.isEmpty == false ? snap?.nickname : nil) ?? L10n.appName
@@ -329,7 +354,8 @@ struct BabyCareStatusSummary: Equatable {
             lastWakeNote: wakeFact?.note,
             todayWetDiapers: wetCount,
             todayDirtyDiapers: dirtyCount,
-            dialogText: parts.joined(separator: sep) + end
+            dialogText: parts.joined(separator: sep) + end,
+            redacted: false
         )
     }
 }
@@ -347,12 +373,13 @@ struct BabyCareStatusSnippetView: View {
                 Text(summary.babyName)
                     .font(.headline.weight(.bold))
                     .foregroundStyle(.primary)
+                    .privacySensitive()
                 Spacer(minLength: 4)
                 ArtImage(name: WidgetArt.pair)
                     .frame(width: 28, height: 28)
             }
 
-            if let label = summary.activeTimerLabel, let dur = summary.activeTimerDuration {
+            if !summary.redacted, let label = summary.activeTimerLabel, let dur = summary.activeTimerDuration {
                 HStack(spacing: 8) {
                     Image(systemName: "timer")
                         .font(.subheadline.weight(.bold))
@@ -368,6 +395,7 @@ struct BabyCareStatusSnippetView: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .privacySensitive()
             }
 
             VStack(alignment: .leading, spacing: 6) {
@@ -392,15 +420,18 @@ struct BabyCareStatusSnippetView: View {
                     Text(summary.lastWakePhrase)
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.primary)
-                    Spacer(minLength: 4)
-                    Text(L10n.t("尿布 湿\(summary.todayWetDiapers) 便\(summary.todayDirtyDiapers)", "Diapers \(summary.todayWetDiapers)W \(summary.todayDirtyDiapers)D"))
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
+                    if !summary.redacted {
+                        Spacer(minLength: 4)
+                        Text(L10n.t("尿布 湿\(summary.todayWetDiapers) 便\(summary.todayDirtyDiapers)", "Diapers \(summary.todayWetDiapers)W \(summary.todayDirtyDiapers)D"))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.secondary)
+                            .monospacedDigit()
+                    }
                 }
             }
             .padding(12)
             .background(WidgetInk.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .privacySensitive()
         }
         .padding(14)
         .background(WidgetInk.paper, in: RoundedRectangle(cornerRadius: 20, style: .continuous))
@@ -418,9 +449,7 @@ struct BabyCareStatusIntent: AppIntent {
         let snap = JournalFile.snapshot()
         guard TimerIntent.canRecord(snapshot: snap) else {
             let locked = snap?.appLocked == true
-            let dialog = locked
-                ? L10n.t("摸索台灯已锁定，请先解锁后再查看宝宝近况。", "Moss & Otto is locked. Unlock the app to check baby status.")
-                : L10n.t("请先在摸索台灯里开启记录并同意本地保存。", "Enable logging and local storage in Moss & Otto first.")
+            let dialog = TimerIntent.blockedDialog(snapshot: snap)
             let hidden = locked ? L10n.t("已锁定", "Locked") : L10n.t("已隐藏", "Hidden")
             let redacted = BabyCareStatusSummary(
                 babyName: L10n.appName,
@@ -432,7 +461,8 @@ struct BabyCareStatusIntent: AppIntent {
                 lastWakeNote: nil,
                 todayWetDiapers: 0,
                 todayDirtyDiapers: 0,
-                dialogText: dialog
+                dialogText: dialog,
+                redacted: true
             )
             return .result(dialog: "\(dialog)") {
                 BabyCareStatusSnippetView(summary: redacted)

@@ -401,6 +401,7 @@ final class SoundscapeEngine {
     private(set) var didFinishAutoFade: Bool = false
 
     var isPlaying: Bool { active != nil }
+    var hasActiveEngine: Bool { engine != nil || active != nil }
 
     /// Concise display label for the currently playing soundscape or dual mix.
     var activeSummary: String? {
@@ -488,6 +489,13 @@ final class SoundscapeEngine {
     }
 
     func start(_ kind: SoundscapeKind, preserveTimer: Bool = false) {
+        if !isTestHost && FirstVoiceController.shared.isRecording {
+            return
+        }
+        ToyboxAudioEngine.shared.stop()
+        if FirstVoiceController.shared.playingID != nil {
+            FirstVoiceController.shared.stopPlayback()
+        }
         teardownTask?.cancel()
         teardownTask = nil
         didFinishAutoFade = false
@@ -508,7 +516,20 @@ final class SoundscapeEngine {
             scheduleTimer()
         }
         guard !isTestHost else { return }
-        startAudioGraph()
+        guard startAudioGraph() else {
+            countdownTask?.cancel()
+            countdownTask = nil
+            remainingSeconds = nil
+            active = nil
+            secondary = nil
+            dsp.targetGain = 0.0
+            dsp.layerTargetMix = 0.0
+            dsp.layerKindRaw = -1
+            dsp.layerCurrentMix = 0.0
+            dsp.currentGain = 0.0
+            clearNowPlaying()
+            return
+        }
         registerSessionObserversIfNeeded()
         setupRemoteCommandsIfNeeded()
         updateNowPlaying()
@@ -523,11 +544,16 @@ final class SoundscapeEngine {
         secondary = nil
         dsp.targetGain = 0.0
         dsp.layerTargetMix = 0.0
-        guard !isTestHost else { return }
+        dsp.layerKindRaw = -1
+        guard !isTestHost else {
+            dsp.layerCurrentMix = 0.0
+            dsp.currentGain = 0.0
+            return
+        }
         clearNowPlaying()
         teardownTask?.cancel()
         teardownTask = Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .milliseconds(320))
+            try? await Task.sleep(for: .milliseconds(500))
             guard !Task.isCancelled, let self, self.active == nil else { return }
             self.teardownAudioGraph()
         }
@@ -545,6 +571,8 @@ final class SoundscapeEngine {
         secondary = nil
         dsp.targetGain = 0.0
         dsp.layerTargetMix = 0.0
+        dsp.layerKindRaw = -1
+        dsp.layerCurrentMix = 0.0
         if !isTestHost {
             clearNowPlaying()
             teardownAudioGraph(deactivateSession: deactivateSession)
@@ -557,7 +585,7 @@ final class SoundscapeEngine {
         didFinishAutoFade = true
     }
 
-    private func scheduleTimer() {
+    private func scheduleTimer(from initialSeconds: Int? = nil) {
         countdownTask?.cancel()
         countdownTask = nil
         guard duration != .continuous else {
@@ -565,7 +593,7 @@ final class SoundscapeEngine {
             dsp.targetGain = 1.0
             return
         }
-        let total = duration.rawValue * 60
+        let total = max(1, initialSeconds ?? (duration.rawValue * 60))
         remainingSeconds = total
         countdownTask = Task { @MainActor [weak self] in
             var left = total
@@ -582,8 +610,9 @@ final class SoundscapeEngine {
         }
     }
 
-    private func startAudioGraph() {
-        if let e = engine, e.isRunning { return }
+    @discardableResult
+    private func startAudioGraph() -> Bool {
+        if let e = engine, e.isRunning { return true }
         do {
             let session = AVAudioSession.sharedInstance()
             try session.setCategory(.playback, mode: .default, options: [])
@@ -591,7 +620,7 @@ final class SoundscapeEngine {
 
             let eng = AVAudioEngine()
             let sr = session.sampleRate > 0 ? session.sampleRate : 44_100
-            guard let format = AVAudioFormat(standardFormatWithSampleRate: sr, channels: 2) else { return }
+            guard let format = AVAudioFormat(standardFormatWithSampleRate: sr, channels: 2) else { return false }
             let state = dsp
             let node = AVAudioSourceNode(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
                 let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
@@ -603,8 +632,10 @@ final class SoundscapeEngine {
             try eng.start()
             engine = eng
             sourceNode = node
+            return true
         } catch {
-            // Gracefully degrade if audio hardware is unavailable
+            teardownAudioGraph(deactivateSession: false)
+            return false
         }
     }
 
@@ -613,7 +644,13 @@ final class SoundscapeEngine {
         if let n = sourceNode { engine?.detach(n) }
         sourceNode = nil
         engine = nil
-        if deactivateSession {
+        dsp.layerKindRaw = -1
+        dsp.layerCurrentMix = 0.0
+        dsp.currentGain = 0.0
+        if deactivateSession,
+           !ToyboxAudioEngine.shared.isPlaying,
+           !FirstVoiceController.shared.isRecording,
+           FirstVoiceController.shared.playingID == nil {
             try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
         }
     }
@@ -654,6 +691,9 @@ final class SoundscapeEngine {
         switch type {
         case .began:
             dsp.targetGain = 0
+            countdownTask?.cancel()
+            countdownTask = nil
+            updateNowPlaying(rate: 0.0)
         case .ended:
             guard active != nil else { return }
             let opts = optVal.map(AVAudioSession.InterruptionOptions.init(rawValue:)) ?? []
@@ -663,12 +703,15 @@ final class SoundscapeEngine {
                     teardownAudioGraph(deactivateSession: false)
                     startAudioGraph()
                 }
+                if duration != .continuous, countdownTask == nil, let rem = remainingSeconds {
+                    scheduleTimer(from: rem)
+                }
                 if let rem = remainingSeconds {
                     dsp.targetGain = Self.fadeMultiplier(remaining: Double(rem), fadeDuration: 20)
                 } else {
                     dsp.targetGain = 1.0
                 }
-                updateNowPlaying()
+                updateNowPlaying(rate: 1.0)
             } else {
                 stop()
             }
@@ -686,7 +729,7 @@ final class SoundscapeEngine {
             return
         }
         if engine?.isRunning != true {
-            teardownAudioGraph()
+            teardownAudioGraph(deactivateSession: false)
             startAudioGraph()
             updateNowPlaying()
         }
@@ -730,12 +773,12 @@ final class SoundscapeEngine {
         start(lastUsedKind, preserveTimer: remainingSeconds != nil)
     }
 
-    private func updateNowPlaying() {
+    private func updateNowPlaying(rate: Double = 1.0) {
         guard !isTestHost, let title = activeSummary else { return }
         var info: [String: Any] = [
             MPMediaItemPropertyTitle: title,
             MPMediaItemPropertyArtist: L10n.t("Otto 的床头夜灯", "Otto's Bedside Lamp"),
-            MPNowPlayingInfoPropertyPlaybackRate: 1.0,
+            MPNowPlayingInfoPropertyPlaybackRate: rate,
             MPNowPlayingInfoPropertyIsLiveStream: duration == .continuous,
         ]
         if let rem = remainingSeconds, duration != .continuous {

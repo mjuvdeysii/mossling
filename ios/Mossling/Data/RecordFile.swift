@@ -4,6 +4,11 @@ import UniformTypeIdentifiers
 /// The family's record file: everything recorded, in the same format as the Android app ("app": "mossling"), so it
 /// moves between the two. Also a table of entries and measurements for a spreadsheet or the doctor.
 enum RecordFile {
+    private static func safeInt64(_ v: Double) -> Int64 {
+        guard v.isFinite else { return 0 }
+        return Int64(max(-9e15, min(9e15, v)))
+    }
+
     static func json(_ app: AppModel, _ j: JournalFile.Body, foods: [FoodRecord] = [], capsules: [TimeCapsule] = []) -> Data {
         // everything set and recorded on this phone: the child, the companion, the appearance, the week's shelf, the
         // month records (observed, played, vaccines and check-ups), every entry, every measurement, and what is being
@@ -18,44 +23,41 @@ enum RecordFile {
         if let gw = app.gestationalWeeks { settings["gestationalWeeks"] = gw }
         if !app.graduatedModules.isEmpty { settings["graduatedModules"] = Array(app.graduatedModules).sorted() }
         if app.careModeActive { settings["careModeActive"] = true }
+        if !app.healthRegionRaw.isEmpty { settings["healthRegion"] = app.healthRegionRaw }
         if !app.observationStates.isEmpty { settings["observationStates"] = app.observationStates.mapValues(\.rawValue) }
-        let ticks = app.ticks.values.map { ["key": $0.key, "month": $0.month, "kind": $0.kind, "label": $0.label, "at": Int64($0.at)] as [String: Any] }
+        let ticks = app.ticks.values.map { ["key": $0.key, "month": $0.month, "kind": $0.kind, "label": $0.label, "at": safeInt64($0.at)] as [String: Any] }
         let logs = j.logs.map { e -> [String: Any] in
-            var o: [String: Any] = ["type": e.type, "start": Int64(e.start)]
-            if let v = e.end { o["end"] = Int64(v) }; if let v = e.amount { o["amount"] = v }; if let v = e.side { o["side"] = v }; if let v = e.detail { o["detail"] = v }
+            var o: [String: Any] = ["type": e.type, "start": safeInt64(e.start)]
+            if let v = e.end { o["end"] = safeInt64(v) }; if let v = e.amount { o["amount"] = v }; if let v = e.side { o["side"] = v }; if let v = e.detail { o["detail"] = v }
             return o
         }
         let measures = j.measures.map { m -> [String: Any] in
-            var o: [String: Any] = ["at": Int64(m.at)]
+            var o: [String: Any] = ["at": safeInt64(m.at)]
             if let v = m.weightG { o["weightG"] = v }; if let v = m.lengthMm { o["lengthMm"] = v }; if let v = m.headMm { o["headMm"] = v }
             return o
         }
         let firsts = j.firsts.map { f -> [String: Any] in
-            var o: [String: Any] = ["id": f.id.uuidString, "at": Int64(f.at), "title": f.title]
+            var o: [String: Any] = ["id": f.id.uuidString, "at": safeInt64(f.at), "title": f.title]
             if let v = f.key { o["key"] = v }; if let v = f.note, !v.isEmpty { o["note"] = v }
             return o
         }
         let timers = j.timers.map { t -> [String: Any] in
-            var o: [String: Any] = ["type": t.type, "start": Int64(t.start), "pausedTotal": Int64(t.pausedTotal), "carried": Int64(t.carried), "carriedPause": Int64(t.carriedPause)]
-            if let v = t.side { o["side"] = v }; if let v = t.pausedAt { o["pausedAt"] = Int64(v) }
+            var o: [String: Any] = ["type": t.type, "start": safeInt64(t.start), "pausedTotal": safeInt64(t.pausedTotal), "carried": safeInt64(t.carried), "carriedPause": safeInt64(t.carriedPause)]
+            if let v = t.side { o["side"] = v }; if let v = t.pausedAt { o["pausedAt"] = safeInt64(v) }
             return o
         }
-        var payload: [String: Any] = ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "firsts": firsts, "timers": timers]
-        if !foods.isEmpty {
-            payload["foods"] = foods.sorted { $0.foodId < $1.foodId }.map { f -> [String: Any] in
-                ["foodId": f.foodId, "firstTastedEpochDay": f.firstTastedEpochDay, "reaction": f.reaction.rawValue,
-                 "note": f.note, "watchSkin": f.watchSkin, "times": max(1, f.times)]
-            }
+        let foodsPayload: [[String: Any]] = foods.sorted { $0.foodId < $1.foodId }.map { f -> [String: Any] in
+            ["foodId": f.foodId, "firstTastedEpochDay": f.firstTastedEpochDay, "reaction": f.reaction.rawValue,
+             "note": f.note, "watchSkin": f.watchSkin, "times": max(1, f.times)]
         }
-        if !capsules.isEmpty {
-            payload["capsules"] = capsules.sorted { $0.writtenAt > $1.writtenAt }.map { c -> [String: Any] in
-                var o: [String: Any] = ["id": c.id.uuidString, "title": c.title, "body": c.body, "writtenAt": Int64(c.writtenAt),
-                                        "writtenAgeLabel": c.writtenAgeLabel, "seal": c.seal.rawValue]
-                if let u = c.unlockEpochDay { o["unlockEpochDay"] = u }
-                if let op = c.openedAt { o["openedAt"] = Int64(op) }
-                return o
-            }
+        let capsulesPayload: [[String: Any]] = capsules.sorted { $0.writtenAt > $1.writtenAt }.map { c -> [String: Any] in
+            var o: [String: Any] = ["id": c.id.uuidString, "title": c.title, "body": c.body, "writtenAt": safeInt64(c.writtenAt),
+                                    "writtenAgeLabel": c.writtenAgeLabel, "seal": c.seal.rawValue]
+            if let u = c.unlockEpochDay { o["unlockEpochDay"] = u }
+            if let op = c.openedAt { o["openedAt"] = safeInt64(op) }
+            return o
         }
+        let payload: [String: Any] = ["v": 1, "settings": settings, "ticks": ticks, "logs": logs, "measures": measures, "firsts": firsts, "timers": timers, "foods": foodsPayload, "capsules": capsulesPayload]
         let root: [String: Any] = ["app": "mossling", "v": 1, "at": ISO8601DateFormatter().string(from: Date()), "mossling": payload]
         return (try? JSONSerialization.data(withJSONObject: root, options: [.sortedKeys])) ?? Data()
     }
@@ -68,8 +70,9 @@ enum RecordFile {
         guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any], root["app"] as? String == "mossling",
               let m = root["mossling"] as? [String: Any] else { throw Failure.notOurs }
         func num(_ v: Any?) -> Double? {
-            guard let x = (v as? NSNumber)?.doubleValue, x.isFinite else { return nil }
-            return x
+            guard let n = v as? NSNumber, CFGetTypeID(n) != CFBooleanGetTypeID() else { return nil }
+            let x = n.doubleValue
+            return x.isFinite ? x : nil
         }
         func safeInt(_ v: Any?) -> Int? {
             guard let x = num(v), x >= -9e15, x <= 9e15 else { return nil }
@@ -114,20 +117,29 @@ enum RecordFile {
             guard w != nil || l != nil || h != nil else { return nil }
             return Measure(at: at, weightG: w, lengthMm: l, headMm: h)
         }
-        body.firsts = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
+        let rawFirsts: [First] = (m["firsts"] as? [[String: Any]] ?? []).compactMap { o in
             guard let at = validMs(o["at"]), let title = o["title"] as? String, !title.isEmpty else { return nil }
             let fid = (o["id"] as? String).flatMap(UUID.init(uuidString:)) ?? UUID()
             return First(id: fid, at: at, key: o["key"] as? String, title: title, note: o["note"] as? String)
         }
-        body.timers = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
+        var seenFirstIDs: Set<UUID> = []
+        body.firsts = rawFirsts.filter { seenFirstIDs.insert($0.id).inserted }
+        let rawTimers: [RunningTimer] = (m["timers"] as? [[String: Any]] ?? []).compactMap { o in
             guard let type = o["type"] as? String, let start = validMs(o["start"]) else { return nil }
             let pausedAt = validMs(o["pausedAt"]).flatMap { $0 >= start ? $0 : nil }
             return RunningTimer(type: type, start: start, side: o["side"] as? String, pausedAt: pausedAt, pausedTotal: max(0, min(7 * 86_400_000, num(o["pausedTotal"]) ?? 0)),
                                 carried: max(0, min(7 * 86_400_000, num(o["carried"]) ?? 0)), carriedPause: max(0, min(7 * 86_400_000, num(o["carriedPause"]) ?? 0)))
         }
+        var seenTimerTypes: Set<String> = []
+        body.timers = rawTimers.filter { seenTimerTypes.insert($0.type).inserted }
+        func isValidFoodID(_ raw: String) -> Bool {
+            !raw.isEmpty && raw.count <= 64 && raw.unicodeScalars.allSatisfy { scalar in
+                ("a"..."z").contains(scalar) || ("A"..."Z").contains(scalar) || ("0"..."9").contains(scalar) || scalar == "_" || scalar == "-"
+            }
+        }
         let rawFoods = m["foods"] as? [[String: Any]]
         let parsedFoods: [FoodRecord]? = rawFoods?.compactMap { o in
-            guard let foodId = o["foodId"] as? String, !foodId.isEmpty,
+            guard let foodId = o["foodId"] as? String, isValidFoodID(foodId),
                   let epochDay = validEpochDay(o["firstTastedEpochDay"]),
                   let reactionRaw = o["reaction"] as? String,
                   let reaction = FoodReaction(rawValue: reactionRaw) else { return nil }
@@ -141,7 +153,7 @@ enum RecordFile {
             )
         }
         let rawCapsules = m["capsules"] as? [[String: Any]]
-        let parsedCapsules: [TimeCapsule]? = rawCapsules?.compactMap { o in
+        let decodedCapsules: [TimeCapsule]? = rawCapsules?.compactMap { o in
             guard let title = o["title"] as? String, !title.isEmpty,
                   let capBody = o["body"] as? String, !capBody.isEmpty,
                   let writtenAt = validMs(o["writtenAt"]) else { return nil }
@@ -158,8 +170,17 @@ enum RecordFile {
                 seal: seal
             )
         }
+        let parsedCapsules: [TimeCapsule]? = decodedCapsules.map { list in
+            var seenCapIDs: Set<UUID> = []
+            return list.filter { seenCapIDs.insert($0.id).inserted }
+        }
         // write the journal first so a failed disk save never leaves settings half-imported
         guard journal.replaceAll(body) else { throw Failure.saveFailed }
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            let validFirsts = Set(body.firsts.map(\.id))
+            FirstPhotoStore.prune(keeping: validFirsts)
+            FirstVoiceStore.prune(keeping: validFirsts)
+        }
         app.birth = parsedBirth
         app.sex = s["sex"] as? String
         app.nickname = s["nickname"] as? String ?? ""
@@ -172,16 +193,18 @@ enum RecordFile {
         app.shelf = s["shelf"] as? String ?? ""
         app.pick = ""
         app.session = ""
-        app.replaceTicks(ticks)
-        app.gestationalWeeks = (s["gestationalWeeks"] as? NSNumber).map(\.intValue).flatMap { Age.isPreterm($0) ? $0 : nil }
+        app.gestationalWeeks = safeInt(s["gestationalWeeks"]).flatMap { Age.isPreterm($0) ? $0 : nil }
         app.graduatedModules = Set(s["graduatedModules"] as? [String] ?? [])
         app.dismissedGraduations = []
         app.careModeActive = s["careModeActive"] as? Bool ?? false
+        app.healthRegionRaw = (s["healthRegion"] as? String).flatMap { HealthRegion(rawValue: $0)?.rawValue } ?? ""
         let obsRaw = s["observationStates"] as? [String: String] ?? [:]
         var obsMap: [String: ObservationState] = [:]
         for (k, raw) in obsRaw {
             if let st = ObservationState(rawValue: raw) { obsMap[k] = st }
         }
+        let filteredTicks = ticks.filter { obsMap[$0.key] != .askDoctor }
+        app.replaceTicks(filteredTicks)
         app.replaceObservationStates(obsMap)
         if let parsedFoods { foodStore?.replaceAll(parsedFoods) }
         if let parsedCapsules { capsuleStore?.replaceAll(parsedCapsules) }

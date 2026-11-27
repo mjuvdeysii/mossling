@@ -134,7 +134,7 @@ final class DataTests: XCTestCase {
 
         // Cycling widget play rotates cleanly through weekPlays and syncs back into AppModel.pick
         let pool = [PlayRef(code: "A01", name: "一"), PlayRef(code: "A02", name: "二"), PlayRef(code: "A03", name: "三")]
-        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: "A01", playName: "一", consented: true, weekPlays: pool))
+        JournalFile.writeSnapshot(Snapshot(birthEpochDay: nil, nickname: "", companion: "Moss", journal: true, playCode: "A01", playName: "一", consented: true, weekPlays: pool, consentVersion: SharedConsent.version))
         let next = JournalFile.cycleWidgetPlay()
         XCTAssertEqual(next?.playCode, "A02")
         XCTAssertEqual(next?.playPickedEpochDay, Day.today.epochDay)

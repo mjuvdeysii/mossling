@@ -57,8 +57,10 @@ final class JournalStore {
     }
 
     func reload() {
-        if let b = try? JournalFile.load() { apply(b) }
-        seen = Self.stamp()
+        if let b = try? JournalFile.load() {
+            apply(b)
+            seen = Self.stamp()
+        }
     }
     /// Reloads only if the file changed since the app last read or wrote it — the Live Activity buttons and the widget
     /// write the file from another process while the app may be open.
@@ -234,14 +236,21 @@ final class JournalStore {
     func discard(_ type: String) {
         // said only once it is really dropped (a failed save says so, with nothing to take back)
         var removedTimer: RunningTimer?
+        var removedSideLogs: [LogEntry] = []
         guard let before = edit({ b in
             removedTimer = b.timers.first { $0.type == type }
+            if let t = removedTimer, !t.sessionEntryIDs.isEmpty {
+                let ids = Set(t.sessionEntryIDs)
+                removedSideLogs = b.logs.filter { ids.contains($0.id) }
+            }
             b = JournalFile.discarding(b, type)
         }) else { return }
         if type == LogType.nurse { detachNextNurse = true }
         if focus == type { focus = nil }
         onEvent?(.timerEnded)
-        let op: UndoOp? = removedTimer.map { .restoreTimer($0) }
+        let op: UndoOp? = removedTimer.map {
+            removedSideLogs.isEmpty ? .restoreTimer($0) : .restoreDiscardedTimer(timer: $0, removedLogs: removedSideLogs)
+        }
         say(type, L10n.t("没有记这一次" + LogType.name(type), "Discarded " + LogType.name(type)), undo: before, op: op)
     }
 
@@ -266,6 +275,13 @@ final class JournalStore {
                 return true
             }) {
             case let .saved(_, after):
+                switch op {
+                case let .restoreTimer(timer) where timer.type == LogType.nurse,
+                     let .restoreDiscardedTimer(timer, _) where timer.type == LogType.nurse:
+                    detachNextNurse = false
+                default:
+                    break
+                }
                 changed(after)
                 toast = Toast(type: t.type, text: L10n.t("已撤销", "Undone"), restore: nil)
             case .unchanged, .failed:
@@ -302,6 +318,18 @@ final class JournalStore {
         case let .removeTimer(type):
             b.timers.removeAll { $0.type == type }
         case let .restoreTimer(timer):
+            if !b.timers.contains(where: { $0.type == timer.type }) {
+                b.timers.append(timer)
+            }
+        case let .restoreDiscardedTimer(timer, removedLogs):
+            for entry in removedLogs {
+                if let idx = b.logs.firstIndex(where: { $0.id == entry.id }) {
+                    b.logs[idx] = entry
+                } else {
+                    b.logs.append(entry)
+                }
+            }
+            b.logs.sort { $0.start < $1.start }
             if !b.timers.contains(where: { $0.type == timer.type }) {
                 b.timers.append(timer)
             }
@@ -488,6 +516,7 @@ enum UndoOp: Sendable {
     case restoreLogs([LogEntry])
     case removeTimer(type: String)
     case restoreTimer(RunningTimer)
+    case restoreDiscardedTimer(timer: RunningTimer, removedLogs: [LogEntry])
     case restoreStoppedTimer(timer: RunningTimer?, addedLogID: UUID)
     case restoreMeasure(prev: Measure?, currentID: UUID)
     case restoreFirst(prev: First?, currentID: UUID)

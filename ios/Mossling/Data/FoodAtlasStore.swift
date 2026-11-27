@@ -182,6 +182,7 @@ final class FoodAtlasStore {
     static let shared = FoodAtlasStore()
 
     private(set) var records: [String: FoodRecord] = [:]
+    private(set) var loadFailed = false
     private let fileURL: URL?
 
     nonisolated static var defaultURL: URL {
@@ -250,26 +251,37 @@ final class FoodAtlasStore {
     }
 
     func reload() {
-        guard let url = fileURL,
-              let data = try? Data(contentsOf: url),
-              let list = try? JSONDecoder().decode([FoodRecord].self, from: data) else {
+        guard let url = fileURL else { return }
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            loadFailed = false
+            records = [:]
             return
         }
-        records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
+        do {
+            let data = try Data(contentsOf: url)
+            let list = try JSONDecoder().decode([FoodRecord].self, from: data)
+            records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
+            loadFailed = false
+        } catch {
+            loadFailed = true
+        }
     }
 
     func save(_ record: FoodRecord) {
+        loadFailed = false
         records[record.foodId] = record
         persist()
     }
 
     func remove(foodId: String) {
+        guard !loadFailed else { return }
         records.removeValue(forKey: foodId)
         FoodStickerStore.delete(for: foodId)
         persist()
     }
 
     func clearAll() {
+        loadFailed = false
         records = [:]
         if let url = fileURL {
             try? FileManager.default.removeItem(at: url)
@@ -280,12 +292,16 @@ final class FoodAtlasStore {
     }
 
     func replaceAll(_ list: [FoodRecord]) {
+        loadFailed = false
         records = Dictionary(list.map { ($0.foodId, $0) }, uniquingKeysWith: { _, latest in latest })
         persist()
+        if fileURL == FoodAtlasStore.defaultURL {
+            FoodStickerStore.prune(keeping: Set(records.keys))
+        }
     }
 
     private func persist() {
-        guard let url = fileURL else { return }
+        guard !loadFailed, let url = fileURL else { return }
         do {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             let sorted = records.values.sorted { $0.foodId < $1.foodId }

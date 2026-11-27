@@ -68,6 +68,20 @@ enum FoodStickerStore {
         return files.filter { $0.pathExtension.lowercased() == "png" }.count
     }
 
+    static func prune(keeping validFoodIDs: Set<String>, in dir: URL = folder) {
+        guard let files = try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: nil) else { return }
+        for f in files where f.pathExtension.lowercased() == "png" {
+            let foodId = f.deletingPathExtension().lastPathComponent
+            if !validFoodIDs.contains(foodId) {
+                try? FileManager.default.removeItem(at: f)
+                if dir == folder { cache.removeObject(forKey: foodId as NSString) }
+            }
+        }
+        if dir == folder {
+            Task { @MainActor in FoodStickerVersion.shared.bump() }
+        }
+    }
+
     static func clearAll(in dir: URL = folder) {
         try? FileManager.default.removeItem(at: dir)
         if dir == folder {
